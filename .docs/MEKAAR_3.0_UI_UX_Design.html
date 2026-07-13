@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEKAAR 3.0 — UI/UX Design System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+  :root {
+    --c-bg: #FAFBFC; --c-surface: #FFFFFF; --c-surface-2: #F4F6F8; --c-surface-3: #EAEEF2;
+    --c-text: #0F172A; --c-text-2: #475569; --c-text-3: #94A3B8;
+    --c-accent: #E11D48; --c-accent-light: #FFF1F2; --c-accent-soft: #FDA4AF;
+    --c-success: #10B981; --c-success-light: #ECFDF5;
+    --c-warning: #F59E0B; --c-warning-light: #FFFBEB;
+    --c-info: #3B82F6; --c-info-light: #EFF6FF;
+    --c-guardian: #7C3AED; --c-guardian-light: #F3E8FF;
+    --c-border: #E2E8F0; --c-border-light: #F1F5F9;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.08); --shadow-sos: 0 0 40px rgba(225,29,72,0.25);
+    --radius-sm: 12px; --radius-md: 16px; --radius-lg: 24px; --radius-xl: 32px;
+    --font-body: 'DM Sans', sans-serif; --font-display: 'Space Grotesk', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-body); background: #E8ECF0; min-height: 100vh; padding: 24px; color: var(--c-text); }
+  .design-system { max-width: 1400px; margin: 0 auto; }
+  h1 { font-family: var(--font-display); font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { font-size: 15px; color: var(--c-text-2); margin-bottom: 40px; }
+  .section-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--c-accent); display: inline-block; }
+  .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-bottom: 40px; }
+  .color-swatch { border-radius: var(--radius-sm); padding: 20px 12px; text-align: center; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+  .color-swatch:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+  .color-swatch .name { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .color-swatch .hex { font-size: 10px; opacity: 0.7; font-family: monospace; }
+  .typo-showcase { background: var(--c-surface); border-radius: var(--radius-md); padding: 32px; margin-bottom: 40px; box-shadow: var(--shadow-sm); }
+  .typo-item { margin-bottom: 20px; } .typo-item:last-child { margin-bottom: 0; }
+  .typo-label { font-size: 11px; color: var(--c-text-3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .typo-display { font-family: var(--font-display); font-size: 28px; font-weight: 700; }
+  .typo-h1 { font-family: var(--font-display); font-size: 22px; font-weight: 600; }
+  .typo-h2 { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+  .typo-body { font-size: 15px; line-height: 1.6; color: var(--c-text-2); }
+  .typo-caption { font-size: 12px; color: var(--c-text-3); }
+  .typo-sos { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--c-accent); letter-spacing: 0.5px; }
+  .components-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
+  .component-card { background: var(--c-surface); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); }
+  .component-card h3 { font-family: var(--font-display); font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--c-text-2); }
+  .btn { border: none; border-radius: var(--radius-sm); padding: 14px 24px; font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--c-text); color: white; } .btn-primary:hover { background: #1E293B; transform: translateY(-1px); }
+  .btn-accent { background: var(--c-accent); color: white; } .btn-accent:hover { background: #BE123C; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--c-text-2); border: 1.5px solid var(--c-border); } .btn-ghost:hover { background: var(--c-surface-2); }
+  .btn-sos { background: var(--c-accent); color: white; border-radius: 50%; width: 72px; height: 72px; padding: 0; justify-content: center; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; box-shadow: 0 4px 20px rgba(225,29,72,0.35); animation: pulse-sos 2s infinite; }
+  @keyframes pulse-sos { 0%,100% { box-shadow: 0 4px 20px rgba(225,29,72,0.35); } 50% { box-shadow: 0 4px 40px rgba(225,29,72,0.55); } }
+  .btn-sos:hover { transform: scale(1.05); }
+  .input-field { width: 100%; padding: 14px 18px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 15px; background: var(--c-surface); transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+  .input-field:focus { border-color: var(--c-accent); box-shadow: 0 0 0 3px rgba(225,29,72,0.08); }
+  .input-field::placeholder { color: var(--c-text-3); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+  .chip-accent { background: var(--c-accent-light); color: var(--c-accent); }
+  .chip-success { background: var(--c-success-light); color: var(--c-success); }
+  .chip-guardian { background: var(--c-guardian-light); color: var(--c-guardian); }
+  .card { background: var(--c-surface); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--c-border-light); }
+  .avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; color: white; flex-shrink: 0; }
+  .avatar-sm { width: 36px; height: 36px; font-size: 13px; } .avatar-lg { width: 64px; height: 64px; font-size: 20px; }
+  .screens-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 32px; margin-bottom: 40px; }
+  .phone-frame { background: #1a1a1a; border-radius: 48px; padding: 12px; box-shadow: var(--shadow-lg), 0 20px 60px rgba(0,0,0,0.15); width: 320px; margin: 0 auto; position: relative; }
+  .phone-notch { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 120px; height: 28px; background: #1a1a1a; border-radius: 0 0 20px 20px; z-index: 10; }
+  .phone-screen { background: var(--c-bg); border-radius: 40px; overflow: hidden; height: 680px; position: relative; display: flex; flex-direction: column; }
+  .phone-label { text-align: center; margin-top: 16px; font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--c-text-2); }
+  .status-bar { height: 44px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 24px 8px; font-size: 13px; font-weight: 600; color: var(--c-text); flex-shrink: 0; }
+  .status-bar.dark { color: white; } .status-bar .time { font-variant-numeric: tabular-nums; } .status-bar .icons { display: flex; gap: 4px; align-items: center; }
+  .screen-content { flex: 1; overflow-y: auto; position: relative; } .screen-content::-webkit-scrollbar { display: none; }
+  .splash-screen { background: var(--c-bg); height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; }
+  .splash-logo { width: 100px; height: 100px; background: var(--c-accent); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; margin-bottom: 32px; box-shadow: var(--shadow-sos); animation: logo-breathe 3s ease-in-out infinite; }
+  @keyframes logo-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+  .splash-logo svg { width: 48px; height: 48px; }
+  .splash-title { font-family: var(--font-display); font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .splash-tagline { font-size: 14px; color: var(--c-text-2); line-height: 1.5; max-width: 240px; }
+  .splash-version { position: absolute; bottom: 40px; font-size: 11px; color: var(--c-text-3); letter-spacing: 1px; }
+  .onboarding-screen { height: 100%; display: flex; flex-direction: column; padding: 0 28px; }
+  .onboarding-illustration { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 0; }
+  .onboarding-illustration .illus-circle { width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; }
+  .onboarding-text { padding-bottom: 32px; }
+  .onboarding-text h2 { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin-bottom: 12px; line-height: 1.2; }
+  .onboarding-text p { font-size: 14px; color: var(--c-text-2); line-height: 1.6; }
+  .onboarding-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c-border); transition: all 0.3s; }
+  .dot.active { width: 24px; border-radius: 4px; background: var(--c-accent); }
+  .onboarding-nav { display: flex; justify-content: space-between; align-items: center; padding-bottom: 40px; }
+  .onboarding-nav .skip { font-size: 14px; color: var(--c-text-3); cursor: pointer; font-weight: 500; }
+  .onboarding-nav .next-btn { width: 56px; height: 56px; border-radius: 50%; background: var(--c-text); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+  .onboarding-nav .next-btn:hover { transform: scale(1.05); background: var(--c-accent); }
+  .auth-screen { height: 100%; display: flex; flex-direction: column; padding: 0 28px; }
+  .auth-header { padding-top: 60px; margin-bottom: 40px; }
+  .auth-header h2 { font-family: var(--font-display); font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .auth-header p { font-size: 14px; color: var(--c-text-2); }
+  .auth-form { display: flex; flex-direction: column; gap: 16px; }
+  .auth-form .input-wrap { position: relative; }
+  .auth-form .input-wrap .icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--c-text-3); }
+  .auth-form .input-wrap .input-field { padding-left: 48px; }
+  .auth-divider { display: flex; align-items: center; gap: 16px; margin: 24px 0; color: var(--c-text-3); font-size: 12px; font-weight: 500; }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--c-border); }
+  .social-btn { width: 100%; padding: 14px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); background: var(--c-surface); display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--c-text); cursor: pointer; transition: all 0.2s; }
+  .social-btn:hover { background: var(--c-surface-2); }
+  .auth-footer { margin-top: auto; padding-bottom: 40px; text-align: center; font-size: 13px; color: var(--c-text-2); }
+  .auth-footer a { color: var(--c-accent); font-weight: 600; text-decoration: none; }
+  .pin-screen { height: 100%; display: flex; flex-direction: column; padding: 0 28px; }
+  .pin-header { padding-top: 60px; text-align: center; margin-bottom: 40px; }
+  .pin-header h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .pin-header p { font-size: 13px; color: var(--c-text-2); }
+  .pin-dots { display: flex; justify-content: center; gap: 16px; margin-bottom: 48px; }
+  .pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--c-border); transition: all 0.2s; }
+  .pin-dot.filled { background: var(--c-text); border-color: var(--c-text); }
+  .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 280px; margin: 0 auto; }
+  .pin-key { aspect-ratio: 1; border-radius: 50%; border: none; background: var(--c-surface-2); font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--c-text); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .pin-key:hover { background: var(--c-surface-3); } .pin-key:active { transform: scale(0.92); }
+  .pin-key.empty { background: transparent; cursor: default; } .pin-key.empty:hover { background: transparent; }
+  .pin-key.sos-key { background: var(--c-accent); color: white; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; animation: pulse-sos 2s infinite; }
+  .pin-key.sos-key:hover { background: #BE123C; }
+  .home-screen { height: 100%; display: flex; flex-direction: column; }
+  .home-header { padding: 12px 20px 16px; background: var(--c-surface); border-bottom: 1px solid var(--c-border-light); flex-shrink: 0; }
+  .home-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .home-header-top h1 { font-family: var(--font-display); font-size: 28px; font-weight: 700; }
+  .home-header-top .header-actions { display: flex; gap: 8px; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--c-surface-2); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--c-text); transition: all 0.2s; }
+  .icon-btn:hover { background: var(--c-surface-3); }
+  .search-bar { display: flex; align-items: center; gap: 10px; background: var(--c-surface-2); border-radius: var(--radius-sm); padding: 10px 16px; }
+  .search-bar input { border: none; background: transparent; font-size: 14px; outline: none; flex: 1; color: var(--c-text); font-family: var(--font-body); }
+  .search-bar input::placeholder { color: var(--c-text-3); }
+  .tab-bar { display: flex; gap: 4px; padding: 8px 20px; background: var(--c-surface); border-bottom: 1px solid var(--c-border-light); flex-shrink: 0; }
+  .tab { padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: var(--c-text-2); }
+  .tab.active { background: var(--c-text); color: white; } .tab:hover:not(.active) { background: var(--c-surface-2); }
+  .chat-list { flex: 1; overflow-y: auto; padding: 8px 0; } .chat-list::-webkit-scrollbar { display: none; }
+  .chat-item { display: flex; align-items: center; gap: 14px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; position: relative; }
+  .chat-item:hover { background: var(--c-surface-2); }
+  .chat-item .chat-info { flex: 1; min-width: 0; }
+  .chat-item .chat-info .name-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .chat-item .chat-info .name-row .name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-item .chat-info .name-row .time { font-size: 11px; color: var(--c-text-3); flex-shrink: 0; }
+  .chat-item .chat-info .preview { font-size: 13px; color: var(--c-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-item .chat-info .preview .guardian-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--c-guardian-light); color: var(--c-guardian); padding: 1px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; margin-right: 6px; vertical-align: middle; }
+  .chat-item .unread { min-width: 20px; height: 20px; border-radius: 50%; background: var(--c-accent); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 6px; flex-shrink: 0; }
+  .chat-item .sos-indicator { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 32px; background: var(--c-accent); border-radius: 0 4px 4px 0; }
+  .fab-sos { position: absolute; bottom: 24px; right: 20px; z-index: 100; }
+  .chat-screen { height: 100%; display: flex; flex-direction: column; background: var(--c-bg); }
+  .chat-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--c-surface); border-bottom: 1px solid var(--c-border-light); flex-shrink: 0; }
+  .chat-header .back-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--c-text); }
+  .chat-header .chat-title { flex: 1; }
+  .chat-header .chat-title .name { font-weight: 600; font-size: 15px; }
+  .chat-header .chat-title .status { font-size: 12px; color: var(--c-success); }
+  .chat-header .chat-title .status.offline { color: var(--c-text-3); }
+  .messages-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; } .messages-area::-webkit-scrollbar { display: none; }
+  .msg-bubble { max-width: 75%; padding: 12px 16px; border-radius: var(--radius-md); font-size: 14px; line-height: 1.5; position: relative; }
+  .msg-bubble.sent { align-self: flex-end; background: var(--c-text); color: white; border-bottom-right-radius: 4px; }
+  .msg-bubble.received { align-self: flex-start; background: var(--c-surface); color: var(--c-text); border-bottom-left-radius: 4px; box-shadow: var(--shadow-sm); }
+  .msg-bubble .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
+  .msg-bubble.sent .msg-time { color: rgba(255,255,255,0.7); }
+  .msg-system { align-self: center; background: var(--c-surface-2); padding: 6px 14px; border-radius: 100px; font-size: 11px; color: var(--c-text-2); font-weight: 500; }
+  .chat-input-area { padding: 12px 16px 24px; background: var(--c-surface); border-top: 1px solid var(--c-border-light); flex-shrink: 0; }
+  .chat-input-wrap { display: flex; align-items: center; gap: 10px; background: var(--c-surface-2); border-radius: 100px; padding: 4px 4px 4px 16px; }
+  .chat-input-wrap input { flex: 1; border: none; background: transparent; font-size: 15px; outline: none; padding: 10px 0; font-family: var(--font-body); color: var(--c-text); }
+  .chat-input-wrap input::placeholder { color: var(--c-text-3); }
+  .chat-input-wrap .send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--c-text); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .chat-input-wrap .send-btn:hover { background: var(--c-accent); }
+  .sos-overlay { position: absolute; inset: 0; background: rgba(225,29,72,0.95); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; color: white; animation: sos-fade-in 0.4s ease-out; }
+  @keyframes sos-fade-in { from { opacity: 0; transform: scale(1.05); } to { opacity: 1; transform: scale(1); } }
+  .sos-overlay .sos-icon { width: 80px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; animation: sos-pulse 1.5s ease-in-out infinite; }
+  @keyframes sos-pulse { 0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.3); } 50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255,255,255,0); } }
+  .sos-overlay h2 { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .sos-overlay p { font-size: 14px; opacity: 0.85; line-height: 1.5; margin-bottom: 32px; }
+  .sos-timer { font-family: var(--font-display); font-size: 48px; font-weight: 700; margin-bottom: 8px; letter-spacing: 2px; }
+  .sos-actions { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 260px; }
+  .sos-btn { width: 100%; padding: 16px; border-radius: var(--radius-sm); border: none; font-family: var(--font-body); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .sos-btn.video { background: white; color: var(--c-accent); } .sos-btn.video:hover { background: var(--c-accent-light); }
+  .sos-btn.end { background: rgba(255,255,255,0.15); color: white; border: 1.5px solid rgba(255,255,255,0.3); } .sos-btn.end:hover { background: rgba(255,255,255,0.25); }
+  .guardian-screen { height: 100%; display: flex; flex-direction: column; padding: 0 20px; }
+  .guardian-header { padding-top: 16px; margin-bottom: 24px; }
+  .guardian-header h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .guardian-header p { font-size: 13px; color: var(--c-text-2); }
+  .guardian-list { flex: 1; overflow-y: auto; }
+  .guardian-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--c-surface); border-radius: var(--radius-md); margin-bottom: 12px; border: 1px solid var(--c-border-light); box-shadow: var(--shadow-sm); }
+  .guardian-card .guardian-info { flex: 1; }
+  .guardian-card .guardian-info .name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+  .guardian-card .guardian-info .email { font-size: 12px; color: var(--c-text-3); }
+  .guardian-card .guardian-info .perms { display: flex; gap: 6px; margin-top: 8px; }
+  .guardian-card .guardian-actions { display: flex; gap: 8px; }
+  .guardian-card .guardian-actions .icon-btn { width: 36px; height: 36px; }
+  .add-guardian-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 16px; border: 2px dashed var(--c-border); border-radius: var(--radius-md); background: transparent; color: var(--c-text-2); font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 24px; transition: all 0.2s; }
+  .add-guardian-btn:hover { border-color: var(--c-accent); color: var(--c-accent); background: var(--c-accent-light); }
+  .settings-screen { height: 100%; display: flex; flex-direction: column; }
+  .settings-header { padding: 16px 20px; border-bottom: 1px solid var(--c-border-light); }
+  .settings-header h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+  .settings-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .settings-section { padding: 20px; border-bottom: 1px solid var(--c-border-light); }
+  .settings-section:last-child { border-bottom: none; }
+  .settings-section .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--c-text-3); margin-bottom: 12px; }
+  .settings-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; cursor: pointer; transition: opacity 0.15s; }
+  .settings-item:hover { opacity: 0.7; }
+  .settings-item .settings-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .settings-item .settings-info { flex: 1; }
+  .settings-item .settings-info .label { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+  .settings-item .settings-info .desc { font-size: 12px; color: var(--c-text-3); }
+  .settings-item .chevron { color: var(--c-text-3); }
+  .toggle { width: 48px; height: 28px; border-radius: 14px; background: var(--c-border); position: relative; cursor: pointer; transition: background 0.3s; flex-shrink: 0; }
+  .toggle.on { background: var(--c-success); }
+  .toggle .knob { width: 24px; height: 24px; border-radius: 50%; background: white; position: absolute; top: 2px; left: 2px; transition: transform 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .toggle.on .knob { transform: translateX(20px); }
+  .bottom-nav { display: flex; justify-content: space-around; align-items: center; padding: 8px 0 24px; background: var(--c-surface); border-top: 1px solid var(--c-border-light); flex-shrink: 0; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 16px; cursor: pointer; color: var(--c-text-3); transition: color 0.2s; border: none; background: transparent; font-family: var(--font-body); }
+  .nav-item.active { color: var(--c-text); }
+  .nav-item .nav-label { font-size: 10px; font-weight: 600; }
+  .nav-item .nav-icon { width: 24px; height: 24px; }
+  .logs-screen { height: 100%; display: flex; flex-direction: column; }
+  .logs-header { padding: 16px 20px; border-bottom: 1px solid var(--c-border-light); display: flex; justify-content: space-between; align-items: center; }
+  .logs-header h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+  .log-item { padding: 16px 20px; border-bottom: 1px solid var(--c-border-light); display: flex; gap: 14px; }
+  .log-item .log-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .log-item .log-content { flex: 1; }
+  .log-item .log-content .log-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .log-item .log-content .log-meta { font-size: 12px; color: var(--c-text-3); }
+  .log-item .log-time { font-size: 11px; color: var(--c-text-3); flex-shrink: 0; white-space: nowrap; }
+  .map-screen { height: 100%; display: flex; flex-direction: column; position: relative; }
+  .map-area { flex: 1; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%); position: relative; overflow: hidden; }
+  .map-area::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 40%, rgba(59,130,246,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(34,197,94,0.08) 0%, transparent 40%); }
+  .map-marker { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); width: 48px; height: 48px; background: var(--c-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 16px rgba(225,29,72,0.4); animation: marker-bounce 2s ease-in-out infinite; }
+  @keyframes marker-bounce { 0%,100% { transform: translate(-50%, -50%) translateY(0); } 50% { transform: translate(-50%, -50%) translateY(-8px); } }
+  .map-marker::after { content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 14px solid var(--c-accent); }
+  .map-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: var(--c-surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
+  .map-overlay .location-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+  .map-overlay .location-address { font-size: 13px; color: var(--c-text-2); margin-bottom: 16px; }
+  .map-overlay .map-actions { display: flex; gap: 10px; }
+  .map-overlay .map-actions .btn { flex: 1; justify-content: center; }
+  .video-screen { height: 100%; display: flex; flex-direction: column; background: #0F172A; color: white; }
+  .video-preview { flex: 1; position: relative; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); display: flex; align-items: center; justify-content: center; }
+  .video-preview .camera-placeholder { width: 200px; height: 200px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+  .video-preview .camera-placeholder span { font-size: 13px; color: rgba(255,255,255,0.5); }
+  .video-preview .recording-dot { position: absolute; top: 16px; right: 16px; width: 10px; height: 10px; background: var(--c-accent); border-radius: 50%; animation: blink 1s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .video-preview .timer-overlay { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 100px; font-family: var(--font-display); font-size: 14px; font-weight: 600; letter-spacing: 1px; }
+  .video-controls { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .video-controls .control-row { display: flex; justify-content: space-around; align-items: center; }
+  .video-controls .control-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-family: var(--font-body); font-size: 11px; }
+  .video-controls .control-btn .ctrl-icon { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .video-controls .control-btn:hover .ctrl-icon { background: rgba(255,255,255,0.2); }
+  .video-controls .control-btn.stop .ctrl-icon { background: var(--c-accent); }
+  .video-controls .control-btn.stop:hover .ctrl-icon { background: #BE123C; }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; }
+  .empty-state .empty-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--c-surface-2); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--c-text-3); }
+  .empty-state h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .empty-state p { font-size: 13px; color: var(--c-text-2); line-height: 1.5; max-width: 240px; }
+  .profile-header { padding: 24px 20px; background: var(--c-surface); border-bottom: 1px solid var(--c-border-light); display: flex; align-items: center; gap: 16px; }
+  .profile-header .profile-info { flex: 1; }
+  .profile-header .profile-info .name { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+  .profile-header .profile-info .email { font-size: 13px; color: var(--c-text-2); }
+  .notif-item { padding: 16px 20px; border-bottom: 1px solid var(--c-border-light); display: flex; gap: 14px; align-items: flex-start; }
+  .notif-item.unread { background: var(--c-accent-light); }
+  .notif-item .notif-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .notif-item .notif-content { flex: 1; }
+  .notif-item .notif-content .notif-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; line-height: 1.4; }
+  .notif-item .notif-content .notif-body { font-size: 13px; color: var(--c-text-2); line-height: 1.4; margin-bottom: 4px; }
+  .notif-item .notif-content .notif-time { font-size: 11px; color: var(--c-text-3); }
+  .scroll-hint { text-align: center; padding: 8px; font-size: 11px; color: var(--c-text-3); display: flex; align-items: center; justify-content: center; gap: 6px; }
+  @media (max-width: 768px) { .screens-grid { grid-template-columns: 1fr; } .phone-frame { width: 100%; max-width: 320px; } }
+</style>
+</head>
+<body>
+
+<div class="design-system">
+  <h1>🛡️ MEKAAR 3.0 — UI/UX Design System</h1>
+  <p class="subtitle">Complete screen-by-screen design for a modern, youth-oriented, breathable chat + safety app</p>
+
+  <div class="section-title">🎨 Color Palette</div>
+  <div class="palette-grid">
+    <div class="color-swatch" style="background:#0F172A;color:white;"><div class="name">Text Primary</div><div class="hex">#0F172A</div></div>
+    <div class="color-swatch" style="background:#475569;color:white;"><div class="name">Text Secondary</div><div class="hex">#475569</div></div>
+    <div class="color-swatch" style="background:#94A3B8;color:white;"><div class="name">Text Muted</div><div class="hex">#94A3B8</div></div>
+    <div class="color-swatch" style="background:#E11D48;color:white;"><div class="name">SOS Accent</div><div class="hex">#E11D48</div></div>
+    <div class="color-swatch" style="background:#FFF1F2;color:#E11D48;"><div class="name">SOS Light</div><div class="hex">#FFF1F2</div></div>
+    <div class="color-swatch" style="background:#10B981;color:white;"><div class="name">Success</div><div class="hex">#10B981</div></div>
+    <div class="color-swatch" style="background:#7C3AED;color:white;"><div class="name">Guardian</div><div class="hex">#7C3AED</div></div>
+    <div class="color-swatch" style="background:#3B82F6;color:white;"><div class="name">Info</div><div class="hex">#3B82F6</div></div>
+    <div class="color-swatch" style="background:#F59E0B;color:white;"><div class="name">Warning</div><div class="hex">#F59E0B</div></div>
+    <div class="color-swatch" style="background:#FAFBFC;color:#0F172A;border:1px solid #E2E8F0;"><div class="name">Background</div><div class="hex">#FAFBFC</div></div>
+    <div class="color-swatch" style="background:#FFFFFF;color:#0F172A;border:1px solid #E2E8F0;"><div class="name">Surface</div><div class="hex">#FFFFFF</div></div>
+    <div class="color-swatch" style="background:#F4F6F8;color:#0F172A;border:1px solid #E2E8F0;"><div class="name">Surface 2</div><div class="hex">#F4F6F8</div></div>
+  </div>
+
+  <div class="section-title">🔤 Typography</div>
+  <div class="typo-showcase">
+    <div class="typo-item"><div class="typo-label">Display / Logo</div><div class="typo-display">MEKAAR</div></div>
+    <div class="typo-item"><div class="typo-label">Heading 1</div><div class="typo-h1">Selamat Datang Kembali</div></div>
+    <div class="typo-item"><div class="typo-label">Heading 2</div><div class="typo-h2">Pengaturan Keamanan</div></div>
+    <div class="typo-item"><div class="typo-label">Body</div><div class="typo-body">Aplikasi chat modern dengan fitur keamanan personal. Chat adalah fondasi, keamanan adalah nilai tambah yang bisa diaktifkan kapan saja.</div></div>
+    <div class="typo-item"><div class="typo-label">Caption</div><div class="typo-caption">Terakhir aktif 2 menit yang lalu · Jakarta, Indonesia</div></div>
+    <div class="typo-item"><div class="typo-label">SOS Label</div><div class="typo-sos">SOS DARURAT</div></div>
+  </div>
+
+  <div class="section-title">🧩 Component Library</div>
+  <div class="components-grid">
+    <div class="component-card">
+      <h3>Buttons</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn btn-primary">Primary Button</button>
+        <button class="btn btn-accent">SOS Action</button>
+        <button class="btn btn-ghost">Ghost Button</button>
+        <div style="display:flex;justify-content:center;margin-top:8px;">
+          <button class="btn btn-sos">SOS</button>
+        </div>
+      </div>
+    </div>
+    <div class="component-card">
+      <h3>Input Fields</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input class="input-field" placeholder="Cari kontak...">
+        <input class="input-field" placeholder="Email address" value="user@email.com">
+        <div class="input-field" style="display:flex;align-items:center;gap:8px;">
+          <span style="color:var(--c-text-3);">🔒</span>
+          <span style="font-family:monospace;letter-spacing:2px;">••••••</span>
+        </div>
+      </div>
+    </div>
+    <div class="component-card">
+      <h3>Chips & Badges</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <span class="chip chip-accent">SOS Aktif</span>
+        <span class="chip chip-success">Online</span>
+        <span class="chip chip-guardian">Guardian</span>
+      </div>
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="avatar" style="background:linear-gradient(135deg,#E11D48,#BE123C);">A</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Ahmad Rizky</div>
+            <div style="font-size:12px;color:var(--c-text-3);">Guardian aktif · 12 hari tersisa</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div class="avatar avatar-sm" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);">B</div>
+        <div class="avatar" style="background:linear-gradient(135deg,#10B981,#059669);">C</div>
+        <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">D</div>
+      </div>
+    </div>
+    <div class="component-card">
+      <h3>Toggles & Switches</h3>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:14px;">Notifikasi SOS</span>
+          <div class="toggle on"><div class="knob"></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:14px;">Auto-delete Chat</span>
+          <div class="toggle"><div class="knob"></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:14px;">Biometrik</span>
+          <div class="toggle on"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">📱 Screen-by-Screen Designs</div>
+  <div class="screens-grid">
+    <!-- SPLASH SCREEN -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="splash-screen">
+            <div class="splash-logo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <circle cx="12" cy="11" r="3" fill="white" stroke="none"/>
+              </svg>
+            </div>
+            <div class="splash-title">MEKAAR</div>
+            <div class="splash-tagline">Chat modern dengan fitur keamanan personal untuk situasi darurat</div>
+            <div class="splash-version">v3.0 · Supabase Edition</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">01 · Splash Screen</div>
+    </div>
+
+    <!-- ONBOARDING 1 -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="onboarding-screen">
+            <div class="onboarding-illustration">
+              <div class="illus-circle" style="background:linear-gradient(135deg,#FFF1F2,#FDA4AF);">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+              </div>
+            </div>
+            <div class="onboarding-text">
+              <h2>Keamanan Dimulai dari Anda</h2>
+              <p>Tidak ada yang bisa mengakses sensor perangkat Anda tanpa persetujuan Anda. Anda yang memegang kendali penuh.</p>
+            </div>
+            <div class="onboarding-dots">
+              <div class="dot active"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+            <div class="onboarding-nav">
+              <span class="skip">Lewati</span>
+              <button class="next-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">02 · Onboarding (1/3)</div>
+    </div>
+
+    <!-- ONBOARDING 2 -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="onboarding-screen">
+            <div class="onboarding-illustration">
+              <div class="illus-circle" style="background:linear-gradient(135deg,#F3E8FF,#C4B5FD);">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+            </div>
+            <div class="onboarding-text">
+              <h2>Guardian — Orang Terpercaya</h2>
+              <p>Pilih orang yang Anda percayai. Mereka hanya bisa melihat lokasi dan mendengar audio saat Anda menekan SOS.</p>
+            </div>
+            <div class="onboarding-dots">
+              <div class="dot"></div>
+              <div class="dot active"></div>
+              <div class="dot"></div>
+            </div>
+            <div class="onboarding-nav">
+              <span class="skip">Lewati</span>
+              <button class="next-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">03 · Onboarding (2/3)</div>
+    </div>
+
+    <!-- ONBOARDING 3 -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="onboarding-screen">
+            <div class="onboarding-illustration">
+              <div class="illus-circle" style="background:linear-gradient(135deg,#ECFDF5,#6EE7B7);">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 12l2 2 4-4"/>
+                  <path d="M12 8v4"/>
+                  <path d="M12 16h.01"/>
+                </svg>
+              </div>
+            </div>
+            <div class="onboarding-text">
+              <h2>Transparansi Total</h2>
+              <p>Setiap akses sensor dicatat permanen. Log tidak bisa dihapus tanpa jejak. Privasi Anda adalah prioritas.</p>
+            </div>
+            <div class="onboarding-dots">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot active"></div>
+            </div>
+            <div class="onboarding-nav">
+              <span class="skip">Lewati</span>
+              <button class="next-btn" style="width:auto;padding:14px 28px;border-radius:100px;font-size:14px;">
+                Mulai
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">04 · Onboarding (3/3)</div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="auth-screen">
+            <div class="auth-header">
+              <h2>Masuk ke Mekaar</h2>
+              <p>Chat aman dengan fitur keamanan personal</p>
+            </div>
+            <div class="auth-form">
+              <div class="input-wrap">
+                <span class="icon">✉️</span>
+                <input class="input-field" placeholder="Email address" value="user@email.com">
+              </div>
+              <div class="input-wrap">
+                <span class="icon">🔒</span>
+                <input class="input-field" type="password" placeholder="Password" value="password123">
+              </div>
+              <button class="btn btn-primary" style="width:100%;justify-content:center;">Masuk</button>
+            </div>
+            <div class="auth-divider">ATAU</div>
+            <button class="social-btn">
+              <span style="font-size:18px;">🔍</span> Masuk dengan Google
+            </button>
+            <div class="auth-footer">
+              Belum punya akun? <a href="#">Daftar</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">05 · Login Screen</div>
+    </div>
+
+    <!-- PIN SCREEN -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="pin-screen">
+            <div class="pin-header">
+              <h2>Masukkan PIN</h2>
+              <p>PIN 6 digit untuk membuka aplikasi</p>
+            </div>
+            <div class="pin-dots">
+              <div class="pin-dot filled"></div>
+              <div class="pin-dot filled"></div>
+              <div class="pin-dot filled"></div>
+              <div class="pin-dot"></div>
+              <div class="pin-dot"></div>
+              <div class="pin-dot"></div>
+            </div>
+            <div class="pin-keypad">
+              <button class="pin-key">1</button>
+              <button class="pin-key">2</button>
+              <button class="pin-key">3</button>
+              <button class="pin-key">4</button>
+              <button class="pin-key">5</button>
+              <button class="pin-key">6</button>
+              <button class="pin-key">7</button>
+              <button class="pin-key">8</button>
+              <button class="pin-key">9</button>
+              <button class="pin-key empty"></button>
+              <button class="pin-key">0</button>
+              <button class="pin-key sos-key">SOS</button>
+            </div>
+            <div style="text-align:center;margin-top:24px;font-size:13px;color:var(--c-text-3);">
+              Lupa PIN? <a href="#" style="color:var(--c-accent);font-weight:600;text-decoration:none;">Reset</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">06 · PIN Lock Screen (SOS di keypad)</div>
+    </div>
+
+    <!-- HOME / CHAT LIST -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="home-screen">
+            <div class="home-header">
+              <div class="home-header-top">
+                <h1>Pesan</h1>
+                <div class="header-actions">
+                  <button class="icon-btn">🔍</button>
+                  <button class="icon-btn">⚙️</button>
+                </div>
+              </div>
+              <div class="search-bar">
+                <span style="color:var(--c-text-3);">🔍</span>
+                <input placeholder="Cari chat atau kontak...">
+              </div>
+            </div>
+            <div class="tab-bar">
+              <div class="tab active">Semua</div>
+              <div class="tab">Guardian</div>
+              <div class="tab">Grup</div>
+            </div>
+            <div class="chat-list">
+              <div class="chat-item">
+                <div class="sos-indicator"></div>
+                <div class="avatar" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">B</div>
+                <div class="chat-info">
+                  <div class="name-row">
+                    <span class="name">Budi Santoso</span>
+                    <span class="time">14:32</span>
+                  </div>
+                  <div class="preview">
+                    <span class="guardian-badge">GUARDIAN</span>
+                    Lokasi terakhir: Jl. Sudirman
+                  </div>
+                </div>
+                <div class="unread">2</div>
+              </div>
+              <div class="chat-item">
+                <div class="avatar" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);">S</div>
+                <div class="chat-info">
+                  <div class="name-row">
+                    <span class="name">Siti Aminah</span>
+                    <span class="time">Kemarin</span>
+                  </div>
+                  <div class="preview">Oke, sampai ketemu besok ya!</div>
+                </div>
+              </div>
+              <div class="chat-item">
+                <div class="avatar" style="background:linear-gradient(135deg,#10B981,#059669);">R</div>
+                <div class="chat-info">
+                  <div class="name-row">
+                    <span class="name">Rina Wijaya</span>
+                    <span class="time">Kemarin</span>
+                  </div>
+                  <div class="preview">
+                    <span class="guardian-badge">GUARDIAN</span>
+                    Izin kedaluwarsa dalam 5 hari
+                  </div>
+                </div>
+              </div>
+              <div class="chat-item">
+                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#D97706);">K</div>
+                <div class="chat-info">
+                  <div class="name-row">
+                    <span class="name">Keluarga Besar</span>
+                    <span class="time">Sen</span>
+                  </div>
+                  <div class="preview">Paman: Jangan lupa acara minggu depan</div>
+                </div>
+                <div class="unread">5</div>
+              </div>
+              <div class="chat-item">
+                <div class="avatar" style="background:linear-gradient(135deg,#E11D48,#BE123C);">A</div>
+                <div class="chat-info">
+                  <div class="name-row">
+                    <span class="name">Andi Pratama</span>
+                    <span class="time">Minggu</span>
+                  </div>
+                  <div class="preview">Foto yang kamu kirim keren banget!</div>
+                </div>
+              </div>
+            </div>
+            <div class="fab-sos">
+              <button class="btn btn-sos">SOS</button>
+            </div>
+            <div class="bottom-nav">
+              <button class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="nav-label">Chat</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="nav-label">Guardian</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="nav-label">Keamanan</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span class="nav-label">Pengaturan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">07 · Home / Chat List</div>
+    </div>
+
+    <!-- CHAT SCREEN -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="chat-screen">
+            <div class="chat-header">
+              <button class="back-btn">←</button>
+              <div class="avatar" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">B</div>
+              <div class="chat-title">
+                <div class="name">Budi Santoso</div>
+                <div class="status">● Online</div>
+              </div>
+              <button class="icon-btn" style="background:var(--c-accent-light);color:var(--c-accent);">📞</button>
+              <button class="icon-btn" style="background:var(--c-accent-light);color:var(--c-accent);">🎥</button>
+            </div>
+            <div class="messages-area">
+              <div class="msg-system">Hari ini</div>
+              <div class="msg-bubble received">
+                Hai, kamu sudah sampai kantor?
+                <div class="msg-time">14:28</div>
+              </div>
+              <div class="msg-bubble sent">
+                Sudah nih, baru aja sampai. Kenapa?
+                <div class="msg-time">14:30</div>
+              </div>
+              <div class="msg-bubble received">
+                Aman-aman, cuma nanyain aja. Hati-hati di jalan ya!
+                <div class="msg-time">14:31</div>
+              </div>
+              <div class="msg-system" style="background:var(--c-accent-light);color:var(--c-accent);">
+                🚨 SOS diaktifkan — Lokasi terkirim
+              </div>
+              <div class="msg-bubble received">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <span style="font-size:16px;">📍</span>
+                  <span style="font-weight:600;">Lokasi Live</span>
+                </div>
+                Jl. Sudirman No. 45, Jakarta
+                <div class="msg-time">14:32</div>
+              </div>
+            </div>
+            <div class="chat-input-area">
+              <div class="chat-input-wrap">
+                <span style="color:var(--c-text-3);cursor:pointer;">📎</span>
+                <input placeholder="Ketik pesan...">
+                <span style="color:var(--c-text-3);cursor:pointer;">😊</span>
+                <button class="send-btn">➤</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">08 · Chat Screen (with SOS event)</div>
+    </div>
+
+    <!-- SOS ACTIVE OVERLAY -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="chat-screen">
+            <div class="chat-header">
+              <button class="back-btn">←</button>
+              <div class="avatar" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">B</div>
+              <div class="chat-title">
+                <div class="name">Budi Santoso</div>
+                <div class="status">● Online</div>
+              </div>
+            </div>
+            <div class="messages-area" style="opacity:0.3;">
+              <div class="msg-bubble received">Hai, kamu sudah sampai kantor?</div>
+            </div>
+            <div class="sos-overlay">
+              <div class="sos-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M12 8v4"/><path d="M12 16h.01"/>
+                </svg>
+              </div>
+              <h2>MODE DARURAT AKTIF</h2>
+              <p>Guardian telah diberitahu. Lokasi GPS sedang dikirim secara real-time.</p>
+              <div class="sos-timer">00:42</div>
+              <p style="font-size:12px;opacity:0.7;margin-bottom:24px;">Audio streaming aktif</p>
+              <div class="sos-actions">
+                <button class="sos-btn video">📹 Kirim Video ke Guardian</button>
+                <button class="sos-btn end">✕ Akhiri Mode Darurat</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">09 · SOS Active Overlay</div>
+    </div>
+
+    <!-- GUARDIAN MANAGEMENT -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="guardian-screen">
+            <div class="guardian-header">
+              <h2>Guardian Saya</h2>
+              <p>Kelola orang terpercaya yang bisa membantu saat darurat</p>
+            </div>
+            <button class="add-guardian-btn">
+              <span>+</span> Tambah Guardian
+            </button>
+            <div class="guardian-list">
+              <div class="guardian-card">
+                <div class="avatar" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">B</div>
+                <div class="guardian-info">
+                  <div class="name">Budi Santoso</div>
+                  <div class="email">budi.santoso@email.com</div>
+                  <div class="perms">
+                    <span class="chip chip-success">GPS ✓</span>
+                    <span class="chip chip-success">Mikrofon ✓</span>
+                  </div>
+                </div>
+                <div class="guardian-actions">
+                  <button class="icon-btn">⚙️</button>
+                  <button class="icon-btn" style="color:var(--c-accent);">🗑️</button>
+                </div>
+              </div>
+              <div class="guardian-card">
+                <div class="avatar" style="background:linear-gradient(135deg,#10B981,#059669);">R</div>
+                <div class="guardian-info">
+                  <div class="name">Rina Wijaya</div>
+                  <div class="email">rina.w@email.com</div>
+                  <div class="perms">
+                    <span class="chip chip-success">GPS ✓</span>
+                    <span class="chip chip-accent">Mikrofon ✗</span>
+                  </div>
+                </div>
+                <div class="guardian-actions">
+                  <button class="icon-btn">⚙️</button>
+                  <button class="icon-btn" style="color:var(--c-accent);">🗑️</button>
+                </div>
+              </div>
+              <div class="guardian-card" style="opacity:0.5;">
+                <div class="avatar" style="background:linear-gradient(135deg,#94A3B8,#64748B);">A</div>
+                <div class="guardian-info">
+                  <div class="name">Ahmad Fauzi</div>
+                  <div class="email">ahmad.f@email.com</div>
+                  <div class="perms">
+                    <span class="chip chip-accent">Kedaluwarsa</span>
+                  </div>
+                </div>
+                <div class="guardian-actions">
+                  <button class="icon-btn">🔄</button>
+                </div>
+              </div>
+            </div>
+            <div class="bottom-nav">
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="nav-label">Chat</span>
+              </button>
+              <button class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="nav-label">Guardian</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="nav-label">Keamanan</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span class="nav-label">Pengaturan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">10 · Guardian Management</div>
+    </div>
+    <!-- SETTINGS SCREEN -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="settings-screen">
+            <div class="settings-header">
+              <h2>Pengaturan</h2>
+            </div>
+            <div class="settings-list">
+              <div class="settings-section">
+                <div class="section-label">Akun</div>
+                <div class="settings-item">
+                  <div class="avatar" style="background:linear-gradient(135deg,#E11D48,#BE123C);width:40px;height:40px;">A</div>
+                  <div class="settings-info">
+                    <div class="label">Ahmad Rizky</div>
+                    <div class="desc">ahmad.rizky@email.com</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+              </div>
+              <div class="settings-section">
+                <div class="section-label">Keamanan</div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-accent-light);color:var(--c-accent);">🔒</div>
+                  <div class="settings-info">
+                    <div class="label">Ubah PIN</div>
+                    <div class="desc">PIN 6 digit untuk membuka aplikasi</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-success-light);color:var(--c-success);">👆</div>
+                  <div class="settings-info">
+                    <div class="label">Biometrik</div>
+                    <div class="desc">Sidik jari / Face ID</div>
+                  </div>
+                  <div class="toggle on"><div class="knob"></div></div>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-warning-light);color:var(--c-warning);">🛡️</div>
+                  <div class="settings-info">
+                    <div class="label">Mode Perangkat Hilang</div>
+                    <div class="desc">Lacak, alarm, dan pesan layar</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+              </div>
+              <div class="settings-section">
+                <div class="section-label">Privasi & Data</div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-info-light);color:var(--c-info);">📝</div>
+                  <div class="settings-info">
+                    <div class="label">Log Sistem</div>
+                    <div class="desc">Catatan aktivitas keamanan permanen</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-guardian-light);color:var(--c-guardian);">🗑️</div>
+                  <div class="settings-info">
+                    <div class="label">Auto-delete Chat</div>
+                    <div class="desc">Hapus pesan otomatis setelah 7 hari</div>
+                  </div>
+                  <div class="toggle"><div class="knob"></div></div>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-accent-light);color:var(--c-accent);">💾</div>
+                  <div class="settings-info">
+                    <div class="label">Penyimpanan Data SOS</div>
+                    <div class="desc">Streaming saja — tidak disimpan</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+              </div>
+              <div class="settings-section">
+                <div class="section-label">Tentang</div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-surface-2);color:var(--c-text-2);">ℹ️</div>
+                  <div class="settings-info">
+                    <div class="label">Versi Aplikasi</div>
+                    <div class="desc">MEKAAR v3.0 (Supabase)</div>
+                  </div>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-surface-2);color:var(--c-text-2);">📋</div>
+                  <div class="settings-info">
+                    <div class="label">Kebijakan Privasi</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+              </div>
+            </div>
+            <div class="bottom-nav">
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="nav-label">Chat</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="nav-label">Guardian</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="nav-label">Keamanan</span>
+              </button>
+              <button class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span class="nav-label">Pengaturan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">11 · Settings Screen</div>
+    </div>
+
+    <!-- SECURITY LOGS -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="logs-screen">
+            <div class="logs-header">
+              <h2>Log Sistem</h2>
+              <button class="icon-btn">📤</button>
+            </div>
+            <div class="screen-content">
+              <div class="log-item">
+                <div class="log-icon" style="background:var(--c-accent-light);color:var(--c-accent);">🚨</div>
+                <div class="log-content">
+                  <div class="log-title">SOS Diaktifkan</div>
+                  <div class="log-meta">Mode darurat dimulai oleh Anda</div>
+                </div>
+                <div class="log-time">14:32<br>13 Jul</div>
+              </div>
+              <div class="log-item">
+                <div class="log-icon" style="background:var(--c-guardian-light);color:var(--c-guardian);">📍</div>
+                <div class="log-content">
+                  <div class="log-title">Guardian mengakses lokasi</div>
+                  <div class="log-meta">Budi Santoso · 8 menit</div>
+                </div>
+                <div class="log-time">14:32<br>13 Jul</div>
+              </div>
+              <div class="log-item">
+                <div class="log-icon" style="background:var(--c-info-light);color:var(--c-info);">🎙️</div>
+                <div class="log-content">
+                  <div class="log-title">Guardian mengakses mikrofon</div>
+                  <div class="log-meta">Budi Santoso · 8 menit</div>
+                </div>
+                <div class="log-time">14:32<br>13 Jul</div>
+              </div>
+              <div class="log-item">
+                <div class="log-icon" style="background:var(--c-success-light);color:var(--c-success);">✓</div>
+                <div class="log-content">
+                  <div class="log-title">SOS Diakhiri</div>
+                  <div class="log-meta">Mode darurat dihentikan manual</div>
+                </div>
+                <div class="log-time">14:40<br>13 Jul</div>
+              </div>
+              <div class="log-item">
+                <div class="log-icon" style="background:var(--c-warning-light);color:var(--c-warning);">🎥</div>
+                <div class="log-content">
+                  <div class="log-title">Video darurat dikirim</div>
+                  <div class="log-meta">Ke Budi Santoso · 3 menit</div>
+                </div>
+                <div class="log-time">14:35<br>13 Jul</div>
+              </div>
+              <div class="log-item" style="opacity:0.6;">
+                <div class="log-icon" style="background:var(--c-surface-2);color:var(--c-text-3);">🗑️</div>
+                <div class="log-content">
+                  <div class="log-title">Log dihapus</div>
+                  <div class="log-meta">Pengguna menghapus log akses</div>
+                </div>
+                <div class="log-time">10:15<br>12 Jul</div>
+              </div>
+            </div>
+            <div class="bottom-nav">
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="nav-label">Chat</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="nav-label">Guardian</span>
+              </button>
+              <button class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="nav-label">Keamanan</span>
+              </button>
+              <button class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span class="nav-label">Pengaturan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">12 · Security Logs Screen</div>
+    </div>
+
+    <!-- MAP / LOCATION VIEW -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="map-screen">
+            <div class="status-bar dark" style="position:absolute;z-index:10;background:transparent;">
+              <span class="time">14:32</span>
+              <span class="icons">📶 🔋</span>
+            </div>
+            <div class="map-area">
+              <div class="map-marker">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="map-overlay">
+              <div class="location-name">Jl. Sudirman No. 45</div>
+              <div class="location-address">Jakarta Pusat, DKI Jakarta · Akurasi ±5m</div>
+              <div class="map-actions">
+                <button class="btn btn-primary" style="flex:1;justify-content:center;">
+                  <span>🧭</span> Navigasi
+                </button>
+                <button class="btn btn-ghost" style="flex:1;justify-content:center;">
+                  <span>📋</span> Salin
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">13 · Map / Location View (OpenStreetMap)</div>
+    </div>
+
+    <!-- VIDEO EMERGENCY -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="video-screen">
+            <div class="status-bar dark" style="position:absolute;z-index:10;width:100%;background:transparent;">
+              <span class="time">14:35</span>
+              <span class="icons">📶 🔋</span>
+            </div>
+            <div class="video-preview">
+              <div class="recording-dot"></div>
+              <div class="timer-overlay">02:14</div>
+              <div class="camera-placeholder">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Kamera Depan Aktif</span>
+              </div>
+            </div>
+            <div class="video-controls">
+              <div class="control-row">
+                <button class="control-btn">
+                  <div class="ctrl-icon">🔄</div>
+                  Ganti Kamera
+                </button>
+                <button class="control-btn">
+                  <div class="ctrl-icon">🔒</div>
+                  Kunci Layar
+                </button>
+                <button class="control-btn stop">
+                  <div class="ctrl-icon">⏹</div>
+                  Hentikan
+                </button>
+              </div>
+              <div style="text-align:center;font-size:12px;color:rgba(255,255,255,0.5);padding-top:8px;">
+                Streaming ke Budi Santoso · Tidak disimpan
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">14 · Video Emergency Streaming</div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="logs-screen">
+            <div class="logs-header">
+              <h2>Notifikasi</h2>
+              <button class="icon-btn" style="font-size:12px;">Tandai Baca</button>
+            </div>
+            <div class="screen-content">
+              <div class="notif-item unread">
+                <div class="notif-icon" style="background:var(--c-accent-light);color:var(--c-accent);">🚨</div>
+                <div class="notif-content">
+                  <div class="notif-title">Ahmad Rizky dalam keadaan darurat!</div>
+                  <div class="notif-body">Lokasi: Jl. Sudirman No. 45, Jakarta</div>
+                  <div class="notif-time">14:32 · Baru saja</div>
+                </div>
+              </div>
+              <div class="notif-item unread">
+                <div class="notif-icon" style="background:var(--c-guardian-light);color:var(--c-guardian);">📍</div>
+                <div class="notif-content">
+                  <div class="notif-title">Lokasi live diperbarui</div>
+                  <div class="notif-body">Ahmad Rizky · Jl. Thamrin, Jakarta</div>
+                  <div class="notif-time">14:35 · 3 menit yang lalu</div>
+                </div>
+              </div>
+              <div class="notif-item">
+                <div class="notif-icon" style="background:var(--c-info-light);color:var(--c-info);">🔄</div>
+                <div class="notif-content">
+                  <div class="notif-title">Izin guardian kedaluwarsa</div>
+                  <div class="notif-body">Rina Wijaya · Perbarui untuk melanjutkan</div>
+                  <div class="notif-time">09:00 · 5 jam yang lalu</div>
+                </div>
+              </div>
+              <div class="notif-item">
+                <div class="notif-icon" style="background:var(--c-success-light);color:var(--c-success);">✓</div>
+                <div class="notif-content">
+                  <div class="notif-title">Mode darurat diakhiri</div>
+                  <div class="notif-body">Ahmad Rizky · Manual oleh pengguna</div>
+                  <div class="notif-time">Kemarin · 14:40</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">15 · Notifications Screen</div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="home-screen">
+            <div class="home-header">
+              <div class="home-header-top">
+                <h1>Pesan</h1>
+                <div class="header-actions">
+                  <button class="icon-btn">🔍</button>
+                  <button class="icon-btn">⚙️</button>
+                </div>
+              </div>
+              <div class="search-bar">
+                <span style="color:var(--c-text-3);">🔍</span>
+                <input placeholder="Cari chat atau kontak...">
+              </div>
+            </div>
+            <div class="empty-state">
+              <div class="empty-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <h3>Belum Ada Chat</h3>
+              <p>Mulai percakapan dengan kontak atau tambahkan guardian untuk keamanan</p>
+              <button class="btn btn-primary" style="margin-top:20px;">Mulai Chat Baru</button>
+            </div>
+            <div class="fab-sos">
+              <button class="btn btn-sos">SOS</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">16 · Empty State (No Chats)</div>
+    </div>
+
+    <!-- PROFILE SCREEN -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="settings-screen">
+            <div class="profile-header">
+              <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#E11D48,#BE123C);">A</div>
+              <div class="profile-info">
+                <div class="name">Ahmad Rizky</div>
+                <div class="email">ahmad.rizky@email.com</div>
+              </div>
+              <button class="icon-btn">✏️</button>
+            </div>
+            <div class="settings-list">
+              <div class="settings-section">
+                <div class="section-label">Statistik</div>
+                <div style="display:flex;gap:12px;">
+                  <div class="card" style="flex:1;text-align:center;">
+                    <div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--c-accent);">3</div>
+                    <div style="font-size:12px;color:var(--c-text-3);">Guardian</div>
+                  </div>
+                  <div class="card" style="flex:1;text-align:center;">
+                    <div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--c-info);">12</div>
+                    <div style="font-size:12px;color:var(--c-text-3);">Chat Aktif</div>
+                  </div>
+                  <div class="card" style="flex:1;text-align:center;">
+                    <div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--c-success);">0</div>
+                    <div style="font-size:12px;color:var(--c-text-3);">SOS Bulan Ini</div>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-section">
+                <div class="section-label">Tindakan</div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-accent-light);color:var(--c-accent);">🔄</div>
+                  <div class="settings-info">
+                    <div class="label">Tukar Posisi Guardian</div>
+                    <div class="desc">Jadikan guardian sebagai yang dilindungi</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-warning-light);color:var(--c-warning);">📱</div>
+                  <div class="settings-info">
+                    <div class="label">Ponsel Saya (Self-Guardian)</div>
+                    <div class="desc">Lacak perangkat jika hilang</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+                <div class="settings-item">
+                  <div class="settings-icon" style="background:var(--c-surface-2);color:var(--c-text-2);">🚪</div>
+                  <div class="settings-info">
+                    <div class="label">Keluar</div>
+                  </div>
+                  <span class="chevron">›</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">17 · Profile Screen</div>
+    </div>
+
+    <!-- ADD GUARDIAN FLOW -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="auth-screen">
+            <div class="auth-header">
+              <h2>Tambah Guardian</h2>
+              <p>Pilih kontak atau masukkan email</p>
+            </div>
+            <div class="auth-form">
+              <div class="input-wrap">
+                <span class="icon">✉️</span>
+                <input class="input-field" placeholder="Email guardian">
+              </div>
+              <div style="background:var(--c-surface-2);border-radius:var(--radius-sm);padding:16px;">
+                <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--c-text-2);">Izin yang diberikan:</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:14px;">📍 Lokasi GPS</span>
+                    <div class="toggle on"><div class="knob"></div></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:14px;">🎙️ Streaming Audio</span>
+                    <div class="toggle on"><div class="knob"></div></div>
+                  </div>
+                </div>
+              </div>
+              <div style="background:var(--c-surface-2);border-radius:var(--radius-sm);padding:16px;">
+                <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--c-text-2);">Penyimpanan:</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span class="chip chip-accent">Streaming saja</span>
+                  <span class="chip" style="background:var(--c-surface-3);color:var(--c-text-2);">Server</span>
+                  <span class="chip" style="background:var(--c-surface-3);color:var(--c-text-2);">Drive Pribadi</span>
+                </div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;">Kirim Undangan</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">18 · Add Guardian Flow</div>
+    </div>
+
+    <!-- DEVICE LOST MODE -->
+    <div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="settings-screen">
+            <div class="settings-header">
+              <h2>Ponsel Saya</h2>
+            </div>
+            <div class="screen-content">
+              <div style="padding:20px;">
+                <div class="card" style="margin-bottom:16px;">
+                  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                    <div class="avatar" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);">📱</div>
+                    <div>
+                      <div style="font-weight:600;">Samsung Galaxy S24</div>
+                      <div style="font-size:12px;color:var(--c-text-3);">Terakhir online: 2 jam yang lalu</div>
+                    </div>
+                  </div>
+                  <div style="background:var(--c-info-light);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;">
+                    <div style="font-size:13px;color:var(--c-info);font-weight:600;">📍 Lokasi Terakhir</div>
+                    <div style="font-size:14px;margin-top:4px;">Jl. Thamrin No. 10, Jakarta</div>
+                    <div style="font-size:12px;color:var(--c-text-3);margin-top:2px;">13 Jul 2026, 12:15 WIB</div>
+                  </div>
+                  <div style="display:flex;gap:10px;">
+                    <button class="btn btn-accent" style="flex:1;justify-content:center;">
+                      <span>🔔</span> Bunyikan Alarm
+                    </button>
+                    <button class="btn btn-primary" style="flex:1;justify-content:center;">
+                      <span>🗺️</span> Lihat Peta
+                    </button>
+                  </div>
+                </div>
+                <div class="card">
+                  <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Kirim Pesan ke Layar</div>
+                  <input class="input-field" placeholder="HP ini hilang. Hubungi saya di..." value="HP ini hilang. Hubungi: 0812-3456-7890">
+                  <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:12px;">Kirim ke Layar</button>
+                </div>
+                <div style="margin-top:16px;padding:12px;background:var(--c-warning-light);border-radius:var(--radius-sm);">
+                  <div style="font-size:12px;color:var(--c-warning);font-weight:600;">⚠️ Catatan</div>
+                  <div style="font-size:12px;color:var(--c-text-2);margin-top:4px;">Mikrofon dan kamera tidak tersedia dalam mode ini untuk melindungi privasi Anda.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">19 · Device Lost Mode</div>
+    </div>
+
+  </div>
+
+  <div class="section-title">🗺️ User Flow Diagram</div>
+  <div style="background:var(--c-surface);border-radius:var(--radius-md);padding:32px;box-shadow:var(--shadow-sm);margin-bottom:40px;overflow-x:auto;">
+    <pre style="font-family:var(--font-body);font-size:13px;line-height:1.8;color:var(--c-text-2);white-space:pre;">
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Splash Screen  │────▶│  Onboarding 1-3 │────▶│  Login/Register │────▶│   Create PIN    │
+│   (2-3 detik)   │     │  (Swipe/Skip)   │     │  Email/Google   │     │   (6 digit)     │
+└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
+                                                                               │
+                                                                               ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       MAIN APP FLOW                                         │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                │
+│  │  Chat List  │◄──▶│ Chat Screen │◄──▶│  SOS Active │◄──▶│Video Stream │                │
+│  │  (Home Tab) │    │  (Messages) │    │   Overlay   │    │  (Locked)   │                │
+│  └──────┬──────┘    └─────────────┘    └─────────────┘    └─────────────┘                │
+│         │                                                                                   │
+│         ▼                                                                                   │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                │
+│  │  Guardian   │◄──▶│Add Guardian │◄──▶│  Settings   │◄──▶│   Profile   │                │
+│  │    Tab      │    │   (Email)   │    │   (Multi)   │    │  (Account)  │                │
+│  └──────┬──────┘    └─────────────┘    └──────┬──────┘    └─────────────┘                │
+│         │                                     │                                             │
+│         ▼                                     ▼                                             │
+│  ┌─────────────┐                     ┌─────────────┐    ┌─────────────┐                │
+│  │   Switch    │                     │  Security   │◄──▶│  Device     │                │
+│  │  Guardian   │                     │    Logs     │    │   Lost      │                │
+│  │  (2-way)    │                     │ (Permanent) │    │   Mode      │                │
+│  └─────────────┘                     └─────────────┘    └─────────────┘                │
+│                                                                                             │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+
+SOS TRIGGER PATH (Accessible from ANY screen):
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Home SOS   │    │  PIN Screen │    │   Widget    │    │  Guardian   │    │   End SOS   │
+│   Button    │ or │   SOS Key   │ or │   (OS)      │───▶│  Notified   │───▶│  (Anytime)  │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+    </pre>
+  </div>
+
+  <div class="section-title">📋 Design Principles Summary</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:16px;margin-bottom:40px;">
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:8px;">🫁 Breathable Whitespace</div>
+      <div style="font-size:13px;color:var(--c-text-2);line-height:1.6;">Padding generosa (20-28px), margin antar elemen minimal 12px, tidak ada elemen yang "nempel". Ruang kosong adalah bagian dari desain, bukan kekurangan.</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:8px;">🎯 Youth-Focused</div>
+      <div style="font-size:13px;color:var(--c-text-2);line-height:1.6;">Font display modern (Space Grotesk), warna bold tapi terkontrol, animasi halus (pulse, breathe), dan language yang conversational.</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:8px;">🛡️ Safety-First Visuals</div>
+      <div style="font-size:13px;color:var(--c-text-2);line-height:1.6;">SOS selalu merah (#E11D48) dengan animasi pulse. Guardian selalu ungu (#7C3AED). Tidak ada warna yang ambigu untuk fitur keamanan.</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:8px;">📱 Consistent Patterns</div>
+      <div style="font-size:13px;color:var(--c-text-2);line-height:1.6;">Bottom nav 4 tab tetap, header dengan actions kanan, rounded corners konsisten (12-16px), dan dark overlays untuk mode kritis.</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:8px;">♿ Accessibility</div>
+      <div style="font-size:13px;color:var(--c-text-2);line-height:1.6;">Touch target min 40x40px, kontras memenuhi WCAG 4.5:1, font scalable, dan SOS bisa diakses bahkan saat terkunci.</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:8px;">🌙 Dark Mode Ready</div>
+      <div style="font-size:13px;color:var(--c-text-2);line-height:1.6;">Struktur warna modular memudahkan dark mode: swap --c-bg ↔ --c-text, --c-surface ↔ --c-surface-3. Video screen sudah dark by default.</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:40px 0;color:var(--c-text-3);font-size:13px;">
+    MEKAAR 3.0 UI/UX Design System · Dibuat untuk Flutter · 13 Juli 2026
+  </div>
+</div>
+
+</body>
+</html>
