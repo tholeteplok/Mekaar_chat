@@ -8,9 +8,16 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers for updated_at
+DROP TRIGGER IF EXISTS update_profiles_modtime ON profiles;
 CREATE TRIGGER update_profiles_modtime BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+DROP TRIGGER IF EXISTS update_guardians_modtime ON guardians;
 CREATE TRIGGER update_guardians_modtime BEFORE UPDATE ON guardians FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+DROP TRIGGER IF EXISTS update_messages_modtime ON messages;
 CREATE TRIGGER update_messages_modtime BEFORE UPDATE ON messages FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+DROP TRIGGER IF EXISTS update_push_tokens_modtime ON push_tokens;
 CREATE TRIGGER update_push_tokens_modtime BEFORE UPDATE ON push_tokens FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
 
@@ -47,6 +54,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS tr_log_sos_activity ON sos_sessions;
 CREATE TRIGGER tr_log_sos_activity
 AFTER INSERT OR UPDATE ON sos_sessions
 FOR EACH ROW EXECUTE FUNCTION log_sos_activity();
@@ -73,6 +81,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS tr_log_message_deletion ON messages;
 CREATE TRIGGER tr_log_message_deletion
 AFTER UPDATE ON messages
 FOR EACH ROW EXECUTE FUNCTION log_message_deletion();
@@ -92,7 +101,7 @@ BEGIN
             'log_deleted',
             jsonb_build_object(
                 'deleted_log_id', OLD.id,
-                'deleted_event_type', OLD.eventType,
+                'deleted_event_type', OLD.event_type,
                 'deleted_at', now(),
                 'description', 'Pengguna menghapus log akses ' || OLD.event_type
             )
@@ -102,6 +111,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS tr_log_security_log_delete ON security_logs;
 CREATE TRIGGER tr_log_security_log_delete
 AFTER UPDATE ON security_logs
 FOR EACH ROW EXECUTE FUNCTION log_security_log_delete();
