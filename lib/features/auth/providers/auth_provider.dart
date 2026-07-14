@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/supabase_service.dart';
@@ -327,4 +328,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final authRepo = ref.watch(authRepositoryProvider);
   return AuthNotifier(authRepo);
+});
+
+// App PIN Lock Enable/Disable preference provider
+class PinLockEnabledNotifier extends StateNotifier<bool> {
+  PinLockEnabledNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool('is_pin_lock_enabled') ?? true;
+    } catch (_) {}
+  }
+
+  Future<void> toggle(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_pin_lock_enabled', enabled);
+      state = enabled;
+    } catch (_) {}
+  }
+}
+
+final pinLockEnabledProvider = StateNotifierProvider<PinLockEnabledNotifier, bool>((ref) {
+  return PinLockEnabledNotifier();
 });

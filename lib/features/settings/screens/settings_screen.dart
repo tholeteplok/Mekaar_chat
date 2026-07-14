@@ -68,6 +68,39 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Mode perangkat hilang (self-guardian)',
               onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
             ),
+            SwitchListTile(
+              activeThumbColor: MekaarColors.softCoral,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+              secondary: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: MekaarColors.surface2,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  color: MekaarColors.textSecondary,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Kunci PIN Aplikasi',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: MekaarColors.textPrimary,
+                ),
+              ),
+              subtitle: const Text(
+                'Minta PIN keamanan saat membuka aplikasi',
+                style: TextStyle(fontSize: 11, color: MekaarColors.textMuted),
+              ),
+              value: ref.watch(pinLockEnabledProvider),
+              onChanged: (bool value) {
+                ref.read(pinLockEnabledProvider.notifier).toggle(value);
+              },
+            ),
             const Divider(color: MekaarColors.borderLight, height: 32),
             _buildSectionHeader('Akun'),
             _buildMenuItem(

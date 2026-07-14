@@ -29,14 +29,30 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   }
 
   Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 2));
+    // Wait at least 1.5 seconds for fade animation
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    // Wait until profile & session loading finishes to avoid race conditions
+    while (ref.read(authProvider).isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
     if (!mounted) return;
 
     final authState = ref.read(authProvider);
     if (authState.user != null) {
+      final isPinLockEnabled = ref.read(pinLockEnabledProvider);
+      
       if (authState.isPinSet) {
-        Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: false);
+        if (isPinLockEnabled) {
+          // Go to validation screen (1x input)
+          Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: false);
+        } else {
+          // Bypass PIN lock screen if disabled in settings
+          Navigator.pushReplacementNamed(context, AppRoutes.home);
+        }
       } else {
+        // Must setup PIN first time (2x input: create & confirm)
         Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: true);
       }
     } else {

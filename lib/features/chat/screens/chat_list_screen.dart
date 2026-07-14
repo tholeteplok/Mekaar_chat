@@ -7,6 +7,7 @@ import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_list_tile.dart';
@@ -35,6 +36,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   Future<void> _checkAndRequestPermissions() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShown = prefs.getBool('has_shown_sos_permissions_dialog') ?? false;
+      if (hasShown) return;
+
       final hasAll = await PermissionsHelper.hasAllSOSPermissions();
 
       if (!hasAll) {
@@ -52,9 +57,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               '• Mikrofon: Mengirim suara sekitar ke Guardian.\n\n'
               'Ponsel Anda akan memicu pop-up sistem setelah ini.',
           actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await prefs.setBool('has_shown_sos_permissions_dialog', true);
+              },
+              child: const Text('Batal', style: TextStyle(color: MekaarColors.textMuted)),
+            ),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
+                await prefs.setBool('has_shown_sos_permissions_dialog', true);
                 await PermissionsHelper.requestSOSPermissions();
               },
               style: ElevatedButton.styleFrom(
@@ -65,6 +78,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             ),
           ],
         );
+      } else {
+        await prefs.setBool('has_shown_sos_permissions_dialog', true);
       }
     } catch (_) {}
   }
