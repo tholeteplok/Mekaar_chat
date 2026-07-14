@@ -112,12 +112,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, error: 'Login gagal');
       return false;
     } catch (e) {
-      String friendlyError = e.toString();
-      final lowerError = friendlyError.toLowerCase();
-      if (lowerError.contains('invalid login credentials') || lowerError.contains('invalid_credentials')) {
-        friendlyError = 'Email atau password salah. Silakan periksa kembali.';
-      }
-      state = state.copyWith(isLoading: false, error: friendlyError);
+      state = state.copyWith(isLoading: false, error: _translateError(e));
       return false;
     }
   }
@@ -134,23 +129,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, error: 'Registrasi gagal');
       return false;
     } catch (e) {
-      String friendlyError = e.toString();
-      final lowerError = friendlyError.toLowerCase();
-      
-      if (lowerError.contains('user already registered') || 
-          lowerError.contains('email already registered') || 
-          (lowerError.contains('already exists') && lowerError.contains('email')) ||
-          lowerError.contains('unique_violation') && lowerError.contains('email')) {
-        friendlyError = 'Alamat email sudah terdaftar. Silakan masuk atau gunakan email lain.';
-      } else if (lowerError.contains('already exists') && lowerError.contains('username') || 
-                 lowerError.contains('profiles_username_key') ||
-                 lowerError.contains('unique_violation') && lowerError.contains('username')) {
-        friendlyError = 'Username sudah digunakan oleh orang lain. Silakan pilih username unik lainnya.';
-      } else if (lowerError.contains('password should be')) {
-        friendlyError = 'Password kurang aman. Minimal harus 6 karakter.';
-      }
-      
-      state = state.copyWith(isLoading: false, error: friendlyError);
+      state = state.copyWith(isLoading: false, error: _translateError(e));
       return false;
     }
   }
@@ -162,9 +141,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // Setup dynamic PIN
   Future<void> setupPIN(String pin) async {
-    state = state.copyWith(isLoading: true);
-    await _authRepository.setPIN(pin);
-    state = state.copyWith(isPinSet: true, isLoading: false);
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _authRepository.setPIN(pin);
+      state = state.copyWith(isPinSet: true, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+    }
   }
 
   // Validate dynamic PIN with lockout check
@@ -197,6 +180,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (kDebugMode) {
       state = state.copyWith(pinAttempts: 0, pinLockedUntil: null);
     }
+  }
+
+  // Centralized Indonesian error message translator
+  String _translateError(dynamic e) {
+    final errorStr = e.toString();
+    final lowerError = errorStr.toLowerCase();
+    
+    if (lowerError.contains('socketexception') || 
+        lowerError.contains('failed host lookup') || 
+        lowerError.contains('clientexception') ||
+        lowerError.contains('network') ||
+        lowerError.contains('retryablefetch')) {
+      return 'Koneksi internet gagal atau tidak stabil. Pastikan perangkat Anda terhubung ke internet dan coba lagi.';
+    }
+    
+    if (lowerError.contains('invalid login credentials') || 
+        lowerError.contains('invalid_credentials')) {
+      return 'Email atau password salah. Silakan periksa kembali.';
+    }
+    
+    if (lowerError.contains('user already registered') || 
+        lowerError.contains('email already registered') || 
+        (lowerError.contains('already exists') && lowerError.contains('email')) ||
+        (lowerError.contains('unique_violation') && lowerError.contains('email'))) {
+      return 'Alamat email sudah terdaftar. Silakan masuk atau gunakan email lain.';
+    }
+    
+    if ((lowerError.contains('already exists') && lowerError.contains('username')) || 
+        lowerError.contains('profiles_username_key') ||
+        (lowerError.contains('unique_violation') && lowerError.contains('username'))) {
+      return 'Username sudah digunakan oleh orang lain. Silakan pilih username unik lainnya.';
+    }
+    
+    if (lowerError.contains('password should be')) {
+      return 'Password kurang aman. Minimal harus 6 karakter.';
+    }
+    
+    return errorStr;
   }
 }
 
