@@ -25,10 +25,10 @@ class ChatRepository {
       if (roomData == null) continue;
       final roomType = roomData['room_type'] as String;
 
-      // Get other participant profile. Select only public fields; never request pin_hash.
+      // Get other participant profile_id
       final otherParticipant = await _supabaseService.client
           .from('room_participants')
-          .select('profile_id, profiles(id, username, full_name, email, avatar_url)')
+          .select('profile_id')
           .eq('room_id', roomId)
           .neq('profile_id', userId)
           .maybeSingle();
@@ -39,11 +39,21 @@ class ChatRepository {
       bool isGuardian = (roomType == 'guardian');
       Map<String, dynamic>? profile;
 
-      if (otherParticipant != null && otherParticipant['profiles'] != null) {
-        profile = otherParticipant['profiles'] as Map<String, dynamic>;
-        chatName = profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
-        chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
-        otherUserId = profile['id'] as String;
+      if (otherParticipant != null) {
+        otherUserId = otherParticipant['profile_id'] as String;
+        // Query public_profiles view which authenticated users have SELECT permission to view
+        try {
+          final profileResponse = await _supabaseService.client
+              .from('public_profiles')
+              .select('id, username, full_name, avatar_url')
+              .eq('id', otherUserId)
+              .maybeSingle();
+          if (profileResponse != null) {
+            profile = profileResponse;
+            chatName = profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
+            chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
+          }
+        } catch (_) {}
       }
 
       // Get last message in the room
