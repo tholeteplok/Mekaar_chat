@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../providers/chat_provider.dart';
+import '../widgets/chat_composer.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 
@@ -30,6 +32,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isViewOnce = false;
   Message? _replyMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(chatActionsProvider).markRoomRead(widget.chatId),
+    );
+  }
 
   @override
   void dispose() {
@@ -66,28 +76,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _handleDeleteMessage(Message msg) {
-    showDialog(
+    MekaarDialog.showConfirmation<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Pesan?'),
-        content: Text(
-          widget.isGuardian 
-              ? 'Konten pesan akan hilang dari layar. Namun, log sistem tetap akan mencatat riwayat penghapusan demi keamanan bukti.'
-              : 'Apakah Anda yakin ingin menghapus pesan ini?'
+      title: 'Hapus Pesan?',
+      message: widget.isGuardian
+          ? 'Konten pesan akan hilang dari layar. Log sistem tetap mencatat snapshot penghapusan demi integritas bukti.'
+          : 'Pesan akan disembunyikan untuk Anda dan tetap tercatat sebagai soft-delete.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+        TextButton(
+          onPressed: () async {
+            await ref.read(chatActionsProvider).deleteMessage(msg.id);
+            if (!mounted) return;
+            Navigator.pop(context);
+          },
+          child: const Text(
+            'Hapus',
+            style: TextStyle(color: MekaarColors.sosRed),
           ),
-          TextButton(
-            onPressed: () async {
-              await ref.read(chatActionsProvider).deleteMessage(msg.id);
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Hapus', style: TextStyle(color: MekaarColors.sosRed)),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  void _toggleViewOnce() {
+    setState(() => _isViewOnce = !_isViewOnce);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isViewOnce
+              ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
+              : 'Mode Sekali Lihat Dinonaktifkan.',
+        ),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -106,11 +131,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           if (widget.isGuardian) ...[
             IconButton(
-              icon: const Icon(Icons.phone_outlined, color: MekaarColors.softCoral),
+              icon: const Icon(
+                Icons.phone_outlined,
+                color: MekaarColors.softCoral,
+              ),
               onPressed: () {},
             ),
             IconButton(
-              icon: const Icon(Icons.videocam_outlined, color: MekaarColors.softCoral),
+              icon: const Icon(
+                Icons.videocam_outlined,
+                color: MekaarColors.softCoral,
+              ),
               onPressed: () {},
             ),
           ],
@@ -123,7 +154,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               data: (messages) {
                 // Reverse message order to align with bottom list
                 final reversed = messages.reversed.toList();
-                
+
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
@@ -131,7 +162,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   itemCount: reversed.length,
                   itemBuilder: (context, index) {
                     final msg = reversed[index];
-                    final isMe = msg.senderId == ref.read(authProvider).user?.id;
+                    final isMe =
+                        msg.senderId == ref.read(authProvider).user?.id;
                     return ChatBubble(
                       message: msg,
                       isMe: isMe,
@@ -145,96 +177,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Gagal memuat pesan: $err')),
+              error: (err, stack) =>
+                  Center(child: Text('Gagal memuat pesan: $err')),
             ),
           ),
-          // Reply Message Preview Bar
-          if (_replyMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: MekaarColors.surface2,
-              child: Row(
-                children: [
-                  const Icon(Icons.reply, size: 18, color: MekaarColors.textSecondary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Membalas: ${_replyMessage!.content}',
-                      style: const TextStyle(fontSize: 12, color: MekaarColors.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => setState(() => _replyMessage = null),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          // Input Area
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: MekaarColors.surface,
-              border: Border(top: BorderSide(color: MekaarColors.borderLight, width: 1)),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.visibility_outlined,
-                    color: _isViewOnce ? MekaarColors.softCoral : MekaarColors.textMuted,
-                  ),
-                  onPressed: () {
-                    setState(() => _isViewOnce = !_isViewOnce);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isViewOnce 
-                            ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
-                            : 'Mode Sekali Lihat Dinonaktifkan.'
-                        ),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                ),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: MekaarColors.surface2,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _textController,
-                      decoration: const InputDecoration(
-                        hintText: 'Ketik pesan...',
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        fillColor: Colors.transparent,
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _handleSend,
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: MekaarColors.textPrimary,
-                    ),
-                    child: const Icon(Icons.send, color: Colors.white, size: 18),
-                  ),
-                ),
-              ],
-            ),
+          ChatComposer(
+            controller: _textController,
+            replyMessage: _replyMessage,
+            isViewOnce: _isViewOnce,
+            onSend: _handleSend,
+            onToggleViewOnce: _toggleViewOnce,
+            onCancelReply: () => setState(() => _replyMessage = null),
           ),
         ],
       ),

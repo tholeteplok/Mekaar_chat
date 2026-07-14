@@ -6,7 +6,9 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/supabase_service.dart';
 
 // Dependency Providers
-final supabaseServiceProvider = Provider<SupabaseService>((ref) => SupabaseService());
+final supabaseServiceProvider = Provider<SupabaseService>(
+  (ref) => SupabaseService(),
+);
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
   return AuthRepository(supabaseService);
@@ -100,10 +102,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String input, String password) async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      state = state.copyWith(isLoading: false, error: configError);
+      return false;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final user = await _authRepository.signInWithEmail(email, password);
+      final user = await _authRepository.signInWithUsernameOrEmail(
+        input,
+        password,
+      );
       if (user != null) {
         state = state.copyWith(user: user);
         await loadProfile();
@@ -118,9 +129,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> register(String email, String password, String username) async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      state = state.copyWith(isLoading: false, error: configError);
+      return false;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final user = await _authRepository.signUpWithEmail(email, password, username);
+      final user = await _authRepository.signUpWithEmail(
+        email,
+        password,
+        username,
+      );
       if (user != null) {
         state = state.copyWith(user: user);
         await loadProfile();
@@ -131,6 +152,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _translateError(e));
       return false;
+    }
+  }
+
+  // Update username
+  Future<void> updateUsername(String username) async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      throw Exception(configError);
+    }
+
+    try {
+      final updatedProfile = await _authRepository.updateUsername(username);
+      state = state.copyWith(profile: updatedProfile);
+    } catch (e) {
+      final errorStr = e.toString();
+      if (errorStr.contains('unique') ||
+          errorStr.contains('duplicate') ||
+          errorStr.contains('profiles_username_key')) {
+        throw Exception('Username sudah digunakan oleh orang lain.');
+      }
+      throw Exception('Gagal memperbarui username: $e');
     }
   }
 
@@ -156,9 +198,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     state = state.copyWith(isLoading: true);
     final isValid = await _authRepository.validatePIN(pin);
-    
+
     if (isValid) {
-      state = state.copyWith(pinAttempts: 0, pinLockedUntil: null, isLoading: false);
+      state = state.copyWith(
+        pinAttempts: 0,
+        pinLockedUntil: null,
+        isLoading: false,
+      );
       return true;
     } else {
       final newAttempts = state.pinAttempts + 1;
@@ -182,42 +228,98 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  String? _configurationErrorMessage() {
+    if (!SupabaseService.hasConfigurationError) return null;
+
+    final detail = SupabaseService.initializationError;
+    if (kDebugMode && detail != null) {
+      debugPrint('Supabase configuration error: $detail');
+    }
+
+    return 'Konfigurasi server belum aktif. Periksa file .env lalu lakukan full restart aplikasi.';
+  }
+
   // Centralized Indonesian error message translator
   String _translateError(dynamic e) {
     final errorStr = e.toString();
     final lowerError = errorStr.toLowerCase();
-    
-    if (lowerError.contains('socketexception') || 
-        lowerError.contains('failed host lookup') || 
-        lowerError.contains('clientexception') ||
-        lowerError.contains('network') ||
-        lowerError.contains('retryablefetch')) {
-      return 'Koneksi internet gagal atau tidak stabil. Pastikan perangkat Anda terhubung ke internet dan coba lagi.';
+
+    if (kDebugMode) {
+      debugPrint('Auth error: $errorStr');
     }
-    
-    if (lowerError.contains('invalid login credentials') || 
-        lowerError.contains('invalid_credentials')) {
+
+    if (_isConfigurationError(lowerError)) {
+      return 'Konfigurasi server belum aktif. Periksa file .env lalu lakukan full restart aplikasi.';
+    }
+
+    if (lowerError.contains('invalid login credentials') ||
+        lowerError.contains('invalid_credentials') ||
+        lowerError.contains('invalid email or password') ||
+        lowerError.contains('email not confirmed')) {
       return 'Email atau password salah. Silakan periksa kembali.';
     }
-    
-    if (lowerError.contains('user already registered') || 
-        lowerError.contains('email already registered') || 
-        (lowerError.contains('already exists') && lowerError.contains('email')) ||
-        (lowerError.contains('unique_violation') && lowerError.contains('email'))) {
+
+    if (lowerError.contains('user already registered') ||
+        lowerError.contains('email already registered') ||
+        (lowerError.contains('already exists') &&
+            lowerError.contains('email')) ||
+        (lowerError.contains('unique_violation') &&
+            lowerError.contains('email'))) {
       return 'Alamat email sudah terdaftar. Silakan masuk atau gunakan email lain.';
     }
-    
-    if ((lowerError.contains('already exists') && lowerError.contains('username')) || 
+
+    if ((lowerError.contains('already exists') &&
+            lowerError.contains('username')) ||
         lowerError.contains('profiles_username_key') ||
-        (lowerError.contains('unique_violation') && lowerError.contains('username'))) {
+        (lowerError.contains('unique_violation') &&
+            lowerError.contains('username'))) {
       return 'Username sudah digunakan oleh orang lain. Silakan pilih username unik lainnya.';
     }
-    
+
     if (lowerError.contains('password should be')) {
       return 'Password kurang aman. Minimal harus 6 karakter.';
     }
-    
+
+    if (_isConnectivityError(lowerError)) {
+      return 'Koneksi internet gagal atau tidak stabil. Pastikan perangkat Anda terhubung ke internet dan coba lagi.';
+    }
+
+    if (_isSupabaseServerError(lowerError)) {
+      return 'Login belum bisa diproses. Periksa email/password atau coba beberapa saat lagi.';
+    }
+
     return errorStr;
+  }
+
+  bool _isConfigurationError(String lowerError) {
+    return lowerError.contains('.env') ||
+        lowerError.contains('supabase_url') ||
+        lowerError.contains('supabase_anon_key') ||
+        lowerError.contains('placeholder') ||
+        lowerError.contains('konfigurasi supabase') ||
+        lowerError.contains('koneksi database tidak aktif');
+  }
+
+  bool _isConnectivityError(String lowerError) {
+    return lowerError.contains('socketexception') ||
+        lowerError.contains('failed host lookup') ||
+        lowerError.contains('connection refused') ||
+        lowerError.contains('connection timed out') ||
+        lowerError.contains('network is unreachable') ||
+        lowerError.contains('handshakeexception') ||
+        lowerError.contains('no address associated with hostname');
+  }
+
+  bool _isSupabaseServerError(String lowerError) {
+    return lowerError.contains('authexception') ||
+        lowerError.contains('postgrestexception') ||
+        lowerError.contains('clientexception') ||
+        lowerError.contains('retryablefetch') ||
+        lowerError.contains('supabase') ||
+        lowerError.contains('status code') ||
+        lowerError.contains('server error') ||
+        lowerError.contains('bad request') ||
+        lowerError.contains('unauthorized');
   }
 }
 

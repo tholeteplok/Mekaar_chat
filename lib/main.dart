@@ -10,7 +10,7 @@ final logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   bool isDotEnvLoaded = false;
   // 1. Load Environment Variables
   try {
@@ -18,32 +18,64 @@ void main() async {
     isDotEnvLoaded = true;
     logger.i(".env loaded successfully");
   } catch (e) {
-    logger.w("Warning: Could not load .env file. Using default values. Error: $e");
+    final message =
+        '.env belum terbaca. Pastikan .env terdaftar di pubspec.yaml assets dan lakukan full restart aplikasi.';
+    SupabaseService.markInitializationFailed(message);
+    logger.w("$message Error: $e");
   }
 
   // 2. Initialize Supabase
-  final supabaseUrl = isDotEnvLoaded ? (dotenv.env['SUPABASE_URL'] ?? 'https://placeholder.supabase.co') : 'https://placeholder.supabase.co';
-  final supabaseAnonKey = isDotEnvLoaded ? (dotenv.env['SUPABASE_ANON_KEY'] ?? 'placeholderKey') : 'placeholderKey';
+  if (isDotEnvLoaded) {
+    final supabaseUrl = dotenv.env['SUPABASE_URL']?.trim() ?? '';
+    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']?.trim() ?? '';
+    final configError = _validateSupabaseConfig(supabaseUrl, supabaseAnonKey);
 
-  if (supabaseUrl != 'https://placeholder.supabase.co' && supabaseAnonKey != 'placeholderKey') {
-    try {
-      await Supabase.initialize(
-        url: supabaseUrl,
-        publishableKey: supabaseAnonKey,
-      );
-      SupabaseService.isInitialized = true;
-      logger.i("Supabase initialized successfully");
-    } catch (e) {
-      logger.e("Error initializing Supabase: $e. Running in offline/fallback mode.");
+    if (configError != null) {
+      SupabaseService.markInitializationFailed(configError);
+      logger.w(configError);
+    } else {
+      try {
+        await Supabase.initialize(
+          url: supabaseUrl,
+          publishableKey: supabaseAnonKey,
+        );
+        SupabaseService.markInitialized();
+        logger.i("Supabase initialized successfully");
+      } catch (e) {
+        final message =
+            'Supabase gagal initialize. Periksa SUPABASE_URL, SUPABASE_ANON_KEY, dan koneksi ke server Supabase.';
+        SupabaseService.markInitializationFailed(message);
+        logger.e("$message Error: $e");
+      }
     }
-  } else {
-    logger.w("Supabase credentials not set in .env. Running in offline/fallback mode.");
   }
 
   // 3. Run Application
-  runApp(
-    const ProviderScope(
-      child: MekaarApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MekaarApp()));
+}
+
+String? _validateSupabaseConfig(String supabaseUrl, String supabaseAnonKey) {
+  if (supabaseUrl.isEmpty) {
+    return 'SUPABASE_URL kosong. Periksa file .env dan lakukan full restart aplikasi.';
+  }
+
+  if (supabaseAnonKey.isEmpty) {
+    return 'SUPABASE_ANON_KEY kosong. Periksa file .env dan lakukan full restart aplikasi.';
+  }
+
+  final uri = Uri.tryParse(supabaseUrl);
+  if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+    return 'SUPABASE_URL tidak valid. Gunakan URL Supabase lengkap dari project settings.';
+  }
+
+  if (uri.host == 'placeholder.supabase.co' ||
+      supabaseAnonKey == 'placeholderKey') {
+    return 'Konfigurasi Supabase masih memakai placeholder. Periksa file .env dan lakukan full restart aplikasi.';
+  }
+
+  if (!uri.host.endsWith('.supabase.co')) {
+    return 'SUPABASE_URL tidak mengarah ke domain Supabase yang valid.';
+  }
+
+  return null;
 }

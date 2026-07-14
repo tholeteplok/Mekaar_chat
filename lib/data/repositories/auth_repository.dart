@@ -22,21 +22,104 @@ class AuthRepository {
   }
 
   // Sign up with email, password, and username
-  Future<User?> signUpWithEmail(String email, String password, String username) async {
+  Future<User?> signUpWithEmail(
+    String email,
+    String password,
+    String username,
+  ) async {
     final response = await _supabaseService.client.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'username': username,
-      },
+      data: {'username': username},
     );
-    return response.user;
+    final user = response.user;
+
+    // Fallback upsert to profiles in case trigger didn't persist username
+    if (user != null) {
+      try {
+        await _supabaseService.client.from('profiles').upsert({
+          'id': user.id,
+          'username': username,
+          'email': email,
+          'pin_hash': '',
+          'updated_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'id');
+      } catch (_) {
+        // Trigger already handled it or RLS blocks; not fatal for register flow.
+      }
+    }
+
+    return user;
+  }
+
+  // Resolve email from username via profiles table
+  Future<String?> resolveEmailFromUsername(String query) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return null;
+
+    // Fast path: if it looks like an email, skip resolve
+    if (clean.contains('@')) return clean;
+
+    // Try RPC first (if migration 05 applied)
+    try {
+      final response = await _supabaseService.client.rpc(
+        'search_public_profiles',
+        params: {'search_query': clean},
+      );
+      if (response is List && response.isNotEmpty) {
+        final email = (response.first as Map)['email'] as String?;
+        if (email != null && email.isNotEmpty) return email;
+      }
+    } catch (_) {}
+
+    // Fallback direct query
+    try {
+      final response = await _supabaseService.client
+          .from('profiles')
+          .select('email')
+          .eq('username', clean)
+          .maybeSingle();
+      if (response != null) {
+        final email = response['email'] as String?;
+        if (email != null && email.isNotEmpty) return email;
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  // Sign in with username or email
+  Future<User?> signInWithUsernameOrEmail(String input, String password) async {
+    final email = await resolveEmailFromUsername(input);
+    if (email == null) {
+      throw Exception('User tidak ditemukan');
+    }
+    return signInWithEmail(email, password);
+  }
+
+  // Update username in profiles table
+  Future<Profile> updateUsername(String username) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'username': username,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
   }
 
   // Sign out
   Future<void> signOut() async {
     try {
-      await _secureStorage.delete(key: 'pin_hash').timeout(const Duration(seconds: 1));
+      await _secureStorage
+          .delete(key: 'pin_hash')
+          .timeout(const Duration(seconds: 1));
     } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -79,7 +162,9 @@ class AuthRepository {
 
     // Save locally with Keystore timeout-fallback for MIUI/unsupported devices
     try {
-      await _secureStorage.write(key: 'pin_hash', value: pinHash).timeout(const Duration(seconds: 1));
+      await _secureStorage
+          .write(key: 'pin_hash', value: pinHash)
+          .timeout(const Duration(seconds: 1));
     } catch (e) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('pin_hash', pinHash);
@@ -99,7 +184,9 @@ class AuthRepository {
     // Try reading local hash first (offline friendly) with Keystore timeout-fallback
     String? localHash;
     try {
-      localHash = await _secureStorage.read(key: 'pin_hash').timeout(const Duration(seconds: 1));
+      localHash = await _secureStorage
+          .read(key: 'pin_hash')
+          .timeout(const Duration(seconds: 1));
     } catch (_) {
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -116,7 +203,9 @@ class AuthRepository {
     if (profile != null && profile.pinHash.isNotEmpty) {
       // Update local storage so it's offline friendly next time
       try {
-        await _secureStorage.write(key: 'pin_hash', value: profile.pinHash).timeout(const Duration(seconds: 1));
+        await _secureStorage
+            .write(key: 'pin_hash', value: profile.pinHash)
+            .timeout(const Duration(seconds: 1));
       } catch (_) {
         try {
           final prefs = await SharedPreferences.getInstance();
@@ -133,7 +222,9 @@ class AuthRepository {
   Future<bool> isPINSet() async {
     String? localHash;
     try {
-      localHash = await _secureStorage.read(key: 'pin_hash').timeout(const Duration(seconds: 1));
+      localHash = await _secureStorage
+          .read(key: 'pin_hash')
+          .timeout(const Duration(seconds: 1));
     } catch (_) {
       try {
         final prefs = await SharedPreferences.getInstance();

@@ -38,23 +38,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_isLogin) {
       success = await ref.read(authProvider.notifier).login(email, password);
     } else {
-      success = await ref.read(authProvider.notifier).register(email, password, username);
+      success = await ref
+          .read(authProvider.notifier)
+          .register(email, password, username);
     }
 
     if (success && mounted) {
       final authState = ref.read(authProvider);
       if (authState.isPinSet) {
-        Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: false);
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.pin,
+          arguments: false,
+        );
       } else {
         Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: true);
       }
     } else if (mounted) {
       final error = ref.read(authProvider).error ?? 'Terjadi kesalahan';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error),
-          backgroundColor: MekaarColors.sosRed,
-        ),
+        SnackBar(content: Text(error), backgroundColor: MekaarColors.sosRed),
       );
     }
   }
@@ -82,7 +85,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       color: MekaarColors.softCoral,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.shield, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.shield,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -100,17 +107,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Text(
                 _isLogin ? 'Selamat Datang\nKembali' : 'Buat Akun\nBaru Anda',
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: MekaarColors.textPrimary,
-                      height: 1.2,
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: MekaarColors.textPrimary,
+                  height: 1.2,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                _isLogin 
-                    ? 'Masukkan email dan password untuk melanjutkan.'
+                _isLogin
+                    ? 'Masukkan email atau username dan password untuk melanjutkan.'
                     : 'Mulai dengan membuat profil chat terenkripsi Anda.',
-                style: const TextStyle(color: MekaarColors.textSecondary, fontSize: 14),
+                style: const TextStyle(
+                  color: MekaarColors.textSecondary,
+                  fontSize: 14,
+                ),
               ),
               const SizedBox(height: 36),
               Form(
@@ -124,18 +134,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           hintText: 'Username unik',
                           prefixIcon: Icon(Icons.alternate_email, size: 20),
                         ),
-                        validator: (v) => v == null || v.isEmpty ? 'Username tidak boleh kosong' : null,
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Username tidak boleh kosong'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                     ],
                     TextFormField(
                       controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType: TextInputType.text,
                       decoration: const InputDecoration(
-                        hintText: 'Alamat Email',
-                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        hintText: 'Email atau Username',
+                        prefixIcon: Icon(Icons.alternate_email, size: 20),
                       ),
-                      validator: (v) => v == null || !v.contains('@') ? 'Email tidak valid' : null,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Input tidak boleh kosong';
+                        }
+                        final input = v.trim();
+                        if (input.contains('@')) {
+                          return input.contains('.')
+                              ? null
+                              : 'Email tidak valid';
+                        }
+                        return input.length >= 3
+                            ? null
+                            : 'Username minimal 3 karakter';
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -146,14 +171,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         prefixIcon: const Icon(Icons.lock_outline, size: 20),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
                             size: 20,
                             color: MekaarColors.textMuted,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
-                      validator: (v) => v == null || v.length < 6 ? 'Password minimal 6 karakter' : null,
+                      validator: (v) => v == null || v.length < 6
+                          ? 'Password minimal 6 karakter'
+                          : null,
                     ),
                     if (!_isLogin) ...[
                       const SizedBox(height: 6),
@@ -161,7 +192,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Password minimal harus 6 karakter.',
-                          style: TextStyle(fontSize: 12, color: MekaarColors.textMuted),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: MekaarColors.textMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -181,7 +215,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(_isLogin ? 'Masuk' : 'Daftar Sekarang'),
                       ),

@@ -14,7 +14,8 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 final activeRoomIdProvider = StateProvider<String?>((ref) => null);
 
 // Chat Rooms List State Notifier
-class ChatRoomsNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
+class ChatRoomsNotifier
+    extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final ChatRepository _chatRepository;
 
   ChatRoomsNotifier(this._chatRepository) : super(const AsyncValue.loading()) {
@@ -38,13 +39,20 @@ class ChatRoomsNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
   }
 }
 
-final chatRoomsProvider = StateNotifierProvider<ChatRoomsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  final repo = ref.watch(chatRepositoryProvider);
-  return ChatRoomsNotifier(repo);
-});
+final chatRoomsProvider =
+    StateNotifierProvider<
+      ChatRoomsNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      final repo = ref.watch(chatRepositoryProvider);
+      return ChatRoomsNotifier(repo);
+    });
 
 // Stream of messages in a room
-final chatMessagesProvider = StreamProvider.family<List<Message>, String>((ref, roomId) {
+final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
+  ref,
+  roomId,
+) {
   final repo = ref.watch(chatRepositoryProvider);
   return repo.streamMessages(roomId);
 });
@@ -85,7 +93,12 @@ class ChatActionsNotifier {
   }
 
   Future<void> deleteMessage(String messageId) async {
-    await _chatRepository.deleteMessage(messageId);
+    await _chatRepository.softDeleteMessage(messageId);
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> markRoomRead(String roomId) async {
+    await _chatRepository.markRoomRead(roomId);
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 

@@ -34,23 +34,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _saveUsername() async {
     final newUsername = _usernameController.text.trim();
     if (newUsername.isEmpty || newUsername.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Username minimal 3 karakter.'),
-          backgroundColor: MekaarColors.sosRed,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Username minimal 3 karakter.'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
       return;
     }
 
-    // Untuk sementara update di state local karena update profile belum di repo
     setState(() => _isEditingUsername = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Username berhasil diperbarui.'),
-        backgroundColor: MekaarColors.success,
-      ),
-    );
+
+    try {
+      await ref.read(authProvider.notifier).updateUsername(newUsername);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Username berhasil diperbarui.'),
+            backgroundColor: MekaarColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      final errorStr = e.toString();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorStr.contains('digunakan')
+                  ? 'Username sudah digunakan.'
+                  : 'Gagal memperbarui username.',
+            ),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
+      _usernameController.text = ref.read(authProvider).profile?.username ?? '';
+    }
   }
 
   void _navigateToChangePin() {
@@ -73,10 +95,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Navigator.pop(context);
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
               }
             },
-            child: const Text('Keluar', style: TextStyle(color: MekaarColors.sosRed, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(
+                color: MekaarColors.sosRed,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -113,9 +145,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Text(userEmail, style: MekaarTypography.bodyMD),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: pinSet ? MekaarColors.successLight : MekaarColors.warningLight,
+                      color: pinSet
+                          ? MekaarColors.successLight
+                          : MekaarColors.warningLight,
                       borderRadius: BorderRadius.circular(100),
                     ),
                     child: Row(
@@ -124,13 +161,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Icon(
                           pinSet ? Icons.lock : Icons.lock_open_outlined,
                           size: 12,
-                          color: pinSet ? MekaarColors.success : MekaarColors.warning,
+                          color: pinSet
+                              ? MekaarColors.success
+                              : MekaarColors.warning,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           pinSet ? 'PIN Aktif' : 'PIN Belum Diatur',
                           style: MekaarTypography.labelSM.copyWith(
-                            color: pinSet ? MekaarColors.success : MekaarColors.warning,
+                            color: pinSet
+                                ? MekaarColors.success
+                                : MekaarColors.warning,
                           ),
                         ),
                       ],
@@ -161,7 +202,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           color: MekaarColors.surface2,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.alternate_email, color: MekaarColors.textSecondary, size: 18),
+                        child: const Icon(
+                          Icons.alternate_email,
+                          color: MekaarColors.textSecondary,
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -169,28 +214,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ? TextField(
                                 controller: _usernameController,
                                 autofocus: true,
-                                style: MekaarTypography.bodyMD.copyWith(color: MekaarColors.textPrimary),
+                                style: MekaarTypography.bodyMD.copyWith(
+                                  color: MekaarColors.textPrimary,
+                                ),
                                 decoration: const InputDecoration(
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
                                   border: UnderlineInputBorder(),
                                 ),
                               )
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Username', style: MekaarTypography.bodySM),
                                   Text(
-                                    username.isNotEmpty ? '@$username' : 'Belum diatur',
-                                    style: MekaarTypography.bodyMD.copyWith(color: MekaarColors.textPrimary),
+                                    'Username',
+                                    style: MekaarTypography.bodySM,
+                                  ),
+                                  Text(
+                                    username.isNotEmpty
+                                        ? '@$username'
+                                        : 'Belum diatur',
+                                    style: MekaarTypography.bodyMD.copyWith(
+                                      color: MekaarColors.textPrimary,
+                                    ),
                                   ),
                                 ],
                               ),
                       ),
                       IconButton(
                         icon: Icon(
-                          _isEditingUsername ? Icons.check : Icons.edit_outlined,
-                          color: _isEditingUsername ? MekaarColors.softCoral : MekaarColors.textMuted,
+                          _isEditingUsername
+                              ? Icons.check
+                              : Icons.edit_outlined,
+                          color: _isEditingUsername
+                              ? MekaarColors.softCoral
+                              : MekaarColors.textMuted,
                           size: 18,
                         ),
                         onPressed: _isEditingUsername
@@ -216,15 +276,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     leading: Container(
                       width: 36,
                       height: 36,
-                      decoration: BoxDecoration(color: MekaarColors.surface2, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.lock_outline, color: MekaarColors.textSecondary, size: 18),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.surface2,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline,
+                        color: MekaarColors.textSecondary,
+                        size: 18,
+                      ),
                     ),
-                    title: Text(pinSet ? 'Ubah PIN' : 'Buat PIN', style: MekaarTypography.labelLG),
+                    title: Text(
+                      pinSet ? 'Ubah PIN' : 'Buat PIN',
+                      style: MekaarTypography.labelLG,
+                    ),
                     subtitle: Text(
-                      pinSet ? 'Perbarui PIN 6 digit keamanan Anda.' : 'Buat PIN untuk melindungi akses aplikasi.',
+                      pinSet
+                          ? 'Perbarui PIN 6 digit keamanan Anda.'
+                          : 'Buat PIN untuk melindungi akses aplikasi.',
                       style: MekaarTypography.bodySM,
                     ),
-                    trailing: const Icon(Icons.chevron_right, color: MekaarColors.textMuted, size: 18),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: MekaarColors.textMuted,
+                      size: 18,
+                    ),
                     onTap: _navigateToChangePin,
                   ),
                 ],
@@ -242,11 +318,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 leading: Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(color: MekaarColors.sosLight, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.logout, color: MekaarColors.sosRed, size: 18),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.sosLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    color: MekaarColors.sosRed,
+                    size: 18,
+                  ),
                 ),
-                title: Text('Keluar', style: MekaarTypography.labelLG.copyWith(color: MekaarColors.sosRed)),
-                subtitle: Text('Sesi login dan PIN lokal akan dihapus.', style: MekaarTypography.bodySM),
+                title: Text(
+                  'Keluar',
+                  style: MekaarTypography.labelLG.copyWith(
+                    color: MekaarColors.sosRed,
+                  ),
+                ),
+                subtitle: Text(
+                  'Sesi login dan PIN lokal akan dihapus.',
+                  style: MekaarTypography.bodySM,
+                ),
                 onTap: _confirmLogout,
               ),
             ),
@@ -275,7 +366,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: MekaarTypography.bodySM),
-            Text(value, style: MekaarTypography.bodyMD.copyWith(color: MekaarColors.textPrimary)),
+            Text(
+              value,
+              style: MekaarTypography.bodyMD.copyWith(
+                color: MekaarColors.textPrimary,
+              ),
+            ),
           ],
         ),
       ],

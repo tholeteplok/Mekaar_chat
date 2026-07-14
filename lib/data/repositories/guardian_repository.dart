@@ -6,16 +6,31 @@ class GuardianRepository {
 
   GuardianRepository(this._supabaseService);
 
-  // Search profile by email or username
+  // Search profile by email or username through a limited public RPC.
   Future<Map<String, dynamic>?> searchProfile(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.length < 2) return null;
+
+    try {
+      final response = await _supabaseService.client.rpc(
+        'search_public_profiles',
+        params: {'search_query': cleanQuery},
+      );
+      if (response is List && response.isNotEmpty) {
+        return Map<String, dynamic>.from(response.first as Map);
+      }
+    } catch (_) {
+      // Fallback keeps local MVP usable before 05_security_hardening.sql is applied.
+    }
+
     try {
       final response = await _supabaseService.client
           .from('profiles')
-          .select()
-          .or('username.eq."$query",email.eq."$query"')
+          .select('id, username, full_name, email, avatar_url')
+          .or('username.eq.$cleanQuery,email.eq.$cleanQuery')
           .maybeSingle();
       return response;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }

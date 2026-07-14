@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/utils/permissions.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_search_field.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
+import '../widgets/chat_list_tile.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
@@ -38,42 +39,31 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
       if (!hasAll) {
         if (!mounted) return;
-        
-        showDialog(
+
+        MekaarDialog.showConfirmation<void>(
           context: context,
           barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Theme.of(context).cardColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
-              children: [
-                Icon(Icons.security, color: MekaarColors.softCoral),
-                SizedBox(width: 8),
-                Text('Izin Sensor Darurat', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            content: const Text(
+          icon: const Icon(Icons.security, color: MekaarColors.softCoral),
+          title: 'Izin Sensor Darurat',
+          message:
               'Untuk perlindungan maksimal, MEKAAR memerlukan izin akses:\n\n'
               '• Lokasi: Mengirim koordinat GPS saat SOS aktif.\n'
               '• Kamera: Merekam bukti video kondisi darurat.\n'
               '• Mikrofon: Mengirim suara sekitar ke Guardian.\n\n'
               'Ponsel Anda akan memicu pop-up sistem setelah ini.',
-              style: TextStyle(fontSize: 14),
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await PermissionsHelper.requestSOSPermissions();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: MekaarColors.softCoral,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Berikan Izin'),
+          actions: [
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await PermissionsHelper.requestSOSPermissions();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MekaarColors.softCoral,
+                foregroundColor: Colors.white,
               ),
-            ],
-          ),
+              child: const Text('Berikan Izin'),
+            ),
+          ],
         );
       }
     } catch (_) {}
@@ -95,7 +85,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: Theme.of(context).cardColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: const Text(
                 'Mulai Chat Baru',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -106,23 +98,26 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 children: [
                   const Text(
                     'Masukkan username atau email teman Anda untuk memulai obrolan.',
-                    style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: MekaarColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  MekaarSearchField(
                     controller: searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Username atau Email',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      errorText: errorMessage.isNotEmpty ? errorMessage : null,
-                    ),
+                    hintText: 'Username atau Email',
+                    errorText: errorMessage.isNotEmpty ? errorMessage : null,
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal', style: TextStyle(color: MekaarColors.textMuted)),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(color: MekaarColors.textMuted),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: isSearching
@@ -130,7 +125,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       : () async {
                           final query = searchController.text.trim();
                           if (query.isEmpty) {
-                            setDialogState(() => errorMessage = 'Input tidak boleh kosong');
+                            setDialogState(
+                              () => errorMessage = 'Input tidak boleh kosong',
+                            );
                             return;
                           }
 
@@ -140,8 +137,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           });
 
                           try {
-                            final profile = await ref.read(chatRepositoryProvider).searchProfile(query);
-                            
+                            final profile = await ref
+                                .read(chatRepositoryProvider)
+                                .searchProfile(query);
+
                             if (profile == null) {
                               setDialogState(() {
                                 isSearching = false;
@@ -150,17 +149,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                               return;
                             }
 
-                            final myId = ref.read(supabaseServiceProvider).currentUserId;
+                            final myId = ref
+                                .read(supabaseServiceProvider)
+                                .currentUserId;
                             if (profile['id'] == myId) {
                               setDialogState(() {
                                 isSearching = false;
-                                errorMessage = 'Tidak bisa memulai chat dengan diri sendiri';
+                                errorMessage =
+                                    'Tidak bisa memulai chat dengan diri sendiri';
                               });
                               return;
                             }
 
                             // Create or get chat room
-                            final roomId = await ref.read(chatRoomsProvider.notifier).getOrCreateRoom(profile['id'], 'normal');
+                            final roomId = await ref
+                                .read(chatRoomsProvider.notifier)
+                                .getOrCreateRoom(profile['id'], 'normal');
 
                             if (context.mounted) {
                               Navigator.pop(context); // Close dialog
@@ -169,8 +173,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 AppRoutes.chat,
                                 arguments: {
                                   'chatId': roomId,
-                                  'chatName': profile['full_name'] as String? ?? profile['username'] as String? ?? 'User',
-                                  'chatAvatar': (profile['full_name'] as String? ?? profile['username'] as String? ?? 'U')[0],
+                                  'chatName':
+                                      profile['full_name'] as String? ??
+                                      profile['username'] as String? ??
+                                      'User',
+                                  'chatAvatar':
+                                      (profile['full_name'] as String? ??
+                                      profile['username'] as String? ??
+                                      'U')[0],
                                   'isGuardian': false,
                                 },
                               );
@@ -190,7 +200,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text('Cari & Chat'),
                 ),
@@ -219,51 +232,37 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   Text(
                     'Messages',
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: MekaarColors.textPrimary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: MekaarColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.shield_outlined, color: MekaarColors.guardianTeal),
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.guardian),
+                    icon: const Icon(
+                      Icons.shield_outlined,
+                      color: MekaarColors.guardianTeal,
+                    ),
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.guardian),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: MekaarColors.textSecondary),
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: MekaarColors.textSecondary,
+                    ),
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.settings),
                   ),
                 ],
               ),
             ),
             // Search Input
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: MekaarColors.surface2,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: MekaarColors.textMuted, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
-                        decoration: const InputDecoration(
-                          hintText: 'Cari chat atau teman...',
-                          border: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          fillColor: Colors.transparent,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              padding: MekaarSpacing.screen,
+              child: MekaarSearchField(
+                hintText: 'Cari chat atau teman...',
+                onChanged: (value) => setState(() => _searchQuery = value),
               ),
             ),
             const SizedBox(height: 12),
@@ -281,15 +280,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     onTap: () => setState(() => _selectedTab = tab),
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: isActive ? MekaarColors.textPrimary : Colors.transparent,
+                        color: isActive
+                            ? MekaarColors.textPrimary
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
                         tab,
                         style: TextStyle(
-                          color: isActive ? Colors.white : MekaarColors.textMuted,
+                          color: isActive
+                              ? Colors.white
+                              : MekaarColors.textMuted,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
@@ -303,11 +309,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             // Chat List Content
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => ref.read(chatRoomsProvider.notifier).refreshRooms(),
+                onRefresh: () =>
+                    ref.read(chatRoomsProvider.notifier).refreshRooms(),
                 child: chatRoomsState.when(
                   data: (rooms) => _buildChatList(rooms),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Gagal memuat chat: $err')),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) =>
+                      Center(child: Text('Gagal memuat chat: $err')),
                 ),
               ),
             ),
@@ -321,10 +330,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // SOS Button on the left
-            SOSButton(
-              onPressed: _triggerSOS,
-              size: 72,
-            ),
+            SOSButton(onPressed: _triggerSOS, size: 72),
             // Add Message FAB on the right
             FloatingActionButton(
               onPressed: _showNewChatDialog,
@@ -346,14 +352,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       final name = room['name'] as String;
       final username = room['otherUsername'] as String? ?? '';
       final email = room['otherEmail'] as String? ?? '';
-      
+
       final query = _searchQuery.toLowerCase();
-      final matchQuery = name.toLowerCase().contains(query) ||
-                         username.toLowerCase().contains(query) ||
-                         email.toLowerCase().contains(query);
-      
+      final matchQuery =
+          name.toLowerCase().contains(query) ||
+          username.toLowerCase().contains(query) ||
+          email.toLowerCase().contains(query);
+
       if (!matchQuery) return false;
-      
+
       if (_selectedTab == 'Guardian') {
         return room['isGuardian'] as bool;
       } else if (_selectedTab == 'Groups') {
@@ -367,11 +374,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 48, color: MekaarColors.textMuted),
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 48,
+              color: MekaarColors.textMuted,
+            ),
             SizedBox(height: 12),
             Text(
               'Belum ada chat',
-              style: TextStyle(color: MekaarColors.textSecondary, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: MekaarColors.textSecondary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -383,12 +397,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final room = filtered[index];
-        final isGuardian = room['isGuardian'] as bool;
-        final lastMsgTime = room['timestamp'] as DateTime;
-        final timeStr = DateFormat('HH:mm').format(lastMsgTime);
 
-        return CustomCard(
-          padding: EdgeInsets.zero,
+        return ChatListTile(
+          room: room,
           onTap: () {
             Navigator.pushNamed(
               context,
@@ -397,60 +408,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 'chatId': room['id'],
                 'chatName': room['name'],
                 'chatAvatar': room['avatar'],
-                'isGuardian': isGuardian,
+                'isGuardian': room['isGuardian'] as bool? ?? false,
               },
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                Avatar(
-                  initial: room['avatar'] as String,
-                  size: 48,
-                  isGuardian: isGuardian,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            room['name'] as String,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: MekaarColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            timeStr,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: MekaarColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        room['lastMessage'] as String,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: MekaarColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
