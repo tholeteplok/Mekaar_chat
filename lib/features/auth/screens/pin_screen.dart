@@ -68,7 +68,16 @@ class _PinScreenState extends ConsumerState<PinScreen> {
         if (_pin == _confirmPin) {
           await notifier.setupPIN(_pin);
           if (mounted) {
-            Navigator.pushReplacementNamed(context, AppRoutes.home);
+            final authState = ref.read(authProvider);
+            if (authState.error != null) {
+              HapticFeedback.vibrate();
+              setState(() {
+                _pin = '';
+                _statusMessage = authState.error!;
+              });
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.home);
+            }
           }
         } else {
           HapticFeedback.vibrate();
