@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
 
@@ -31,6 +32,125 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   void _triggerSOS() {
     Navigator.pushNamed(context, AppRoutes.sosActive);
+  }
+
+  void _showNewChatDialog() {
+    final searchController = TextEditingController();
+    bool isSearching = false;
+    String errorMessage = '';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Theme.of(context).cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text(
+                'Mulai Chat Baru',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Masukkan username atau email teman Anda untuk memulai obrolan.',
+                    style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Username atau Email',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      errorText: errorMessage.isNotEmpty ? errorMessage : null,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Batal', style: TextStyle(color: MekaarColors.textMuted)),
+                ),
+                ElevatedButton(
+                  onPressed: isSearching
+                      ? null
+                      : () async {
+                          final query = searchController.text.trim();
+                          if (query.isEmpty) {
+                            setDialogState(() => errorMessage = 'Input tidak boleh kosong');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSearching = true;
+                            errorMessage = '';
+                          });
+
+                          try {
+                            final profile = await ref.read(chatRepositoryProvider).searchProfile(query);
+                            
+                            if (profile == null) {
+                              setDialogState(() {
+                                isSearching = false;
+                                errorMessage = 'Pengguna tidak ditemukan';
+                              });
+                              return;
+                            }
+
+                            final myId = ref.read(supabaseServiceProvider).currentUserId;
+                            if (profile['id'] == myId) {
+                              setDialogState(() {
+                                isSearching = false;
+                                errorMessage = 'Tidak bisa memulai chat dengan diri sendiri';
+                              });
+                              return;
+                            }
+
+                            // Create or get chat room
+                            final roomId = await ref.read(chatRoomsProvider.notifier).getOrCreateRoom(profile['id'], 'normal');
+
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close dialog
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.chat,
+                                arguments: {
+                                  'chatId': roomId,
+                                  'chatName': profile['full_name'] as String? ?? profile['username'] as String? ?? 'User',
+                                  'chatAvatar': (profile['full_name'] as String? ?? profile['username'] as String? ?? 'U')[0],
+                                  'isGuardian': false,
+                                },
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isSearching = false;
+                              errorMessage = 'Gagal membuat chat: $e';
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MekaarColors.softCoral,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isSearching
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Cari & Chat'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -145,11 +265,27 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           ],
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 12, right: 4),
-        child: SOSButton(
-          onPressed: _triggerSOS,
-          size: 72,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // SOS Button on the left
+            SOSButton(
+              onPressed: _triggerSOS,
+              size: 72,
+            ),
+            // Add Message FAB on the right
+            FloatingActionButton(
+              onPressed: _showNewChatDialog,
+              backgroundColor: MekaarColors.softCoral,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add_comment_outlined, size: 24),
+            ),
+          ],
         ),
       ),
     );

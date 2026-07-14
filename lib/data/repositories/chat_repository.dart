@@ -187,6 +187,23 @@ class ChatRepository {
   }
 
   // Restrict forward for SOS location or system log messages
+  // Search user profile by username or email
+  Future<Map<String, dynamic>?> searchProfile(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return null;
+
+    try {
+      final response = await _supabaseService.client
+          .from('profiles')
+          .select()
+          .or('username.eq.$cleanQuery,email.eq.$cleanQuery')
+          .maybeSingle();
+      return response;
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool canForwardMessage(Message message) {
     if (message.type == MessageType.location || message.type == MessageType.system) {
       return false;
