@@ -3,30 +3,38 @@ import 'package:location/location.dart' as loc;
 import 'package:permission_handler/permission_handler.dart';
 
 class LocationService {
-  static final loc.Location _location = loc.Location();
+  static loc.Location? _locationInstance;
+  static loc.Location get _location {
+    _locationInstance ??= loc.Location();
+    return _locationInstance!;
+  }
 
   // Request location permission
   static Future<bool> requestPermission() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) return true;
-    
-    // Fallback to location package's request
-    final permissionStatus = await _location.requestPermission();
-    return permissionStatus == loc.PermissionStatus.granted;
+    try {
+      final status = await Permission.location.request();
+      if (status.isGranted) return true;
+      
+      // Fallback to location package's request
+      final permissionStatus = await _location.requestPermission();
+      return permissionStatus == loc.PermissionStatus.granted;
+    } catch (_) {
+      return false;
+    }
   }
 
   // Get current device coordinates
   static Future<loc.LocationData?> getCurrentLocation() async {
-    final hasPermission = await requestPermission();
-    if (!hasPermission) return null;
-
-    final serviceEnabled = await _location.serviceEnabled();
-    if (!serviceEnabled) {
-      final requestEnabled = await _location.requestService();
-      if (!requestEnabled) return null;
-    }
-
     try {
+      final hasPermission = await requestPermission();
+      if (!hasPermission) return null;
+
+      final serviceEnabled = await _location.serviceEnabled();
+      if (!serviceEnabled) {
+        final requestEnabled = await _location.requestService();
+        if (!requestEnabled) return null;
+      }
+
       return await _location.getLocation();
     } catch (e) {
       return null;
@@ -35,7 +43,11 @@ class LocationService {
 
   // Stream location updates
   static Stream<loc.LocationData> getLocationStream() {
-    return _location.onLocationChanged;
+    try {
+      return _location.onLocationChanged;
+    } catch (_) {
+      return const Stream.empty();
+    }
   }
 
   // Get full OpenStreetMap map URL

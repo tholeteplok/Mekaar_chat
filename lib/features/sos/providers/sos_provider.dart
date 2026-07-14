@@ -59,13 +59,17 @@ class SOSNotifier extends StateNotifier<SOSState> {
   }
 
   Future<void> _checkActiveSOS() async {
-    final active = await _sosRepository.getMyActiveSOS();
-    if (active != null) {
-      state = state.copyWith(activeSession: active);
-      _startSessionTimers(active.id);
-      if (active.gpsEnabled) {
-        _startLocationStreaming(active.id);
+    try {
+      final active = await _sosRepository.getMyActiveSOS();
+      if (active != null) {
+        state = state.copyWith(activeSession: active);
+        _startSessionTimers(active.id);
+        if (active.gpsEnabled) {
+          _startLocationStreaming(active.id);
+        }
       }
+    } catch (_) {
+      // Supabase is not initialized, ignore safely.
     }
   }
 

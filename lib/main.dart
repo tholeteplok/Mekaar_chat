@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
+import 'package:mekaar_chat/data/services/supabase_service.dart';
 import 'app.dart';
 
 final logger = Logger();
@@ -10,17 +11,19 @@ final logger = Logger();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  bool isDotEnvLoaded = false;
   // 1. Load Environment Variables
   try {
     await dotenv.load(fileName: ".env");
+    isDotEnvLoaded = true;
     logger.i(".env loaded successfully");
   } catch (e) {
     logger.w("Warning: Could not load .env file. Using default values. Error: $e");
   }
 
   // 2. Initialize Supabase
-  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'https://placeholder.supabase.co';
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? 'placeholderKey';
+  final supabaseUrl = isDotEnvLoaded ? (dotenv.env['SUPABASE_URL'] ?? 'https://placeholder.supabase.co') : 'https://placeholder.supabase.co';
+  final supabaseAnonKey = isDotEnvLoaded ? (dotenv.env['SUPABASE_ANON_KEY'] ?? 'placeholderKey') : 'placeholderKey';
 
   if (supabaseUrl != 'https://placeholder.supabase.co' && supabaseAnonKey != 'placeholderKey') {
     try {
@@ -28,6 +31,7 @@ void main() async {
         url: supabaseUrl,
         publishableKey: supabaseAnonKey,
       );
+      SupabaseService.isInitialized = true;
       logger.i("Supabase initialized successfully");
     } catch (e) {
       logger.e("Error initializing Supabase: $e. Running in offline/fallback mode.");
