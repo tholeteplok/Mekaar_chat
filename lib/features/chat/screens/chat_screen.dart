@@ -12,6 +12,8 @@ import '../widgets/chat_composer.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/media_upload_service.dart';
+import '../../../core/routes/app_routes.dart';
+
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -227,6 +229,85 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  void _initiateCall(String callType) {
+    final currentUserId = ref.read(authProvider).user?.id;
+    if (currentUserId == null || widget.otherUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Panggilan tidak tersedia untuk obrolan ini.')),
+      );
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      AppRoutes.call,
+      arguments: {
+        'roomId': widget.chatId,
+        'chatName': widget.chatName,
+        'callerId': currentUserId,
+        'receiverId': widget.otherUserId!,
+        'isCaller': true,
+        'callType': callType,
+      },
+    );
+  }
+
+  void _confirmClearHistory() {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Bersihkan Riwayat?',
+      message: widget.isGuardian
+          ? 'Seluruh riwayat chat akan dibersihkan dari tampilan Anda, namun log percakapan tetap diarsipkan demi kepatuhan Room Guardian.'
+          : 'Seluruh riwayat chat di ruangan ini akan dibersihkan untuk Anda.',
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context); // Close dialog
+            await ref.read(chatActionsProvider).clearChatHistory(widget.chatId);
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Riwayat obrolan dibersihkan.')),
+            );
+          },
+          child: const Text(
+            'Bersihkan',
+            style: TextStyle(color: MekaarColors.sosRed),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDeleteChat() {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Hapus Chat?',
+      message: 'Apakah Anda yakin ingin menghapus seluruh obrolan ini? Obrolan akan hilang dari daftar chat Anda.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context); // Close dialog
+            await ref.read(chatActionsProvider).deleteChat(widget.chatId);
+            if (!mounted) return;
+            Navigator.pop(context); // Exit chat room to ChatListScreen
+          },
+          child: const Text(
+            'Hapus',
+            style: TextStyle(color: MekaarColors.sosRed),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -252,24 +333,66 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         isOnline: _isCurrentlyOnline || _partnerIsTyping,
         subtitle: _buildPresenceSubtitle(),
         actions: [
-          if (widget.isGuardian) ...[
-            IconButton(
-              icon: const Icon(
-                Icons.phone_outlined,
-                color: MekaarColors.softCoral,
-              ),
-              onPressed: () {},
+          // Voice Call icon
+          IconButton(
+            icon: const Icon(
+              Icons.phone_outlined,
+              color: MekaarColors.softCoral,
             ),
-            IconButton(
-              icon: const Icon(
-                Icons.videocam_outlined,
-                color: MekaarColors.softCoral,
-              ),
-              onPressed: () {},
+            onPressed: () => _initiateCall('voice'),
+            tooltip: 'Panggilan Suara',
+          ),
+          // Actions Popup Menu
+          PopupMenuButton<String>(
+            icon: const Icon(
+              Icons.more_vert,
+              color: MekaarColors.softCoral,
             ),
-          ],
+            onSelected: (value) {
+              if (value == 'video') {
+                _initiateCall('video');
+              } else if (value == 'clear') {
+                _confirmClearHistory();
+              } else if (value == 'delete') {
+                _confirmDeleteChat();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'video',
+                child: Row(
+                  children: [
+                    Icon(Icons.videocam_outlined, size: 20, color: MekaarColors.textPrimary),
+                    SizedBox(width: 8),
+                    Text('Panggilan Video'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep_outlined, size: 20, color: MekaarColors.textPrimary),
+                    SizedBox(width: 8),
+                    Text('Bersihkan Riwayat'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20, color: MekaarColors.sosRed),
+                    SizedBox(width: 8),
+                    Text('Hapus Chat', style: TextStyle(color: MekaarColors.sosRed)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+
       body: Column(
         children: [
           Expanded(

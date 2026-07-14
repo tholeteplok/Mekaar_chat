@@ -17,6 +17,8 @@ import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_map_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
+
 
 class AppRoutes {
   static const String splash = '/';
@@ -36,6 +38,8 @@ class AppRoutes {
   static const String sosVideo = '/sos/video';
   static const String deviceLost = '/sos/lost';
   static const String map = '/map';
+  static const String call = '/call';
+
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -64,6 +68,19 @@ class AppRoutes {
             chatAvatar: args['chatAvatar'],
             isGuardian: args['isGuardian'] ?? false,
             otherUserId: args['otherUserId'] as String?,
+          ),
+        );
+      
+      case AppRoutes.call:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => CallScreen(
+            roomId: args['roomId'],
+            chatName: args['chatName'],
+            callerId: args['callerId'],
+            receiverId: args['receiverId'],
+            isCaller: args['isCaller'] ?? false,
+            callType: args['callType'] ?? 'voice',
           ),
         );
       

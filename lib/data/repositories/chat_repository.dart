@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../models/message_model.dart';
 import '../services/supabase_service.dart';
 
@@ -11,11 +12,13 @@ class ChatRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return [];
 
-    // Get rooms the current user participates in
+    // Get rooms the current user participates in, filtering out deleted rooms
     final roomsResponse = await _supabaseService.client
         .from('room_participants')
         .select('room_id, chat_rooms(id, room_type)')
-        .eq('profile_id', userId);
+        .eq('profile_id', userId)
+        .isFilter('deleted_at', null);
+
 
     final List<Map<String, dynamic>> roomsList = [];
 
@@ -41,7 +44,6 @@ class ChatRepository {
 
       if (otherParticipant != null) {
         otherUserId = otherParticipant['profile_id'] as String;
-        // Query public_profiles view which authenticated users have SELECT permission to view
         try {
           final profileResponse = await _supabaseService.client
               .from('public_profiles')
@@ -56,11 +58,31 @@ class ChatRepository {
         } catch (_) {}
       }
 
-      // Get last message in the room
-      final lastMsgResponse = await _supabaseService.client
+      // Check if history was cleared for this user
+      DateTime? historyClearedAt;
+      try {
+        final myParticipant = await _supabaseService.client
+            .from('room_participants')
+            .select('history_cleared_at')
+            .eq('room_id', roomId)
+            .eq('profile_id', userId)
+            .maybeSingle();
+        if (myParticipant != null && myParticipant['history_cleared_at'] != null) {
+          historyClearedAt = DateTime.parse(myParticipant['history_cleared_at'] as String);
+        }
+      } catch (_) {}
+
+      // Get last message in the room after history_cleared_at
+      var lastMsgQuery = _supabaseService.client
           .from('messages')
           .select()
-          .eq('room_id', roomId)
+          .eq('room_id', roomId);
+      
+      if (historyClearedAt != null) {
+        lastMsgQuery = lastMsgQuery.gt('created_at', historyClearedAt.toIso8601String());
+      }
+
+      final lastMsgResponse = await lastMsgQuery
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
@@ -86,24 +108,31 @@ class ChatRepository {
         lastMessageTime = lastMsg.createdAt;
       }
 
-      // Count unread messages (messages after our last_read_at, NOT sent by us)
+      // Count unread messages (messages after our last_read_at, NOT sent by us, and after history_cleared_at)
       int unreadCount = 0;
       try {
         final myParticipant = await _supabaseService.client
             .from('room_participants')
-            .select('last_read_at')
+            .select('last_read_at, history_cleared_at')
             .eq('room_id', roomId)
             .eq('profile_id', userId)
             .maybeSingle();
         final myLastRead = myParticipant?['last_read_at'] as String?;
+        final myHistoryCleared = myParticipant?['history_cleared_at'] as String?;
         if (myLastRead != null) {
-          final unreadResp = await _supabaseService.client
+          var unreadQuery = _supabaseService.client
               .from('messages')
               .select('id')
               .eq('room_id', roomId)
               .neq('sender_id', userId)
               .gt('created_at', myLastRead)
               .eq('is_deleted', false);
+          
+          if (myHistoryCleared != null) {
+            unreadQuery = unreadQuery.gt('created_at', myHistoryCleared);
+          }
+
+          final unreadResp = await unreadQuery;
           unreadCount = (unreadResp as List).length;
         }
       } catch (_) {}
@@ -185,14 +214,53 @@ class ChatRepository {
     return roomId;
   }
 
-  // Stream messages in a specific room
+  // Stream messages in a specific room, respecting history_cleared_at
   Stream<List<Message>> streamMessages(String roomId) {
-    return _supabaseService.client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('created_at', ascending: true)
-        .map((maps) => maps.map((map) => Message.fromJson(map)).toList());
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return const Stream.empty();
+
+    final controller = StreamController<List<Message>>();
+
+    Future<void> initStream() async {
+      DateTime? historyClearedAt;
+      try {
+        final p = await _supabaseService.client
+            .from('room_participants')
+            .select('history_cleared_at')
+            .eq('room_id', roomId)
+            .eq('profile_id', userId)
+            .maybeSingle();
+        if (p != null && p['history_cleared_at'] != null) {
+          historyClearedAt = DateTime.parse(p['history_cleared_at'] as String);
+        }
+      } catch (_) {}
+
+      final streamSubscription = _supabaseService.client
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .eq('room_id', roomId)
+          .order('created_at', ascending: true)
+          .listen((maps) {
+            var msgs = maps.map((map) => Message.fromJson(map)).toList();
+            if (historyClearedAt != null) {
+              msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
+            }
+            if (!controller.isClosed) {
+              controller.add(msgs);
+            }
+          }, onError: (err) {
+            if (!controller.isClosed) {
+              controller.addError(err);
+            }
+          });
+
+      controller.onCancel = () {
+        streamSubscription.cancel();
+      };
+    }
+
+    initStream();
+    return controller.stream;
   }
 
   // Send message
@@ -406,5 +474,31 @@ class ChatRepository {
     } catch (_) {}
     return null;
   }
+
+  /// Clear Chat History for current user in a room
+  Future<void> clearChatHistory(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+    await _supabaseService.client
+        .from('room_participants')
+        .update({'history_cleared_at': DateTime.now().toIso8601String()})
+        .eq('room_id', roomId)
+        .eq('profile_id', userId);
+  }
+
+  /// Soft delete Chat Room for current user (hides from list)
+  Future<void> deleteChat(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+    await _supabaseService.client
+        .from('room_participants')
+        .update({
+          'deleted_at': DateTime.now().toIso8601String(),
+          'history_cleared_at': DateTime.now().toIso8601String()
+        })
+        .eq('room_id', roomId)
+        .eq('profile_id', userId);
+  }
 }
+
 
