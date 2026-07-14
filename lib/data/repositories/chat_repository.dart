@@ -21,7 +21,8 @@ class ChatRepository {
 
     for (final row in roomsResponse) {
       final roomId = row['room_id'] as String;
-      final roomData = row['chat_rooms'] as Map<String, dynamic>;
+      final roomData = row['chat_rooms'] as Map<String, dynamic>?;
+      if (roomData == null) continue;
       final roomType = roomData['room_type'] as String;
 
       // Get other participant profile. Select only public fields; never request pin_hash.
@@ -38,7 +39,7 @@ class ChatRepository {
       bool isGuardian = (roomType == 'guardian');
       Map<String, dynamic>? profile;
 
-      if (otherParticipant != null) {
+      if (otherParticipant != null && otherParticipant['profiles'] != null) {
         profile = otherParticipant['profiles'] as Map<String, dynamic>;
         chatName = profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
         chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
