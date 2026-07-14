@@ -7,6 +7,9 @@ import 'package:mekaar_chat/features/chat/screens/chat_list_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/chat_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart';
+import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
@@ -24,6 +27,8 @@ class AppRoutes {
   static const String chat = '/chat';
   static const String guardian = '/guardian';
   static const String guardianAdd = '/guardian/add';
+  static const String guardianDetail = '/guardian/detail';
+  static const String guardianSwap = '/guardian/swap';
   static const String settings = '/settings';
   static const String logs = '/logs';
   static const String profile = '/profile';
@@ -66,6 +71,14 @@ class AppRoutes {
       
       case AppRoutes.guardianAdd:
         return MaterialPageRoute(builder: (_) => const AddGuardianScreen());
+      
+      case AppRoutes.guardianDetail:
+        final g = (settings.arguments as Map<String, dynamic>)['guardian'] as Guardian;
+        return MaterialPageRoute(builder: (_) => GuardianDetailScreen(guardian: g));
+      
+      case AppRoutes.guardianSwap:
+        final g = (settings.arguments as Map<String, dynamic>)['guardian'] as Guardian;
+        return MaterialPageRoute(builder: (_) => SwapGuardianScreen(guardian: g));
       
       case AppRoutes.settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());

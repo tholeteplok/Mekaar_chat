@@ -29,6 +29,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'desc': 'Kebebasan hapus chat biasa, auto-delete terkendali pada chat guardian, dan log sistem darurat permanen untuk bukti hukum.',
       'icon': 'lock_outline',
     },
+    {
+      'title': 'Etika & Transparansi Penuh',
+      'desc': 'Guardian TIDAK BISA memantau Anda tanpa izin eksplisit. Setiap akses selalu dicatat dan bisa Anda lihat di Log Sistem kapan saja.',
+      'icon': 'visibility_outlined',
+    },
   ];
 
   void _onPageChanged(int index) {
@@ -78,6 +83,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       iconData = Icons.shield_outlined;
                     } else if (slide['icon'] == 'lock_outline') {
                       iconData = Icons.lock_outline;
+                    } else if (slide['icon'] == 'visibility_outlined') {
+                      iconData = Icons.visibility_outlined;
                     }
 
                     return Column(
@@ -87,7 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           width: 140,
                           height: 140,
                           decoration: BoxDecoration(
-                            color: MekaarColors.softCoral.withOpacity(0.08),
+                            color: MekaarColors.softCoral.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(

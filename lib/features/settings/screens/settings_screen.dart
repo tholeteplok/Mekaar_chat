@@ -72,6 +72,13 @@ class SettingsScreen extends ConsumerWidget {
             _buildSectionHeader('Akun'),
             _buildMenuItem(
               context,
+              icon: Icons.person_outline,
+              title: 'Profil Saya',
+              subtitle: 'Kelola username, foto, dan PIN keamanan',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+            ),
+            _buildMenuItem(
+              context,
               icon: Icons.logout,
               title: 'Keluar',
               subtitle: 'Hapus sesi login dari perangkat ini',

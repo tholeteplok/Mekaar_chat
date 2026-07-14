@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../providers/sos_provider.dart';
+import '../../guardian/providers/guardian_provider.dart';
 
 class SOSActiveScreen extends ConsumerStatefulWidget {
   const SOSActiveScreen({super.key});
@@ -41,7 +42,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
           TextButton(
             onPressed: () async {
               await ref.read(sosProvider.notifier).endSOS();
-              if (mounted) {
+              if (context.mounted) {
                 Navigator.pop(context); // Close dialog
                 Navigator.pop(context); // Close SOS Screen
               }
@@ -59,6 +60,12 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   @override
   Widget build(BuildContext context) {
     final sosState = ref.watch(sosProvider);
+    final guardians = ref.watch(guardianProvider);
+    final activeGuardians = guardians.where((g) => g.status == 'active').map((g) => g.name).toList();
+    
+    final guardianText = activeGuardians.isEmpty
+        ? 'Tidak ada Guardian aktif.'
+        : 'Guardian (${activeGuardians.join(', ')}) sedang melacak lokasi${sosState.micPermissionDenied ? ' Anda.' : ' dan mendengar audio sekitar perangkat.'}';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0707),
@@ -69,7 +76,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
               center: Alignment.center,
               radius: 1.2,
               colors: [
-                MekaarColors.sosRed.withOpacity(0.15),
+                MekaarColors.sosRed.withValues(alpha: 0.15),
                 Colors.transparent,
               ],
             ),
@@ -89,7 +96,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       height: 140 * value,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: MekaarColors.sosRed.withOpacity(0.18 * (1.15 - value) / 0.15),
+                        color: MekaarColors.sosRed.withValues(alpha: 0.18 * (1.15 - value) / 0.15),
                       ),
                       child: Center(
                         child: Container(
@@ -122,22 +129,43 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Guardian Anda sedang melacak lokasi dan mendengar audio sekitar perangkat.',
+                  guardianText,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
                     height: 1.5,
                   ),
                 ),
+                if (sosState.micPermissionDenied) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.warningLight,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.mic_off_outlined, color: MekaarColors.warning, size: 16),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Izin Mikrofon Ditolak',
+                          style: TextStyle(color: MekaarColors.warning, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 48),
                 // Counter duration timer
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
+                    color: Colors.white.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                   ),
                   child: Text(
                     _formatDuration(sosState.elapsedSeconds),
@@ -181,7 +209,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         label: const Text('Akhiri Mode Darurat'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

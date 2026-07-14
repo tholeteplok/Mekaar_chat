@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/user_model.dart';
@@ -191,9 +192,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // Force unlock PIN (for development/admin or emergency override helper)
+  // Force unlock PIN — HANYA untuk debug. Di production build ini adalah no-op.
   void devForceUnlock() {
-    state = state.copyWith(pinAttempts: 0, pinLockedUntil: null);
+    if (kDebugMode) {
+      state = state.copyWith(pinAttempts: 0, pinLockedUntil: null);
+    }
   }
 }
 

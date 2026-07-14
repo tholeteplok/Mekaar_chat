@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
-import 'package:permission_handler/permission_handler.dart';
+import '../../../core/utils/permissions.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
@@ -34,11 +34,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   Future<void> _checkAndRequestPermissions() async {
     try {
-      final statusLocation = await Permission.location.status;
-      final statusCamera = await Permission.camera.status;
-      final statusMic = await Permission.microphone.status;
+      final hasAll = await PermissionsHelper.hasAllSOSPermissions();
 
-      if (!statusLocation.isGranted || !statusCamera.isGranted || !statusMic.isGranted) {
+      if (!hasAll) {
         if (!mounted) return;
         
         showDialog(
@@ -66,11 +64,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  await [
-                    Permission.location,
-                    Permission.camera,
-                    Permission.microphone,
-                  ].request();
+                  await PermissionsHelper.requestSOSPermissions();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: MekaarColors.softCoral,

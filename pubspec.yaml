@@ -81,6 +81,9 @@ dependencies:
   uuid: ^4.3.3
   crypto: ^3.0.3
 
+  # Sensors (for SOS inactivity accelerometer check)
+  sensors_plus: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

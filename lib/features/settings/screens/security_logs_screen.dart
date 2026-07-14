@@ -24,7 +24,8 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
   }
 
   void _exportCSV() async {
-    final csvData = await ref.read(securityLogProvider.notifier).exportLogs();
+    // Export dan abaikan nilai return (hanya notifikasi user)
+    await ref.read(securityLogProvider.notifier).exportLogs();
     
     // Renders download complete feedback
     if (mounted) {
@@ -61,8 +62,8 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
           ),
           TextButton(
             onPressed: () async {
+              Navigator.pop(context);
               await ref.read(securityLogProvider.notifier).clearLogs();
-              if (mounted) Navigator.pop(context);
             },
             child: const Text('Hapus Semua', style: TextStyle(color: MekaarColors.sosRed, fontWeight: FontWeight.bold)),
           ),
@@ -129,7 +130,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
+              color: color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(iconData, color: color, size: 20),

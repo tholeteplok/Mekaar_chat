@@ -69,7 +69,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: MekaarColors.softCoral.withOpacity(0.4),
+                      color: MekaarColors.softCoral.withValues(alpha: 0.4),
                       blurRadius: 30,
                       spreadRadius: 2,
                     ),

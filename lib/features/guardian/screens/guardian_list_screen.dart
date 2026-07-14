@@ -25,46 +25,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     });
   }
 
-  void _showGuardianOptions(BuildContext context, Guardian guardian) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.swap_horiz, color: MekaarColors.guardianTeal),
-                title: const Text('Tukar Posisi (Saling Menjaga)'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await ref.read(guardianProvider.notifier).initiateRoleSwap(guardian.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Permintaan Tukar Posisi Terkirim!')),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: MekaarColors.sosRed),
-                title: const Text('Hapus Guardian', style: TextStyle(color: MekaarColors.sosRed)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await ref.read(guardianProvider.notifier).removeGuardian(guardian.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Guardian berhasil dihapus.')),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -180,82 +142,88 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     final isPending = guardian.status == 'pending';
     final isExpired = guardian.isExpired;
 
-    return CustomCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Avatar(
-            initial: guardian.name.isNotEmpty ? guardian.name[0] : 'U',
-            size: 46,
-            isGuardian: guardian.status == 'active',
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        guardian.name,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: MekaarColors.textPrimary),
-                        overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onTap: isMyGuardian
+          ? () => Navigator.pushNamed(
+                context,
+                AppRoutes.guardianDetail,
+                arguments: {'guardian': guardian},
+              )
+          : null,
+      child: CustomCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Avatar(
+              initial: guardian.name.isNotEmpty ? guardian.name[0] : 'U',
+              size: 46,
+              isGuardian: guardian.status == 'active',
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          guardian.name,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: MekaarColors.textPrimary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    if (isPending)
-                      _buildBadge('Pending', MekaarColors.warning, MekaarColors.warningLight)
-                    else if (isExpired)
-                      _buildBadge('Expired', MekaarColors.sosRed, MekaarColors.sosLight)
-                    else
-                      _buildBadge('Aktif', MekaarColors.success, MekaarColors.successLight),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(guardian.email, style: const TextStyle(fontSize: 12, color: MekaarColors.textMuted)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildPermissionChip('GPS', guardian.permissions['gps'] ?? false),
-                    const SizedBox(width: 6),
-                    _buildPermissionChip('Audio', guardian.permissions['mic'] ?? false),
-                    const Spacer(),
-                    if (!isPending && !isExpired)
-                      Text(
-                        '${guardian.daysRemaining} hari lagi',
-                        style: const TextStyle(fontSize: 10, color: MekaarColors.success, fontWeight: FontWeight.bold),
-                      ),
-                  ],
-                ),
-              ],
+                      if (isPending)
+                        _buildBadge('Pending', MekaarColors.warning, MekaarColors.warningLight)
+                      else if (isExpired)
+                        _buildBadge('Expired', MekaarColors.sosRed, MekaarColors.sosLight)
+                      else
+                        _buildBadge('Aktif', MekaarColors.success, MekaarColors.successLight),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(guardian.email, style: const TextStyle(fontSize: 12, color: MekaarColors.textMuted)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildPermissionChip('GPS', guardian.permissions['gps'] ?? false),
+                      const SizedBox(width: 6),
+                      _buildPermissionChip('Audio', guardian.permissions['mic'] ?? false),
+                      const Spacer(),
+                      if (!isPending && !isExpired)
+                        Text(
+                          '${guardian.daysRemaining} hari lagi',
+                          style: const TextStyle(fontSize: 10, color: MekaarColors.success, fontWeight: FontWeight.bold),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (isMyGuardian) ...[
-            IconButton(
-              icon: const Icon(Icons.more_vert, color: MekaarColors.textSecondary),
-              onPressed: () => _showGuardianOptions(context, guardian),
-            ),
-          ] else if (isPending) ...[
-            // Accept/Reject request
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.check_circle_outline, color: MekaarColors.success),
-                  onPressed: () async {
-                    await ref.read(whoAddedMeProvider.notifier).accept(guardian.id);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.cancel_outlined, color: MekaarColors.sosRed),
-                  onPressed: () async {
-                    await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
-                  },
-                ),
-              ],
-            ),
+            if (isMyGuardian) ...[ 
+              const Icon(Icons.chevron_right, color: MekaarColors.textMuted, size: 18),
+            ] else if (isPending) ...[
+              // Accept/Reject request
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.check_circle_outline, color: MekaarColors.success),
+                    onPressed: () async {
+                      await ref.read(whoAddedMeProvider.notifier).accept(guardian.id);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.cancel_outlined, color: MekaarColors.sosRed),
+                    onPressed: () async {
+                      await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
+                    },
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

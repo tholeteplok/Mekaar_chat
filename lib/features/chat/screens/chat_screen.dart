@@ -83,7 +83,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             onPressed: () async {
               await ref.read(chatActionsProvider).deleteMessage(msg.id);
-              if (mounted) Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Hapus', style: TextStyle(color: MekaarColors.sosRed)),
           ),

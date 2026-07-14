@@ -210,4 +210,14 @@ class ChatRepository {
     }
     return true;
   }
+
+  /// Guard: pesan di chat guardian TIDAK BOLEH diedit untuk menjaga integritas bukti hukum.
+  /// Chat normal boleh diedit. Gunakan ini sebelum menampilkan opsi edit di UI.
+  bool canEditMessage(Message message, {required bool isGuardianRoom}) {
+    if (isGuardianRoom) return false;
+    if (message.isDeleted) return false;
+    if (message.type != MessageType.text) return false;
+    return true;
+  }
 }
+

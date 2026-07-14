@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import '../../../data/models/sos_session_model.dart';
 import '../../../data/repositories/sos_repository.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/audio_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
 // Repository Provider
@@ -18,6 +20,7 @@ class SOSState {
   final bool isAudioStreaming;
   final bool isVideoStreaming;
   final int elapsedSeconds;
+  final bool micPermissionDenied; // true jika mic gagal diakses
 
   SOSState({
     this.activeSession,
@@ -25,6 +28,7 @@ class SOSState {
     this.isAudioStreaming = false,
     this.isVideoStreaming = false,
     this.elapsedSeconds = 0,
+    this.micPermissionDenied = false,
   });
 
   bool get isSOSActive => activeSession != null;
@@ -35,6 +39,7 @@ class SOSState {
     bool? isAudioStreaming,
     bool? isVideoStreaming,
     int? elapsedSeconds,
+    bool? micPermissionDenied,
     bool clearActiveSession = false,
   }) {
     return SOSState(
@@ -43,6 +48,7 @@ class SOSState {
       isAudioStreaming: isAudioStreaming ?? this.isAudioStreaming,
       isVideoStreaming: isVideoStreaming ?? this.isVideoStreaming,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
+      micPermissionDenied: micPermissionDenied ?? this.micPermissionDenied,
     );
   }
 }
@@ -50,9 +56,17 @@ class SOSState {
 // State Notifier
 class SOSNotifier extends StateNotifier<SOSState> {
   final SOSRepository _sosRepository;
+  final AudioService _audioService = AudioService();
+
   Timer? _timer;
   StreamSubscription? _locationSubscription;
   Timer? _inactivityTimer;
+
+  // Akselerometer: track gerakan perangkat untuk inactivity check
+  StreamSubscription? _accelerometerSubscription;
+  double _lastAccelMagnitude = 0.0;
+  static const double _movementThreshold = 1.5; // m/s² — ambang batas gerakan bermakna
+  bool _deviceIsMoving = false;
 
   SOSNotifier(this._sosRepository) : super(SOSState()) {
     _checkActiveSOS();
@@ -67,35 +81,56 @@ class SOSNotifier extends StateNotifier<SOSState> {
         if (active.gpsEnabled) {
           _startLocationStreaming(active.id);
         }
+        // Resume mic jika session aktif dari sebelumnya
+        if (active.micEnabled) {
+          final success = await _audioService.startMicStreaming();
+          state = state.copyWith(
+            isAudioStreaming: success,
+            micPermissionDenied: !success,
+          );
+        }
+        _startAccelerometerWatch();
       }
     } catch (_) {
       // Supabase is not initialized, ignore safely.
     }
   }
 
-  // Start SOS Session
+  /// Aktivasi SOS: mulai session, GPS, dan mic (jika diizinkan guardian)
   Future<void> activateSOS({bool gps = true, bool mic = false, bool video = false}) async {
     try {
       final session = await _sosRepository.startSOS(gps: gps, mic: mic, video: video);
+
+      bool audioStarted = false;
+      bool micDenied = false;
+
+      // Hanya start mic jika parameter mic = true (guardian sudah beri izin)
+      if (mic) {
+        audioStarted = await _audioService.startMicStreaming();
+        micDenied = !audioStarted;
+      }
+
       state = state.copyWith(
         activeSession: session,
         isGpsStreaming: gps,
-        isAudioStreaming: mic,
+        isAudioStreaming: audioStarted,
         isVideoStreaming: video,
         elapsedSeconds: 0,
+        micPermissionDenied: micDenied,
       );
 
       _startSessionTimers(session.id);
-      
+
       if (gps) {
         _startLocationStreaming(session.id);
       }
-      
+
+      _startAccelerometerWatch();
       resetInactivityTimer();
     } catch (_) {}
   }
 
-  // End SOS Session
+  /// Akhiri SOS: hentikan semua stream, update session
   Future<void> endSOS({String reason = 'manual'}) async {
     final session = state.activeSession;
     if (session == null) return;
@@ -103,9 +138,13 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _timer?.cancel();
     _locationSubscription?.cancel();
     _inactivityTimer?.cancel();
+    _accelerometerSubscription?.cancel();
+
+    // Hentikan mic streaming
+    await _audioService.stopMicStreaming();
 
     await _sosRepository.endSession(session.id, reason: reason);
-    
+
     state = SOSState(); // Reset state
   }
 
@@ -116,18 +155,18 @@ class SOSNotifier extends StateNotifier<SOSState> {
     });
   }
 
-  // Start Location Updates GPS Stream to Supabase Location Pings
+  /// Mulai streaming GPS ke Supabase location_pings
   void _startLocationStreaming(String sessionId) {
     _locationSubscription?.cancel();
-    
-    // Get initial location
+
+    // Kirim lokasi pertama segera
     LocationService.getCurrentLocation().then((locData) {
       if (locData != null && locData.latitude != null && locData.longitude != null) {
         _sosRepository.pingLocation(
-          sessionId, 
-          locData.latitude!, 
-          locData.longitude!, 
-          accuracy: locData.accuracy
+          sessionId,
+          locData.latitude!,
+          locData.longitude!,
+          accuracy: locData.accuracy,
         );
       }
     });
@@ -136,36 +175,55 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _locationSubscription = LocationService.getLocationStream().listen((locData) {
       if (locData.latitude != null && locData.longitude != null) {
         _sosRepository.pingLocation(
-          sessionId, 
-          locData.latitude!, 
-          locData.longitude!, 
-          accuracy: locData.accuracy
+          sessionId,
+          locData.latitude!,
+          locData.longitude!,
+          accuracy: locData.accuracy,
         );
       }
     });
   }
 
-  // Handle video toggles
+  /// Monitor akselerometer — deteksi apakah perangkat bergerak atau diam
+  void _startAccelerometerWatch() {
+    _accelerometerSubscription?.cancel();
+    _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
+      // Magnitude total akselerasi (tanpa gravitasi tidak bisa dipisahkan di sini, 
+      // tapi perubahan antara sample berturut-turut mencerminkan gerakan)
+      final magnitude = (event.x * event.x + event.y * event.y + event.z * event.z);
+      final delta = (magnitude - _lastAccelMagnitude).abs();
+      _deviceIsMoving = delta > _movementThreshold;
+      _lastAccelMagnitude = magnitude;
+    });
+  }
+
+  /// Toggle video streaming state
   void toggleVideo(bool enabled) {
     state = state.copyWith(isVideoStreaming: enabled);
     resetInactivityTimer();
   }
 
-  // Handle mic toggles
+  /// Toggle mic state (mute/unmute tanpa stop stream)
   void toggleMic(bool enabled) {
+    if (_audioService.isMicActive) {
+      _audioService.setMuted(!enabled);
+    }
     state = state.copyWith(isAudioStreaming: enabled);
     resetInactivityTimer();
   }
 
-  // Reset inactivity watchdog timer (Auto-end video streaming after 2 mins if inactive)
+  /// Reset inactivity watchdog timer.
+  /// Auto-end video stream jika perangkat DIAM (akselerometer) + tidak ada sentuhan selama 2 menit.
   void resetInactivityTimer() {
     _inactivityTimer?.cancel();
-    
-    // 2 minutes inactivity timer
+
     _inactivityTimer = Timer(const Duration(minutes: 2), () {
-      if (state.isVideoStreaming) {
-        // Auto-end streaming to protect privacy
+      // Hanya auto-end jika perangkat benar-benar diam (tidak bergerak)
+      if (state.isVideoStreaming && !_deviceIsMoving) {
         toggleVideo(false);
+      } else if (state.isVideoStreaming && _deviceIsMoving) {
+        // Perangkat masih bergerak — reset timer lagi
+        resetInactivityTimer();
       }
     });
   }
@@ -175,6 +233,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _timer?.cancel();
     _locationSubscription?.cancel();
     _inactivityTimer?.cancel();
+    _accelerometerSubscription?.cancel();
+    _audioService.dispose();
     super.dispose();
   }
 }

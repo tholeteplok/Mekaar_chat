@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
+import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../providers/guardian_provider.dart';
 
@@ -25,7 +27,48 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
 
   void _submitInvitation() async {
     final query = _searchController.text.trim();
-    if (query.isEmpty) return;
+    final validationError = MekaarValidators.emailOrUsername(query);
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(validationError), backgroundColor: MekaarColors.sosRed),
+      );
+      return;
+    }
+
+    // Tampilkan peringatan etis sebelum kirim undangan (spec 8.4)
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline, color: MekaarColors.guardianTeal),
+            const SizedBox(width: 8),
+            Text('Catatan Penting', style: MekaarTypography.headingSM),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Dengan menambahkan Guardian, Anda memberikan izin kepada orang ini untuk memantau keberadaan Anda HANYA saat Anda mengaktifkan tombol SOS.', style: MekaarTypography.bodyMD),
+            const SizedBox(height: 12),
+            Text('Guardian TIDAK BISA memantau Anda secara diam-diam. Setiap akses selalu tercatat di Log Sistem.', style: MekaarTypography.bodyMD.copyWith(color: MekaarColors.guardianTeal, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Saya Mengerti, Kirim', style: TextStyle(color: MekaarColors.softCoral, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
 
     setState(() => _isLoading = true);
 
@@ -100,7 +143,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             const SizedBox(height: 20),
             // GPS permission switch
             SwitchListTile(
-              activeColor: MekaarColors.softCoral,
+              activeThumbColor: MekaarColors.softCoral,
               contentPadding: EdgeInsets.zero,
               title: const Text(
                 'Lacak Lokasi (GPS)',
@@ -113,7 +156,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             const Divider(color: MekaarColors.borderLight),
             // Audio permission switch
             SwitchListTile(
-              activeColor: MekaarColors.softCoral,
+              activeThumbColor: MekaarColors.softCoral,
               contentPadding: EdgeInsets.zero,
               title: const Text(
                 'Akses Mikrofon (Audio)',
