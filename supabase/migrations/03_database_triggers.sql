@@ -115,3 +115,24 @@ DROP TRIGGER IF EXISTS tr_log_security_log_delete ON security_logs;
 CREATE TRIGGER tr_log_security_log_delete
 AFTER UPDATE ON security_logs
 FOR EACH ROW EXECUTE FUNCTION log_security_log_delete();
+
+
+-- 12. Trigger to automatically create a profile when a new user signs up in auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, username, email, pin_hash)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    NEW.email,
+    '' -- empty PIN initially
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

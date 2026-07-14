@@ -29,19 +29,7 @@ class AuthRepository {
         'username': username,
       },
     );
-
-    final user = response.user;
-    if (user != null) {
-      // Create initial profile in the database
-      // The default pin_hash can be empty initially
-      await _supabaseService.client.from('profiles').upsert({
-        'id': user.id,
-        'username': username,
-        'email': email,
-        'pin_hash': '', // Empty until setup
-      });
-    }
-    return user;
+    return response.user;
   }
 
   // Sign out
