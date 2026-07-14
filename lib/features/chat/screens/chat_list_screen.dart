@@ -159,7 +159,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     // Filter rooms by query and selected tab
     final filtered = rooms.where((room) {
       final name = room['name'] as String;
-      final matchQuery = name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final username = room['otherUsername'] as String? ?? '';
+      final email = room['otherEmail'] as String? ?? '';
+      
+      final query = _searchQuery.toLowerCase();
+      final matchQuery = name.toLowerCase().contains(query) ||
+                         username.toLowerCase().contains(query) ||
+                         email.toLowerCase().contains(query);
       
       if (!matchQuery) return false;
       

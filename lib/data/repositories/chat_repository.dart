@@ -83,6 +83,8 @@ class ChatRepository {
         'unreadCount': 0, // Mock for now, can be updated later
         'isGuardian': isGuardian,
         'otherUserId': otherUserId,
+        'otherUsername': otherParticipant != null ? (otherParticipant['profiles'] as Map<String, dynamic>)['username'] : '',
+        'otherEmail': otherParticipant != null ? (otherParticipant['profiles'] as Map<String, dynamic>)['email'] : '',
       });
     }
 
