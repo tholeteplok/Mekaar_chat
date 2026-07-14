@@ -11,6 +11,9 @@ class Message {
   final String? replyToId;
   final bool isDeleted;
   final DateTime? autoDeleteAt;
+  final DateTime? editedAt;
+  // Map of emoji → list of user IDs who reacted (e.g. {"👍": ["uid1","uid2"]})
+  final Map<String, List<String>> reactions;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -25,9 +28,13 @@ class Message {
     this.replyToId,
     this.isDeleted = false,
     this.autoDeleteAt,
+    this.editedAt,
+    this.reactions = const {},
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool get isEdited => editedAt != null;
 
   factory Message.fromJson(Map<String, dynamic> json) {
     // Parse message type safely
@@ -38,6 +45,18 @@ class Message {
         (e) => e.name == jsonType,
         orElse: () => MessageType.text,
       );
+    }
+
+    // Parse reactions JSONB: {"👍": ["uid1", "uid2"]}
+    Map<String, List<String>> parsedReactions = {};
+    final rawReactions = json['reactions'];
+    if (rawReactions is Map) {
+      rawReactions.forEach((key, value) {
+        if (value is List) {
+          parsedReactions[key.toString()] =
+              value.map((e) => e.toString()).toList();
+        }
+      });
     }
 
     return Message(
@@ -53,6 +72,10 @@ class Message {
       autoDeleteAt: json['auto_delete_at'] != null
           ? DateTime.parse(json['auto_delete_at'] as String)
           : null,
+      editedAt: json['edited_at'] != null
+          ? DateTime.parse(json['edited_at'] as String)
+          : null,
+      reactions: parsedReactions,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -70,6 +93,8 @@ class Message {
       'reply_to_id': replyToId,
       'is_deleted': isDeleted,
       'auto_delete_at': autoDeleteAt?.toIso8601String(),
+      'edited_at': editedAt?.toIso8601String(),
+      'reactions': reactions,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -86,6 +111,8 @@ class Message {
     String? replyToId,
     bool? isDeleted,
     DateTime? autoDeleteAt,
+    DateTime? editedAt,
+    Map<String, List<String>>? reactions,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -100,6 +127,8 @@ class Message {
       replyToId: replyToId ?? this.replyToId,
       isDeleted: isDeleted ?? this.isDeleted,
       autoDeleteAt: autoDeleteAt ?? this.autoDeleteAt,
+      editedAt: editedAt ?? this.editedAt,
+      reactions: reactions ?? this.reactions,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

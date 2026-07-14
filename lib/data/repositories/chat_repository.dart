@@ -86,13 +86,35 @@ class ChatRepository {
         lastMessageTime = lastMsg.createdAt;
       }
 
+      // Count unread messages (messages after our last_read_at, NOT sent by us)
+      int unreadCount = 0;
+      try {
+        final myParticipant = await _supabaseService.client
+            .from('room_participants')
+            .select('last_read_at')
+            .eq('room_id', roomId)
+            .eq('profile_id', userId)
+            .maybeSingle();
+        final myLastRead = myParticipant?['last_read_at'] as String?;
+        if (myLastRead != null) {
+          final unreadResp = await _supabaseService.client
+              .from('messages')
+              .select('id')
+              .eq('room_id', roomId)
+              .neq('sender_id', userId)
+              .gt('created_at', myLastRead)
+              .eq('is_deleted', false);
+          unreadCount = (unreadResp as List).length;
+        }
+      } catch (_) {}
+
       roomsList.add({
         'id': roomId,
         'name': chatName,
         'avatar': chatAvatar,
         'lastMessage': lastMessageText,
         'timestamp': lastMessageTime,
-        'unreadCount': 0,
+        'unreadCount': unreadCount,
         'isGuardian': isGuardian,
         'otherUserId': otherUserId,
         'otherUsername': profile?['username'] ?? '',
@@ -291,4 +313,98 @@ class ChatRepository {
     if (message.type != MessageType.text) return false;
     return true;
   }
+
+  /// Edit isi teks pesan. Hanya pengirim di chat non-guardian yang boleh.
+  Future<void> editMessage(String messageId, String newContent) async {
+    await _supabaseService.client
+        .from('messages')
+        .update({
+          'content': newContent,
+          'edited_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', messageId);
+  }
+
+  /// Toggle emoji reaction. Uses RPC for atomic add/remove.
+  Future<void> reactToMessage(String messageId, String emoji) async {
+    try {
+      await _supabaseService.client.rpc(
+        'toggle_reaction',
+        params: {'message_uuid': messageId, 'emoji_key': emoji},
+      );
+    } catch (_) {
+      // Fallback: client-side optimistic update skipped, reaction will sync on next stream event
+    }
+  }
+
+  /// Returns the last_read_at of the OTHER participant in a 1-on-1 room.
+  /// Used to compute read receipt status for sent messages.
+  Future<DateTime?> getOtherParticipantLastRead(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return null;
+    try {
+      final response = await _supabaseService.client
+          .from('room_participants')
+          .select('last_read_at')
+          .eq('room_id', roomId)
+          .neq('profile_id', userId)
+          .maybeSingle();
+      if (response != null && response['last_read_at'] != null) {
+        return DateTime.parse(response['last_read_at'] as String);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Count unread messages in a room for the current user.
+  Future<int> getUnreadCount(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return 0;
+    try {
+      final participantData = await _supabaseService.client
+          .from('room_participants')
+          .select('last_read_at')
+          .eq('room_id', roomId)
+          .eq('profile_id', userId)
+          .maybeSingle();
+      if (participantData == null) return 0;
+      final lastReadAt = participantData['last_read_at'] as String?;
+      if (lastReadAt == null) return 0;
+
+      final response = await _supabaseService.client
+          .from('messages')
+          .select('id')
+          .eq('room_id', roomId)
+          .neq('sender_id', userId)
+          .gt('created_at', lastReadAt)
+          .eq('is_deleted', false);
+      return (response as List).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Update the current user's last_seen_at via RPC.
+  Future<void> updateLastSeen() async {
+    try {
+      await _supabaseService.client.rpc('update_last_seen');
+    } catch (_) {}
+  }
+
+  /// Get the last_seen_at of another user by their profile_id.
+  Future<DateTime?> getLastSeen(String profileId) async {
+    try {
+      final response = await _supabaseService.client
+          .from('public_profiles')
+          .select('last_seen_at')
+          .eq('id', profileId)
+          .maybeSingle();
+      if (response != null && response['last_seen_at'] != null) {
+        return DateTime.parse(response['last_seen_at'] as String);
+      }
+    } catch (_) {}
+    return null;
+  }
 }
+

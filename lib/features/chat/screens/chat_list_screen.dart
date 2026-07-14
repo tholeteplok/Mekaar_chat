@@ -197,6 +197,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                       profile['username'] as String? ??
                                       'U')[0],
                                   'isGuardian': false,
+                                  'otherUserId': profile['id'] as String?,
                                 },
                               );
                             }
@@ -424,6 +425,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 'chatName': room['name'],
                 'chatAvatar': room['avatar'],
                 'isGuardian': room['isGuardian'] as bool? ?? false,
+                'otherUserId': room['otherUserId'] as String?,
               },
             );
           },

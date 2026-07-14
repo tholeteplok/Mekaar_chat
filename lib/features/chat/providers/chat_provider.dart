@@ -4,16 +4,22 @@ import '../../../data/models/message_model.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 
+// ─────────────────────────────────────────
 // Repository Provider
+// ─────────────────────────────────────────
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
   return ChatRepository(supabaseService);
 });
 
-// Active Room State Provider
+// ─────────────────────────────────────────
+// Active Room State
+// ─────────────────────────────────────────
 final activeRoomIdProvider = StateProvider<String?>((ref) => null);
 
-// Chat Rooms List State Notifier
+// ─────────────────────────────────────────
+// Chat Rooms List
+// ─────────────────────────────────────────
 class ChatRoomsNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final ChatRepository _chatRepository;
@@ -39,16 +45,15 @@ class ChatRoomsNotifier
   }
 }
 
-final chatRoomsProvider =
-    StateNotifierProvider<
-      ChatRoomsNotifier,
-      AsyncValue<List<Map<String, dynamic>>>
-    >((ref) {
-      final repo = ref.watch(chatRepositoryProvider);
-      return ChatRoomsNotifier(repo);
-    });
+final chatRoomsProvider = StateNotifierProvider<
+    ChatRoomsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
+  final repo = ref.watch(chatRepositoryProvider);
+  return ChatRoomsNotifier(repo);
+});
 
+// ─────────────────────────────────────────
 // Stream of messages in a room
+// ─────────────────────────────────────────
 final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
   ref,
   roomId,
@@ -57,7 +62,45 @@ final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
   return repo.streamMessages(roomId);
 });
 
-// Messages Notifier for actions
+// ─────────────────────────────────────────
+// Read receipts: other participant's last_read_at
+// ─────────────────────────────────────────
+final otherParticipantLastReadProvider =
+    FutureProvider.family<DateTime?, String>((ref, roomId) async {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.getOtherParticipantLastRead(roomId);
+});
+
+// ─────────────────────────────────────────
+// Typing indicator state (per room)
+// ─────────────────────────────────────────
+class TypingNotifier extends StateNotifier<bool> {
+  Timer? _hideTimer;
+  TypingNotifier() : super(false);
+
+  void setTyping(bool typing) {
+    state = typing;
+    if (typing) {
+      _hideTimer?.cancel();
+      _hideTimer = Timer(const Duration(seconds: 3), () => state = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+}
+
+final typingStateProvider =
+    StateNotifierProvider.family<TypingNotifier, bool, String>(
+  (ref, roomId) => TypingNotifier(),
+);
+
+// ─────────────────────────────────────────
+// Chat Actions (send, edit, react, delete, mark read)
+// ─────────────────────────────────────────
 class ChatActionsNotifier {
   final ChatRepository _chatRepository;
   final Ref _ref;
@@ -71,7 +114,7 @@ class ChatActionsNotifier {
     MessageType type = MessageType.text,
     bool isViewOnce = false,
     String? replyToId,
-    int? autoDeleteHours, // 24 hours, 7 days, 30 days
+    int? autoDeleteHours,
   }) async {
     DateTime? autoDeleteAt;
     if (autoDeleteHours != null && autoDeleteHours > 0) {
@@ -88,8 +131,17 @@ class ChatActionsNotifier {
       autoDeleteAt: autoDeleteAt,
     );
 
-    // Refresh rooms list to update last message preview
+    _chatRepository.updateLastSeen();
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> editMessage(String messageId, String newContent) async {
+    await _chatRepository.editMessage(messageId, newContent);
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> reactToMessage(String messageId, String emoji) async {
+    await _chatRepository.reactToMessage(messageId, emoji);
   }
 
   Future<void> deleteMessage(String messageId) async {
@@ -100,10 +152,19 @@ class ChatActionsNotifier {
   Future<void> markRoomRead(String roomId) async {
     await _chatRepository.markRoomRead(roomId);
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
+    _ref.invalidate(otherParticipantLastReadProvider(roomId));
+  }
+
+  Future<void> updateLastSeen() async {
+    await _chatRepository.updateLastSeen();
   }
 
   bool canForward(Message message) {
     return _chatRepository.canForwardMessage(message);
+  }
+
+  bool canEdit(Message message, {required bool isGuardianRoom}) {
+    return _chatRepository.canEditMessage(message, isGuardianRoom: isGuardianRoom);
   }
 }
 

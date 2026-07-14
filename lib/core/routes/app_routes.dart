@@ -63,6 +63,7 @@ class AppRoutes {
             chatName: args['chatName'],
             chatAvatar: args['chatAvatar'],
             isGuardian: args['isGuardian'] ?? false,
+            otherUserId: args['otherUserId'] as String?,
           ),
         );
       
