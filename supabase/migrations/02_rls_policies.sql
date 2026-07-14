@@ -9,6 +9,17 @@ ALTER TABLE location_pings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE security_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
 
+-- Security Definer helper to bypass recursion in RLS check for room participants
+CREATE OR REPLACE FUNCTION public.is_room_participant(room_uuid UUID, user_uuid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.room_participants
+    WHERE room_id = room_uuid AND profile_id = user_uuid
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 1. Profiles Policies
 DROP POLICY IF EXISTS "Users can manage own profile" ON profiles;
 CREATE POLICY "Users can manage own profile" ON profiles
@@ -27,30 +38,29 @@ CREATE POLICY "Users can manage own guardian relations" ON guardians
 DROP POLICY IF EXISTS "Users can view rooms they are in" ON chat_rooms;
 CREATE POLICY "Users can view rooms they are in" ON chat_rooms
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM room_participants
-      WHERE room_id = chat_rooms.id AND profile_id = auth.uid()
-    )
+    public.is_room_participant(id, auth.uid())
   );
+
+DROP POLICY IF EXISTS "Users can insert chat rooms" ON chat_rooms;
+CREATE POLICY "Users can insert chat rooms" ON chat_rooms
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 -- 4. Room Participants Policies
 DROP POLICY IF EXISTS "Participants can view other room members" ON room_participants;
 CREATE POLICY "Participants can view other room members" ON room_participants
-  USING (
-    EXISTS (
-      SELECT 1 FROM room_participants AS rp
-      WHERE rp.room_id = room_participants.room_id AND rp.profile_id = auth.uid()
-    )
+  FOR SELECT USING (
+    public.is_room_participant(room_id, auth.uid())
   );
+
+DROP POLICY IF EXISTS "Users can insert room participants" ON room_participants;
+CREATE POLICY "Users can insert room participants" ON room_participants
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 -- 5. Messages Policies
 DROP POLICY IF EXISTS "Users can read/write messages in their rooms" ON messages;
 CREATE POLICY "Users can read/write messages in their rooms" ON messages
   USING (
-    EXISTS (
-      SELECT 1 FROM room_participants
-      WHERE room_id = messages.room_id AND profile_id = auth.uid()
-    )
+    public.is_room_participant(room_id, auth.uid())
   );
 
 -- 6. SOS Sessions Policies
