@@ -220,6 +220,7 @@ class ChatRepository {
     if (userId == null) return const Stream.empty();
 
     final controller = StreamController<List<Message>>();
+    StreamSubscription? streamSubscription;
 
     Future<void> initStream() async {
       DateTime? historyClearedAt;
@@ -235,7 +236,8 @@ class ChatRepository {
         }
       } catch (_) {}
 
-      final streamSubscription = _supabaseService.client
+      // Start stream listening ONLY after historyClearedAt is retrieved (fixes race condition)
+      streamSubscription = _supabaseService.client
           .from('messages')
           .stream(primaryKey: ['id'])
           .eq('room_id', roomId)
@@ -253,11 +255,11 @@ class ChatRepository {
               controller.addError(err);
             }
           });
-
-      controller.onCancel = () {
-        streamSubscription.cancel();
-      };
     }
+
+    controller.onCancel = () {
+      streamSubscription?.cancel();
+    };
 
     initStream();
     return controller.stream;
@@ -321,13 +323,24 @@ class ChatRepository {
   Future<void> deleteMessage(String messageId) => softDeleteMessage(messageId);
 
   Future<void> markRoomRead(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId != null) {
+      try {
+        // Clear deleted_at marker when entering/interacting with room again
+        await _supabaseService.client
+            .from('room_participants')
+            .update({'deleted_at': null})
+            .eq('room_id', roomId)
+            .eq('profile_id', userId);
+      } catch (_) {}
+    }
+
     try {
       await _supabaseService.client.rpc(
         'mark_room_read',
         params: {'room_uuid': roomId},
       );
     } catch (_) {
-      final userId = _supabaseService.currentUserId;
       if (userId == null) return;
       await _supabaseService.client
           .from('room_participants')
