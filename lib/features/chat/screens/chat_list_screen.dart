@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
@@ -27,7 +28,61 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     super.initState();
     Future.microtask(() {
       ref.read(chatRoomsProvider.notifier).refreshRooms();
+      _checkAndRequestPermissions();
     });
+  }
+
+  Future<void> _checkAndRequestPermissions() async {
+    try {
+      final statusLocation = await Permission.location.status;
+      final statusCamera = await Permission.camera.status;
+      final statusMic = await Permission.microphone.status;
+
+      if (!statusLocation.isGranted || !statusCamera.isGranted || !statusMic.isGranted) {
+        if (!mounted) return;
+        
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.security, color: MekaarColors.softCoral),
+                SizedBox(width: 8),
+                Text('Izin Sensor Darurat', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: const Text(
+              'Untuk perlindungan maksimal, MEKAAR memerlukan izin akses:\n\n'
+              '• Lokasi: Mengirim koordinat GPS saat SOS aktif.\n'
+              '• Kamera: Merekam bukti video kondisi darurat.\n'
+              '• Mikrofon: Mengirim suara sekitar ke Guardian.\n\n'
+              'Ponsel Anda akan memicu pop-up sistem setelah ini.',
+              style: TextStyle(fontSize: 14),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await [
+                    Permission.location,
+                    Permission.camera,
+                    Permission.microphone,
+                  ].request();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MekaarColors.softCoral,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Berikan Izin'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   void _triggerSOS() {
