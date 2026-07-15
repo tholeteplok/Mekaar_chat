@@ -52,37 +52,22 @@ class AuthRepository {
     return user;
   }
 
-  // Resolve email from username via profiles table
+  // Resolve email from username or email string.
+  // Uses resolve_login_email RPC which is accessible by anon role (before login).
   Future<String?> resolveEmailFromUsername(String query) async {
     final clean = query.trim();
     if (clean.isEmpty) return null;
 
-    // Fast path: if it looks like an email, skip resolve
+    // Fast path: if it looks like an email, return as-is
     if (clean.contains('@')) return clean;
 
-    // Try RPC first (if migration 05 applied)
+    // Use dedicated RPC accessible by anon role (pre-login)
     try {
       final response = await _supabaseService.client.rpc(
-        'search_public_profiles',
-        params: {'search_query': clean},
+        'resolve_login_email',
+        params: {'input_query': clean},
       );
-      if (response is List && response.isNotEmpty) {
-        final email = (response.first as Map)['email'] as String?;
-        if (email != null && email.isNotEmpty) return email;
-      }
-    } catch (_) {}
-
-    // Fallback direct query
-    try {
-      final response = await _supabaseService.client
-          .from('profiles')
-          .select('email')
-          .eq('username', clean)
-          .maybeSingle();
-      if (response != null) {
-        final email = response['email'] as String?;
-        if (email != null && email.isNotEmpty) return email;
-      }
+      if (response is String && response.isNotEmpty) return response;
     } catch (_) {}
 
     return null;

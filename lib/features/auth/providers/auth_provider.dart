@@ -253,11 +253,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return 'Konfigurasi server belum aktif. Periksa file .env lalu lakukan full restart aplikasi.';
     }
 
+    // AuthException from Supabase — check type first before string matching
+    if (e is AuthException) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid_credentials') ||
+          msg.contains('invalid email or password') ||
+          msg.contains('email not confirmed') ||
+          msg.contains('email_not_confirmed') ||
+          msg.contains('user not found') ||
+          msg.contains('no user found')) {
+        return 'Email atau password salah. Silakan periksa kembali.';
+      }
+      if (msg.contains('signup_disabled') || msg.contains('signups not allowed')) {
+        return 'Pendaftaran akun baru saat ini tidak tersedia.';
+      }
+      if (msg.contains('too many requests') || msg.contains('rate limit')) {
+        return 'Terlalu banyak percobaan login. Tunggu beberapa saat lalu coba lagi.';
+      }
+      // Fallback for other AuthException — tampilkan pesan asli
+      return e.message.isNotEmpty ? e.message : 'Autentikasi gagal. Coba lagi.';
+    }
+
+    // String-based matching for non-AuthException errors
     if (lowerError.contains('invalid login credentials') ||
         lowerError.contains('invalid_credentials') ||
         lowerError.contains('invalid email or password') ||
-        lowerError.contains('email not confirmed')) {
-      return 'Email atau password salah. Silakan periksa kembali.';
+        lowerError.contains('email not confirmed') ||
+        lowerError.contains('user tidak ditemukan') ||
+        lowerError.contains('user not found')) {
+      return 'Email atau password salah, atau akun tidak ditemukan.';
     }
 
     if (lowerError.contains('user already registered') ||
@@ -285,6 +310,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return 'Koneksi internet gagal atau tidak stabil. Pastikan perangkat Anda terhubung ke internet dan coba lagi.';
     }
 
+    // Server-level errors — harus dicek SETELAH semua pengecekan spesifik
     if (_isSupabaseServerError(lowerError)) {
       return 'Login belum bisa diproses. Periksa email/password atau coba beberapa saat lagi.';
     }
@@ -312,11 +338,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   bool _isSupabaseServerError(String lowerError) {
-    return lowerError.contains('authexception') ||
-        lowerError.contains('postgrestexception') ||
+    // NOTE: 'authexception' dihapus dari sini karena AuthException sudah
+    // ditangani secara eksplisit via type-check sebelum method ini dipanggil.
+    return lowerError.contains('postgrestexception') ||
         lowerError.contains('clientexception') ||
         lowerError.contains('retryablefetch') ||
-        lowerError.contains('supabase') ||
         lowerError.contains('status code') ||
         lowerError.contains('server error') ||
         lowerError.contains('bad request') ||
