@@ -246,6 +246,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final lowerError = errorStr.toLowerCase();
 
     if (kDebugMode) {
+      debugPrint('Auth error type: ${e.runtimeType}');
       debugPrint('Auth error: $errorStr');
     }
 
@@ -313,6 +314,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // Server-level errors — harus dicek SETELAH semua pengecekan spesifik
     if (_isSupabaseServerError(lowerError)) {
       return 'Login belum bisa diproses. Periksa email/password atau coba beberapa saat lagi.';
+    }
+
+    // Final catch-all: jangan tampilkan raw technical error ke user
+    // Jika error mengandung indikator jaringan/teknis, tampilkan pesan yang tepat
+    if (lowerError.contains('exception') ||
+        lowerError.contains('error') ||
+        lowerError.contains('http') ||
+        lowerError.contains('uri=') ||
+        lowerError.contains('errno')) {
+      if (lowerError.contains('host') ||
+          lowerError.contains('lookup') ||
+          lowerError.contains('socket') ||
+          lowerError.contains('address') ||
+          lowerError.contains('network') ||
+          lowerError.contains('connect')) {
+        return 'Koneksi internet gagal atau tidak stabil. Pastikan perangkat Anda terhubung ke internet dan coba lagi.';
+      }
+      return 'Terjadi kesalahan. Coba lagi beberapa saat.';
     }
 
     return errorStr;
