@@ -3,7 +3,7 @@ import 'package:mekaar_chat/features/auth/screens/login_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/pin_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/splash_screen.dart';
-import 'package:mekaar_chat/features/chat/screens/chat_list_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/main_navigation_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/chat_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
@@ -57,7 +57,7 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => PinScreen(isSetup: isSetup));
       
       case AppRoutes.home:
-        return MaterialPageRoute(builder: (_) => const ChatListScreen());
+        return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
       
       case AppRoutes.chat:
         final args = settings.arguments as Map<String, dynamic>;

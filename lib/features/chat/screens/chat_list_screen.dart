@@ -262,14 +262,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     onPressed: () =>
                         Navigator.pushNamed(context, AppRoutes.guardian),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.settings_outlined,
-                      color: MekaarColors.textSecondary,
-                    ),
-                    onPressed: () =>
-                        Navigator.pushNamed(context, AppRoutes.settings),
-                  ),
                 ],
               ),
             ),
@@ -341,7 +333,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 90),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
