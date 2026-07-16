@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -452,4 +453,46 @@ class PinLockEnabledNotifier extends StateNotifier<bool> {
 
 final pinLockEnabledProvider = StateNotifierProvider<PinLockEnabledNotifier, bool>((ref) {
   return PinLockEnabledNotifier();
+});
+
+// App Screen screenshot/recent-apps blocking provider
+class ScreenshotBlockNotifier extends StateNotifier<bool> {
+  static const MethodChannel _securityChannel =
+      MethodChannel('com.mekaar.mekaar_chat/security');
+
+  ScreenshotBlockNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('is_screenshot_blocked') ?? true;
+      state = enabled;
+      _applySecureFlag(enabled);
+    } catch (_) {}
+  }
+
+  Future<void> toggle(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_screenshot_blocked', enabled);
+      state = enabled;
+      await _applySecureFlag(enabled);
+    } catch (_) {}
+  }
+
+  Future<void> _applySecureFlag(bool enabled) async {
+    try {
+      if (enabled) {
+        await _securityChannel.invokeMethod('enableSecureFlag');
+      } else {
+        await _securityChannel.invokeMethod('disableSecureFlag');
+      }
+    } catch (_) {}
+  }
+}
+
+final screenshotBlockProvider = StateNotifierProvider<ScreenshotBlockNotifier, bool>((ref) {
+  return ScreenshotBlockNotifier();
 });

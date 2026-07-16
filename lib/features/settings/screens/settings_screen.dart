@@ -113,6 +113,39 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
             const Divider(color: MekaarColors.borderLight, height: 32),
+            _buildSectionHeader('Privasi'),
+            SwitchListTile(
+              activeThumbColor: MekaarColors.softCoral,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+              secondary: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: MekaarColors.cardDark,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.screenshot_outlined,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                'Blokir Screenshot',
+                style: MekaarTypography.labelLG.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Cegah tangkapan & rekaman layar untuk privasi obrolan Anda',
+                style: MekaarTypography.bodySM,
+              ),
+              value: ref.watch(screenshotBlockProvider),
+              onChanged: (bool value) {
+                ref.read(screenshotBlockProvider.notifier).toggle(value);
+              },
+            ),
+            const Divider(color: MekaarColors.borderLight, height: 32),
             _buildSectionHeader('Akun'),
             _buildMenuItem(
               context,
