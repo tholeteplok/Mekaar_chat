@@ -229,63 +229,89 @@ class _ThemeSelector extends StatelessWidget {
 
   const _ThemeSelector({required this.current, required this.onChanged});
 
+  static const double z = 24.0; // Icon size (z)
+  static const double activeSize = z + 16.0; // Active container (z + 16 = 40)
+  static const double barHeight = z + 32.0; // Height (z + 32 = 56)
+  static const double barWidth = 3.0 * (z + 32.0); // Total width (3 * 56 = 168)
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final navBgColor = isDark ? MekaarColors.cardDark : MekaarColors.surface2;
+    final navBorderColor = isDark 
+        ? Colors.white.withValues(alpha: 0.08) 
+        : Colors.black.withValues(alpha: 0.08);
+
     const options = [
-      (ThemeMode.system, Icons.brightness_auto_outlined, 'Sistem'),
-      (ThemeMode.light, Icons.light_mode_outlined, 'Terang'),
-      (ThemeMode.dark, Icons.dark_mode_outlined, 'Gelap'),
+      (ThemeMode.system, Icons.brightness_auto_outlined),
+      (ThemeMode.light, Icons.light_mode_outlined),
+      (ThemeMode.dark, Icons.dark_mode_outlined),
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
-          borderRadius: BorderRadius.circular(100), // Pill shape outer
-        ),
-        child: Row(
-          children: options.map((opt) {
-            final selected = current == opt.$1;
-            return Expanded(
-              child: GestureDetector(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: Container(
+          width: barWidth,
+          height: barHeight,
+          padding: EdgeInsets.zero,
+          decoration: BoxDecoration(
+            color: navBgColor,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: navBorderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: options.map((opt) {
+              final selected = current == opt.$1;
+              final inactiveColor = isDark ? MekaarColors.textMuted : Colors.black45;
+
+              return GestureDetector(
                 onTap: () => onChanged(opt.$1),
                 behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: selected ? MekaarColors.softCoral : Colors.transparent,
-                    borderRadius: BorderRadius.circular(100), // Pill shape inner
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        opt.$2,
-                        size: 20,
-                        color: selected 
-                            ? Colors.white 
-                            : (isDark ? MekaarColors.textSecondary : Colors.black54),
+                child: SizedBox(
+                  width: z + 32.0, // Exactly 56px width per tab
+                  height: barHeight, // Exactly 56px height per tab
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      width: selected ? activeSize : z,
+                      height: selected ? activeSize : z,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: selected ? MekaarColors.softCoral : Colors.transparent,
+                        boxShadow: selected
+                            ? [
+                                BoxShadow(
+                                  color: MekaarColors.softCoral.withValues(alpha: 0.3),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                )
+                              ]
+                            : null,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        opt.$3,
-                        style: MekaarTypography.labelLG.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: selected 
-                              ? Colors.white 
-                              : (isDark ? MekaarColors.textSecondary : Colors.black54),
+                      child: Center(
+                        child: Icon(
+                          opt.$2,
+                          color: selected ? Colors.white : inactiveColor,
+                          size: z,
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
