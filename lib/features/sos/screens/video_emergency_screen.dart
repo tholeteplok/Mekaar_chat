@@ -21,11 +21,19 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   int _recordingSeconds = 0;
   Timer? _timer;
 
+  // Durasi maksimal rekaman sebelum otomatis berhenti (menit). 0 = tanpa batas.
+  int _autoStopMinutes = 0;
+  final List<int> _autoStopOptions = const [0, 5, 10, 15, 30];
+
   @override
   void initState() {
     super.initState();
     _initVideo();
     _startTimer();
+  }
+
+  void _dismissInactivityPrompt() {
+    ref.read(sosProvider.notifier).acknowledgeInactivity();
   }
 
   Future<void> _initVideo() async {
@@ -48,7 +56,61 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
       if (!_isScreenLocked) {
         setState(() => _recordingSeconds++);
       }
+      if (_autoStopMinutes > 0 &&
+          _recordingSeconds >= _autoStopMinutes * 60) {
+        _stopRecording();
+      }
     });
+  }
+
+  void _setAutoStop(int minutes) {
+    setState(() => _autoStopMinutes = minutes);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          minutes == 0
+              ? 'Rekaman tanpa batas waktu.'
+              : 'Rekaman berhenti otomatis dalam $minutes menit.',
+        ),
+        duration: const Duration(milliseconds: 1500),
+      ),
+    );
+  }
+
+  void _showAutoStopSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: MekaarColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Henti Otomatis Setelah',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ..._autoStopOptions.map(
+            (m) => ListTile(
+              title: Text(m == 0 ? 'Tanpa batas' : '$m menit'),
+              trailing: _autoStopMinutes == m
+                  ? const Icon(Icons.check, color: MekaarColors.guardianTeal)
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                _setAutoStop(m);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _switchCamera() async {
@@ -133,6 +195,49 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                       onPressed: _toggleScreenLock,
                     ),
                   ],
+                ),
+              ),
+            ),
+
+          // Inactivity prompt "Apakah Anda Aman?" (blind spot #7)
+          if (ref.watch(sosProvider).needsInactivityAck && !_isScreenLocked)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.favorite_outline,
+                          color: MekaarColors.sosRed, size: 36),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Apakah Anda Aman?',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Ketuk untuk melanjutkan rekam. Jika tidak ada respon, streaming dihentikan otomatis untuk menjaga privasi.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _dismissInactivityPrompt,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: MekaarColors.guardianTeal,
+                        ),
+                        child: const Text('Saya Aman, Lanjutkan'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -226,6 +331,11 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                     icon: Icons.flip_camera_ios,
                     label: 'Kamera',
                     onTap: _switchCamera,
+                  ),
+                  _buildControlBtn(
+                    icon: Icons.timer_outlined,
+                    label: 'Timer',
+                    onTap: _showAutoStopSheet,
                   ),
                   _buildControlBtn(
                     icon: Icons.lock_outline,

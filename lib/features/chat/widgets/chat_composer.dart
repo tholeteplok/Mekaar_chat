@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/motion.dart';
+import '../../../core/widgets/animations.dart';
 
 class ChatComposer extends StatefulWidget {
   final TextEditingController controller;
@@ -17,6 +19,7 @@ class ChatComposer extends StatefulWidget {
   final VoidCallback? onCancelEdit;
   final Future<void> Function(File file, MessageType type)? onSendMedia;
   final Future<void> Function()? onSendLocation;
+  final Future<void> Function(int durationMinutes)? onShareLiveLocation;
 
   const ChatComposer({
     super.key,
@@ -30,6 +33,7 @@ class ChatComposer extends StatefulWidget {
     this.onCancelEdit,
     this.onSendMedia,
     this.onSendLocation,
+    this.onShareLiveLocation,
   });
 
   @override
@@ -41,6 +45,23 @@ class _ChatComposerState extends State<ChatComposer> {
   bool _isUploading = false;
 
   bool get _isEditMode => widget.editingMessage != null;
+  bool get _hasText => widget.controller.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     if (widget.onSendMedia == null) return;
@@ -114,6 +135,17 @@ class _ChatComposerState extends State<ChatComposer> {
                 widget.onSendLocation?.call();
               },
             ),
+            if (widget.onShareLiveLocation != null)
+              _attachItem(
+                ctx,
+                icon: Icons.share_location,
+                label: 'Lokasi Live',
+                color: MekaarColors.guardianTeal,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showLiveDurationSheet(ctx);
+                },
+              ),
             const SizedBox(height: 16),
           ],
         ),
@@ -144,6 +176,50 @@ class _ChatComposerState extends State<ChatComposer> {
               fontWeight: FontWeight.w500,
               color: MekaarColors.textPrimary)),
       onTap: onTap,
+    );
+  }
+
+  void _showLiveDurationSheet(BuildContext ctx) {
+    final durations = [5, 15, 30];
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: MekaarColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Bagikan Lokasi Live Selama',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ...durations.map(
+            (m) => ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.share_location,
+                    color: MekaarColors.guardianTeal, size: 20),
+              ),
+              title: Text('$m menit'),
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                await widget.onShareLiveLocation?.call(m);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -259,23 +335,31 @@ class _ChatComposerState extends State<ChatComposer> {
                 ),
               ),
               const SizedBox(width: MekaarSpacing.sm),
-              // Send button
+              // Send button (morph antara mic & kirim tergantung ada teks)
               Semantics(
                 button: true,
-                label: _isEditMode ? 'Simpan edit' : 'Kirim pesan',
-                child: GestureDetector(
+                label: _isEditMode
+                    ? 'Simpan edit'
+                    : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
+                child: PressableScale(
                   onTap: widget.onSend,
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: MekaarMotion.fast,
+                    curve: MekaarMotion.standard,
                     width: MekaarSizes.composerButton,
                     height: MekaarSizes.composerButton,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _isEditMode
                           ? MekaarColors.softCoral
-                          : MekaarColors.textPrimary,
+                          : (_hasText
+                              ? MekaarColors.softCoral
+                              : MekaarColors.textPrimary),
                     ),
                     child: Icon(
-                      _isEditMode ? Icons.check : Icons.send,
+                      _isEditMode
+                          ? Icons.check
+                          : (_hasText ? Icons.send : Icons.mic_none_rounded),
                       color: Colors.white,
                       size: MekaarSizes.iconSm,
                     ),

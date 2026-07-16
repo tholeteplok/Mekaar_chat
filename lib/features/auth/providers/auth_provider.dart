@@ -24,6 +24,7 @@ class AuthState {
   final bool isPinSet;
   final int pinAttempts;
   final DateTime? pinLockedUntil;
+  final bool lastUnlockWasDuress;
 
   AuthState({
     this.user,
@@ -33,6 +34,7 @@ class AuthState {
     this.isPinSet = false,
     this.pinAttempts = 0,
     this.pinLockedUntil,
+    this.lastUnlockWasDuress = false,
   });
 
   bool get isPinLocked {
@@ -54,6 +56,7 @@ class AuthState {
     bool? isPinSet,
     int? pinAttempts,
     DateTime? pinLockedUntil,
+    bool? lastUnlockWasDuress,
   }) {
     return AuthState(
       user: user ?? this.user,
@@ -63,6 +66,8 @@ class AuthState {
       isPinSet: isPinSet ?? this.isPinSet,
       pinAttempts: pinAttempts ?? this.pinAttempts,
       pinLockedUntil: pinLockedUntil ?? this.pinLockedUntil,
+      lastUnlockWasDuress:
+          lastUnlockWasDuress ?? this.lastUnlockWasDuress,
     );
   }
 }
@@ -129,8 +134,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> register(String email, String password, String username) async {
-    final configError = _configurationErrorMessage();
+  Future<bool> register(String email, String password, String username) async {    final configError = _configurationErrorMessage();
     if (configError != null) {
       state = state.copyWith(isLoading: false, error: configError);
       return false;
@@ -177,6 +181,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> loginWithGoogle() async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      state = state.copyWith(isLoading: false, error: configError);
+      return false;
+    }
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: null,
+      );
+      // OAuth mengalihkan ke browser; sesi dipulihkan saat kembali via
+      // auth state change. Kita anggap sukses jika tidak melempar error.
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await _authRepository.signOut();
     state = AuthState();
@@ -193,11 +220,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // Validate dynamic PIN with lockout check
+  // Validate dynamic PIN with lockout check.
+  // Jika [pin] cocok dengan Duress PIN, buka normal tapi tandai
+  // lastUnlockWasDuress = true (konsumen harus memicu SOS silent diam-diam).
   Future<bool> validatePIN(String pin) async {
     if (state.isPinLocked) return false;
 
     state = state.copyWith(isLoading: true);
+
+    // Cek Duress PIN lebih dulu — BUKAN dihitung sebagai gagal.
+    final isDuress = await _authRepository.validateDuressPIN(pin);
+    if (isDuress) {
+      state = state.copyWith(
+        pinAttempts: 0,
+        pinLockedUntil: null,
+        isLoading: false,
+        lastUnlockWasDuress: true,
+      );
+      return true;
+    }
+
     final isValid = await _authRepository.validatePIN(pin);
 
     if (isValid) {
@@ -205,6 +247,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         pinAttempts: 0,
         pinLockedUntil: null,
         isLoading: false,
+        lastUnlockWasDuress: false,
       );
       return true;
     } else {
@@ -217,9 +260,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
         pinAttempts: newAttempts,
         pinLockedUntil: lockedUntil,
         isLoading: false,
+        lastUnlockWasDuress: false,
       );
       return false;
     }
+  }
+
+  // Setup Duress PIN (PIN Paksaan)
+  Future<void> setupDuressPIN(String pin) async {
+    await _authRepository.setDuressPIN(pin);
+  }
+
+  Future<void> disableDuressPIN() async {
+    await _authRepository.disableDuressPIN();
   }
 
   // Force unlock PIN — HANYA untuk debug. Di production build ini adalah no-op.

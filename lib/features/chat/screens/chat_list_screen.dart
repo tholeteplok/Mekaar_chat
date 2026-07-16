@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/permissions.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
+import '../../../core/widgets/skeletons.dart';
+import '../../../core/widgets/mika_mascot.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
@@ -236,7 +240,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final chatRoomsState = ref.watch(chatRoomsProvider);
 
     return Scaffold(
-      backgroundColor: MekaarColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -245,12 +248,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
                 children: [
-                  Text(
-                    'Messages',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      color: MekaarColors.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
+                  ShaderMask(
+                    shaderCallback: (bounds) => MekaarGradients.coral
+                        .createShader(bounds),
+                    child: Text(
+                      'Pesan',
+                      style: MekaarTypography.displayLG.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const Spacer(),
@@ -300,12 +305,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ),
                       child: Text(
                         tab,
-                        style: TextStyle(
-                          color: isActive
-                              ? Colors.white
-                              : MekaarColors.textMuted,
+                        style: MekaarTypography.labelLG.copyWith(
                           fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                          color:
+                              isActive ? Colors.white : MekaarColors.textMuted,
                         ),
                       ),
                     ),
@@ -321,10 +324,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     ref.read(chatRoomsProvider.notifier).refreshRooms(),
                 child: chatRoomsState.when(
                   data: (rooms) => _buildChatList(rooms),
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) =>
-                      Center(child: Text('Gagal memuat chat: $err')),
+                  loading: () => const ChatListSkeleton(),
+                  error: (err, stack) => Center(
+                    child: Text(
+                      'Gagal memuat chat: $err',
+                      style: MekaarTypography.bodyMD,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -378,26 +384,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }).toList();
 
     if (filtered.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 48,
-              color: MekaarColors.textMuted,
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Belum ada chat',
-              style: TextStyle(
-                color: MekaarColors.textSecondary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
+      return _EmptyChats(onStart: _showNewChatDialog);
     }
 
     return ListView.builder(
@@ -406,23 +393,71 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       itemBuilder: (context, index) {
         final room = filtered[index];
 
-        return ChatListTile(
-          room: room,
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              AppRoutes.chat,
-              arguments: {
-                'chatId': room['id'],
-                'chatName': room['name'],
-                'chatAvatar': room['avatar'],
-                'isGuardian': room['isGuardian'] as bool? ?? false,
-                'otherUserId': room['otherUserId'] as String?,
-              },
-            );
-          },
+        return AnimatedAppear(
+          delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
+          child: ChatListTile(
+            room: room,
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                AppRoutes.chat,
+                arguments: {
+                  'chatId': room['id'],
+                  'chatName': room['name'],
+                  'chatAvatar': room['avatar'],
+                  'isGuardian': room['isGuardian'] as bool? ?? false,
+                  'otherUserId': room['otherUserId'] as String?,
+                },
+              );
+            },
+          ),
         );
       },
+    );
+  }
+}
+
+class _EmptyChats extends StatelessWidget {
+  final VoidCallback onStart;
+
+  const _EmptyChats({required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedAppear(
+      child: ListView(
+        children: [
+          const SizedBox(height: 80),
+          Center(
+            child: Column(
+              children: [
+                const MikaMascot(expression: MikaExpression.wave, size: 100),
+                const SizedBox(height: MekaarSpacing.xl),
+                Text('Belum ada obrolan', style: MekaarTypography.headingMD),
+                const SizedBox(height: MekaarSpacing.sm),
+                Padding(
+                  padding: MekaarSpacing.screen,
+                  child: Text(
+                    'Mulai percakapan pertamamu dengan teman atau Guardian.',
+                    textAlign: TextAlign.center,
+                    style: MekaarTypography.bodyMD,
+                  ),
+                ),
+                const SizedBox(height: MekaarSpacing.xl),
+                ElevatedButton.icon(
+                  onPressed: onStart,
+                  icon: const Icon(Icons.add_comment_outlined, size: 18),
+                  label: const Text('Mulai obrolan'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MekaarColors.softCoral,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

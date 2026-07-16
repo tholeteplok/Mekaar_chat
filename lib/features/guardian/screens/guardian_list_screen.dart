@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mika_mascot.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
 
@@ -25,9 +29,6 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     });
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     final myGuardians = ref.watch(guardianProvider);
@@ -36,9 +37,17 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: const CustomAppBar(
+        appBar: CustomAppBar(
           title: 'Sistem Guardian',
           subtitle: 'Saling menjaga dalam situasi darurat',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.location_searching),
+              tooltip: 'Lacak Guardian',
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.guardianTracking),
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -78,17 +87,24 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                border: Border.all(color: MekaarColors.border, width: 2, style: BorderStyle.solid),
+                border: Border.all(
+                  color: MekaarColors.guardianTeal,
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add, color: MekaarColors.textMuted),
-                  SizedBox(width: 8),
+                  Icon(Icons.add, color: MekaarColors.guardianTeal),
+                  const SizedBox(width: 8),
                   Text(
                     'Tambah Guardian Baru',
-                    style: TextStyle(color: MekaarColors.textSecondary, fontWeight: FontWeight.bold),
+                    style: MekaarTypography.labelLG.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: MekaarColors.guardianTeal,
+                    ),
                   ),
                 ],
               ),
@@ -97,18 +113,38 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           const SizedBox(height: 20),
           Expanded(
             child: guardians.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Belum ada guardian terdaftar.\nTekan tombol di atas untuk menambah.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: MekaarColors.textMuted),
+                ? AnimatedAppear(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const MikaMascot(
+                            expression: MikaExpression.happy,
+                            size: 84,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Belum ada guardian terdaftar.',
+                            style: MekaarTypography.headingSM,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tekan tombol di atas untuk menambah.',
+                            style: MekaarTypography.bodyMD,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : ListView.builder(
                     itemCount: guardians.length,
                     itemBuilder: (context, index) {
                       final guardian = guardians[index];
-                      return _buildGuardianCard(guardian, true);
+                      return AnimatedAppear(
+                        delay: Duration(milliseconds: (index * 40).clamp(0, 240)),
+                        child: _buildGuardianCard(guardian, true),
+                      );
                     },
                   ),
           ),
@@ -121,18 +157,24 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: list.isEmpty
-          ? const Center(
-              child: Text(
-                'Belum ada yang menambahkan Anda sebagai Guardian.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: MekaarColors.textMuted),
+          ? AnimatedAppear(
+              child: Center(
+                child: Text(
+                  'Belum ada yang menambahkan Anda sebagai Guardian.',
+                  textAlign: TextAlign.center,
+                  style: MekaarTypography.bodyMD
+                      .copyWith(color: MekaarColors.textMuted),
+                ),
               ),
             )
           : ListView.builder(
               itemCount: list.length,
               itemBuilder: (context, index) {
                 final guardian = list[index];
-                return _buildGuardianCard(guardian, false);
+                return AnimatedAppear(
+                  delay: Duration(milliseconds: (index * 40).clamp(0, 240)),
+                  child: _buildGuardianCard(guardian, false),
+                );
               },
             ),
     );
@@ -145,10 +187,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     return GestureDetector(
       onTap: isMyGuardian
           ? () => Navigator.pushNamed(
-                context,
-                AppRoutes.guardianDetail,
-                arguments: {'guardian': guardian},
-              )
+              context,
+              AppRoutes.guardianDetail,
+              arguments: {'guardian': guardian},
+            )
           : null,
       child: CustomCard(
         padding: const EdgeInsets.all(16),
@@ -169,54 +211,101 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       Expanded(
                         child: Text(
                           guardian.name,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: MekaarColors.textPrimary),
+                          style: MekaarTypography.headingSM,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (isPending)
-                        _buildBadge('Pending', MekaarColors.warning, MekaarColors.warningLight)
+                        _buildBadge(
+                          'Pending',
+                          MekaarColors.warning,
+                          MekaarColors.warningLight,
+                        )
                       else if (isExpired)
-                        _buildBadge('Expired', MekaarColors.sosRed, MekaarColors.sosLight)
+                        _buildBadge(
+                          'Expired',
+                          MekaarColors.sosRed,
+                          MekaarColors.sosLight,
+                        )
                       else
-                        _buildBadge('Aktif', MekaarColors.success, MekaarColors.successLight),
+                        _buildBadge(
+                          'Aktif',
+                          MekaarColors.success,
+                          MekaarColors.successLight,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(guardian.email, style: const TextStyle(fontSize: 12, color: MekaarColors.textMuted)),
+                  Text(
+                    guardian.email,
+                    style: MekaarTypography.bodySM,
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _buildPermissionChip('GPS', guardian.permissions['gps'] ?? false),
+                      _buildPermissionChip(
+                        'GPS',
+                        guardian.permissions['gps'] ?? false,
+                      ),
                       const SizedBox(width: 6),
-                      _buildPermissionChip('Audio', guardian.permissions['mic'] ?? false),
+                      _buildPermissionChip(
+                        'Audio',
+                        guardian.permissions['mic'] ?? false,
+                      ),
                       const Spacer(),
                       if (!isPending && !isExpired)
                         Text(
                           '${guardian.daysRemaining} hari lagi',
-                          style: const TextStyle(fontSize: 10, color: MekaarColors.success, fontWeight: FontWeight.bold),
+                          style: MekaarTypography.labelSM.copyWith(
+                            color: MekaarColors.success,
+                          ),
                         ),
                     ],
                   ),
                 ],
               ),
             ),
-            if (isMyGuardian) ...[ 
-              const Icon(Icons.chevron_right, color: MekaarColors.textMuted, size: 18),
+            if (isMyGuardian) ...[
+              IconButton(
+                icon: const Icon(
+                  Icons.link_off_outlined,
+                  color: MekaarColors.sosRed,
+                ),
+                tooltip: 'Putus Paksa Guardian',
+                onPressed: (!isPending && !isExpired)
+                    ? () => _confirmBreakGuardian(guardian)
+                    : null,
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: MekaarColors.textMuted,
+                size: 18,
+              ),
             ] else if (isPending) ...[
               // Accept/Reject request
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.check_circle_outline, color: MekaarColors.success),
+                    icon: const Icon(
+                      Icons.check_circle_outline,
+                      color: MekaarColors.success,
+                    ),
                     onPressed: () async {
-                      await ref.read(whoAddedMeProvider.notifier).accept(guardian.id);
+                      await ref
+                          .read(whoAddedMeProvider.notifier)
+                          .accept(guardian.id);
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.cancel_outlined, color: MekaarColors.sosRed),
+                    icon: const Icon(
+                      Icons.cancel_outlined,
+                      color: MekaarColors.sosRed,
+                    ),
                     onPressed: () async {
-                      await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
+                      await ref
+                          .read(whoAddedMeProvider.notifier)
+                          .reject(guardian.id);
                     },
                   ),
                 ],
@@ -228,13 +317,55 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     );
   }
 
+  void _confirmBreakGuardian(Guardian guardian) {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Putus Paksa Guardian?',
+      message:
+          'Hubungan dengan ${guardian.name} akan diputus secara instan dan ia diblokir mengirim undangan selama 24 jam. Tindakan ini dicatat di Log Sistem.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            await ref
+                .read(guardianProvider.notifier)
+                .breakGuardian(guardian.id);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Hubungan dengan ${guardian.name} diputus. Blokir 24 jam aktif.'),
+                ),
+              );
+            }
+          },
+          child: const Text(
+            'Putus Paksa',
+            style: TextStyle(color: MekaarColors.sosRed),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBadge(String text, Color textColor, Color bgColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(100)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(100),
+      ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 9, color: textColor, fontWeight: FontWeight.w700),
+        style: MekaarTypography.labelSM.copyWith(
+          color: textColor,
+          fontSize: 9,
+        ),
       ),
     );
   }
@@ -257,9 +388,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
+            style: MekaarTypography.labelSM.copyWith(
               fontSize: 9,
-              fontWeight: FontWeight.w700,
               color: isEnabled ? MekaarColors.success : MekaarColors.textMuted,
             ),
           ),

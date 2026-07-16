@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
+import '../../../core/providers/theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -19,7 +21,6 @@ class SettingsScreen extends ConsumerWidget {
     final userEmail = user?.email ?? '';
 
     return Scaffold(
-      backgroundColor: MekaarColors.background,
       appBar: const CustomAppBar(title: 'Pengaturan'),
       body: SingleChildScrollView(
         child: Column(
@@ -38,12 +39,15 @@ class SettingsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           userName,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: MekaarColors.textPrimary),
+                          style: MekaarTypography.headingMD,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           userEmail,
-                          style: const TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+                          style: MekaarTypography.labelLG.copyWith(
+                            fontWeight: FontWeight.w400,
+                            color: MekaarColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -52,6 +56,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 32),
+            // Theme selector
+            _buildSectionHeader('Tampilan'),
+            _ThemeSelector(
+              current: ref.watch(themeModeProvider),
+              onChanged: (mode) =>
+                  ref.read(themeModeProvider.notifier).setMode(mode),
+            ),
+            const Divider(color: MekaarColors.borderLight, height: 32),
             // Menu Items List
             _buildSectionHeader('Keamanan & Darurat'),
             _buildMenuItem(
@@ -84,17 +96,15 @@ class SettingsScreen extends ConsumerWidget {
                   size: 20,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Kunci PIN Aplikasi',
-                style: TextStyle(
-                  fontSize: 14,
+                style: MekaarTypography.labelLG.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: MekaarColors.textPrimary,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Minta PIN keamanan saat membuka aplikasi',
-                style: TextStyle(fontSize: 11, color: MekaarColors.textMuted),
+                style: MekaarTypography.bodySM,
               ),
               value: ref.watch(pinLockEnabledProvider),
               onChanged: (bool value) {
@@ -159,12 +169,7 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
         child: Text(
           label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: MekaarColors.textMuted,
-            letterSpacing: 1,
-          ),
+          style: MekaarTypography.overline,
         ),
       ),
     );
@@ -195,18 +200,82 @@ class SettingsScreen extends ConsumerWidget {
       ),
       title: Text(
         title,
-        style: TextStyle(
-          fontSize: 14,
+        style: MekaarTypography.labelLG.copyWith(
           fontWeight: FontWeight.bold,
           color: isDestructive ? MekaarColors.sosRed : MekaarColors.textPrimary,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(fontSize: 11, color: MekaarColors.textMuted),
+        style: MekaarTypography.bodySM,
       ),
       trailing: const Icon(Icons.chevron_right, size: 18, color: MekaarColors.textMuted),
       onTap: onTap,
+    );
+  }
+}
+
+class _ThemeSelector extends StatelessWidget {
+  final ThemeMode current;
+  final ValueChanged<ThemeMode> onChanged;
+
+  const _ThemeSelector({required this.current, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    const options = [
+      (ThemeMode.system, Icons.brightness_auto_outlined, 'Sistem'),
+      (ThemeMode.light, Icons.light_mode_outlined, 'Terang'),
+      (ThemeMode.dark, Icons.dark_mode_outlined, 'Gelap'),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: MekaarColors.surface2,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: options.map((opt) {
+            final selected = current == opt.$1;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(opt.$1),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected ? MekaarColors.softCoral : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        opt.$2,
+                        size: 20,
+                        color: selected ? Colors.white : MekaarColors.textSecondary,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        opt.$3,
+                        style: MekaarTypography.labelLG.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color:
+                              selected ? Colors.white : MekaarColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/chat_repository.dart';
+import '../../../data/repositories/log_repository.dart';
+import '../../../data/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
 // ─────────────────────────────────────────
@@ -104,8 +106,10 @@ final typingStateProvider =
 class ChatActionsNotifier {
   final ChatRepository _chatRepository;
   final Ref _ref;
+  final LogRepository _logRepository;
 
-  ChatActionsNotifier(this._chatRepository, this._ref);
+  ChatActionsNotifier(this._chatRepository, this._ref)
+      : _logRepository = LogRepository(_ref.read(supabaseServiceProvider));
 
   Future<void> sendMessage(
     String roomId,
@@ -135,7 +139,14 @@ class ChatActionsNotifier {
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
-  Future<void> editMessage(String messageId, String newContent) async {
+  Future<void> editMessage(
+    String messageId,
+    String newContent, {
+    required bool isGuardianRoom,
+  }) async {
+    if (isGuardianRoom) {
+      throw Exception('Tidak dapat mengedit pesan di Chat Guardian');
+    }
     await _chatRepository.editMessage(messageId, newContent);
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
@@ -146,7 +157,63 @@ class ChatActionsNotifier {
 
   Future<void> deleteMessage(String messageId) async {
     await _chatRepository.softDeleteMessage(messageId);
+    try {
+      await _logRepository.logEvent('message_deleted', {
+        'message_id': messageId,
+      });
+    } catch (_) {}
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> forwardMessage(Message message, String roomId) async {
+    await _chatRepository.sendMessage(
+      roomId,
+      message.content,
+      mediaUrl: message.mediaUrl,
+      type: message.type,
+    );
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  /// Bagikan lokasi live (sukarela, bukan SOS) selama [durationMinutes].
+  /// Memperbarui satu pesan lokasi tiap interval sampai waktu habis.
+  Future<String> shareLiveLocation(
+    String roomId,
+    int durationMinutes,
+  ) async {
+    final loc = await LocationService.getCurrentLocation();
+    if (loc == null || loc.latitude == null || loc.longitude == null) {
+      throw Exception('Lokasi tidak tersedia');
+    }
+
+    final start = DateTime.now();
+    final end = start.add(Duration(minutes: durationMinutes));
+
+    String formatContent() {
+      final remaining = end.difference(DateTime.now());
+      final secs = remaining.inSeconds.clamp(0, 9999);
+      return 'LIVE:${loc.latitude},${loc.longitude}:$secs';
+    }
+
+    final message = await _chatRepository.sendMessage(
+      roomId,
+      formatContent(),
+      type: MessageType.location,
+    );
+
+    final subscription = LocationService.getLocationStream().listen((data) async {
+      if (DateTime.now().isAfter(end)) return;
+      try {
+        await _chatRepository.updateMessageContent(message.id, formatContent());
+      } catch (_) {}
+    });
+
+    // Hentikan share saat waktu habis.
+    Timer(Duration(minutes: durationMinutes), () {
+      subscription.cancel();
+    });
+
+    return message.id;
   }
 
   Future<void> markRoomRead(String roomId) async {

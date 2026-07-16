@@ -4,6 +4,7 @@ class Profile {
   final String email;
   final String pinHash;
   final DateTime? pinLockedUntil;
+  final String? duressPinHash;
   final String? fullName;
   final String? avatarUrl;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class Profile {
     required this.email,
     required this.pinHash,
     this.pinLockedUntil,
+    this.duressPinHash,
     this.fullName,
     this.avatarUrl,
     required this.createdAt,
@@ -30,6 +32,7 @@ class Profile {
       pinLockedUntil: json['pin_locked_until'] != null
           ? DateTime.parse(json['pin_locked_until'] as String)
           : null,
+      duressPinHash: json['duress_pin_hash'] as String?,
       fullName: json['full_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),

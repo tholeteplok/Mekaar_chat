@@ -17,6 +17,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
   final _searchController = TextEditingController();
   bool _gpsPermission = true;
   bool _audioPermission = false;
+  bool _videoPermission = false;
   bool _isLoading = false;
 
   @override
@@ -30,7 +31,10 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
     final validationError = MekaarValidators.emailOrUsername(query);
     if (validationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(validationError), backgroundColor: MekaarColors.sosRed),
+        SnackBar(
+          content: Text(validationError),
+          backgroundColor: MekaarColors.sosRed,
+        ),
       );
       return;
     }
@@ -50,9 +54,18 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Dengan menambahkan Guardian, Anda memberikan izin kepada orang ini untuk memantau keberadaan Anda HANYA saat Anda mengaktifkan tombol SOS.', style: MekaarTypography.bodyMD),
+            Text(
+              'Dengan menambahkan Guardian, Anda memberikan izin kepada orang ini untuk memantau keberadaan Anda HANYA saat Anda mengaktifkan tombol SOS.',
+              style: MekaarTypography.bodyMD,
+            ),
             const SizedBox(height: 12),
-            Text('Guardian TIDAK BISA memantau Anda secara diam-diam. Setiap akses selalu tercatat di Log Sistem.', style: MekaarTypography.bodyMD.copyWith(color: MekaarColors.guardianTeal, fontWeight: FontWeight.w600)),
+            Text(
+              'Guardian TIDAK BISA memantau Anda secara diam-diam. Setiap akses selalu tercatat di Log Sistem.',
+              style: MekaarTypography.bodyMD.copyWith(
+                color: MekaarColors.guardianTeal,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -62,7 +75,13 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Saya Mengerti, Kirim', style: TextStyle(color: MekaarColors.softCoral, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Saya Mengerti, Kirim',
+              style: TextStyle(
+                color: MekaarColors.softCoral,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -76,10 +95,11 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
       final perms = {
         'gps': _gpsPermission,
         'mic': _audioPermission,
+        'video': _videoPermission,
       };
 
       await ref.read(guardianProvider.notifier).inviteGuardian(query, perms);
-      
+
       setState(() => _isLoading = false);
 
       if (mounted) {
@@ -96,7 +116,9 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal mengirim undangan: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(
+              'Gagal mengirim undangan: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: MekaarColors.sosRed,
           ),
         );
@@ -115,7 +137,11 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
           children: [
             const Text(
               'Cari Calon Guardian',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: MekaarColors.textPrimary),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: MekaarColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -133,7 +159,11 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             const SizedBox(height: 32),
             const Text(
               'Izin Keamanan (Hanya Aktif Saat SOS)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: MekaarColors.textPrimary),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: MekaarColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -147,9 +177,15 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               contentPadding: EdgeInsets.zero,
               title: const Text(
                 'Lacak Lokasi (GPS)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: MekaarColors.textPrimary),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: MekaarColors.textPrimary,
+                ),
               ),
-              subtitle: const Text('Guardian dapat melihat koordinat GPS real-time Anda.'),
+              subtitle: const Text(
+                'Guardian dapat melihat koordinat GPS real-time Anda.',
+              ),
               value: _gpsPermission,
               onChanged: (value) => setState(() => _gpsPermission = value),
             ),
@@ -160,11 +196,35 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               contentPadding: EdgeInsets.zero,
               title: const Text(
                 'Akses Mikrofon (Audio)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: MekaarColors.textPrimary),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: MekaarColors.textPrimary,
+                ),
               ),
-              subtitle: const Text('Guardian dapat mendengar streaming suara di sekitar perangkat.'),
+              subtitle: const Text(
+                'Guardian dapat mendengar streaming suara di sekitar perangkat.',
+              ),
               value: _audioPermission,
               onChanged: (value) => setState(() => _audioPermission = value),
+            ),
+            const Divider(color: MekaarColors.borderLight),
+            SwitchListTile(
+              activeThumbColor: MekaarColors.softCoral,
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Akses Kamera (Video Darurat)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: MekaarColors.textPrimary,
+                ),
+              ),
+              subtitle: const Text(
+                'Anda dapat mengirim video darurat ke guardian saat SOS.',
+              ),
+              value: _videoPermission,
+              onChanged: (value) => setState(() => _videoPermission = value),
             ),
             const SizedBox(height: 48),
             SizedBox(
@@ -174,7 +234,9 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
                 onPressed: _isLoading ? null : _submitInvitation,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: MekaarColors.textPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)

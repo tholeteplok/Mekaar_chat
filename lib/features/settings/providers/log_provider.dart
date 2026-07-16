@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/security_log_model.dart';
 import '../../../data/repositories/log_repository.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -30,12 +31,46 @@ class SecurityLogNotifier extends StateNotifier<List<SecurityLog>> {
   }
 
   Future<void> clearLogs() async {
+    try {
+      await _logRepository.logEvent('log_deleted', {
+        'scope': 'all',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
     await _logRepository.clearAllLogs();
     await loadLogs();
   }
 
   Future<String> exportLogs() async {
     return await _logRepository.exportLogsToCSV();
+  }
+
+  /// Ekspor log yang ditandatangani kriptografis (SHA-256) via Edge Function.
+  /// Mengembalikan map {'csv', 'signature', 'signed_at', 'statement'} jika
+  /// function tersedia; jika tidak (belum deploy), fallback ke CSV lokal.
+  Future<Map<String, String>> exportSignedLogs() async {
+    try {
+      final response = await Supabase.instance.client.functions
+          .invoke('sign-logs', body: {'format': 'csv'});
+      final data = response.data;
+      if (data is Map && data['csv'] != null) {
+        return {
+          'csv': data['csv'] as String,
+          'signature': (data['signature'] as String?) ?? '',
+          'signed_at': (data['signed_at'] as String?) ?? '',
+          'statement': (data['statement'] as String?) ?? '',
+        };
+      }
+    } catch (_) {
+      // Edge Function belum di-deploy — fallback ke ekspor lokal.
+    }
+    final csv = await _logRepository.exportLogsToCSV();
+    return {
+      'csv': csv,
+      'signature': '',
+      'signed_at': '',
+      'statement': '',
+    };
   }
 
   Future<void> logEvent(String eventType, Map<String, dynamic> details) async {

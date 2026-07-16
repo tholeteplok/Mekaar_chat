@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/mika_mascot.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -76,45 +78,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Beautiful breathable icon container
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: MekaarColors.softCoral,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: MekaarColors.softCoral.withValues(alpha: 0.4),
-                      blurRadius: 30,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.shield_outlined,
-                  color: Colors.white,
-                  size: 48,
+              // Mascot with gentle floating entrance
+              AnimatedAppear(
+                duration: const Duration(milliseconds: 500),
+                offsetY: 24,
+                child: const MikaMascot(
+                  expression: MikaExpression.wave,
+                  size: 120,
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'MEKAAR',
-                style: TextStyle(
-                  fontFamily: 'SpaceGrotesk',
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: 2,
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Text(
+                  'MEKAAR',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Aplikasi Chat & Keamanan Personal',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: MekaarColors.textMuted,
-                  fontWeight: FontWeight.w500,
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: const Text(
+                  'Aplikasi Chat & Keamanan Personal',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/shadows.dart';
 
 class CustomCard extends StatelessWidget {
   final Widget child;
@@ -29,13 +30,7 @@ class CustomCard extends StatelessWidget {
       color: cardColor,
       borderRadius: BorderRadius.circular(borderRadius),
       border: border ?? Border.all(color: MekaarColors.borderLight, width: 1),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.02),
-          blurRadius: 10,
-          offset: const Offset(0, 3),
-        ),
-      ],
+      boxShadow: MekaarShadows.card,
     );
 
     Widget cardWidget = Container(

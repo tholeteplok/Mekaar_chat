@@ -9,6 +9,7 @@ import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart'
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.dart';
 import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
@@ -18,7 +19,6 @@ import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_map_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
-
 
 class AppRoutes {
   static const String splash = '/';
@@ -31,6 +31,7 @@ class AppRoutes {
   static const String guardianAdd = '/guardian/add';
   static const String guardianDetail = '/guardian/detail';
   static const String guardianSwap = '/guardian/swap';
+  static const String guardianTracking = '/guardian/tracking';
   static const String settings = '/settings';
   static const String logs = '/logs';
   static const String profile = '/profile';
@@ -40,25 +41,24 @@ class AppRoutes {
   static const String map = '/map';
   static const String call = '/call';
 
-
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
-      
+
       case AppRoutes.onboarding:
         return MaterialPageRoute(builder: (_) => const OnboardingScreen());
-      
+
       case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
-      
+
       case AppRoutes.pin:
         final isSetup = settings.arguments as bool? ?? false;
         return MaterialPageRoute(builder: (_) => PinScreen(isSetup: isSetup));
-      
+
       case AppRoutes.home:
         return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
-      
+
       case AppRoutes.chat:
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
@@ -70,7 +70,7 @@ class AppRoutes {
             otherUserId: args['otherUserId'] as String?,
           ),
         );
-      
+
       case AppRoutes.call:
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
@@ -83,39 +83,52 @@ class AppRoutes {
             callType: args['callType'] ?? 'voice',
           ),
         );
-      
+
       case AppRoutes.guardian:
         return MaterialPageRoute(builder: (_) => const GuardianListScreen());
-      
+
       case AppRoutes.guardianAdd:
         return MaterialPageRoute(builder: (_) => const AddGuardianScreen());
-      
+
       case AppRoutes.guardianDetail:
-        final g = (settings.arguments as Map<String, dynamic>)['guardian'] as Guardian;
-        return MaterialPageRoute(builder: (_) => GuardianDetailScreen(guardian: g));
-      
+        final g =
+            (settings.arguments as Map<String, dynamic>)['guardian']
+                as Guardian;
+        return MaterialPageRoute(
+          builder: (_) => GuardianDetailScreen(guardian: g),
+        );
+
       case AppRoutes.guardianSwap:
-        final g = (settings.arguments as Map<String, dynamic>)['guardian'] as Guardian;
-        return MaterialPageRoute(builder: (_) => SwapGuardianScreen(guardian: g));
-      
+        final g =
+            (settings.arguments as Map<String, dynamic>)['guardian']
+                as Guardian;
+        return MaterialPageRoute(
+          builder: (_) => SwapGuardianScreen(guardian: g),
+        );
+
+      case AppRoutes.guardianTracking:
+        return MaterialPageRoute(
+          builder: (_) => const GuardianTrackingScreen(),
+        );
+
       case AppRoutes.settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
-      
+
       case AppRoutes.logs:
         return MaterialPageRoute(builder: (_) => const SecurityLogsScreen());
-      
+
       case AppRoutes.profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
-      
+
       case AppRoutes.sosActive:
         return MaterialPageRoute(builder: (_) => const SOSActiveScreen());
-      
+
       case AppRoutes.sosVideo:
         return MaterialPageRoute(builder: (_) => const VideoEmergencyScreen());
-      
+
       case AppRoutes.deviceLost:
         return MaterialPageRoute(builder: (_) => const DeviceLostScreen());
-      
+
       case AppRoutes.map:
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
@@ -125,7 +138,7 @@ class AppRoutes {
             locationName: args['locationName'] as String?,
           ),
         );
-      
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

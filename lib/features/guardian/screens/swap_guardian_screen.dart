@@ -23,6 +23,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   // Izin untuk arah sebaliknya (B menjaga A)
   bool _gpsForB = true;
   bool _micForB = false;
+  bool _videoForB = false;
 
   // Konfirmasi PIN
   String _pin = '';
@@ -33,7 +34,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   void _handlePinKey(String key) {
     HapticFeedback.lightImpact();
     if (key == '⌫') {
-      if (_pin.isNotEmpty) setState(() => _pin = _pin.substring(0, _pin.length - 1));
+      if (_pin.isNotEmpty) {
+        setState(() => _pin = _pin.substring(0, _pin.length - 1));
+      }
       return;
     }
     if (_pin.length < _pinLength) {
@@ -54,7 +57,10 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN salah. Silakan coba lagi.'), backgroundColor: MekaarColors.sosRed),
+          const SnackBar(
+            content: Text('PIN salah. Silakan coba lagi.'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
         );
       }
       return;
@@ -62,21 +68,30 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
 
     // PIN valid — kirim permintaan tukar posisi
     try {
-      await ref.read(guardianProvider.notifier).initiateRoleSwap(widget.guardian.id);
+      await ref
+          .read(guardianProvider.notifier)
+          .initiateRoleSwap(widget.guardian.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Permintaan Tukar Posisi dikirim ke ${widget.guardian.name}!'),
+            content: Text(
+              'Permintaan Tukar Posisi dikirim ke ${widget.guardian.name}!',
+            ),
             backgroundColor: MekaarColors.success,
           ),
         );
-        Navigator.popUntil(context, (route) => route.isFirst || route.settings.name == '/guardian');
+        Navigator.popUntil(
+          context,
+          (route) => route.isFirst || route.settings.name == '/guardian',
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(
+              'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: MekaarColors.sosRed,
           ),
         );
@@ -110,7 +125,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             decoration: BoxDecoration(
               color: MekaarColors.guardianLight,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: MekaarColors.guardianTeal.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -120,7 +137,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   child: Text(
                     'Tukar Posisi memungkinkan ${widget.guardian.name} juga menjadi guardian Anda '
                     'dengan izin yang sama. Kedua pihak harus menyetujui.',
-                    style: MekaarTypography.bodySM.copyWith(color: MekaarColors.guardianTeal),
+                    style: MekaarTypography.bodySM.copyWith(
+                      color: MekaarColors.guardianTeal,
+                    ),
                   ),
                 ),
               ],
@@ -137,7 +156,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             child: Row(
               children: [
                 Avatar(
-                  initial: widget.guardian.name.isNotEmpty ? widget.guardian.name[0] : 'U',
+                  initial: widget.guardian.name.isNotEmpty
+                      ? widget.guardian.name[0]
+                      : 'U',
                   size: 40,
                   isGuardian: true,
                 ),
@@ -146,16 +167,33 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.guardian.name, style: MekaarTypography.labelLG),
-                      Text('menjaga Anda saat ini', style: MekaarTypography.bodySM),
+                      Text(
+                        widget.guardian.name,
+                        style: MekaarTypography.labelLG,
+                      ),
+                      Text(
+                        'menjaga Anda saat ini',
+                        style: MekaarTypography.bodySM,
+                      ),
                     ],
                   ),
                 ),
                 Row(
                   children: [
-                    _miniChip('GPS', widget.guardian.permissions['gps'] ?? false),
+                    _miniChip(
+                      'GPS',
+                      widget.guardian.permissions['gps'] ?? false,
+                    ),
                     const SizedBox(width: 4),
-                    _miniChip('Mic', widget.guardian.permissions['mic'] ?? false),
+                    _miniChip(
+                      'Mic',
+                      widget.guardian.permissions['mic'] ?? false,
+                    ),
+                    const SizedBox(width: 4),
+                    _miniChip(
+                      'Video',
+                      widget.guardian.permissions['video'] ?? false,
+                    ),
                   ],
                 ),
               ],
@@ -178,18 +216,52 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
               children: [
                 SwitchListTile(
                   activeThumbColor: MekaarColors.softCoral,
-                  title: Text('Lacak Lokasi GPS', style: MekaarTypography.labelLG),
-                  subtitle: Text('Anda bisa melihat lokasi ${widget.guardian.name} saat SOS aktif.', style: MekaarTypography.bodySM),
+                  title: Text(
+                    'Lacak Lokasi GPS',
+                    style: MekaarTypography.labelLG,
+                  ),
+                  subtitle: Text(
+                    'Anda bisa melihat lokasi ${widget.guardian.name} saat SOS aktif.',
+                    style: MekaarTypography.bodySM,
+                  ),
                   value: _gpsForB,
                   onChanged: (v) => setState(() => _gpsForB = v),
                 ),
-                const Divider(height: 1, color: MekaarColors.borderLight, indent: 72),
+                const Divider(
+                  height: 1,
+                  color: MekaarColors.borderLight,
+                  indent: 72,
+                ),
                 SwitchListTile(
                   activeThumbColor: MekaarColors.softCoral,
-                  title: Text('Akses Mikrofon', style: MekaarTypography.labelLG),
-                  subtitle: Text('Anda bisa mendengar audio sekitar perangkat ${widget.guardian.name} saat SOS.', style: MekaarTypography.bodySM),
+                  title: Text(
+                    'Akses Mikrofon',
+                    style: MekaarTypography.labelLG,
+                  ),
+                  subtitle: Text(
+                    'Anda bisa mendengar audio sekitar perangkat ${widget.guardian.name} saat SOS.',
+                    style: MekaarTypography.bodySM,
+                  ),
                   value: _micForB,
                   onChanged: (v) => setState(() => _micForB = v),
+                ),
+                const Divider(
+                  height: 1,
+                  color: MekaarColors.borderLight,
+                  indent: 72,
+                ),
+                SwitchListTile(
+                  activeThumbColor: MekaarColors.softCoral,
+                  title: Text(
+                    'Akses Kamera (Video Darurat)',
+                    style: MekaarTypography.labelLG,
+                  ),
+                  subtitle: Text(
+                    'Anda dapat mengirim video darurat ke guardian saat SOS.',
+                    style: MekaarTypography.bodySM,
+                  ),
+                  value: _videoForB,
+                  onChanged: (v) => setState(() => _videoForB = v),
                 ),
               ],
             ),
@@ -202,10 +274,15 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             height: 52,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.lock_outline),
-              label: Text('Lanjutkan & Konfirmasi dengan PIN', style: MekaarTypography.buttonLG.copyWith(color: Colors.white)),
+              label: Text(
+                'Lanjutkan & Konfirmasi dengan PIN',
+                style: MekaarTypography.buttonLG.copyWith(color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: MekaarColors.guardianTeal,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () => setState(() => _isPinConfirming = true),
             ),
@@ -221,7 +298,11 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       child: Column(
         children: [
           const Spacer(),
-          const Icon(Icons.lock_outline, size: 52, color: MekaarColors.guardianTeal),
+          const Icon(
+            Icons.lock_outline,
+            size: 52,
+            color: MekaarColors.guardianTeal,
+          ),
           const SizedBox(height: 16),
           Text('Konfirmasi dengan PIN', style: MekaarTypography.headingMD),
           const SizedBox(height: 8),
@@ -243,7 +324,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: MekaarColors.border, width: 2),
-                  color: _pin.length > index ? MekaarColors.guardianTeal : Colors.transparent,
+                  color: _pin.length > index
+                      ? MekaarColors.guardianTeal
+                      : Colors.transparent,
                 ),
               ),
             ),
@@ -259,7 +342,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
               _isPinConfirming = false;
               _pin = '';
             }),
-            child: Text('Kembali', style: MekaarTypography.bodyMD.copyWith(color: MekaarColors.textSecondary)),
+            child: Text(
+              'Kembali',
+              style: MekaarTypography.bodyMD.copyWith(
+                color: MekaarColors.textSecondary,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -268,34 +356,56 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   }
 
   Widget _buildKeypad() {
-    final rows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', '⌫']];
+    final rows = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      ['', '0', '⌫'],
+    ];
     return Column(
-      children: rows.map((row) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: row.map((key) {
-          if (key.isEmpty) return const SizedBox(width: 80, height: 70);
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            width: 70,
-            height: 70,
-            child: InkWell(
-              onTap: () => _handlePinKey(key),
-              borderRadius: BorderRadius.circular(35),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: key == '⌫' ? Colors.transparent : MekaarColors.surface2,
-                ),
-                child: Center(
-                  child: key == '⌫'
-                      ? const Icon(Icons.backspace_outlined, color: MekaarColors.textSecondary)
-                      : Text(key, style: MekaarTypography.monoLG.copyWith(color: MekaarColors.textPrimary)),
-                ),
-              ),
+      children: rows
+          .map(
+            (row) => Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: row.map((key) {
+                if (key.isEmpty) return const SizedBox(width: 80, height: 70);
+                return Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  width: 70,
+                  height: 70,
+                  child: InkWell(
+                    onTap: () => _handlePinKey(key),
+                    borderRadius: BorderRadius.circular(35),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: key == '⌫'
+                            ? Colors.transparent
+                            : MekaarColors.surface2,
+                      ),
+                      child: Center(
+                        child: key == '⌫'
+                            ? const Icon(
+                                Icons.backspace_outlined,
+                                color: MekaarColors.textSecondary,
+                              )
+                            : Text(
+                                key,
+                                style: MekaarTypography.monoLG.copyWith(
+                                  color: MekaarColors.textPrimary,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-          );
-        }).toList(),
-      )).toList(),
+          )
+          .toList(),
     );
   }
 

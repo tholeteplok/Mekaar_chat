@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../providers/auth_provider.dart';
 
@@ -27,8 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _submit() async {    if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -62,12 +62,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    final success = await ref.read(authProvider.notifier).loginWithGoogle();
+    if (!success && mounted) {
+      final error = ref.read(authProvider).error ?? 'Gagal masuk dengan Google';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: MekaarColors.sosRed),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: MekaarColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -92,10 +101,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'MEKAAR',
-                    style: TextStyle(
-                      fontFamily: 'SpaceGrotesk',
+                    style: MekaarTypography.monoMD.copyWith(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1,
@@ -106,21 +114,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 36),
               Text(
                 _isLogin ? 'Selamat Datang\nKembali' : 'Buat Akun\nBaru Anda',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: MekaarColors.textPrimary,
-                  height: 1.2,
-                ),
+                style: MekaarTypography.displayLG.copyWith(height: 1.2),
               ),
               const SizedBox(height: 8),
               Text(
                 _isLogin
                     ? 'Masukkan email atau username dan password untuk melanjutkan.'
                     : 'Mulai dengan membuat profil chat terenkripsi Anda.',
-                style: const TextStyle(
-                  color: MekaarColors.textSecondary,
-                  fontSize: 14,
-                ),
+                style: MekaarTypography.bodyMD,
               ),
               const SizedBox(height: 36),
               Form(
@@ -188,14 +189,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     if (!_isLogin) ...[
                       const SizedBox(height: 6),
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Password minimal harus 6 karakter.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: MekaarColors.textMuted,
-                          ),
+                          style: MekaarTypography.bodySM,
                         ),
                       ),
                     ],
@@ -223,6 +221,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             : Text(_isLogin ? 'Masuk' : 'Daftar Sekarang'),
                       ),
                     ),
+                    if (_isLogin) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: authState.isLoading
+                              ? null
+                              : _signInWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 24),
+                          label: const Text('Lanjut dengan Google'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: MekaarColors.textPrimary,
+                            side: const BorderSide(
+                                color: MekaarColors.border),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -232,13 +252,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   Text(
                     _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
-                    style: const TextStyle(color: MekaarColors.textSecondary),
+                    style: MekaarTypography.bodyMD,
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _isLogin = !_isLogin),
                     child: Text(
                       _isLogin ? 'Daftar' : 'Masuk',
-                      style: const TextStyle(
+                      style: MekaarTypography.labelLG.copyWith(
                         color: MekaarColors.softCoral,
                         fontWeight: FontWeight.bold,
                       ),

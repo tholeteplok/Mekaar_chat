@@ -12,8 +12,9 @@ final guardianRepositoryProvider = Provider<GuardianRepository>((ref) {
 // Guardians State Notifier (My added guardians)
 class GuardiansNotifier extends StateNotifier<List<Guardian>> {
   final GuardianRepository _guardianRepository;
+  final Ref _ref;
 
-  GuardiansNotifier(this._guardianRepository) : super([]) {
+  GuardiansNotifier(this._guardianRepository, this._ref) : super([]) {
     refreshGuardians();
   }
 
@@ -46,20 +47,27 @@ class GuardiansNotifier extends StateNotifier<List<Guardian>> {
   Future<void> initiateRoleSwap(String guardianRelationId) async {
     await _guardianRepository.initiateSwap(guardianRelationId);
     await refreshGuardians();
+    await _ref.read(whoAddedMeProvider.notifier).refresh();
+  }
+
+  Future<void> breakGuardian(String guardianRelationId) async {
+    await _guardianRepository.breakGuardian(guardianRelationId);
+    await refreshGuardians();
   }
 }
 
 // Global Provider for my Guardians
 final guardianProvider = StateNotifierProvider<GuardiansNotifier, List<Guardian>>((ref) {
   final repo = ref.watch(guardianRepositoryProvider);
-  return GuardiansNotifier(repo);
+  return GuardiansNotifier(repo, ref);
 });
 
 // Who Added Me Notifier
 class WhoAddedMeNotifier extends StateNotifier<List<Guardian>> {
   final GuardianRepository _guardianRepository;
+  final Ref _ref;
 
-  WhoAddedMeNotifier(this._guardianRepository) : super([]) {
+  WhoAddedMeNotifier(this._guardianRepository, this._ref) : super([]) {
     refresh();
   }
 
@@ -73,6 +81,7 @@ class WhoAddedMeNotifier extends StateNotifier<List<Guardian>> {
   Future<void> accept(String relationId) async {
     await _guardianRepository.acceptInvitation(relationId);
     await refresh();
+    await _ref.read(guardianProvider.notifier).refreshGuardians();
   }
 
   Future<void> reject(String relationId) async {
@@ -83,5 +92,5 @@ class WhoAddedMeNotifier extends StateNotifier<List<Guardian>> {
 
 final whoAddedMeProvider = StateNotifierProvider<WhoAddedMeNotifier, List<Guardian>>((ref) {
   final repo = ref.watch(guardianRepositoryProvider);
-  return WhoAddedMeNotifier(repo);
+  return WhoAddedMeNotifier(repo, ref);
 });

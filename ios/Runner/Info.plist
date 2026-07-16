@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>MEKAAR memerlukan akses kamera untuk panggilan video dan pelaporan darurat.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MEKAAR memerlukan akses mikrofon untuk panggilan suara/video dan pelaporan darurat.</string>
 </dict>
 </plist>

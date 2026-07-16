@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -52,6 +53,21 @@ void main() async {
 
   // 3. Run Application
   runApp(const ProviderScope(child: MekaarApp()));
+
+  // Sembunyikan konten dari recent-apps / screenshot (blind spot #2):
+  // cegah bocoran status SOS/Device-Lost lewat preview layar.
+  _enableSecureWindowFlag();
+}
+
+const MethodChannel _securityChannel =
+    MethodChannel('com.mekaar.mekaar_chat/security');
+
+Future<void> _enableSecureWindowFlag() async {
+  try {
+    await _securityChannel.invokeMethod('enableSecureFlag');
+  } catch (_) {
+    // Channel hanya tersedia di Android; abaikan di platform lain.
+  }
 }
 
 String? _validateSupabaseConfig(String supabaseUrl, String supabaseAnonKey) {

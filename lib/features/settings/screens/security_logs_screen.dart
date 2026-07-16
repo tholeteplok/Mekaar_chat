@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/log_provider.dart';
@@ -24,17 +26,62 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
   }
 
   void _exportCSV() async {
-    // Export dan abaikan nilai return (hanya notifikasi user)
-    await ref.read(securityLogProvider.notifier).exportLogs();
-    
-    // Renders download complete feedback
+    final result =
+        await ref.read(securityLogProvider.notifier).exportSignedLogs();
+
     if (mounted) {
+      final hasSignature = result['signature']?.isNotEmpty ?? false;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Ekspor Berhasil'),
-          content: const Text(
-            'Log keamanan berhasil diekspor sebagai file CSV dan siap dibagikan.'
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Log keamanan berhasil diekspor sebagai file CSV dan siap dibagikan.',
+              ),
+              if (hasSignature) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.guardianTeal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tertandatangani secara kriptografis',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: MekaarColors.guardianTeal,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        result['statement'] ?? '',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'SHA-256: ${result['signature']}',
+                        style: const TextStyle(
+                            fontSize: 10, fontFamily: 'monospace'),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Catatan: tanda tangan kriptografis belum aktif (Edge Function sign-logs belum di-deploy).',
+                  style: TextStyle(fontSize: 11, color: MekaarColors.textMuted),
+                ),
+              ],
+            ],
           ),
           actions: [
             TextButton(
@@ -77,7 +124,6 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
     final logs = ref.watch(securityLogProvider);
 
     return Scaffold(
-      backgroundColor: MekaarColors.background,
       appBar: CustomAppBar(
         title: 'Log Sistem',
         subtitle: 'Catatan aktivitas keamanan permanen',
@@ -93,17 +139,37 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
         ],
       ),
       body: logs.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history, size: 48, color: MekaarColors.textMuted),
-                  SizedBox(height: 12),
-                  Text(
-                    'Belum ada log keamanan terdaftar.',
-                    style: TextStyle(color: MekaarColors.textMuted),
-                  ),
-                ],
+          ? AnimatedAppear(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: MekaarColors.surface2,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.history, size: 40, color: MekaarColors.textMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Belum ada log keamanan.',
+                      style: MekaarTypography.headingSM,
+                    ),
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        'Aktivitas SOS, akses Guardian, dan penghapusan pesan akan tercatat di sini.',
+                        style: MekaarTypography.bodyMD
+                            .copyWith(color: MekaarColors.textMuted),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           : ListView.builder(
@@ -111,7 +177,10 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
               itemCount: logs.length,
               itemBuilder: (context, index) {
                 final log = logs[index];
-                return _buildLogItem(log);
+                return AnimatedAppear(
+                  delay: Duration(milliseconds: (index * 30).clamp(0, 240)),
+                  child: _buildLogItem(log),
+                );
               },
             ),
     );
@@ -142,12 +211,15 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
               children: [
                 Text(
                   _getTitleForEvent(log.eventType),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: MekaarColors.textPrimary),
+                  style: MekaarTypography.labelLG.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   log.details?['description'] ?? _getDefaultDescForEvent(log.eventType),
-                  style: const TextStyle(fontSize: 11, color: MekaarColors.textSecondary),
+                  style: MekaarTypography.bodySM,
                 ),
               ],
             ),
@@ -155,7 +227,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
           const SizedBox(width: 8),
           Text(
             timeStr,
-            style: const TextStyle(fontSize: 10, color: MekaarColors.textMuted),
+            style: MekaarTypography.labelSM,
           ),
         ],
       ),

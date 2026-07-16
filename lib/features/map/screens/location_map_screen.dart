@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 
 class LocationMapScreen extends StatelessWidget {
@@ -52,10 +53,24 @@ class LocationMapScreen extends StatelessWidget {
                         builder: (context, value, child) {
                           return Opacity(
                             opacity: value,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: MekaarColors.sosRed,
-                              size: 48,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: 48 + (value * 16),
+                                  height: 48 + (value * 16),
+                                  decoration: BoxDecoration(
+                                    color: MekaarColors.sosRed
+                                        .withValues(alpha: 0.18 * (1 - value)),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.location_on,
+                                  color: MekaarColors.sosRed,
+                                  size: 48,
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -72,11 +87,11 @@ class LocationMapScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: MekaarColors.surface,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                   color: Colors.black.withValues(alpha: 0.04),
+                  color: Color(0x0A000000),
                   blurRadius: 16,
-                  offset: const Offset(0, -4),
+                  offset: Offset(0, -4),
                 ),
               ],
             ),
@@ -91,7 +106,7 @@ class LocationMapScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         locationName ?? 'Koordinat Lokasi',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: MekaarColors.textPrimary),
+                        style: MekaarTypography.headingSM,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -100,7 +115,7 @@ class LocationMapScreen extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Lintang: $latitude\nBujur: $longitude',
-                  style: const TextStyle(fontSize: 12, color: MekaarColors.textMuted, height: 1.4),
+                  style: MekaarTypography.bodySM.copyWith(height: 1.4),
                 ),
                 const SizedBox(height: 20),
                 Row(

@@ -221,4 +221,86 @@ class AuthRepository {
     final profile = await getProfile();
     return profile != null && profile.pinHash.isNotEmpty;
   }
+
+  // ── Duress PIN (PIN Paksaan) ──────────────────────────────
+  // PIN terpisah yang, bila dimasukkan saat dipaksa, membuka aplikasi
+  // normal namun diam-diam memicu SOS silent.
+
+  Future<void> setDuressPIN(String pin) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('User not logged in');
+
+    final pinHash = _hashPIN(pin);
+
+    try {
+      await _secureStorage
+          .write(key: 'duress_pin_hash', value: pinHash)
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('duress_pin_hash', pinHash);
+      } catch (_) {}
+    }
+
+    await _supabaseService.client.from('profiles').update({
+      'duress_pin_hash': pinHash,
+      'duress_enabled': true,
+    }).eq('id', userId);
+  }
+
+  Future<bool> isDuressEnabled() async {
+    try {
+      final local = await _secureStorage
+          .read(key: 'duress_pin_hash')
+          .timeout(const Duration(seconds: 1));
+      if (local != null && local.isNotEmpty) return true;
+    } catch (_) {}
+    final profile = await getProfile();
+    return profile != null &&
+        profile.pinHash.isNotEmpty &&
+        (profile.duressPinHash?.isNotEmpty ?? false);
+  }
+
+  // Mengembalikan true bila [pin] cocok dengan duress PIN (bukan PIN utama).
+  Future<bool> validateDuressPIN(String pin) async {
+    final enteredHash = _hashPIN(pin);
+    String? localHash;
+    try {
+      localHash = await _secureStorage
+          .read(key: 'duress_pin_hash')
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        localHash = prefs.getString('duress_pin_hash');
+      } catch (_) {}
+    }
+    if (localHash != null) return localHash == enteredHash;
+
+    final profile = await getProfile();
+    if (profile != null && profile.duressPinHash != null) {
+      return profile.duressPinHash == enteredHash;
+    }
+    return false;
+  }
+
+  Future<void> disableDuressPIN() async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+    try {
+      await _secureStorage
+          .delete(key: 'duress_pin_hash')
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('duress_pin_hash');
+    } catch (_) {}
+    try {
+      await _supabaseService.client
+          .from('profiles')
+          .update({'duress_enabled': false, 'duress_pin_hash': null}).eq('id', userId);
+    } catch (_) {}
+  }
 }

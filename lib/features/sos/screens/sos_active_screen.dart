@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../providers/sos_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
+import '../../../core/routes/app_routes.dart';
 
 class SOSActiveScreen extends ConsumerStatefulWidget {
   const SOSActiveScreen({super.key});
@@ -16,7 +18,9 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(sosProvider.notifier).activateSOS(gps: true, mic: true, video: false);
+      ref
+          .read(sosProvider.notifier)
+          .activateSOS(gps: true, mic: true, video: false);
     });
   }
 
@@ -32,7 +36,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Akhiri Mode Darurat?'),
         content: const Text(
-          'Akses lokasi GPS real-time dan perekaman audio ke Guardian akan dihentikan secara total.'
+          'Akses lokasi GPS real-time dan perekaman audio ke Guardian akan dihentikan secara total.',
         ),
         actions: [
           TextButton(
@@ -49,7 +53,10 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
             },
             child: const Text(
               'Akhiri',
-              style: TextStyle(color: MekaarColors.sosRed, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: MekaarColors.sosRed,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -61,8 +68,11 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   Widget build(BuildContext context) {
     final sosState = ref.watch(sosProvider);
     final guardians = ref.watch(guardianProvider);
-    final activeGuardians = guardians.where((g) => g.status == 'active').map((g) => g.name).toList();
-    
+    final activeGuardians = guardians
+        .where((g) => g.status == 'active')
+        .map((g) => g.name)
+        .toList();
+
     final guardianText = activeGuardians.isEmpty
         ? 'Tidak ada Guardian aktif.'
         : 'Guardian (${activeGuardians.join(', ')}) sedang melacak lokasi${sosState.micPermissionDenied ? ' Anda.' : ' dan mendengar audio sekitar perangkat.'}';
@@ -96,7 +106,9 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       height: 140 * value,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: MekaarColors.sosRed.withValues(alpha: 0.18 * (1.15 - value) / 0.15),
+                        color: MekaarColors.sosRed.withValues(
+                          alpha: 0.18 * (1.15 - value) / 0.15,
+                        ),
                       ),
                       child: Center(
                         child: Container(
@@ -117,10 +129,9 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                   },
                 ),
                 const SizedBox(height: 36),
-                const Text(
+                Text(
                   'MODE DARURAT AKTIF',
-                  style: TextStyle(
-                    fontFamily: 'SpaceGrotesk',
+                  style: MekaarTypography.monoLG.copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -131,16 +142,18 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                 Text(
                   guardianText,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: MekaarTypography.bodyMD.copyWith(
                     color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 14,
                     height: 1.5,
                   ),
                 ),
                 if (sosState.micPermissionDenied) ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: MekaarColors.warningLight,
                       borderRadius: BorderRadius.circular(100),
@@ -148,11 +161,17 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.mic_off_outlined, color: MekaarColors.warning, size: 16),
+                        const Icon(
+                          Icons.mic_off_outlined,
+                          color: MekaarColors.warning,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
-                        const Text(
+                        Text(
                           'Izin Mikrofon Ditolak',
-                          style: TextStyle(color: MekaarColors.warning, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: MekaarTypography.labelMD.copyWith(
+                            color: MekaarColors.warning,
+                          ),
                         ),
                       ],
                     ),
@@ -161,27 +180,72 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                 const SizedBox(height: 48),
                 // Counter duration timer
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: Text(
                     _formatDuration(sosState.elapsedSeconds),
-                    style: const TextStyle(
-                      fontFamily: 'SpaceGrotesk',
-                      fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 2,
-                    ),
+                    style: MekaarTypography.monoXL,
                   ),
                 ),
                 const Spacer(),
                 // Actions Area
                 Column(
                   children: [
+                    if (sosState.isSOSActive) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.my_location_outlined),
+                          label: const Text('Lihat Lokasi Saya'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: MekaarColors.textPrimary,
+                            side: BorderSide(
+                              color: MekaarColors.softCoral.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: () async {
+                            final result = await ref
+                                .read(sosProvider.notifier)
+                                .getOwnSessionWithPing();
+                            if (!context.mounted) return;
+                            final ping = result?['ping'] as Map?;
+                            if (ping != null) {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.map,
+                                arguments: {
+                                  'latitude': ping['latitude'] as double,
+                                  'longitude': ping['longitude'] as double,
+                                  'locationName': 'Lokasi Saya',
+                                },
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Lokasi belum tersedia'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -209,7 +273,9 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         label: const Text('Akhiri Mode Darurat'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

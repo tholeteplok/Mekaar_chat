@@ -1,10 +1,46 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/message_model.dart';
 import '../constants/colors.dart';
+import '../constants/shadows.dart';
+import 'animations.dart';
+
+// Pelacakan pesan "Sekali Lihat" yang sudah dibuka (lokal, persisten).
+class ViewOnceStore {
+  static const String _key = 'viewed_once_message_ids';
+  static final Set<String> _memory = {};
+  static bool _loaded = false;
+
+  static Future<void> _ensureLoaded() async {
+    if (_loaded) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getStringList(_key) ?? [];
+      _memory.addAll(stored);
+    } catch (_) {}
+    _loaded = true;
+  }
+
+  static Future<bool> isViewed(String id) async {
+    await _ensureLoaded();
+    return _memory.contains(id);
+  }
+
+  static Future<void> markViewed(String id) async {
+    await _ensureLoaded();
+    if (_memory.contains(id)) return;
+    _memory.add(id);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_key, _memory.toList());
+    } catch (_) {}
+  }
+}
 
 // ─────────────────────────────────────────
 // Enum for read receipt status
@@ -60,19 +96,37 @@ class ChatBubble extends StatelessWidget {
 
   void _handleLocationTap() async {
     if (message.type == MessageType.location) {
-      final coordinates = message.content.split(',');
-      if (coordinates.length == 2) {
-        final lat = double.tryParse(coordinates[0].trim());
-        final lon = double.tryParse(coordinates[1].trim());
-        if (lat != null && lon != null) {
-          final url = Uri.parse(
-              'https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=17/$lat/$lon');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
-          }
+      final parsed = _parseLocationContent(message.content);
+      if (parsed != null) {
+        final url = Uri.parse(
+            'https://www.openstreetmap.org/?mlat=${parsed.$1}&mlon=${parsed.$2}#map=17/${parsed.$1}/${parsed.$2}');
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url);
         }
       }
     }
+  }
+
+  // Parse sisa detik dari konten live "LIVE:lat,lon:secs".
+  int? _parseLiveRemaining(String content) {
+    final parts = content.split(':');
+    if (parts.length >= 3) return int.tryParse(parts[2]);
+    return null;
+  }
+
+  // Parse konten lokasi (statis "lat,lon" atau live "LIVE:lat,lon:secs").
+  (double, double)? _parseLocationContent(String content) {
+    String coords = content;
+    if (coords.startsWith('LIVE:')) {
+      final parts = coords.substring(5).split(':');
+      if (parts.isNotEmpty) coords = parts.first;
+    }
+    final split = coords.split(',');
+    if (split.length < 2) return null;
+    final lat = double.tryParse(split[0].trim());
+    final lon = double.tryParse(split[1].trim());
+    if (lat != null && lon != null) return (lat, lon);
+    return null;
   }
 
   void _showContextMenu(BuildContext context) {
@@ -129,7 +183,11 @@ class ChatBubble extends StatelessWidget {
 
     final receiptStatus = _getReceiptStatus();
 
-    return Align(
+    return AnimatedAppear(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutBack,
+      offsetY: 10,
+      child: Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: !isDeleted ? () => _showContextMenu(context) : null,
@@ -146,20 +204,12 @@ class ChatBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: bubbleColor,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
+                  topLeft: const Radius.circular(20),
+                  topRight: const Radius.circular(20),
+                  bottomLeft: Radius.circular(isMe ? 20 : 6),
+                  bottomRight: Radius.circular(isMe ? 6 : 20),
                 ),
-                boxShadow: isMe
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                boxShadow: isMe ? null : MekaarShadows.bubble,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,6 +302,7 @@ class ChatBubble extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -282,93 +333,68 @@ class ChatBubble extends StatelessWidget {
         );
 
       case MessageType.image:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                if (!message.isViewOnce && message.mediaUrl != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => _FullScreenImageViewer(
-                        url: message.mediaUrl!,
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: message.isViewOnce
-                    ? Container(
-                        height: 180,
-                        width: 220,
-                        color: Colors.black.withValues(alpha: 0.85),
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.visibility_off,
-                                  color: Colors.white, size: 30),
-                              SizedBox(height: 6),
-                              Text(
-                                'Media Sekali Lihat',
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : Image.network(
-                        message.mediaUrl ?? '',
-                        height: 180,
-                        width: 220,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
-                          height: 180,
-                          width: 220,
-                          color: MekaarColors.surface2,
-                          child: const Icon(Icons.broken_image,
-                              color: MekaarColors.textMuted),
-                        ),
-                      ),
-              ),
-            ),
-            if (message.content.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(message.content,
-                  style: TextStyle(color: textColor, fontSize: 14)),
-            ],
-          ],
+        return _ImageBubble(
+          message: message,
+          textColor: textColor,
+          onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
         );
 
       case MessageType.voice:
         return _VoiceBubblePlayer(message: message, isMe: isMe);
 
       case MessageType.location:
+        final isLive = message.content.startsWith('LIVE:');
+        final liveRemaining = isLive
+            ? _parseLiveRemaining(message.content)
+            : null;
         return InkWell(
           onTap: _handleLocationTap,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.location_on, color: MekaarColors.sosRed, size: 24),
+              Icon(
+                Icons.location_on,
+                color: isLive
+                    ? MekaarColors.guardianTeal
+                    : MekaarColors.sosRed,
+                size: 24,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (isLive)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: MekaarColors.guardianTeal
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'LOKASI LIVE',
+                          style: TextStyle(
+                            color: MekaarColors.guardianTeal,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
                     Text(
-                      'Peta Terbagikan',
+                      isLive ? 'Berbagi Lokasi Live' : 'Peta Terbagikan',
                       style: TextStyle(
                           color: textColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 12),
                     ),
                     Text(
-                      message.content,
+                      isLive
+                          ? (liveRemaining != null
+                              ? 'Kedaluwarsa dalam ${liveRemaining}s'
+                              : 'Memperbarui...')
+                          : message.content,
                       style: TextStyle(color: textColor, fontSize: 10),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -465,21 +491,10 @@ class _ReactionsStrip extends StatelessWidget {
         children: reactions.entries.map((entry) {
           final emoji = entry.key;
           final count = entry.value.length;
-          return GestureDetector(
+          return _PopReaction(
+            emoji: emoji,
+            count: count,
             onTap: () => onReact?.call(emoji),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: MekaarColors.surface2,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: MekaarColors.borderLight),
-              ),
-              child: Text(
-                '$emoji $count',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
           );
         }).toList(),
       ),
@@ -524,12 +539,7 @@ class _MessageContextMenu extends StatelessWidget {
       decoration: BoxDecoration(
         color: MekaarColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-          ),
-        ],
+        boxShadow: MekaarShadows.floating,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -673,32 +683,93 @@ class _VoiceBubblePlayer extends StatefulWidget {
 }
 
 class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
+  final AudioPlayer _player = AudioPlayer();
   bool _isPlaying = false;
+  bool _isLoading = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      setState(() => _isPlaying = state == PlayerState.playing);
+    });
+    _player.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _duration = d);
+    });
+    _player.onPositionChanged.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _position = Duration.zero);
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
 
   Future<void> _togglePlay() async {
-    // audioplayers integration placeholder — actual play/stop
-    // is handled via AudioPlayer injected at a higher level.
-    // For now, toggle UI state only to avoid tight coupling here.
-    setState(() => _isPlaying = !_isPlaying);
+    final url = widget.message.mediaUrl;
+    if (url == null || url.isEmpty) return;
+    try {
+      if (_isPlaying) {
+        await _player.pause();
+      } else {
+        setState(() => _isLoading = true);
+        await _player.play(UrlSource(url));
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  double get _progress {
+    if (_duration.inMilliseconds == 0) return 0;
+    return (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
   }
 
   @override
   Widget build(BuildContext context) {
-    final iconColor =
+    final iconColor = widget.isMe ? Colors.white : MekaarColors.softCoral;
+    final activeWave =
         widget.isMe ? Colors.white : MekaarColors.softCoral;
-    final waveColor =
-        widget.isMe ? Colors.white70 : MekaarColors.textSecondary;
+    final inactiveWave =
+        widget.isMe ? Colors.white38 : MekaarColors.border;
 
     return GestureDetector(
       onTap: _togglePlay,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-            size: 32,
-            color: iconColor,
-          ),
+          if (_isLoading)
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: iconColor,
+                  ),
+                ),
+              ),
+            )
+          else
+            Icon(
+              _isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_filled,
+              size: 32,
+              color: iconColor,
+            ),
           const SizedBox(width: 8),
           SizedBox(
             width: 100,
@@ -706,15 +777,13 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: List.generate(15, (index) {
+                final played = (index / 15) <= _progress;
                 return Container(
                   width: 3,
-                  height: (_isPlaying
-                          ? (8 + (index % 5) * 3.0)
-                          : (4 + (index % 3) * 3.0))
-                      .toDouble(),
+                  height: (4 + (index % 4) * 3.0).toDouble(),
                   margin: const EdgeInsets.symmetric(horizontal: 1),
                   decoration: BoxDecoration(
-                    color: waveColor,
+                    color: played ? activeWave : inactiveWave,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 );
@@ -723,7 +792,7 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
           ),
           const SizedBox(width: 8),
           Text(
-            widget.message.content.isNotEmpty ? widget.message.content : '0:00',
+            _label(),
             style: TextStyle(
               color: widget.isMe ? Colors.white70 : MekaarColors.textMuted,
               fontSize: 11,
@@ -732,6 +801,15 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
         ],
       ),
     );
+  }
+
+  String _label() {
+    if (_isPlaying || _position > Duration.zero) {
+      final m = _position.inMinutes;
+      final s = _position.inSeconds % 60;
+      return '$m:${s.toString().padLeft(2, '0')}';
+    }
+    return widget.message.content.isNotEmpty ? widget.message.content : '0:00';
   }
 }
 
@@ -756,6 +834,204 @@ class _FullScreenImageViewer extends StatelessWidget {
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 3,
         backgroundDecoration: const BoxDecoration(color: Colors.black),
+      ),
+    );
+  }
+}
+
+// Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka.
+class _ImageBubble extends StatelessWidget {
+  final Message message;
+  final Color textColor;
+  final VoidCallback onViewOnceOpened;
+
+  const _ImageBubble({
+    required this.message,
+    required this.textColor,
+    required this.onViewOnceOpened,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isViewOnce = message.isViewOnce;
+
+    if (isViewOnce) {
+      return FutureBuilder<bool>(
+        future: ViewOnceStore.isViewed(message.id),
+        initialData: false,
+        builder: (ctx, snap) {
+          final alreadyViewed = snap.data ?? false;
+          if (alreadyViewed) {
+            return _viewOnceHidden(textColor);
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  onViewOnceOpened();
+                  if (ctx.mounted && message.mediaUrl != null) {
+                    Navigator.push(
+                      ctx,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            _FullScreenImageViewer(url: message.mediaUrl!),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  height: 180,
+                  width: 220,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.visibility_off,
+                            color: Colors.white, size: 30),
+                        SizedBox(height: 6),
+                        Text(
+                          'Media Sekali Lihat — Ketuk untuk membuka',
+                          style: TextStyle(color: Colors.white, fontSize: 11),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (message.content.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(message.content,
+                    style: TextStyle(color: textColor, fontSize: 14)),
+              ],
+            ],
+          );
+        },
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () {
+            if (message.mediaUrl != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      _FullScreenImageViewer(url: message.mediaUrl!),
+                ),
+              );
+            }
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              message.mediaUrl ?? '',
+              height: 180,
+              width: 220,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                height: 180,
+                width: 220,
+                color: MekaarColors.surface2,
+                child: const Icon(Icons.broken_image,
+                    color: MekaarColors.textMuted),
+              ),
+            ),
+          ),
+        ),
+        if (message.content.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(message.content,
+              style: TextStyle(color: textColor, fontSize: 14)),
+        ],
+      ],
+    );
+  }
+
+  Widget _viewOnceHidden(Color textColor) {
+    return Container(
+      height: 180,
+      width: 220,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.visibility_off, color: Colors.white54, size: 30),
+            SizedBox(height: 6),
+            Text(
+              'Media sudah dilihat',
+              style: TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Reaction chip with pop-in animation
+// ─────────────────────────────────────────
+class _PopReaction extends StatefulWidget {
+  final String emoji;
+  final int count;
+  final VoidCallback? onTap;
+
+  const _PopReaction({
+    required this.emoji,
+    required this.count,
+    this.onTap,
+  });
+
+  @override
+  State<_PopReaction> createState() => _PopReactionState();
+}
+
+class _PopReactionState extends State<_PopReaction>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  )..forward();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curved =
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.4, end: 1).animate(curved),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: MekaarColors.surface2,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: MekaarColors.borderLight),
+          ),
+          child: Text(
+            '${widget.emoji} ${widget.count}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
       ),
     );
   }

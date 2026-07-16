@@ -32,4 +32,27 @@ class MekaarColors {
   // Borders
   static const Color border = Color(0xFFE2E8F0);
   static const Color borderLight = Color(0xFFF1F5F9);
+
+  // Aksen sekunder playful (untuk avatar & reaksi, tetap harmonis)
+  static const Color playfulLilac = Color(0xFFA78BFA);
+  static const Color playfulAmber = Color(0xFFFBBF24);
+}
+
+/// Gradient aksen — dipakai selektif untuk layer chat/sosial (bukan area SOS).
+class MekaarGradients {
+  MekaarGradients._();
+
+  /// Coral → peach lembut, untuk header chat & aksen playful.
+  static const LinearGradient coral = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF6B6B), Color(0xFFFFA07A)],
+  );
+
+  /// Teal, untuk aksen guardian.
+  static const LinearGradient teal = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2DD4BF), Color(0xFF5EEAD4)],
+  );
 }

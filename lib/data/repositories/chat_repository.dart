@@ -322,6 +322,17 @@ class ChatRepository {
 
   Future<void> deleteMessage(String messageId) => softDeleteMessage(messageId);
 
+  // Perbarui konten pesan lokasi live (berbagi lokasi sukarela, bukan SOS).
+  Future<void> updateMessageContent(String messageId, String content) async {
+    await _supabaseService.client
+        .from('messages')
+        .update({
+          'content': content,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', messageId);
+  }
+
   Future<void> markRoomRead(String roomId) async {
     final userId = _supabaseService.currentUserId;
     if (userId != null) {

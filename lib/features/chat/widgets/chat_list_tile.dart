@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 
@@ -43,11 +44,8 @@ class ChatListTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: MekaarColors.textPrimary,
-                          ),
+                          style: MekaarTypography.headingSM
+                              .copyWith(fontWeight: FontWeight.w800),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -55,10 +53,7 @@ class ChatListTile extends StatelessWidget {
                       const SizedBox(width: MekaarSpacing.sm),
                       Text(
                         DateFormat('HH:mm').format(timestamp),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: MekaarColors.textMuted,
-                        ),
+                        style: MekaarTypography.bodySM,
                       ),
                     ],
                   ),
@@ -77,8 +72,8 @@ class ChatListTile extends StatelessWidget {
                         child: Text(
                           room['lastMessage'] as String? ??
                               'Mulai percakapan...',
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: MekaarTypography.labelLG.copyWith(
+                            fontWeight: FontWeight.w400,
                             color: MekaarColors.textSecondary,
                           ),
                           maxLines: 1,
@@ -118,11 +113,8 @@ class _UnreadBadge extends StatelessWidget {
       child: Text(
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
+        style: MekaarTypography.white(MekaarTypography.labelSM)
+            .copyWith(fontSize: 10),
       ),
     );
   }

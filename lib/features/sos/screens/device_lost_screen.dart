@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../data/services/location_service.dart';
 
 class DeviceLostScreen extends StatefulWidget {
   const DeviceLostScreen({super.key});
@@ -13,8 +15,21 @@ class DeviceLostScreen extends StatefulWidget {
 
 class _DeviceLostScreenState extends State<DeviceLostScreen> {
   final _messageController = TextEditingController();
-  final double _mockLat = -6.200000;
-  final double _mockLon = 106.816666;
+  double? _lat;
+  double? _lon;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      final locData = await LocationService.getCurrentLocation();
+      if (!mounted) return;
+      setState(() {
+        _lat = locData?.latitude;
+        _lon = locData?.longitude;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -25,10 +40,44 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
   void _triggerAlarm() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Perintah Alarm Terkirim! Perangkat akan membunyikan alarm keras.'),
+        content: Text(
+          'Perintah Alarm Terkirim! Perangkat akan membunyikan alarm keras.',
+        ),
         backgroundColor: MekaarColors.success,
       ),
     );
+  }
+
+  Future<void> _openInOsm() async {
+    if (_lat == null || _lon == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lokasi tidak tersedia'),
+          backgroundColor: MekaarColors.sosRed,
+        ),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final url = LocationService.getOpenStreetMapUrl(_lat!, _lon!);
+      final launched = await launchUrl(Uri.parse(url));
+      if (!launched) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Gagal membuka OpenStreetMap'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Gagal membuka OpenStreetMap'),
+          backgroundColor: MekaarColors.sosRed,
+        ),
+      );
+    }
   }
 
   void _lockWithCustomMessage() {
@@ -52,29 +101,50 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
         children: [
           // OSM Map showing last location
           Expanded(
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: LatLng(_mockLat, _mockLon),
-                initialZoom: 15,
-              ),
+            child: Column(
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.mekaar.app',
+                Expanded(
+                  child: _lat == null || _lon == null
+                      ? const Center(child: Text('Lokasi tidak tersedia'))
+                      : FlutterMap(
+                          options: MapOptions(
+                            initialCenter: LatLng(_lat!, _lon!),
+                            initialZoom: 15,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.mekaar.app',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(_lat!, _lon!),
+                                  width: 50,
+                                  height: 50,
+                                  child: const Icon(
+                                    Icons.phone_android,
+                                    color: MekaarColors.sosRed,
+                                    size: 40,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                 ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: LatLng(_mockLat, _mockLon),
-                      width: 50,
-                      height: 50,
-                      child: const Icon(
-                        Icons.phone_android,
-                        color: MekaarColors.sosRed,
-                        size: 40,
-                      ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    _lat == null || _lon == null
+                        ? 'Koordinat: —'
+                        : 'Koordinat: $_lat, $_lon',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: MekaarColors.textSecondary,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -84,7 +154,9 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             decoration: BoxDecoration(
               color: MekaarColors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -99,7 +171,11 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
               children: [
                 const Text(
                   'Perintah Jarak Jauh',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: MekaarColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: MekaarColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -111,17 +187,38 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.textPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _triggerAlarm,
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.map),
+                    label: const Text('Buka di OpenStreetMap'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _openInOsm,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   'Kirim Pesan Kunci Layar',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: MekaarColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: MekaarColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -131,7 +228,10 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                         controller: _messageController,
                         decoration: const InputDecoration(
                           hintText: 'Ponsel ini hilang. Hubungi 0812...',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -145,7 +245,11 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                           color: MekaarColors.softCoral,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.send, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.send,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],

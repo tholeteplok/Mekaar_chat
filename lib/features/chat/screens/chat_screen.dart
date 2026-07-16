@@ -9,6 +9,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_composer.dart';
+import '../widgets/typing_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/media_upload_service.dart';
@@ -104,7 +105,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final actions = ref.read(chatActionsProvider);
 
     if (_editingMessage != null) {
-      await actions.editMessage(_editingMessage!.id, text);
+      if (!actions.canEdit(
+        _editingMessage!,
+        isGuardianRoom: widget.isGuardian,
+      )) {
+        _textController.clear();
+        setState(() => _editingMessage = null);
+        return;
+      }
+      await actions.editMessage(
+        _editingMessage!.id,
+        text,
+        isGuardianRoom: widget.isGuardian,
+      );
       _textController.clear();
       setState(() => _editingMessage = null);
       return;
@@ -183,6 +196,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Future<void> _handleShareLiveLocation(int durationMinutes) async {
+    try {
+      await ref
+          .read(chatActionsProvider)
+          .shareLiveLocation(widget.chatId, durationMinutes);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lokasi live dibagikan selama $durationMinutes menit'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membagikan lokasi live: $e')),
+        );
+      }
+    }
+  }
+
   void _handleDeleteMessage(Message msg) {
     MekaarDialog.showConfirmation<void>(
       context: context,
@@ -213,6 +247,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleReactToMessage(Message msg, String emoji) {
     ref.read(chatActionsProvider).reactToMessage(msg.id, emoji);
+  }
+
+  void _handleForwardMessage(Message msg) {
+    final rooms = ref.read(chatRoomsProvider).value ?? [];
+    final targets = rooms.where((r) => r['id'] != widget.chatId).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: MekaarColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        if (targets.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Tidak ada chat lain untuk meneruskan pesan.',
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+        return ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Teruskan ke',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            ...targets.map((room) {
+              final name = room['name'] as String? ?? 'User';
+              final avatar = room['avatar'] as String? ?? '';
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: MekaarColors.surface2,
+                  child: Text(
+                    avatar.isNotEmpty ? avatar : name[0],
+                    style: const TextStyle(color: MekaarColors.textPrimary),
+                  ),
+                ),
+                title: Text(name),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ref
+                      .read(chatActionsProvider)
+                      .forwardMessage(msg, room['id'] as String);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Pesan diteruskan ke $name')),
+                    );
+                  }
+                },
+              );
+            }),
+          ],
+        );
+      },
+    );
   }
 
   void _toggleViewOnce() {
@@ -426,16 +523,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         });
                       },
                       onEdit: (editMsg, newContent) {
+                        if (!actions.canEdit(
+                          editMsg,
+                          isGuardianRoom: widget.isGuardian,
+                        )) {
+                          return;
+                        }
                         ref
                             .read(chatActionsProvider)
-                            .editMessage(editMsg.id, newContent);
+                            .editMessage(
+                              editMsg.id,
+                              newContent,
+                              isGuardianRoom: widget.isGuardian,
+                            );
                       },
-                      onForward: (_) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Fitur teruskan segera hadir!')),
-                        );
-                      },
+                      onForward: (forwardMsg) => _handleForwardMessage(forwardMsg),
                       onReact: (reactMsg, emoji) =>
                           _handleReactToMessage(reactMsg, emoji),
                     );
@@ -448,6 +550,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Center(child: Text('Gagal memuat pesan: $err')),
             ),
           ),
+          if (_partnerIsTyping) const TypingIndicator(),
           ChatComposer(
             controller: _textController,
             replyMessage: _replyMessage,
@@ -462,6 +565,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             },
             onSendMedia: _handleSendMedia,
             onSendLocation: _handleSendLocation,
+            onShareLiveLocation: _handleShareLiveLocation,
           ),
         ],
       ),
