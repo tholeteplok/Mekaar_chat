@@ -21,13 +21,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     SettingsScreen(),
   ];
 
+  static const double z = 24.0; // Icon size (z)
+  static const double activeSize = z + 16.0; // Active container (z + 16 = 40)
+  static const double barHeight = z + 32.0; // Height (z + 32 = 56)
+  static const double barWidth = 3.0 * (z + 32.0); // Total width (3 * 56 = 168)
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Bottom nav background: surface.cardDark (#232A52) per design.md
-    final navBgColor = MekaarColors.cardDark;
-    final navBorderColor = isDark ? MekaarColors.border.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.1);
+    // Theme-adaptive bar background and border per requirements
+    final navBgColor = isDark ? MekaarColors.cardDark : Colors.white;
+    final navBorderColor = isDark 
+        ? Colors.white.withValues(alpha: 0.08) 
+        : Colors.black.withValues(alpha: 0.08);
 
     return MekaarCanvas(
       child: Scaffold(
@@ -43,30 +50,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
             ),
             
-            // Floating Bottom Navigation Bar
+            // Floating Compact Bottom Navigation Bar
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                margin: const EdgeInsets.only(bottom: 16, left: 24, right: 24),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 20),
+                width: barWidth,
+                height: barHeight,
+                padding: EdgeInsets.zero,
                 decoration: BoxDecoration(
                   color: navBgColor,
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(color: navBorderColor, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
-                    _buildNavItem(1, Icons.person_outline, Icons.person, 'Profil'),
-                    _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Pengaturan'),
+                    _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble),
+                    _buildNavItem(1, Icons.person_outline, Icons.person),
+                    _buildNavItem(2, Icons.settings_outlined, Icons.settings),
                   ],
                 ),
               ),
@@ -77,9 +86,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon, String label) {
+  Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon) {
     final isActive = _currentIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    final inactiveColor = isDark ? MekaarColors.textMuted : Colors.black45;
+
     return GestureDetector(
       onTap: () {
         if (_currentIndex != index) {
@@ -89,27 +101,36 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         }
       },
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isActive ? MekaarColors.softCoral : Colors.transparent,
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: MekaarColors.softCoral.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : null,
-        ),
-        child: Icon(
-          isActive ? activeIcon : inactiveIcon,
-          color: isActive ? Colors.white : MekaarColors.textMuted,
-          size: 24,
+      child: SizedBox(
+        width: z + 32.0, // Exactly 56px width per tab
+        height: barHeight, // Exactly 56px height per tab
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            width: isActive ? activeSize : z,
+            height: isActive ? activeSize : z,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive ? MekaarColors.softCoral : Colors.transparent,
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: MekaarColors.softCoral.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      )
+                    ]
+                  : null,
+            ),
+            child: Center(
+              child: Icon(
+                isActive ? activeIcon : inactiveIcon,
+                color: isActive ? Colors.white : inactiveColor,
+                size: z,
+              ),
+            ),
+          ),
         ),
       ),
     );
