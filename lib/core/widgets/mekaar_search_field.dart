@@ -18,9 +18,11 @@ class MekaarSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       decoration: BoxDecoration(
-        color: MekaarColors.surface2,
+        color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
         borderRadius: BorderRadius.circular(MekaarRadius.lg),
         border: Border.all(
           color: errorText == null ? Colors.transparent : MekaarColors.sosRed,
@@ -29,9 +31,9 @@ class MekaarSearchField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.lg),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.search,
-            color: MekaarColors.textMuted,
+            color: isDark ? MekaarColors.textMuted : Colors.black45,
             size: MekaarSizes.iconMd,
           ),
           const SizedBox(width: MekaarSpacing.md),
@@ -39,8 +41,15 @@ class MekaarSearchField extends StatelessWidget {
             child: TextField(
               controller: controller,
               onChanged: onChanged,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+              ),
               decoration: InputDecoration(
                 hintText: hintText,
+                hintStyle: TextStyle(
+                  color: isDark ? MekaarColors.textMuted : Colors.black38,
+                ),
                 errorText: errorText,
                 border: InputBorder.none,
                 focusedBorder: InputBorder.none,

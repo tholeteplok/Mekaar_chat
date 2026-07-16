@@ -290,6 +290,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 itemBuilder: (context, index) {
                   final tab = _tabs[index];
                   final isActive = _selectedTab == tab;
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  
                   return GestureDetector(
                     onTap: () => setState(() => _selectedTab = tab),
                     child: Container(
@@ -300,7 +302,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? MekaarColors.textPrimary
+                            ? MekaarColors.yellow
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(100),
                       ),
@@ -308,8 +310,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         tab,
                         style: MekaarTypography.labelLG.copyWith(
                           fontWeight: FontWeight.w700,
-                          color:
-                              isActive ? Colors.white : MekaarColors.textMuted,
+                          color: isActive 
+                              ? MekaarColors.textOnYellow 
+                              : (isDark ? MekaarColors.textMuted : Colors.black54),
                         ),
                       ),
                     ),

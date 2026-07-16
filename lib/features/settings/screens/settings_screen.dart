@@ -50,12 +50,16 @@ class SettingsScreen extends ConsumerWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: MekaarColors.surface2,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? MekaarColors.cardDark 
+                      : MekaarColors.surface2,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.lock_outline,
-                  color: MekaarColors.textSecondary,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? MekaarColors.textSecondary 
+                      : Colors.black54,
                   size: 20,
                 ),
               ),
@@ -83,12 +87,16 @@ class SettingsScreen extends ConsumerWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: MekaarColors.cardDark,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? MekaarColors.cardDark 
+                      : MekaarColors.surface2,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.screenshot_outlined,
-                  color: Colors.white70,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white70 
+                      : Colors.black54,
                   size: 20,
                 ),
               ),
@@ -179,18 +187,22 @@ class SettingsScreen extends ConsumerWidget {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isDestructive ? MekaarColors.sosLight : MekaarColors.surface2,
+          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
-          color: isDestructive ? MekaarColors.sosRed : MekaarColors.textSecondary,
+          color: isDestructive 
+              ? MekaarColors.sosRed 
+              : (isDark ? MekaarColors.textSecondary : Colors.black54),
           size: 20,
         ),
       ),
@@ -198,7 +210,7 @@ class SettingsScreen extends ConsumerWidget {
         title,
         style: MekaarTypography.labelLG.copyWith(
           fontWeight: FontWeight.bold,
-          color: isDestructive ? MekaarColors.sosRed : MekaarColors.textPrimary,
+          color: isDestructive ? MekaarColors.sosRed : Theme.of(context).colorScheme.onSurface,
         ),
       ),
       subtitle: Text(
@@ -219,6 +231,7 @@ class _ThemeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     const options = [
       (ThemeMode.system, Icons.brightness_auto_outlined, 'Sistem'),
       (ThemeMode.light, Icons.light_mode_outlined, 'Terang'),
@@ -230,8 +243,8 @@ class _ThemeSelector extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: MekaarColors.surface2,
-          borderRadius: BorderRadius.circular(14),
+          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
+          borderRadius: BorderRadius.circular(100), // Pill shape outer
         ),
         child: Row(
           children: options.map((opt) {
@@ -246,22 +259,25 @@ class _ThemeSelector extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: selected ? MekaarColors.softCoral : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(100), // Pill shape inner
                   ),
                   child: Column(
                     children: [
                       Icon(
                         opt.$2,
                         size: 20,
-                        color: selected ? Colors.white : MekaarColors.textSecondary,
+                        color: selected 
+                            ? Colors.white 
+                            : (isDark ? MekaarColors.textSecondary : Colors.black54),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         opt.$3,
                         style: MekaarTypography.labelLG.copyWith(
                           fontWeight: FontWeight.w700,
-                          color:
-                              selected ? Colors.white : MekaarColors.textSecondary,
+                          color: selected 
+                              ? Colors.white 
+                              : (isDark ? MekaarColors.textSecondary : Colors.black54),
                         ),
                       ),
                     ],
