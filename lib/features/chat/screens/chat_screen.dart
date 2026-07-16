@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/typing_indicator.dart';
@@ -421,7 +422,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
-    return Scaffold(
+    return MekaarScaffold(
       appBar: CustomAppBar(
         title: widget.chatName,
         avatarInitial: widget.chatAvatar,

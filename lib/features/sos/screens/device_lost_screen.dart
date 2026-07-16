@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../data/services/location_service.dart';
 
 class DeviceLostScreen extends StatefulWidget {
@@ -95,7 +96,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return MekaarScaffold(
       appBar: const CustomAppBar(title: 'Temukan Ponsel Saya'),
       body: Column(
         children: [

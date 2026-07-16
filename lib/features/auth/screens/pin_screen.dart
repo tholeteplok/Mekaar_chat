@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
-import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../providers/auth_provider.dart';
@@ -24,6 +24,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
   String _confirmPin = '';
   bool _isConfirming = false;
   String _statusMessage = '';
+  bool _hasError = false;
 
   static const int pinLength = 6;
 
@@ -52,6 +53,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
 
   void _handleKeyPress(String key) {
     if (ref.read(authProvider).isPinLocked) return;
+    setState(() => _hasError = false); // Reset error state on new key press
     HapticFeedback.lightImpact();
 
     if (key == '⌫') {
@@ -92,6 +94,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
               HapticFeedback.vibrate();
               setState(() {
                 _pin = '';
+                _hasError = true;
                 _statusMessage = authState.error!;
               });
             } else {
@@ -103,6 +106,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
           _shakeController.forward(from: 0);
           setState(() {
             _pin = '';
+            _hasError = true;
             _isConfirming = false;
             _statusMessage = 'PIN tidak cocok. Mulai dari awal.';
           });
@@ -128,6 +132,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
         _shakeController.forward(from: 0);
         setState(() {
           _pin = '';
+          _hasError = true;
           final state = ref.read(authProvider);
           if (state.isPinLocked) {
             _statusMessage = 'Aplikasi terkunci. Coba lagi dalam 30 menit.';
@@ -148,8 +153,8 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
     final authState = ref.watch(authProvider);
     final isLocked = authState.isPinLocked;
 
-    return Scaffold(
-      backgroundColor: MekaarColors.background,
+    return MekaarScaffold(
+      forceDark: true, // PIN Screen is always dark navy gradient background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -161,7 +166,11 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
                 widget.isSetup
                     ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
                     : 'Buka MEKAAR',
-                style: MekaarTypography.headingLG,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 12),
               AnimatedSwitcher(
@@ -172,9 +181,10 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
                       : _statusMessage,
                   key: ValueKey(_statusMessage),
                   textAlign: TextAlign.center,
-                  style: MekaarTypography.labelLG.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: isLocked ? MekaarColors.sosRed : MekaarColors.textSecondary,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: (isLocked || _hasError) ? MekaarColors.sosCoral : MekaarColors.textSecondary,
                   ),
                 ),
               ),
@@ -198,9 +208,14 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
                       margin: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: MekaarColors.border, width: 2),
+                        border: Border.all(
+                          color: _hasError 
+                              ? MekaarColors.sosCoral 
+                              : (_pin.length > index ? MekaarColors.yellow : Colors.white38), 
+                          width: 2,
+                        ),
                         color: _pin.length > index
-                            ? MekaarColors.textPrimary
+                            ? (_hasError ? MekaarColors.sosCoral : MekaarColors.yellow)
                             : Colors.transparent,
                       ),
                     ),
@@ -217,7 +232,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
               ] else ...[
                 const Column(
                   children: [
-                    Icon(Icons.lock_clock, size: 64, color: MekaarColors.sosRed),
+                    Icon(Icons.lock_clock, size: 64, color: MekaarColors.sosCoral),
                     SizedBox(height: 12),
                     Text(
                       'Silakan tunggu durasi kunci berakhir.',
@@ -235,8 +250,8 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
                   const Text(
                     'Pencet SOS untuk keadaan darurat',
                     style: TextStyle(
-                      color: MekaarColors.sosRed,
-                      fontSize: 11,
+                      color: MekaarColors.sosCoral,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.2,
                     ),
@@ -267,23 +282,24 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
 
     return PressableScale(
       scale: 0.92,
-      onTap: isBackspace ? () => _handleKeyPress(key) : () => _handleKeyPress(key),
+      onTap: () => _handleKeyPress(key),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         width: 70,
         height: 70,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isBackspace ? Colors.transparent : MekaarColors.surface2,
+          color: isBackspace ? Colors.transparent : MekaarColors.cardDark,
         ),
         child: Center(
           child: isBackspace
-              ? const Icon(Icons.backspace_outlined, color: MekaarColors.textSecondary)
+              ? const Icon(Icons.backspace_outlined, color: Colors.white70)
               : Text(
                   key,
-                  style: MekaarTypography.monoMD.copyWith(
-                    fontSize: 24,
-                    color: MekaarColors.textPrimary,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
         ),

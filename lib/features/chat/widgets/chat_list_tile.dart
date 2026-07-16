@@ -105,16 +105,19 @@ class _UnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minWidth: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: MekaarColors.softCoral,
+        color: MekaarColors.yellow,
         borderRadius: BorderRadius.circular(MekaarRadius.pill),
       ),
       child: Text(
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
-        style: MekaarTypography.white(MekaarTypography.labelSM)
-            .copyWith(fontSize: 10),
+        style: const TextStyle(
+          color: MekaarColors.textOnYellow,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

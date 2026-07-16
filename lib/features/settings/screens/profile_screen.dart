@@ -127,7 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final pinSet = authState.isPinSet;
 
     return Scaffold(
-      backgroundColor: MekaarColors.background,
+      backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: 'Profil Saya'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

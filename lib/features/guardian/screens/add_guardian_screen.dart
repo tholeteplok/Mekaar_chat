@@ -4,6 +4,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/guardian_provider.dart';
 
 class AddGuardianScreen extends ConsumerStatefulWidget {
@@ -128,7 +129,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return MekaarScaffold(
       appBar: const CustomAppBar(title: 'Undang Guardian'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),

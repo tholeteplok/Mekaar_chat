@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -28,7 +29,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {    if (!_formKey.currentState!.validate()) return;
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -76,52 +78,78 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    return Scaffold(
+    return MekaarScaffold(
+      forceDark: true, // Login page is always dark navy gradient
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 30),
-              // App Brand Header
+              const SizedBox(height: 20),
+              // App Brand Header with logo wordmark Mek (yellow) + aar (cyan)
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: MekaarColors.softCoral,
-                      borderRadius: BorderRadius.circular(10),
+                      color: MekaarColors.yellow,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: MekaarColors.yellow.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
                     ),
                     child: const Icon(
                       Icons.shield,
-                      color: Colors.white,
+                      color: MekaarColors.textOnYellow,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    'MEKAAR',
-                    style: MekaarTypography.monoMD.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: 'Mek',
+                          style: TextStyle(color: MekaarColors.yellow),
+                        ),
+                        TextSpan(
+                          text: 'aar',
+                          style: TextStyle(color: MekaarColors.cyan),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 40),
               Text(
                 _isLogin ? 'Selamat Datang\nKembali' : 'Buat Akun\nBaru Anda',
-                style: MekaarTypography.displayLG.copyWith(height: 1.2),
+                style: MekaarTypography.displayLG.copyWith(
+                  height: 1.2,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 _isLogin
                     ? 'Masukkan email atau username dan password untuk melanjutkan.'
                     : 'Mulai dengan membuat profil chat terenkripsi Anda.',
-                style: MekaarTypography.bodyMD,
+                style: const TextStyle(
+                  color: MekaarColors.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 36),
               Form(
@@ -131,9 +159,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     if (!_isLogin) ...[
                       TextFormField(
                         controller: _usernameController,
+                        style: const TextStyle(color: Colors.white),
                         decoration: const InputDecoration(
                           hintText: 'Username unik',
-                          prefixIcon: Icon(Icons.alternate_email, size: 20),
+                          hintStyle: TextStyle(color: MekaarColors.textMuted),
+                          prefixIcon: Icon(Icons.alternate_email, size: 20, color: MekaarColors.textSecondary),
                         ),
                         validator: (v) => v == null || v.isEmpty
                             ? 'Username tidak boleh kosong'
@@ -144,9 +174,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.text,
+                      style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         hintText: 'Email atau Username',
-                        prefixIcon: Icon(Icons.alternate_email, size: 20),
+                        hintStyle: TextStyle(color: MekaarColors.textMuted),
+                        prefixIcon: Icon(Icons.alternate_email, size: 20, color: MekaarColors.textSecondary),
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
@@ -167,16 +199,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
+                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                        hintStyle: const TextStyle(color: MekaarColors.textMuted),
+                        prefixIcon: const Icon(Icons.lock_outline, size: 20, color: MekaarColors.textSecondary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                             size: 20,
-                            color: MekaarColors.textMuted,
+                            color: MekaarColors.textSecondary,
                           ),
                           onPressed: () => setState(
                             () => _obscurePassword = !_obscurePassword,
@@ -188,34 +222,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : null,
                     ),
                     if (!_isLogin) ...[
-                      const SizedBox(height: 6),
-                      Align(
+                      const SizedBox(height: 8),
+                      const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Password minimal harus 6 karakter.',
-                          style: MekaarTypography.bodySM,
+                          style: TextStyle(
+                            color: MekaarColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 36),
+                    // Primary Button: Yellow background, dark text
                     SizedBox(
                       width: double.infinity,
-                      height: 52,
+                      height: 54,
                       child: ElevatedButton(
                         onPressed: authState.isLoading ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: MekaarColors.textPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
                         child: authState.isLoading
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
+                                  color: MekaarColors.textOnYellow,
+                                  strokeWidth: 2.5,
                                 ),
                               )
                             : Text(_isLogin ? 'Masuk' : 'Daftar Sekarang'),
@@ -223,22 +255,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     if (_isLogin) ...[
                       const SizedBox(height: 16),
+                      // Secondary Button: outline brand.cyan, cyan text, pill shape
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
+                        height: 54,
                         child: OutlinedButton.icon(
                           onPressed: authState.isLoading
                               ? null
                               : _signInWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata, size: 24),
+                          icon: const Icon(Icons.g_mobiledata, size: 28),
                           label: const Text('Lanjut dengan Google'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: MekaarColors.textPrimary,
-                            side: const BorderSide(
-                                color: MekaarColors.border),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            foregroundColor: MekaarColors.cyan,
+                            side: const BorderSide(color: MekaarColors.cyan, width: 2),
+                            shape: const StadiumBorder(),
+                            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                           ),
                         ),
                       ),
@@ -246,21 +277,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
+              // Footer link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
-                    style: MekaarTypography.bodyMD,
+                    style: const TextStyle(color: MekaarColors.textSecondary, fontSize: 14),
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _isLogin = !_isLogin),
                     child: Text(
                       _isLogin ? 'Daftar' : 'Masuk',
-                      style: MekaarTypography.labelLG.copyWith(
-                        color: MekaarColors.softCoral,
+                      style: const TextStyle(
+                        color: MekaarColors.yellow,
                         fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ),

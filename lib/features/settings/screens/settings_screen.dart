@@ -21,6 +21,7 @@ class SettingsScreen extends ConsumerWidget {
     final userEmail = user?.email ?? '';
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: 'Pengaturan'),
       body: SingleChildScrollView(
         child: Column(

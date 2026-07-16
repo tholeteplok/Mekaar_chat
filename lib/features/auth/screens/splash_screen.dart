@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
-import '../../../core/widgets/mika_mascot.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/meka_mascot_geng.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -70,8 +71,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: MekaarColors.backgroundDark,
+    return MekaarScaffold(
+      forceDark: true, // Always dark-navy gradient for splash
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -82,34 +83,45 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
               AnimatedAppear(
                 duration: const Duration(milliseconds: 500),
                 offsetY: 24,
-                child: const MikaMascot(
-                  expression: MikaExpression.wave,
-                  size: 120,
+                child: const MekaMascotGeng(
+                  size: 110,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
+              // Wordmark Mek (yellow) + aar (cyan)
               FadeTransition(
                 opacity: _fadeAnimation,
-                child: Text(
-                  'MEKAAR',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontFamily: 'SpaceGrotesk',
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 2,
+                child: RichText(
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.0,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: 'Mek',
+                        style: TextStyle(color: MekaarColors.yellow),
                       ),
+                      TextSpan(
+                        text: 'aar',
+                        style: TextStyle(color: MekaarColors.cyan),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              // Tagline: Express Yourself. Stay Protected.
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: const Text(
-                  'Aplikasi Chat & Keamanan Personal',
+                  'Express Yourself. Stay Protected.',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: Colors.white70,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/widgets/mekaar_canvas.dart';
 import '../../settings/screens/profile_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import 'chat_list_screen.dart';
@@ -24,50 +25,54 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Choose premium colors based on dark/light mode
-    final navBgColor = isDark ? MekaarColors.surfaceDark : MekaarColors.textPrimary;
-    final navBorderColor = isDark ? MekaarColors.border.withValues(alpha: 0.1) : Colors.transparent;
+    // Bottom nav background: surface.cardDark (#232A52) per design.md
+    final navBgColor = MekaarColors.cardDark;
+    final navBorderColor = isDark ? MekaarColors.border.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.1);
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // Use Stack to allow the floating navbar to float over the screen content transparently
-      body: Stack(
-        children: [
-          // Preserve scroll and state of each page using IndexedStack
-          IndexedStack(
-            index: _currentIndex,
-            children: _screens,
-          ),
-          
-          // Floating Bottom Navigation Bar
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 24, left: 32, right: 32),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: navBgColor,
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: navBorderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
-                  _buildNavItem(1, Icons.person_outline, Icons.person, 'Profil'),
-                  _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Pengaturan'),
-                ],
+    return MekaarCanvas(
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // Background handled by MekaarCanvas gradient
+        body: Stack(
+          children: [
+            // Preserve scroll and state of each page using IndexedStack
+            Padding(
+              padding: const EdgeInsets.only(bottom: 90), // Spacing for floating navbar
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
               ),
             ),
-          ),
-        ],
+            
+            // Floating Bottom Navigation Bar
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 16, left: 24, right: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: navBgColor,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: navBorderColor, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
+                    _buildNavItem(1, Icons.person_outline, Icons.person, 'Profil'),
+                    _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Pengaturan'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

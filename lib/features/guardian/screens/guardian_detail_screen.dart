@@ -4,6 +4,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
@@ -117,8 +118,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     final isPending = widget.guardian.status == 'pending';
     final isExpired = widget.guardian.isExpired;
 
-    return Scaffold(
-      backgroundColor: MekaarColors.background,
+    return MekaarScaffold(
       appBar: CustomAppBar(
         title: 'Detail Guardian',
         actions: [

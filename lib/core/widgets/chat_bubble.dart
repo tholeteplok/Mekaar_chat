@@ -174,12 +174,22 @@ class ChatBubble extends StatelessWidget {
     }
 
     final isDeleted = message.isDeleted;
-    final bubbleColor = isMe
-        ? (isDeleted ? MekaarColors.border : MekaarColors.textPrimary)
-        : (isDeleted ? MekaarColors.borderLight : MekaarColors.surface);
-    final textColor = isMe
-        ? (isDeleted ? MekaarColors.textMuted : Colors.white)
-        : (isDeleted ? MekaarColors.textMuted : MekaarColors.textPrimary);
+    Color? bubbleColor;
+    Gradient? bubbleGradient;
+    Color textColor;
+
+    if (isMe) {
+      bubbleColor = isDeleted ? MekaarColors.border : MekaarColors.yellow;
+      textColor = isDeleted ? MekaarColors.textMuted : MekaarColors.textOnYellow;
+    } else {
+      if (isDeleted) {
+        bubbleColor = MekaarColors.borderLight;
+        textColor = MekaarColors.textMuted;
+      } else {
+        bubbleGradient = MekaarGradients.incomingBubble;
+        textColor = MekaarColors.textPrimary;
+      }
+    }
 
     final receiptStatus = _getReceiptStatus();
 
@@ -203,11 +213,12 @@ class ChatBubble extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: bubbleColor,
+                gradient: bubbleGradient,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(isMe ? 20 : 6),
-                  bottomRight: Radius.circular(isMe ? 6 : 20),
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isMe ? 18 : 4),
+                  bottomRight: Radius.circular(isMe ? 4 : 18),
                 ),
                 boxShadow: isMe ? null : MekaarShadows.bubble,
               ),
@@ -256,7 +267,7 @@ class ChatBubble extends StatelessWidget {
                             fontSize: 9,
                             fontStyle: FontStyle.italic,
                             color: isMe
-                                ? Colors.white.withValues(alpha: 0.5)
+                                ? MekaarColors.textOnYellow.withValues(alpha: 0.5)
                                 : MekaarColors.textMuted,
                           ),
                         ),
@@ -266,7 +277,7 @@ class ChatBubble extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 9,
                           color: isMe
-                              ? Colors.white.withValues(alpha: 0.6)
+                              ? MekaarColors.textOnYellow.withValues(alpha: 0.6)
                               : MekaarColors.textMuted,
                         ),
                       ),
@@ -276,7 +287,7 @@ class ChatBubble extends StatelessWidget {
                           Icons.timer_outlined,
                           size: 10,
                           color: isMe
-                              ? Colors.white.withValues(alpha: 0.6)
+                              ? MekaarColors.textOnYellow.withValues(alpha: 0.6)
                               : MekaarColors.textMuted,
                         ),
                       ],
@@ -446,20 +457,16 @@ class _ReadReceiptIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = MekaarColors.textOnYellow.withValues(alpha: 0.5);
     switch (status) {
       case ReadReceiptStatus.pending:
-        return const Icon(Icons.access_time,
-            size: 11, color: MekaarColors.textMuted);
+        return Icon(Icons.access_time, size: 11, color: baseColor);
       case ReadReceiptStatus.sent:
-        return const Icon(Icons.check,
-            size: 11, color: MekaarColors.textMuted);
+        return Icon(Icons.check, size: 11, color: baseColor);
       case ReadReceiptStatus.delivered:
-        return const Icon(Icons.done_all,
-            size: 11, color: MekaarColors.textMuted);
+        return Icon(Icons.done_all, size: 11, color: baseColor);
       case ReadReceiptStatus.read:
-        // Uses softCoral from the design system — not hardcoded
-        return const Icon(Icons.done_all,
-            size: 11, color: MekaarColors.softCoral);
+        return const Icon(Icons.done_all, size: 11, color: MekaarColors.sosCoral);
     }
   }
 }

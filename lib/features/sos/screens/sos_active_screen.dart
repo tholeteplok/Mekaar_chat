@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/sos_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../../../core/routes/app_routes.dart';
@@ -77,8 +78,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
         ? 'Tidak ada Guardian aktif.'
         : 'Guardian (${activeGuardians.join(', ')}) sedang melacak lokasi${sosState.micPermissionDenied ? ' Anda.' : ' dan mendengar audio sekitar perangkat.'}';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0C0707),
+    return MekaarScaffold(
       body: SafeArea(
         child: Container(
           decoration: BoxDecoration(

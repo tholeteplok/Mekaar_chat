@@ -7,6 +7,7 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mika_mascot.dart';
 import '../providers/guardian_provider.dart';
@@ -36,7 +37,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
 
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
+      child: MekaarScaffold(
         appBar: CustomAppBar(
           title: 'Sistem Guardian',
           subtitle: 'Saling menjaga dalam situasi darurat',

@@ -240,6 +240,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final chatRoomsState = ref.watch(chatRoomsProvider);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [

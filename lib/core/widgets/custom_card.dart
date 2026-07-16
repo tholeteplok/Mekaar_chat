@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/dimensions.dart';
 import '../constants/shadows.dart';
 
 class CustomCard extends StatelessWidget {
@@ -9,7 +10,7 @@ class CustomCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Color? color;
   final Border? border;
-  final double borderRadius;
+  final double? borderRadius;
 
   const CustomCard({
     super.key,
@@ -19,18 +20,20 @@ class CustomCard extends StatelessWidget {
     this.onTap,
     this.color,
     this.border,
-    this.borderRadius = 16.0,
+    this.borderRadius,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = color ?? Theme.of(context).cardColor;
+    final radius = borderRadius ?? MekaarRadius.lg;
 
     final decoration = BoxDecoration(
       color: cardColor,
-      borderRadius: BorderRadius.circular(borderRadius),
-      border: border ?? Border.all(color: MekaarColors.borderLight, width: 1),
-      boxShadow: MekaarShadows.card,
+      borderRadius: BorderRadius.circular(radius),
+      border: border ?? (isDark ? null : Border.all(color: MekaarColors.borderLight, width: 1)),
+      boxShadow: MekaarShadows.cardDynamic(context),
     );
 
     Widget cardWidget = Container(
@@ -42,7 +45,7 @@ class CustomCard extends StatelessWidget {
     if (onTap != null) {
       cardWidget = InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(radius),
         child: cardWidget,
       );
     }

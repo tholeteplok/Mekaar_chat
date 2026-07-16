@@ -6,6 +6,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/log_provider.dart';
 import '../../../data/models/security_log_model.dart';
 
@@ -123,7 +124,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
   Widget build(BuildContext context) {
     final logs = ref.watch(securityLogProvider);
 
-    return Scaffold(
+    return MekaarScaffold(
       appBar: CustomAppBar(
         title: 'Log Sistem',
         subtitle: 'Catatan aktivitas keamanan permanen',

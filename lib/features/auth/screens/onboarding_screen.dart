@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
-import '../../../core/widgets/mika_mascot.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/meka_mascot_geng.dart';
 import '../../../core/routes/app_routes.dart';
 
 class _BouncyMascot extends StatefulWidget {
-  final MikaExpression expression;
   final double size;
+  final String? message;
 
-  const _BouncyMascot({required this.expression, required this.size});
+  const _BouncyMascot({required this.size, this.message});
 
   @override
   State<_BouncyMascot> createState() => _BouncyMascotState();
@@ -40,7 +40,7 @@ class _BouncyMascotState extends State<_BouncyMascot>
           child: Transform.scale(scale: scale, child: child),
         );
       },
-      child: MikaMascot(expression: widget.expression, size: widget.size),
+      child: MekaMascotGeng(size: widget.size, message: widget.message),
     );
   }
 }
@@ -60,17 +60,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'title': 'Apa itu MEKAAR?',
       'desc': 'Aplikasi perlindungan darurat: chat pribadi terenkripsi, tombol SOS satu ketukan, dan pelacakan lokasi saat Anda benar-benar dalam bahaya.',
-      'icon': 'chat_bubble_outline',
+      'bubble': 'Halo! Kami Meka & Geng 🫧',
     },
     {
       'title': 'Tambahkan Guardian Anda',
       'desc': 'Guardian tidak bisa mengintai Anda. Izin GPS & audio hanya aktif saat Anda menekan SOS. Setiap akses mereka selalu tercatat di Log Sistem.',
-      'icon': 'shield_outlined',
+      'bubble': 'Kami siap menjagamu! 🤝',
     },
     {
       'title': 'Kunci dengan PIN 6 Digit',
       'desc': 'Lindungi aplikasi dengan PIN 6 digit. SOS tetap bisa diakses meski aplikasi terkunci, dan 5 kali salah PIN akan mengunci 30 menit.',
-      'icon': 'lock_outline',
+      'bubble': 'PIN rahasia biar aman! 🔒',
     },
   ];
 
@@ -91,7 +91,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return MekaarScaffold(
+      forceDark: true, // Always dark-navy gradient for onboarding
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28.0),
@@ -102,11 +103,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 alignment: Alignment.topRight,
                 child: TextButton(
                   onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.login),
-                  child: Text(
+                  child: const Text(
                     'Skip',
-                    style: MekaarTypography.labelLG.copyWith(
+                    style: TextStyle(
                       color: MekaarColors.textSecondary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -118,14 +120,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   itemCount: _slides.length,
                   itemBuilder: (context, index) {
                     final slide = _slides[index];
-                    MikaExpression expr = MikaExpression.happy;
-                    if (slide['icon'] == 'shield_outlined') {
-                      expr = MikaExpression.wave;
-                    } else if (slide['icon'] == 'lock_outline') {
-                      expr = MikaExpression.happy;
-                    } else if (slide['icon'] == 'visibility_outlined') {
-                      expr = MikaExpression.panic;
-                    }
 
                     return AnimatedAppear(
                       key: ValueKey(index),
@@ -133,40 +127,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                width: 150,
-                                height: 150,
-                                decoration: BoxDecoration(
-                                  gradient: index == 1
-                                      ? MekaarGradients.teal
-                                      : MekaarGradients.coral,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Container(
-                                  margin: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                              _BouncyMascot(expression: expr, size: 132),
-                            ],
+                          _BouncyMascot(
+                            size: 110,
+                            message: slide['bubble'],
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 48),
                           Text(
                             slide['title']!,
                             textAlign: TextAlign.center,
-                            style: MekaarTypography.headingLG,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             slide['desc']!,
                             textAlign: TextAlign.center,
-                            style: MekaarTypography.bodyMD.copyWith(height: 1.6),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: MekaarColors.textSecondary,
+                              height: 1.6,
+                            ),
                           ),
                         ],
                       ),
@@ -189,8 +172,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(4),
                           color: _currentPage == index
-                              ? MekaarColors.softCoral
-                              : MekaarColors.border,
+                              ? MekaarColors.yellow
+                              : MekaarColors.textSecondary.withValues(alpha: 0.3),
                         ),
                       ),
                     ),
@@ -202,11 +185,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 56,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: MekaarColors.textPrimary,
+                        color: MekaarColors.yellow,
                       ),
                       child: const Icon(
                         Icons.arrow_forward,
-                        color: Colors.white,
+                        color: MekaarColors.textOnYellow,
                       ),
                     ),
                   ),

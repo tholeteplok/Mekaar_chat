@@ -5,7 +5,28 @@ import 'package:flutter/material.dart';
 class MekaarShadows {
   MekaarShadows._();
 
-  /// Bayangan halus untuk kartu & tile.
+  /// Bayangan dinamis untuk kartu berdasarkan tema (gelap/terang)
+  static List<BoxShadow> cardDynamic(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isDark) {
+      return const [
+        BoxShadow(
+          color: Color(0x590A0C28), // rgba(10, 12, 40, 0.35)
+          blurRadius: 32,
+          offset: Offset(0, 12),
+        ),
+      ];
+    }
+    return [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.04),
+        blurRadius: 12,
+        offset: const Offset(0, 4),
+      ),
+    ];
+  }
+
+  /// Bayangan halus untuk kartu & tile (legacy / fallback)
   static List<BoxShadow> get card => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.04),
