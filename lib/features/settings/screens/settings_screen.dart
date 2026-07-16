@@ -4,7 +4,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -13,50 +12,13 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
-    final user = authState.user;
-    final profile = authState.profile;
-
-    final userName = profile?.fullName ?? profile?.username ?? 'User';
-    final userEmail = user?.email ?? '';
-
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: 'Pengaturan'),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            // Profile Card Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Row(
-                children: [
-                  Avatar(initial: userName, size: 64),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          userName,
-                          style: MekaarTypography.headingMD,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          userEmail,
-                          style: MekaarTypography.labelLG.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: MekaarColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
+            SizedBox(height: 16),
             // Theme selector
             _buildSectionHeader('Tampilan'),
             _ThemeSelector(
