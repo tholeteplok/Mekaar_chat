@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
@@ -84,7 +85,7 @@ class _GuardianTrackingScreenState
         subtitle: 'Lokasi live pemilik dalam mode darurat',
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(SolarIconsOutline.refresh),
             onPressed: _isLoading ? null : _loadSessions,
           ),
         ],
@@ -177,7 +178,7 @@ class _GuardianTrackingScreenState
             const Row(
               children: [
                 Icon(
-                  Icons.location_searching,
+                  SolarIconsOutline.gps,
                   size: 16,
                   color: MekaarColors.textMuted,
                 ),
@@ -196,7 +197,7 @@ class _GuardianTrackingScreenState
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.map_outlined, size: 18),
+                    icon: const Icon(SolarIconsOutline.map, size: 18),
                     label: const Text('Lihat di Peta'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: MekaarColors.textPrimary,
@@ -220,7 +221,7 @@ class _GuardianTrackingScreenState
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.open_in_new, size: 18),
+                    icon: const Icon(SolarIconsOutline.globus, size: 18),
                     label: const Text('OpenStreetMap'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: MekaarColors.sosRed,
@@ -254,7 +255,7 @@ class _GuardianTrackingScreenState
       children: [
         Row(
           children: [
-            const Icon(Icons.location_on, size: 16, color: MekaarColors.sosRed),
+            const Icon(SolarIconsOutline.mapPoint, size: 16, color: MekaarColors.sosRed),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -271,7 +272,7 @@ class _GuardianTrackingScreenState
         Row(
           children: [
             const Icon(
-              Icons.access_time,
+              SolarIconsOutline.clockSquare,
               size: 16,
               color: MekaarColors.textMuted,
             ),
@@ -290,7 +291,7 @@ class _GuardianTrackingScreenState
           Row(
             children: [
               const Icon(
-                Icons.gps_fixed,
+                SolarIconsOutline.gps,
                 size: 16,
                 color: MekaarColors.textMuted,
               ),

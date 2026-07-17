@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
@@ -131,7 +132,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.swap_horiz, color: MekaarColors.guardianTeal),
+                const Icon(SolarIconsOutline.refresh, color: MekaarColors.guardianTeal),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -273,7 +274,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.lock_outline),
+              icon: const Icon(SolarIconsOutline.lock),
               label: Text(
                 'Lanjutkan & Konfirmasi dengan PIN',
                 style: MekaarTypography.buttonLG.copyWith(color: Colors.white),
@@ -299,7 +300,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
         children: [
           const Spacer(),
           const Icon(
-            Icons.lock_outline,
+            SolarIconsOutline.lock,
             size: 52,
             color: MekaarColors.guardianTeal,
           ),
@@ -389,7 +390,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                       child: Center(
                         child: key == '⌫'
                             ? const Icon(
-                                Icons.backspace_outlined,
+                                SolarIconsOutline.backspace,
                                 color: MekaarColors.textSecondary,
                               )
                             : Text(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -125,7 +126,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                                   width: 50,
                                   height: 50,
                                   child: const Icon(
-                                    Icons.phone_android,
+                                    SolarIconsOutline.smartphone,
                                     color: MekaarColors.sosRed,
                                     size: 40,
                                   ),
@@ -183,7 +184,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.volume_up),
+                        icon: const Icon(SolarIconsOutline.volumeLoud),
                         label: const Text('Bunyikan Alarm'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.textPrimary,
@@ -201,7 +202,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.map),
+                    icon: const Icon(SolarIconsOutline.map),
                     label: const Text('Buka di OpenStreetMap'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -247,7 +248,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
-                          Icons.send,
+                          SolarIconsOutline.plain,
                           color: Colors.white,
                           size: 20,
                         ),

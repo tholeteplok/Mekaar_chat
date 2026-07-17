@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
@@ -107,7 +108,7 @@ class _ChatComposerState extends State<ChatComposer> {
             const SizedBox(height: 16),
             _attachItem(
               ctx,
-              icon: Icons.photo_library_outlined,
+              icon: SolarIconsOutline.gallery,
               label: 'Pilih dari Galeri',
               color: MekaarColors.info,
               onTap: () {
@@ -117,7 +118,7 @@ class _ChatComposerState extends State<ChatComposer> {
             ),
             _attachItem(
               ctx,
-              icon: Icons.camera_alt_outlined,
+              icon: SolarIconsOutline.camera,
               label: 'Ambil Foto',
               color: MekaarColors.guardianTeal,
               onTap: () {
@@ -127,7 +128,7 @@ class _ChatComposerState extends State<ChatComposer> {
             ),
             _attachItem(
               ctx,
-              icon: Icons.location_on_outlined,
+              icon: SolarIconsOutline.mapPoint,
               label: 'Bagikan Lokasi',
               color: MekaarColors.softCoral,
               onTap: () {
@@ -138,7 +139,7 @@ class _ChatComposerState extends State<ChatComposer> {
             if (widget.onShareLiveLocation != null)
               _attachItem(
                 ctx,
-                icon: Icons.share_location,
+                icon: SolarIconsOutline.gps,
                 label: 'Lokasi Live',
                 color: MekaarColors.guardianTeal,
                 onTap: () {
@@ -208,7 +209,7 @@ class _ChatComposerState extends State<ChatComposer> {
                   color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.share_location,
+                child: const Icon(SolarIconsOutline.gps,
                     color: MekaarColors.guardianTeal, size: 20),
               ),
               title: Text('$m menit'),
@@ -242,7 +243,7 @@ class _ChatComposerState extends State<ChatComposer> {
             color: MekaarColors.softCoral.withValues(alpha: 0.08),
             child: Row(
               children: [
-                const Icon(Icons.edit_outlined,
+                const Icon(SolarIconsOutline.pen,
                     size: 16, color: MekaarColors.softCoral),
                 const SizedBox(width: 8),
                 const Expanded(
@@ -256,7 +257,7 @@ class _ChatComposerState extends State<ChatComposer> {
                 ),
                 GestureDetector(
                   onTap: widget.onCancelEdit,
-                  child: const Icon(Icons.close,
+                  child: const Icon(SolarIconsOutline.closeSquare,
                       size: 18, color: MekaarColors.softCoral),
                 ),
               ],
@@ -286,7 +287,7 @@ class _ChatComposerState extends State<ChatComposer> {
               // View-once toggle
               IconButton(
                 icon: Icon(
-                  Icons.visibility_outlined,
+                  SolarIconsOutline.eye,
                   color: widget.isViewOnce
                       ? MekaarColors.softCoral
                       : MekaarColors.textMuted,
@@ -298,7 +299,7 @@ class _ChatComposerState extends State<ChatComposer> {
               // Attachment button
               if (!_isEditMode)
                 IconButton(
-                  icon: const Icon(Icons.attach_file,
+                  icon: const Icon(SolarIconsOutline.paperclip,
                       color: MekaarColors.textMuted, size: 22),
                   onPressed: _showAttachmentSheet,
                   tooltip: 'Lampiran',
@@ -358,8 +359,8 @@ class _ChatComposerState extends State<ChatComposer> {
                     ),
                     child: Icon(
                       _isEditMode
-                          ? Icons.check
-                          : (_hasText ? Icons.send : Icons.mic_none_rounded),
+                          ? SolarIconsOutline.checkCircle
+                          : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
                       color: Colors.white,
                       size: MekaarSizes.iconSm,
                     ),
@@ -394,7 +395,7 @@ class _ReplyPreview extends StatelessWidget {
       child: Row(
         children: [
           const Icon(
-            Icons.reply,
+            SolarIconsOutline.forward,
             size: MekaarSizes.iconSm,
             color: MekaarColors.textSecondary,
           ),
@@ -411,7 +412,7 @@ class _ReplyPreview extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: MekaarSizes.iconSm),
+            icon: const Icon(SolarIconsOutline.closeCircle, size: MekaarSizes.iconSm),
             onPressed: onCancel,
           ),
         ],

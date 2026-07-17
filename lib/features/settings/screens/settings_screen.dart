@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/theme_provider.dart';
@@ -31,14 +32,14 @@ class SettingsScreen extends ConsumerWidget {
             _buildSectionHeader('Keamanan & Darurat'),
             _buildMenuItem(
               context,
-              icon: Icons.history_edu_outlined,
+              icon: SolarIconsOutline.billList,
               title: 'Log Sistem',
               subtitle: 'Riwayat aktivitas keamanan permanen Anda',
               onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
             ),
             _buildMenuItem(
               context,
-              icon: Icons.find_in_page_outlined,
+              icon: SolarIconsOutline.gps,
               title: 'Temukan Ponsel Saya',
               subtitle: 'Mode perangkat hilang (self-guardian)',
               onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
@@ -56,7 +57,7 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  Icons.lock_outline,
+                  SolarIconsOutline.lock,
                   color: Theme.of(context).brightness == Brightness.dark 
                       ? MekaarColors.textSecondary 
                       : Colors.black54,
@@ -78,6 +79,13 @@ class SettingsScreen extends ConsumerWidget {
                 ref.read(pinLockEnabledProvider.notifier).toggle(value);
               },
             ),
+            _buildMenuItem(
+              context,
+              icon: SolarIconsOutline.lockKeyhole,
+              title: 'PIN Paksaan (Duress)',
+              subtitle: 'PIN terpisah yang diam-diam memicu SOS saat dipaksa',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.duressPin),
+            ),
             const Divider(color: MekaarColors.borderLight, height: 32),
             _buildSectionHeader('Privasi'),
             SwitchListTile(
@@ -93,7 +101,7 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  Icons.screenshot_outlined,
+                  SolarIconsOutline.screenShare,
                   color: Theme.of(context).brightness == Brightness.dark 
                       ? Colors.white70 
                       : Colors.black54,
@@ -115,18 +123,53 @@ class SettingsScreen extends ConsumerWidget {
                 ref.read(screenshotBlockProvider.notifier).toggle(value);
               },
             ),
+            SwitchListTile(
+              activeThumbColor: MekaarColors.softCoral,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+              secondary: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? MekaarColors.cardDark
+                      : MekaarColors.surface2,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  SolarIconsOutline.eye,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white70
+                      : Colors.black54,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                'Sembunyikan Notifikasi Darurat',
+                style: MekaarTypography.labelLG.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Samarkan teks SOS/Alarm di layar kunci agar pelaku tidak curiga',
+                style: MekaarTypography.bodySM,
+              ),
+              value: ref.watch(notificationMaskingProvider),
+              onChanged: (bool value) {
+                ref.read(notificationMaskingProvider.notifier).setEnabled(value);
+              },
+            ),
             const Divider(color: MekaarColors.borderLight, height: 32),
             _buildSectionHeader('Akun'),
             _buildMenuItem(
               context,
-              icon: Icons.person_outline,
+              icon: SolarIconsOutline.userId,
               title: 'Profil Saya',
               subtitle: 'Kelola username, foto, dan PIN keamanan',
               onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
             ),
             _buildMenuItem(
               context,
-              icon: Icons.logout,
+              icon: SolarIconsOutline.logout,
               title: 'Keluar',
               subtitle: 'Hapus sesi login dari perangkat ini',
               isDestructive: true,
@@ -244,9 +287,9 @@ class _ThemeSelector extends StatelessWidget {
         : Colors.black.withValues(alpha: 0.08);
 
     const options = [
-      (ThemeMode.system, Icons.brightness_auto_outlined),
-      (ThemeMode.light, Icons.light_mode_outlined),
-      (ThemeMode.dark, Icons.dark_mode_outlined),
+      (ThemeMode.system, SolarIconsOutline.tuning),
+      (ThemeMode.light, SolarIconsOutline.sun),
+      (ThemeMode.dark, SolarIconsOutline.moon),
     ];
 
     return Padding(

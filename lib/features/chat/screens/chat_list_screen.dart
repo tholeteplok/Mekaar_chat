@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
@@ -262,7 +263,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   const Spacer(),
                   IconButton(
                     icon: const Icon(
-                      Icons.shield_outlined,
+                      SolarIconsOutline.shieldUser,
                       color: MekaarColors.guardianTeal,
                     ),
                     onPressed: () =>
@@ -356,7 +357,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               foregroundColor: Colors.white,
               elevation: 4,
               shape: const CircleBorder(),
-              child: const Icon(Icons.add_comment_outlined, size: 24),
+              child: const Icon(SolarIconsOutline.chatSquare, size: 24),
             ),
           ],
         ),
@@ -450,7 +451,7 @@ class _EmptyChats extends StatelessWidget {
                 const SizedBox(height: MekaarSpacing.xl),
                 ElevatedButton.icon(
                   onPressed: onStart,
-                  icon: const Icon(Icons.add_comment_outlined, size: 18),
+                  icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
                   label: const Text('Mulai obrolan'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: MekaarColors.softCoral,

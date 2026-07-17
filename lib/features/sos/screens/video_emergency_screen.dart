@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../../core/constants/colors.dart';
 import '../../../data/services/webrtc_service.dart';
@@ -100,7 +101,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
             (m) => ListTile(
               title: Text(m == 0 ? 'Tanpa batas' : '$m menit'),
               trailing: _autoStopMinutes == m
-                  ? const Icon(Icons.check, color: MekaarColors.guardianTeal)
+                  ? const Icon(SolarIconsOutline.checkCircle, color: MekaarColors.guardianTeal)
                   : null,
               onTap: () {
                 Navigator.pop(ctx);
@@ -173,7 +174,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.lock, size: 64, color: Colors.white24),
+                    const Icon(SolarIconsBold.lock, size: 64, color: Colors.white24),
                     const SizedBox(height: 16),
                     const Text(
                       'Layar Terkunci Secara Aman',
@@ -186,7 +187,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                     ),
                     const SizedBox(height: 32),
                     OutlinedButton.icon(
-                      icon: const Icon(Icons.lock_open),
+                      icon: const Icon(SolarIconsOutline.lockUnlocked),
                       label: const Text('Buka Layar'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
@@ -214,7 +215,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.favorite_outline,
+                      const Icon(SolarIconsOutline.heart,
                           color: MekaarColors.sosRed, size: 36),
                       const SizedBox(height: 12),
                       const Text(
@@ -328,22 +329,22 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildControlBtn(
-                    icon: Icons.flip_camera_ios,
+                    icon: SolarIconsOutline.refresh,
                     label: 'Kamera',
                     onTap: _switchCamera,
                   ),
                   _buildControlBtn(
-                    icon: Icons.timer_outlined,
+                    icon: SolarIconsOutline.stopwatch,
                     label: 'Timer',
                     onTap: _showAutoStopSheet,
                   ),
                   _buildControlBtn(
-                    icon: Icons.lock_outline,
+                    icon: SolarIconsOutline.lock,
                     label: 'Kunci',
                     onTap: _toggleScreenLock,
                   ),
                   _buildControlBtn(
-                    icon: Icons.stop,
+                    icon: SolarIconsBold.stop,
                     label: 'Stop',
                     onTap: _stopRecording,
                     isDestructive: true,

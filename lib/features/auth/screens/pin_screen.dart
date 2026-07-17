@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
@@ -232,7 +233,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
               ] else ...[
                 const Column(
                   children: [
-                    Icon(Icons.lock_clock, size: 64, color: MekaarColors.sosCoral),
+                    Icon(SolarIconsOutline.clockSquare, size: 64, color: MekaarColors.sosCoral),
                     SizedBox(height: 12),
                     Text(
                       'Silakan tunggu durasi kunci berakhir.',
@@ -293,7 +294,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
         ),
         child: Center(
           child: isBackspace
-              ? const Icon(Icons.backspace_outlined, color: Colors.white70)
+              ? const Icon(SolarIconsOutline.backspace, color: Colors.white70)
               : Text(
                   key,
                   style: const TextStyle(

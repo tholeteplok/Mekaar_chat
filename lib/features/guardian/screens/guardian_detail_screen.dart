@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
@@ -123,7 +124,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         title: 'Detail Guardian',
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: MekaarColors.sosRed),
+            icon: const Icon(SolarIconsOutline.trashBinMinimalistic, color: MekaarColors.sosRed),
             onPressed: _removeGuardian,
           ),
         ],
@@ -184,7 +185,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Icons.timer_outlined,
+                        SolarIconsOutline.stopwatch,
                         color: MekaarColors.success,
                         size: 20,
                       ),
@@ -222,7 +223,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Icons.warning_amber_outlined,
+                        SolarIconsOutline.danger,
                         color: MekaarColors.sosRed,
                         size: 20,
                       ),
@@ -264,7 +265,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        Icons.location_on_outlined,
+                        SolarIconsOutline.mapPoint,
                         color: _gpsEnabled
                             ? MekaarColors.info
                             : MekaarColors.textMuted,
@@ -299,7 +300,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        Icons.mic_outlined,
+                        SolarIconsOutline.microphone,
                         color: _micEnabled
                             ? MekaarColors.guardianTeal
                             : MekaarColors.textMuted,
@@ -334,7 +335,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        Icons.videocam_outlined,
+                        SolarIconsOutline.videocamera,
                         color: _videoEnabled
                             ? MekaarColors.guardianTeal
                             : MekaarColors.textMuted,
@@ -396,7 +397,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               height: 52,
               child: OutlinedButton.icon(
                 icon: const Icon(
-                  Icons.swap_horiz,
+                  SolarIconsOutline.refresh,
                   color: MekaarColors.guardianTeal,
                 ),
                 label: Text(
@@ -465,25 +466,25 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         'value': 'stream_only',
         'label': 'Streaming Saja',
         'desc': 'Tidak ada data yang disimpan.',
-        'icon': Icons.stream,
+        'icon': SolarIconsOutline.soundwave,
       },
       {
         'value': 'server',
         'label': 'Server Terenkripsi',
         'desc': 'Guardian bisa putar ulang, tidak bisa unduh.',
-        'icon': Icons.cloud_outlined,
+        'icon': SolarIconsOutline.cloud,
       },
       {
         'value': 'drive_a',
         'label': 'Drive Pribadi Saya',
         'desc': 'File langsung ke Google Drive/iCloud Anda.',
-        'icon': Icons.drive_folder_upload_outlined,
+        'icon': SolarIconsOutline.folderWithFiles,
       },
       {
         'value': 'drive_link',
         'label': 'Drive + Tautan Sementara',
         'desc': 'Guardian dapat tautan 24 jam, tidak permanen.',
-        'icon': Icons.link_outlined,
+        'icon': SolarIconsOutline.link,
       },
     ];
 
@@ -526,11 +527,11 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 ),
                 trailing: isSelected
                     ? const Icon(
-                        Icons.check_circle,
+                        SolarIconsBold.checkCircle,
                         color: MekaarColors.softCoral,
                       )
                     : const Icon(
-                        Icons.radio_button_unchecked,
+                        SolarIconsOutline.checkCircle,
                         color: MekaarColors.textMuted,
                       ),
                 onTap: () =>

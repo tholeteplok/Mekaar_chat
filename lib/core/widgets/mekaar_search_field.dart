@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 
@@ -32,7 +33,7 @@ class MekaarSearchField extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            Icons.search,
+            SolarIconsOutline.magnifier,
             color: isDark ? MekaarColors.textMuted : Colors.black45,
             size: MekaarSizes.iconMd,
           ),

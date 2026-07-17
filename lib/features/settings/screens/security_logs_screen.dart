@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
@@ -130,11 +131,11 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
         subtitle: 'Catatan aktivitas keamanan permanen',
         actions: [
           IconButton(
-            icon: const Icon(Icons.file_download_outlined, color: MekaarColors.textSecondary),
+            icon: const Icon(SolarIconsOutline.download, color: MekaarColors.textSecondary),
             onPressed: _exportCSV,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined, color: MekaarColors.sosRed),
+            icon: const Icon(SolarIconsOutline.trashBinMinimalistic, color: MekaarColors.sosRed),
             onPressed: _clearLogs,
           ),
         ],
@@ -152,7 +153,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                         color: MekaarColors.surface2,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.history, size: 40, color: MekaarColors.textMuted),
+                      child: const Icon(SolarIconsOutline.history, size: 40, color: MekaarColors.textMuted),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -238,21 +239,21 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
   IconData _getIconForEvent(String eventType) {
     switch (eventType) {
       case 'sos_started':
-        return Icons.warning_amber_rounded;
+        return SolarIconsOutline.danger;
       case 'sos_ended':
-        return Icons.check_circle_outline_rounded;
+        return SolarIconsOutline.checkCircle;
       case 'guardian_gps_access':
-        return Icons.location_on_outlined;
+        return SolarIconsOutline.mapPoint;
       case 'guardian_mic_access':
-        return Icons.mic_none_rounded;
+        return SolarIconsOutline.microphone;
       case 'video_sent':
-        return Icons.videocam_outlined;
+        return SolarIconsOutline.videocamera;
       case 'message_deleted':
-        return Icons.delete_outline_rounded;
+        return SolarIconsOutline.trashBinMinimalistic;
       case 'log_deleted':
-        return Icons.history_toggle_off_rounded;
+        return SolarIconsOutline.history;
       default:
-        return Icons.info_outline;
+        return SolarIconsOutline.infoCircle;
     }
   }
 

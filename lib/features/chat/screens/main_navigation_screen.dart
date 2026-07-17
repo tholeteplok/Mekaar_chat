@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/mekaar_canvas.dart';
 import '../../settings/screens/profile_screen.dart';
@@ -73,9 +74,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble),
-                    _buildNavItem(1, Icons.person_outline, Icons.person),
-                    _buildNavItem(2, Icons.settings_outlined, Icons.settings),
+                    _buildNavItem(0, SolarIconsOutline.chatSquare, SolarIconsBold.chatSquare),
+                    _buildNavItem(1, SolarIconsOutline.user, SolarIconsBold.user),
+                    _buildNavItem(2, SolarIconsOutline.settings, SolarIconsBold.settings),
                   ],
                 ),
               ),

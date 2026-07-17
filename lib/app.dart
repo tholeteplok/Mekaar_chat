@@ -4,6 +4,7 @@ import 'core/routes/app_routes.dart';
 import 'core/constants/themes.dart';
 import 'core/providers/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'data/services/notification_service.dart';
 
 class MekaarApp extends ConsumerWidget {
   const MekaarApp({super.key});
@@ -12,7 +13,9 @@ class MekaarApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch screenshotBlockProvider to apply the block setting at startup dynamically
     ref.watch(screenshotBlockProvider);
-    
+    // Sync Notification Masking preference ke service statis.
+    NotificationService.maskingEnabled = ref.watch(notificationMaskingProvider);
+
     final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       title: 'MEKAAR',

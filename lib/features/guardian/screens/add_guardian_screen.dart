@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/utils/validators.dart';
@@ -46,7 +47,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.info_outline, color: MekaarColors.guardianTeal),
+            const Icon(SolarIconsOutline.infoCircle, color: MekaarColors.guardianTeal),
             const SizedBox(width: 8),
             Text('Catatan Penting', style: MekaarTypography.headingSM),
           ],
@@ -154,7 +155,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               controller: _searchController,
               decoration: const InputDecoration(
                 hintText: 'Email atau Username',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(SolarIconsOutline.magnifier),
               ),
             ),
             const SizedBox(height: 32),

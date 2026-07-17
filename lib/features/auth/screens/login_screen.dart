@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
@@ -105,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ],
                     ),
                     child: const Icon(
-                      Icons.shield,
+                      SolarIconsBold.shield,
                       color: MekaarColors.textOnYellow,
                       size: 20,
                     ),
@@ -163,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         decoration: const InputDecoration(
                           hintText: 'Username unik',
                           hintStyle: TextStyle(color: MekaarColors.textMuted),
-                          prefixIcon: Icon(Icons.alternate_email, size: 20, color: MekaarColors.textSecondary),
+                          prefixIcon: Icon(SolarIconsOutline.mentionSquare, size: 20, color: MekaarColors.textSecondary),
                         ),
                         validator: (v) => v == null || v.isEmpty
                             ? 'Username tidak boleh kosong'
@@ -178,7 +179,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       decoration: const InputDecoration(
                         hintText: 'Email atau Username',
                         hintStyle: TextStyle(color: MekaarColors.textMuted),
-                        prefixIcon: Icon(Icons.alternate_email, size: 20, color: MekaarColors.textSecondary),
+                        prefixIcon: Icon(SolarIconsOutline.mentionSquare, size: 20, color: MekaarColors.textSecondary),
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
@@ -203,12 +204,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       decoration: InputDecoration(
                         hintText: 'Password',
                         hintStyle: const TextStyle(color: MekaarColors.textMuted),
-                        prefixIcon: const Icon(Icons.lock_outline, size: 20, color: MekaarColors.textSecondary),
+                        prefixIcon: const Icon(SolarIconsOutline.lock, size: 20, color: MekaarColors.textSecondary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
+                                ? SolarIconsOutline.eyeClosed
+                                : SolarIconsOutline.eye,
                             size: 20,
                             color: MekaarColors.textSecondary,
                           ),

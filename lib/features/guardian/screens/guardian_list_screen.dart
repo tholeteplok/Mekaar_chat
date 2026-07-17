@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
@@ -43,7 +44,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           subtitle: 'Saling menjaga dalam situasi darurat',
           actions: [
             IconButton(
-              icon: const Icon(Icons.location_searching),
+              icon: const Icon(SolarIconsOutline.gps),
               tooltip: 'Lacak Guardian',
               onPressed: () =>
                   Navigator.pushNamed(context, AppRoutes.guardianTracking),
@@ -98,7 +99,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add, color: MekaarColors.guardianTeal),
+                  Icon(SolarIconsOutline.addCircle, color: MekaarColors.guardianTeal),
                   const SizedBox(width: 8),
                   Text(
                     'Tambah Guardian Baru',
@@ -269,7 +270,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
             if (isMyGuardian) ...[
               IconButton(
                 icon: const Icon(
-                  Icons.link_off_outlined,
+                  SolarIconsOutline.linkBroken,
                   color: MekaarColors.sosRed,
                 ),
                 tooltip: 'Putus Paksa Guardian',
@@ -278,7 +279,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                     : null,
               ),
               const Icon(
-                Icons.chevron_right,
+                SolarIconsOutline.altArrowRight,
                 color: MekaarColors.textMuted,
                 size: 18,
               ),
@@ -289,7 +290,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(
-                      Icons.check_circle_outline,
+                      SolarIconsOutline.checkCircle,
                       color: MekaarColors.success,
                     ),
                     onPressed: () async {
@@ -300,7 +301,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                   ),
                   IconButton(
                     icon: const Icon(
-                      Icons.cancel_outlined,
+                      SolarIconsOutline.closeCircle,
                       color: MekaarColors.sosRed,
                     ),
                     onPressed: () async {
@@ -382,7 +383,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isEnabled ? Icons.check : Icons.close,
+            isEnabled ? SolarIconsOutline.checkCircle : SolarIconsOutline.closeCircle,
             size: 10,
             color: isEnabled ? MekaarColors.success : MekaarColors.textMuted,
           ),

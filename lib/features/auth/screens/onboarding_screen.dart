@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -178,20 +179,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _nextPage,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: MekaarColors.yellow,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_forward,
-                        color: MekaarColors.textOnYellow,
-                      ),
-                    ),
+                  ElevatedButton.icon(
+                    onPressed: _nextPage,
+                    icon: const Icon(SolarIconsOutline.altArrowRight),
+                    label: Text(_currentPage == _slides.length - 1 ? 'Mulai' : 'Lanjut'),
                   ),
                 ],
               ),

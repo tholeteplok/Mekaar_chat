@@ -276,6 +276,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _authRepository.disableDuressPIN();
   }
 
+  Future<bool> isDuressEnabled() async {
+    return _authRepository.isDuressEnabled();
+  }
+
   // Force unlock PIN — HANYA untuk debug. Di production build ini adalah no-op.
   void devForceUnlock() {
     if (kDebugMode) {
@@ -495,4 +499,32 @@ class ScreenshotBlockNotifier extends StateNotifier<bool> {
 
 final screenshotBlockProvider = StateNotifierProvider<ScreenshotBlockNotifier, bool>((ref) {
   return ScreenshotBlockNotifier();
+});
+
+// Notification Masking (blind spot #2): sembunyikan konten SOS/Alarm di layar
+// kunci HP korban agar pelaku tidak curiga. Default AKTIF (fitur keamanan).
+class NotificationMaskingNotifier extends StateNotifier<bool> {
+  NotificationMaskingNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool('is_notification_masked') ?? true;
+    } catch (_) {}
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_notification_masked', enabled);
+      state = enabled;
+    } catch (_) {}
+  }
+}
+
+final notificationMaskingProvider =
+    StateNotifierProvider<NotificationMaskingNotifier, bool>((ref) {
+  return NotificationMaskingNotifier();
 });

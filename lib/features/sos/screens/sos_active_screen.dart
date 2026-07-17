@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -119,7 +120,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                             color: MekaarColors.sosRed,
                           ),
                           child: const Icon(
-                            Icons.warning,
+                            SolarIconsBold.danger,
                             color: Colors.white,
                             size: 48,
                           ),
@@ -162,7 +163,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.mic_off_outlined,
+                          SolarIconsOutline.microphone,
                           color: MekaarColors.warning,
                           size: 16,
                         ),
@@ -205,7 +206,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         width: double.infinity,
                         height: 54,
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.my_location_outlined),
+                          icon: const Icon(SolarIconsOutline.gps),
                           label: const Text('Lihat Lokasi Saya'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: MekaarColors.textPrimary,
@@ -269,7 +270,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       width: double.infinity,
                       height: 54,
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(SolarIconsOutline.closeSquare),
                         label: const Text('Akhiri Mode Darurat'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,

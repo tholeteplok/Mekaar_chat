@@ -13,6 +13,7 @@ import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.d
 import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/duress_pin_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
@@ -33,6 +34,7 @@ class AppRoutes {
   static const String guardianSwap = '/guardian/swap';
   static const String guardianTracking = '/guardian/tracking';
   static const String settings = '/settings';
+  static const String duressPin = '/settings/duress';
   static const String logs = '/logs';
   static const String profile = '/profile';
   static const String sosActive = '/sos/active';
@@ -113,6 +115,9 @@ class AppRoutes {
 
       case AppRoutes.settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
+
+      case AppRoutes.duressPin:
+        return MaterialPageRoute(builder: (_) => const DuressPinScreen());
 
       case AppRoutes.logs:
         return MaterialPageRoute(builder: (_) => const SecurityLogsScreen());

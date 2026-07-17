@@ -91,6 +91,7 @@ dependencies:
 
   # Sensors (for SOS inactivity accelerometer check)
   sensors_plus: ^6.1.0
+  solar_icons: ^0.1.0
 
 dev_dependencies:
   flutter_test:

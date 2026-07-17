@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:location/location.dart' as loc;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
@@ -434,7 +435,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // Voice Call icon
           IconButton(
             icon: const Icon(
-              Icons.phone_outlined,
+              SolarIconsOutline.phone,
               color: MekaarColors.softCoral,
             ),
             onPressed: () => _initiateCall('voice'),
@@ -443,7 +444,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // Actions Popup Menu
           PopupMenuButton<String>(
             icon: const Icon(
-              Icons.more_vert,
+              SolarIconsOutline.menuDots,
               color: MekaarColors.softCoral,
             ),
             onSelected: (value) {
@@ -460,7 +461,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 value: 'video',
                 child: Row(
                   children: [
-                    Icon(Icons.videocam_outlined, size: 20, color: MekaarColors.textPrimary),
+                    Icon(SolarIconsOutline.videocamera, size: 20, color: MekaarColors.textPrimary),
                     SizedBox(width: 8),
                     Text('Panggilan Video'),
                   ],
@@ -470,7 +471,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 value: 'clear',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_sweep_outlined, size: 20, color: MekaarColors.textPrimary),
+                    Icon(SolarIconsOutline.trashBinMinimalistic, size: 20, color: MekaarColors.textPrimary),
                     SizedBox(width: 8),
                     Text('Bersihkan Riwayat'),
                   ],
@@ -480,7 +481,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_outline, size: 20, color: MekaarColors.sosRed),
+                    Icon(SolarIconsOutline.trashBinMinimalistic, size: 20, color: MekaarColors.sosRed),
                     SizedBox(width: 8),
                     Text('Hapus Chat', style: TextStyle(color: MekaarColors.sosRed)),
                   ],

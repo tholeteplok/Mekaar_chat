@@ -4,6 +4,10 @@ import '../services/supabase_service.dart';
 class NotificationService {
   static final Logger _logger = Logger();
 
+  // Notification Masking (blind spot #2): saat true, notifikasi di HP korban
+  // disamarkan (teks benign) agar pelaku tidak curiga. Default aktif.
+  static bool maskingEnabled = true;
+
   static Future<void> initialize() async {
     _logger.i("Notification Service Initialized (In-App Fallback Mode)");
   }

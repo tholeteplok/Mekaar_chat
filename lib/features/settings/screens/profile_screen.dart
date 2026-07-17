@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
@@ -159,7 +160,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          pinSet ? Icons.lock : Icons.lock_open_outlined,
+                          pinSet ? SolarIconsBold.lock : SolarIconsOutline.lockUnlocked,
                           size: 12,
                           color: pinSet
                               ? MekaarColors.success
@@ -190,7 +191,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _infoRow(Icons.email_outlined, 'Email', userEmail),
+                  _infoRow(SolarIconsOutline.letter, 'Email', userEmail),
                   const Divider(height: 24, color: MekaarColors.borderLight),
                   // Username — editable
                   Row(
@@ -203,7 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
-                          Icons.alternate_email,
+                          SolarIconsOutline.mentionSquare,
                           color: MekaarColors.textSecondary,
                           size: 18,
                         ),
@@ -246,8 +247,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       IconButton(
                         icon: Icon(
                           _isEditingUsername
-                              ? Icons.check
-                              : Icons.edit_outlined,
+                              ? SolarIconsOutline.checkCircle
+                              : SolarIconsOutline.pen,
                           color: _isEditingUsername
                               ? MekaarColors.softCoral
                               : MekaarColors.textMuted,
@@ -281,7 +282,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Icons.lock_outline,
+                        SolarIconsOutline.lock,
                         color: MekaarColors.textSecondary,
                         size: 18,
                       ),
@@ -297,7 +298,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       style: MekaarTypography.bodySM,
                     ),
                     trailing: const Icon(
-                      Icons.chevron_right,
+                      SolarIconsOutline.altArrowRight,
                       color: MekaarColors.textMuted,
                       size: 18,
                     ),
@@ -323,7 +324,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
-                    Icons.logout,
+                    SolarIconsOutline.logout,
                     color: MekaarColors.sosRed,
                     size: 18,
                   ),

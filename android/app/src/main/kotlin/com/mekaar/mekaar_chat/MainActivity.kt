@@ -23,6 +23,10 @@ class MainActivity : FlutterActivity() {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     result.success(null)
                 }
+                "disableSecureFlag" -> {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
