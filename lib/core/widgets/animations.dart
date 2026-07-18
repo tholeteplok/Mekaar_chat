@@ -34,6 +34,7 @@ class _PressableScaleState extends State<PressableScale> {
 
   @override
   Widget build(BuildContext context) {
+    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: widget.onTap != null ? (_) => _setPressed(true) : null,
@@ -48,7 +49,7 @@ class _PressableScaleState extends State<PressableScale> {
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
         scale: _pressed ? widget.scale : 1.0,
-        duration: MekaarMotion.fast,
+        duration: animationsDisabled ? Duration.zero : MekaarMotion.fast,
         curve: MekaarMotion.standard,
         child: widget.child,
       ),
@@ -80,17 +81,33 @@ class AnimatedAppear extends StatefulWidget {
 
 class _AnimatedAppearState extends State<AnimatedAppear>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: widget.duration);
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+  bool _started = false;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 1;
+      return;
+    }
+    if (_started) return;
+    _started = true;
     if (widget.delay == Duration.zero) {
       _controller.forward();
     } else {
       Future.delayed(widget.delay, () {
-        if (mounted) _controller.forward();
+        if (mounted && !MediaQuery.disableAnimationsOf(context)) {
+          _controller.forward();
+        }
       });
     }
   }
@@ -103,8 +120,7 @@ class _AnimatedAppearState extends State<AnimatedAppear>
 
   @override
   Widget build(BuildContext context) {
-    final curved =
-        CurvedAnimation(parent: _controller, curve: widget.curve);
+    final curved = CurvedAnimation(parent: _controller, curve: widget.curve);
     return AnimatedBuilder(
       animation: curved,
       builder: (context, child) {

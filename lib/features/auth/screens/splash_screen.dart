@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/meka_mascot_geng.dart';
+import '../../../core/widgets/mekaar_wordmark.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -14,7 +14,8 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -25,7 +26,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       duration: const Duration(milliseconds: 1800),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    );
     _fadeController.forward();
 
     _navigateToNext();
@@ -34,7 +38,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   Future<void> _navigateToNext() async {
     // Wait at least 1.5 seconds for fade animation
     await Future.delayed(const Duration(milliseconds: 1500));
-    
+
     // Wait until profile & session loading finishes to avoid race conditions
     while (ref.read(authProvider).isLoading) {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -42,14 +46,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     if (!mounted) return;
 
+    final pinLockNotifier = ref.read(pinLockEnabledProvider.notifier);
+    try {
+      await pinLockNotifier.initialized;
+    } catch (_) {
+      // Fail secure: nilai default tetap aktif jika preferensi gagal dimuat.
+    }
+
+    if (!mounted) return;
+
     final authState = ref.read(authProvider);
     if (authState.user != null) {
       final isPinLockEnabled = ref.read(pinLockEnabledProvider);
-      
+
       if (authState.isPinSet) {
         if (isPinLockEnabled) {
           // Go to validation screen (1x input)
-          Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: false);
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.pin,
+            arguments: false,
+          );
         } else {
           // Bypass PIN lock screen if disabled in settings
           Navigator.pushReplacementNamed(context, AppRoutes.home);
@@ -83,40 +100,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
               AnimatedAppear(
                 duration: const Duration(milliseconds: 500),
                 offsetY: 24,
-                child: const MekaMascotGeng(
-                  size: 110,
+                child: const MikaIllustration(
+                  pose: MikaPose.hi,
+                  size: 150,
+                  semanticLabel: 'Mika menyambut Anda',
                 ),
               ),
               const SizedBox(height: 32),
-              // Wordmark Mek (yellow) + aar (cyan)
+              // Wordmark resmi Mekaar.
               FadeTransition(
                 opacity: _fadeAnimation,
-                child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.0,
-                    ),
-                    children: [
-                      TextSpan(
-                        text: 'Mek',
-                        style: TextStyle(color: MekaarColors.yellow),
-                      ),
-                      TextSpan(
-                        text: 'aar',
-                        style: TextStyle(color: MekaarColors.cyan),
-                      ),
-                    ],
-                  ),
-                ),
+                child: const MekaarWordmark(),
               ),
               const SizedBox(height: 12),
               // Tagline: Express Yourself. Stay Protected.
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: const Text(
-                  'Express Yourself. Stay Protected.',
+                  'Bicara bebas. Tetap aman.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white70,

@@ -85,7 +85,7 @@ class LocationMapScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             decoration: BoxDecoration(
-              color: MekaarColors.surface,
+              color: MekaarColors.surfaceOf(context),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: const [
                 BoxShadow(

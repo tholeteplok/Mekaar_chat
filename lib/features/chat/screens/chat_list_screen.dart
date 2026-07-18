@@ -9,12 +9,15 @@ import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
+import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/skeletons.dart';
-import '../../../core/widgets/mika_mascot.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../guardian/providers/guardian_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
+import '../../settings/providers/block_provider.dart';
 import '../widgets/chat_list_tile.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -27,8 +30,10 @@ class ChatListScreen extends ConsumerStatefulWidget {
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   String _searchQuery = '';
   String _selectedTab = 'All';
+  bool _isCheckingSOSGuardians = false;
+  static bool _permissionPromptShownThisSession = false;
 
-  final List<String> _tabs = ['All', 'Guardian', 'Groups'];
+  final List<String> _tabs = ['All', 'Guardian'];
 
   @override
   void initState() {
@@ -40,12 +45,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   }
 
   Future<void> _checkAndRequestPermissions() async {
+    if (_permissionPromptShownThisSession) return;
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      final hasShown = prefs.getBool('has_shown_sos_permissions_dialog') ?? false;
-      if (hasShown) return;
-
       final hasAll = await PermissionsHelper.hasAllSOSPermissions();
+
+      if (hasAll) {
+        await prefs.setBool('has_shown_sos_permissions_dialog', true);
+        return;
+      }
+
+      await prefs.remove('has_shown_sos_permissions_dialog');
+      _permissionPromptShownThisSession = true;
 
       if (!hasAll) {
         if (!mounted) return;
@@ -65,15 +77,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await prefs.setBool('has_shown_sos_permissions_dialog', true);
               },
-              child: const Text('Batal', style: TextStyle(color: MekaarColors.textMuted)),
+              child: const Text(
+                'Batal',
+                style: TextStyle(color: MekaarColors.textMuted),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await prefs.setBool('has_shown_sos_permissions_dialog', true);
                 await PermissionsHelper.requestSOSPermissions();
+                final granted = await PermissionsHelper.hasAllSOSPermissions();
+                if (granted) {
+                  await prefs.setBool('has_shown_sos_permissions_dialog', true);
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: MekaarColors.softCoral,
@@ -83,14 +100,34 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             ),
           ],
         );
-      } else {
-        await prefs.setBool('has_shown_sos_permissions_dialog', true);
       }
     } catch (_) {}
   }
 
-  void _triggerSOS() {
-    Navigator.pushNamed(context, AppRoutes.sosActive);
+  Future<void> _triggerSOS() async {
+    if (_isCheckingSOSGuardians) return;
+    _isCheckingSOSGuardians = true;
+
+    try {
+      var loadStatus = ref.read(guardianLoadStatusProvider);
+      if (loadStatus != GuardianLoadStatus.data) {
+        await ref.read(guardianProvider.notifier).refreshGuardians();
+        loadStatus = ref.read(guardianLoadStatusProvider);
+      }
+      if (!mounted) return;
+
+      if (loadStatus == GuardianLoadStatus.data &&
+          activeGuardiansOf(ref.read(guardianProvider)).isEmpty) {
+        final shouldContinue = await MekaarDialog.showNoActiveGuardianWarning(
+          context: context,
+        );
+        if (!mounted || !shouldContinue) return;
+      }
+
+      Navigator.pushNamed(context, AppRoutes.sosActive);
+    } finally {
+      _isCheckingSOSGuardians = false;
+    }
   }
 
   void _showNewChatDialog() {
@@ -157,9 +194,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           });
 
                           try {
-                            final profile = await ref
-                                .read(chatRepositoryProvider)
-                                .searchProfile(query);
+                            final Map<String, dynamic>? profile;
+                            final wasDuress = ref
+                                .read(authProvider)
+                                .lastUnlockWasDuress;
+
+                            if (wasDuress) {
+                              await Future.delayed(
+                                const Duration(milliseconds: 600),
+                              );
+                              profile = null;
+                            } else {
+                              profile = await ref
+                                  .read(chatRepositoryProvider)
+                                  .searchProfile(query);
+                            }
 
                             if (profile == null) {
                               setDialogState(() {
@@ -177,6 +226,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 isSearching = false;
                                 errorMessage =
                                     'Tidak bisa memulai chat dengan diri sendiri';
+                              });
+                              return;
+                            }
+
+                            // Cegah memulai chat dengan pengguna yang diblokir.
+                            final alreadyBlocked = await ref
+                                .read(blockRepositoryProvider)
+                                .isBlocked(profile['id'] as String);
+                            if (alreadyBlocked) {
+                              setDialogState(() {
+                                isSearching = false;
+                                errorMessage = 'Pengguna ini telah Anda blokir';
                               });
                               return;
                             }
@@ -239,38 +300,25 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     final chatRoomsState = ref.watch(chatRoomsProvider);
+    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => MekaarGradients.coral
-                        .createShader(bounds),
-                    child: Text(
-                      'Pesan',
-                      style: MekaarTypography.displayLG.copyWith(
-                        color: Colors.white,
+            MekaarTabHeader(
+              title: 'Pesan',
+              action: wasDuress
+                  ? null
+                  : IconButton(
+                      icon: const Icon(
+                        SolarIconsOutline.shieldUser,
+                        color: MekaarColors.guardianTeal,
                       ),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, AppRoutes.guardian),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(
-                      SolarIconsOutline.shieldUser,
-                      color: MekaarColors.guardianTeal,
-                    ),
-                    onPressed: () =>
-                        Navigator.pushNamed(context, AppRoutes.guardian),
-                  ),
-                ],
-              ),
             ),
             // Search Input
             Padding(
@@ -291,8 +339,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 itemBuilder: (context, index) {
                   final tab = _tabs[index];
                   final isActive = _selectedTab == tab;
-                  final isDark = Theme.of(context).brightness == Brightness.dark;
-                  
+                  final isDark =
+                      Theme.of(context).brightness == Brightness.dark;
+
                   return GestureDetector(
                     onTap: () => setState(() => _selectedTab = tab),
                     child: Container(
@@ -311,9 +360,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         tab,
                         style: MekaarTypography.labelLG.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: isActive 
-                              ? MekaarColors.textOnYellow 
-                              : (isDark ? MekaarColors.textMuted : Colors.black54),
+                          color: isActive
+                              ? MekaarColors.textOnYellow
+                              : (isDark
+                                    ? MekaarColors.textMuted
+                                    : Colors.black54),
                         ),
                       ),
                     ),
@@ -328,7 +379,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 onRefresh: () =>
                     ref.read(chatRoomsProvider.notifier).refreshRooms(),
                 child: chatRoomsState.when(
-                  data: (rooms) => _buildChatList(rooms),
+                  data: (rooms) => _buildChatList(wasDuress ? [] : rooms),
                   loading: () => const ChatListSkeleton(),
                   error: (err, stack) => Center(
                     child: Text(
@@ -344,7 +395,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 90),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+        ).copyWith(bottom: 90),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -366,11 +419,25 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   }
 
   Widget _buildChatList(List<Map<String, dynamic>> rooms) {
+    // Sembunyikan chat dengan pengguna yang diblokir oleh pengguna saat ini.
+    final blockedIds = ref
+        .watch(blockProvider)
+        .maybeWhen(
+          data: (list) => list.map((b) => b.blockedId).toSet(),
+          orElse: () => <String>{},
+        );
+
     // Filter rooms by query and selected tab
     final filtered = rooms.where((room) {
       final name = room['name'] as String;
       final username = room['otherUsername'] as String? ?? '';
       final email = room['otherEmail'] as String? ?? '';
+      final otherUserId = room['otherUserId'] as String?;
+
+      // Jangan tampilkan chat dengan pengguna yang diblokir.
+      if (otherUserId != null && blockedIds.contains(otherUserId)) {
+        return false;
+      }
 
       final query = _searchQuery.toLowerCase();
       final matchQuery =
@@ -382,18 +449,34 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
       if (_selectedTab == 'Guardian') {
         return room['isGuardian'] as bool;
-      } else if (_selectedTab == 'Groups') {
-        return false; // Groups not implemented in Phase 1
       }
       return true;
     }).toList();
 
     if (filtered.isEmpty) {
-      return _EmptyChats(onStart: _showNewChatDialog);
+      final hasSearch = _searchQuery.trim().isNotEmpty;
+      final isGuardianFilter = _selectedTab == 'Guardian';
+      return _EmptyChats(
+        onStart: _showNewChatDialog,
+        title: hasSearch
+            ? 'Chat tidak ditemukan'
+            : isGuardianFilter
+            ? 'Belum ada chat Guardian'
+            : 'Belum ada obrolan',
+        message: hasSearch
+            ? 'Tidak ada chat yang cocok dengan "${_searchQuery.trim()}".'
+            : isGuardianFilter
+            ? 'Chat dengan Guardian akan muncul di filter ini.'
+            : 'Mulai percakapan pertamamu dengan teman atau Guardian.',
+        showStartButton: !hasSearch && !isGuardianFilter,
+      );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 8,
+      ).copyWith(bottom: 110),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final room = filtered[index];
@@ -424,40 +507,55 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
 class _EmptyChats extends StatelessWidget {
   final VoidCallback onStart;
+  final String title;
+  final String message;
+  final bool showStartButton;
 
-  const _EmptyChats({required this.onStart});
+  const _EmptyChats({
+    required this.onStart,
+    required this.title,
+    required this.message,
+    required this.showStartButton,
+  });
 
   @override
   Widget build(BuildContext context) {
     return AnimatedAppear(
       child: ListView(
+        padding: const EdgeInsets.only(bottom: 110),
         children: [
           const SizedBox(height: 80),
           Center(
             child: Column(
               children: [
-                const MikaMascot(expression: MikaExpression.wave, size: 100),
+                const MikaIllustration(
+                  pose: MikaPose.phone,
+                  size: 120,
+                  semanticLabel: 'Mika menyapa dari layar kosong',
+                ),
                 const SizedBox(height: MekaarSpacing.xl),
-                Text('Belum ada obrolan', style: MekaarTypography.headingMD),
+                Text(title, style: MekaarTypography.headingMD),
                 const SizedBox(height: MekaarSpacing.sm),
                 Padding(
                   padding: MekaarSpacing.screen,
                   child: Text(
-                    'Mulai percakapan pertamamu dengan teman atau Guardian.',
+                    message,
                     textAlign: TextAlign.center,
                     style: MekaarTypography.bodyMD,
                   ),
                 ),
-                const SizedBox(height: MekaarSpacing.xl),
-                ElevatedButton.icon(
-                  onPressed: onStart,
-                  icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
-                  label: const Text('Mulai obrolan'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.softCoral,
-                    foregroundColor: Colors.white,
+                if (showStartButton) ...[
+                  const SizedBox(height: MekaarSpacing.xl),
+                  ElevatedButton.icon(
+                    onPressed: onStart,
+                    icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
+                    label: const Text('Mulai obrolan'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: MekaarColors.softCoral,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

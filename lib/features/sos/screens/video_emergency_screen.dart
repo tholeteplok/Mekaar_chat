@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../data/services/webrtc_service.dart';
 import '../providers/sos_provider.dart';
 
@@ -11,7 +12,8 @@ class VideoEmergencyScreen extends ConsumerStatefulWidget {
   const VideoEmergencyScreen({super.key});
 
   @override
-  ConsumerState<VideoEmergencyScreen> createState() => _VideoEmergencyScreenState();
+  ConsumerState<VideoEmergencyScreen> createState() =>
+      _VideoEmergencyScreenState();
 }
 
 class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
@@ -57,8 +59,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
       if (!_isScreenLocked) {
         setState(() => _recordingSeconds++);
       }
-      if (_autoStopMinutes > 0 &&
-          _recordingSeconds >= _autoStopMinutes * 60) {
+      if (_autoStopMinutes > 0 && _recordingSeconds >= _autoStopMinutes * 60) {
         _stopRecording();
       }
     });
@@ -81,7 +82,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   void _showAutoStopSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: MekaarColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -101,7 +102,10 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
             (m) => ListTile(
               title: Text(m == 0 ? 'Tanpa batas' : '$m menit'),
               trailing: _autoStopMinutes == m
-                  ? const Icon(SolarIconsOutline.checkCircle, color: MekaarColors.guardianTeal)
+                  ? const Icon(
+                      SolarIconsOutline.checkCircle,
+                      color: MekaarColors.guardianTeal,
+                    )
                   : null,
               onTap: () {
                 Navigator.pop(ctx);
@@ -123,9 +127,10 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
     setState(() => _isScreenLocked = !_isScreenLocked);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_isScreenLocked 
-            ? 'Layar dikunci. Video streaming tetap berjalan di latar belakang.'
-            : 'Layar dibuka.'
+        content: Text(
+          _isScreenLocked
+              ? 'Layar dikunci. Video streaming tetap berjalan di latar belakang.'
+              : 'Layar dibuka.',
         ),
         duration: const Duration(milliseconds: 1500),
       ),
@@ -163,8 +168,12 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
         children: [
           // Local Camera Feed View
           _localRenderer.srcObject != null
-              ? SizedBox.expand(child: RTCVideoView(_localRenderer, mirror: _isFrontCamera))
-              : const Center(child: CircularProgressIndicator(color: MekaarColors.sosRed)),
+              ? SizedBox.expand(
+                  child: RTCVideoView(_localRenderer, mirror: _isFrontCamera),
+                )
+              : const Center(
+                  child: CircularProgressIndicator(color: MekaarColors.sosRed),
+                ),
 
           // Locked Screen Dark Overlay
           if (_isScreenLocked)
@@ -174,11 +183,19 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(SolarIconsBold.lock, size: 64, color: Colors.white24),
+                    const Icon(
+                      SolarIconsBold.lock,
+                      size: 64,
+                      color: Colors.white24,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Layar Terkunci Secara Aman',
-                      style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -209,19 +226,24 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 32),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: MekaarColors.surface,
+                    color: MekaarColors.surfaceOf(context),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(SolarIconsOutline.heart,
-                          color: MekaarColors.sosRed, size: 36),
+                      const Icon(
+                        SolarIconsOutline.heart,
+                        color: MekaarColors.sosRed,
+                        size: 36,
+                      ),
                       const SizedBox(height: 12),
                       const Text(
                         'Apakah Anda Aman?',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -254,7 +276,10 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black45,
                       borderRadius: BorderRadius.circular(20),
@@ -265,7 +290,11 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                         SizedBox(width: 6),
                         Text(
                           'Kamera & Mic Aktif',
-                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -278,7 +307,10 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
               top: 40,
               right: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
@@ -288,12 +320,19 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: MekaarColors.sosRed),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: MekaarColors.sosRed,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     const Text(
                       'REC',
-                      style: TextStyle(color: MekaarColors.sosRed, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: MekaarColors.sosRed,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -304,15 +343,17 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
               top: 40,
               left: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   _formatDuration(_recordingSeconds),
-                  style: const TextStyle(
-                    fontFamily: 'SpaceGrotesk',
+                  style: MekaarTypography.monoMD.copyWith(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -381,7 +422,11 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
           const SizedBox(height: 6),
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

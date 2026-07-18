@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/supabase_service.dart';
@@ -26,6 +27,7 @@ class AuthState {
   final int pinAttempts;
   final DateTime? pinLockedUntil;
   final bool lastUnlockWasDuress;
+  final bool newDeviceLogin;
 
   AuthState({
     this.user,
@@ -36,6 +38,7 @@ class AuthState {
     this.pinAttempts = 0,
     this.pinLockedUntil,
     this.lastUnlockWasDuress = false,
+    this.newDeviceLogin = false,
   });
 
   bool get isPinLocked {
@@ -58,6 +61,7 @@ class AuthState {
     int? pinAttempts,
     DateTime? pinLockedUntil,
     bool? lastUnlockWasDuress,
+    bool? newDeviceLogin,
   }) {
     return AuthState(
       user: user ?? this.user,
@@ -67,8 +71,8 @@ class AuthState {
       isPinSet: isPinSet ?? this.isPinSet,
       pinAttempts: pinAttempts ?? this.pinAttempts,
       pinLockedUntil: pinLockedUntil ?? this.pinLockedUntil,
-      lastUnlockWasDuress:
-          lastUnlockWasDuress ?? this.lastUnlockWasDuress,
+      lastUnlockWasDuress: lastUnlockWasDuress ?? this.lastUnlockWasDuress,
+      newDeviceLogin: newDeviceLogin ?? this.newDeviceLogin,
     );
   }
 }
@@ -109,6 +113,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Update the in-memory profile without triggering a full reload.
+  void setProfileSilently(Profile profile) {
+    state = state.copyWith(profile: profile);
+  }
+
   Future<bool> login(String input, String password) async {
     final configError = _configurationErrorMessage();
     if (configError != null) {
@@ -125,6 +134,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (user != null) {
         state = state.copyWith(user: user);
         await loadProfile();
+        final isNewDevice = await _recordDeviceLogin();
+        state = state.copyWith(newDeviceLogin: isNewDevice);
         return true;
       }
       state = state.copyWith(isLoading: false, error: 'Login gagal');
@@ -135,7 +146,41 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> register(String email, String password, String username) async {    final configError = _configurationErrorMessage();
+  /// Catat device login & kembalikan true jika device berbeda dari sebelumnya.
+  Future<bool> _recordDeviceLogin() async {
+    try {
+      final deviceName = await _getDeviceName();
+      return await _authRepository.recordLoginDevice(deviceName);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String> _getDeviceName() async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final info = await deviceInfo.androidInfo;
+        return '${info.brand} ${info.model}';
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final info = await deviceInfo.iosInfo;
+        return '${info.name} (${info.model})';
+      } else if (defaultTargetPlatform == TargetPlatform.windows) {
+        final info = await deviceInfo.windowsInfo;
+        return info.computerName;
+      } else if (defaultTargetPlatform == TargetPlatform.linux) {
+        final info = await deviceInfo.linuxInfo;
+        return info.name;
+      } else if (defaultTargetPlatform == TargetPlatform.macOS) {
+        final info = await deviceInfo.macOsInfo;
+        return info.computerName;
+      }
+    } catch (_) {}
+    return 'Perangkat tidak dikenal';
+  }
+
+  Future<bool> register(String email, String password, String username) async {
+    final configError = _configurationErrorMessage();
     if (configError != null) {
       state = state.copyWith(isLoading: false, error: configError);
       return false;
@@ -208,6 +253,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _authRepository.signOut();
     state = AuthState();
+  }
+
+  /// Bersihkan flag alert new-device setelah ditampilkan.
+  void clearNewDeviceFlag() {
+    if (state.newDeviceLogin) {
+      state = state.copyWith(newDeviceLogin: false);
+    }
   }
 
   // Setup dynamic PIN
@@ -324,7 +376,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           msg.contains('no user found')) {
         return 'Email atau password salah. Silakan periksa kembali.';
       }
-      if (msg.contains('signup_disabled') || msg.contains('signups not allowed')) {
+      if (msg.contains('signup_disabled') ||
+          msg.contains('signups not allowed')) {
         return 'Pendaftaran akun baru saat ini tidak tersedia.';
       }
       if (msg.contains('too many requests') || msg.contains('rate limit')) {
@@ -435,34 +488,42 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 
 // App PIN Lock Enable/Disable preference provider
 class PinLockEnabledNotifier extends StateNotifier<bool> {
-  PinLockEnabledNotifier() : super(true) {
-    _load();
+  static const preferenceKey = 'is_pin_lock_enabled';
+
+  final Future<SharedPreferences> _preferences;
+  late final Future<void> initialized;
+
+  PinLockEnabledNotifier({Future<SharedPreferences>? preferences})
+    : _preferences = preferences ?? SharedPreferences.getInstance(),
+      super(true) {
+    initialized = _load();
   }
 
   Future<void> _load() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool('is_pin_lock_enabled') ?? true;
-    } catch (_) {}
+    final prefs = await _preferences;
+    state = prefs.getBool(preferenceKey) ?? true;
   }
 
   Future<void> toggle(bool enabled) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_pin_lock_enabled', enabled);
-      state = enabled;
-    } catch (_) {}
+    final prefs = await _preferences;
+    final saved = await prefs.setBool(preferenceKey, enabled);
+    if (!saved) {
+      throw StateError('Preferensi kunci PIN gagal disimpan.');
+    }
+    state = enabled;
   }
 }
 
-final pinLockEnabledProvider = StateNotifierProvider<PinLockEnabledNotifier, bool>((ref) {
-  return PinLockEnabledNotifier();
-});
+final pinLockEnabledProvider =
+    StateNotifierProvider<PinLockEnabledNotifier, bool>((ref) {
+      return PinLockEnabledNotifier();
+    });
 
 // App Screen screenshot/recent-apps blocking provider
 class ScreenshotBlockNotifier extends StateNotifier<bool> {
-  static const MethodChannel _securityChannel =
-      MethodChannel('com.mekaar.mekaar_chat/security');
+  static const MethodChannel _securityChannel = MethodChannel(
+    'com.mekaar.mekaar_chat/security',
+  );
 
   ScreenshotBlockNotifier() : super(true) {
     _load();
@@ -497,9 +558,10 @@ class ScreenshotBlockNotifier extends StateNotifier<bool> {
   }
 }
 
-final screenshotBlockProvider = StateNotifierProvider<ScreenshotBlockNotifier, bool>((ref) {
-  return ScreenshotBlockNotifier();
-});
+final screenshotBlockProvider =
+    StateNotifierProvider<ScreenshotBlockNotifier, bool>((ref) {
+      return ScreenshotBlockNotifier();
+    });
 
 // Notification Masking (blind spot #2): sembunyikan konten SOS/Alarm di layar
 // kunci HP korban agar pelaku tidak curiga. Default AKTIF (fitur keamanan).
@@ -526,5 +588,5 @@ class NotificationMaskingNotifier extends StateNotifier<bool> {
 
 final notificationMaskingProvider =
     StateNotifierProvider<NotificationMaskingNotifier, bool>((ref) {
-  return NotificationMaskingNotifier();
-});
+      return NotificationMaskingNotifier();
+    });

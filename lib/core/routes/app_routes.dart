@@ -15,6 +15,9 @@ import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/duress_pin_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/blocked_list_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/two_factor_setup_screen.dart';
+import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
@@ -37,6 +40,9 @@ class AppRoutes {
   static const String duressPin = '/settings/duress';
   static const String logs = '/logs';
   static const String profile = '/profile';
+  static const String blockedList = '/settings/blocked';
+  static const String twoFactorSetup = '/settings/2fa/setup';
+  static const String twoFactor = '/auth/2fa';
   static const String sosActive = '/sos/active';
   static const String sosVideo = '/sos/video';
   static const String deviceLost = '/sos/lost';
@@ -124,6 +130,14 @@ class AppRoutes {
 
       case AppRoutes.profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
+      case AppRoutes.blockedList:
+        return MaterialPageRoute(builder: (_) => const BlockedListScreen());
+      case AppRoutes.twoFactorSetup:
+        return MaterialPageRoute(builder: (_) => const TwoFactorSetupScreen());
+      case AppRoutes.twoFactor:
+        final secret = settings.arguments as String? ?? '';
+        return MaterialPageRoute(
+            builder: (_) => TwoFactorScreen(twoFaSecret: secret));
 
       case AppRoutes.sosActive:
         return MaterialPageRoute(builder: (_) => const SOSActiveScreen());

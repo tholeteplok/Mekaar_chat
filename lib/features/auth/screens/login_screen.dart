@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
@@ -46,22 +47,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .register(email, password, username);
     }
 
-    if (success && mounted) {
-      final authState = ref.read(authProvider);
-      if (authState.isPinSet) {
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.pin,
-          arguments: false,
-        );
-      } else {
-        Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: true);
-      }
-    } else if (mounted) {
+    if (!success && mounted) {
+      TextInput.finishAutofillContext(shouldSave: false);
       final error = ref.read(authProvider).error ?? 'Terjadi kesalahan';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), backgroundColor: MekaarColors.sosRed),
       );
+      return;
+    }
+
+    if (!mounted) return;
+    TextInput.finishAutofillContext();
+    final authState = ref.read(authProvider);
+
+    // Verifikasi 2 Langkah (TOTP) jika diaktifkan.
+    if (authState.profile?.twoFaEnabled == true &&
+        authState.profile?.twoFaSecret != null) {
+      final verified = await Navigator.pushNamed(
+        context,
+        AppRoutes.twoFactor,
+        arguments: authState.profile!.twoFaSecret,
+      );
+      if (verified != true) {
+        // User membatalkan/verifikasi gagal — batalkan login agar aman.
+        await ref.read(authProvider.notifier).logout();
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    // Peringatan login dari device baru.
+    final isNewDevice = ref.read(authProvider).newDeviceLogin;
+    if (isNewDevice) {
+      final device = ref.read(authProvider).profile?.lastLoginDevice ?? 'baru';
+      ref.read(authProvider.notifier).clearNewDeviceFlag();
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(
+                  SolarIconsOutline.shieldWarning,
+                  color: MekaarColors.guardianTeal,
+                ),
+                SizedBox(width: 8),
+                Text('Login Perangkat Baru'),
+              ],
+            ),
+            content: Text(
+              'Akun Anda baru saja login dari perangkat: $device. '
+              'Jika bukan Anda, segera ubah password dan matikan sesi.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Mengerti'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    if (authState.isPinSet) {
+      Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: false);
+    } else {
+      Navigator.pushReplacementNamed(context, AppRoutes.pin, arguments: true);
     }
   }
 
@@ -102,7 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: MekaarColors.yellow.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
-                        )
+                        ),
                       ],
                     ),
                     child: const Icon(
@@ -155,127 +209,173 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 36),
               Form(
                 key: _formKey,
-                child: Column(
-                  children: [
-                    if (!_isLogin) ...[
-                      TextFormField(
-                        controller: _usernameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          hintText: 'Username unik',
-                          hintStyle: TextStyle(color: MekaarColors.textMuted),
-                          prefixIcon: Icon(SolarIconsOutline.mentionSquare, size: 20, color: MekaarColors.textSecondary),
+                child: AutofillGroup(
+                  child: Column(
+                    children: [
+                      if (!_isLogin) ...[
+                        TextFormField(
+                          controller: _usernameController,
+                          autofillHints: const [AutofillHints.newUsername],
+                          textInputAction: TextInputAction.next,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: 'Username unik',
+                            hintStyle: TextStyle(color: MekaarColors.textMuted),
+                            prefixIcon: Icon(
+                              SolarIconsOutline.mentionSquare,
+                              size: 20,
+                              color: MekaarColors.textSecondary,
+                            ),
+                          ),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Username tidak boleh kosong'
+                              : null,
                         ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Username tidak boleh kosong'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.text,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Email atau Username',
-                        hintStyle: TextStyle(color: MekaarColors.textMuted),
-                        prefixIcon: Icon(SolarIconsOutline.mentionSquare, size: 20, color: MekaarColors.textSecondary),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Input tidak boleh kosong';
-                        }
-                        final input = v.trim();
-                        if (input.contains('@')) {
-                          return input.contains('.')
-                              ? null
-                              : 'Email tidak valid';
-                        }
-                        return input.length >= 3
-                            ? null
-                            : 'Username minimal 3 karakter';
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Password',
-                        hintStyle: const TextStyle(color: MekaarColors.textMuted),
-                        prefixIcon: const Icon(SolarIconsOutline.lock, size: 20, color: MekaarColors.textSecondary),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? SolarIconsOutline.eyeClosed
-                                : SolarIconsOutline.eye,
+                        const SizedBox(height: 16),
+                      ],
+                      TextFormField(
+                        controller: _emailController,
+                        autofillHints: _isLogin
+                            ? const [AutofillHints.username]
+                            : const [AutofillHints.email],
+                        keyboardType: _isLogin
+                            ? TextInputType.text
+                            : TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autocorrect: false,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: _isLogin ? 'Email atau Username' : 'Email',
+                          hintStyle: const TextStyle(
+                            color: MekaarColors.textMuted,
+                          ),
+                          prefixIcon: const Icon(
+                            SolarIconsOutline.mentionSquare,
                             size: 20,
                             color: MekaarColors.textSecondary,
                           ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
                         ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Input tidak boleh kosong';
+                          }
+                          final input = v.trim();
+                          final validEmail = RegExp(
+                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                          ).hasMatch(input);
+                          if (!_isLogin) {
+                            return validEmail ? null : 'Email tidak valid';
+                          }
+                          if (input.contains('@')) {
+                            return validEmail ? null : 'Email tidak valid';
+                          }
+                          return input.length >= 3
+                              ? null
+                              : 'Username minimal 3 karakter';
+                        },
                       ),
-                      validator: (v) => v == null || v.length < 6
-                          ? 'Password minimal 6 karakter'
-                          : null,
-                    ),
-                    if (!_isLogin) ...[
-                      const SizedBox(height: 8),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Password minimal harus 6 karakter.',
-                          style: TextStyle(
-                            color: MekaarColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 36),
-                    // Primary Button: Yellow background, dark text
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: authState.isLoading ? null : _submit,
-                        child: authState.isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: MekaarColors.textOnYellow,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : Text(_isLogin ? 'Masuk' : 'Daftar Sekarang'),
-                      ),
-                    ),
-                    if (_isLogin) ...[
                       const SizedBox(height: 16),
-                      // Secondary Button: outline brand.cyan, cyan text, pill shape
+                      TextFormField(
+                        controller: _passwordController,
+                        autofillHints: [
+                          _isLogin
+                              ? AutofillHints.password
+                              : AutofillHints.newPassword,
+                        ],
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) {
+                          if (!authState.isLoading) _submit();
+                        },
+                        obscureText: _obscurePassword,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          hintStyle: const TextStyle(
+                            color: MekaarColors.textMuted,
+                          ),
+                          prefixIcon: const Icon(
+                            SolarIconsOutline.lock,
+                            size: 20,
+                            color: MekaarColors.textSecondary,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? SolarIconsOutline.eyeClosed
+                                  : SolarIconsOutline.eye,
+                              size: 20,
+                              color: MekaarColors.textSecondary,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                        ),
+                        validator: (v) => v == null || v.length < 6
+                            ? 'Password minimal 6 karakter'
+                            : null,
+                      ),
+                      if (!_isLogin) ...[
+                        const SizedBox(height: 8),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Password minimal harus 6 karakter.',
+                            style: TextStyle(
+                              color: MekaarColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 36),
+                      // Primary Button: Yellow background, dark text
                       SizedBox(
                         width: double.infinity,
                         height: 54,
-                        child: OutlinedButton.icon(
-                          onPressed: authState.isLoading
-                              ? null
-                              : _signInWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata, size: 28),
-                          label: const Text('Lanjut dengan Google'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: MekaarColors.cyan,
-                            side: const BorderSide(color: MekaarColors.cyan, width: 2),
-                            shape: const StadiumBorder(),
-                            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                          ),
+                        child: ElevatedButton(
+                          onPressed: authState.isLoading ? null : _submit,
+                          child: authState.isLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: MekaarColors.textOnYellow,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : Text(_isLogin ? 'Masuk' : 'Daftar Sekarang'),
                         ),
                       ),
+                      if (_isLogin) ...[
+                        const SizedBox(height: 16),
+                        // Secondary Button: outline brand.cyan, cyan text, pill shape
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: OutlinedButton.icon(
+                            onPressed: authState.isLoading
+                                ? null
+                                : _signInWithGoogle,
+                            icon: const Icon(Icons.g_mobiledata, size: 28),
+                            label: const Text('Lanjut dengan Google'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: MekaarColors.cyan,
+                              side: const BorderSide(
+                                color: MekaarColors.cyan,
+                                width: 2,
+                              ),
+                              shape: const StadiumBorder(),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -285,7 +385,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   Text(
                     _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
-                    style: const TextStyle(color: MekaarColors.textSecondary, fontSize: 14),
+                    style: const TextStyle(
+                      color: MekaarColors.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _isLogin = !_isLogin),

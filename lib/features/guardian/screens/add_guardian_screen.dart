@@ -7,6 +7,8 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/guardian_provider.dart';
+import '../../settings/providers/block_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class AddGuardianScreen extends ConsumerStatefulWidget {
   const AddGuardianScreen({super.key});
@@ -94,6 +96,33 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Cegah mengundang pengguna yang telah diblokir.
+      final targetProfile = await ref
+          .read(guardianRepositoryProvider)
+          .searchProfile(query);
+      if (targetProfile != null) {
+        final targetId = targetProfile['id'] as String;
+        final myId = ref.read(supabaseServiceProvider).currentUserId;
+        if (targetId != myId) {
+          final blocked = await ref
+              .read(blockRepositoryProvider)
+              .isBlocked(targetId);
+          if (blocked) {
+            setState(() => _isLoading = false);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Tidak bisa menjadikan guardian pengguna yang diblokir.'),
+                  backgroundColor: MekaarColors.sosRed,
+                ),
+              );
+            }
+            return;
+          }
+        }
+      }
+
       final perms = {
         'gps': _gpsPermission,
         'mic': _audioPermission,
@@ -235,13 +264,21 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _submitInvitation,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: MekaarColors.textPrimary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text('Kirim Undangan'),
               ),
             ),

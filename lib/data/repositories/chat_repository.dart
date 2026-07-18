@@ -484,16 +484,44 @@ class ChatRepository {
     } catch (_) {}
   }
 
-  /// Get the last_seen_at of another user by their profile_id.
-  Future<DateTime?> getLastSeen(String profileId) async {
+  /// Hard-delete messages that have passed their auto_delete_at timestamp.
+  /// Best-effort: called from client on chat open. The Supabase cron job
+  /// (migration 17) performs the authoritative periodic purge.
+  Future<int> purgeExpiredMessages() async {
+    try {
+      final response = await _supabaseService.client.rpc(
+        'purge_expired_messages',
+      );
+      return (response as int?) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Fetch a public profile by id (for display in block list, etc).
+  Future<Map<String, dynamic>?> searchProfileById(String profileId) async {
     try {
       final response = await _supabaseService.client
           .from('public_profiles')
-          .select('last_seen_at')
+          .select('id, username, full_name, avatar_url')
           .eq('id', profileId)
           .maybeSingle();
-      if (response != null && response['last_seen_at'] != null) {
-        return DateTime.parse(response['last_seen_at'] as String);
+      return response;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get the last_seen_at of another user, honoring their last_seen_privacy
+  /// setting via the `get_last_seen_for` RPC. Returns null when hidden.
+  Future<DateTime?> getLastSeen(String profileId) async {
+    try {
+      final response = await _supabaseService.client.rpc(
+        'get_last_seen_for',
+        params: {'target_id': profileId},
+      );
+      if (response != null) {
+        return DateTime.parse(response as String);
       }
     } catch (_) {}
     return null;

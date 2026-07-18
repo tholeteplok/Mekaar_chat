@@ -6,8 +6,11 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../core/widgets/sos_button.dart';
+import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -20,12 +23,14 @@ class PinScreen extends ConsumerStatefulWidget {
   ConsumerState<PinScreen> createState() => _PinScreenState();
 }
 
-class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProviderStateMixin {
+class _PinScreenState extends ConsumerState<PinScreen>
+    with SingleTickerProviderStateMixin {
   String _pin = '';
   String _confirmPin = '';
   bool _isConfirming = false;
   String _statusMessage = '';
   bool _hasError = false;
+  bool _isCheckingSOSGuardians = false;
 
   static const int pinLength = 6;
 
@@ -44,6 +49,15 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
     _statusMessage = widget.isSetup
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _shakeController.stop();
+      _shakeController.value = 0;
+    }
   }
 
   @override
@@ -66,7 +80,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
 
     if (_pin.length < pinLength) {
       setState(() => _pin += key);
-      
+
       if (_pin.length == pinLength) {
         _processPIN();
       }
@@ -75,7 +89,7 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
 
   Future<void> _processPIN() async {
     final notifier = ref.read(authProvider.notifier);
-    
+
     if (widget.isSetup) {
       if (!_isConfirming) {
         // First step of PIN setup
@@ -104,7 +118,9 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
           }
         } else {
           HapticFeedback.vibrate();
-          _shakeController.forward(from: 0);
+          if (!MediaQuery.disableAnimationsOf(context)) {
+            _shakeController.forward(from: 0);
+          }
           setState(() {
             _pin = '';
             _hasError = true;
@@ -122,7 +138,9 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
           if (wasDuress) {
             // Duress PIN: buka normal (tanpa indikasi) lalu picu SOS silent.
             // Tidak ada toast/banner agar pelaku tidak curiga (blind spot #1).
-            ref.read(sosProvider.notifier).activateSOS(gps: true, mic: false, video: false);
+            ref
+                .read(sosProvider.notifier)
+                .activateSOS(gps: true, mic: false, video: false);
             Navigator.pushReplacementNamed(context, AppRoutes.home);
           } else {
             Navigator.pushReplacementNamed(context, AppRoutes.home);
@@ -130,7 +148,9 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
         }
       } else {
         HapticFeedback.vibrate();
-        _shakeController.forward(from: 0);
+        if (!MediaQuery.disableAnimationsOf(context)) {
+          _shakeController.forward(from: 0);
+        }
         setState(() {
           _pin = '';
           _hasError = true;
@@ -138,21 +158,45 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
           if (state.isPinLocked) {
             _statusMessage = 'Aplikasi terkunci. Coba lagi dalam 30 menit.';
           } else {
-            _statusMessage = 'PIN salah. ${5 - state.pinAttempts} percobaan tersisa.';
+            _statusMessage =
+                'PIN salah. ${5 - state.pinAttempts} percobaan tersisa.';
           }
         });
       }
     }
   }
 
-  void _triggerSOS() {
-    Navigator.pushNamed(context, AppRoutes.sosActive);
+  Future<void> _triggerSOS() async {
+    if (_isCheckingSOSGuardians) return;
+    _isCheckingSOSGuardians = true;
+
+    try {
+      var loadStatus = ref.read(guardianLoadStatusProvider);
+      if (loadStatus != GuardianLoadStatus.data) {
+        await ref.read(guardianProvider.notifier).refreshGuardians();
+        loadStatus = ref.read(guardianLoadStatusProvider);
+      }
+      if (!mounted) return;
+
+      if (loadStatus == GuardianLoadStatus.data &&
+          activeGuardiansOf(ref.read(guardianProvider)).isEmpty) {
+        final shouldContinue = await MekaarDialog.showNoActiveGuardianWarning(
+          context: context,
+        );
+        if (!mounted || !shouldContinue) return;
+      }
+
+      Navigator.pushNamed(context, AppRoutes.sosActive);
+    } finally {
+      _isCheckingSOSGuardians = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isLocked = authState.isPinLocked;
+    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
     return MekaarScaffold(
       forceDark: true, // PIN Screen is always dark navy gradient background
@@ -162,7 +206,10 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
           child: Column(
             children: [
               const Spacer(),
-              // Title Header
+              // Wordmark resmi sebagai jangkar identitas layar autentikasi.
+              const MekaarWordmark(fontSize: 30),
+              const SizedBox(height: 20),
+              // Title instruksi PIN.
               Text(
                 widget.isSetup
                     ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
@@ -174,50 +221,72 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
                 ),
               ),
               const SizedBox(height: 12),
-              AnimatedSwitcher(
-                duration: MekaarMotion.fast,
-                child: Text(
-                  isLocked
-                      ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
-                      : _statusMessage,
-                  key: ValueKey(_statusMessage),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: (isLocked || _hasError) ? MekaarColors.sosCoral : MekaarColors.textSecondary,
+              Semantics(
+                liveRegion: isLocked || _hasError,
+                child: AnimatedSwitcher(
+                  duration: animationsDisabled
+                      ? Duration.zero
+                      : MekaarMotion.fast,
+                  child: Text(
+                    isLocked
+                        ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
+                        : _statusMessage,
+                    key: ValueKey(_statusMessage),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: (isLocked || _hasError)
+                          ? MekaarColors.sosCoral
+                          : MekaarColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 40),
               // Dots indicators (shake saat salah, pop saat terisi)
-              AnimatedBuilder(
-                animation: _shakeAnimation,
-                builder: (context, child) => Transform.translate(
-                  offset: Offset(_shakeAnimation.value, 0),
-                  child: child,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    pinLength,
-                    (index) => AnimatedContainer(
-                      duration: MekaarMotion.fast,
-                      curve: MekaarMotion.bounce,
-                      width: 14,
-                      height: 14,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _hasError 
-                              ? MekaarColors.sosCoral 
-                              : (_pin.length > index ? MekaarColors.yellow : Colors.white38), 
-                          width: 2,
+              Semantics(
+                label: 'PIN',
+                value: '${_pin.length} dari $pinLength digit terisi',
+                child: ExcludeSemantics(
+                  child: AnimatedBuilder(
+                    animation: _shakeAnimation,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(
+                        animationsDisabled ? 0 : _shakeAnimation.value,
+                        0,
+                      ),
+                      child: child,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        pinLength,
+                        (index) => AnimatedContainer(
+                          duration: animationsDisabled
+                              ? Duration.zero
+                              : MekaarMotion.fast,
+                          curve: MekaarMotion.bounce,
+                          width: 14,
+                          height: 14,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _hasError
+                                  ? MekaarColors.sosCoral
+                                  : (_pin.length > index
+                                        ? MekaarColors.yellow
+                                        : Colors.white38),
+                              width: 2,
+                            ),
+                            color: _pin.length > index
+                                ? (_hasError
+                                      ? MekaarColors.sosCoral
+                                      : MekaarColors.yellow)
+                                : Colors.transparent,
+                          ),
                         ),
-                        color: _pin.length > index
-                            ? (_hasError ? MekaarColors.sosCoral : MekaarColors.yellow)
-                            : Colors.transparent,
                       ),
                     ),
                   ),
@@ -233,11 +302,18 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
               ] else ...[
                 const Column(
                   children: [
-                    Icon(SolarIconsOutline.clockSquare, size: 64, color: MekaarColors.sosCoral),
+                    Icon(
+                      SolarIconsOutline.clockSquare,
+                      size: 64,
+                      color: MekaarColors.sosCoral,
+                    ),
                     SizedBox(height: 12),
                     Text(
                       'Silakan tunggu durasi kunci berakhir.',
-                      style: TextStyle(color: MekaarColors.textSecondary, fontSize: 13),
+                      style: TextStyle(
+                        color: MekaarColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -281,28 +357,38 @@ class _PinScreenState extends ConsumerState<PinScreen> with SingleTickerProvider
 
     final isBackspace = key == '⌫';
 
-    return PressableScale(
-      scale: 0.92,
+    return Semantics(
+      button: true,
+      label: isBackspace ? 'Hapus digit terakhir' : 'Angka $key',
       onTap: () => _handleKeyPress(key),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        width: 70,
-        height: 70,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isBackspace ? Colors.transparent : MekaarColors.cardDark,
-        ),
-        child: Center(
-          child: isBackspace
-              ? const Icon(SolarIconsOutline.backspace, color: Colors.white70)
-              : Text(
-                  key,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+      child: ExcludeSemantics(
+        child: PressableScale(
+          scale: 0.92,
+          onTap: () => _handleKeyPress(key),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isBackspace ? Colors.transparent : MekaarColors.cardDark,
+            ),
+            child: Center(
+              child: isBackspace
+                  ? const Icon(
+                      SolarIconsOutline.backspace,
+                      color: Colors.white70,
+                    )
+                  : Text(
+                      key,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ),
         ),
       ),
     );

@@ -37,7 +37,7 @@ class SOSRepository {
         .update({
           'status': 'ended',
           'ended_at': DateTime.now().toIso8601String(),
-          'end_reason': reason,
+          'ended_reason': reason,
         })
         .eq('id', sessionId);
   }
@@ -147,9 +147,7 @@ class SOSRepository {
           .eq('owner_id', userId)
           .eq('status', 'active');
 
-      return (response as List)
-          .map((e) => e['guardian_id'] as String)
-          .toList();
+      return (response as List).map((e) => e['guardian_id'] as String).toList();
     } catch (_) {
       return [];
     }

@@ -8,6 +8,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/guardian_provider.dart';
+import '../../settings/providers/block_provider.dart';
 import '../../../data/models/guardian_model.dart';
 
 class GuardianDetailScreen extends ConsumerStatefulWidget {
@@ -114,6 +115,46 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     }
   }
 
+  Future<void> _toggleBlock() async {
+    final guardianUserId = widget.guardian.guardianId;
+    if (guardianUserId.isEmpty) return;
+    final notifier = ref.read(blockProvider.notifier);
+    final blocked = await ref.read(blockRepositoryProvider).isBlocked(guardianUserId);
+    try {
+      if (blocked) {
+        await notifier.unblockUser(guardianUserId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Guardian dibuka blokirnya.'),
+              backgroundColor: MekaarColors.success,
+            ),
+          );
+        }
+      } else {
+        await notifier.blockUser(guardianUserId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Guardian berhasil diblokir.'),
+              backgroundColor: MekaarColors.success,
+            ),
+          );
+        }
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPending = widget.guardian.status == 'pending';
@@ -167,6 +208,46 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Block / Unblock ──
+            FutureBuilder<bool>(
+              future: ref
+                  .read(blockRepositoryProvider)
+                  .isBlocked(widget.guardian.guardianId),
+              builder: (context, snapshot) {
+                final isBlocked = snapshot.data ?? false;
+                return CustomCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      isBlocked
+                          ? SolarIconsOutline.userBlock
+                          : SolarIconsOutline.userMinus,
+                      color: isBlocked
+                          ? MekaarColors.sosRed
+                          : MekaarColors.textSecondary,
+                    ),
+                    title: Text(
+                      isBlocked ? 'Buka Blokir Guardian' : 'Blokir Guardian',
+                      style: MekaarTypography.labelLG.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isBlocked ? MekaarColors.sosRed : null,
+                      ),
+                    ),
+                    subtitle: Text(
+                      isBlocked
+                          ? 'Izinkan guardian ini menghubungi Anda kembali.'
+                          : 'Hentikan guardian ini mengirim pesan atau undangan.',
+                      style: MekaarTypography.bodySM,
+                    ),
+                    onTap: _toggleBlock,
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 16),
@@ -261,7 +342,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                       decoration: BoxDecoration(
                         color: _gpsEnabled
                             ? MekaarColors.infoLight
-                            : MekaarColors.surface2,
+                            : MekaarColors.surface2Of(context),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -296,7 +377,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                       decoration: BoxDecoration(
                         color: _micEnabled
                             ? MekaarColors.guardianLight
-                            : MekaarColors.surface2,
+                            : MekaarColors.surface2Of(context),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -331,7 +412,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                       decoration: BoxDecoration(
                         color: _videoEnabled
                             ? MekaarColors.guardianLight
-                            : MekaarColors.surface2,
+                            : MekaarColors.surface2Of(context),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -373,20 +454,25 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _savePermissions,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: MekaarColors.textPrimary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: _isSaving
-                    ? const CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         'Simpan Perubahan',
                         style: MekaarTypography.buttonLG.copyWith(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
               ),
@@ -506,7 +592,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? MekaarColors.softCoral.withValues(alpha: 0.1)
-                        : MekaarColors.surface2,
+                        : MekaarColors.surface2Of(context),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(

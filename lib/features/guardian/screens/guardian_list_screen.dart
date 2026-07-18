@@ -10,7 +10,8 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/mika_mascot.dart';
+import '../../../core/widgets/mika_illustration.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
 
@@ -33,8 +34,11 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myGuardians = ref.watch(guardianProvider);
-    final whoAddedMe = ref.watch(whoAddedMeProvider);
+    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    final myGuardians = wasDuress ? <Guardian>[] : ref.watch(guardianProvider);
+    final whoAddedMe = wasDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
+    final myGuardiansStatus = ref.watch(guardianLoadStatusProvider);
+    final whoAddedMeStatus = ref.watch(whoAddedMeLoadStatusProvider);
 
     return DefaultTabController(
       length: 2,
@@ -53,11 +57,11 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         ),
         body: Column(
           children: [
-            const TabBar(
+            TabBar(
               indicatorColor: MekaarColors.softCoral,
-              labelColor: MekaarColors.textPrimary,
-              unselectedLabelColor: MekaarColors.textMuted,
-              tabs: [
+              labelColor: MekaarColors.textPrimaryOf(context),
+              unselectedLabelColor: MekaarColors.textMutedOf(context),
+              tabs: const [
                 Tab(text: 'Guardian Saya'),
                 Tab(text: 'Menjaga Siapa'),
               ],
@@ -65,8 +69,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildMyGuardiansTab(myGuardians),
-                  _buildWhoAddedMeTab(whoAddedMe),
+                  _buildMyGuardiansTab(myGuardians, myGuardiansStatus),
+                  _buildWhoAddedMeTab(whoAddedMe, whoAddedMeStatus),
                 ],
               ),
             ),
@@ -76,7 +80,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     );
   }
 
-  Widget _buildMyGuardiansTab(List<Guardian> guardians) {
+  Widget _buildMyGuardiansTab(
+    List<Guardian> guardians,
+    GuardianLoadStatus status,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -99,7 +106,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(SolarIconsOutline.addCircle, color: MekaarColors.guardianTeal),
+                  Icon(
+                    SolarIconsOutline.addCircle,
+                    color: MekaarColors.guardianTeal,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Tambah Guardian Baru',
@@ -114,15 +124,23 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           ),
           const SizedBox(height: 20),
           Expanded(
-            child: guardians.isEmpty
+            child: status == GuardianLoadStatus.loading
+                ? const Center(child: CircularProgressIndicator())
+                : status == GuardianLoadStatus.error
+                ? _buildLoadError(
+                    () =>
+                        ref.read(guardianProvider.notifier).refreshGuardians(),
+                  )
+                : guardians.isEmpty
                 ? AnimatedAppear(
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const MikaMascot(
-                            expression: MikaExpression.happy,
-                            size: 84,
+                          const MikaIllustration(
+                            pose: MikaPose.ask,
+                            size: 110,
+                            semanticLabel: 'Belum ada guardian',
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -144,7 +162,9 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                     itemBuilder: (context, index) {
                       final guardian = guardians[index];
                       return AnimatedAppear(
-                        delay: Duration(milliseconds: (index * 40).clamp(0, 240)),
+                        delay: Duration(
+                          milliseconds: (index * 40).clamp(0, 240),
+                        ),
                         child: _buildGuardianCard(guardian, true),
                       );
                     },
@@ -155,17 +175,24 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     );
   }
 
-  Widget _buildWhoAddedMeTab(List<Guardian> list) {
+  Widget _buildWhoAddedMeTab(List<Guardian> list, GuardianLoadStatus status) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
-      child: list.isEmpty
+      child: status == GuardianLoadStatus.loading
+          ? const Center(child: CircularProgressIndicator())
+          : status == GuardianLoadStatus.error
+          ? _buildLoadError(
+              () => ref.read(whoAddedMeProvider.notifier).refresh(),
+            )
+          : list.isEmpty
           ? AnimatedAppear(
               child: Center(
                 child: Text(
                   'Belum ada yang menambahkan Anda sebagai Guardian.',
                   textAlign: TextAlign.center,
-                  style: MekaarTypography.bodyMD
-                      .copyWith(color: MekaarColors.textMuted),
+                  style: MekaarTypography.bodyMD.copyWith(
+                    color: MekaarColors.textMuted,
+                  ),
                 ),
               ),
             )
@@ -238,10 +265,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    guardian.email,
-                    style: MekaarTypography.bodySM,
-                  ),
+                  Text(guardian.email, style: MekaarTypography.bodySM),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -293,6 +317,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       SolarIconsOutline.checkCircle,
                       color: MekaarColors.success,
                     ),
+                    tooltip: 'Terima undangan Guardian',
                     onPressed: () async {
                       await ref
                           .read(whoAddedMeProvider.notifier)
@@ -304,11 +329,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       SolarIconsOutline.closeCircle,
                       color: MekaarColors.sosRed,
                     ),
-                    onPressed: () async {
-                      await ref
-                          .read(whoAddedMeProvider.notifier)
-                          .reject(guardian.id);
-                    },
+                    tooltip: 'Tolak undangan Guardian',
+                    onPressed: () => _confirmRejectGuardian(guardian),
                   ),
                 ],
               ),
@@ -341,7 +363,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                      'Hubungan dengan ${guardian.name} diputus. Blokir 24 jam aktif.'),
+                    'Hubungan dengan ${guardian.name} diputus. Blokir 24 jam aktif.',
+                  ),
                 ),
               );
             }
@@ -355,6 +378,57 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     );
   }
 
+  void _confirmRejectGuardian(Guardian guardian) {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Tolak undangan Guardian?',
+      message:
+          'Undangan dari ${guardian.name} akan dihapus dan tidak dapat dipulihkan.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
+          },
+          child: const Text(
+            'Tolak',
+            style: TextStyle(color: MekaarColors.sosRed),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadError(Future<void> Function() onRetry) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            SolarIconsOutline.dangerTriangle,
+            size: 36,
+            color: MekaarColors.textMuted,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Daftar Guardian tidak dapat dimuat.',
+            textAlign: TextAlign.center,
+            style: MekaarTypography.bodyMD.copyWith(
+              color: MekaarColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(onPressed: onRetry, child: const Text('Coba Lagi')),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBadge(String text, Color textColor, Color bgColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -364,10 +438,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
       ),
       child: Text(
         text,
-        style: MekaarTypography.labelSM.copyWith(
-          color: textColor,
-          fontSize: 9,
-        ),
+        style: MekaarTypography.labelSM.copyWith(color: textColor, fontSize: 9),
       ),
     );
   }
@@ -383,7 +454,9 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isEnabled ? SolarIconsOutline.checkCircle : SolarIconsOutline.closeCircle,
+            isEnabled
+                ? SolarIconsOutline.checkCircle
+                : SolarIconsOutline.closeCircle,
             size: 10,
             color: isEnabled ? MekaarColors.success : MekaarColors.textMuted,
           ),

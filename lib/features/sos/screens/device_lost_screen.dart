@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
 
 class DeviceLostScreen extends StatefulWidget {
@@ -19,35 +20,47 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
   final _messageController = TextEditingController();
   double? _lat;
   double? _lon;
+  bool _isLoadingLocation = true;
+  String? _locationError;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
+    Future.microtask(_loadLocation);
+  }
+
+  Future<void> _loadLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationError = null;
+      _lat = null;
+      _lon = null;
+    });
+
+    try {
       final locData = await LocationService.getCurrentLocation();
       if (!mounted) return;
       setState(() {
         _lat = locData?.latitude;
         _lon = locData?.longitude;
+        _isLoadingLocation = false;
+        _locationError = locData == null
+            ? 'Lokasi tidak dapat diperoleh. Periksa izin dan koneksi GPS.'
+            : null;
       });
-    });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingLocation = false;
+        _locationError = 'Gagal memuat lokasi perangkat.';
+      });
+    }
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     super.dispose();
-  }
-
-  void _triggerAlarm() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Perintah Alarm Terkirim! Perangkat akan membunyikan alarm keras.',
-        ),
-        backgroundColor: MekaarColors.success,
-      ),
-    );
   }
 
   Future<void> _openInOsm() async {
@@ -82,19 +95,6 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
     }
   }
 
-  void _lockWithCustomMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Layar Terkunci dengan Pesan: "$text"'),
-        backgroundColor: MekaarColors.success,
-      ),
-    );
-    _messageController.clear();
-  }
-
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
@@ -106,8 +106,35 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
             child: Column(
               children: [
                 Expanded(
-                  child: _lat == null || _lon == null
-                      ? const Center(child: Text('Lokasi tidak tersedia'))
+                  child: _isLoadingLocation
+                      ? const Center(child: CircularProgressIndicator())
+                      : _locationError != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const MikaIllustration(
+                                  pose: MikaPose.huft,
+                                  size: 90,
+                                  semanticLabel: 'Gagal memuat lokasi',
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _locationError!,
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _loadLocation,
+                                  icon: const Icon(SolarIconsOutline.refresh),
+                                  label: const Text('Coba Lagi'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                       : FlutterMap(
                           options: MapOptions(
                             initialCenter: LatLng(_lat!, _lon!),
@@ -140,7 +167,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     _lat == null || _lon == null
-                        ? 'Koordinat: —'
+                        ? 'Koordinat: -'
                         : 'Koordinat: $_lat, $_lon',
                     style: const TextStyle(
                       fontSize: 12,
@@ -155,7 +182,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             decoration: BoxDecoration(
-              color: MekaarColors.surface,
+              color: MekaarColors.surfaceOf(context),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
@@ -185,15 +212,20 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         icon: const Icon(SolarIconsOutline.volumeLoud),
-                        label: const Text('Bunyikan Alarm'),
+                        label: const Text('Alarm belum tersedia'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: MekaarColors.textPrimary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: _triggerAlarm,
+                        onPressed: null,
                       ),
                     ),
                   ],
@@ -215,7 +247,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Kirim Pesan Kunci Layar',
+                  'Pesan Kunci Layar (belum tersedia)',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -228,6 +260,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                     Expanded(
                       child: TextField(
                         controller: _messageController,
+                        enabled: false,
                         decoration: const InputDecoration(
                           hintText: 'Ponsel ini hilang. Hubungi 0812...',
                           contentPadding: EdgeInsets.symmetric(
@@ -238,19 +271,13 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: _lockWithCustomMessage,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: MekaarColors.softCoral,
+                    IconButton.filled(
+                      onPressed: null,
+                      icon: const Icon(SolarIconsOutline.plain, size: 20),
+                      style: IconButton.styleFrom(
+                        fixedSize: const Size(48, 48),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          SolarIconsOutline.plain,
-                          color: Colors.white,
-                          size: 20,
                         ),
                       ),
                     ),

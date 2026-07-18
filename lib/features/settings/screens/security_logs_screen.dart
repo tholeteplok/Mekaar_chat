@@ -150,7 +150,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: MekaarColors.surface2,
+                        color: MekaarColors.surface2Of(context),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(SolarIconsOutline.history, size: 40, color: MekaarColors.textMuted),

@@ -99,6 +99,95 @@ class AuthRepository {
     return Profile.fromJson(response);
   }
 
+  // Update last_seen_privacy preference
+  Future<Profile> updateLastSeenPrivacy(String privacyValue) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'last_seen_privacy': privacyValue,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
+  }
+
+  // Update read_receipts_enabled preference
+  Future<Profile> updateReadReceipts(bool enabled) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'read_receipts_enabled': enabled,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
+  }
+
+  // Update default auto-delete (disappearing messages) hours
+  Future<Profile> updateAutoDeleteDefault(int hours) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'auto_delete_default_hours': hours,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
+  }
+
+  // Enable 2FA: store TOTP secret and activate.
+  Future<Profile> enableTwoFa(String secret) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+    await _supabaseService.client.rpc(
+      'enable_2fa',
+      params: {'secret': secret},
+    );
+    final profile = await getProfile();
+    if (profile == null) throw Exception('Profil tidak ditemukan');
+    return profile;
+  }
+
+  // Disable 2FA: remove secret and deactivate.
+  Future<Profile> disableTwoFa() async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+    await _supabaseService.client.rpc('disable_2fa');
+    final profile = await getProfile();
+    if (profile == null) throw Exception('Profil tidak ditemukan');
+    return profile;
+  }
+
+  /// Catat device login. Mengembalikan true jika device BERBEDA dari sebelumnya.
+  Future<bool> recordLoginDevice(String deviceName) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return false;
+    try {
+      final response = await _supabaseService.client.rpc(
+        'record_login_device',
+        params: {'device_name': deviceName},
+      );
+      return response == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     try {

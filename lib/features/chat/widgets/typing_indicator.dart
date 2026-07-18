@@ -17,7 +17,22 @@ class _TypingIndicatorState extends State<TypingIndicator>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1000),
-  )..repeat();
+  );
+  bool? _animationsDisabled;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
+    if (_animationsDisabled == animationsDisabled) return;
+    _animationsDisabled = animationsDisabled;
+    if (animationsDisabled) {
+      _controller.stop();
+      _controller.value = 0;
+    } else {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -27,27 +42,32 @@ class _TypingIndicatorState extends State<TypingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(
-          vertical: MekaarSpacing.xs,
-          horizontal: MekaarSpacing.lg,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: MekaarColors.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(16),
+    return Semantics(
+      label: 'Sedang mengetik',
+      child: ExcludeSemantics(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.symmetric(
+              vertical: MekaarSpacing.xs,
+              horizontal: MekaarSpacing.lg,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: MekaarColors.surfaceOf(context),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(16),
+              ),
+              boxShadow: MekaarShadows.bubble,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (i) => _dot(i)),
+            ),
           ),
-          boxShadow: MekaarShadows.bubble,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) => _dot(i)),
         ),
       ),
     );

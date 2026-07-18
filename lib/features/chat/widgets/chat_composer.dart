@@ -1,11 +1,15 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/widgets/animations.dart';
 
@@ -21,6 +25,8 @@ class ChatComposer extends StatefulWidget {
   final Future<void> Function(File file, MessageType type)? onSendMedia;
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
+  final int autoDeleteHours;
+  final ValueChanged<int>? onAutoDeleteChanged;
 
   const ChatComposer({
     super.key,
@@ -35,6 +41,8 @@ class ChatComposer extends StatefulWidget {
     this.onSendMedia,
     this.onSendLocation,
     this.onShareLiveLocation,
+    this.autoDeleteHours = 0,
+    this.onAutoDeleteChanged,
   });
 
   @override
@@ -45,23 +53,197 @@ class _ChatComposerState extends State<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
 
+  AudioRecorder? _audioRecorder;
+  bool _isRecording = false;
+  int _recordDuration = 0;
+  Timer? _recordTimer;
+  String? _recordingPath;
+
   bool get _isEditMode => widget.editingMessage != null;
   bool get _hasText => widget.controller.text.trim().isNotEmpty;
+
+  late int _autoDeleteHours;
 
   @override
   void initState() {
     super.initState();
+    _autoDeleteHours = widget.autoDeleteHours;
     widget.controller.addListener(_onTextChanged);
+  }
+
+  void _setAutoDeleteHours(int hours) {
+    setState(() => _autoDeleteHours = hours);
+    widget.onAutoDeleteChanged?.call(hours);
+  }
+
+  String _autoDeleteLabel() {
+    if (_autoDeleteHours <= 0) return 'Pesan Menghilang';
+    if (_autoDeleteHours == 1) return 'Menghilang: 1 jam';
+    if (_autoDeleteHours == 24) return 'Menghilang: 1 hari';
+    if (_autoDeleteHours == 168) return 'Menghilang: 7 hari';
+    return 'Menghilang: $_autoDeleteHours jam';
+  }
+
+  Future<void> _showAutoDeleteMenu() async {
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final options = [
+          (0, 'Mati', 'Pesan disimpan selamanya'),
+          (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
+          (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
+          (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
+        ];
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text('Pesan Menghilang', style: MekaarTypography.headingSM),
+              const SizedBox(height: 8),
+              ...options.map((opt) {
+                final selected = opt.$1 == _autoDeleteHours;
+                return ListTile(
+                  leading: Icon(
+                    selected ? SolarIconsBold.history : SolarIconsOutline.history,
+                    color: selected ? MekaarColors.softCoral : null,
+                  ),
+                  title: Text(opt.$2),
+                  subtitle: Text(opt.$3),
+                  trailing: selected
+                      ? const Icon(Icons.check, color: MekaarColors.softCoral)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, opt.$1),
+                );
+              }),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+    if (choice != null) _setAutoDeleteHours(choice);
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
+    _recordTimer?.cancel();
+    _audioRecorder?.dispose();
     super.dispose();
   }
 
   void _onTextChanged() {
     if (mounted) setState(() {});
+  }
+
+  String _formatDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      _audioRecorder ??= AudioRecorder();
+      final hasPermission = await _audioRecorder!.hasPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Izin mikrofon diperlukan untuk merekam suara.'),
+              backgroundColor: MekaarColors.sosRed,
+            ),
+          );
+        }
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final path = '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      _recordingPath = path;
+
+      await _audioRecorder!.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: path,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordDuration = 0;
+      });
+
+      _recordTimer?.cancel();
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted) {
+          setState(() {
+            _recordDuration++;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+    }
+  }
+
+  Future<void> _stopAndSendRecording() async {
+    _recordTimer?.cancel();
+    if (_audioRecorder == null || !_isRecording) return;
+
+    try {
+      final path = await _audioRecorder!.stop();
+      setState(() {
+        _isRecording = false;
+        _recordDuration = 0;
+      });
+
+      if (path != null && widget.onSendMedia != null) {
+        final file = File(path);
+        if (await file.exists() && await file.length() > 0) {
+          await widget.onSendMedia!(file, MessageType.voice);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error stopping recording: $e');
+      setState(() {
+        _isRecording = false;
+        _recordDuration = 0;
+      });
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    _recordTimer?.cancel();
+    if (_audioRecorder == null || !_isRecording) return;
+
+    try {
+      await _audioRecorder!.stop();
+      setState(() {
+        _isRecording = false;
+        _recordDuration = 0;
+      });
+
+      if (_recordingPath != null) {
+        final file = File(_recordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cancelling recording: $e');
+      setState(() {
+        _isRecording = false;
+        _recordDuration = 0;
+      });
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -90,7 +272,7 @@ class _ChatComposerState extends State<ChatComposer> {
       builder: (ctx) => Container(
         margin: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: MekaarColors.surface,
+          color: MekaarColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -184,7 +366,7 @@ class _ChatComposerState extends State<ChatComposer> {
     final durations = [5, 15, 30];
     showModalBottomSheet(
       context: ctx,
-      backgroundColor: MekaarColors.surface,
+      backgroundColor: MekaarColors.surfaceOf(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -276,101 +458,230 @@ class _ChatComposerState extends State<ChatComposer> {
             horizontal: MekaarSpacing.md,
             vertical: MekaarSpacing.md,
           ),
-          decoration: const BoxDecoration(
-            color: MekaarColors.surface,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
             border: Border(
-              top: BorderSide(color: MekaarColors.borderLight, width: 1),
+              top: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.08),
+                width: 1,
+              ),
             ),
           ),
-          child: Row(
-            children: [
-              // View-once toggle
-              IconButton(
-                icon: Icon(
-                  SolarIconsOutline.eye,
-                  color: widget.isViewOnce
-                      ? MekaarColors.softCoral
-                      : MekaarColors.textMuted,
-                  size: 22,
-                ),
-                onPressed: widget.onToggleViewOnce,
-                tooltip: 'Mode Sekali Lihat',
-              ),
-              // Attachment button
-              if (!_isEditMode)
-                IconButton(
-                  icon: const Icon(SolarIconsOutline.paperclip,
-                      color: MekaarColors.textMuted, size: 22),
-                  onPressed: _showAttachmentSheet,
-                  tooltip: 'Lampiran',
-                ),
-              // Text input
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: MekaarColors.surface2,
-                    borderRadius: BorderRadius.circular(MekaarRadius.xl),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MekaarSpacing.lg,
-                  ),
-                  child: TextField(
-                    controller: widget.controller,
-                    decoration: InputDecoration(
-                      hintText: _isEditMode
-                          ? 'Edit pesan...'
-                          : 'Ketik pesan...',
-                      border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      fillColor: Colors.transparent,
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: MekaarSpacing.md,
+          child: _isRecording
+              ? Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        SolarIconsOutline.trashBinMinimalistic,
+                        color: MekaarColors.sosRed,
+                        size: 22,
+                      ),
+                      onPressed: _cancelRecording,
+                      tooltip: 'Batal Rekam',
+                    ),
+                    const SizedBox(width: MekaarSpacing.sm),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: MekaarColors.surface2Of(context),
+                          borderRadius: BorderRadius.circular(MekaarRadius.xl),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MekaarSpacing.lg,
+                          vertical: MekaarSpacing.md,
+                        ),
+                        child: Row(
+                          children: [
+                            const _BlinkingDot(),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Merekam... ${_formatDuration(_recordDuration)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: MekaarColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => widget.onSend(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: MekaarSpacing.sm),
-              // Send button (morph antara mic & kirim tergantung ada teks)
-              Semantics(
-                button: true,
-                label: _isEditMode
-                    ? 'Simpan edit'
-                    : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
-                child: PressableScale(
-                  onTap: widget.onSend,
-                  child: AnimatedContainer(
-                    duration: MekaarMotion.fast,
-                    curve: MekaarMotion.standard,
-                    width: MekaarSizes.composerButton,
-                    height: MekaarSizes.composerButton,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isEditMode
-                          ? MekaarColors.softCoral
-                          : (_hasText
-                              ? MekaarColors.softCoral
-                              : MekaarColors.textPrimary),
+                    const SizedBox(width: MekaarSpacing.sm),
+                    Semantics(
+                      button: true,
+                      label: 'Kirim rekaman',
+                      child: PressableScale(
+                        onTap: _stopAndSendRecording,
+                        child: AnimatedContainer(
+                          duration: MekaarMotion.fast,
+                          curve: MekaarMotion.standard,
+                          width: MekaarSizes.composerButton,
+                          height: MekaarSizes.composerButton,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: MekaarColors.softCoral,
+                          ),
+                          child: const Icon(
+                            SolarIconsOutline.plain,
+                            color: Colors.white,
+                            size: MekaarSizes.iconSm,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      _isEditMode
-                          ? SolarIconsOutline.checkCircle
-                          : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
-                      color: Colors.white,
-                      size: MekaarSizes.iconSm,
+                  ],
+                )
+              : Row(
+                  children: [
+                    // Auto-delete (disappearing messages) toggle
+                    IconButton(
+                      icon: Icon(
+                        _autoDeleteHours > 0
+                            ? SolarIconsBold.history
+                            : SolarIconsOutline.history,
+                        color: _autoDeleteHours > 0
+                            ? MekaarColors.softCoral
+                            : MekaarColors.textMuted,
+                        size: 22,
+                      ),
+                      onPressed: _showAutoDeleteMenu,
+                      tooltip: _autoDeleteLabel(),
                     ),
-                  ),
+                    // View-once toggle
+                    IconButton(
+                      icon: Icon(
+                        SolarIconsOutline.eye,
+                        color: widget.isViewOnce
+                            ? MekaarColors.softCoral
+                            : MekaarColors.textMuted,
+                        size: 22,
+                      ),
+                      onPressed: widget.onToggleViewOnce,
+                      tooltip: 'Mode Sekali Lihat',
+                    ),
+                    // Attachment button
+                    if (!_isEditMode)
+                      IconButton(
+                        icon: const Icon(SolarIconsOutline.paperclip,
+                            color: MekaarColors.textMuted, size: 22),
+                        onPressed: _showAttachmentSheet,
+                        tooltip: 'Lampiran',
+                      ),
+                    // Text input
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: MekaarColors.surface2Of(context),
+                          borderRadius: BorderRadius.circular(MekaarRadius.xl),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MekaarSpacing.lg,
+                        ),
+                        child: TextField(
+                          controller: widget.controller,
+                          decoration: InputDecoration(
+                            hintText: _isEditMode
+                                ? 'Edit pesan...'
+                                : 'Ketik pesan...',
+                            border: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            fillColor: Colors.transparent,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: MekaarSpacing.md,
+                            ),
+                          ),
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => widget.onSend(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: MekaarSpacing.sm),
+                    // Send/Mic button (morph antara mic & kirim tergantung ada teks)
+                    Semantics(
+                      button: true,
+                      label: _isEditMode
+                          ? 'Simpan edit'
+                          : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
+                      child: PressableScale(
+                        onTap: _isEditMode || _hasText ? widget.onSend : _startRecording,
+                        child: AnimatedContainer(
+                          duration: MekaarMotion.fast,
+                          curve: MekaarMotion.standard,
+                          width: MekaarSizes.composerButton,
+                          height: MekaarSizes.composerButton,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isEditMode
+                                ? MekaarColors.softCoral
+                                : (_hasText
+                                    ? MekaarColors.softCoral
+                                    : MekaarColors.surface2Of(context)),
+                          ),
+                          child: Icon(
+                            _isEditMode
+                                ? SolarIconsOutline.checkCircle
+                                : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
+                            color: (_isEditMode || _hasText)
+                                ? Colors.white
+                                : (Theme.of(context).brightness == Brightness.light
+                                    ? const Color(0xFF1B2145)
+                                    : MekaarColors.textPrimary),
+                            size: MekaarSizes.iconSm,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ],
+    );
+  }
+}
+
+class _BlinkingDot extends StatefulWidget {
+  const _BlinkingDot();
+
+  @override
+  State<_BlinkingDot> createState() => _BlinkingDotState();
+}
+
+class _BlinkingDotState extends State<_BlinkingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: MekaarColors.sosRed,
+          shape: BoxShape.circle,
+        ),
+      ),
     );
   }
 }
@@ -391,7 +702,7 @@ class _ReplyPreview extends StatelessWidget {
         horizontal: MekaarSpacing.lg,
         vertical: MekaarSpacing.sm,
       ),
-      color: MekaarColors.surface2,
+      color: MekaarColors.surface2Of(context),
       child: Row(
         children: [
           const Icon(

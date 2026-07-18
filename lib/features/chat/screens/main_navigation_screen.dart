@@ -15,6 +15,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  late PageController _pageController;
 
   final List<Widget> _screens = const [
     ChatListScreen(),
@@ -28,29 +29,44 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   static const double barWidth = 3.0 * (z + 32.0); // Total width (3 * 56 = 168)
 
   @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Theme-adaptive bar background and border per requirements
     final navBgColor = isDark ? MekaarColors.cardDark : Colors.white;
-    final navBorderColor = isDark 
-        ? Colors.white.withValues(alpha: 0.08) 
+    final navBorderColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
         : Colors.black.withValues(alpha: 0.08);
 
     return MekaarCanvas(
       child: Scaffold(
-        backgroundColor: Colors.transparent, // Background handled by MekaarCanvas gradient
+        backgroundColor:
+            Colors.transparent, // Background handled by MekaarCanvas gradient
         body: Stack(
           children: [
-            // Preserve scroll and state of each page using IndexedStack
-            Padding(
-              padding: const EdgeInsets.only(bottom: 90), // Spacing for floating navbar
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _screens,
-              ),
+            // PageView allows swipe transition between tabs
+            PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              children: _screens,
             ),
-            
+
             // Floating Compact Bottom Navigation Bar
             Align(
               alignment: Alignment.bottomCenter,
@@ -65,7 +81,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   border: Border.all(color: navBorderColor, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.35 : 0.12,
+                      ),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -74,9 +92,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildNavItem(0, SolarIconsOutline.chatSquare, SolarIconsBold.chatSquare),
-                    _buildNavItem(1, SolarIconsOutline.user, SolarIconsBold.user),
-                    _buildNavItem(2, SolarIconsOutline.settings, SolarIconsBold.settings),
+                    _buildNavItem(
+                      0,
+                      SolarIconsOutline.chatSquare,
+                      SolarIconsBold.chatSquare,
+                    ),
+                    _buildNavItem(
+                      1,
+                      SolarIconsOutline.user,
+                      SolarIconsBold.user,
+                    ),
+                    _buildNavItem(
+                      2,
+                      SolarIconsOutline.settings,
+                      SolarIconsBold.settings,
+                    ),
                   ],
                 ),
               ),
@@ -90,45 +120,63 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon) {
     final isActive = _currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
+    const labels = ['Pesan', 'Profil', 'Pengaturan'];
+
     final inactiveColor = isDark ? MekaarColors.textMuted : Colors.black45;
 
-    return GestureDetector(
-      onTap: () {
-        if (_currentIndex != index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        }
-      },
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: z + 32.0, // Exactly 56px width per tab
-        height: barHeight, // Exactly 56px height per tab
-        child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            width: isActive ? activeSize : z,
-            height: isActive ? activeSize : z,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isActive ? MekaarColors.softCoral : Colors.transparent,
-              boxShadow: isActive
-                  ? [
-                      BoxShadow(
-                        color: MekaarColors.softCoral.withValues(alpha: 0.3),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      )
-                    ]
-                  : null,
-            ),
-            child: Center(
-              child: Icon(
-                isActive ? activeIcon : inactiveIcon,
-                color: isActive ? Colors.white : inactiveColor,
-                size: z,
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: labels[index],
+      child: InkResponse(
+        onTap: () {
+          if (_currentIndex != index) {
+            setState(() {
+              _currentIndex = index;
+            });
+            if (animationsDisabled) {
+              _pageController.jumpToPage(index);
+            } else {
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+              );
+            }
+          }
+        },
+        radius: barHeight / 2,
+        child: SizedBox(
+          width: z + 32.0, // Exactly 56px width per tab
+          height: barHeight, // Exactly 56px height per tab
+          child: Center(
+            child: AnimatedContainer(
+              duration: animationsDisabled
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: isActive ? activeSize : z,
+              height: isActive ? activeSize : z,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive ? MekaarColors.softCoral : Colors.transparent,
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: MekaarColors.softCoral.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Center(
+                child: Icon(
+                  isActive ? activeIcon : inactiveIcon,
+                  color: isActive ? Colors.white : inactiveColor,
+                  size: z,
+                ),
               ),
             ),
           ),

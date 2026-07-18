@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/widgets/mekaar_scaffold.dart';
-import '../providers/sos_provider.dart';
-import '../../guardian/providers/guardian_provider.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../guardian/providers/guardian_provider.dart';
+import '../providers/sos_provider.dart';
 
 class SOSActiveScreen extends ConsumerStatefulWidget {
   const SOSActiveScreen({super.key});
@@ -16,6 +16,8 @@ class SOSActiveScreen extends ConsumerStatefulWidget {
 }
 
 class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
+  bool _allowPop = false;
+
   @override
   void initState() {
     super.initState();
@@ -32,30 +34,45 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
     return '$minutes:$seconds';
   }
 
-  void _handleEndSOS() {
+  void _handleEndSOS(SOSState sosState) {
+    final isQueued = sosState.status == SOSStatus.queuedOffline;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Akhiri Mode Darurat?'),
-        content: const Text(
-          'Akses lokasi GPS real-time dan perekaman audio ke Guardian akan dihentikan secara total.',
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          isQueued ? 'Batalkan SOS Tertunda?' : 'Akhiri Mode Darurat?',
+        ),
+        content: Text(
+          isQueued
+              ? 'Permintaan SOS akan dihapus dari perangkat dan tidak dikirim saat koneksi kembali.'
+              : 'Sesi SOS aktif, akses lokasi, dan perekaman audio akan dihentikan.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Batal'),
           ),
           TextButton(
             onPressed: () async {
               await ref.read(sosProvider.notifier).endSOS();
-              if (context.mounted) {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close SOS Screen
+              if (!mounted) return;
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              final current = ref.read(sosProvider);
+              if (current.status == SOSStatus.idle) {
+                setState(() => _allowPop = true);
+                await WidgetsBinding.instance.endOfFrame;
+                if (!mounted) return;
+                Navigator.pop(context);
+              } else if (current.message != null) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(current.message!)));
               }
             },
-            child: const Text(
-              'Akhiri',
-              style: TextStyle(
+            child: Text(
+              isQueued ? 'Batalkan' : 'Akhiri',
+              style: const TextStyle(
                 color: MekaarColors.sosRed,
                 fontWeight: FontWeight.bold,
               ),
@@ -69,40 +86,83 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   @override
   Widget build(BuildContext context) {
     final sosState = ref.watch(sosProvider);
-    final guardians = ref.watch(guardianProvider);
-    final activeGuardians = guardians
-        .where((g) => g.status == 'active')
-        .map((g) => g.name)
-        .toList();
+    final activeGuardians = activeGuardiansOf(
+      ref.watch(guardianProvider),
+    ).map((guardian) => guardian.name).toList();
+    final isActive = sosState.status == SOSStatus.active;
+    final useEmergencyForeground = isActive;
+    final statusTitleColor = useEmergencyForeground
+        ? Colors.white
+        : MekaarColors.textPrimaryOf(context);
+    final statusBodyColor = useEmergencyForeground
+        ? Colors.white.withValues(alpha: 0.7)
+        : MekaarColors.textSecondaryOf(context);
+    final canEnd = isActive || sosState.status == SOSStatus.queuedOffline;
 
-    final guardianText = activeGuardians.isEmpty
-        ? 'Tidak ada Guardian aktif.'
-        : 'Guardian (${activeGuardians.join(', ')}) sedang melacak lokasi${sosState.micPermissionDenied ? ' Anda.' : ' dan mendengar audio sekitar perangkat.'}';
+    final title = switch (sosState.status) {
+      SOSStatus.idle => 'MENYIAPKAN SOS',
+      SOSStatus.activating => 'MENGAKTIFKAN SOS',
+      SOSStatus.active => 'MODE DARURAT AKTIF',
+      SOSStatus.queuedOffline => 'SOS TERTUNDA OFFLINE',
+      SOSStatus.failed => 'SOS GAGAL DIMULAI',
+      SOSStatus.ending => 'MENGAKHIRI SOS',
+    };
 
-    return MekaarScaffold(
-      body: SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment.center,
-              radius: 1.2,
-              colors: [
-                MekaarColors.sosRed.withValues(alpha: 0.15),
-                Colors.transparent,
-              ],
+    final statusText = switch (sosState.status) {
+      SOSStatus.active when sosState.message != null => sosState.message!,
+      SOSStatus.active when activeGuardians.isEmpty =>
+        'SOS tercatat aktif. Tidak ada Guardian aktif yang terhubung ke akun Anda. Tambahkan Guardian setelah Anda berada di tempat aman.',
+      SOSStatus.active =>
+        'SOS tercatat aktif. Guardian yang terhubung: ${activeGuardians.join(', ')}. '
+            '${sosState.isGpsStreaming ? 'Lokasi perangkat dibagikan.' : 'Lokasi perangkat tidak dibagikan.'} '
+            '${sosState.isAudioStreaming
+                ? 'Audio perangkat dibagikan.'
+                : sosState.micPermissionDenied
+                ? 'Audio tidak tersedia karena izin mikrofon ditolak.'
+                : 'Audio perangkat tidak dibagikan.'}',
+      SOSStatus.queuedOffline =>
+        sosState.message ?? 'SOS belum terkirim dan menunggu koneksi.',
+      SOSStatus.failed => sosState.message ?? 'SOS gagal dimulai. Coba lagi.',
+      SOSStatus.ending => 'Sedang memastikan SOS berakhir dengan aman.',
+      _ =>
+        'Menunggu konfirmasi sesi. Guardian belum menerima status pelacakan.',
+    };
+
+    return PopScope(
+      canPop: _allowPop || sosState.status == SOSStatus.failed,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final message = isActive
+            ? 'SOS masih aktif. Akhiri Mode Darurat sebelum kembali.'
+            : sosState.status == SOSStatus.queuedOffline
+            ? 'SOS masih tertunda. Batalkan SOS tertunda sebelum kembali.'
+            : 'Proses SOS belum selesai. Tunggu konfirmasi status.';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      },
+      child: MekaarScaffold(
+        body: SafeArea(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 1.2,
+                colors: [
+                  MekaarColors.sosRed.withValues(alpha: 0.15),
+                  Colors.transparent,
+                ],
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                const Spacer(),
-                // Large Pulsing Visual Core
-                TweenAnimationBuilder(
-                  tween: Tween<double>(begin: 1.0, end: 1.15),
-                  duration: const Duration(seconds: 1),
-                  builder: (context, value, child) {
-                    return Container(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 1, end: 1.15),
+                    duration: const Duration(seconds: 1),
+                    builder: (context, value, child) => Container(
                       width: 140 * value,
                       height: 140 * value,
                       decoration: BoxDecoration(
@@ -126,142 +186,98 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 36),
-                Text(
-                  'MODE DARURAT AKTIF',
-                  style: MekaarTypography.monoLG.copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  guardianText,
-                  textAlign: TextAlign.center,
-                  style: MekaarTypography.bodyMD.copyWith(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    height: 1.5,
+                  const SizedBox(height: 36),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: MekaarTypography.monoLG.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: statusTitleColor,
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                ),
-                if (sosState.micPermissionDenied) ...[
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                  Text(
+                    statusText,
+                    textAlign: TextAlign.center,
+                    style: MekaarTypography.bodyMD.copyWith(
+                      color: statusBodyColor,
+                      height: 1.5,
                     ),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.warningLight,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          SolarIconsOutline.microphone,
+                  ),
+                  if (isActive && sosState.micPermissionDenied) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.warningLight,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Text(
+                        'Izin Mikrofon Ditolak',
+                        style: MekaarTypography.labelMD.copyWith(
                           color: MekaarColors.warning,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Izin Mikrofon Ditolak',
-                          style: MekaarTypography.labelMD.copyWith(
-                            color: MekaarColors.warning,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 48),
-                // Counter duration timer
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: Text(
-                    _formatDuration(sosState.elapsedSeconds),
-                    style: MekaarTypography.monoXL,
-                  ),
-                ),
-                const Spacer(),
-                // Actions Area
-                Column(
-                  children: [
-                    if (sosState.isSOSActive) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(SolarIconsOutline.gps),
-                          label: const Text('Lihat Lokasi Saya'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: MekaarColors.textPrimary,
-                            side: BorderSide(
-                              color: MekaarColors.softCoral.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          onPressed: () async {
-                            final result = await ref
-                                .read(sosProvider.notifier)
-                                .getOwnSessionWithPing();
-                            if (!context.mounted) return;
-                            final ping = result?['ping'] as Map?;
-                            if (ping != null) {
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.map,
-                                arguments: {
-                                  'latitude': ping['latitude'] as double,
-                                  'longitude': ping['longitude'] as double,
-                                  'locationName': 'Lokasi Saya',
-                                },
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Lokasi belum tersedia'),
-                                ),
-                              );
-                            }
-                          },
                         ),
                       ),
-                      const SizedBox(height: 14),
-                    ],
+                    ),
+                  ],
+                  if (isActive) ...[
+                    const SizedBox(height: 48),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 28,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Text(
+                        _formatDuration(sosState.elapsedSeconds),
+                        style: MekaarTypography.monoXL,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (isActive) ...[
                     SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.videocam_outlined),
-                        label: const Text('Kirim Video ke Guardian'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: MekaarColors.sosRed,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/sos/video');
+                      child: OutlinedButton.icon(
+                        icon: const Icon(SolarIconsOutline.gps),
+                        label: const Text('Lihat Lokasi Saya'),
+                        onPressed: () async {
+                          final result = await ref
+                              .read(sosProvider.notifier)
+                              .getOwnSessionWithPing();
+                          if (!mounted) return;
+                          final ping = result?['ping'] as Map?;
+                          if (ping == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Lokasi belum tersedia'),
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.map,
+                            arguments: {
+                              'latitude': ping['latitude'] as double,
+                              'longitude': ping['longitude'] as double,
+                              'locationName': 'Lokasi Saya',
+                            },
+                          );
                         },
                       ),
                     ),
@@ -269,25 +285,43 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(SolarIconsOutline.closeSquare),
-                        label: const Text('Akhiri Mode Darurat'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: _handleEndSOS,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.videocam_outlined),
+                        label: const Text('Kirim Video ke Guardian'),
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/sos/video'),
                       ),
                     ),
+                    const SizedBox(height: 14),
                   ],
-                ),
-                const SizedBox(height: 20),
-              ],
+                  if (canEnd)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(SolarIconsOutline.closeSquare),
+                        label: Text(
+                          sosState.status == SOSStatus.queuedOffline
+                              ? 'Batalkan SOS Tertunda'
+                              : 'Akhiri Mode Darurat',
+                        ),
+                        onPressed: () => _handleEndSOS(sosState),
+                      ),
+                    ),
+                  if (sosState.status == SOSStatus.failed)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () => ref
+                            .read(sosProvider.notifier)
+                            .activateSOS(gps: true, mic: true, video: false),
+                        child: const Text('Coba Lagi'),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ),

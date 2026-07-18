@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 
 class MekaarDialog extends StatelessWidget {
@@ -40,14 +39,42 @@ class MekaarDialog extends StatelessWidget {
     );
   }
 
+  static Future<bool> showNoActiveGuardianWarning({
+    required BuildContext context,
+  }) async {
+    final shouldContinue = await showConfirmation<bool>(
+      context: context,
+      barrierDismissible: false,
+      isDestructive: true,
+      icon: Icon(
+        Icons.shield_outlined,
+        color: Theme.of(context).colorScheme.error,
+      ),
+      title: 'Belum Ada Guardian Aktif',
+      message:
+          'Tidak ada Guardian aktif yang akan menerima notifikasi SOS Anda. '
+          'Anda tetap dapat mengaktifkan SOS untuk merekam sesi dan lokasi darurat.',
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Tetap Aktifkan SOS'),
+        ),
+      ],
+    );
+    return shouldContinue ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final accentColor = isDestructive
-        ? MekaarColors.sosRed
-        : MekaarColors.softCoral;
+    final colorScheme = Theme.of(context).colorScheme;
+    final accentColor = isDestructive ? colorScheme.error : colorScheme.primary;
 
     return AlertDialog(
-      backgroundColor: Theme.of(context).cardColor,
+      backgroundColor: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(MekaarRadius.lg),
       ),
@@ -72,17 +99,21 @@ class MekaarDialog extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: colorScheme.onSurface,
+              ),
             ),
           ),
         ],
       ),
       content: Text(
         message,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           height: 1.45,
-          color: MekaarColors.textSecondary,
+          color: colorScheme.onSurfaceVariant,
         ),
       ),
       actions: actions,

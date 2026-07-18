@@ -24,8 +24,12 @@ final logRepositoryProvider = Provider<LogRepository>((ref) {
 });
 
 // State definition
+enum SOSStatus { idle, activating, active, queuedOffline, failed, ending }
+
 class SOSState {
+  final SOSStatus status;
   final SOSSession? activeSession;
+  final String? message;
   final bool isGpsStreaming;
   final bool isAudioStreaming;
   final bool isVideoStreaming;
@@ -34,7 +38,9 @@ class SOSState {
   final bool needsInactivityAck; // prompt "Apakah Anda Aman?" sebelum auto-end
 
   SOSState({
+    this.status = SOSStatus.idle,
     this.activeSession,
+    this.message,
     this.isGpsStreaming = false,
     this.isAudioStreaming = false,
     this.isVideoStreaming = false,
@@ -43,10 +49,12 @@ class SOSState {
     this.needsInactivityAck = false,
   });
 
-  bool get isSOSActive => activeSession != null;
+  bool get isSOSActive => status == SOSStatus.active && activeSession != null;
 
   SOSState copyWith({
+    SOSStatus? status,
     SOSSession? activeSession,
+    String? message,
     bool? isGpsStreaming,
     bool? isAudioStreaming,
     bool? isVideoStreaming,
@@ -54,18 +62,20 @@ class SOSState {
     bool? micPermissionDenied,
     bool? needsInactivityAck,
     bool clearActiveSession = false,
+    bool clearMessage = false,
   }) {
     return SOSState(
+      status: status ?? this.status,
       activeSession: clearActiveSession
           ? null
           : (activeSession ?? this.activeSession),
+      message: clearMessage ? null : (message ?? this.message),
       isGpsStreaming: isGpsStreaming ?? this.isGpsStreaming,
       isAudioStreaming: isAudioStreaming ?? this.isAudioStreaming,
       isVideoStreaming: isVideoStreaming ?? this.isVideoStreaming,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       micPermissionDenied: micPermissionDenied ?? this.micPermissionDenied,
-      needsInactivityAck:
-          needsInactivityAck ?? this.needsInactivityAck,
+      needsInactivityAck: needsInactivityAck ?? this.needsInactivityAck,
     );
   }
 }
@@ -91,15 +101,25 @@ class SOSNotifier extends StateNotifier<SOSState> {
   // kirim otomatis saat koneksi kembali.
   static const String _pendingKey = 'pending_sos_queue';
   Timer? _flushTimer;
+  Future<void>? _pendingFlushOperation;
+  late final Future<void> _initialization;
 
   SOSNotifier(this._sosRepository, this._logRepository)
-      : super(SOSState()) {
-    _checkActiveSOS();
-    _tryFlushPendingSOS();
+    : super(SOSState(status: SOSStatus.activating)) {
+    _initialization = _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final restored = await _checkActiveSOS();
+    if (restored) return;
+
+    state = SOSState();
+    final queued = await _tryFlushPendingSOS();
+    if (!queued) state = SOSState();
   }
 
   // Simpan payload SOS ke antrean lokal (SharedPreferences).
-  Future<void> _enqueuePendingSOS(
+  Future<bool> _enqueuePendingSOS(
     bool gps,
     bool mic,
     bool video,
@@ -107,54 +127,157 @@ class SOSNotifier extends StateNotifier<SOSState> {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final queue = prefs.getStringList(_pendingKey) ?? [];
-      queue.add(jsonEncode({
-        'gps': gps,
-        'mic': mic,
-        'video': video,
-        'pressed_at': pressedAt.toIso8601String(),
-      }));
-      await prefs.setStringList(_pendingKey, queue);
-    } catch (_) {}
-  }
-
-  Future<void> _clearPendingSOS() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_pendingKey);
-    } catch (_) {}
-  }
-
-  // Coba kirim ulang SOS yang tertunda saat sinyal kembali.
-  Future<void> _tryFlushPendingSOS() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final queue = prefs.getStringList(_pendingKey) ?? [];
-      if (queue.isEmpty) return;
-
-      for (final item in queue) {
-        final data = jsonDecode(item) as Map<String, dynamic>;
-        await activateSOS(
-          gps: data['gps'] as bool,
-          mic: data['mic'] as bool,
-          video: data['video'] as bool,
-        );
-      }
-      await _clearPendingSOS();
+      final queue = [
+        jsonEncode({
+          'gps': gps,
+          'mic': mic,
+          'video': video,
+          'pressed_at': pressedAt.toIso8601String(),
+        }),
+      ];
+      return prefs.setStringList(_pendingKey, queue);
     } catch (_) {
-      // Masih offline — coba lagi nanti via timer periodik.
-      _flushTimer?.cancel();
-      _flushTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-        _tryFlushPendingSOS();
-      });
+      return false;
     }
   }
 
-  Future<void> _checkActiveSOS() async {
+  Future<bool> _clearPendingSOS() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.remove(_pendingKey);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Coba kirim ulang SOS yang tertunda saat sinyal kembali.
+  Future<bool> _tryFlushPendingSOS() async {
+    if (state.status == SOSStatus.active ||
+        state.status == SOSStatus.activating ||
+        state.status == SOSStatus.ending) {
+      return false;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queue = prefs.getStringList(_pendingKey) ?? [];
+      if (queue.isEmpty) return false;
+      if (state.status == SOSStatus.active ||
+          state.status == SOSStatus.activating ||
+          state.status == SOSStatus.ending) {
+        return false;
+      }
+
+      state = state.copyWith(
+        status: SOSStatus.queuedOffline,
+        message:
+            'SOS tersimpan di perangkat dan akan dikirim saat koneksi tersedia.',
+        clearActiveSession: true,
+      );
+      _schedulePendingFlush();
+      return true;
+    } catch (_) {
+      _schedulePendingFlush();
+      return false;
+    }
+  }
+
+  void _schedulePendingFlush() {
+    _flushTimer ??= Timer.periodic(const Duration(seconds: 15), (_) async {
+      if (state.status != SOSStatus.queuedOffline ||
+          _pendingFlushOperation != null) {
+        return;
+      }
+
+      final operation = _flushPendingSOS();
+      _pendingFlushOperation = operation;
+      await operation;
+      if (identical(_pendingFlushOperation, operation)) {
+        _pendingFlushOperation = null;
+      }
+    });
+  }
+
+  Future<void> _flushPendingSOS() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queue = prefs.getStringList(_pendingKey) ?? [];
+      if (queue.isEmpty) {
+        _flushTimer?.cancel();
+        _flushTimer = null;
+        state = SOSState();
+        return;
+      }
+
+      final data = jsonDecode(queue.first) as Map<String, dynamic>;
+      final session = await _sosRepository.startSOS(
+        gps: data['gps'] as bool,
+        mic: data['mic'] as bool,
+        video: data['video'] as bool,
+      );
+
+      if (state.status != SOSStatus.queuedOffline) {
+        try {
+          await _sosRepository.endSession(session.id);
+        } catch (_) {
+          state = SOSState(
+            status: SOSStatus.active,
+            activeSession: session,
+            message:
+                'Pembatalan terlambat diterima dan sesi SOS sudah aktif. Akhiri Mode Darurat untuk mencoba lagi.',
+          );
+          _startSessionTimers(session.id);
+        }
+        return;
+      }
+
+      final saved = await prefs.remove(_pendingKey);
+      if (!saved) {
+        try {
+          await _sosRepository.endSession(session.id);
+        } catch (_) {
+          await _clearPendingSOS();
+          _flushTimer?.cancel();
+          _flushTimer = null;
+          await _confirmActiveSession(
+            session,
+            gps: data['gps'] as bool,
+            mic: data['mic'] as bool,
+            video: data['video'] as bool,
+          );
+          state = state.copyWith(
+            message:
+                'Sesi SOS sudah aktif, tetapi antrean lokal gagal diperbarui.',
+          );
+        }
+        return;
+      }
+
+      _flushTimer?.cancel();
+      _flushTimer = null;
+      await _confirmActiveSession(
+        session,
+        gps: data['gps'] as bool,
+        mic: data['mic'] as bool,
+        video: data['video'] as bool,
+      );
+    } catch (_) {
+      // Tetap queued; timer akan mencoba lagi saat koneksi tersedia.
+    }
+  }
+
+  Future<bool> _checkActiveSOS() async {
     try {
       final active = await _sosRepository.getMyActiveSOS();
       if (active != null) {
-        state = state.copyWith(activeSession: active);
+        _flushTimer?.cancel();
+        _flushTimer = null;
+        await _clearPendingSOS();
+        state = state.copyWith(
+          status: SOSStatus.active,
+          activeSession: active,
+          clearMessage: true,
+        );
         _startSessionTimers(active.id);
         if (active.gpsEnabled) {
           _startLocationStreaming(active.id);
@@ -168,10 +291,12 @@ class SOSNotifier extends StateNotifier<SOSState> {
           );
         }
         _startAccelerometerWatch();
+        return true;
       }
     } catch (_) {
       // Supabase is not initialized, ignore safely.
     }
+    return false;
   }
 
   /// Aktivasi SOS: mulai session, GPS, dan mic (jika diizinkan guardian).
@@ -181,79 +306,141 @@ class SOSNotifier extends StateNotifier<SOSState> {
     bool mic = false,
     bool video = false,
   }) async {
+    await _initialization;
+    if (state.status == SOSStatus.activating ||
+        state.status == SOSStatus.active ||
+        state.status == SOSStatus.ending ||
+        state.status == SOSStatus.queuedOffline) {
+      return;
+    }
+
+    state = SOSState(status: SOSStatus.activating);
+
+    SOSSession session;
     try {
-      final session = await _sosRepository.startSOS(
-        gps: gps,
-        mic: mic,
-        video: video,
-      );
+      session = await _sosRepository.startSOS(gps: gps, mic: mic, video: video);
+    } catch (_) {
+      // Offline / tidak ada sinyal: simpan ke antrean lokal, kirim saat sinyal kembali.
+      final queued = await _enqueuePendingSOS(gps, mic, video, DateTime.now());
+      if (queued) {
+        state = SOSState(
+          status: SOSStatus.queuedOffline,
+          message:
+              'SOS belum terkirim. Permintaan tersimpan di perangkat dan akan dikirim saat koneksi tersedia.',
+        );
+        _schedulePendingFlush();
+      } else {
+        state = SOSState(
+          status: SOSStatus.failed,
+          message:
+              'SOS gagal dimulai dan tidak dapat disimpan di perangkat. Periksa koneksi lalu coba lagi.',
+        );
+      }
+      return;
+    }
 
-      bool audioStarted = false;
-      bool micDenied = false;
+    await _confirmActiveSession(session, gps: gps, mic: mic, video: video);
+  }
 
-      // Hanya start mic jika parameter mic = true (guardian sudah beri izin)
-      if (mic) {
+  Future<void> _confirmActiveSession(
+    SOSSession session, {
+    required bool gps,
+    required bool mic,
+    required bool video,
+  }) async {
+    bool audioStarted = false;
+    bool micDenied = false;
+
+    if (mic) {
+      try {
         audioStarted = await _audioService.startMicStreaming();
         micDenied = !audioStarted;
+      } catch (_) {
+        micDenied = true;
       }
+    }
 
-      state = state.copyWith(
-        activeSession: session,
-        isGpsStreaming: gps,
-        isAudioStreaming: audioStarted,
-        isVideoStreaming: video,
-        elapsedSeconds: 0,
-        micPermissionDenied: micDenied,
-      );
+    state = SOSState(
+      status: SOSStatus.active,
+      activeSession: session,
+      isGpsStreaming: gps,
+      isAudioStreaming: audioStarted,
+      isVideoStreaming: video,
+      micPermissionDenied: micDenied,
+    );
 
-      _startSessionTimers(session.id);
-
+    _startSessionTimers(session.id);
+    try {
       if (gps) {
         _startLocationStreaming(session.id);
       }
-
       _startAccelerometerWatch();
       resetInactivityTimer();
-
-      try {
-        await _logRepository.logEvent('sos_started', {
-          'session_id': session.id,
-          'gps_enabled': gps,
-          'mic_enabled': mic,
-          'video_enabled': video,
-        });
-
-        final guardians = await _sosRepository.getMyActiveGuardians();
-        for (final guardian in guardians) {
-          await NotificationService.sendSOSNotification(
-            guardianId: guardian,
-            sessionId: session.id,
-            gps: gps,
-            mic: mic,
-            video: video,
-          );
-        }
-      } catch (_) {}
     } catch (_) {
-      // Offline / tidak ada sinyal: simpan ke antrean lokal, kirim saat sinyal kembali.
-      await _enqueuePendingSOS(gps, mic, video, DateTime.now());
+      // Sesi server tetap aktif meski salah satu stream lokal gagal dimulai.
     }
+
+    try {
+      await _logRepository.logEvent('sos_started', {
+        'session_id': session.id,
+        'gps_enabled': gps,
+        'mic_enabled': mic,
+        'video_enabled': video,
+      });
+
+      final guardians = await _sosRepository.getMyActiveGuardians();
+      for (final guardian in guardians) {
+        await NotificationService.sendSOSNotification(
+          guardianId: guardian,
+          sessionId: session.id,
+          gps: gps,
+          mic: mic,
+          video: video,
+        );
+      }
+    } catch (_) {}
   }
 
   /// Akhiri SOS: hentikan semua stream, update session
   Future<void> endSOS({String reason = 'manual'}) async {
+    if (state.status == SOSStatus.queuedOffline) {
+      state = state.copyWith(status: SOSStatus.ending, clearMessage: true);
+      _flushTimer?.cancel();
+      _flushTimer = null;
+      final cleared = await _clearPendingSOS();
+      await _pendingFlushOperation;
+      if (state.status == SOSStatus.active) return;
+      state = cleared
+          ? SOSState()
+          : SOSState(
+              status: SOSStatus.queuedOffline,
+              message:
+                  'Permintaan SOS tertunda gagal dibatalkan. Coba akhiri lagi sebelum koneksi kembali.',
+            );
+      return;
+    }
+
     final session = state.activeSession;
-    if (session == null) return;
+    if (state.status != SOSStatus.active || session == null) return;
+
+    state = state.copyWith(status: SOSStatus.ending, clearMessage: true);
+
+    try {
+      await _sosRepository.endSession(session.id, reason: reason);
+    } catch (_) {
+      state = state.copyWith(
+        status: SOSStatus.active,
+        message:
+            'SOS belum berhasil diakhiri. Sesi masih aktif; periksa koneksi lalu coba lagi.',
+      );
+      return;
+    }
 
     _timer?.cancel();
     _locationSubscription?.cancel();
     _inactivityTimer?.cancel();
     _accelerometerSubscription?.cancel();
-
-    // Hentikan mic streaming
     await _audioService.stopMicStreaming();
-
-    await _sosRepository.endSession(session.id, reason: reason);
 
     try {
       await _logRepository.logEvent('sos_ended', {
@@ -268,6 +455,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
   void _startSessionTimers(String sessionId) {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state.status != SOSStatus.active ||
+          state.activeSession?.id != sessionId) {
+        return;
+      }
       state = state.copyWith(elapsedSeconds: state.elapsedSeconds + 1);
     });
   }
@@ -278,7 +469,9 @@ class SOSNotifier extends StateNotifier<SOSState> {
 
     // Kirim lokasi pertama segera
     LocationService.getCurrentLocation().then((locData) {
-      if (locData != null &&
+      if (state.status == SOSStatus.active &&
+          state.activeSession?.id == sessionId &&
+          locData != null &&
           locData.latitude != null &&
           locData.longitude != null) {
         _sosRepository.pingLocation(
@@ -294,7 +487,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _locationSubscription = LocationService.getLocationStream().listen((
       locData,
     ) {
-      if (locData.latitude != null && locData.longitude != null) {
+      if (state.status == SOSStatus.active &&
+          state.activeSession?.id == sessionId &&
+          locData.latitude != null &&
+          locData.longitude != null) {
         _sosRepository.pingLocation(
           sessionId,
           locData.latitude!,
@@ -323,6 +519,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
 
   /// Toggle video streaming state
   void toggleVideo(bool enabled) {
+    if (state.status != SOSStatus.active) return;
     state = state.copyWith(
       isVideoStreaming: enabled,
       needsInactivityAck: false,
@@ -332,12 +529,14 @@ class SOSNotifier extends StateNotifier<SOSState> {
 
   // Pengguna menekan layar → batalkan prompt inactivity (blind spot #7).
   void acknowledgeInactivity() {
+    if (state.status != SOSStatus.active) return;
     state = state.copyWith(needsInactivityAck: false);
     resetInactivityTimer();
   }
 
   /// Toggle mic state (mute/unmute tanpa stop stream)
   void toggleMic(bool enabled) {
+    if (state.status != SOSStatus.active) return;
     if (_audioService.isMicActive) {
       _audioService.setMuted(!enabled);
     }
@@ -349,11 +548,14 @@ class SOSNotifier extends StateNotifier<SOSState> {
   /// Menit ke-1.5: haptic halus + prompt "Apakah Anda Aman?" (tanpa mematikan
   /// bukti). Menit ke-2: jika perangkat diam & tak ada respon, baru putus video.
   void resetInactivityTimer() {
+    if (state.status != SOSStatus.active) return;
     _inactivityTimer?.cancel();
     state = state.copyWith(needsInactivityAck: false);
 
     _inactivityTimer = Timer(const Duration(seconds: 90), () {
-      if (state.isVideoStreaming && !_deviceIsMoving) {
+      if (state.status == SOSStatus.active &&
+          state.isVideoStreaming &&
+          !_deviceIsMoving) {
         HapticFeedback.lightImpact();
         state = state.copyWith(needsInactivityAck: true);
       }
@@ -361,6 +563,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
 
     _inactivityTimer = Timer(const Duration(minutes: 2), () {
       // Hanya auto-end jika perangkat benar-benar diam (tidak bergerak)
+      if (state.status != SOSStatus.active) return;
       if (state.isVideoStreaming && !_deviceIsMoving) {
         toggleVideo(false);
       } else if (state.isVideoStreaming && _deviceIsMoving) {
@@ -380,6 +583,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _locationSubscription?.cancel();
     _inactivityTimer?.cancel();
     _accelerometerSubscription?.cancel();
+    _flushTimer?.cancel();
     _audioService.dispose();
     super.dispose();
   }

@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mekaar_chat/data/models/user_model.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
 import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/data/models/sos_session_model.dart';
 import 'package:mekaar_chat/data/models/security_log_model.dart';
+import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 
 void main() {
   group('Mekaar Data Models Unit Tests', () {
@@ -29,7 +31,7 @@ void main() {
       expect(profile.fullName, 'John Doe');
       expect(profile.avatarUrl, 'https://example.com/avatar.png');
       expect(profile.pinHash, 'hashed_pin_value');
-      
+
       final serialized = profile.toJson();
       expect(serialized['id'], 'user-123');
       expect(serialized['username'], 'john_doe');
@@ -76,7 +78,9 @@ void main() {
         'permissions': {'gps': true, 'mic': false},
         'storage_option': 'local',
         // Add 2 hours buffer to guarantee .inDays difference is exactly 20
-        'expires_at': now.add(const Duration(days: 20, hours: 2)).toIso8601String(),
+        'expires_at': now
+            .add(const Duration(days: 20, hours: 2))
+            .toIso8601String(),
         'created_at': now.subtract(const Duration(days: 10)).toIso8601String(),
         'updated_at': now.subtract(const Duration(days: 10)).toIso8601String(),
         'guardian_profile': {
@@ -84,7 +88,7 @@ void main() {
           'full_name': 'Jane Doe',
           'email': 'jane@example.com',
           'avatar_url': '',
-        }
+        },
       };
 
       final guardian = Guardian.fromJson(json);
@@ -152,7 +156,37 @@ void main() {
       final hash = sha256.convert(bytes).toString();
 
       // SHA-256 hash value of "123456" is a known constant
-      expect(hash, '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92');
+      expect(
+        hash,
+        '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+      );
+    });
+  });
+
+  group('PIN Lock Preference Unit Tests', () {
+    test('memuat preferensi OFF yang sudah tersimpan', () async {
+      SharedPreferences.setMockInitialValues({
+        PinLockEnabledNotifier.preferenceKey: false,
+      });
+      final notifier = PinLockEnabledNotifier();
+
+      await notifier.initialized;
+
+      expect(notifier.state, isFalse);
+      notifier.dispose();
+    });
+
+    test('toggle menyimpan dan memancarkan nilai baru', () async {
+      SharedPreferences.setMockInitialValues({});
+      final notifier = PinLockEnabledNotifier();
+      await notifier.initialized;
+
+      await notifier.toggle(false);
+      final prefs = await SharedPreferences.getInstance();
+
+      expect(notifier.state, isFalse);
+      expect(prefs.getBool(PinLockEnabledNotifier.preferenceKey), isFalse);
+      notifier.dispose();
     });
   });
 }

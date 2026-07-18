@@ -1,3 +1,20 @@
+enum LastSeenPrivacy {
+  everyone('everyone', 'Semua orang'),
+  contacts('contacts', 'Kontak saya'),
+  nobody('nobody', 'Tidak ada');
+
+  final String value;
+  final String label;
+  const LastSeenPrivacy(this.value, this.label);
+
+  static LastSeenPrivacy fromValue(String? value) {
+    return LastSeenPrivacy.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => LastSeenPrivacy.everyone,
+    );
+  }
+}
+
 class Profile {
   final String id;
   final String username;
@@ -9,6 +26,13 @@ class Profile {
   final String? avatarUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final LastSeenPrivacy lastSeenPrivacy;
+  final bool readReceiptsEnabled;
+  final int autoDeleteDefaultHours;
+  final bool twoFaEnabled;
+  final String? twoFaSecret;
+  final String? lastLoginDevice;
+  final DateTime? lastLoginAt;
 
   Profile({
     required this.id,
@@ -21,6 +45,13 @@ class Profile {
     this.avatarUrl,
     required this.createdAt,
     required this.updatedAt,
+    this.lastSeenPrivacy = LastSeenPrivacy.everyone,
+    this.readReceiptsEnabled = true,
+    this.autoDeleteDefaultHours = 0,
+    this.twoFaEnabled = false,
+    this.twoFaSecret,
+    this.lastLoginDevice,
+    this.lastLoginAt,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
@@ -37,6 +68,16 @@ class Profile {
       avatarUrl: json['avatar_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      lastSeenPrivacy:
+          LastSeenPrivacy.fromValue(json['last_seen_privacy'] as String?),
+      readReceiptsEnabled: json['read_receipts_enabled'] as bool? ?? true,
+      autoDeleteDefaultHours: json['auto_delete_default_hours'] as int? ?? 0,
+      twoFaEnabled: json['two_fa_enabled'] as bool? ?? false,
+      twoFaSecret: json['two_fa_secret'] as String?,
+      lastLoginDevice: json['last_login_device'] as String?,
+      lastLoginAt: json['last_login_at'] != null
+          ? DateTime.parse(json['last_login_at'] as String)
+          : null,
     );
   }
 
@@ -51,6 +92,13 @@ class Profile {
       'avatar_url': avatarUrl,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'last_seen_privacy': lastSeenPrivacy.value,
+      'read_receipts_enabled': readReceiptsEnabled,
+      'auto_delete_default_hours': autoDeleteDefaultHours,
+      'two_fa_enabled': twoFaEnabled,
+      'two_fa_secret': twoFaSecret,
+      'last_login_device': lastLoginDevice,
+      'last_login_at': lastLoginAt?.toIso8601String(),
     };
   }
 
@@ -64,6 +112,13 @@ class Profile {
     String? avatarUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    LastSeenPrivacy? lastSeenPrivacy,
+    bool? readReceiptsEnabled,
+    int? autoDeleteDefaultHours,
+    bool? twoFaEnabled,
+    String? twoFaSecret,
+    String? lastLoginDevice,
+    DateTime? lastLoginAt,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -75,6 +130,14 @@ class Profile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      lastSeenPrivacy: lastSeenPrivacy ?? this.lastSeenPrivacy,
+      readReceiptsEnabled: readReceiptsEnabled ?? this.readReceiptsEnabled,
+      autoDeleteDefaultHours:
+          autoDeleteDefaultHours ?? this.autoDeleteDefaultHours,
+      twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
+      twoFaSecret: twoFaSecret ?? this.twoFaSecret,
+      lastLoginDevice: lastLoginDevice ?? this.lastLoginDevice,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
     );
   }
 }

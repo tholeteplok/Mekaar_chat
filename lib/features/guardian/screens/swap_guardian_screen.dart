@@ -385,18 +385,18 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                         shape: BoxShape.circle,
                         color: key == '⌫'
                             ? Colors.transparent
-                            : MekaarColors.surface2,
+                            : MekaarColors.surface2Of(context),
                       ),
                       child: Center(
                         child: key == '⌫'
-                            ? const Icon(
+                            ? Icon(
                                 SolarIconsOutline.backspace,
-                                color: MekaarColors.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               )
                             : Text(
                                 key,
                                 style: MekaarTypography.monoLG.copyWith(
-                                  color: MekaarColors.textPrimary,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                       ),

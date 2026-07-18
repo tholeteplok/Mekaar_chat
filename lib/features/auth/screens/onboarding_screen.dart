@@ -3,48 +3,8 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/meka_mascot_geng.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/routes/app_routes.dart';
-
-class _BouncyMascot extends StatefulWidget {
-  final double size;
-  final String? message;
-
-  const _BouncyMascot({required this.size, this.message});
-
-  @override
-  State<_BouncyMascot> createState() => _BouncyMascotState();
-}
-
-class _BouncyMascotState extends State<_BouncyMascot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, child) {
-        final offset = -8 * _ctrl.value;
-        final scale = 1 + 0.03 * _ctrl.value;
-        return Transform.translate(
-          offset: Offset(0, offset),
-          child: Transform.scale(scale: scale, child: child),
-        );
-      },
-      child: MekaMascotGeng(size: widget.size, message: widget.message),
-    );
-  }
-}
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -57,22 +17,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<Map<String, String>> _slides = [
-    {
-      'title': 'Apa itu MEKAAR?',
-      'desc': 'Aplikasi perlindungan darurat: chat pribadi terenkripsi, tombol SOS satu ketukan, dan pelacakan lokasi saat Anda benar-benar dalam bahaya.',
-      'bubble': 'Halo! Kami Meka & Geng 🫧',
-    },
-    {
-      'title': 'Tambahkan Guardian Anda',
-      'desc': 'Guardian tidak bisa mengintai Anda. Izin GPS & audio hanya aktif saat Anda menekan SOS. Setiap akses mereka selalu tercatat di Log Sistem.',
-      'bubble': 'Kami siap menjagamu! 🤝',
-    },
-    {
-      'title': 'Kunci dengan PIN 6 Digit',
-      'desc': 'Lindungi aplikasi dengan PIN 6 digit. SOS tetap bisa diakses meski aplikasi terkunci, dan 5 kali salah PIN akan mengunci 30 menit.',
-      'bubble': 'PIN rahasia biar aman! 🔒',
-    },
+  final List<({String title, String desc, MikaPose pose})> _slides = [
+    (
+      title: 'Apa itu MEKAAR?',
+      desc: 'Aplikasi perlindungan darurat: chat pribadi terenkripsi, tombol SOS satu ketukan, dan pelacakan lokasi saat Anda benar-benar dalam bahaya.',
+      pose: MikaPose.hi,
+    ),
+    (
+      title: 'Tambahkan Guardian Anda',
+      desc: 'Guardian tidak bisa mengintai Anda. Izin GPS dan audio hanya aktif saat Anda menekan SOS. Setiap akses selalu tercatat di Log Sistem.',
+      pose: MikaPose.love,
+    ),
+    (
+      title: 'Kunci dengan PIN 6 digit',
+      desc: 'Lindungi aplikasi dengan PIN 6 digit. SOS tetap bisa diakses saat aplikasi terkunci, dan 5 kali salah PIN akan mengunci aplikasi selama 30 menit.',
+      pose: MikaPose.shield,
+    ),
   ];
 
   void _onPageChanged(int index) {
@@ -105,7 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: TextButton(
                   onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.login),
                   child: const Text(
-                    'Skip',
+                    'Lewati',
                     style: TextStyle(
                       color: MekaarColors.textSecondary,
                       fontWeight: FontWeight.bold,
@@ -128,13 +88,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _BouncyMascot(
-                            size: 110,
-                            message: slide['bubble'],
+                          MikaIllustration(
+                            key: ValueKey(slide.pose),
+                            pose: slide.pose,
+                            size: 170,
+                            semanticLabel: 'Ilustrasi ${slide.title}',
+                            animate: true,
                           ),
-                          const SizedBox(height: 48),
+                          const SizedBox(height: 36),
                           Text(
-                            slide['title']!,
+                            slide.title,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontSize: 24,
@@ -144,7 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            slide['desc']!,
+                            slide.desc,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontSize: 14,

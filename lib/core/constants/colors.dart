@@ -23,19 +23,31 @@ class MekaarColors {
   static const Color warnAmber = Color(0xFFFBBF24);
 
   // Text & Surfaces (Base Tokens)
-  static const Color textPrimary = Color(0xFFF8FAFF);      // Dark mode text primary
-  static const Color textSecondary = Color(0xFFA9B4D8);    // Dark mode text secondary
-  static const Color textMuted = Color(0xFF6B7599);        // Dark mode sub-text
-  static const Color textOnYellow = Color(0xFF2B2400);     // Dark text for yellow button/bubble
-  
-  static const Color card = Color(0xFFFFFFFF);             // Light surface card
-  static const Color cardDark = Color(0xFF232A52);         // Dark surface card
-  static const Color surfaceOverlay = Color(0x990F1230);   // Scrim/Overlay (60% opacity)
+  static const Color textPrimary = Color(0xFFF8FAFF); // Dark mode text primary
+  static const Color textSecondary = Color(
+    0xFFA9B4D8,
+  ); // Dark mode text secondary
+  static const Color textMuted = Color(0xFF6B7599); // Dark mode sub-text
+  static const Color textOnYellow = Color(
+    0xFF2B2400,
+  ); // Dark text for yellow button/bubble
+
+  static const Color card = Color(0xFFFFFFFF); // Light surface card
+  static const Color cardDark = Color(0xFF232A52); // Dark surface card
+  static const Color surfaceOverlay = Color(
+    0x990F1230,
+  ); // Scrim/Overlay (60% opacity)
 
   // Legacy/Compatibility mapping (to avoid breaking existing imports)
-  static const Color softCoral = Color(0xFFFF5D5D);        // Remapped to design token sosCoral
-  static const Color sosRed = Color(0xFFD92632);           // Remapped to design token sosDeep
-  static const Color guardianTeal = Color(0xFF2DD4BF);     // Remapped to design token safeTeal
+  static const Color softCoral = Color(
+    0xFFFF5D5D,
+  ); // Remapped to design token sosCoral
+  static const Color sosRed = Color(
+    0xFFD92632,
+  ); // Remapped to design token sosDeep
+  static const Color guardianTeal = Color(
+    0xFF2DD4BF,
+  ); // Remapped to design token safeTeal
   static const Color sosLight = Color(0xFFFFF1F2);
   static const Color guardianLight = Color(0xFFE6FFFA);
   static const Color success = Color(0xFF10B981);
@@ -44,15 +56,41 @@ class MekaarColors {
   static const Color warningLight = Color(0xFFFFFBEB);
   static const Color info = Color(0xFF3B82F6);
   static const Color infoLight = Color(0xFFEFF6FF);
-  
+
   static const Color background = Color(0xFFFAFBFC);
   static const Color backgroundDark = Color(0xFF0A0A0F);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF18181B);
   static const Color surface2 = Color(0xFFF4F6F8);
+  static const Color surface2Dark = Color(0xFF1E2235);
   static const Color surface3 = Color(0xFFEAEEF2);
+  static const Color surface3Dark = Color(0xFF252A3A);
   static const Color border = Color(0xFFE2E8F0);
   static const Color borderLight = Color(0xFFF1F5F9);
+
+  static Color surfaceOf(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+      ? MekaarColors.surfaceDark
+      : MekaarColors.surface;
+
+  static Color surface2Of(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+      ? MekaarColors.surface2Dark
+      : MekaarColors.surface2;
+
+  static Color backgroundOf(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+      ? MekaarColors.backgroundDark
+      : MekaarColors.background;
+
+  static Color textPrimaryOf(BuildContext c) =>
+      Theme.of(c).colorScheme.onSurface;
+
+  static Color textSecondaryOf(BuildContext c) =>
+      Theme.of(c).colorScheme.onSurfaceVariant;
+
+  static Color textMutedOf(BuildContext c) =>
+      Theme.of(c).colorScheme.onSurfaceVariant.withValues(alpha: 0.72);
 }
 
 class MekaarGradients {
@@ -61,7 +99,11 @@ class MekaarGradients {
   static const LinearGradient canvasDark = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [MekaarColors.canvasTop, MekaarColors.canvasMid, MekaarColors.canvasBottom],
+    colors: [
+      MekaarColors.canvasTop,
+      MekaarColors.canvasMid,
+      MekaarColors.canvasBottom,
+    ],
   );
 
   static const LinearGradient canvasLight = LinearGradient(

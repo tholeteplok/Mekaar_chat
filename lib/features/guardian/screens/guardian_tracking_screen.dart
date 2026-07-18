@@ -20,6 +20,8 @@ class GuardianTrackingScreen extends ConsumerStatefulWidget {
 class _GuardianTrackingScreenState
     extends ConsumerState<GuardianTrackingScreen> {
   bool _isLoading = true;
+  bool _hasError = false;
+  DateTime? _updatedAt;
   List<Map<String, dynamic>> _sessions = [];
 
   @override
@@ -29,7 +31,10 @@ class _GuardianTrackingScreenState
   }
 
   Future<void> _loadSessions() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
 
     final repo = ref.read(sosRepositoryProvider);
     final result = <Map<String, dynamic>>[];
@@ -42,16 +47,25 @@ class _GuardianTrackingScreenState
         try {
           ping = await repo.getLatestLocationPing(sessionId);
         } catch (_) {
-          ping = null;
+          result.add({'session': session, 'pingError': true});
+          continue;
         }
         result.add({'session': session, 'ping': ping});
       }
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+      });
+      return;
+    }
 
     if (!mounted) return;
     setState(() {
       _sessions = result;
       _isLoading = false;
+      _updatedAt = DateTime.now();
     });
   }
 
@@ -81,8 +95,8 @@ class _GuardianTrackingScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Lacak Guardian',
-        subtitle: 'Lokasi live pemilik dalam mode darurat',
+        title: 'Lokasi Darurat',
+        subtitle: 'Lokasi terakhir dari sesi SOS yang Anda jaga',
         actions: [
           IconButton(
             icon: const Icon(SolarIconsOutline.refresh),
@@ -90,38 +104,102 @@ class _GuardianTrackingScreenState
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: MekaarColors.sosRed),
-            )
-          : _sessions.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Tidak ada Guardian yang sedang dalam mode darurat.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: MekaarColors.textMuted),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: MekaarColors.sosRed),
+      );
+    }
+    if (_hasError) {
+      return _buildMessageState(
+        icon: SolarIconsOutline.dangerTriangle,
+        message: 'Lokasi darurat tidak dapat dimuat.',
+        actionLabel: 'Coba Lagi',
+        onPressed: _loadSessions,
+      );
+    }
+    if (_sessions.isEmpty) {
+      return _buildMessageState(
+        icon: SolarIconsOutline.shieldCheck,
+        message: 'Tidak ada sesi SOS aktif yang sedang Anda jaga.',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadSessions,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(20),
+        itemCount: _sessions.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Diperbarui ${_formatDateTime(_updatedAt!)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMuted,
                 ),
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _sessions.length,
-              itemBuilder: (context, index) {
-                final item = _sessions[index];
-                final session = item['session'] as Map<String, dynamic>;
-                final ping = item['ping'] as Map<String, dynamic>?;
-                return _buildSessionCard(session, ping);
-              },
-            ),
+            );
+          }
+          final item = _sessions[index - 1];
+          final session = item['session'] as Map<String, dynamic>;
+          final ping = item['ping'] as Map<String, dynamic>?;
+          return _buildSessionCard(
+            session,
+            ping,
+            pingError: item['pingError'] == true,
+          );
+        },
+      ),
     );
+  }
+
+  Widget _buildMessageState({
+    required IconData icon,
+    required String message,
+    String? actionLabel,
+    VoidCallback? onPressed,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 36, color: MekaarColors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: MekaarColors.textMuted),
+            ),
+            if (actionLabel != null && onPressed != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton(onPressed: onPressed, child: Text(actionLabel)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(dateTime.day)}/${two(dateTime.month)}/${dateTime.year} '
+        '${two(dateTime.hour)}:${two(dateTime.minute)}';
   }
 
   Widget _buildSessionCard(
     Map<String, dynamic> session,
-    Map<String, dynamic>? ping,
-  ) {
+    Map<String, dynamic>? ping, {
+    bool pingError = false,
+  }) {
     final userName = session['user_name'] as String? ?? 'User';
     final userEmail = session['user_email'] as String? ?? '';
 
@@ -174,7 +252,27 @@ class _GuardianTrackingScreenState
             ],
           ),
           const SizedBox(height: 14),
-          if (ping == null)
+          if (pingError)
+            const Row(
+              children: [
+                Icon(
+                  SolarIconsOutline.dangerTriangle,
+                  size: 16,
+                  color: MekaarColors.warning,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Koordinat terakhir tidak dapat dimuat. Coba perbarui.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: MekaarColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else if (ping == null)
             const Row(
               children: [
                 Icon(
@@ -255,7 +353,11 @@ class _GuardianTrackingScreenState
       children: [
         Row(
           children: [
-            const Icon(SolarIconsOutline.mapPoint, size: 16, color: MekaarColors.sosRed),
+            const Icon(
+              SolarIconsOutline.mapPoint,
+              size: 16,
+              color: MekaarColors.sosRed,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -278,7 +380,7 @@ class _GuardianTrackingScreenState
             ),
             const SizedBox(width: 8),
             Text(
-              _formatTimestamp(timestamp),
+              'Diperbarui ${_formatTimestamp(timestamp)}',
               style: const TextStyle(
                 fontSize: 12,
                 color: MekaarColors.textMuted,

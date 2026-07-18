@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -105,14 +106,21 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
         height: 64,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: back ? Colors.transparent : MekaarColors.surface2,
+          color: back ? Colors.transparent : MekaarColors.surface2Of(context),
         ),
         child: Center(
           child: back
-              ? const Icon(Icons.backspace_outlined, color: MekaarColors.textSecondary)
-              : Text(k,
-                  style: MekaarTypography.monoMD
-                      .copyWith(fontSize: 22, color: MekaarColors.textPrimary)),
+              ? Icon(
+                  SolarIconsOutline.backspace,
+                  color: Theme.of(context).colorScheme.onSurface,
+                )
+              : Text(
+                  k,
+                  style: MekaarTypography.monoMD.copyWith(
+                    fontSize: 22,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
         ),
       ),
     );
@@ -121,7 +129,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MekaarColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const CustomAppBar(title: 'PIN Paksaan'),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

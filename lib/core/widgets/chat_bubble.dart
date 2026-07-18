@@ -68,6 +68,9 @@ class ChatBubble extends StatelessWidget {
   final Function(Message, String)? onReact;
   // Read receipt: the other participant's last_read_at timestamp
   final DateTime? otherLastReadAt;
+  // Whether to show the read (blue) receipt. Controlled by the current user's
+  // own "Bukti Baca" privacy setting.
+  final bool showReadReceipts;
 
   const ChatBubble({
     super.key,
@@ -82,10 +85,13 @@ class ChatBubble extends StatelessWidget {
     this.onForward,
     this.onReact,
     this.otherLastReadAt,
+    this.showReadReceipts = true,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
     if (!isMe) return ReadReceiptStatus.pending;
+    // Jika pengguna mematikan bukti baca, jangan perlihatkan status "dibaca".
+    if (!showReadReceipts) return ReadReceiptStatus.delivered;
     if (otherLastReadAt == null) return ReadReceiptStatus.delivered;
     if (message.createdAt.isBefore(otherLastReadAt!) ||
         message.createdAt.isAtSameMomentAs(otherLastReadAt!)) {
@@ -234,7 +240,7 @@ class ChatBubble extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isMe
                             ? Colors.white.withValues(alpha: 0.1)
-                            : MekaarColors.surface2,
+                            : MekaarColors.surface2Of(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border(
                           left: BorderSide(
@@ -544,7 +550,7 @@ class _MessageContextMenu extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: MekaarColors.surface,
+        color: MekaarColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: MekaarShadows.floating,
       ),
@@ -947,7 +953,7 @@ class _ImageBubble extends StatelessWidget {
               errorBuilder: (context, error, stackTrace) => Container(
                 height: 180,
                 width: 220,
-                color: MekaarColors.surface2,
+                color: MekaarColors.surface2Of(context),
                 child: const Icon(Icons.broken_image,
                     color: MekaarColors.textMuted),
               ),
@@ -1030,7 +1036,7 @@ class _PopReactionState extends State<_PopReaction>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: MekaarColors.surface2,
+            color: MekaarColors.surface2Of(context),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: MekaarColors.borderLight),
           ),

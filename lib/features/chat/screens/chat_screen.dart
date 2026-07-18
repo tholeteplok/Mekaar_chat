@@ -48,15 +48,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   DateTime? _otherLastSeen;
   // ignore: prefer_final_fields — mutable: updated when partner sends typing event
   bool _partnerIsTyping = false;
+  int _autoDeleteHours = 0;
 
 
   @override
   void initState() {
     super.initState();
     _textController.addListener(_onTextChanged);
+    // Default Pesan Menghilang diambil dari preferensi pengguna.
+    _autoDeleteHours =
+        ref.read(authProvider).profile?.autoDeleteDefaultHours ?? 0;
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
+      // Best-effort purge pesan kedaluwarsa (authoritative via cron Supabase).
+      try {
+        await repo.purgeExpiredMessages();
+      } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
       // Fetch other user's last_seen_at for presence subtitle
       if (widget.otherUserId != null) {
@@ -75,10 +83,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(isTyping);
   }
 
-  /// Build presence subtitle: typing > online (< 5 min) > last seen > empty
+  /// Build presence subtitle: typing > online (< 5 min) > last seen > hidden
   String _buildPresenceSubtitle() {
     if (_partnerIsTyping) return 'sedang mengetik...';
-    if (_otherLastSeen == null) return 'Online';
+    // Jika null, bisa jadi belum pernah online ATAU pengguna menyembunyikan
+    // "terakhir dilihat" (enforce di server via get_last_seen_for). Sembunyikan
+    // detail demi privasi.
+    if (_otherLastSeen == null) return '';
     final diff = DateTime.now().difference(_otherLastSeen!);
     if (diff.inMinutes < 5) return 'Online';
     if (diff.inMinutes < 60) return 'Terakhir dilihat ${diff.inMinutes} menit lalu';
@@ -131,6 +142,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       type: MessageType.text,
       isViewOnce: _isViewOnce,
       replyToId: _replyMessage?.id,
+      autoDeleteHours: _autoDeleteHours,
     );
 
     _textController.clear();
@@ -151,6 +163,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         '',
         mediaUrl: url,
         type: type,
+        autoDeleteHours: _autoDeleteHours,
       );
       _scrollToBottom();
     } catch (e) {
@@ -187,6 +200,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         widget.chatId,
         '$lat, $lng',
         type: MessageType.location,
+        autoDeleteHours: _autoDeleteHours,
       );
       _scrollToBottom();
     } catch (e) {
@@ -257,7 +271,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: MekaarColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -288,7 +302,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               final avatar = room['avatar'] as String? ?? '';
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: MekaarColors.surface2,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Text(
                     avatar.isNotEmpty ? avatar : name[0],
                     style: const TextStyle(color: MekaarColors.textPrimary),
@@ -517,6 +531,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       canEdit: isMe && canEdit,
                       canForward: actions.canForward(msg),
                       otherLastReadAt: _otherLastRead,
+                      showReadReceipts:
+                          ref.watch(authProvider).profile?.readReceiptsEnabled ??
+                              true,
                       onDelete: () => _handleDeleteMessage(msg),
                       onReply: (replyMsg) {
                         setState(() {
@@ -568,6 +585,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onSendMedia: _handleSendMedia,
             onSendLocation: _handleSendLocation,
             onShareLiveLocation: _handleShareLiveLocation,
+            autoDeleteHours: _autoDeleteHours,
+            onAutoDeleteChanged: (hours) =>
+                setState(() => _autoDeleteHours = hours),
           ),
         ],
       ),
