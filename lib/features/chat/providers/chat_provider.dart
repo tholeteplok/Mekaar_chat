@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/chat_repository.dart';
-import '../../../data/repositories/log_repository.dart';
 import '../../../data/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -47,11 +46,14 @@ class ChatRoomsNotifier
   }
 }
 
-final chatRoomsProvider = StateNotifierProvider<
-    ChatRoomsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  final repo = ref.watch(chatRepositoryProvider);
-  return ChatRoomsNotifier(repo);
-});
+final chatRoomsProvider =
+    StateNotifierProvider<
+      ChatRoomsNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      final repo = ref.watch(chatRepositoryProvider);
+      return ChatRoomsNotifier(repo);
+    });
 
 // ─────────────────────────────────────────
 // Stream of messages in a room
@@ -69,9 +71,9 @@ final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
 // ─────────────────────────────────────────
 final otherParticipantLastReadProvider =
     FutureProvider.family<DateTime?, String>((ref, roomId) async {
-  final repo = ref.watch(chatRepositoryProvider);
-  return repo.getOtherParticipantLastRead(roomId);
-});
+      final repo = ref.watch(chatRepositoryProvider);
+      return repo.getOtherParticipantLastRead(roomId);
+    });
 
 // ─────────────────────────────────────────
 // Typing indicator state (per room)
@@ -97,8 +99,8 @@ class TypingNotifier extends StateNotifier<bool> {
 
 final typingStateProvider =
     StateNotifierProvider.family<TypingNotifier, bool, String>(
-  (ref, roomId) => TypingNotifier(),
-);
+      (ref, roomId) => TypingNotifier(),
+    );
 
 // ─────────────────────────────────────────
 // Chat Actions (send, edit, react, delete, mark read)
@@ -106,10 +108,8 @@ final typingStateProvider =
 class ChatActionsNotifier {
   final ChatRepository _chatRepository;
   final Ref _ref;
-  final LogRepository _logRepository;
 
-  ChatActionsNotifier(this._chatRepository, this._ref)
-      : _logRepository = LogRepository(_ref.read(supabaseServiceProvider));
+  ChatActionsNotifier(this._chatRepository, this._ref);
 
   Future<void> sendMessage(
     String roomId,
@@ -157,11 +157,6 @@ class ChatActionsNotifier {
 
   Future<void> deleteMessage(String messageId) async {
     await _chatRepository.softDeleteMessage(messageId);
-    try {
-      await _logRepository.logEvent('message_deleted', {
-        'message_id': messageId,
-      });
-    } catch (_) {}
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
@@ -177,10 +172,7 @@ class ChatActionsNotifier {
 
   /// Bagikan lokasi live (sukarela, bukan SOS) selama [durationMinutes].
   /// Memperbarui satu pesan lokasi tiap interval sampai waktu habis.
-  Future<String> shareLiveLocation(
-    String roomId,
-    int durationMinutes,
-  ) async {
+  Future<String> shareLiveLocation(String roomId, int durationMinutes) async {
     final loc = await LocationService.getCurrentLocation();
     if (loc == null || loc.latitude == null || loc.longitude == null) {
       throw Exception('Lokasi tidak tersedia');
@@ -201,7 +193,9 @@ class ChatActionsNotifier {
       type: MessageType.location,
     );
 
-    final subscription = LocationService.getLocationStream().listen((data) async {
+    final subscription = LocationService.getLocationStream().listen((
+      data,
+    ) async {
       if (DateTime.now().isAfter(end)) return;
       try {
         await _chatRepository.updateMessageContent(message.id, formatContent());
@@ -231,7 +225,10 @@ class ChatActionsNotifier {
   }
 
   bool canEdit(Message message, {required bool isGuardianRoom}) {
-    return _chatRepository.canEditMessage(message, isGuardianRoom: isGuardianRoom);
+    return _chatRepository.canEditMessage(
+      message,
+      isGuardianRoom: isGuardianRoom,
+    );
   }
 
   Future<void> clearChatHistory(String roomId) async {

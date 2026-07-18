@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../chat/providers/screen_protection_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../providers/sos_provider.dart';
 
@@ -23,9 +24,20 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
     super.initState();
     Future.microtask(() {
       ref
+          .read(screenProtectionControllerProvider)
+          .enterMandatorySurface('sos_active');
+      ref
           .read(sosProvider.notifier)
           .activateSOS(gps: true, mic: true, video: false);
     });
+  }
+
+  @override
+  void dispose() {
+    ref
+        .read(screenProtectionControllerProvider)
+        .leaveMandatorySurface('sos_active');
+    super.dispose();
   }
 
   String _formatDuration(int totalSeconds) {
@@ -256,21 +268,22 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         icon: const Icon(SolarIconsOutline.gps),
                         label: const Text('Lihat Lokasi Saya'),
                         onPressed: () async {
+                          final navigator = Navigator.of(context);
+                          final messenger = ScaffoldMessenger.of(context);
                           final result = await ref
                               .read(sosProvider.notifier)
                               .getOwnSessionWithPing();
                           if (!mounted) return;
                           final ping = result?['ping'] as Map?;
                           if (ping == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Text('Lokasi belum tersedia'),
                               ),
                             );
                             return;
                           }
-                          Navigator.pushNamed(
-                            context,
+                          navigator.pushNamed(
                             AppRoutes.map,
                             arguments: {
                               'latitude': ping['latitude'] as double,

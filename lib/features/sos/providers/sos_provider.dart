@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../../../data/models/sos_session_model.dart';
 import '../../../data/repositories/sos_repository.dart';
-import '../../../data/repositories/log_repository.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/audio_service.dart';
 import '../../../data/services/notification_service.dart';
@@ -16,11 +15,6 @@ import '../../auth/providers/auth_provider.dart';
 final sosRepositoryProvider = Provider<SOSRepository>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
   return SOSRepository(supabaseService);
-});
-
-final logRepositoryProvider = Provider<LogRepository>((ref) {
-  final supabaseService = ref.watch(supabaseServiceProvider);
-  return LogRepository(supabaseService);
 });
 
 // State definition
@@ -83,7 +77,6 @@ class SOSState {
 // State Notifier
 class SOSNotifier extends StateNotifier<SOSState> {
   final SOSRepository _sosRepository;
-  final LogRepository _logRepository;
   final AudioService _audioService = AudioService();
 
   Timer? _timer;
@@ -104,7 +97,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
   Future<void>? _pendingFlushOperation;
   late final Future<void> _initialization;
 
-  SOSNotifier(this._sosRepository, this._logRepository)
+  SOSNotifier(this._sosRepository)
     : super(SOSState(status: SOSStatus.activating)) {
     _initialization = _initialize();
   }
@@ -381,13 +374,6 @@ class SOSNotifier extends StateNotifier<SOSState> {
     }
 
     try {
-      await _logRepository.logEvent('sos_started', {
-        'session_id': session.id,
-        'gps_enabled': gps,
-        'mic_enabled': mic,
-        'video_enabled': video,
-      });
-
       final guardians = await _sosRepository.getMyActiveGuardians();
       for (final guardian in guardians) {
         await NotificationService.sendSOSNotification(
@@ -441,13 +427,6 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _inactivityTimer?.cancel();
     _accelerometerSubscription?.cancel();
     await _audioService.stopMicStreaming();
-
-    try {
-      await _logRepository.logEvent('sos_ended', {
-        'session_id': session.id,
-        'reason': reason,
-      });
-    } catch (_) {}
 
     state = SOSState(); // Reset state
   }
@@ -592,6 +571,5 @@ class SOSNotifier extends StateNotifier<SOSState> {
 // Global Provider for SOS State
 final sosProvider = StateNotifierProvider<SOSNotifier, SOSState>((ref) {
   final repo = ref.watch(sosRepositoryProvider);
-  final logRepo = ref.watch(logRepositoryProvider);
-  return SOSNotifier(repo, logRepo);
+  return SOSNotifier(repo);
 });

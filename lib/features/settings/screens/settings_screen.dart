@@ -50,8 +50,9 @@ class SettingsScreen extends ConsumerWidget {
                       _buildMenuItem(
                         context,
                         icon: SolarIconsOutline.billList,
-                        title: 'Log Sistem',
-                        subtitle: 'Riwayat aktivitas keamanan permanen Anda',
+                        title: 'Riwayat SOS',
+                        subtitle:
+                            'Chat tetap privat; hanya insiden SOS yang dicatat',
                         onTap: () =>
                             Navigator.pushNamed(context, AppRoutes.logs),
                       ),
@@ -151,13 +152,13 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         ),
                         title: Text(
-                          'Blokir Screenshot',
+                          'Proteksi layar',
                           style: MekaarTypography.labelLG.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         subtitle: Text(
-                          'Cegah tangkapan & rekaman layar untuk privasi obrolan Anda',
+                          'Jadikan proteksi sebagai default untuk ruang baru. Mencegah screenshot dan perekaman di Android; menyamarkan konten saat perekaman terdeteksi di iOS.',
                           style: MekaarTypography.bodySM,
                         ),
                         value: ref.watch(screenshotBlockProvider),

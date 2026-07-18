@@ -6,29 +6,32 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.mekaar.mekaar_chat/security"
+    private companion object {
+        const val SECURITY_CHANNEL = "com.mekaar.mekaar_chat/security"
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            CHANNEL
+            SECURITY_CHANNEL
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "enableSecureFlag" -> {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    result.success(null)
-                }
-                "disableSecureFlag" -> {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    result.success(null)
-                }
-                "disableSecureFlag" -> {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    result.success(null)
-                }
+                "enableSecureFlag" -> updateSecureFlag(enabled = true, result)
+                "disableSecureFlag" -> updateSecureFlag(enabled = false, result)
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun updateSecureFlag(enabled: Boolean, result: MethodChannel.Result) {
+        runOnUiThread {
+            if (enabled) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+            result.success(null)
         }
     }
 }

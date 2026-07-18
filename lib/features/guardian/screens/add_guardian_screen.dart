@@ -49,7 +49,10 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(SolarIconsOutline.infoCircle, color: MekaarColors.guardianTeal),
+            const Icon(
+              SolarIconsOutline.infoCircle,
+              color: MekaarColors.guardianTeal,
+            ),
             const SizedBox(width: 8),
             Text('Catatan Penting', style: MekaarTypography.headingSM),
           ],
@@ -64,7 +67,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Guardian TIDAK BISA memantau Anda secara diam-diam. Setiap akses selalu tercatat di Log Sistem.',
+              'Guardian TIDAK BISA memantau Anda secara diam-diam. Akses hanya tersedia saat SOS aktif dan tercatat di Riwayat SOS.',
               style: MekaarTypography.bodyMD.copyWith(
                 color: MekaarColors.guardianTeal,
                 fontWeight: FontWeight.w600,
@@ -112,8 +115,9 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content:
-                      Text('Tidak bisa menjadikan guardian pengguna yang diblokir.'),
+                  content: Text(
+                    'Tidak bisa menjadikan guardian pengguna yang diblokir.',
+                  ),
                   backgroundColor: MekaarColors.sosRed,
                 ),
               );

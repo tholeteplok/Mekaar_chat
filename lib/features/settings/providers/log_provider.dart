@@ -25,22 +25,6 @@ class SecurityLogNotifier extends StateNotifier<List<SecurityLog>> {
     } catch (_) {}
   }
 
-  Future<void> deleteLog(String logId) async {
-    await _logRepository.deleteLogItem(logId);
-    await loadLogs();
-  }
-
-  Future<void> clearLogs() async {
-    try {
-      await _logRepository.logEvent('log_deleted', {
-        'scope': 'all',
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-    } catch (_) {}
-    await _logRepository.clearAllLogs();
-    await loadLogs();
-  }
-
   Future<String> exportLogs() async {
     return await _logRepository.exportLogsToCSV();
   }
@@ -50,8 +34,10 @@ class SecurityLogNotifier extends StateNotifier<List<SecurityLog>> {
   /// function tersedia; jika tidak (belum deploy), fallback ke CSV lokal.
   Future<Map<String, String>> exportSignedLogs() async {
     try {
-      final response = await Supabase.instance.client.functions
-          .invoke('sign-logs', body: {'format': 'csv'});
+      final response = await Supabase.instance.client.functions.invoke(
+        'sign-logs',
+        body: {'format': 'csv'},
+      );
       final data = response.data;
       if (data is Map && data['csv'] != null) {
         return {
@@ -65,22 +51,13 @@ class SecurityLogNotifier extends StateNotifier<List<SecurityLog>> {
       // Edge Function belum di-deploy — fallback ke ekspor lokal.
     }
     final csv = await _logRepository.exportLogsToCSV();
-    return {
-      'csv': csv,
-      'signature': '',
-      'signed_at': '',
-      'statement': '',
-    };
-  }
-
-  Future<void> logEvent(String eventType, Map<String, dynamic> details) async {
-    await _logRepository.logEvent(eventType, details);
-    await loadLogs();
+    return {'csv': csv, 'signature': '', 'signed_at': '', 'statement': ''};
   }
 }
 
 // Global Provider for Security Logs
-final securityLogProvider = StateNotifierProvider<SecurityLogNotifier, List<SecurityLog>>((ref) {
-  final repo = ref.watch(logRepositoryProvider);
-  return SecurityLogNotifier(repo);
-});
+final securityLogProvider =
+    StateNotifierProvider<SecurityLogNotifier, List<SecurityLog>>((ref) {
+      final repo = ref.watch(logRepositoryProvider);
+      return SecurityLogNotifier(repo);
+    });

@@ -346,7 +346,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
       context: context,
       title: 'Putus Paksa Guardian?',
       message:
-          'Hubungan dengan ${guardian.name} akan diputus secara instan dan ia diblokir mengirim undangan selama 24 jam. Tindakan ini dicatat di Log Sistem.',
+          'Hubungan dengan ${guardian.name} akan diputus secara instan dan ia diblokir mengirim undangan selama 24 jam.',
       isDestructive: true,
       actions: [
         TextButton(

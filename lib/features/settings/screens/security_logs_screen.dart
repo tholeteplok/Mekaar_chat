@@ -28,8 +28,9 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
   }
 
   void _exportCSV() async {
-    final result =
-        await ref.read(securityLogProvider.notifier).exportSignedLogs();
+    final result = await ref
+        .read(securityLogProvider.notifier)
+        .exportSignedLogs();
 
     if (mounted) {
       final hasSignature = result['signature']?.isNotEmpty ?? false;
@@ -71,7 +72,9 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                       Text(
                         'SHA-256: ${result['signature']}',
                         style: const TextStyle(
-                            fontSize: 10, fontFamily: 'monospace'),
+                          fontSize: 10,
+                          fontFamily: 'monospace',
+                        ),
                       ),
                     ],
                   ),
@@ -96,47 +99,21 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
     }
   }
 
-  void _clearLogs() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Semua Log?'),
-        content: const Text(
-          'Ini adalah catatan aktivitas keamanan. Menghapusnya dapat menghilangkan bukti penting. Tindakan penghapusan ini tetap akan dicatat di log baru.'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await ref.read(securityLogProvider.notifier).clearLogs();
-            },
-            child: const Text('Hapus Semua', style: TextStyle(color: MekaarColors.sosRed, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final logs = ref.watch(securityLogProvider);
 
     return MekaarScaffold(
       appBar: CustomAppBar(
-        title: 'Log Sistem',
-        subtitle: 'Catatan aktivitas keamanan permanen',
+        title: 'Riwayat SOS',
+        subtitle: 'Catatan insiden darurat selama 90 hari',
         actions: [
           IconButton(
-            icon: const Icon(SolarIconsOutline.download, color: MekaarColors.textSecondary),
+            icon: const Icon(
+              SolarIconsOutline.download,
+              color: MekaarColors.textSecondary,
+            ),
             onPressed: _exportCSV,
-          ),
-          IconButton(
-            icon: const Icon(SolarIconsOutline.trashBinMinimalistic, color: MekaarColors.sosRed),
-            onPressed: _clearLogs,
           ),
         ],
       ),
@@ -153,20 +130,25 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                         color: MekaarColors.surface2Of(context),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(SolarIconsOutline.history, size: 40, color: MekaarColors.textMuted),
+                      child: const Icon(
+                        SolarIconsOutline.history,
+                        size: 40,
+                        color: MekaarColors.textMuted,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Belum ada log keamanan.',
+                      'Belum ada riwayat SOS',
                       style: MekaarTypography.headingSM,
                     ),
                     const SizedBox(height: 4),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
                       child: Text(
-                        'Aktivitas SOS, akses Guardian, dan penghapusan pesan akan tercatat di sini.',
-                        style: MekaarTypography.bodyMD
-                            .copyWith(color: MekaarColors.textMuted),
+                        'Chat biasa tetap privat. Catatan hanya dibuat ketika sesi SOS aktif.',
+                        style: MekaarTypography.bodyMD.copyWith(
+                          color: MekaarColors.textMuted,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -220,17 +202,15 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  log.details?['description'] ?? _getDefaultDescForEvent(log.eventType),
+                  log.details?['description'] ??
+                      _getDefaultDescForEvent(log.eventType),
                   style: MekaarTypography.bodySM,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            timeStr,
-            style: MekaarTypography.labelSM,
-          ),
+          Text(timeStr, style: MekaarTypography.labelSM),
         ],
       ),
     );
@@ -242,16 +222,12 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
         return SolarIconsOutline.danger;
       case 'sos_ended':
         return SolarIconsOutline.checkCircle;
-      case 'guardian_gps_access':
+      case 'guardian_location_accessed':
         return SolarIconsOutline.mapPoint;
-      case 'guardian_mic_access':
+      case 'guardian_audio_accessed':
         return SolarIconsOutline.microphone;
-      case 'video_sent':
+      case 'emergency_media_sent':
         return SolarIconsOutline.videocamera;
-      case 'message_deleted':
-        return SolarIconsOutline.trashBinMinimalistic;
-      case 'log_deleted':
-        return SolarIconsOutline.history;
       default:
         return SolarIconsOutline.infoCircle;
     }
@@ -263,11 +239,11 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
         return MekaarColors.sosRed;
       case 'sos_ended':
         return MekaarColors.success;
-      case 'guardian_gps_access':
+      case 'guardian_location_accessed':
         return MekaarColors.info;
-      case 'guardian_mic_access':
+      case 'guardian_audio_accessed':
         return MekaarColors.guardianTeal;
-      case 'video_sent':
+      case 'emergency_media_sent':
         return MekaarColors.warning;
       default:
         return MekaarColors.textMuted;
@@ -280,18 +256,14 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
         return 'SOS Diaktifkan';
       case 'sos_ended':
         return 'SOS Diakhiri';
-      case 'guardian_gps_access':
+      case 'guardian_location_accessed':
         return 'Lokasi GPS Diakses';
-      case 'guardian_mic_access':
+      case 'guardian_audio_accessed':
         return 'Mikrofon Diakses';
-      case 'video_sent':
+      case 'emergency_media_sent':
         return 'Video Darurat Dikirim';
-      case 'message_deleted':
-        return 'Pesan Dihapus';
-      case 'log_deleted':
-        return 'Log Dihapus';
       default:
-        return 'Keamanan Terdaftar';
+        return 'Aktivitas SOS';
     }
   }
 
@@ -301,14 +273,14 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
         return 'Tombol darurat SOS ditekan oleh Anda.';
       case 'sos_ended':
         return 'Mode darurat SOS dinonaktifkan secara manual.';
-      case 'guardian_gps_access':
+      case 'guardian_location_accessed':
         return 'Guardian mengakses koordinat lokasi Anda.';
-      case 'guardian_mic_access':
+      case 'guardian_audio_accessed':
         return 'Guardian mendengarkan audio sekitar perangkat.';
-      case 'video_sent':
+      case 'emergency_media_sent':
         return 'Anda memulai streaming video VC darurat.';
       default:
-        return 'Aktivitas keamanan tercatat.';
+        return 'Metadata keselamatan tercatat selama SOS aktif.';
     }
   }
 }

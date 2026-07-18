@@ -131,6 +131,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
       }
     } else {
       // PIN validation
+      final disableAnimations = MediaQuery.disableAnimationsOf(context);
       final isValid = await notifier.validatePIN(_pin);
       if (isValid) {
         if (mounted) {
@@ -148,7 +149,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
         }
       } else {
         HapticFeedback.vibrate();
-        if (!MediaQuery.disableAnimationsOf(context)) {
+        if (!disableAnimations) {
           _shakeController.forward(from: 0);
         }
         setState(() {

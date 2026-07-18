@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/widgets/screen_protection_widgets.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
+import '../providers/screen_protection_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
@@ -177,7 +179,8 @@ class _CallScreenState extends ConsumerState<CallScreen> {
         return;
       }
       final message = error.toString().toLowerCase();
-      final isFatal = message.contains('subscribe') ||
+      final isFatal =
+          message.contains('subscribe') ||
           message.contains('ice') ||
           message.contains('gagal');
       if (mounted && !_isDisposed) {
@@ -358,6 +361,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final protection = ref
+        .watch(roomScreenProtectionProvider(widget.roomId))
+        .valueOrNull;
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, result) {
@@ -369,6 +375,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
+            if (protection?.effective ?? true)
+              Align(
+                alignment: Alignment.topCenter,
+                child: SafeArea(
+                  child: ScreenProtectionStatusBadge(
+                    label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                  ),
+                ),
+              ),
             if (_isVideoCall && _remoteRenderer.srcObject != null)
               Positioned.fill(
                 child: RTCVideoView(
@@ -452,9 +467,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                 ],
               ),
             ),
-            if (_isVideoCall &&
-                _isVideoOn &&
-                _localRenderer.srcObject != null)
+            if (_isVideoCall && _isVideoOn && _localRenderer.srcObject != null)
               Positioned(
                 top: 50,
                 right: 20,
@@ -465,8 +478,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                   child: RTCVideoView(
                     _localRenderer,
                     mirror: true,
-                    objectFit:
-                        RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                   ),
                 ),
               ),

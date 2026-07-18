@@ -31,10 +31,8 @@ class NotificationService {
   static const String maskedVictimTitle = 'Pembaruan Sistem Selesai';
   static const String maskedVictimBody = 'Perangkat Anda telah disinkronkan.';
 
-  // Kirim notifikasi darurat ke Guardian. Saat ini menggunakan fallback
-  // in-app: menulis baris alert ke tabel security_logs milik guardian agar
-  // tampil di log keamanan mereka, dan memancang pesan lewat Realtime.
-  // Push FCM/APNs nyata membutuhkan Supabase Edge Function (lihat §6.6).
+  // Catat hasil pengiriman alert sebagai metadata insiden milik pemilik SOS.
+  // Push FCM/APNs nyata tetap membutuhkan Supabase Edge Function.
   static Future<void> sendSOSNotification({
     required String guardianId,
     required String sessionId,
@@ -44,16 +42,19 @@ class NotificationService {
   }) async {
     try {
       final client = SupabaseService().client;
-      await client.from('security_logs').insert({
-        'user_id': guardianId,
-        'event_type': 'sos_alert_received',
-        'details': {
-          'session_id': sessionId,
-          'gps_enabled': gps,
-          'mic_enabled': mic,
-          'video_enabled': video,
+      await client.rpc(
+        'log_sos_event',
+        params: {
+          'target_session_id': sessionId,
+          'target_event_type': 'guardian_alert_sent',
+          'event_details': {
+            'guardian_id': guardianId,
+            'gps_enabled': gps,
+            'mic_enabled': mic,
+            'video_enabled': video,
+          },
         },
-      });
+      );
       _logger.i(
         "SOS alert dikirim ke Guardian $guardianId (session $sessionId)",
       );

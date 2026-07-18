@@ -134,18 +134,18 @@ void main() {
       final json = {
         'id': 'log-999',
         'user_id': 'user-123',
+        'sos_session_id': 'session-456',
         'event_type': 'sos_started',
         'details': {'reason': 'panic_button'},
         'created_at': now.toIso8601String(),
-        'deleted_at': null,
       };
 
       final log = SecurityLog.fromJson(json);
 
       expect(log.id, 'log-999');
+      expect(log.sosSessionId, 'session-456');
       expect(log.eventType, 'sos_started');
       expect(log.details?['reason'], 'panic_button');
-      expect(log.deletedAt, isNull);
     });
   });
 

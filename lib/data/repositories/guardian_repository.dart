@@ -1,16 +1,13 @@
 import '../models/guardian_model.dart';
 import 'chat_repository.dart';
-import 'log_repository.dart';
 import '../services/supabase_service.dart';
 
 class GuardianRepository {
   final SupabaseService _supabaseService;
   final ChatRepository _chatRepository;
-  final LogRepository _logRepository;
 
   GuardianRepository(this._supabaseService)
-    : _chatRepository = ChatRepository(_supabaseService),
-      _logRepository = LogRepository(_supabaseService);
+    : _chatRepository = ChatRepository(_supabaseService);
 
   // Search profile by email or username through a limited public RPC.
   Future<Map<String, dynamic>?> searchProfile(String query) async {
@@ -75,15 +72,6 @@ class GuardianRepository {
         .select('*, profiles:guardian_id(username, full_name, email)')
         .single();
 
-    try {
-      await _logRepository.logEvent('guardian_invited', {
-        'owner_id': userId,
-        'guardian_id': guardianId,
-        'permissions': permissions,
-        'storage_option': data['storage_option'],
-      });
-    } catch (_) {}
-
     return Guardian.fromJson(response);
   }
 
@@ -127,25 +115,10 @@ class GuardianRepository {
         .select('*, profiles:guardian_id(username, full_name, email)')
         .single();
 
-    final ownerId = response['owner_id'] as String;
     final guardianId = response['guardian_id'] as String;
 
     try {
       await _chatRepository.createRoom(guardianId, 'guardian');
-    } catch (_) {}
-
-    try {
-      String? name;
-      if (response['profiles'] != null) {
-        final profile = response['profiles'] as Map<String, dynamic>;
-        name =
-            profile['full_name'] as String? ?? profile['username'] as String?;
-      }
-      await _logRepository.logEvent('guardian_accepted', {
-        'guardian_id': guardianId,
-        'owner_id': ownerId,
-        'name': name,
-      });
     } catch (_) {}
   }
 
@@ -173,14 +146,6 @@ class GuardianRepository {
               .toIso8601String(), // extend 30 days upon update
         })
         .eq('id', guardianRelationId);
-
-    try {
-      await _logRepository.logEvent('guardian_permissions_updated', {
-        'guardian_relation_id': guardianRelationId,
-        'permissions': permissions,
-        'storage_option': storageOption,
-      });
-    } catch (_) {}
   }
 
   // Switch roles (two-way swap request)
@@ -225,30 +190,18 @@ class GuardianRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
 
-    final record = await _supabaseService.client
+    final blockedUntil = DateTime.now()
+        .add(const Duration(hours: 24))
+        .toIso8601String();
+
+    await _supabaseService.client
         .from('guardians')
-        .select('owner_id, guardian_id')
-        .eq('id', guardianRelationId)
-        .single();
-
-    final guardianId = record['guardian_id'] as String;
-    final blockedUntil =
-        DateTime.now().add(const Duration(hours: 24)).toIso8601String();
-
-    await _supabaseService.client.from('guardians').update({
-      'status': 'broken',
-      'broken_by_owner': true,
-      'blocked_until': blockedUntil,
-    }).eq('id', guardianRelationId);
-
-    try {
-      await _logRepository.logEvent('guardian_broken', {
-        'guardian_relation_id': guardianRelationId,
-        'guardian_id': guardianId,
-        'blocked_until': blockedUntil,
-        'reason': 'panic_unlink',
-      });
-    } catch (_) {}
+        .update({
+          'status': 'broken',
+          'broken_by_owner': true,
+          'blocked_until': blockedUntil,
+        })
+        .eq('id', guardianRelationId);
   }
 
   // Cek apakah sebuah guardian (guardian_id) sedang diblokir (cooldown 24j).

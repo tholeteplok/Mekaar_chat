@@ -20,17 +20,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<({String title, String desc, MikaPose pose})> _slides = [
     (
       title: 'Apa itu MEKAAR?',
-      desc: 'Aplikasi perlindungan darurat: chat pribadi terenkripsi, tombol SOS satu ketukan, dan pelacakan lokasi saat Anda benar-benar dalam bahaya.',
+      desc:
+          'Aplikasi perlindungan darurat: chat pribadi terenkripsi, tombol SOS satu ketukan, dan pelacakan lokasi saat Anda benar-benar dalam bahaya.',
       pose: MikaPose.hi,
     ),
     (
       title: 'Tambahkan Guardian Anda',
-      desc: 'Guardian tidak bisa mengintai Anda. Izin GPS dan audio hanya aktif saat Anda menekan SOS. Setiap akses selalu tercatat di Log Sistem.',
+      desc:
+          'Guardian tidak bisa mengintai Anda. Izin GPS dan audio hanya aktif saat Anda menekan SOS, lalu aksesnya tercatat di Riwayat SOS.',
       pose: MikaPose.love,
     ),
     (
       title: 'Kunci dengan PIN 6 digit',
-      desc: 'Lindungi aplikasi dengan PIN 6 digit. SOS tetap bisa diakses saat aplikasi terkunci, dan 5 kali salah PIN akan mengunci aplikasi selama 30 menit.',
+      desc:
+          'Lindungi aplikasi dengan PIN 6 digit. SOS tetap bisa diakses saat aplikasi terkunci, dan 5 kali salah PIN akan mengunci aplikasi selama 30 menit.',
       pose: MikaPose.shield,
     ),
   ];
@@ -63,7 +66,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Align(
                 alignment: Alignment.topRight,
                 child: TextButton(
-                  onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.login),
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, AppRoutes.login),
                   child: const Text(
                     'Lewati',
                     style: TextStyle(
@@ -137,7 +141,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           borderRadius: BorderRadius.circular(4),
                           color: _currentPage == index
                               ? MekaarColors.yellow
-                              : MekaarColors.textSecondary.withValues(alpha: 0.3),
+                              : MekaarColors.textSecondary.withValues(
+                                  alpha: 0.3,
+                                ),
                         ),
                       ),
                     ),
@@ -145,7 +151,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ElevatedButton.icon(
                     onPressed: _nextPage,
                     icon: const Icon(SolarIconsOutline.altArrowRight),
-                    label: Text(_currentPage == _slides.length - 1 ? 'Mulai' : 'Lanjut'),
+                    label: Text(
+                      _currentPage == _slides.length - 1 ? 'Mulai' : 'Lanjut',
+                    ),
                   ),
                 ],
               ),

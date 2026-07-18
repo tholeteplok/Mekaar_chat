@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/blocked_user_model.dart';
 import '../../../data/repositories/block_repository.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../settings/providers/log_provider.dart';
 
 final blockRepositoryProvider = Provider<BlockRepository>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
@@ -11,10 +10,8 @@ final blockRepositoryProvider = Provider<BlockRepository>((ref) {
 
 class BlockNotifier extends StateNotifier<AsyncValue<List<BlockedUser>>> {
   final BlockRepository _repo;
-  final Ref _ref;
 
-  BlockNotifier(this._repo, this._ref)
-      : super(const AsyncValue.loading()) {
+  BlockNotifier(this._repo) : super(const AsyncValue.loading()) {
     refresh();
   }
 
@@ -38,9 +35,6 @@ class BlockNotifier extends StateNotifier<AsyncValue<List<BlockedUser>>> {
   Future<void> blockUser(String blockedId) async {
     try {
       await _repo.blockUser(blockedId);
-      await _ref.read(securityLogProvider.notifier).logEvent('user_blocked', {
-        'target_user_id': blockedId,
-      });
       await refresh();
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -51,9 +45,6 @@ class BlockNotifier extends StateNotifier<AsyncValue<List<BlockedUser>>> {
   Future<void> unblockUser(String blockedId) async {
     try {
       await _repo.unblockUser(blockedId);
-      await _ref.read(securityLogProvider.notifier).logEvent('user_unblocked', {
-        'target_user_id': blockedId,
-      });
       await refresh();
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -64,6 +55,6 @@ class BlockNotifier extends StateNotifier<AsyncValue<List<BlockedUser>>> {
 
 final blockProvider =
     StateNotifierProvider<BlockNotifier, AsyncValue<List<BlockedUser>>>((ref) {
-  final repo = ref.watch(blockRepositoryProvider);
-  return BlockNotifier(repo, ref);
-});
+      final repo = ref.watch(blockRepositoryProvider);
+      return BlockNotifier(repo);
+    });

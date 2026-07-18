@@ -55,3 +55,4 @@ lib/
 - Linux dependency override `record_linux: 1.3.1` (pubspec.yaml line 147) — keep it; removing breaks Linux audio record.
 - WebRTC and native permissions are configured for Android/iOS; check platform dirs for native config.
 - Maps use OpenStreetMap via `flutter_map` (not Google Maps).
+- Use `MekaarColors.surfaceOf(context)`, `surface2Of(context)`, `backgroundOf(context)` helpers instead of raw `Theme.of(context).brightness` checks for surface/background colors.

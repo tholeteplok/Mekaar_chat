@@ -9,14 +9,15 @@ import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/screen_protection_widgets.dart';
 import '../providers/chat_provider.dart';
+import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/typing_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/media_upload_service.dart';
 import '../../../core/routes/app_routes.dart';
-
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -49,7 +50,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ignore: prefer_final_fields — mutable: updated when partner sends typing event
   bool _partnerIsTyping = false;
   int _autoDeleteHours = 0;
-
 
   @override
   void initState() {
@@ -92,7 +92,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_otherLastSeen == null) return '';
     final diff = DateTime.now().difference(_otherLastSeen!);
     if (diff.inMinutes < 5) return 'Online';
-    if (diff.inMinutes < 60) return 'Terakhir dilihat ${diff.inMinutes} menit lalu';
+    if (diff.inMinutes < 60) {
+      return 'Terakhir dilihat ${diff.inMinutes} menit lalu';
+    }
     if (diff.inHours < 24) return 'Terakhir dilihat ${diff.inHours} jam lalu';
     final days = diff.inDays;
     if (days == 1) return 'Terakhir dilihat kemarin';
@@ -158,23 +160,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       final uploader = MediaUploadService(Supabase.instance.client);
       final url = await uploader.uploadChatMedia(file, widget.chatId);
-      await ref.read(chatActionsProvider).sendMessage(
-        widget.chatId,
-        '',
-        mediaUrl: url,
-        type: type,
-        autoDeleteHours: _autoDeleteHours,
-      );
+      await ref
+          .read(chatActionsProvider)
+          .sendMessage(
+            widget.chatId,
+            '',
+            mediaUrl: url,
+            type: type,
+            autoDeleteHours: _autoDeleteHours,
+          );
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mengirim media: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal mengirim media: $e')));
       }
     }
   }
-
 
   Future<void> _handleSendLocation() async {
     final location = loc.Location();
@@ -196,18 +199,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final lng = locationData.longitude;
       if (lat == null || lng == null) return;
 
-      await ref.read(chatActionsProvider).sendMessage(
-        widget.chatId,
-        '$lat, $lng',
-        type: MessageType.location,
-        autoDeleteHours: _autoDeleteHours,
-      );
+      await ref
+          .read(chatActionsProvider)
+          .sendMessage(
+            widget.chatId,
+            '$lat, $lng',
+            type: MessageType.location,
+            autoDeleteHours: _autoDeleteHours,
+          );
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mendapatkan lokasi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal mendapatkan lokasi: $e')));
       }
     }
   }
@@ -220,7 +225,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lokasi live dibagikan selama $durationMinutes menit'),
+            content: Text(
+              'Lokasi live dibagikan selama $durationMinutes menit',
+            ),
           ),
         );
       }
@@ -302,7 +309,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               final avatar = room['avatar'] as String? ?? '';
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
                   child: Text(
                     avatar.isNotEmpty ? avatar : name[0],
                     style: const TextStyle(color: MekaarColors.textPrimary),
@@ -346,7 +355,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final currentUserId = ref.read(authProvider).user?.id;
     if (currentUserId == null || widget.otherUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Panggilan tidak tersedia untuk obrolan ini.')),
+        const SnackBar(
+          content: Text('Panggilan tidak tersedia untuk obrolan ini.'),
+        ),
       );
       return;
     }
@@ -398,7 +409,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     MekaarDialog.showConfirmation<void>(
       context: context,
       title: 'Hapus Chat?',
-      message: 'Apakah Anda yakin ingin menghapus seluruh obrolan ini? Obrolan akan hilang dari daftar chat Anda.',
+      message:
+          'Apakah Anda yakin ingin menghapus seluruh obrolan ini? Obrolan akan hilang dari daftar chat Anda.',
       isDestructive: true,
       actions: [
         TextButton(
@@ -434,6 +446,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final messagesStream = ref.watch(chatMessagesProvider(widget.chatId));
+    final protectionAsync = ref.watch(
+      roomScreenProtectionProvider(widget.chatId),
+    );
+    final protection = protectionAsync.valueOrNull;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
@@ -461,9 +477,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               SolarIconsOutline.menuDots,
               color: MekaarColors.softCoral,
             ),
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'video') {
                 _initiateCall('video');
+              } else if (value == 'screen_protection') {
+                final nextValue = !(protection?.callerEnabled ?? true);
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await ref
+                      .read(screenProtectionControllerProvider)
+                      .setRoomPreference(widget.chatId, nextValue);
+                } catch (_) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Pengaturan proteksi belum dapat disinkronkan',
+                      ),
+                    ),
+                  );
+                }
               } else if (value == 'clear') {
                 _confirmClearHistory();
               } else if (value == 'delete') {
@@ -475,9 +508,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 value: 'video',
                 child: Row(
                   children: [
-                    Icon(SolarIconsOutline.videocamera, size: 20, color: MekaarColors.textPrimary),
+                    Icon(
+                      SolarIconsOutline.videocamera,
+                      size: 20,
+                      color: MekaarColors.textPrimary,
+                    ),
                     SizedBox(width: 8),
                     Text('Panggilan Video'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'screen_protection',
+                child: Row(
+                  children: [
+                    const Icon(
+                      SolarIconsOutline.shieldCheck,
+                      size: 20,
+                      color: MekaarColors.safeTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      protection?.callerEnabled == true
+                          ? 'Nonaktifkan preferensi saya'
+                          : 'Aktifkan proteksi layar',
+                    ),
                   ],
                 ),
               ),
@@ -485,7 +540,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 value: 'clear',
                 child: Row(
                   children: [
-                    Icon(SolarIconsOutline.trashBinMinimalistic, size: 20, color: MekaarColors.textPrimary),
+                    Icon(
+                      SolarIconsOutline.trashBinMinimalistic,
+                      size: 20,
+                      color: MekaarColors.textPrimary,
+                    ),
                     SizedBox(width: 8),
                     Text('Bersihkan Riwayat'),
                   ],
@@ -495,9 +554,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(SolarIconsOutline.trashBinMinimalistic, size: 20, color: MekaarColors.sosRed),
+                    Icon(
+                      SolarIconsOutline.trashBinMinimalistic,
+                      size: 20,
+                      color: MekaarColors.sosRed,
+                    ),
                     SizedBox(width: 8),
-                    Text('Hapus Chat', style: TextStyle(color: MekaarColors.sosRed)),
+                    Text(
+                      'Hapus Chat',
+                      style: TextStyle(color: MekaarColors.sosRed),
+                    ),
                   ],
                 ),
               ),
@@ -508,6 +574,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       body: Column(
         children: [
+          if (protection?.effective ?? true)
+            ScreenProtectionStatusBadge(
+              label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+            ),
           Expanded(
             child: messagesStream.when(
               data: (messages) {
@@ -532,8 +602,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       canForward: actions.canForward(msg),
                       otherLastReadAt: _otherLastRead,
                       showReadReceipts:
-                          ref.watch(authProvider).profile?.readReceiptsEnabled ??
-                              true,
+                          ref
+                              .watch(authProvider)
+                              .profile
+                              ?.readReceiptsEnabled ??
+                          true,
                       onDelete: () => _handleDeleteMessage(msg),
                       onReply: (replyMsg) {
                         setState(() {
@@ -556,15 +629,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               isGuardianRoom: widget.isGuardian,
                             );
                       },
-                      onForward: (forwardMsg) => _handleForwardMessage(forwardMsg),
+                      onForward: (forwardMsg) =>
+                          _handleForwardMessage(forwardMsg),
                       onReact: (reactMsg, emoji) =>
                           _handleReactToMessage(reactMsg, emoji),
                     );
                   },
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) =>
                   Center(child: Text('Gagal memuat pesan: $err')),
             ),
