@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../constants/motion.dart';
+import '../services/haptic_service.dart';
 
 /// Membungkus child agar mengecil sedikit saat ditekan (press feedback)
 /// dengan haptic opsional. Pakai untuk tombol/kartu yang bisa diketuk.
@@ -43,7 +43,7 @@ class _PressableScaleState extends State<PressableScale> {
       onTap: widget.onTap == null
           ? null
           : () {
-              if (widget.haptic) HapticFeedback.lightImpact();
+              if (widget.haptic) HapticService.trigger(MekaarHapticIntent.selection);
               widget.onTap!();
             },
       onLongPress: widget.onLongPress,

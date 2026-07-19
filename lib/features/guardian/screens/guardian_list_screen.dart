@@ -57,14 +57,35 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         ),
         body: Column(
           children: [
-            TabBar(
-              indicatorColor: MekaarColors.softCoral,
-              labelColor: MekaarColors.textPrimaryOf(context),
-              unselectedLabelColor: MekaarColors.textMutedOf(context),
-              tabs: const [
-                Tab(text: 'Guardian Saya'),
-                Tab(text: 'Menjaga Siapa'),
-              ],
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.black.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: TabBar(
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                indicator: BoxDecoration(
+                  color: MekaarColors.softCoral,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : MekaarColors.textSecondaryOf(context),
+                labelStyle: MekaarTypography.labelMD.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                unselectedLabelStyle: MekaarTypography.labelMD,
+                tabs: const [
+                  Tab(text: 'Guardian Saya'),
+                  Tab(text: 'Menjaga Siapa'),
+                ],
+              ),
             ),
             Expanded(
               child: TabBarView(
@@ -101,7 +122,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                   width: 2,
                   style: BorderStyle.solid,
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(999),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,

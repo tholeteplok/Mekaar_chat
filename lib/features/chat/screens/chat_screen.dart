@@ -55,6 +55,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _textController.addListener(_onTextChanged);
+    // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
+    // untuk tidak memunculkan notif saat user sedang melihat percakapan.
+    ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
     // Default Pesan Menghilang diambil dari preferensi pengguna.
     _autoDeleteHours =
         ref.read(authProvider).profile?.autoDeleteDefaultHours ?? 0;
@@ -108,6 +111,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    // Bersihkan penanda room aktif agar notif pesan kembali aktif
+    // saat user meninggalkan percakapan ini.
+    if (ref.read(activeRoomIdProvider) == widget.chatId) {
+      ref.read(activeRoomIdProvider.notifier).state = null;
+    }
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();

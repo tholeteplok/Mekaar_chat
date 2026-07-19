@@ -14,6 +14,7 @@ migrate_working_dir/
 
 # IntelliJ related
 *.iml
+*.iml
 *.ipr
 *.iws
 .idea/
@@ -44,5 +45,77 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Environment variables
+# ============================================================
+# SENSITIVE FILES — PUBLIC REPO SAFETY
+# Repository ini PUBLIC. JANGAN PERNAH commit file apapun
+# yang berisi credential, API key, atau rahasia.
+# ============================================================
+
+# Environment variables & secrets
 .env
+.env.*
+!.env.example
+*.env
+secrets/
+*.secret
+*.key
+
+# Firebase / Google services
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk-*.json
+
+# Android signing & keystore
+*.jks
+*.keystore
+key.properties
+release-key.jks
+
+# iOS signing
+*.p12
+*.cer
+*.mobileprovision
+ios/Runner/Runner.entitlements
+
+# Service account / OAuth / API tokens
+service-account*.json
+*-credentials.json
+*oauth*.json
+*token*.json
+gcloud-credentials.json
+gha-creds-*.json
+
+# Certificates & private keys
+*.pem
+*.key
+*.pfx
+id_rsa
+id_rsa.pub
+id_dsa
+id_dsa.pub
+id_ecdsa
+id_ecdsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Database dumps & snapshots
+*.sql.gz
+*.dump
+*.bak
+
+# OS generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE / editor
+.vscode/
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+
+# Flutter analyze output (local artifacts)
+analyze_output.txt
+analyze_result.txt
+flutter_analyze*.txt

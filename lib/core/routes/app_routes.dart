@@ -15,6 +15,7 @@ import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/duress_pin_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/sound_picker_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/blocked_list_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/two_factor_setup_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const String guardianTracking = '/guardian/tracking';
   static const String settings = '/settings';
   static const String duressPin = '/settings/duress';
+  static const String soundPicker = '/settings/sound';
   static const String logs = '/logs';
   static const String profile = '/profile';
   static const String blockedList = '/settings/blocked';
@@ -130,6 +132,9 @@ class AppRoutes {
 
       case AppRoutes.profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
+
+      case AppRoutes.soundPicker:
+        return MaterialPageRoute(builder: (_) => const SoundPickerScreen());
       case AppRoutes.blockedList:
         return MaterialPageRoute(builder: (_) => const BlockedListScreen());
       case AppRoutes.twoFactorSetup:

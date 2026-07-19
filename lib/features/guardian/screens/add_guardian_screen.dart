@@ -270,9 +270,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: const StadiumBorder(),
                 ),
                 child: _isLoading
                     ? SizedBox(

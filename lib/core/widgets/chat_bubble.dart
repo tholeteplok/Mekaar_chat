@@ -1,6 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/message_model.dart';
 import '../constants/colors.dart';
 import '../constants/shadows.dart';
+import '../services/haptic_service.dart';
 import 'animations.dart';
 
 // Pelacakan pesan "Sekali Lihat" yang sudah dibuka (lokal, persisten).
@@ -136,7 +136,7 @@ class ChatBubble extends StatelessWidget {
   }
 
   void _showContextMenu(BuildContext context) {
-    HapticFeedback.mediumImpact();
+    HapticService.trigger(MekaarHapticIntent.warning);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,

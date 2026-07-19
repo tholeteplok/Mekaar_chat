@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 import 'package:mekaar_chat/data/services/supabase_service.dart';
+import 'package:mekaar_chat/data/services/notification_service.dart';
+import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
 import 'app.dart';
 
 final logger = Logger();
@@ -50,8 +52,15 @@ void main() async {
     }
   }
 
-  // 3. Run Application
-  runApp(const ProviderScope(child: MekaarApp()));
+  // 3. Initialize local notifications. Native failure remains non-fatal.
+  await NotificationService.initialize();
+
+  // 4. Run Application
+  runApp(
+    ProviderScope(
+      child: NotificationListenerHost(child: const MekaarApp()),
+    ),
+  );
 }
 
 String? _validateSupabaseConfig(String supabaseUrl, String supabaseAnonKey) {

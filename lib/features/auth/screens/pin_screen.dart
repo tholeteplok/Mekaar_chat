@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -69,7 +69,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
   void _handleKeyPress(String key) {
     if (ref.read(authProvider).isPinLocked) return;
     setState(() => _hasError = false); // Reset error state on new key press
-    HapticFeedback.lightImpact();
+    HapticService.trigger(MekaarHapticIntent.selection);
 
     if (key == '⌫') {
       if (_pin.isNotEmpty) {
@@ -106,7 +106,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
           if (mounted) {
             final authState = ref.read(authProvider);
             if (authState.error != null) {
-              HapticFeedback.vibrate();
+              HapticService.trigger(MekaarHapticIntent.destructive);
               setState(() {
                 _pin = '';
                 _hasError = true;
@@ -117,7 +117,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
             }
           }
         } else {
-          HapticFeedback.vibrate();
+          HapticService.trigger(MekaarHapticIntent.destructive);
           if (!MediaQuery.disableAnimationsOf(context)) {
             _shakeController.forward(from: 0);
           }
@@ -148,7 +148,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
           }
         }
       } else {
-        HapticFeedback.vibrate();
+        HapticService.trigger(MekaarHapticIntent.destructive);
         if (!disableAnimations) {
           _shakeController.forward(from: 0);
         }
@@ -214,9 +214,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
               Text(
                 widget.isSetup
                     ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
-                    : 'Buka MEKAAR',
+                    : 'Buka Kunci Aplikasi',
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),

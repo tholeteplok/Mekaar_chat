@@ -114,6 +114,13 @@ class MekaarTheme {
           shadowColor: MekaarColors.yellow.withValues(alpha: 0.3),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: const StadiumBorder(), // Pill shape
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ),
     );
   }
 
@@ -224,6 +231,13 @@ class MekaarTheme {
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           elevation: 4,
           shadowColor: MekaarColors.yellow.withValues(alpha: 0.3),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: const StadiumBorder(), // Pill shape
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
     );

@@ -573,3 +573,30 @@ final notificationMaskingProvider =
     StateNotifierProvider<NotificationMaskingNotifier, bool>((ref) {
       return NotificationMaskingNotifier();
     });
+
+// Allow Guardian Alarm (user permission to let guardian trigger sirens): Default AKTIF (true).
+class AllowGuardianAlarmNotifier extends StateNotifier<bool> {
+  AllowGuardianAlarmNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool('allow_guardian_alarm') ?? true;
+    } catch (_) {}
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('allow_guardian_alarm', enabled);
+      state = enabled;
+    } catch (_) {}
+  }
+}
+
+final allowGuardianAlarmProvider =
+    StateNotifierProvider<AllowGuardianAlarmNotifier, bool>((ref) {
+      return AllowGuardianAlarmNotifier();
+    });

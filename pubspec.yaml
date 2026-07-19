@@ -52,6 +52,8 @@ dependencies:
   # Location & Permissions
   location: ^6.0.2
   permission_handler: ^11.3.1
+  flutter_local_notifications: ^17.2.1
+  file_picker: ^8.0.0
 
   # Audio/Video
   audio_streamer: ^4.2.2
@@ -104,6 +106,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # Launcher icon generator
+  flutter_launcher_icons: ^0.14.3
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -118,6 +123,8 @@ flutter:
   assets:
     - .env
     - assets/mascot/
+    - assets/sounds/
+    - assets/logo/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

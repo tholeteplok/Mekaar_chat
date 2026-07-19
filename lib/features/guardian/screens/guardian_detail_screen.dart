@@ -456,9 +456,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: const StadiumBorder(),
                 ),
                 child: _isSaving
                     ? SizedBox(
@@ -494,9 +492,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: MekaarColors.guardianTeal),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: const StadiumBorder(),
                 ),
                 onPressed: _initiateSwap,
               ),

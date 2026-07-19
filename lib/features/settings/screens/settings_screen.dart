@@ -210,6 +210,48 @@ class SettingsScreen extends ConsumerWidget {
                               .setEnabled(value);
                         },
                       ),
+                      SwitchListTile(
+                        activeThumbColor: MekaarColors.softCoral,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 0,
+                        ),
+                        secondary: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? MekaarColors.cardDark
+                                : MekaarColors.surface2,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            SolarIconsOutline.volumeLoud,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white70
+                                : Colors.black54,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          'Izinkan Guardian Bunyikan Alarm',
+                          style: MekaarTypography.labelLG.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Izinkan wali membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
+                          style: MekaarTypography.bodySM,
+                        ),
+                        value: ref.watch(allowGuardianAlarmProvider),
+                        onChanged: (bool value) {
+                          ref
+                              .read(allowGuardianAlarmProvider.notifier)
+                              .setEnabled(value);
+                        },
+                      ),
                       _buildMenuItem(
                         context,
                         icon: SolarIconsOutline.user,
@@ -293,6 +335,13 @@ class SettingsScreen extends ConsumerWidget {
                             'PIN terpisah yang diam-diam memicu SOS saat dipaksa',
                         onTap: () =>
                             Navigator.pushNamed(context, AppRoutes.duressPin),
+                      ),
+                      _buildMenuItem(
+                        context,
+                        icon: SolarIconsOutline.bell,
+                        title: 'Nada & Suara',
+                        subtitle: 'Pilih nada notifikasi pesan & alarm darurat SOS',
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
                       ),
                     ],
 

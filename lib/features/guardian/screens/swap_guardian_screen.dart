@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -34,7 +34,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   static const int _pinLength = 6;
 
   void _handlePinKey(String key) {
-    HapticFeedback.lightImpact();
+    HapticService.trigger(MekaarHapticIntent.selection);
     if (key == '⌫') {
       if (_pin.isNotEmpty) {
         setState(() => _pin = _pin.substring(0, _pin.length - 1));
@@ -52,7 +52,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
 
     final isValid = await ref.read(authProvider.notifier).validatePIN(_pin);
     if (!isValid) {
-      HapticFeedback.vibrate();
+      HapticService.trigger(MekaarHapticIntent.destructive);
       setState(() {
         _pin = '';
         _isLoading = false;

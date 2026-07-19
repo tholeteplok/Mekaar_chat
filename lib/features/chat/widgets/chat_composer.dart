@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
@@ -11,6 +10,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/motion.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 
 class ChatComposer extends StatefulWidget {
@@ -265,7 +265,7 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 
   void _showAttachmentSheet() {
-    HapticFeedback.lightImpact();
+    HapticService.trigger(MekaarHapticIntent.selection);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,

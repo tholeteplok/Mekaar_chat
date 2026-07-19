@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -10,6 +9,7 @@ import '../../../data/services/location_service.dart';
 import '../../../data/services/audio_service.dart';
 import '../../../data/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/services/haptic_service.dart';
 
 // Repository Provider
 final sosRepositoryProvider = Provider<SOSRepository>((ref) {
@@ -535,7 +535,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
       if (state.status == SOSStatus.active &&
           state.isVideoStreaming &&
           !_deviceIsMoving) {
-        HapticFeedback.lightImpact();
+        HapticService.trigger(MekaarHapticIntent.warning);
         state = state.copyWith(needsInactivityAck: true);
       }
     });

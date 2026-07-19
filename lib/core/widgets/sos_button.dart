@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../constants/colors.dart';
+import '../services/haptic_service.dart';
 
 class SOSButton extends StatefulWidget {
   final VoidCallback? onPressed;
@@ -60,7 +60,7 @@ class _SOSButtonState extends State<SOSButton>
 
   void _handlePress() {
     if (widget.onPressed == null) return;
-    HapticFeedback.heavyImpact();
+    HapticService.trigger(MekaarHapticIntent.emergency);
     widget.onPressed!();
   }
 

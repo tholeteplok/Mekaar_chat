@@ -312,11 +312,18 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       width: double.infinity,
                       height: 54,
                       child: OutlinedButton.icon(
-                        icon: const Icon(SolarIconsOutline.closeSquare),
+                        icon: const Icon(SolarIconsOutline.closeSquare, color: MekaarColors.sosRed),
                         label: Text(
                           sosState.status == SOSStatus.queuedOffline
                               ? 'Batalkan SOS Tertunda'
                               : 'Akhiri Mode Darurat',
+                          style: const TextStyle(color: MekaarColors.sosRed),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: MekaarColors.sosRed),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: () => _handleEndSOS(sosState),
                       ),

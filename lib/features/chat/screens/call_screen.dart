@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
+import '../../../data/services/notification_service.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
 import '../providers/screen_protection_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -58,6 +60,13 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     _myUserId = ref.read(authProvider).user?.id;
     _isVideoOn = _isVideoCall;
     _isSpeakerOn = _isVideoCall;
+    if (!widget.isCaller) {
+      NotificationService.showIncomingCallNotification(
+        callerName: widget.chatName,
+        callType: widget.callType,
+        payload: widget.roomId,
+      );
+    }
     _initializeCall();
   }
 
@@ -168,6 +177,14 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           _mediaReady = false;
         }
       });
+      final normalizedState = state.toLowerCase();
+      if (normalizedState == 'connected') {
+        NotificationService.cancelIncomingCallNotification();
+        HapticService.trigger(MekaarHapticIntent.success);
+      } else if (isDisconnected) {
+        NotificationService.cancelIncomingCallNotification();
+        HapticService.trigger(MekaarHapticIntent.warning);
+      }
     };
 
     signaling.onHangup = () {
@@ -233,6 +250,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     audioTracks.first.enabled = enabled;
     if (mounted) {
       setState(() => _isMuted = !enabled);
+      HapticService.trigger(MekaarHapticIntent.selection);
     }
   }
 
@@ -248,6 +266,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     }
     if (mounted && !_isEnding) {
       setState(() => _isSpeakerOn = speakerOn);
+      HapticService.trigger(MekaarHapticIntent.selection);
     }
   }
 
@@ -263,6 +282,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     videoTracks.first.enabled = enabled;
     if (mounted) {
       setState(() => _isVideoOn = enabled);
+      HapticService.trigger(MekaarHapticIntent.selection);
     }
   }
 
@@ -271,6 +291,8 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     _isEnding = true;
+    NotificationService.cancelIncomingCallNotification();
+    HapticService.trigger(MekaarHapticIntent.destructive);
     if (mounted) {
       setState(() {
         _mediaReady = false;
@@ -328,6 +350,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     _isCleanedUp = true;
+    NotificationService.cancelIncomingCallNotification();
     final signaling = _signaling;
     if (signaling != null) {
       signaling.onLocalStream = null;

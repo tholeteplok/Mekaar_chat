@@ -8,6 +8,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/alarm_service.dart';
 
 class DeviceLostScreen extends StatefulWidget {
   const DeviceLostScreen({super.key});
@@ -22,11 +23,43 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
   double? _lon;
   bool _isLoadingLocation = true;
   String? _locationError;
+  bool _isAlarmPlaying = false;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(_loadLocation);
+    _isAlarmPlaying = AlarmService.isPlaying;
+  }
+
+  Future<void> _toggleAlarm() async {
+    if (_isAlarmPlaying) {
+      await AlarmService.stopAlarm();
+      setState(() {
+        _isAlarmPlaying = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Alarm berhasil dimatikan.'),
+            backgroundColor: MekaarColors.success,
+          ),
+        );
+      }
+    } else {
+      await AlarmService.playSOSAlarm();
+      setState(() {
+        _isAlarmPlaying = true;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Alarm berbunyi keras!'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadLocation() async {
@@ -124,6 +157,11 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                                 Text(
                                   _locationError!,
                                   textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white70
+                                        : MekaarColors.textSecondary,
+                                  ),
                                 ),
                                 const SizedBox(height: 12),
                                 OutlinedButton.icon(
@@ -169,9 +207,11 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                     _lat == null || _lon == null
                         ? 'Koordinat: -'
                         : 'Koordinat: $_lat, $_lon',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: MekaarColors.textSecondary,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : MekaarColors.textSecondary,
                     ),
                   ),
                 ),
@@ -198,12 +238,14 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Perintah Jarak Jauh',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: MekaarColors.textPrimary,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : MekaarColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -212,20 +254,20 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         icon: const Icon(SolarIconsOutline.volumeLoud),
-                        label: const Text('Alarm belum tersedia'),
+                        label: Text(_isAlarmPlaying ? 'Matikan Alarm' : 'Bunyikan Alarm'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
+                          backgroundColor: _isAlarmPlaying
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                          foregroundColor: _isAlarmPlaying
+                              ? Theme.of(context).colorScheme.onError
+                              : Theme.of(context).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: null,
+                        onPressed: _toggleAlarm,
                       ),
                     ),
                   ],
@@ -238,20 +280,20 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                     label: const Text('Buka di OpenStreetMap'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: const StadiumBorder(),
                     ),
                     onPressed: _openInOsm,
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Pesan Kunci Layar (belum tersedia)',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: MekaarColors.textSecondary,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white70
+                        : MekaarColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
