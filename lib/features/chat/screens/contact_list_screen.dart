@@ -222,6 +222,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
                   'chatId': contact['id'],
                   'chatName': name,
                   'chatAvatar': avatar,
+                  'chatAvatarUrl': contact['avatarUrl'] as String?,
                   'isGuardian': isGuardian,
                   'otherUserId': contact['otherUserId'] as String?,
                 },

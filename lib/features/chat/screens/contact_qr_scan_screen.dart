@@ -86,7 +86,11 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
       // 3. Buat atau dapatkan room chat personal
       final roomId = await ref
           .read(chatRoomsProvider.notifier)
-          .getOrCreateRoom(userId, 'normal');
+          .getOrCreateRoom(
+            userId,
+            'normal',
+            screenshotEnabled: ref.read(screenshotBlockProvider),
+          );
 
       if (mounted) {
         Navigator.pop(context); // Tutup scanner
@@ -101,6 +105,7 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
             'chatAvatar': (profile['full_name'] as String? ??
                 profile['username'] as String? ??
                 'U')[0],
+            'chatAvatarUrl': profile['avatar_url'] as String?,
             'isGuardian': false,
             'otherUserId': userId,
           },

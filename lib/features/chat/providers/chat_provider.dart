@@ -39,8 +39,16 @@ class ChatRoomsNotifier
     }
   }
 
-  Future<String> getOrCreateRoom(String otherUserId, String type) async {
-    final roomId = await _chatRepository.createRoom(otherUserId, type);
+  Future<String> getOrCreateRoom(
+    String otherUserId,
+    String type, {
+    bool screenshotEnabled = true,
+  }) async {
+    final roomId = await _chatRepository.createRoom(
+      otherUserId,
+      type,
+      screenshotProtectionEnabled: screenshotEnabled,
+    );
     await refreshRooms();
     return roomId;
   }

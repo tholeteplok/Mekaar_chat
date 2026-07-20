@@ -43,6 +43,7 @@ class ChatListTile extends StatelessWidget {
           children: [
             Avatar(
               initial: room['avatar'] as String? ?? name[0],
+              imageUrl: room['avatarUrl'] as String?,
               size: MekaarSizes.avatarLg,
               isGuardian: isGuardian,
             ),

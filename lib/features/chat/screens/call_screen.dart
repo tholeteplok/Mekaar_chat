@@ -9,6 +9,7 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
 import '../providers/screen_protection_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/widgets/avatar.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -51,6 +52,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   bool _statusIsError = false;
   String _callStatus = 'Menyiapkan panggilan...';
   String? _myUserId;
+  String? _avatarUrl;
 
   bool get _isVideoCall => widget.callType == 'video';
 
@@ -60,6 +62,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     _myUserId = ref.read(authProvider).user?.id;
     _isVideoOn = _isVideoCall;
     _isSpeakerOn = _isVideoCall;
+    _loadAvatar();
     if (!widget.isCaller) {
       NotificationService.showIncomingCallNotification(
         callerName: widget.chatName,
@@ -68,6 +71,22 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       );
     }
     _initializeCall();
+  }
+
+  Future<void> _loadAvatar() async {
+    final otherId = widget.isCaller ? widget.receiverId : widget.callerId;
+    try {
+      final profileRow = await ref.read(supabaseServiceProvider).client
+          .from('public_profiles')
+          .select('avatar_url')
+          .eq('id', otherId)
+          .maybeSingle();
+      if (mounted) {
+        setState(() {
+          _avatarUrl = profileRow?['avatar_url'] as String?;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _initializeCall() async {
@@ -437,19 +456,10 @@ class _CallScreenState extends ConsumerState<CallScreen> {
               child: Column(
                 children: [
                   if (!_isVideoCall) ...[
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: MekaarColors.softCoral,
-                      child: Text(
-                        widget.chatName.isNotEmpty
-                            ? widget.chatName[0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                          fontSize: 40,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    Avatar(
+                      initial: widget.chatName.isNotEmpty ? widget.chatName[0].toUpperCase() : 'U',
+                      imageUrl: _avatarUrl,
+                      size: 100,
                     ),
                     const SizedBox(height: 20),
                   ],

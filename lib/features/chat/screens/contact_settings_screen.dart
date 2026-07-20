@@ -6,6 +6,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/avatar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
@@ -37,6 +38,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   bool _isLoading = true;
   bool _isBlocked = false;
   String _e2eeFingerprint = '';
+  String? _avatarUrl;
 
   @override
   void initState() {
@@ -50,12 +52,24 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     final blocked = await ref.read(blockRepositoryProvider).isBlocked(widget.otherUserId);
     final peerPub = await E2eeService.instance.getPeerPublicKey(widget.otherUserId);
     final fingerprint = peerPub != null ? E2eeService.getPublicKeyFingerprint(peerPub) : '';
+    
+    String? peerAvatarUrl;
+    try {
+      final profileRow = await ref.read(supabaseServiceProvider).client
+          .from('public_profiles')
+          .select('avatar_url')
+          .eq('id', widget.otherUserId)
+          .maybeSingle();
+      peerAvatarUrl = profileRow?['avatar_url'] as String?;
+    } catch (_) {}
+
     if (!mounted) return;
     setState(() {
       _isMuted = prefs?.isMuted ?? false;
       _disappearingOverrideHours = prefs?.disappearingOverrideHours;
       _isBlocked = blocked;
       _e2eeFingerprint = fingerprint;
+      _avatarUrl = peerAvatarUrl;
       _isLoading = false;
     });
   }
@@ -127,17 +141,11 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 Center(
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 44,
-                        backgroundColor: MekaarColors.softCoral.withValues(alpha: 0.15),
-                        child: Text(
-                          widget.chatAvatar.isNotEmpty ? widget.chatAvatar : widget.chatName[0],
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: MekaarColors.softCoral,
-                          ),
-                        ),
+                      Avatar(
+                        initial: widget.chatAvatar.isNotEmpty ? widget.chatAvatar : widget.chatName[0],
+                        imageUrl: _avatarUrl,
+                        size: 88,
+                        isGuardian: widget.isGuardian,
                       ),
                       const SizedBox(height: 12),
                       Text(

@@ -292,7 +292,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                   final roomId = await ref
                                       .read(chatRoomsProvider.notifier)
                                       .getOrCreateRoom(
-                                          profile['id'], 'normal');
+                                        profile['id'],
+                                        'normal',
+                                        screenshotEnabled: ref.read(screenshotBlockProvider),
+                                      );
 
                                   if (stateCtx.mounted) {
                                     Navigator.pop(stateCtx);
@@ -326,6 +329,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                         'isGuardian': false,
                                         'otherUserId':
                                             profile['id'] as String?,
+                                        'chatAvatarUrl':
+                                            profile['avatar_url'] as String?,
                                       },
                                     );
                                   }
@@ -606,6 +611,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     'chatId': room['id'],
                     'chatName': room['name'],
                     'chatAvatar': room['avatar'],
+                    'chatAvatarUrl': room['avatarUrl'] as String?,
                     'isGuardian': room['isGuardian'] as bool? ?? false,
                     'otherUserId': room['otherUserId'] as String?,
                   },

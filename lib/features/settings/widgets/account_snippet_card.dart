@@ -79,7 +79,11 @@ class AccountSnippetCard extends ConsumerWidget {
             child: Row(
               children: [
                 // Avatar
-                Avatar(initial: displayName, size: 48),
+                Avatar(
+                  initial: displayName,
+                  imageUrl: profile?.avatarUrl,
+                  size: 48,
+                ),
                 const SizedBox(width: 14),
                 // Nama & email
                 Expanded(

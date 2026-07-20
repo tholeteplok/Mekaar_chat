@@ -6,6 +6,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/avatar.dart';
 import '../providers/guardian_provider.dart';
 
 // Layar pemindai QR: pindai kode teman → preview profil → atur izin →
@@ -120,19 +121,10 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: MekaarColors.guardianTeal.withValues(
-                          alpha: 0.15,
-                        ),
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: MekaarColors.guardianTeal,
-                          ),
-                        ),
+                      Avatar(
+                        initial: name,
+                        imageUrl: profile['avatar_url'] as String?,
+                        size: 56,
                       ),
                       const SizedBox(width: 16),
                       Expanded(

@@ -7,6 +7,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../core/widgets/avatar.dart';
 import '../providers/block_provider.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -66,15 +67,10 @@ class BlockedListScreen extends ConsumerWidget {
                       profile?['username'] as String? ??
                       'Pengguna';
                   return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? MekaarColors.cardDark
-                              : MekaarColors.surface2,
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                        style: MekaarTypography.labelLG,
-                      ),
+                    leading: Avatar(
+                      initial: name,
+                      imageUrl: profile?['avatar_url'] as String?,
+                      size: 40,
                     ),
                     title: Text(name, style: MekaarTypography.labelLG),
                     subtitle: Text(

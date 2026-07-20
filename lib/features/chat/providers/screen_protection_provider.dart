@@ -25,7 +25,7 @@ final screenProtectionControllerProvider = Provider<ScreenProtectionController>(
 );
 
 final roomScreenProtectionProvider =
-    StreamProvider.family<RoomScreenProtection, String>((ref, roomId) {
+    StreamProvider.autoDispose.family<RoomScreenProtection, String>((ref, roomId) {
       final controller = ref.watch(screenProtectionControllerProvider);
       controller.enterRoom(roomId);
       ref.onDispose(() => controller.leaveRoom(roomId));

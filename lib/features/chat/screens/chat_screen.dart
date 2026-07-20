@@ -31,6 +31,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
   final String chatName;
   final String chatAvatar;
+  final String? chatAvatarUrl;
   final bool isGuardian;
   final String? otherUserId;
 
@@ -39,6 +40,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     required this.chatId,
     required this.chatName,
     required this.chatAvatar,
+    this.chatAvatarUrl,
     this.isGuardian = false,
     this.otherUserId,
   });
@@ -532,6 +534,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: CustomAppBar(
         title: widget.chatName,
         avatarInitial: widget.chatAvatar,
+        avatarUrl: widget.chatAvatarUrl,
         isGuardian: widget.isGuardian,
         showOnlineIndicator: true,
         isOnline: _isCurrentlyOnline || _partnerIsTyping,

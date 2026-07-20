@@ -149,6 +149,7 @@ class ChatRepository {
         'id': roomId,
         'name': chatName,
         'avatar': chatAvatar,
+        'avatarUrl': profile?['avatar_url'] as String?,
         'lastMessage': lastMessageText,
         'timestamp': lastMessageTime,
         'unreadCount': unreadCount,
@@ -167,7 +168,11 @@ class ChatRepository {
   }
 
   // Create normal or guardian chat room atomically via RPC.
-  Future<String> createRoom(String otherUserId, String type) async {
+  Future<String> createRoom(
+    String otherUserId,
+    String type, {
+    bool screenshotProtectionEnabled = true,
+  }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
 
@@ -177,6 +182,7 @@ class ChatRepository {
         params: {
           'other_user_id': otherUserId,
           'requested_room_type': type,
+          'p_screenshot_protection': screenshotProtectionEnabled,
         },
       );
       if (response is String && response.isNotEmpty) return response;
@@ -184,10 +190,18 @@ class ChatRepository {
       // Fallback keeps local MVP usable before the additive migration is applied.
     }
 
-    return _createRoomFallback(otherUserId, type);
+    return _createRoomFallback(
+      otherUserId,
+      type,
+      screenshotProtectionEnabled: screenshotProtectionEnabled,
+    );
   }
 
-  Future<String> _createRoomFallback(String otherUserId, String type) async {
+  Future<String> _createRoomFallback(
+    String otherUserId,
+    String type, {
+    bool screenshotProtectionEnabled = true,
+  }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
     if (userId == otherUserId) throw Exception('Cannot create room with yourself');
@@ -206,7 +220,15 @@ class ChatRepository {
           .eq('room_id', roomId)
           .eq('profile_id', otherUserId)
           .maybeSingle();
-      if (checkOther != null) return roomId;
+      if (checkOther != null) {
+        // Restore for current user if deleted
+        await _supabaseService.client
+            .from('room_participants')
+            .update({'deleted_at': null})
+            .eq('room_id', roomId)
+            .eq('profile_id', userId);
+        return roomId;
+      }
     }
 
     final roomResponse = await _supabaseService.client
@@ -217,8 +239,16 @@ class ChatRepository {
     final roomId = roomResponse['id'] as String;
 
     await _supabaseService.client.from('room_participants').insert([
-      {'room_id': roomId, 'profile_id': userId},
-      {'room_id': roomId, 'profile_id': otherUserId},
+      {
+        'room_id': roomId,
+        'profile_id': userId,
+        'screenshot_protection_enabled': screenshotProtectionEnabled,
+      },
+      {
+        'room_id': roomId,
+        'profile_id': otherUserId,
+        'screenshot_protection_enabled': true, // Recipient defaults to true
+      },
     ]);
 
     return roomId;
@@ -361,8 +391,8 @@ class ChatRepository {
         .from('messages')
         .update({
           'is_deleted': true,
-          'deleted_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
+          'deleted_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', messageId);
   }
@@ -376,7 +406,7 @@ class ChatRepository {
         .from('messages')
         .update({
           'content': contentToStore,
-          'updated_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', messageId);
   }
@@ -435,7 +465,7 @@ class ChatRepository {
       if (userId == null) return;
       await _supabaseService.client
           .from('room_participants')
-          .update({'last_read_at': DateTime.now().toIso8601String()})
+          .update({'last_read_at': DateTime.now().toUtc().toIso8601String()})
           .eq('room_id', roomId)
           .eq('profile_id', userId);
     }
@@ -483,8 +513,8 @@ class ChatRepository {
         .from('messages')
         .update({
           'content': contentToStore,
-          'edited_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
+          'edited_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', messageId);
   }
@@ -604,7 +634,7 @@ class ChatRepository {
     if (userId == null) return;
     await _supabaseService.client
         .from('room_participants')
-        .update({'history_cleared_at': DateTime.now().toIso8601String()})
+        .update({'history_cleared_at': DateTime.now().toUtc().toIso8601String()})
         .eq('room_id', roomId)
         .eq('profile_id', userId);
   }
@@ -616,8 +646,8 @@ class ChatRepository {
     await _supabaseService.client
         .from('room_participants')
         .update({
-          'deleted_at': DateTime.now().toIso8601String(),
-          'history_cleared_at': DateTime.now().toIso8601String()
+          'deleted_at': DateTime.now().toUtc().toIso8601String(),
+          'history_cleared_at': DateTime.now().toUtc().toIso8601String()
         })
         .eq('room_id', roomId)
         .eq('profile_id', userId);
