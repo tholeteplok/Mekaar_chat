@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../../../data/models/sos_session_model.dart';
@@ -78,6 +79,7 @@ class SOSState {
 class SOSNotifier extends StateNotifier<SOSState> {
   final SOSRepository _sosRepository;
   final AudioService _audioService = AudioService();
+  static final Logger _logger = Logger();
 
   Timer? _timer;
   StreamSubscription? _locationSubscription;
@@ -369,7 +371,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
       }
       _startAccelerometerWatch();
       resetInactivityTimer();
-    } catch (_) {
+    } catch (e) {
+      _logger.e('Gagal memulai stream sensor lokal saat SOS', error: e);
       // Sesi server tetap aktif meski salah satu stream lokal gagal dimulai.
     }
 
@@ -384,7 +387,9 @@ class SOSNotifier extends StateNotifier<SOSState> {
           video: video,
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      _logger.e('Gagal mengirimkan notifikasi SOS ke guardian', error: e);
+    }
   }
 
   /// Akhiri SOS: hentikan semua stream, update session

@@ -487,6 +487,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  void _showE2eeInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MekaarColors.surfaceOf(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
+            SizedBox(width: 8),
+            Text('Enkripsi Ujung-ke-Ujung', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Pesan dan panggilan dalam chat ini dilindungi dengan enkripsi ujung-ke-ujung (E2EE) menggunakan pasangan kunci asimetris X25519.',
+              style: TextStyle(color: MekaarColors.textPrimary, fontSize: 13),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '⚠️ Batasan Forward Secrecy:',
+              style: TextStyle(color: MekaarColors.warnAmber, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'MEKAAR saat ini tidak menggunakan rotasi kunci otomatis (Forward Secrecy). Jika kunci privat salah satu pihak bocor di masa mendatang, pesan-pesan lama dalam ruang obrolan ini secara teoritis dapat didekripsi. Amankan PIN dan perangkat Anda.',
+              style: TextStyle(color: MekaarColors.textSecondary, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Mengerti', style: TextStyle(color: MekaarColors.guardianTeal)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -529,6 +572,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 )
             : null,
         actions: [
+          // E2EE Lock/Secure Indicator
+          IconButton(
+            icon: const Icon(
+              SolarIconsOutline.shieldKeyhole,
+              color: MekaarColors.guardianTeal,
+            ),
+            onPressed: _showE2eeInfoDialog,
+            tooltip: 'Informasi Enkripsi',
+          ),
           // Voice Call icon
           IconButton(
             icon: const Icon(

@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:logger/logger.dart';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'supabase_service.dart';
+import 'package:crypto/crypto.dart' as crypto;
 
 /// Dilempar saat proses enkripsi gagal karena masalah *sementara*
 /// (jaringan, error server, dsb) — BUKAN karena lawan bicara memang belum
@@ -39,6 +41,7 @@ class E2eeService {
   E2eeService._();
 
   static final E2eeService instance = E2eeService._();
+  static final Logger _logger = Logger();
 
   static const String _privStorageKeyPrefix = 'e2ee_identity_private_v1_';
   static const int _pbkdf2Iterations = 100000;
@@ -70,15 +73,16 @@ class E2eeService {
     if (userId == null) return;
 
     try {
-      final storedPriv = await _secureStorage.read(
-        key: _storageKeyFor(userId),
-      );
-      if (storedPriv != null) {
-        await _loadIdentityFromBytes(base64Decode(storedPriv));
+      final raw = await _secureStorage.read(key: _storageKeyFor(userId));
+      if (raw != null) {
+        final bytes = base64Decode(raw);
+        await _loadIdentityFromBytes(bytes);
         await _publishPublicKeyIfNeeded();
         return;
       }
-    } catch (_) {}
+    } catch (e) {
+      _logger.e('Gagal memuat identitas dari secure storage', error: e);
+    }
 
     await _generateAndPublishIdentity(userId);
   }
@@ -100,7 +104,9 @@ class E2eeService {
       final pub = await _identity!.extractPublicKey();
       _identityPublicB64 = base64Encode(pub.bytes);
       await _publishPublicKeyIfNeeded(force: true);
-    } catch (_) {}
+    } catch (e) {
+      _logger.e('Gagal generate dan mempublikasikan identitas', error: e);
+    }
   }
 
   Future<void> _publishPublicKeyIfNeeded({bool force = false}) async {
@@ -116,7 +122,8 @@ class E2eeService {
             .eq('id', userId)
             .maybeSingle();
         if (row != null && row['e2ee_public_key'] == pubB64) return;
-      } catch (_) {
+      } catch (e) {
+        _logger.w('Gagal memeriksa kunci publik yang ada', error: e);
         return;
       }
     }
@@ -129,7 +136,9 @@ class E2eeService {
             'e2ee_key_updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', userId);
-    } catch (_) {}
+    } catch (e) {
+      _logger.e('Gagal memperbarui kunci publik di profil', error: e);
+    }
   }
 
   /// Bersihkan cache sesi saat logout (identitas per-akun tetap di storage).
@@ -307,7 +316,7 @@ class E2eeService {
 
   // ── Backup & restore via PIN ───────────────────────────────
 
-  /// Wrap private key dengan kunci PBKDF2(PIN) lalu simpan ke profil.
+  /// Wrap private key dengan kunci Argon2id(PIN) lalu simpan ke profil.
   /// Dipanggil saat PIN dibuat/diubah. Best-effort.
   Future<void> backupWithPin(String pin) async {
     try {
@@ -318,21 +327,23 @@ class E2eeService {
 
       final privBytes = await identity.extractPrivateKeyBytes();
       final salt = _randomBytes(16);
-      final wrapKey = await _pinKey(pin, salt);
+      final wrapKey = await _pinKeyArgon2id(pin, salt);
       final box = await _cipher.encrypt(privBytes, secretKey: wrapKey);
 
       await _supabase.client
           .from('profiles')
           .update({
             'e2ee_key_backup': jsonEncode({
-              'v': 1,
-              'kdf': 'pbkdf2-sha256-$_pbkdf2Iterations',
+              'v': 2,
+              'kdf': 'argon2id',
               'salt': base64Encode(salt),
               'ct': base64Encode(box.concatenation()),
             }),
           })
           .eq('id', userId);
-    } catch (_) {}
+    } catch (e) {
+      _logger.e('Gagal melakukan backup identitas E2EE dengan PIN', error: e);
+    }
   }
 
   /// Pulihkan identitas dari backup bila perangkat ini belum punya kunci.
@@ -356,7 +367,15 @@ class E2eeService {
 
       final map = jsonDecode(backup) as Map;
       final salt = base64Decode(map['salt'] as String);
-      final wrapKey = await _pinKey(pin, salt);
+      final kdfType = map['kdf'] as String? ?? 'pbkdf2-sha256-100000';
+
+      final SecretKey wrapKey;
+      if (kdfType == 'argon2id') {
+        wrapKey = await _pinKeyArgon2id(pin, salt);
+      } else {
+        wrapKey = await _pinKeyPBKDF2(pin, salt);
+      }
+
       final box = SecretBox.fromConcatenation(
         base64Decode(map['ct'] as String),
         nonceLength: 24,
@@ -365,6 +384,11 @@ class E2eeService {
       final privBytes = await _cipher.decrypt(box, secretKey: wrapKey);
 
       await _loadIdentityFromBytes(privBytes);
+
+      // Auto-upgrade backup KDF to Argon2id in background if it was pbkdf2
+      if (kdfType != 'argon2id') {
+        backupWithPin(pin);
+      }
 
       // Verifikasi: public key hasil restore harus cocok dengan yang terpublikasi.
       if (expectedPub != null &&
@@ -384,7 +408,7 @@ class E2eeService {
     }
   }
 
-  Future<SecretKey> _pinKey(String pin, List<int> salt) {
+  Future<SecretKey> _pinKeyPBKDF2(String pin, List<int> salt) {
     final pbkdf2 = Pbkdf2(
       macAlgorithm: Hmac(Sha256()),
       iterations: _pbkdf2Iterations,
@@ -394,6 +418,52 @@ class E2eeService {
       secretKey: SecretKey(utf8.encode(pin)),
       nonce: salt,
     );
+  }
+
+  Future<SecretKey> _pinKeyArgon2id(String pin, List<int> salt) async {
+    final argon2 = Argon2id(
+      memory: 12000,
+      iterations: 2,
+      parallelism: 1,
+      hashLength: 32,
+    );
+    return argon2.deriveKey(
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: salt,
+    );
+  }
+
+  /// Generate sidik jari (Safety Number) dari kunci publik E2EE.
+  /// Mengambil hash SHA-256 dari kunci publik lalu memformatnya dalam kelompok 4-karakter hex.
+  static String getPublicKeyFingerprint(String publicKeyB64) {
+    if (publicKeyB64.isEmpty) return '';
+    try {
+      final bytes = base64Decode(publicKeyB64);
+      final hash = crypto.sha256.convert(bytes).bytes;
+      final hexString = hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join().toUpperCase();
+      
+      final chunks = <String>[];
+      for (var i = 0; i < hexString.length; i += 4) {
+        final end = (i + 4 < hexString.length) ? i + 4 : hexString.length;
+        chunks.add(hexString.substring(i, end));
+      }
+      return chunks.join(' ');
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<String?> getPeerPublicKey(String otherUserId) async {
+    try {
+      final row = await _supabase.client
+          .from('public_profiles')
+          .select('e2ee_public_key')
+          .eq('id', otherUserId)
+          .maybeSingle();
+      return row?['e2ee_public_key'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 
   List<int> _randomBytes(int length) {

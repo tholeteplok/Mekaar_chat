@@ -8,6 +8,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
+import '../../../data/services/e2ee_service.dart';
 
 class ContactSettingsScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -34,6 +35,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   int? _disappearingOverrideHours;
   bool _isLoading = true;
   bool _isBlocked = false;
+  String _e2eeFingerprint = '';
 
   @override
   void initState() {
@@ -45,11 +47,14 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     final repo = ref.read(chatRepositoryProvider);
     final prefs = await repo.getRoomPreferences(widget.roomId);
     final blocked = await ref.read(blockRepositoryProvider).isBlocked(widget.otherUserId);
+    final peerPub = await E2eeService.instance.getPeerPublicKey(widget.otherUserId);
+    final fingerprint = peerPub != null ? E2eeService.getPublicKeyFingerprint(peerPub) : '';
     if (!mounted) return;
     setState(() {
       _isMuted = prefs?.isMuted ?? false;
       _disappearingOverrideHours = prefs?.disappearingOverrideHours;
       _isBlocked = blocked;
+      _e2eeFingerprint = fingerprint;
       _isLoading = false;
     });
   }
@@ -180,6 +185,65 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
 
                 // Disappearing messages
                 _buildDisappearingTile(),
+
+                // E2EE Safety Number Fingerprint
+                ListTile(
+                  leading: const Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
+                  title: const Text('Sidik Jari Keamanan E2EE'),
+                  subtitle: Text(
+                    _e2eeFingerprint.isNotEmpty ? _e2eeFingerprint : 'Belum mengaktifkan E2EE',
+                    style: MekaarTypography.bodySM.copyWith(
+                      fontFamily: _e2eeFingerprint.isNotEmpty ? 'monospace' : null,
+                      letterSpacing: _e2eeFingerprint.isNotEmpty ? 1.0 : null,
+                    ),
+                  ),
+                  onTap: _e2eeFingerprint.isNotEmpty
+                      ? () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: MekaarColors.surfaceOf(context),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              title: const Text('Sidik Jari Keamanan', style: TextStyle(fontWeight: FontWeight.bold)),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Untuk memverifikasi bahwa chat ini aman dan dienkripsi ujung-ke-ujung (E2EE) secara sah, cocokkan nomor berikut dengan perangkat milik kontak Anda.',
+                                    style: TextStyle(color: MekaarColors.textSecondary, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: MekaarColors.surface2Of(context),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: SelectableText(
+                                      _e2eeFingerprint,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Tutup', style: TextStyle(color: MekaarColors.guardianTeal)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      : null,
+                ),
 
                 const Divider(height: 40, indent: 20, endIndent: 20),
 
