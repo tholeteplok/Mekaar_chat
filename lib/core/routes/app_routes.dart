@@ -24,6 +24,8 @@ import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_map_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/contact_qr_scan_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -34,6 +36,8 @@ class AppRoutes {
   static const String chat = '/chat';
   static const String guardian = '/guardian';
   static const String guardianAdd = '/guardian/add';
+  static const String guardianQrInvite = '/guardian/qr';
+  static const String guardianQrScan = '/guardian/qr-scan';
   static const String guardianDetail = '/guardian/detail';
   static const String guardianSwap = '/guardian/swap';
   static const String guardianTracking = '/guardian/tracking';
@@ -50,6 +54,8 @@ class AppRoutes {
   static const String deviceLost = '/sos/lost';
   static const String map = '/map';
   static const String call = '/call';
+  static const String contactQrScan = '/chat/qr-scan';
+  static const String myQr = '/chat/my-qr';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -162,6 +168,12 @@ class AppRoutes {
             locationName: args['locationName'] as String?,
           ),
         );
+
+      case AppRoutes.contactQrScan:
+        return MaterialPageRoute(builder: (_) => const ContactQrScanScreen());
+
+      case AppRoutes.myQr:
+        return MaterialPageRoute(builder: (_) => const MyQrScreen());
 
       default:
         return MaterialPageRoute(

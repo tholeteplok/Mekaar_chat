@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/e2ee_service.dart';
 import 'chat_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 
@@ -55,6 +56,7 @@ class MessageNotificationListener {
     final senderId = newRow['sender_id'] as String?;
     final content = newRow['content'] as String? ?? '';
     final isDeleted = newRow['is_deleted'] as bool? ?? false;
+    final isEncrypted = newRow['is_encrypted'] as bool? ?? false;
 
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
     if (roomId == null || senderId == null || currentUserId == null) return;
@@ -72,7 +74,7 @@ class MessageNotificationListener {
       return;
     }
 
-    _notify(roomId, senderId, content);
+    _notify(roomId, senderId, content, isEncrypted);
   }
 
   /// Filter murni (tanpa side-effect) untuk menentukan apakah sebuah pesan
@@ -100,6 +102,7 @@ class MessageNotificationListener {
     String roomId,
     String senderId,
     String content,
+    bool isEncrypted,
   ) async {
     final repo = _ref.read(chatRepositoryProvider);
     String senderName = 'Seseorang';
@@ -114,9 +117,20 @@ class MessageNotificationListener {
       // Fallback ke nama default jika profil gagal diambil.
     }
 
+    // Dekripsi konten pesan jika terenkripsi
+    String displayContent = content;
+    if (isEncrypted && content.isNotEmpty) {
+      try {
+        final decrypted = await E2eeService.instance.decryptForRoom(roomId, content);
+        displayContent = decrypted;
+      } catch (_) {
+        displayContent = E2eeService.undecryptableText;
+      }
+    }
+
     await NotificationService.showMessageNotification(
       title: senderName,
-      body: content,
+      body: displayContent,
       roomId: roomId,
     );
   }

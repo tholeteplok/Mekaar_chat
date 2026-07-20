@@ -67,6 +67,13 @@ class ChatListTile extends StatelessWidget {
                           color: MekaarColors.guardianTeal,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
+                      ] else ...[
+                        const Icon(
+                          Icons.lock_outline,
+                          size: 13,
+                          color: MekaarColors.textMuted,
+                        ),
+                        const SizedBox(width: MekaarSpacing.xs),
                       ],
                       Expanded(
                         child: Text(

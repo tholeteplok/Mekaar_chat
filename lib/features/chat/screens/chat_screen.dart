@@ -17,6 +17,7 @@ import '../widgets/typing_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/media_upload_service.dart';
+import '../../../data/services/e2ee_service.dart';
 import '../../../core/routes/app_routes.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -167,12 +168,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _handleSendMedia(File file, MessageType type) async {
     try {
       final uploader = MediaUploadService(Supabase.instance.client);
-      final url = await uploader.uploadChatMedia(file, widget.chatId);
+      
+      String? fileKeyB64;
+      String url;
+
+      // Cek apakah room mendukung E2EE dengan melakukan uji enkripsi (lawan chat punya public key)
+      final tempEnvelope = await E2eeService.instance.encryptForRoom(widget.chatId, 'test-media-e2ee');
+      if (tempEnvelope != null) {
+        // Kamar chat mendukung E2EE, enkripsi & unggah media
+        final result = await uploader.uploadEncryptedChatMedia(file, widget.chatId);
+        url = result.url;
+        fileKeyB64 = result.keyB64;
+      } else {
+        // Fallback: unggah plaintext
+        url = await uploader.uploadChatMedia(file, widget.chatId);
+      }
+
       await ref
           .read(chatActionsProvider)
           .sendMessage(
             widget.chatId,
-            '',
+            fileKeyB64 ?? '',
             mediaUrl: url,
             type: type,
             autoDeleteHours: _autoDeleteHours,

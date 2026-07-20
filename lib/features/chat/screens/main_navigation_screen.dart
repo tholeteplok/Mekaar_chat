@@ -5,6 +5,7 @@ import '../../../core/widgets/mekaar_canvas.dart';
 import '../../settings/screens/profile_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import 'chat_list_screen.dart';
+import 'contact_list_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -19,6 +20,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = const [
     ChatListScreen(),
+    ContactListScreen(),
     ProfileScreen(),
     SettingsScreen(),
   ];
@@ -26,7 +28,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   static const double z = 24.0; // Icon size (z)
   static const double activeSize = z + 16.0; // Active container (z + 16 = 40)
   static const double barHeight = z + 32.0; // Height (z + 32 = 56)
-  static const double barWidth = 3.0 * (z + 32.0); // Total width (3 * 56 = 168)
+  static const double barWidth = 4.0 * (z + 32.0); // Total width (4 * 56 = 224)
 
   @override
   void initState() {
@@ -99,11 +101,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     ),
                     _buildNavItem(
                       1,
+                      SolarIconsOutline.usersGroupRounded,
+                      SolarIconsBold.usersGroupRounded,
+                    ),
+                    _buildNavItem(
+                      2,
                       SolarIconsOutline.user,
                       SolarIconsBold.user,
                     ),
                     _buildNavItem(
-                      2,
+                      3,
                       SolarIconsOutline.settings,
                       SolarIconsBold.settings,
                     ),
@@ -121,7 +128,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isActive = _currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
-    const labels = ['Pesan', 'Profil', 'Pengaturan'];
+    const labels = ['Pesan', 'Kontak', 'Profil', 'Pengaturan'];
 
     final inactiveColor = isDark ? MekaarColors.textMuted : Colors.black45;
 

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../data/services/e2ee_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../../../data/models/user_model.dart';
@@ -266,6 +267,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _authRepository.setPIN(pin);
+      try {
+        await E2eeService.instance.backupWithPin(pin);
+      } catch (_) {}
       state = state.copyWith(isPinSet: true, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _translateError(e));
@@ -295,6 +299,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final isValid = await _authRepository.validatePIN(pin);
 
     if (isValid) {
+      try {
+        await E2eeService.instance.restoreWithPin(pin);
+      } catch (_) {}
       state = state.copyWith(
         pinAttempts: 0,
         pinLockedUntil: null,

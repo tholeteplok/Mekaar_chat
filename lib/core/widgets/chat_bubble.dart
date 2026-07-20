@@ -1,14 +1,56 @@
+import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/message_model.dart';
+import '../../data/services/e2ee_service.dart';
 import '../constants/colors.dart';
 import '../constants/shadows.dart';
 import '../services/haptic_service.dart';
 import 'animations.dart';
+
+// Helper function to download, decrypt, and cache E2EE media locally.
+Future<File?> _getOrDecryptMedia({
+  required String messageId,
+  required String? url,
+  required bool isEncrypted,
+  required String fileKeyB64,
+}) async {
+  if (url == null || url.isEmpty) return null;
+
+  try {
+    final tempDir = await getTemporaryDirectory();
+    final uri = Uri.parse(url);
+    final ext = uri.pathSegments.isNotEmpty ? uri.pathSegments.last.split('.').last : 'bin';
+    final cachedFile = File('${tempDir.path}/decrypted_$messageId.$ext');
+
+    if (await cachedFile.exists()) {
+      return cachedFile;
+    }
+
+    final client = HttpClient();
+    final request = await client.getUrl(uri);
+    final response = await request.close();
+    if (response.statusCode != 200) return null;
+
+    final bytes = await response.fold<List<int>>([], (a, b) => a..addAll(b));
+
+    if (isEncrypted && fileKeyB64.isNotEmpty) {
+      final decryptedBytes = await E2eeService.instance.decryptMedia(bytes, fileKeyB64);
+      await cachedFile.writeAsBytes(decryptedBytes);
+    } else {
+      await cachedFile.writeAsBytes(bytes);
+    }
+
+    return cachedFile;
+  } catch (_) {
+    return null;
+  }
+}
 
 // Pelacakan pesan "Sekali Lihat" yang sudah dibuka (lokal, persisten).
 class ViewOnceStore {
@@ -277,6 +319,16 @@ class ChatBubble extends StatelessWidget {
                                 : MekaarColors.textMuted,
                           ),
                         ),
+                      ],
+                      if (message.isEncrypted && !isDeleted) ...[
+                        Icon(
+                          Icons.lock_outline,
+                          size: 10,
+                          color: isMe
+                              ? MekaarColors.textOnYellow.withValues(alpha: 0.6)
+                              : MekaarColors.textMuted,
+                        ),
+                        const SizedBox(width: 3),
                       ],
                       Text(
                         DateFormat('HH:mm').format(message.createdAt),
@@ -734,7 +786,15 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
         await _player.pause();
       } else {
         setState(() => _isLoading = true);
-        await _player.play(UrlSource(url));
+        final file = await _getOrDecryptMedia(
+          messageId: widget.message.id,
+          url: url,
+          isEncrypted: widget.message.isEncrypted,
+          fileKeyB64: widget.message.content,
+        );
+        if (file != null) {
+          await _player.play(DeviceFileSource(file.path));
+        }
       }
     } catch (_) {
     } finally {
@@ -830,9 +890,9 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
 // Full-screen image viewer (photo_view)
 // ─────────────────────────────────────────
 class _FullScreenImageViewer extends StatelessWidget {
-  final String url;
+  final ImageProvider imageProvider;
 
-  const _FullScreenImageViewer({required this.url});
+  const _FullScreenImageViewer({required this.imageProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -843,7 +903,7 @@ class _FullScreenImageViewer extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: PhotoView(
-        imageProvider: NetworkImage(url),
+        imageProvider: imageProvider,
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 3,
         backgroundDecoration: const BoxDecoration(color: Colors.black),
@@ -884,13 +944,21 @@ class _ImageBubble extends StatelessWidget {
                 onTap: () async {
                   onViewOnceOpened();
                   if (ctx.mounted && message.mediaUrl != null) {
-                    Navigator.push(
-                      ctx,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            _FullScreenImageViewer(url: message.mediaUrl!),
-                      ),
+                    final file = await _getOrDecryptMedia(
+                      messageId: message.id,
+                      url: message.mediaUrl,
+                      isEncrypted: message.isEncrypted,
+                      fileKeyB64: message.content,
                     );
+                    if (file != null && ctx.mounted) {
+                      Navigator.push(
+                        ctx,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              _FullScreenImageViewer(imageProvider: FileImage(file)),
+                        ),
+                      );
+                    }
                   }
                 },
                 child: Container(
@@ -917,7 +985,7 @@ class _ImageBubble extends StatelessWidget {
                   ),
                 ),
               ),
-              if (message.content.isNotEmpty) ...[
+              if (message.content.isNotEmpty && !message.isEncrypted) ...[
                 const SizedBox(height: 6),
                 Text(message.content,
                     style: TextStyle(color: textColor, fontSize: 14)),
@@ -928,44 +996,76 @@ class _ImageBubble extends StatelessWidget {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          onTap: () {
-            if (message.mediaUrl != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      _FullScreenImageViewer(url: message.mediaUrl!),
-                ),
-              );
-            }
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              message.mediaUrl ?? '',
-              height: 180,
-              width: 220,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                height: 180,
-                width: 220,
-                color: MekaarColors.surface2Of(context),
-                child: const Icon(Icons.broken_image,
-                    color: MekaarColors.textMuted),
+    return FutureBuilder<File?>(
+      future: _getOrDecryptMedia(
+        messageId: message.id,
+        url: message.mediaUrl,
+        isEncrypted: message.isEncrypted,
+        fileKeyB64: message.content,
+      ),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 180,
+            width: 220,
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-          ),
-        ),
-        if (message.content.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(message.content,
-              style: TextStyle(color: textColor, fontSize: 14)),
-        ],
-      ],
+          );
+        }
+
+        if (file == null) {
+          return Container(
+            height: 180,
+            width: 220,
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.broken_image, color: MekaarColors.textMuted),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _FullScreenImageViewer(imageProvider: FileImage(file)),
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(
+                  file,
+                  height: 180,
+                  width: 220,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            if (message.content.isNotEmpty && !message.isEncrypted) ...[
+              const SizedBox(height: 6),
+              Text(message.content,
+                  style: TextStyle(color: textColor, fontSize: 14)),
+            ],
+          ],
+        );
+      },
     );
   }
 

@@ -16,6 +16,7 @@ class Message {
   final Map<String, List<String>> reactions;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isEncrypted;
 
   Message({
     required this.id,
@@ -27,6 +28,7 @@ class Message {
     this.isViewOnce = false,
     this.replyToId,
     this.isDeleted = false,
+    this.isEncrypted = false,
     this.autoDeleteAt,
     this.editedAt,
     this.reactions = const {},
@@ -78,6 +80,7 @@ class Message {
       reactions: parsedReactions,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      isEncrypted: json['is_encrypted'] as bool? ?? false,
     );
   }
 
@@ -97,6 +100,7 @@ class Message {
       'reactions': reactions,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'is_encrypted': isEncrypted,
     };
   }
 
@@ -115,6 +119,7 @@ class Message {
     Map<String, List<String>>? reactions,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isEncrypted,
   }) {
     return Message(
       id: id ?? this.id,
@@ -131,6 +136,7 @@ class Message {
       reactions: reactions ?? this.reactions,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isEncrypted: isEncrypted ?? this.isEncrypted,
     );
   }
 }

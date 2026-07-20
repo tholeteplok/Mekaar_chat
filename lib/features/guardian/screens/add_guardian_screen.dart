@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -32,7 +33,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
 
   void _submitInvitation() async {
     final query = _searchController.text.trim();
-    final validationError = MekaarValidators.emailOrUsername(query);
+    final validationError = MekaarValidators.username(query);
     if (validationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -180,16 +181,40 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Masukkan username atau email teman terpercaya yang ingin Anda undang.',
+              'Masukkan username teman terpercaya yang ingin Anda undang.',
               style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _searchController,
               decoration: const InputDecoration(
-                hintText: 'Email atau Username',
+                hintText: 'Username',
                 prefixIcon: Icon(SolarIconsOutline.magnifier),
               ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.guardianQrScan);
+                    },
+                    icon: const Icon(SolarIconsOutline.qrCode, size: 18),
+                    label: const Text('Pindai QR'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.guardianQrInvite);
+                    },
+                    icon: const Icon(SolarIconsOutline.share, size: 18),
+                    label: const Text('QR Saya'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 32),
             const Text(

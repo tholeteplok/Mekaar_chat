@@ -1,6 +1,7 @@
 import 'dart:async';
-import '../models/message_model.dart';
 import '../services/supabase_service.dart';
+import '../models/message_model.dart';
+import '../services/e2ee_service.dart';
 
 class ChatRepository {
   final SupabaseService _supabaseService;
@@ -91,7 +92,11 @@ class ChatRepository {
       DateTime lastMessageTime = DateTime.now();
 
       if (lastMsgResponse != null) {
-        final lastMsg = Message.fromJson(lastMsgResponse);
+        var lastMsg = Message.fromJson(lastMsgResponse);
+        if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty && !lastMsg.isDeleted) {
+          final plain = await E2eeService.instance.decryptForRoom(roomId, lastMsg.content);
+          lastMsg = lastMsg.copyWith(content: plain);
+        }
         if (lastMsg.isDeleted) {
           lastMessageText = 'Pesan telah dihapus';
         } else if (lastMsg.type == MessageType.image) {
@@ -242,13 +247,26 @@ class ChatRepository {
           .stream(primaryKey: ['id'])
           .eq('room_id', roomId)
           .order('created_at', ascending: true)
-          .listen((maps) {
+          .listen((maps) async {
             var msgs = maps.map((map) => Message.fromJson(map)).toList();
             if (historyClearedAt != null) {
               msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
             }
+
+            final decryptedMsgs = await Future.wait(msgs.map((m) async {
+              if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
+                try {
+                  final plain = await E2eeService.instance.decryptForRoom(roomId, m.content);
+                  return m.copyWith(content: plain);
+                } catch (_) {
+                  return m.copyWith(content: '[Gagal mendekripsi pesan]');
+                }
+              }
+              return m;
+            }));
+
             if (!controller.isClosed) {
-              controller.add(msgs);
+              controller.add(decryptedMsgs);
             }
           }, onError: (err) {
             if (!controller.isClosed) {
@@ -278,15 +296,31 @@ class ChatRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
 
+    // Enkripsi E2EE bila lawan room sudah punya kunci publik;
+    // fallback plaintext (is_encrypted=false) untuk akun lama.
+    var finalContent = content;
+    var isEncrypted = false;
+    if (content.isNotEmpty) {
+      final envelope = await E2eeService.instance.encryptForRoom(
+        roomId,
+        content,
+      );
+      if (envelope != null) {
+        finalContent = envelope;
+        isEncrypted = true;
+      }
+    }
+
     final data = {
       'room_id': roomId,
       'sender_id': userId,
-      'content': content,
+      'content': finalContent,
       'media_url': mediaUrl,
       'msg_type': type.name,
       'is_view_once': isViewOnce,
       'reply_to_id': replyToId,
       'auto_delete_at': autoDeleteAt?.toIso8601String(),
+      'is_encrypted': isEncrypted,
     };
 
     final response = await _supabaseService.client
@@ -324,13 +358,34 @@ class ChatRepository {
 
   // Perbarui konten pesan lokasi live (berbagi lokasi sukarela, bukan SOS).
   Future<void> updateMessageContent(String messageId, String content) async {
+    final contentToStore = await _reencryptIfNeeded(messageId, content);
     await _supabaseService.client
         .from('messages')
         .update({
-          'content': content,
+          'content': contentToStore,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', messageId);
+  }
+
+  // Bila pesan asal terenkripsi, konten baru harus dienkripsi ulang
+  // dengan kunci room yang sama sebelum ditulis ke server.
+  Future<String> _reencryptIfNeeded(String messageId, String newContent) async {
+    try {
+      final row = await _supabaseService.client
+          .from('messages')
+          .select('room_id, is_encrypted')
+          .eq('id', messageId)
+          .maybeSingle();
+      if (row != null && row['is_encrypted'] == true) {
+        final envelope = await E2eeService.instance.encryptForRoom(
+          row['room_id'] as String,
+          newContent,
+        );
+        if (envelope != null) return envelope;
+      }
+    } catch (_) {}
+    return newContent;
   }
 
   Future<void> markRoomRead(String roomId) async {
@@ -361,7 +416,7 @@ class ChatRepository {
     }
   }
 
-  // Search user profile by username or email through a limited public RPC.
+  // Search user profile by username through a limited public RPC.
   Future<Map<String, dynamic>?> searchProfile(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.length < 2) return null;
@@ -375,19 +430,9 @@ class ChatRepository {
         return Map<String, dynamic>.from(response.first as Map);
       }
     } catch (_) {
-      // Fallback keeps local MVP usable before the additive migration is applied.
-    }
-
-    try {
-      final response = await _supabaseService.client
-          .from('profiles')
-          .select('id, username, full_name, email, avatar_url')
-          .or('username.eq.$cleanQuery,email.eq.$cleanQuery')
-          .maybeSingle();
-      return response;
-    } catch (_) {
       return null;
     }
+    return null;
   }
 
   bool canForwardMessage(Message message) {
@@ -408,10 +453,11 @@ class ChatRepository {
 
   /// Edit isi teks pesan. Hanya pengirim di chat non-guardian yang boleh.
   Future<void> editMessage(String messageId, String newContent) async {
+    final contentToStore = await _reencryptIfNeeded(messageId, newContent);
     await _supabaseService.client
         .from('messages')
         .update({
-          'content': newContent,
+          'content': contentToStore,
           'edited_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         })
