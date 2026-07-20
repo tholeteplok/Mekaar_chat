@@ -112,10 +112,10 @@ Halaman statis/terkurasi berisi kontak layanan bantuan resmi Indonesia (mis. hot
 
 ```
 P0 — Sebelum ada data pengguna asli
-[ ] Migrasi RLS 05 wajib & terdokumentasi tegas (atau digabung ke migrasi awal)
-[ ] E2EE fail-closed, hentikan silent fallback plaintext
-[ ] Copy "sign-logs" diluruskan (bukan "tanda tangan" sampai benar-benar signature)
-[ ] TURN server privat untuk testing SOS video/audio
+[x] Migrasi RLS 05 wajib & terdokumentasi tegas (atau digabung ke migrasi awal)
+[x] E2EE fail-closed, hentikan silent fallback plaintext
+[x] Copy "sign-logs" diluruskan (bukan "tanda tangan" sampai benar-benar signature)
+[x] TURN server privat untuk testing SOS video/audio
 
 P1 — Sebelum rilis publik
 [ ] Perkuat KDF backup E2EE (Argon2id)
