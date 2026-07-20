@@ -1,5 +1,5 @@
--- Enable Row Level Security on the realtime schema for messages
-ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+-- Enable Row Level Security on the realtime schema for messages (managed by Supabase system)
+-- ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if any
 DROP POLICY IF EXISTS "Only room participants can listen to room calls" ON realtime.messages;
