@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/notification_preferences.dart';
 import '../providers/notification_preferences_provider.dart';
 import '../widgets/sound_preference_section.dart';
@@ -60,9 +61,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memilih file: $e')),
-      );
+      MekaarSnackbar.error(context, 'Gagal memilih file: $e');
     }
   }
 
@@ -91,9 +90,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memutar pratinjau: $e')),
-      );
+      MekaarSnackbar.error(context, 'Gagal memutar pratinjau: $e');
     }
   }
 

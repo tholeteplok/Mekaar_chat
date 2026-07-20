@@ -5,6 +5,8 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/services/webrtc_service.dart';
 import '../providers/sos_provider.dart';
 
@@ -67,25 +69,20 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
 
   void _setAutoStop(int minutes) {
     setState(() => _autoStopMinutes = minutes);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          minutes == 0
-              ? 'Rekaman tanpa batas waktu.'
-              : 'Rekaman berhenti otomatis dalam $minutes menit.',
-        ),
-        duration: const Duration(milliseconds: 1500),
-      ),
-    );
+    if (mounted) {
+      MekaarSnackbar.info(
+        context,
+        minutes == 0
+            ? 'Rekaman tanpa batas waktu.'
+            : 'Rekaman berhenti otomatis dalam $minutes menit.',
+      );
+    }
   }
 
   void _showAutoStopSheet() {
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      showDragHandle: true,
       builder: (ctx) => ListView(
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -125,16 +122,14 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
 
   void _toggleScreenLock() {
     setState(() => _isScreenLocked = !_isScreenLocked);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isScreenLocked
-              ? 'Layar dikunci. Video streaming tetap berjalan di latar belakang.'
-              : 'Layar dibuka.',
-        ),
-        duration: const Duration(milliseconds: 1500),
-      ),
-    );
+    if (mounted) {
+      MekaarSnackbar.info(
+        context,
+        _isScreenLocked
+            ? 'Layar dikunci. Video streaming tetap berjalan di latar belakang.'
+            : 'Layar dibuka.',
+      );
+    }
   }
 
   void _stopRecording() async {

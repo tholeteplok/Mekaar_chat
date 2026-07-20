@@ -13,6 +13,8 @@ import '../../../core/constants/motion.dart';
 import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 
 class ChatComposer extends StatefulWidget {
   final TextEditingController controller;
@@ -59,6 +61,8 @@ class _ChatComposerState extends State<ChatComposer> {
   int _recordDuration = 0;
   Timer? _recordTimer;
   String? _recordingPath;
+  double _recordingSwipeOffset = 0;
+  static const double _recordingSwipeThreshold = 120;
 
   bool get _isEditMode => widget.editingMessage != null;
   bool get _hasText => widget.controller.text.trim().isNotEmpty;
@@ -86,12 +90,9 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 
   Future<void> _showAutoDeleteMenu() async {
-    final choice = await showModalBottomSheet<int>(
+    final choice = await MekaarBottomSheet.show<int>(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      showDragHandle: true,
       builder: (ctx) {
         final options = [
           (0, 'Mati', 'Pesan disimpan selamanya'),
@@ -99,31 +100,28 @@ class _ChatComposerState extends State<ChatComposer> {
           (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
           (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
         ];
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Text('Pesan Menghilang', style: MekaarTypography.headingSM),
-              const SizedBox(height: 8),
-              ...options.map((opt) {
-                final selected = opt.$1 == _autoDeleteHours;
-                return ListTile(
-                  leading: Icon(
-                    selected ? SolarIconsBold.history : SolarIconsOutline.history,
-                    color: selected ? MekaarColors.softCoral : null,
-                  ),
-                  title: Text(opt.$2),
-                  subtitle: Text(opt.$3),
-                  trailing: selected
-                      ? const Icon(Icons.check, color: MekaarColors.softCoral)
-                      : null,
-                  onTap: () => Navigator.pop(ctx, opt.$1),
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Pesan Menghilang', style: MekaarTypography.headingSM),
+            const SizedBox(height: 8),
+            ...options.map((opt) {
+              final selected = opt.$1 == _autoDeleteHours;
+              return ListTile(
+                leading: Icon(
+                  selected ? SolarIconsBold.history : SolarIconsOutline.history,
+                  color: selected ? MekaarColors.softCoral : null,
+                ),
+                title: Text(opt.$2),
+                subtitle: Text(opt.$3),
+                trailing: selected
+                    ? const Icon(Icons.check, color: MekaarColors.softCoral)
+                    : null,
+                onTap: () => Navigator.pop(ctx, opt.$1),
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
         );
       },
     );
@@ -154,12 +152,7 @@ class _ChatComposerState extends State<ChatComposer> {
       final hasPermission = await _audioRecorder!.hasPermission();
       if (!hasPermission) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Izin mikrofon diperlukan untuk merekam suara.'),
-              backgroundColor: MekaarColors.sosRed,
-            ),
-          );
+          MekaarSnackbar.error(context, 'Izin mikrofon diperlukan untuk merekam suara.');
         }
         return;
       }
@@ -283,94 +276,75 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _showAttachmentSheet() {
     HapticService.trigger(MekaarHapticIntent.selection);
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: MekaarColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? MekaarColors.textMuted
-                    : MekaarColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
+      showDragHandle: true,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _attachItem(
+            ctx,
+            icon: SolarIconsOutline.gallery,
+            label: 'Pilih dari Galeri',
+            color: MekaarColors.info,
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickImage(ImageSource.gallery);
+            },
+          ),
+          _attachItem(
+            ctx,
+            icon: SolarIconsOutline.camera,
+            label: 'Ambil Foto',
+            color: MekaarColors.guardianTeal,
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickImage(ImageSource.camera);
+            },
+          ),
+          _attachItem(
+            ctx,
+            icon: SolarIconsOutline.videoLibrary,
+            label: 'Pilih dari Galeri Video',
+            color: MekaarColors.purple,
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickVideo(ImageSource.gallery);
+            },
+          ),
+          _attachItem(
+            ctx,
+            icon: SolarIconsOutline.videocamera,
+            label: 'Rekam Video',
+            color: MekaarColors.pink,
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickVideo(ImageSource.camera);
+            },
+          ),
+          _attachItem(
+            ctx,
+            icon: SolarIconsOutline.mapPoint,
+            label: 'Bagikan Lokasi',
+            color: MekaarColors.softCoral,
+            onTap: () {
+              Navigator.pop(ctx);
+              widget.onSendLocation?.call();
+            },
+          ),
+          if (widget.onShareLiveLocation != null)
             _attachItem(
               ctx,
-              icon: SolarIconsOutline.gallery,
-              label: 'Pilih dari Galeri',
-              color: MekaarColors.info,
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            _attachItem(
-              ctx,
-              icon: SolarIconsOutline.camera,
-              label: 'Ambil Foto',
+              icon: SolarIconsOutline.gps,
+              label: 'Lokasi Live',
               color: MekaarColors.guardianTeal,
               onTap: () {
                 Navigator.pop(ctx);
-                _pickImage(ImageSource.camera);
+                _showLiveDurationSheet(ctx);
               },
             ),
-            _attachItem(
-              ctx,
-              icon: SolarIconsOutline.videoLibrary,
-              label: 'Pilih dari Galeri Video',
-              color: MekaarColors.purple,
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickVideo(ImageSource.gallery);
-              },
-            ),
-            _attachItem(
-              ctx,
-              icon: SolarIconsOutline.videocamera,
-              label: 'Rekam Video',
-              color: MekaarColors.pink,
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickVideo(ImageSource.camera);
-              },
-            ),
-            _attachItem(
-              ctx,
-              icon: SolarIconsOutline.mapPoint,
-              label: 'Bagikan Lokasi',
-              color: MekaarColors.softCoral,
-              onTap: () {
-                Navigator.pop(ctx);
-                widget.onSendLocation?.call();
-              },
-            ),
-            if (widget.onShareLiveLocation != null)
-              _attachItem(
-                ctx,
-                icon: SolarIconsOutline.gps,
-                label: 'Lokasi Live',
-                color: MekaarColors.guardianTeal,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showLiveDurationSheet(ctx);
-                },
-              ),
-            const SizedBox(height: 16),
-          ],
-        ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
@@ -403,15 +377,11 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _showLiveDurationSheet(BuildContext ctx) {
     final durations = [5, 15, 30];
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: ctx,
-      backgroundColor: MekaarColors.surfaceOf(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetCtx) => ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      showDragHandle: true,
+      builder: (sheetCtx) => Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
@@ -509,7 +479,17 @@ class _ChatComposerState extends State<ChatComposer> {
             ),
           ),
           child: _isRecording
-              ? Row(
+              ? GestureDetector(
+                  onHorizontalDragUpdate: (details) {
+                    setState(() => _recordingSwipeOffset += details.delta.dx);
+                  },
+                  onHorizontalDragEnd: (details) {
+                    if (_recordingSwipeOffset.abs() > _recordingSwipeThreshold) {
+                      _cancelRecording();
+                    }
+                    setState(() => _recordingSwipeOffset = 0);
+                  },
+                  child: Row(
                   children: [
                     IconButton(
                       icon: const Icon(
@@ -522,9 +502,12 @@ class _ChatComposerState extends State<ChatComposer> {
                     ),
                     const SizedBox(width: MekaarSpacing.sm),
                     Expanded(
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: MekaarMotion.fast,
                         decoration: BoxDecoration(
-                          color: MekaarColors.surface2Of(context),
+                          color: _recordingSwipeOffset.abs() > 60
+                              ? MekaarColors.sosRed.withValues(alpha: 0.15)
+                              : MekaarColors.surface2Of(context),
                           borderRadius: BorderRadius.circular(MekaarRadius.xl),
                         ),
                         padding: const EdgeInsets.symmetric(
@@ -533,13 +516,27 @@ class _ChatComposerState extends State<ChatComposer> {
                         ),
                         child: Row(
                           children: [
-                            const _BlinkingDot(),
-                            const SizedBox(width: 8),
+                            if (_recordingSwipeOffset.abs() > 60)
+                              const Icon(
+                                SolarIconsOutline.trashBinMinimalistic,
+                                color: MekaarColors.sosRed,
+                                size: 16,
+                              )
+                            else ...[
+                              const _BlinkingDot(),
+                              const SizedBox(width: 8),
+                            ],
+                            if (_recordingSwipeOffset.abs() > 60)
+                              const SizedBox(width: 8),
                             Text(
-                              'Merekam... ${_formatDuration(_recordDuration)}',
-                              style: const TextStyle(
+                              _recordingSwipeOffset.abs() > 60
+                                  ? 'Geser untuk batal'
+                                  : 'Merekam... ${_formatDuration(_recordDuration)}',
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: MekaarColors.textSecondary,
+                                color: _recordingSwipeOffset.abs() > 60
+                                    ? MekaarColors.sosRed
+                                    : MekaarColors.textSecondary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -571,7 +568,7 @@ class _ChatComposerState extends State<ChatComposer> {
                       ),
                     ),
                   ],
-                )
+                ))
               : Row(
                   children: [
                     // Auto-delete (disappearing messages) toggle

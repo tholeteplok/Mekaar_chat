@@ -7,6 +7,8 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../providers/guardian_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -35,64 +37,37 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
     final query = _searchController.text.trim();
     final validationError = MekaarValidators.username(query);
     if (validationError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(validationError),
-          backgroundColor: MekaarColors.sosRed,
-        ),
-      );
+      MekaarSnackbar.error(context, validationError);
       return;
     }
 
     // Tampilkan peringatan etis sebelum kirim undangan (spec 8.4)
-    final confirmed = await showDialog<bool>(
+    final confirmed = await MekaarDialog.showConfirmation<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(
-              SolarIconsOutline.infoCircle,
-              color: MekaarColors.guardianTeal,
-            ),
-            const SizedBox(width: 8),
-            Text('Catatan Penting', style: MekaarTypography.headingSM),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Dengan menambahkan Guardian, Anda memberikan izin kepada orang ini untuk memantau keberadaan Anda HANYA saat Anda mengaktifkan tombol SOS.',
-              style: MekaarTypography.bodyMD,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Guardian TIDAK BISA memantau Anda secara diam-diam. Akses hanya tersedia saat SOS aktif dan tercatat di Riwayat SOS.',
-              style: MekaarTypography.bodyMD.copyWith(
-                color: MekaarColors.guardianTeal,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Saya Mengerti, Kirim',
-              style: TextStyle(
-                color: MekaarColors.softCoral,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      icon: const Icon(
+        SolarIconsOutline.infoCircle,
+        color: MekaarColors.guardianTeal,
       ),
+      title: 'Catatan Penting',
+      message:
+          'Dengan menambahkan Guardian, Anda memberikan izin kepada orang ini untuk memantau keberadaan Anda HANYA saat Anda mengaktifkan tombol SOS.\n\n'
+          'Guardian TIDAK BISA memantau Anda secara diam-diam. Akses hanya tersedia saat SOS aktif dan tercatat di Riwayat SOS.',
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Saya Mengerti, Kirim',
+            style: TextStyle(
+              color: MekaarColors.softCoral,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
 
     if (confirmed != true) return;
@@ -113,14 +88,11 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               .isBlocked(targetId);
           if (blocked) {
             setState(() => _isLoading = false);
+
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Tidak bisa menjadikan guardian pengguna yang diblokir.',
-                  ),
-                  backgroundColor: MekaarColors.sosRed,
-                ),
+              MekaarSnackbar.error(
+                context,
+                'Tidak bisa menjadikan guardian pengguna yang diblokir.',
               );
             }
             return;
@@ -139,24 +111,15 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
       setState(() => _isLoading = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Undangan Guardian berhasil dikirim!'),
-            backgroundColor: MekaarColors.success,
-          ),
-        );
+        MekaarSnackbar.success(context, 'Undangan Guardian berhasil dikirim!');
         Navigator.pop(context);
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal mengirim undangan: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          'Gagal mengirim undangan: ${e.toString().replaceAll('Exception: ', '')}',
         );
       }
     }
@@ -171,18 +134,14 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Cari Calon Guardian',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: MekaarColors.textPrimary,
-              ),
+              style: MekaarTypography.headingSM,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Masukkan username teman terpercaya yang ingin Anda undang.',
-              style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+              style: MekaarTypography.bodySM,
             ),
             const SizedBox(height: 16),
             TextField(
@@ -217,31 +176,23 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               ],
             ),
             const SizedBox(height: 32),
-            const Text(
+            Text(
               'Izin Keamanan (Hanya Aktif Saat SOS)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: MekaarColors.textPrimary,
-              ),
+              style: MekaarTypography.headingSM,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Izin ini hanya berlaku jika Anda mengaktifkan tombol darurat SOS.',
-              style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+              style: MekaarTypography.bodySM,
             ),
             const SizedBox(height: 20),
             // GPS permission switch
             SwitchListTile(
               activeThumbColor: MekaarColors.softCoral,
               contentPadding: EdgeInsets.zero,
-              title: const Text(
+              title: Text(
                 'Lacak Lokasi (GPS)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: MekaarColors.textPrimary,
-                ),
+                style: MekaarTypography.labelLG,
               ),
               subtitle: const Text(
                 'Guardian dapat melihat koordinat GPS real-time Anda.',
@@ -254,13 +205,9 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             SwitchListTile(
               activeThumbColor: MekaarColors.softCoral,
               contentPadding: EdgeInsets.zero,
-              title: const Text(
+              title: Text(
                 'Akses Mikrofon (Audio)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: MekaarColors.textPrimary,
-                ),
+                style: MekaarTypography.labelLG,
               ),
               subtitle: const Text(
                 'Guardian dapat mendengar streaming suara di sekitar perangkat.',
@@ -272,13 +219,9 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             SwitchListTile(
               activeThumbColor: MekaarColors.softCoral,
               contentPadding: EdgeInsets.zero,
-              title: const Text(
+              title: Text(
                 'Akses Kamera (Video Darurat)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: MekaarColors.textPrimary,
-                ),
+                style: MekaarTypography.labelLG,
               ),
               subtitle: const Text(
                 'Anda dapat mengirim video darurat ke guardian saat SOS.',

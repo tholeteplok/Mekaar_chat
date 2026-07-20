@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -70,7 +71,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   }
 
   Future<void> _toggleBlock() async {
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: MekaarColors.surfaceOf(context),
@@ -87,20 +88,11 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Batal', style: TextStyle(color: MekaarColors.textMuted)),
           ),
           ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              if (_isBlocked) {
-                await ref.read(blockProvider.notifier).unblockUser(widget.otherUserId);
-              } else {
-                await ref.read(blockProvider.notifier).blockUser(widget.otherUserId);
-              }
-              if (!mounted) return;
-              setState(() => _isBlocked = !_isBlocked);
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: _isBlocked ? MekaarColors.guardianTeal : MekaarColors.sosRed,
               foregroundColor: Colors.white,
@@ -110,6 +102,14 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
         ],
       ),
     );
+    if (confirmed == true) {
+      if (_isBlocked) {
+        await ref.read(blockProvider.notifier).unblockUser(widget.otherUserId);
+      } else {
+        await ref.read(blockProvider.notifier).blockUser(widget.otherUserId);
+      }
+      if (mounted) setState(() => _isBlocked = !_isBlocked);
+    }
   }
 
   @override
@@ -349,9 +349,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     final globalHours = profile?.autoDeleteDefaultHours ?? 0;
     final current = _disappearingOverrideHours;
 
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
+      showDragHandle: true,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

@@ -64,7 +64,7 @@ class ChatListTile extends StatelessWidget {
                       ),
                       const SizedBox(width: MekaarSpacing.sm),
                       Text(
-                        DateFormat('HH:mm').format(timestamp),
+                        _formatTimestamp(timestamp),
                         style: MekaarTypography.bodySM.copyWith(
                           color: MekaarColors.textMutedOf(context),
                         ),
@@ -189,4 +189,22 @@ class _UnreadBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatTimestamp(DateTime dt) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final msgDate = DateTime(dt.year, dt.month, dt.day);
+
+  if (msgDate == today) return DateFormat('HH:mm').format(dt);
+  if (msgDate == today.subtract(const Duration(days: 1))) return 'Kemarin';
+
+  final diff = today.difference(msgDate).inDays;
+  if (diff < 7) {
+    const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    return days[msgDate.weekday % 7];
+  }
+
+  if (dt.year == now.year) return DateFormat('d MMM', 'id_ID').format(dt);
+  return DateFormat('d MMM yy', 'id_ID').format(dt);
 }

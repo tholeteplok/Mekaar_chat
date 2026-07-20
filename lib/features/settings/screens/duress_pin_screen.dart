@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class DuressPinScreen extends ConsumerStatefulWidget {
@@ -74,9 +75,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
         _isConfirming = false;
         _status = 'PIN Paksaan aktif. Saat dimasukkan, aplikasi terbuka normal namun diam-diam memicu SOS.';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN Paksaan berhasil diatur.')),
-      );
+      MekaarSnackbar.success(context, 'PIN Paksaan berhasil diatur.');
     }
   }
 
@@ -84,9 +83,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
     await ref.read(authProvider.notifier).disableDuressPIN();
     if (mounted) {
       setState(() => _enabled = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN Paksaan dinonaktifkan.')),
-      );
+      MekaarSnackbar.info(context, 'PIN Paksaan dinonaktifkan.');
     }
   }
 
@@ -142,10 +139,12 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                 color: MekaarColors.sosLight,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'Jika Anda dipaksa memasukkan PIN, gunakan PIN Paksaan ini. '
                 'Aplikasi akan terbuka seperti biasa, namun diam-diam memicu SOS ke Guardian.',
-                style: TextStyle(fontSize: 12, color: MekaarColors.sosRed),
+                style: MekaarTypography.bodySM.copyWith(
+                  color: MekaarColors.sosRed,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),

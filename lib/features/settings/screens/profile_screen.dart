@@ -8,6 +8,9 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -43,21 +46,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref.read(authProvider.notifier).loadProfile();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Foto profil berhasil diperbarui.'),
-            backgroundColor: MekaarColors.success,
-          ),
-        );
+        MekaarSnackbar.success(context, 'Foto profil berhasil diperbarui.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memperbarui foto profil: $e'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
-        );
+        MekaarSnackbar.error(context, 'Gagal memperbarui foto profil: $e');
       }
     } finally {
       if (mounted) {
@@ -67,36 +60,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showAvatarOptions() {
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(SolarIconsOutline.camera),
-                title: const Text('Kamera'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _handlePickAndUploadAvatar(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(SolarIconsOutline.gallery),
-                title: const Text('Galeri'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _handlePickAndUploadAvatar(ImageSource.gallery);
-                },
-              ),
-            ],
+      showDragHandle: true,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(SolarIconsOutline.camera),
+            title: const Text('Kamera'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _handlePickAndUploadAvatar(ImageSource.camera);
+            },
           ),
-        );
-      },
+          ListTile(
+            leading: const Icon(SolarIconsOutline.gallery),
+            title: const Text('Galeri'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _handlePickAndUploadAvatar(ImageSource.gallery);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -120,21 +107,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await ref.read(authProvider.notifier).updateDisplayName(newName);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nama tampilan berhasil diperbarui.'),
-            backgroundColor: MekaarColors.success,
-          ),
-        );
+        MekaarSnackbar.success(context, 'Nama tampilan berhasil diperbarui.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memperbarui nama tampilan.'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
-        );
+        MekaarSnackbar.error(context, 'Gagal memperbarui nama tampilan.');
       }
       _displayNameController.text =
           ref.read(authProvider).profile?.displayName ??
@@ -147,12 +124,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final newUsername = _usernameController.text.trim();
     if (newUsername.isEmpty || newUsername.length < 3) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Username minimal 3 karakter.'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
-        );
+        MekaarSnackbar.error(context, 'Username minimal 3 karakter.');
       }
       return;
     }
@@ -162,25 +134,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await ref.read(authProvider.notifier).updateUsername(newUsername);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Username berhasil diperbarui.'),
-            backgroundColor: MekaarColors.success,
-          ),
-        );
+        MekaarSnackbar.success(context, 'Username berhasil diperbarui.');
       }
     } catch (e) {
       final errorStr = e.toString();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              errorStr.contains('digunakan')
-                  ? 'Username sudah digunakan.'
-                  : 'Gagal memperbarui username.',
-            ),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          errorStr.contains('digunakan')
+              ? 'Username sudah digunakan.'
+              : 'Gagal memperbarui username.',
         );
       }
       _usernameController.text = ref.read(authProvider).profile?.username ?? '';
@@ -192,38 +155,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _confirmLogout() {
-    showDialog(
+    MekaarDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Keluar Aplikasi?'),
-        content: const Text('PIN keamanan lokal akan dihapus demi privasi.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                  (route) => false,
-                );
-              }
-            },
-            child: const Text(
-              'Keluar',
-              style: TextStyle(
-                color: MekaarColors.sosRed,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
+      title: 'Keluar Aplikasi?',
+      body: 'PIN keamanan lokal akan dihapus demi privasi.',
+      confirmLabel: 'Keluar',
+      confirmColor: MekaarColors.sosRed,
+      onConfirm: () async {
+        final nav = Navigator.of(context);
+        await ref.read(authProvider.notifier).logout();
+        nav.pushNamedAndRemoveUntil('/login', (route) => false);
+      },
     );
   }
 

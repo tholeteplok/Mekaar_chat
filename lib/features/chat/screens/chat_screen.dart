@@ -5,11 +5,18 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:location/location.dart' as loc;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/chat_bubble.dart';
+import '../../../core/widgets/chat_date_separator.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
+import '../../../core/widgets/scroll_to_bottom_button.dart';
 import '../providers/chat_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
@@ -51,11 +58,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ignore: prefer_final_fields — mutable: updated when partner sends typing event
   bool _partnerIsTyping = false;
   int _autoDeleteHours = 0;
+  bool _showScrollButton = false;
+  int _newMessageCount = 0;
+
+  void _onScrollChanged() {
+    final atBottom = _scrollController.hasClients &&
+        _scrollController.position.pixels >=
+            _scrollController.position.minScrollExtent + 200;
+    if (_showScrollButton != atBottom) {
+      setState(() {
+        _showScrollButton = atBottom;
+        if (!atBottom) _newMessageCount = 0;
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _textController.addListener(_onTextChanged);
+    _scrollController.addListener(_onScrollChanged);
     // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
     // untuk tidak memunculkan notif saat user sedang melihat percakapan.
     ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
@@ -147,9 +169,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Gagal menyimpan pesan: $e')));
+          MekaarSnackbar.error(context, 'Gagal menyimpan pesan: $e');
         }
         return;
       }
@@ -169,9 +189,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal mengirim pesan: $e')));
+        MekaarSnackbar.error(context, 'Gagal mengirim pesan: $e');
       }
       // Teks TIDAK dihapus dari composer supaya pengguna bisa coba kirim ulang.
       return;
@@ -217,9 +235,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal mengirim media: $e')));
+        MekaarSnackbar.error(context, 'Gagal mengirim media: $e');
       }
     }
   }
@@ -255,9 +271,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal mendapatkan lokasi: $e')));
+        MekaarSnackbar.error(context, 'Gagal mendapatkan lokasi: $e');
       }
     }
   }
@@ -268,19 +282,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           .read(chatActionsProvider)
           .shareLiveLocation(widget.chatId, durationMinutes);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Lokasi live dibagikan selama $durationMinutes menit',
-            ),
-          ),
-        );
+        MekaarSnackbar.success(context, 'Lokasi live dibagikan selama $durationMinutes menit');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membagikan lokasi live: $e')),
-        );
+        MekaarSnackbar.error(context, 'Gagal membagikan lokasi live: $e');
       }
     }
   }
@@ -321,98 +327,72 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final rooms = ref.read(chatRoomsProvider).value ?? [];
     final targets = rooms.where((r) => r['id'] != widget.chatId).toList();
 
-    showModalBottomSheet(
+    final hasTargets = targets.isNotEmpty;
+
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        if (targets.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Tidak ada chat lain untuk meneruskan pesan.',
-              textAlign: TextAlign.center,
-            ),
-          );
-        }
-        return ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+      title: 'Teruskan ke',
+      builder: (ctx) => hasTargets
+          ? ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: targets.map((room) {
+                final name = room['name'] as String? ?? 'User';
+                final avatar = room['avatar'] as String? ?? '';
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Text(
+                      avatar.isNotEmpty ? avatar : name[0],
+                      style: const TextStyle(color: MekaarColors.textPrimary),
+                    ),
+                  ),
+                  title: Text(name),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await ref
+                          .read(chatActionsProvider)
+                          .forwardMessage(msg, room['id'] as String);
+                    } catch (e) {
+                      if (ctx.mounted) {
+                        MekaarSnackbar.error(ctx, 'Gagal meneruskan pesan: $e');
+                      }
+                      return;
+                    }
+                    if (ctx.mounted) {
+                      MekaarSnackbar.success(ctx, 'Pesan diteruskan ke $name');
+                    }
+                  },
+                );
+              }).toList(),
+            )
+          : const Padding(
+              padding: EdgeInsets.all(24),
               child: Text(
-                'Teruskan ke',
+                'Tidak ada chat lain untuk meneruskan pesan.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-            ...targets.map((room) {
-              final name = room['name'] as String? ?? 'User';
-              final avatar = room['avatar'] as String? ?? '';
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest,
-                  child: Text(
-                    avatar.isNotEmpty ? avatar : name[0],
-                    style: const TextStyle(color: MekaarColors.textPrimary),
-                  ),
-                ),
-                title: Text(name),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  try {
-                    await ref
-                        .read(chatActionsProvider)
-                        .forwardMessage(msg, room['id'] as String);
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Gagal meneruskan pesan: $e')),
-                      );
-                    }
-                    return;
-                  }
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Pesan diteruskan ke $name')),
-                    );
-                  }
-                },
-              );
-            }),
-          ],
-        );
-      },
     );
   }
 
   void _toggleViewOnce() {
     setState(() => _isViewOnce = !_isViewOnce);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isViewOnce
-              ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
-              : 'Mode Sekali Lihat Dinonaktifkan.',
-        ),
-        duration: const Duration(seconds: 1),
-      ),
+    MekaarSnackbar.info(
+      context,
+      _isViewOnce
+          ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
+          : 'Mode Sekali Lihat Dinonaktifkan.',
     );
   }
 
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
     if (currentUserId == null || widget.otherUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Panggilan tidak tersedia untuk obrolan ini.'),
-        ),
-      );
+      MekaarSnackbar.error(context, 'Panggilan tidak tersedia untuk obrolan ini.');
       return;
     }
     Navigator.pushNamed(
@@ -446,9 +426,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Navigator.pop(context); // Close dialog
             await ref.read(chatActionsProvider).clearChatHistory(widget.chatId);
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Riwayat obrolan dibersihkan.')),
-            );
+            MekaarSnackbar.success(context, 'Riwayat obrolan dibersihkan.');
           },
           child: const Text(
             'Bersihkan',
@@ -601,19 +579,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 _initiateCall('video');
               } else if (value == 'screen_protection') {
                 final nextValue = !(protection?.callerEnabled ?? true);
-                final messenger = ScaffoldMessenger.of(context);
+                final ctx = context;
                 try {
                   await ref
                       .read(screenProtectionControllerProvider)
                       .setRoomPreference(widget.chatId, nextValue);
                 } catch (_) {
-                  if (!mounted) return;
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Pengaturan proteksi belum dapat disinkronkan',
-                      ),
-                    ),
+                  if (!ctx.mounted) return;
+                  MekaarSnackbar.error(
+                    ctx,
+                    'Pengaturan proteksi belum dapat disinkronkan',
                   );
                 }
               } else if (value == 'clear') {
@@ -691,98 +666,217 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ],
       ),
 
-      body: Column(
+      body: Stack(
         children: [
-          if (protection?.effective ?? true)
-            ScreenProtectionStatusBadge(
-              label: protection?.statusLabel ?? 'Proteksi ruang aktif',
-            ),
-          Expanded(
-            child: messagesStream.when(
-              data: (messages) {
-                final reversed = messages.reversed.toList();
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: reversed.length,
-                  itemBuilder: (context, index) {
-                    final msg = reversed[index];
-                    final isMe = msg.senderId == currentUserId;
-                    final canEdit = actions.canEdit(
-                      msg,
-                      isGuardianRoom: widget.isGuardian,
+          Column(
+            children: [
+              if (protection?.effective ?? true)
+                ScreenProtectionStatusBadge(
+                  label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                ),
+              Expanded(
+                child: messagesStream.when(
+                  data: (messages) {
+                    if (messages.isEmpty) {
+                      return const MekaarStateView(
+                        pose: MikaPose.ask,
+                        title: 'Belum Ada Pesan',
+                        message: 'Belum ada pesan. Kirim pesan pertama!',
+                      );
+                    }
+
+                    final reversed = messages.reversed.toList();
+
+                    // Build items with date separators interleaved
+                    final itemBuilder = _buildMessageItems(
+                      reversed,
+                      currentUserId,
+                      actions,
                     );
-                    return ChatBubble(
-                      message: msg,
-                      isMe: isMe,
-                      canDelete: isMe,
-                      canEdit: isMe && canEdit,
-                      canForward: actions.canForward(msg),
-                      otherLastReadAt: _otherLastRead,
-                      showReadReceipts:
-                          ref
-                              .watch(authProvider)
-                              .profile
-                              ?.readReceiptsEnabled ??
-                          true,
-                      onDelete: () => _handleDeleteMessage(msg),
-                      onReply: (replyMsg) {
-                        setState(() {
-                          _replyMessage = replyMsg;
-                          _editingMessage = null;
-                        });
-                      },
-                      onEdit: (editMsg, newContent) {
-                        if (!actions.canEdit(
-                          editMsg,
-                          isGuardianRoom: widget.isGuardian,
-                        )) {
-                          return;
-                        }
-                        ref
-                            .read(chatActionsProvider)
-                            .editMessage(
-                              editMsg.id,
-                              newContent,
-                              isGuardianRoom: widget.isGuardian,
-                            );
-                      },
-                      onForward: (forwardMsg) =>
-                          _handleForwardMessage(forwardMsg),
-                      onReact: (reactMsg, emoji) =>
-                          _handleReactToMessage(reactMsg, emoji),
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      reverse: true,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: itemBuilder.length,
+                      itemBuilder: (context, index) => itemBuilder[index],
                     );
                   },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) =>
-                  Center(child: Text('Gagal memuat pesan: $err')),
-            ),
+                  loading: () => const MekaarStateView(
+                    pose: MikaPose.neutral,
+                    title: 'Memuat',
+                    message: 'Memuat pesan...',
+                  ),
+                  error: (err, stack) => MekaarStateView(
+                    pose: MikaPose.huft,
+                    title: 'Gagal Memuat',
+                    message: 'Gagal memuat pesan: $err',
+                    actionLabel: 'Coba Lagi',
+                    onAction: () => ref.invalidate(
+                      chatMessagesProvider(widget.chatId),
+                    ),
+                    icon: SolarIconsOutline.refresh,
+                  ),
+                ),
+              ),
+              if (_partnerIsTyping) const TypingIndicator(),
+              ChatComposer(
+                controller: _textController,
+                replyMessage: _replyMessage,
+                editingMessage: _editingMessage,
+                isViewOnce: _isViewOnce,
+                onSend: _handleSend,
+                onToggleViewOnce: _toggleViewOnce,
+                onCancelReply: () => setState(() => _replyMessage = null),
+                onCancelEdit: () {
+                  setState(() => _editingMessage = null);
+                  _textController.clear();
+                },
+                onSendMedia: _handleSendMedia,
+                onSendLocation: _handleSendLocation,
+                onShareLiveLocation: _handleShareLiveLocation,
+                autoDeleteHours: _autoDeleteHours,
+                onAutoDeleteChanged: (hours) =>
+                    setState(() => _autoDeleteHours = hours),
+              ),
+            ],
           ),
-          if (_partnerIsTyping) const TypingIndicator(),
-          ChatComposer(
-            controller: _textController,
-            replyMessage: _replyMessage,
-            editingMessage: _editingMessage,
-            isViewOnce: _isViewOnce,
-            onSend: _handleSend,
-            onToggleViewOnce: _toggleViewOnce,
-            onCancelReply: () => setState(() => _replyMessage = null),
-            onCancelEdit: () {
-              setState(() => _editingMessage = null);
-              _textController.clear();
-            },
-            onSendMedia: _handleSendMedia,
-            onSendLocation: _handleSendLocation,
-            onShareLiveLocation: _handleShareLiveLocation,
-            autoDeleteHours: _autoDeleteHours,
-            onAutoDeleteChanged: (hours) =>
-                setState(() => _autoDeleteHours = hours),
+          // Scroll-to-bottom floating button
+          Positioned(
+            right: 16,
+            bottom: 8,
+            child: ScrollToBottomButton(
+              visible: _showScrollButton,
+              newMessageCount: _newMessageCount,
+              onTap: () {
+                _scrollToBottom();
+                setState(() => _newMessageCount = 0);
+              },
+            ),
           ),
         ],
       ),
     );
   }
+
+  /// Build message list items with date separators and entrance animations.
+  List<Widget> _buildMessageItems(
+    List<Message> messages,
+    String? currentUserId,
+    ChatActionsNotifier actions,
+  ) {
+    final items = <Widget>[];
+    DateTime? lastDate;
+
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      final msgDate = DateTime(
+        msg.createdAt.year,
+        msg.createdAt.month,
+        msg.createdAt.day,
+      );
+
+      // Insert date separator when date changes
+      if (lastDate == null || msgDate != lastDate) {
+        items.add(
+          ChatDateSeparator(date: msg.createdAt),
+        );
+        lastDate = msgDate;
+      }
+
+      final isMe = msg.senderId == currentUserId;
+      final canEdit = actions.canEdit(
+        msg,
+        isGuardianRoom: widget.isGuardian,
+      );
+
+      final bubble = ChatBubble(
+        message: msg,
+        isMe: isMe,
+        canDelete: isMe,
+        canEdit: isMe && canEdit,
+        canForward: actions.canForward(msg),
+        otherLastReadAt: _otherLastRead,
+        showReadReceipts:
+            ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
+        onDelete: () => _handleDeleteMessage(msg),
+        onReply: (replyMsg) {
+          setState(() {
+            _replyMessage = replyMsg;
+            _editingMessage = null;
+          });
+        },
+        onEdit: (editMsg, newContent) {
+          if (!actions.canEdit(
+            editMsg,
+            isGuardianRoom: widget.isGuardian,
+          )) {
+            return;
+          }
+          ref
+              .read(chatActionsProvider)
+              .editMessage(
+                editMsg.id,
+                newContent,
+                isGuardianRoom: widget.isGuardian,
+              );
+        },
+        onForward: (forwardMsg) => _handleForwardMessage(forwardMsg),
+        onReact: (reactMsg, emoji) =>
+            _handleReactToMessage(reactMsg, emoji),
+      );
+
+      // Wrap with swipe-to-reply gesture
+      items.add(
+        _SwipeToReplyWrapper(
+          onReply: () => setState(() {
+            _replyMessage = msg;
+            _editingMessage = null;
+          }),
+          child: AnimatedAppear(
+            key: ValueKey('bubble_${msg.id}'),
+            child: bubble,
+          ),
+        ),
+      );
+    }
+
+    return items;
+  }
 }
+
+/// Gesture wrapper untuk swipe-to-reply pada bubble chat.
+/// Swipe dari kanan ke kiri: reply.
+class _SwipeToReplyWrapper extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onReply;
+
+  const _SwipeToReplyWrapper({
+    required this.child,
+    required this.onReply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: ValueKey(child.key),
+      direction: DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        onReply();
+        return false; // Never actually dismiss — just trigger reply
+      },
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 32),
+        color: MekaarColors.guardianTeal.withValues(alpha: 0.15),
+        child: const Icon(
+          SolarIconsOutline.reply,
+          color: MekaarColors.guardianTeal,
+          size: 24,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+

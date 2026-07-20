@@ -82,6 +82,27 @@ class MekaarTypography {
     letterSpacing: 0.3,
   );
 
+  static TextStyle get caption => GoogleFonts.plusJakartaSans(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: 0.2,
+  );
+
+  static TextStyle get badge => GoogleFonts.plusJakartaSans(
+    fontSize: 10,
+    fontWeight: FontWeight.w800,
+    color: Colors.white,
+    height: 1.0,
+    letterSpacing: 0.1,
+  );
+
+  static TextStyle get snackbar => GoogleFonts.plusJakartaSans(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: 1.4,
+  );
+
   static TextStyle get overline => GoogleFonts.plusJakartaSans(
     fontSize: 10,
     fontWeight: FontWeight.w800,
@@ -131,4 +152,8 @@ class MekaarTypography {
       base.copyWith(color: MekaarColors.sosRed);
   static TextStyle teal(TextStyle base) =>
       base.copyWith(color: MekaarColors.guardianTeal);
+  /// Helper: return copy of [base] with [color] applied.
+  /// Mengurangi kebutuhan copyWith(color: ...) di screen.
+  static TextStyle withColor(TextStyle base, Color color) =>
+      base.copyWith(color: color);
 }

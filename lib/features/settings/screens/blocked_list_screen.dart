@@ -5,6 +5,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../providers/block_provider.dart';
 import '../../../data/repositories/chat_repository.dart';
@@ -87,11 +88,9 @@ class BlockedListScreen extends ConsumerWidget {
                             .read(blockProvider.notifier)
                             .unblockUser(blocked.blockedId);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Pengguna dibuka blokirnya.'),
-                              backgroundColor: MekaarColors.success,
-                            ),
+                          MekaarSnackbar.success(
+                            context,
+                            'Pengguna dibuka blokirnya.',
                           );
                         }
                       },

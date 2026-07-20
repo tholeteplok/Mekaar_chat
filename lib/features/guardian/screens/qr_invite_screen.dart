@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../providers/guardian_provider.dart';
 
 // Layar "Kode QR Saya": tampilkan ke teman terpercaya agar ia bisa
@@ -38,12 +40,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
       if (mounted) setState(() => _token = token);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal memuat kode QR'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
-        );
+        MekaarSnackbar.error(context, 'Gagal memuat kode QR');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -58,21 +55,14 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
           .rotateInviteToken();
       if (mounted) {
         setState(() => _token = token);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kode QR diperbarui. Kode lama tidak berlaku lagi.'),
-            backgroundColor: MekaarColors.success,
-          ),
+        MekaarSnackbar.success(
+          context,
+          'Kode QR diperbarui. Kode lama tidak berlaku lagi.',
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal memperbarui kode'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
-        );
+        MekaarSnackbar.error(context, 'Gagal memperbarui kode');
       }
     } finally {
       if (mounted) setState(() => _isRotating = false);
@@ -88,10 +78,12 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Tunjukkan kode ini ke teman terpercaya. Ia dapat memindainya untuk mengirim undangan menjadi Guardian Anda.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+              style: MekaarTypography.bodySM.copyWith(
+                color: MekaarColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 32),
             if (_isLoading)
@@ -128,9 +120,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
               TextButton.icon(
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: _token!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Kode disalin')),
-                  );
+                  MekaarSnackbar.info(context, 'Kode disalin');
                 },
                 icon: const Icon(SolarIconsOutline.copy, size: 18),
                 label: const Text('Salin Kode'),
@@ -152,10 +142,12 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Perbarui kode jika Anda merasa kode lama pernah tersebar.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: MekaarColors.textSecondary),
+              style: MekaarTypography.bodySM.copyWith(
+                color: MekaarColors.textSecondary,
+              ),
             ),
           ],
         ),

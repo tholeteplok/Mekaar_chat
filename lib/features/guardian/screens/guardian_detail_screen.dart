@@ -6,6 +6,8 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/guardian_provider.dart';
 import '../../settings/providers/block_provider.dart';
@@ -46,23 +48,14 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         _storageOption,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Izin berhasil diperbarui.'),
-            backgroundColor: MekaarColors.success,
-          ),
-        );
+        MekaarSnackbar.success(context, 'Izin berhasil diperbarui.');
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
         );
       }
     } finally {
@@ -80,31 +73,28 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   }
 
   Future<void> _removeGuardian() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await MekaarDialog.showConfirmation<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Guardian?'),
-        content: Text(
-          'Anda akan menghapus ${widget.guardian.name} dari daftar guardian. '
-          'Semua izin akses akan dicabut.',
+      title: 'Hapus Guardian?',
+      message:
+          'Anda akan menghapus ${widget.guardian.name} dari daftar guardian. Semua izin akses akan dicabut.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Hapus',
-              style: TextStyle(
-                color: MekaarColors.sosRed,
-                fontWeight: FontWeight.bold,
-              ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Hapus',
+            style: TextStyle(
+              color: MekaarColors.sosRed,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (confirmed == true && mounted) {
@@ -124,32 +114,20 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
       if (blocked) {
         await notifier.unblockUser(guardianUserId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Guardian dibuka blokirnya.'),
-              backgroundColor: MekaarColors.success,
-            ),
-          );
+          MekaarSnackbar.success(context, 'Guardian dibuka blokirnya.');
         }
       } else {
         await notifier.blockUser(guardianUserId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Guardian berhasil diblokir.'),
-              backgroundColor: MekaarColors.success,
-            ),
-          );
+          MekaarSnackbar.success(context, 'Guardian berhasil diblokir.');
         }
       }
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
         );
       }
     }

@@ -12,6 +12,7 @@ import '../constants/colors.dart';
 import '../constants/shadows.dart';
 import '../services/haptic_service.dart';
 import 'animations.dart';
+import 'mekaar_bottom_sheet.dart';
 
 // Helper function to download, decrypt, and cache E2EE media locally.
 Future<File?> _getOrDecryptMedia({
@@ -179,9 +180,8 @@ class ChatBubble extends StatelessWidget {
 
   void _showContextMenu(BuildContext context) {
     HapticService.trigger(MekaarHapticIntent.warning);
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => _MessageContextMenu(
         message: message,
         isMe: isMe,

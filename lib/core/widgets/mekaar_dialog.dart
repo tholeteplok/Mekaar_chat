@@ -39,6 +39,54 @@ class MekaarDialog extends StatelessWidget {
     );
   }
 
+  /// Dialog konfirmasi sederhana: judul + body + tombol konfirmasi.
+  ///
+  /// [confirmLabel] default "OK", [confirmColor] untuk warna tombol konfirmasi.
+  /// [onConfirm] dipanggil setelah dialog tertutup jika user tekan konfirmasi.
+  static Future<void> show({
+    required BuildContext context,
+    required String title,
+    required String body,
+    String confirmLabel = 'OK',
+    Color? confirmColor,
+    VoidCallback? onConfirm,
+    bool barrierDismissible = true,
+    bool isDestructive = false,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (_) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MekaarRadius.lg),
+        ),
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              confirmLabel,
+              style: TextStyle(
+                color: confirmColor ??
+                    (isDestructive
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (result == true) onConfirm?.call();
+  }
+
   static Future<bool> showNoActiveGuardianWarning({
     required BuildContext context,
   }) async {

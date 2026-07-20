@@ -252,6 +252,13 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.08),
                         ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Text(
                         _formatDuration(sosState.elapsedSeconds),

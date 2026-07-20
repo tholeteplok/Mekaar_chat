@@ -4,6 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../providers/guardian_provider.dart';
 
 // Layar pemindai QR: pindai kode teman → preview profil → atur izin →
@@ -79,9 +81,9 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: MekaarColors.sosRed),
-    );
+    if (mounted) {
+      MekaarSnackbar.error(context, message);
+    }
   }
 
   Future<bool?> _showInviteSheet(
@@ -99,13 +101,9 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
         'User';
     final username = profile['username'] as String? ?? '';
 
-    return showModalBottomSheet<bool>(
+    return MekaarBottomSheet.show<bool?>(
+      showDragHandle: true,
       context: context,
-      isScrollControlled: true,
-      backgroundColor: MekaarColors.surfaceOf(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
@@ -212,27 +210,19 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                                   Navigator.pop(ctx, true);
                                 }
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Undangan Guardian berhasil dikirim!',
-                                      ),
-                                      backgroundColor: MekaarColors.success,
-                                    ),
+                                  MekaarSnackbar.success(
+                                    context,
+                                    'Undangan Guardian berhasil dikirim!',
                                   );
                                 }
                               } catch (e) {
                                 setSheetState(() => sending = false);
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        e.toString().replaceAll(
-                                          'Exception: ',
-                                          '',
-                                        ),
-                                      ),
-                                      backgroundColor: MekaarColors.sosRed,
+                                  MekaarSnackbar.error(
+                                    ctx,
+                                    e.toString().replaceAll(
+                                      'Exception: ',
+                                      '',
                                     ),
                                   );
                                 }

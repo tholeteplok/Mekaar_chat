@@ -7,6 +7,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
@@ -58,12 +59,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PIN salah. Silakan coba lagi.'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
-        );
+        MekaarSnackbar.error(context, 'PIN salah. Silakan coba lagi.');
       }
       return;
     }
@@ -74,13 +70,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           .read(guardianProvider.notifier)
           .initiateRoleSwap(widget.guardian.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Permintaan Tukar Posisi dikirim ke ${widget.guardian.name}!',
-            ),
-            backgroundColor: MekaarColors.success,
-          ),
+        MekaarSnackbar.success(
+          context,
+          'Permintaan Tukar Posisi dikirim ke ${widget.guardian.name}!',
         );
         Navigator.popUntil(
           context,
@@ -89,13 +81,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
         );
       }
     } finally {

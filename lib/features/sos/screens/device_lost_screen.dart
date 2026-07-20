@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/alarm_service.dart';
@@ -39,11 +40,9 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
         _isAlarmPlaying = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Alarm berhasil dimatikan.'),
-            backgroundColor: MekaarColors.success,
-          ),
+        MekaarSnackbar.success(
+          context,
+          'Alarm berhasil dimatikan.',
         );
       }
     } else {
@@ -52,11 +51,9 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
         _isAlarmPlaying = true;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Alarm berbunyi keras!'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          'Alarm berbunyi keras!',
         );
       }
     }
@@ -98,33 +95,28 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
 
   Future<void> _openInOsm() async {
     if (_lat == null || _lon == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lokasi tidak tersedia'),
-          backgroundColor: MekaarColors.sosRed,
-        ),
+      MekaarSnackbar.error(
+        context,
+        'Lokasi tidak tersedia',
       );
       return;
     }
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final url = LocationService.getOpenStreetMapUrl(_lat!, _lon!);
       final launched = await launchUrl(Uri.parse(url));
-      if (!launched) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Gagal membuka OpenStreetMap'),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+      if (!launched && mounted) {
+        MekaarSnackbar.error(
+          context,
+          'Gagal membuka OpenStreetMap',
         );
       }
     } catch (e) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Gagal membuka OpenStreetMap'),
-          backgroundColor: MekaarColors.sosRed,
-        ),
-      );
+      if (mounted) {
+        MekaarSnackbar.error(
+          context,
+          'Gagal membuka OpenStreetMap',
+        );
+      }
     }
   }
 

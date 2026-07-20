@@ -7,6 +7,8 @@ import '../../../core/constants/typography.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
@@ -150,13 +152,9 @@ class SettingsScreen extends ConsumerWidget {
               await ref.read(pinLockEnabledProvider.notifier).toggle(value);
             } catch (_) {
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Pengaturan kunci PIN gagal disimpan. Coba lagi.',
-                    ),
-                    backgroundColor: MekaarColors.sosRed,
-                  ),
+                MekaarSnackbar.error(
+                  context,
+                  'Pengaturan kunci PIN gagal disimpan. Coba lagi.',
                 );
               }
             }
@@ -329,12 +327,9 @@ class SettingsScreen extends ConsumerWidget {
   // Bottom sheet: Auto Delete
   // ─────────────────────────────────────────────────
   void _showAutoDeleteSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      showDragHandle: true,
       builder: (ctx) {
         final current = ref.watch(autoDeleteDefaultProvider);
         final options = [
@@ -390,12 +385,9 @@ class SettingsScreen extends ConsumerWidget {
   // Bottom sheet: Last Seen Privacy
   // ─────────────────────────────────────────────────
   void _showLastSeenSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      showDragHandle: true,
       builder: (ctx) {
         final current = ref.watch(lastSeenPrivacyProvider);
         return SafeArea(
@@ -466,22 +458,13 @@ class SettingsScreen extends ConsumerWidget {
         try {
           await ref.read(twoFaProvider.notifier).disable();
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Verifikasi 2 Langkah dimatikan.'),
-                backgroundColor: MekaarColors.success,
-              ),
-            );
+            MekaarSnackbar.success(context, 'Verifikasi 2 Langkah dimatikan.');
           }
         } catch (e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
-                ),
-                backgroundColor: MekaarColors.sosRed,
-              ),
+            MekaarSnackbar.error(
+              context,
+              'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
             );
           }
         }

@@ -27,7 +27,38 @@ import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_qr_scan_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_settings_screen.dart';
+import '../constants/motion.dart';
 
+/// MekaarPageRoute — Transisi halaman terpusat.
+///
+/// Semua navigasi antar layar memakai route ini agar animasi transisi
+/// (fade + slide halus 250ms, [MekaarMotion.standard]) selalu konsisten
+/// dan menghormati [MediaQuery.disableAnimationsOf].
+class MekaarPageRoute extends PageRouteBuilder {
+  MekaarPageRoute({required WidgetBuilder builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            if (MediaQuery.disableAnimationsOf(context)) return child;
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: MekaarMotion.standard,
+            );
+            return FadeTransition(
+              opacity: curved,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            );
+          },
+          transitionDuration: MekaarMotion.normal,
+        );
+}
 class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
@@ -62,24 +93,26 @@ class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.splash:
-        return MaterialPageRoute(builder: (_) => const SplashScreen());
+        return MekaarPageRoute(builder: (_) => const SplashScreen());
 
       case AppRoutes.onboarding:
-        return MaterialPageRoute(builder: (_) => const OnboardingScreen());
+        return MekaarPageRoute(builder: (_) => const OnboardingScreen());
 
       case AppRoutes.login:
-        return MaterialPageRoute(builder: (_) => const LoginScreen());
+        return MekaarPageRoute(builder: (_) => const LoginScreen());
 
       case AppRoutes.pin:
         final isSetup = settings.arguments as bool? ?? false;
-        return MaterialPageRoute(builder: (_) => PinScreen(isSetup: isSetup));
+        return MekaarPageRoute(
+            builder: (_) => PinScreen(isSetup: isSetup));
 
       case AppRoutes.home:
-        return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
+        return MekaarPageRoute(
+            builder: (_) => const MainNavigationScreen());
 
       case AppRoutes.chat:
         final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => ChatScreen(
             chatId: args['chatId'],
             chatName: args['chatName'],
@@ -91,7 +124,7 @@ class AppRoutes {
 
       case AppRoutes.call:
         final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => CallScreen(
             roomId: args['roomId'],
             chatName: args['chatName'],
@@ -103,16 +136,18 @@ class AppRoutes {
         );
 
       case AppRoutes.guardian:
-        return MaterialPageRoute(builder: (_) => const GuardianListScreen());
+        return MekaarPageRoute(
+            builder: (_) => const GuardianListScreen());
 
       case AppRoutes.guardianAdd:
-        return MaterialPageRoute(builder: (_) => const AddGuardianScreen());
+        return MekaarPageRoute(
+            builder: (_) => const AddGuardianScreen());
 
       case AppRoutes.guardianDetail:
         final g =
             (settings.arguments as Map<String, dynamic>)['guardian']
                 as Guardian;
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => GuardianDetailScreen(guardian: g),
         );
 
@@ -120,50 +155,50 @@ class AppRoutes {
         final g =
             (settings.arguments as Map<String, dynamic>)['guardian']
                 as Guardian;
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => SwapGuardianScreen(guardian: g),
         );
 
       case AppRoutes.guardianTracking:
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => const GuardianTrackingScreen(),
         );
 
       case AppRoutes.settings:
-        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+        return MekaarPageRoute(builder: (_) => const SettingsScreen());
 
       case AppRoutes.duressPin:
-        return MaterialPageRoute(builder: (_) => const DuressPinScreen());
+        return MekaarPageRoute(builder: (_) => const DuressPinScreen());
 
       case AppRoutes.logs:
-        return MaterialPageRoute(builder: (_) => const SecurityLogsScreen());
+        return MekaarPageRoute(builder: (_) => const SecurityLogsScreen());
 
       case AppRoutes.profile:
-        return MaterialPageRoute(builder: (_) => const ProfileScreen());
+        return MekaarPageRoute(builder: (_) => const ProfileScreen());
 
       case AppRoutes.soundPicker:
-        return MaterialPageRoute(builder: (_) => const SoundPickerScreen());
+        return MekaarPageRoute(builder: (_) => const SoundPickerScreen());
       case AppRoutes.blockedList:
-        return MaterialPageRoute(builder: (_) => const BlockedListScreen());
+        return MekaarPageRoute(builder: (_) => const BlockedListScreen());
       case AppRoutes.twoFactorSetup:
-        return MaterialPageRoute(builder: (_) => const TwoFactorSetupScreen());
+        return MekaarPageRoute(builder: (_) => const TwoFactorSetupScreen());
       case AppRoutes.twoFactor:
         final secret = settings.arguments as String? ?? '';
-        return MaterialPageRoute(
+        return MekaarPageRoute(
             builder: (_) => TwoFactorScreen(twoFaSecret: secret));
 
       case AppRoutes.sosActive:
-        return MaterialPageRoute(builder: (_) => const SOSActiveScreen());
+        return MekaarPageRoute(builder: (_) => const SOSActiveScreen());
 
       case AppRoutes.sosVideo:
-        return MaterialPageRoute(builder: (_) => const VideoEmergencyScreen());
+        return MekaarPageRoute(builder: (_) => const VideoEmergencyScreen());
 
       case AppRoutes.deviceLost:
-        return MaterialPageRoute(builder: (_) => const DeviceLostScreen());
+        return MekaarPageRoute(builder: (_) => const DeviceLostScreen());
 
       case AppRoutes.map:
         final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => LocationMapScreen(
             latitude: args['latitude'] as double,
             longitude: args['longitude'] as double,
@@ -172,14 +207,14 @@ class AppRoutes {
         );
 
       case AppRoutes.contactQrScan:
-        return MaterialPageRoute(builder: (_) => const ContactQrScanScreen());
+        return MekaarPageRoute(builder: (_) => const ContactQrScanScreen());
 
       case AppRoutes.myQr:
-        return MaterialPageRoute(builder: (_) => const MyQrScreen());
+        return MekaarPageRoute(builder: (_) => const MyQrScreen());
 
       case AppRoutes.contactSettings:
         final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => ContactSettingsScreen(
             roomId: args['roomId'],
             chatName: args['chatName'],
@@ -190,7 +225,7 @@ class AppRoutes {
         );
 
       default:
-        return MaterialPageRoute(
+        return MekaarPageRoute(
           builder: (_) => Scaffold(
             body: Center(child: Text('Route not found: ${settings.name}')),
           ),

@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/utils/totp.dart';
 
 class TwoFactorScreen extends ConsumerStatefulWidget {
@@ -29,12 +30,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
   void _verify() {
     final code = _codeController.text.trim();
     if (!TotpUtil.verify(widget.twoFaSecret, code)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kode tidak valid. Coba lagi.'),
-          backgroundColor: MekaarColors.sosRed,
-        ),
-      );
+      MekaarSnackbar.error(context, 'Kode tidak valid. Coba lagi.');
       return;
     }
     setState(() => _isVerifying = true);

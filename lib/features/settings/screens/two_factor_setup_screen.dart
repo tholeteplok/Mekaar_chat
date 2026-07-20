@@ -7,6 +7,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/utils/totp.dart';
 import '../providers/two_fa_provider.dart';
@@ -41,13 +42,9 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
   Future<void> _confirm() async {
     final code = _codeController.text.trim();
     if (!TotpUtil.verify(_secret, code)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Kode tidak valid. Pastikan jam perangkat sudah benar.',
-          ),
-          backgroundColor: MekaarColors.sosRed,
-        ),
+      MekaarSnackbar.error(
+        context,
+        'Kode tidak valid. Pastikan jam perangkat sudah benar.',
       );
       return;
     }
@@ -61,13 +58,9 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: MekaarColors.sosRed,
-          ),
+        MekaarSnackbar.error(
+          context,
+          'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
         );
       }
     }

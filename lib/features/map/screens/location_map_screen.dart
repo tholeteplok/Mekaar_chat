@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 
 class LocationMapScreen extends StatelessWidget {
   final double latitude;
@@ -131,8 +132,9 @@ class LocationMapScreen extends StatelessWidget {
                         ),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: '$latitude, $longitude'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Koordinat berhasil disalin!')),
+                          MekaarSnackbar.success(
+                            context,
+                            'Koordinat berhasil disalin!',
                           );
                         },
                       ),

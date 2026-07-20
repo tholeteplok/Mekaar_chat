@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/services/location_service.dart';
 import '../../sos/providers/sos_provider.dart';
 
@@ -85,9 +87,7 @@ class _GuardianTrackingScreenState
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka OpenStreetMap.')),
-      );
+      MekaarSnackbar.error(context, 'Tidak dapat membuka OpenStreetMap.');
     }
   }
 
@@ -140,10 +140,7 @@ class _GuardianTrackingScreenState
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 'Diperbarui ${_formatDateTime(_updatedAt!)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: MekaarColors.textMuted,
-                ),
+                style: MekaarTypography.bodySM,
               ),
             );
           }
@@ -177,7 +174,9 @@ class _GuardianTrackingScreenState
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: MekaarColors.textMuted),
+              style: MekaarTypography.bodyMD.copyWith(
+                color: MekaarColors.textMuted,
+              ),
             ),
             if (actionLabel != null && onPressed != null) ...[
               const SizedBox(height: 16),
@@ -216,9 +215,7 @@ class _GuardianTrackingScreenState
                   children: [
                     Text(
                       userName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                      style: MekaarTypography.labelLG.copyWith(
                         color: MekaarColors.textPrimary,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -226,10 +223,7 @@ class _GuardianTrackingScreenState
                     const SizedBox(height: 2),
                     Text(
                       userEmail,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: MekaarColors.textMuted,
-                      ),
+                      style: MekaarTypography.bodySM,
                     ),
                   ],
                 ),
@@ -240,12 +234,10 @@ class _GuardianTrackingScreenState
                   color: MekaarColors.sosLight,
                   borderRadius: BorderRadius.circular(100),
                 ),
-                child: const Text(
+                child: Text(
                   'SOS Aktif',
-                  style: TextStyle(
-                    fontSize: 9,
+                  style: MekaarTypography.labelSM.copyWith(
                     color: MekaarColors.sosRed,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -253,7 +245,7 @@ class _GuardianTrackingScreenState
           ),
           const SizedBox(height: 14),
           if (pingError)
-            const Row(
+            Row(
               children: [
                 Icon(
                   SolarIconsOutline.dangerTriangle,
@@ -264,16 +256,13 @@ class _GuardianTrackingScreenState
                 Expanded(
                   child: Text(
                     'Koordinat terakhir tidak dapat dimuat. Coba perbarui.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: MekaarColors.textMuted,
-                    ),
+                    style: MekaarTypography.bodySM,
                   ),
                 ),
               ],
             )
           else if (ping == null)
-            const Row(
+            Row(
               children: [
                 Icon(
                   SolarIconsOutline.gps,
@@ -283,7 +272,7 @@ class _GuardianTrackingScreenState
                 SizedBox(width: 8),
                 Text(
                   'Menunggu koordinat...',
-                  style: TextStyle(fontSize: 12, color: MekaarColors.textMuted),
+                  style: MekaarTypography.bodySM,
                 ),
               ],
             )
@@ -362,8 +351,7 @@ class _GuardianTrackingScreenState
             Expanded(
               child: Text(
                 '${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
-                style: const TextStyle(
-                  fontSize: 12,
+                style: MekaarTypography.bodySM.copyWith(
                   color: MekaarColors.textSecondary,
                 ),
               ),
@@ -381,10 +369,7 @@ class _GuardianTrackingScreenState
             const SizedBox(width: 8),
             Text(
               'Diperbarui ${_formatTimestamp(timestamp)}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: MekaarColors.textMuted,
-              ),
+              style: MekaarTypography.bodySM,
             ),
           ],
         ),
@@ -400,10 +385,7 @@ class _GuardianTrackingScreenState
               const SizedBox(width: 8),
               Text(
                 'Akurasi: ${accuracy.toStringAsFixed(1)} m',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: MekaarColors.textMuted,
-                ),
+                style: MekaarTypography.bodySM,
               ),
             ],
           ),

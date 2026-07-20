@@ -6,6 +6,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -50,9 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!success && mounted) {
       TextInput.finishAutofillContext(shouldSave: false);
       final error = ref.read(authProvider).error ?? 'Terjadi kesalahan';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: MekaarColors.sosRed),
-      );
+      MekaarSnackbar.error(context, error);
       return;
     }
 
@@ -83,30 +83,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final device = ref.read(authProvider).profile?.lastLoginDevice ?? 'baru';
       ref.read(authProvider.notifier).clearNewDeviceFlag();
       if (mounted) {
-        await showDialog<void>(
+        await MekaarDialog.show(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(
-                  SolarIconsOutline.shieldWarning,
-                  color: MekaarColors.guardianTeal,
-                ),
-                SizedBox(width: 8),
-                Text('Login Perangkat Baru'),
-              ],
-            ),
-            content: Text(
+          title: 'Login Perangkat Baru',
+          body:
               'Akun Anda baru saja login dari perangkat: $device. '
               'Jika bukan Anda, segera ubah password dan matikan sesi.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Mengerti'),
-              ),
-            ],
-          ),
+          confirmLabel: 'Mengerti',
+          barrierDismissible: false,
         );
       }
     }
@@ -123,9 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final success = await ref.read(authProvider.notifier).loginWithGoogle();
     if (!success && mounted) {
       final error = ref.read(authProvider).error ?? 'Gagal masuk dengan Google';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: MekaarColors.sosRed),
-      );
+      MekaarSnackbar.error(context, error);
     }
   }
 

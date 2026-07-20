@@ -8,6 +8,8 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/skeletons.dart';
@@ -136,11 +138,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final currentlyMuted = prefs?.isMuted ?? false;
     await repo.updateRoomMute(room['id'] as String, !currentlyMuted);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(currentlyMuted ? 'Notifikasi diaktifkan' : 'Notifikasi dibisukan'),
-        duration: const Duration(seconds: 2),
-      ),
+    MekaarSnackbar.info(
+      context,
+      currentlyMuted ? 'Notifikasi diaktifkan' : 'Notifikasi dibisukan',
     );
     ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
@@ -149,12 +149,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final repo = ref.read(chatRepositoryProvider);
     await repo.archiveRoom(room['id'] as String);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Chat diarsipkan'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    MekaarSnackbar.info(context, 'Chat diarsipkan');
     ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
@@ -191,163 +186,174 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     bool isSearching = false;
     String errorMessage = '';
 
-    showDialog(
+    MekaarBottomSheet.show(
       context: context,
-      builder: (context) {
+      title: 'Mulai Chat Baru',
+      showDragHandle: true,
+      builder: (sheetCtx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: Theme.of(context).cardColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Text(
-                'Mulai Chat Baru',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Masukkan username atau email teman Anda untuk memulai obrolan.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: MekaarColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  MekaarSearchField(
-                    controller: searchController,
-                    hintText: 'Username atau Email',
-                    errorText: errorMessage.isNotEmpty ? errorMessage : null,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Batal',
-                    style: TextStyle(color: MekaarColors.textMuted),
-                  ),
+          builder: (stateCtx, setSheetState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Masukkan username atau email teman Anda untuk memulai obrolan.',
+                  style: MekaarTypography.bodySM,
                 ),
-                ElevatedButton(
-                  onPressed: isSearching
-                      ? null
-                      : () async {
-                          final query = searchController.text.trim();
-                          if (query.isEmpty) {
-                            setDialogState(
-                              () => errorMessage = 'Input tidak boleh kosong',
-                            );
-                            return;
-                          }
+                const SizedBox(height: 16),
+                MekaarSearchField(
+                  controller: searchController,
+                  hintText: 'Username atau Email',
+                  errorText: errorMessage.isNotEmpty ? errorMessage : null,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(stateCtx),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isSearching
+                            ? null
+                            : () async {
+                                final query = searchController.text.trim();
+                                if (query.isEmpty) {
+                                  setSheetState(
+                                    () => errorMessage =
+                                        'Input tidak boleh kosong',
+                                  );
+                                  return;
+                                }
 
-                          setDialogState(() {
-                            isSearching = true;
-                            errorMessage = '';
-                          });
+                                setSheetState(() {
+                                  isSearching = true;
+                                  errorMessage = '';
+                                });
 
-                          try {
-                            final Map<String, dynamic>? profile;
-                            final wasDuress = ref
-                                .read(authProvider)
-                                .lastUnlockWasDuress;
+                                try {
+                                  final Map<String, dynamic>? profile;
+                                  final wasDuress = ref
+                                      .read(authProvider)
+                                      .lastUnlockWasDuress;
 
-                            if (wasDuress) {
-                              await Future.delayed(
-                                const Duration(milliseconds: 600),
-                              );
-                              profile = null;
-                            } else {
-                              profile = await ref
-                                  .read(chatRepositoryProvider)
-                                  .searchProfile(query);
-                            }
+                                  if (wasDuress) {
+                                    await Future.delayed(
+                                      const Duration(milliseconds: 600),
+                                    );
+                                    profile = null;
+                                  } else {
+                                    profile = await ref
+                                        .read(chatRepositoryProvider)
+                                        .searchProfile(query);
+                                  }
 
-                            if (profile == null) {
-                              setDialogState(() {
-                                isSearching = false;
-                                errorMessage = 'Pengguna tidak ditemukan';
-                              });
-                              return;
-                            }
+                                  if (profile == null) {
+                                    setSheetState(() {
+                                      isSearching = false;
+                                      errorMessage =
+                                          'Pengguna tidak ditemukan';
+                                    });
+                                    return;
+                                  }
 
-                            final myId = ref
-                                .read(supabaseServiceProvider)
-                                .currentUserId;
-                            if (profile['id'] == myId) {
-                              setDialogState(() {
-                                isSearching = false;
-                                errorMessage =
-                                    'Tidak bisa memulai chat dengan diri sendiri';
-                              });
-                              return;
-                            }
+                                  final myId = ref
+                                      .read(supabaseServiceProvider)
+                                      .currentUserId;
+                                  if (profile['id'] == myId) {
+                                    setSheetState(() {
+                                      isSearching = false;
+                                      errorMessage =
+                                          'Tidak bisa memulai chat dengan diri sendiri';
+                                    });
+                                    return;
+                                  }
 
-                            // Cegah memulai chat dengan pengguna yang diblokir.
-                            final alreadyBlocked = await ref
-                                .read(blockRepositoryProvider)
-                                .isBlocked(profile['id'] as String);
-                            if (alreadyBlocked) {
-                              setDialogState(() {
-                                isSearching = false;
-                                errorMessage = 'Pengguna ini telah Anda blokir';
-                              });
-                              return;
-                            }
+                                  // Cegah memulai chat dengan pengguna yang diblokir.
+                                  final alreadyBlocked = await ref
+                                      .read(blockRepositoryProvider)
+                                      .isBlocked(
+                                          profile['id'] as String);
+                                  if (alreadyBlocked) {
+                                    setSheetState(() {
+                                      isSearching = false;
+                                      errorMessage =
+                                          'Pengguna ini telah Anda blokir';
+                                    });
+                                    return;
+                                  }
 
-                            // Create or get chat room
-                            final roomId = await ref
-                                .read(chatRoomsProvider.notifier)
-                                .getOrCreateRoom(profile['id'], 'normal');
+                                  // Create or get chat room
+                                  final roomId = await ref
+                                      .read(chatRoomsProvider.notifier)
+                                      .getOrCreateRoom(
+                                          profile['id'], 'normal');
 
-                            if (context.mounted) {
-                              Navigator.pop(context); // Close dialog
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.chat,
-                                arguments: {
-                                  'chatId': roomId,
-                                  'chatName':
-                                      (profile['display_name'] as String?)?.isNotEmpty == true
-                                          ? profile['display_name'] as String
-                                          : profile['full_name'] as String? ??
-                                          profile['username'] as String? ??
-                                          'User',
-                                  'chatAvatar':
-                                      ((profile['display_name'] as String?)?.isNotEmpty == true
-                                          ? profile['display_name'] as String
-                                          : profile['full_name'] as String? ??
-                                          profile['username'] as String? ??
-                                          'U')[0],
-                                  'isGuardian': false,
-                                  'otherUserId': profile['id'] as String?,
-                                },
-                              );
-                            }
-                          } catch (e) {
-                            setDialogState(() {
-                              isSearching = false;
-                              errorMessage = 'Gagal membuat chat: $e';
-                            });
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.softCoral,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: isSearching
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('Cari & Chat'),
+                                  if (stateCtx.mounted) {
+                                    Navigator.pop(stateCtx);
+                                    Navigator.pushNamed(
+                                      stateCtx,
+                                      AppRoutes.chat,
+                                      arguments: {
+                                        'chatId': roomId,
+                                        'chatName': (profile['display_name']
+                                                        as String?)
+                                                    ?.isNotEmpty ==
+                                                true
+                                            ? profile['display_name']
+                                                as String
+                                            : profile['full_name']
+                                                    as String? ??
+                                                profile['username']
+                                                    as String? ??
+                                                'User',
+                                        'chatAvatar': ((profile['display_name']
+                                                            as String?)
+                                                        ?.isNotEmpty ==
+                                                    true
+                                                ? profile['display_name']
+                                                    as String
+                                                : profile['full_name']
+                                                        as String? ??
+                                                    profile['username']
+                                                        as String? ??
+                                                    'U')[0],
+                                        'isGuardian': false,
+                                        'otherUserId':
+                                            profile['id'] as String?,
+                                      },
+                                    );
+                                  }
+                                } catch (e) {
+                                  setSheetState(() {
+                                    isSearching = false;
+                                    errorMessage =
+                                        'Gagal membuat chat: $e';
+                                  });
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: MekaarColors.softCoral,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: isSearching
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Cari & Chat'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
