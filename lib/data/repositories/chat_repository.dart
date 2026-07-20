@@ -221,10 +221,11 @@ class ChatRepository {
           .eq('profile_id', otherUserId)
           .maybeSingle();
       if (checkOther != null) {
-        // Restore for current user if deleted
+        // Restore for current user if deleted — also clear history_cleared_at
+        // so the old (possibly timezone-shifted) timestamp won't filter out new messages.
         await _supabaseService.client
             .from('room_participants')
-            .update({'deleted_at': null})
+            .update({'deleted_at': null, 'history_cleared_at': null})
             .eq('room_id', roomId)
             .eq('profile_id', userId);
         return roomId;
