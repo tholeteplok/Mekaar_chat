@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../services/supabase_service.dart';
 import '../models/message_model.dart';
+import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
 
 class ChatRepository {
@@ -16,7 +17,7 @@ class ChatRepository {
     // Get rooms the current user participates in, filtering out deleted rooms
     final roomsResponse = await _supabaseService.client
         .from('room_participants')
-        .select('room_id, chat_rooms(id, room_type)')
+        .select('room_id, is_muted, is_archived, chat_rooms(id, room_type)')
         .eq('profile_id', userId)
         .isFilter('deleted_at', null);
 
@@ -153,6 +154,8 @@ class ChatRepository {
         'otherUserId': otherUserId,
         'otherUsername': profile?['username'] ?? '',
         'otherEmail': profile?['email'] ?? '',
+        'isMuted': row['is_muted'] as bool? ?? false,
+        'isArchived': row['is_archived'] as bool? ?? false,
       });
     }
 
@@ -594,6 +597,66 @@ class ChatRepository {
           'deleted_at': DateTime.now().toIso8601String(),
           'history_cleared_at': DateTime.now().toIso8601String()
         })
+        .eq('room_id', roomId)
+        .eq('profile_id', userId);
+  }
+
+  /// Ambil pengaturan privasi per-room untuk current user.
+  Future<RoomParticipantPreferences?> getRoomPreferences(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return null;
+    try {
+      final row = await _supabaseService.client
+          .from('room_participants')
+          .select('room_id, is_muted, muted_until, disappearing_override_hours, is_archived')
+          .eq('room_id', roomId)
+          .eq('profile_id', userId)
+          .maybeSingle();
+      if (row == null) return null;
+      return RoomParticipantPreferences.fromJson(row);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Toggle mute notifikasi untuk room.
+  Future<void> updateRoomMute(String roomId, bool muted) async {
+    try {
+      await _supabaseService.client.rpc(
+        'toggle_room_mute',
+        params: {'p_room_id': roomId, 'p_muted': muted},
+      );
+    } catch (_) {}
+  }
+
+  /// Set pesan menghilang override untuk satu room.
+  Future<void> updateRoomDisappearingOverride(String roomId, int? hours) async {
+    try {
+      await _supabaseService.client.rpc(
+        'set_room_disappearing_override',
+        params: {'p_room_id': roomId, 'p_hours': hours ?? 0},
+      );
+    } catch (_) {}
+  }
+
+  /// Arsipkan room (sembunyikan dari daftar utama).
+  Future<void> archiveRoom(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+    await _supabaseService.client
+        .from('room_participants')
+        .update({'is_archived': true})
+        .eq('room_id', roomId)
+        .eq('profile_id', userId);
+  }
+
+  /// Batalkan arsip room.
+  Future<void> unarchiveRoom(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+    await _supabaseService.client
+        .from('room_participants')
+        .update({'is_archived': false})
         .eq('room_id', roomId)
         .eq('profile_id', userId);
   }

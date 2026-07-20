@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
@@ -9,8 +10,18 @@ import '../../../core/widgets/custom_card.dart';
 class ChatListTile extends StatelessWidget {
   final Map<String, dynamic> room;
   final VoidCallback onTap;
+  final VoidCallback? onMute;
+  final VoidCallback? onDelete;
+  final VoidCallback? onArchive;
 
-  const ChatListTile({super.key, required this.room, required this.onTap});
+  const ChatListTile({
+    super.key,
+    required this.room,
+    required this.onTap,
+    this.onMute,
+    this.onDelete,
+    this.onArchive,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +30,7 @@ class ChatListTile extends StatelessWidget {
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final name = room['name'] as String? ?? 'User';
 
-    return CustomCard(
+    final tile = CustomCard(
       padding: EdgeInsets.zero,
       onTap: onTap,
       child: Padding(
@@ -99,6 +110,46 @@ class ChatListTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    // Bungkus dengan Slidable untuk swipe actions
+    return Slidable(
+      key: ValueKey(room['id']),
+      endActionPane: ActionPane(
+        motion: const BehindMotion(),
+        children: [
+          if (onMute != null)
+            SlidableAction(
+              onPressed: (_) => onMute!(),
+              backgroundColor: MekaarColors.warnAmber,
+              foregroundColor: MekaarColors.textOnYellow,
+              icon: Icons.notifications_off,
+              label: 'Bisukan',
+            ),
+          if (onArchive != null)
+            SlidableAction(
+              onPressed: (_) => onArchive!(),
+              backgroundColor: MekaarColors.textMuted,
+              foregroundColor: MekaarColors.textPrimary,
+              icon: Icons.archive,
+              label: 'Arsip',
+            ),
+        ],
+      ),
+      startActionPane: ActionPane(
+        motion: const BehindMotion(),
+        children: [
+          if (onDelete != null)
+            SlidableAction(
+              onPressed: (_) => onDelete!(),
+              backgroundColor: MekaarColors.sosRed,
+              foregroundColor: Colors.white,
+              icon: Icons.delete,
+              label: 'Hapus',
+            ),
+        ],
+      ),
+      child: tile,
     );
   }
 }

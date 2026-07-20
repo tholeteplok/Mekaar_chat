@@ -26,6 +26,7 @@ import 'package:mekaar_chat/features/map/screens/location_map_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_qr_scan_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/contact_settings_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -56,6 +57,7 @@ class AppRoutes {
   static const String call = '/call';
   static const String contactQrScan = '/chat/qr-scan';
   static const String myQr = '/chat/my-qr';
+  static const String contactSettings = '/chat/settings';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -174,6 +176,18 @@ class AppRoutes {
 
       case AppRoutes.myQr:
         return MaterialPageRoute(builder: (_) => const MyQrScreen());
+
+      case AppRoutes.contactSettings:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ContactSettingsScreen(
+            roomId: args['roomId'],
+            chatName: args['chatName'],
+            chatAvatar: args['chatAvatar'],
+            otherUserId: args['otherUserId'],
+            isGuardian: args['isGuardian'] ?? false,
+          ),
+        );
 
       default:
         return MaterialPageRoute(

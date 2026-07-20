@@ -59,18 +59,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
     // untuk tidak memunculkan notif saat user sedang melihat percakapan.
     ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
-    // Default Pesan Menghilang diambil dari preferensi pengguna.
-    _autoDeleteHours =
-        ref.read(authProvider).profile?.autoDeleteDefaultHours ?? 0;
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
+      // Muat preferensi per-kontak: pesan menghilang override
+      final preferences = await repo.getRoomPreferences(widget.chatId);
+      if (!mounted) return;
+      _autoDeleteHours = preferences?.disappearingOverrideHours
+          ?? ref.read(authProvider).profile?.autoDeleteDefaultHours
+          ?? 0;
       // Best-effort purge pesan kedaluwarsa (authoritative via cron Supabase).
       try {
         await repo.purgeExpiredMessages();
       } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
-      // Fetch other user's last_seen_at for presence subtitle
       if (widget.otherUserId != null) {
         _otherLastSeen = await repo.getLastSeen(widget.otherUserId!);
       }
@@ -485,6 +487,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         showOnlineIndicator: true,
         isOnline: _isCurrentlyOnline || _partnerIsTyping,
         subtitle: _buildPresenceSubtitle(),
+        onAvatarTap: widget.otherUserId != null
+            ? () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.contactSettings,
+                  arguments: {
+                    'roomId': widget.chatId,
+                    'chatName': widget.chatName,
+                    'chatAvatar': widget.chatAvatar,
+                    'otherUserId': widget.otherUserId!,
+                    'isGuardian': widget.isGuardian,
+                  },
+                )
+            : null,
         actions: [
           // Voice Call icon
           IconButton(

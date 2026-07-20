@@ -12,6 +12,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isOnline;
   final List<Widget>? actions;
   final VoidCallback? onBackPress;
+  final VoidCallback? onAvatarTap;
 
   const CustomAppBar({
     super.key,
@@ -24,6 +25,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isOnline = false,
     this.actions,
     this.onBackPress,
+    this.onAvatarTap,
   });
 
   @override
@@ -40,11 +42,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           if (avatarInitial != null || avatarUrl != null) ...[
             const SizedBox(width: 8),
-            Avatar(
-              initial: avatarInitial,
-              imageUrl: avatarUrl,
-              size: 38,
-              isGuardian: isGuardian,
+            GestureDetector(
+              onTap: onAvatarTap,
+              child: Avatar(
+                initial: avatarInitial,
+                imageUrl: avatarUrl,
+                size: 38,
+                isGuardian: isGuardian,
+              ),
             ),
             const SizedBox(width: 12),
           ] else if (Navigator.canPop(context)) ...[

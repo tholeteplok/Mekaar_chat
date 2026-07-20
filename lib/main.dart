@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 import 'package:mekaar_chat/data/services/supabase_service.dart';
@@ -13,23 +12,16 @@ final logger = Logger();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  bool isDotEnvLoaded = false;
-  // 1. Load Environment Variables
-  try {
-    await dotenv.load(fileName: ".env");
-    isDotEnvLoaded = true;
-    logger.i(".env loaded successfully");
-  } catch (e) {
-    final message =
-        '.env belum terbaca. Pastikan .env terdaftar di pubspec.yaml assets dan lakukan full restart aplikasi.';
-    SupabaseService.markInitializationFailed(message);
-    logger.w("$message Error: $e");
-  }
+  // 1. Initialize Supabase using --dart-define
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  // 2. Initialize Supabase
-  if (isDotEnvLoaded) {
-    final supabaseUrl = dotenv.env['SUPABASE_URL']?.trim() ?? '';
-    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']?.trim() ?? '';
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    final message =
+        '.env belum terbaca. Pastikan Anda menjalankan aplikasi dengan flag: --dart-define-from-file=.env';
+    SupabaseService.markInitializationFailed(message);
+    logger.w(message);
+  } else {
     final configError = _validateSupabaseConfig(supabaseUrl, supabaseAnonKey);
 
     if (configError != null) {

@@ -33,7 +33,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
 
-  final List<String> _tabs = ['All', 'Guardian'];
+  final List<String> _tabs = ['All', 'Guardian', 'Arsip'];
 
   @override
   void initState() {
@@ -128,6 +128,62 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     } finally {
       _isCheckingSOSGuardians = false;
     }
+  }
+
+  Future<void> _handleMuteRoom(Map<String, dynamic> room) async {
+    final repo = ref.read(chatRepositoryProvider);
+    final prefs = await repo.getRoomPreferences(room['id'] as String);
+    final currentlyMuted = prefs?.isMuted ?? false;
+    await repo.updateRoomMute(room['id'] as String, !currentlyMuted);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(currentlyMuted ? 'Notifikasi diaktifkan' : 'Notifikasi dibisukan'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> _handleArchiveRoom(Map<String, dynamic> room) async {
+    final repo = ref.read(chatRepositoryProvider);
+    await repo.archiveRoom(room['id'] as String);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Chat diarsipkan'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  void _confirmDeleteRoom(Map<String, dynamic> room) {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Hapus Chat?',
+      message: 'Obrolan akan hilang dari daftar chat Anda.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () async {
+            Navigator.pop(context);
+            await ref.read(chatRepositoryProvider).deleteChat(room['id'] as String);
+            if (!mounted) return;
+            ref.read(chatRoomsProvider.notifier).refreshRooms();
+          },
+          child: const Text('Hapus'),
+        ),
+      ],
+    );
   }
 
   void _showNewChatDialog() {
@@ -473,25 +529,35 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       if (_selectedTab == 'Guardian') {
         return room['isGuardian'] as bool;
       }
-      return true;
+      if (_selectedTab == 'Arsip') {
+        return room['isArchived'] as bool? ?? false;
+      }
+      // Tab 'All': exclude archived
+      final isArchived = room['isArchived'] as bool? ?? false;
+      return !isArchived;
     }).toList();
 
     if (filtered.isEmpty) {
       final hasSearch = _searchQuery.trim().isNotEmpty;
       final isGuardianFilter = _selectedTab == 'Guardian';
+      final isArchiveFilter = _selectedTab == 'Arsip';
       return _EmptyChats(
         onStart: _showNewChatDialog,
         title: hasSearch
             ? 'Chat tidak ditemukan'
             : isGuardianFilter
             ? 'Belum ada chat Guardian'
+            : isArchiveFilter
+            ? 'Tidak ada chat diarsipkan'
             : 'Belum ada obrolan',
         message: hasSearch
             ? 'Tidak ada chat yang cocok dengan "${_searchQuery.trim()}".'
             : isGuardianFilter
             ? 'Chat dengan Guardian akan muncul di filter ini.'
+            : isArchiveFilter
+            ? 'Chat yang diarsipkan akan muncul di sini.'
             : 'Mulai percakapan pertamamu dengan teman atau Guardian.',
-        showStartButton: !hasSearch && !isGuardianFilter,
+        showStartButton: !hasSearch && !isGuardianFilter && !isArchiveFilter,
       );
     }
 
@@ -506,21 +572,39 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
         return AnimatedAppear(
           delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
-          child: ChatListTile(
-            room: room,
-            onTap: () {
+          child: GestureDetector(
+            onLongPress: () {
               Navigator.pushNamed(
                 context,
-                AppRoutes.chat,
+                AppRoutes.contactSettings,
                 arguments: {
-                  'chatId': room['id'],
+                  'roomId': room['id'],
                   'chatName': room['name'],
                   'chatAvatar': room['avatar'],
+                  'otherUserId': room['otherUserId'],
                   'isGuardian': room['isGuardian'] as bool? ?? false,
-                  'otherUserId': room['otherUserId'] as String?,
                 },
               );
             },
+            child: ChatListTile(
+              room: room,
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.chat,
+                  arguments: {
+                    'chatId': room['id'],
+                    'chatName': room['name'],
+                    'chatAvatar': room['avatar'],
+                    'isGuardian': room['isGuardian'] as bool? ?? false,
+                    'otherUserId': room['otherUserId'] as String?,
+                  },
+                );
+              },
+              onMute: () => _handleMuteRoom(room),
+              onDelete: () => _confirmDeleteRoom(room),
+              onArchive: () => _handleArchiveRoom(room),
+            ),
           ),
         );
       },

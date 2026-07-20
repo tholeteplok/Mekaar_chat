@@ -91,7 +91,6 @@ dependencies:
   logger: ^2.3.0
 
   # Environment Variables & Additional Utilities
-  flutter_dotenv: ^5.1.0
   uuid: ^4.3.3
   crypto: ^3.0.3
 
@@ -100,6 +99,7 @@ dependencies:
   solar_icons: ^0.1.0
   flutter_image_compress: ^2.5.0
   video_compress: ^3.1.4
+  flutter_slidable: ^4.0.3
 
 dev_dependencies:
   flutter_test:
@@ -127,7 +127,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env
     - assets/mascot/
     - assets/sounds/
     - assets/logo/

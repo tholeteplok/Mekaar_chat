@@ -1,14 +1,16 @@
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'dart:math' as math;
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../services/supabase_service.dart';
 
 class AuthRepository {
   final SupabaseService _supabaseService;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   AuthRepository(this._supabaseService);
 
@@ -194,10 +196,9 @@ class AuthRepository {
       await _secureStorage
           .delete(key: 'pin_hash')
           .timeout(const Duration(seconds: 1));
-    } catch (_) {}
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('pin_hash');
+      await _secureStorage
+          .delete(key: 'duress_pin_hash')
+          .timeout(const Duration(seconds: 1));
     } catch (_) {}
     if (SupabaseService.isInitialized) {
       await _supabaseService.client.auth.signOut();
@@ -221,10 +222,39 @@ class AuthRepository {
     }
   }
 
-  // Hash PIN helper
-  String _hashPIN(String pin) {
-    final bytes = utf8.encode(pin);
-    return sha256.convert(bytes).toString();
+  // Hash PIN helper using Argon2id
+  Future<String> _hashPIN(String pin, {List<int>? salt}) async {
+    final argon2 = Argon2id(
+      memory: 12000,
+      iterations: 2,
+      parallelism: 1,
+      hashLength: 32,
+    );
+    final secretKey = SecretKey(utf8.encode(pin));
+    
+    // Generate salt if not provided
+    final actualSalt = salt ?? List<int>.generate(16, (i) => math.Random.secure().nextInt(256));
+    
+    final derivedKey = await argon2.deriveKey(
+      secretKey: secretKey,
+      nonce: actualSalt,
+    );
+    
+    final derivedBytes = await derivedKey.extractBytes();
+    final saltBase64 = base64Encode(actualSalt);
+    final hashBase64 = base64Encode(derivedBytes);
+    return '$saltBase64:$hashBase64';
+  }
+
+  // Helper to extract salt from stored hash
+  List<int>? _extractSalt(String storedHash) {
+    final parts = storedHash.split(':');
+    if (parts.length == 2) {
+      try {
+        return base64Decode(parts[0]);
+      } catch (_) {}
+    }
+    return null;
   }
 
   // Set PIN in database and local secure storage
@@ -232,17 +262,13 @@ class AuthRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('User not logged in');
 
-    final pinHash = _hashPIN(pin);
+    final pinHash = await _hashPIN(pin);
 
-    // Save locally with Keystore timeout-fallback for MIUI/unsupported devices
     try {
       await _secureStorage
           .write(key: 'pin_hash', value: pinHash)
           .timeout(const Duration(seconds: 1));
-    } catch (e) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pin_hash', pinHash);
-    }
+    } catch (_) {}
 
     // Save to remote profiles table
     await _supabaseService.client
@@ -253,40 +279,30 @@ class AuthRepository {
 
   // Validate entered PIN against stored PIN
   Future<bool> validatePIN(String pin) async {
-    final enteredHash = _hashPIN(pin);
-
-    // Try reading local hash first (offline friendly) with Keystore timeout-fallback
-    String? localHash;
+    String? storedHash;
     try {
-      localHash = await _secureStorage
+      storedHash = await _secureStorage
           .read(key: 'pin_hash')
           .timeout(const Duration(seconds: 1));
-    } catch (_) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        localHash = prefs.getString('pin_hash');
-      } catch (_) {}
-    }
+    } catch (_) {}
 
-    if (localHash != null) {
-      return localHash == enteredHash;
-    }
-
-    // Fallback to remote database check
-    final profile = await getProfile();
-    if (profile != null && profile.pinHash.isNotEmpty) {
-      // Update local storage so it's offline friendly next time
-      try {
-        await _secureStorage
-            .write(key: 'pin_hash', value: profile.pinHash)
-            .timeout(const Duration(seconds: 1));
-      } catch (_) {
+    if (storedHash == null || storedHash.isEmpty) {
+      // Fallback to remote database check
+      final profile = await getProfile();
+      if (profile != null && profile.pinHash.isNotEmpty) {
+        storedHash = profile.pinHash;
         try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('pin_hash', profile.pinHash);
+          await _secureStorage
+              .write(key: 'pin_hash', value: storedHash)
+              .timeout(const Duration(seconds: 1));
         } catch (_) {}
       }
-      return profile.pinHash == enteredHash;
+    }
+
+    if (storedHash != null && storedHash.isNotEmpty) {
+      final salt = _extractSalt(storedHash);
+      final enteredHash = await _hashPIN(pin, salt: salt);
+      return storedHash == enteredHash;
     }
 
     return false;
@@ -294,18 +310,12 @@ class AuthRepository {
 
   // Check if PIN has been set
   Future<bool> isPINSet() async {
-    String? localHash;
     try {
-      localHash = await _secureStorage
+      final localHash = await _secureStorage
           .read(key: 'pin_hash')
           .timeout(const Duration(seconds: 1));
-    } catch (_) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        localHash = prefs.getString('pin_hash');
-      } catch (_) {}
-    }
-    if (localHash != null && localHash.isNotEmpty) return true;
+      if (localHash != null && localHash.isNotEmpty) return true;
+    } catch (_) {}
 
     final profile = await getProfile();
     return profile != null && profile.pinHash.isNotEmpty;
@@ -319,18 +329,13 @@ class AuthRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('User not logged in');
 
-    final pinHash = _hashPIN(pin);
+    final pinHash = await _hashPIN(pin);
 
     try {
       await _secureStorage
           .write(key: 'duress_pin_hash', value: pinHash)
           .timeout(const Duration(seconds: 1));
-    } catch (_) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('duress_pin_hash', pinHash);
-      } catch (_) {}
-    }
+    } catch (_) {}
 
     await _supabaseService.client.from('profiles').update({
       'duress_pin_hash': pinHash,
@@ -353,24 +358,31 @@ class AuthRepository {
 
   // Mengembalikan true bila [pin] cocok dengan duress PIN (bukan PIN utama).
   Future<bool> validateDuressPIN(String pin) async {
-    final enteredHash = _hashPIN(pin);
-    String? localHash;
+    String? storedHash;
     try {
-      localHash = await _secureStorage
+      storedHash = await _secureStorage
           .read(key: 'duress_pin_hash')
           .timeout(const Duration(seconds: 1));
-    } catch (_) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        localHash = prefs.getString('duress_pin_hash');
-      } catch (_) {}
-    }
-    if (localHash != null) return localHash == enteredHash;
+    } catch (_) {}
 
-    final profile = await getProfile();
-    if (profile != null && profile.duressPinHash != null) {
-      return profile.duressPinHash == enteredHash;
+    if (storedHash == null || storedHash.isEmpty) {
+      final profile = await getProfile();
+      if (profile != null && profile.duressPinHash != null) {
+        storedHash = profile.duressPinHash;
+        try {
+          await _secureStorage
+              .write(key: 'duress_pin_hash', value: storedHash)
+              .timeout(const Duration(seconds: 1));
+        } catch (_) {}
+      }
     }
+
+    if (storedHash != null && storedHash.isNotEmpty) {
+      final salt = _extractSalt(storedHash);
+      final enteredHash = await _hashPIN(pin, salt: salt);
+      return storedHash == enteredHash;
+    }
+
     return false;
   }
 
@@ -381,10 +393,6 @@ class AuthRepository {
       await _secureStorage
           .delete(key: 'duress_pin_hash')
           .timeout(const Duration(seconds: 1));
-    } catch (_) {}
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('duress_pin_hash');
     } catch (_) {}
     try {
       await _supabaseService.client
