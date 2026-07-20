@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'dart:convert';
+import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -13,6 +16,43 @@ class AuthRepository {
   );
 
   AuthRepository(this._supabaseService);
+
+  Future<String?> uploadAndUpdateAvatar(File imageFile) async {
+    try {
+      final user = _supabaseService.client.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      final ext = imageFile.path.split('.').last;
+      final fileName = 'avatar.$ext';
+      final storagePath = '${user.id}/$fileName';
+
+      // Upload to Supabase Storage bucket 'avatars'
+      await _supabaseService.client.storage.from('avatars').upload(
+        storagePath,
+        imageFile,
+        fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+      );
+
+      // Get public URL
+      final publicUrl = _supabaseService.client.storage
+          .from('avatars')
+          .getPublicUrl(storagePath);
+          
+      // Add timestamp to avoid caching issues on client side
+      final timestampUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+
+      // Update profile
+      await _supabaseService.client
+          .from('profiles')
+          .update({'avatar_url': timestampUrl})
+          .eq('id', user.id);
+
+      return timestampUrl;
+    } catch (e) {
+      debugPrint('Error uploading avatar: $e');
+      rethrow;
+    }
+  }
 
   // Sign in with email and password
   Future<User?> signInWithEmail(String email, String password) async {
@@ -93,6 +133,23 @@ class AuthRepository {
         .from('profiles')
         .update({
           'username': username,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
+  }
+
+  // Update display name in profiles table
+  Future<Profile> updateDisplayName(String displayName) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'display_name': displayName,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', userId)
@@ -300,6 +357,18 @@ class AuthRepository {
     }
 
     if (storedHash != null && storedHash.isNotEmpty) {
+      // Backward compatibility: If stored hash doesn't contain ':', it's legacy SHA-256.
+      if (!storedHash.contains(':')) {
+        final bytes = utf8.encode(pin);
+        final legacyHash = crypto.sha256.convert(bytes).toString();
+        if (storedHash == legacyHash) {
+          // Transparently upgrade to Argon2id in background
+          setPIN(pin);
+          return true;
+        }
+        return false;
+      }
+
       final salt = _extractSalt(storedHash);
       final enteredHash = await _hashPIN(pin, salt: salt);
       return storedHash == enteredHash;
@@ -378,6 +447,18 @@ class AuthRepository {
     }
 
     if (storedHash != null && storedHash.isNotEmpty) {
+      // Backward compatibility: If stored hash doesn't contain ':', it's legacy SHA-256.
+      if (!storedHash.contains(':')) {
+        final bytes = utf8.encode(pin);
+        final legacyHash = crypto.sha256.convert(bytes).toString();
+        if (storedHash == legacyHash) {
+          // Transparently upgrade to Argon2id in background
+          setDuressPIN(pin);
+          return true;
+        }
+        return false;
+      }
+
       final salt = _extractSalt(storedHash);
       final enteredHash = await _hashPIN(pin, salt: salt);
       return storedHash == enteredHash;

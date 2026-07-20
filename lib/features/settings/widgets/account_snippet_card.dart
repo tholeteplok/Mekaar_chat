@@ -62,7 +62,7 @@ class AccountSnippetCard extends ConsumerWidget {
     final profile = authState.profile;
     final user = authState.user;
 
-    final displayName = profile?.fullName ?? profile?.username ?? 'Pengguna';
+    final displayName = profile?.displayName ?? profile?.fullName ?? profile?.username ?? 'Pengguna';
     final email = user?.email ?? '';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

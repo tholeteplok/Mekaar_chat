@@ -23,6 +23,7 @@ class Profile {
   final DateTime? pinLockedUntil;
   final String? duressPinHash;
   final String? fullName;
+  final String? displayName;
   final String? avatarUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -42,6 +43,7 @@ class Profile {
     this.pinLockedUntil,
     this.duressPinHash,
     this.fullName,
+    this.displayName,
     this.avatarUrl,
     required this.createdAt,
     required this.updatedAt,
@@ -65,6 +67,7 @@ class Profile {
           : null,
       duressPinHash: json['duress_pin_hash'] as String?,
       fullName: json['full_name'] as String?,
+      displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -89,6 +92,7 @@ class Profile {
       'pin_hash': pinHash,
       'pin_locked_until': pinLockedUntil?.toIso8601String(),
       'full_name': fullName,
+      'display_name': displayName,
       'avatar_url': avatarUrl,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -109,6 +113,7 @@ class Profile {
     String? pinHash,
     DateTime? pinLockedUntil,
     String? fullName,
+    String? displayName,
     String? avatarUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -127,6 +132,7 @@ class Profile {
       pinHash: pinHash ?? this.pinHash,
       pinLockedUntil: pinLockedUntil ?? this.pinLockedUntil,
       fullName: fullName ?? this.fullName,
+      displayName: displayName ?? this.displayName,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

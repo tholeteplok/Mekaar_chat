@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../data/services/image_picker_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
@@ -17,19 +19,125 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isEditingUsername = false;
+  bool _isEditingDisplayName = false;
   late TextEditingController _usernameController;
+  late TextEditingController _displayNameController;
+  bool _isUploadingAvatar = false;
+
+  final ImagePickerService _imagePickerService = ImagePickerService();
+
+  Future<void> _handlePickAndUploadAvatar(ImageSource source) async {
+    if (_isUploadingAvatar) return;
+
+    final file = await _imagePickerService.pickAndProcessImage(source, context: context);
+    if (file == null) return; // User cancelled
+
+    setState(() => _isUploadingAvatar = true);
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.uploadAndUpdateAvatar(file);
+      await ref.read(authProvider.notifier).loadProfile();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto profil berhasil diperbarui.'),
+            backgroundColor: MekaarColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui foto profil: $e'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  void _showAvatarOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(SolarIconsOutline.camera),
+                title: const Text('Kamera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handlePickAndUploadAvatar(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(SolarIconsOutline.gallery),
+                title: const Text('Galeri'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handlePickAndUploadAvatar(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     final profile = ref.read(authProvider).profile;
     _usernameController = TextEditingController(text: profile?.username ?? '');
+    _displayNameController = TextEditingController(text: profile?.displayName ?? profile?.fullName ?? '');
   }
 
   @override
   void dispose() {
     _usernameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveDisplayName() async {
+    final newName = _displayNameController.text.trim();
+    setState(() => _isEditingDisplayName = false);
+    try {
+      await ref.read(authProvider.notifier).updateDisplayName(newName);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nama tampilan berhasil diperbarui.'),
+            backgroundColor: MekaarColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui nama tampilan.'),
+            backgroundColor: MekaarColors.sosRed,
+          ),
+        );
+      }
+      _displayNameController.text =
+          ref.read(authProvider).profile?.displayName ??
+          ref.read(authProvider).profile?.fullName ??
+          '';
+    }
   }
 
   Future<void> _saveUsername() async {
@@ -144,7 +252,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Center(
                       child: Column(
                         children: [
-                          Avatar(initial: userName, size: 80),
+                          GestureDetector(
+                            onTap: _isUploadingAvatar ? null : _showAvatarOptions,
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                Avatar(
+                                  initial: userName,
+                                  imageUrl: profile?.avatarUrl,
+                                  size: 80,
+                                ),
+                                if (_isUploadingAvatar)
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: MekaarColors.guardianTeal,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      SolarIconsBold.camera,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           Text(userName, style: MekaarTypography.headingMD),
                           const SizedBox(height: 4),
@@ -210,6 +358,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ? Colors.white.withValues(alpha: 0.08)
                                 : Colors.black.withValues(alpha: 0.08),
                           ),
+                          // Display Name — editable
+                          Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: MekaarColors.surface2Of(context),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  SolarIconsOutline.user,
+                                  color: MekaarColors.textSecondary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _isEditingDisplayName
+                                    ? TextField(
+                                        controller: _displayNameController,
+                                        autofocus: true,
+                                        style: MekaarTypography.bodyMD.copyWith(
+                                          color: MekaarColors.textPrimaryOf(context),
+                                        ),
+                                        decoration: const InputDecoration(
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                          border: UnderlineInputBorder(),
+                                          hintText: 'Masukkan nama tampilan',
+                                        ),
+                                      )
+                                    : Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Nama Tampilan',
+                                            style: MekaarTypography.bodySM,
+                                          ),
+                                          Text(
+                                            (profile?.displayName ??
+                                                    profile?.fullName ??
+                                                    profile?.username ??
+                                                    'Belum diatur'),
+                                            style: MekaarTypography.bodyMD.copyWith(
+                                              color: MekaarColors.textPrimaryOf(context),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  _isEditingDisplayName
+                                      ? SolarIconsOutline.checkCircle
+                                      : SolarIconsOutline.pen,
+                                  color: _isEditingDisplayName
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textMuted,
+                                  size: 18,
+                                ),
+                                onPressed: _isEditingDisplayName
+                                    ? _saveDisplayName
+                                    : () => setState(() => _isEditingDisplayName = true),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 24, color: Colors.transparent),
                           // Username — editable
                           Row(
                             children: [

@@ -227,6 +227,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // Update display name
+  Future<void> updateDisplayName(String displayName) async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      throw Exception(configError);
+    }
+
+    try {
+      final updatedProfile = await _authRepository.updateDisplayName(displayName);
+      state = state.copyWith(profile: updatedProfile);
+    } catch (e) {
+      throw Exception('Gagal memperbarui nama tampilan: $e');
+    }
+  }
+
   Future<bool> loginWithGoogle() async {
     final configError = _configurationErrorMessage();
     if (configError != null) {

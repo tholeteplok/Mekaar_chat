@@ -49,12 +49,14 @@ class ChatRepository {
         try {
           final profileResponse = await _supabaseService.client
               .from('public_profiles')
-              .select('id, username, full_name, avatar_url')
+              .select('id, username, full_name, display_name, avatar_url')
               .eq('id', otherUserId)
               .maybeSingle();
           if (profileResponse != null) {
             profile = profileResponse;
-            chatName = profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
+            chatName = (profile['display_name'] as String?)?.isNotEmpty == true
+                ? profile['display_name'] as String
+                : profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
             chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
           }
         } catch (_) {}
@@ -552,7 +554,7 @@ class ChatRepository {
     try {
       final response = await _supabaseService.client
           .from('public_profiles')
-          .select('id, username, full_name, avatar_url')
+          .select('id, username, full_name, display_name, avatar_url')
           .eq('id', profileId)
           .maybeSingle();
       return response;

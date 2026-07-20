@@ -221,7 +221,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           onPressed: () async {
                             Navigator.pop(context);
                             await ref.read(chatRepositoryProvider).deleteChat(widget.roomId);
-                            if (mounted) {
+                            if (context.mounted) {
                               Navigator.of(context).pop();
                             }
                           },

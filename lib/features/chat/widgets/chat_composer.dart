@@ -300,7 +300,9 @@ class _ChatComposerState extends State<ChatComposer> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: MekaarColors.border,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? MekaarColors.textMuted
+                    : MekaarColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -391,10 +393,10 @@ class _ChatComposerState extends State<ChatComposer> {
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(label,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: MekaarColors.textPrimary)),
+              color: MekaarColors.textPrimaryOf(context))),
       onTap: onTap,
     );
   }

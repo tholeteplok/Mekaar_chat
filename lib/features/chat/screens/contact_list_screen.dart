@@ -22,6 +22,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final wasDuress = authState.lastUnlockWasDuress;
     final roomsAsync = ref.watch(chatRoomsProvider);
     final currentUserId = ref.watch(supabaseServiceProvider).currentUserId;
 
@@ -54,7 +56,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
           }
         }
 
-        final allContacts = uniqueContacts.values.toList();
+        final allContacts = wasDuress ? <Map<String, dynamic>>[] : uniqueContacts.values.toList();
 
         // 3. Filter berdasarkan pencarian
         final filteredContacts = allContacts.where((contact) {

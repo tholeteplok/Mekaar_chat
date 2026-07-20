@@ -299,7 +299,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 _buildKeypadRow(['1', '2', '3']),
                 _buildKeypadRow(['4', '5', '6']),
                 _buildKeypadRow(['7', '8', '9']),
-                _buildKeypadRow(['', '0', '⌫']),
+                _buildKeypadRow([widget.isSetup ? '' : 'Lupa', '0', '⌫']),
               ] else ...[
                 const Column(
                   children: [
@@ -356,6 +356,32 @@ class _PinScreenState extends ConsumerState<PinScreen>
       return const SizedBox(width: 80, height: 70);
     }
 
+    if (key == 'Lupa') {
+      return SizedBox(
+        width: 80,
+        height: 70,
+        child: Center(
+          child: TextButton(
+            onPressed: _showForgotPinDialog,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(60, 60),
+            ),
+            child: const Text(
+              'Lupa\nPIN?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final isBackspace = key == '⌫';
 
     return Semantics(
@@ -393,5 +419,35 @@ class _PinScreenState extends ConsumerState<PinScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _showForgotPinDialog() async {
+    final confirm = await MekaarDialog.showConfirmation<bool>(
+      context: context,
+      title: 'Lupa PIN?',
+      message: 'Sesi Anda saat ini akan diakhiri. Anda harus masuk kembali menggunakan Email & Password akun Anda untuk membuat PIN baru.\n\nLanjutkan?',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Ya, Logout'),
+        ),
+      ],
+    );
+
+    if (confirm == true && mounted) {
+      await ref.read(authProvider.notifier).logout();
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (route) => false,
+        );
+      }
+    }
   }
 }
