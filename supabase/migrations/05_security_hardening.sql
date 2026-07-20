@@ -214,17 +214,24 @@ GRANT EXECUTE ON FUNCTION public.soft_delete_message(UUID) TO authenticated;
 
 -- -----------------------------------------------------------------------------
 -- Tighten policies that previously exposed broad profile/message access.
+-- NOTE: sejak perbaikan migrasi 02, policy self-only di bawah ini sudah dibuat
+-- dari awal. Blok ini tetap idempoten (DROP IF EXISTS + CREATE) agar migrasi 05
+-- aman dijalankan baik di database lama (yang masih punya policy "true" lama)
+-- maupun di database baru yang sudah memakai migrasi 02 versi diperbaiki.
 -- -----------------------------------------------------------------------------
 
 DROP POLICY IF EXISTS "Users can manage own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can search other profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+
 CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can search other profiles" ON public.profiles;
 
 DROP POLICY IF EXISTS "Users can read/write messages in their rooms" ON public.messages;
 CREATE POLICY "Participants can read messages" ON public.messages

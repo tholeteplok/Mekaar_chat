@@ -70,12 +70,29 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'SHA-256: ${result['signature']}',
+                        '${result['algorithm']?.isNotEmpty ?? false ? result['algorithm'] : 'Ed25519'}: ${result['signature']}',
                         style: const TextStyle(
                           fontSize: 10,
                           fontFamily: 'monospace',
                         ),
                       ),
+                      if (result['public_key']?.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Public key server (untuk verifikasi independen):',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: MekaarColors.textMuted,
+                          ),
+                        ),
+                        Text(
+                          result['public_key'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

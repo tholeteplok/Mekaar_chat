@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,27 +24,76 @@ class WebRtcSignalingService {
   Function()? onHangup;
   Function(Object error)? onError;
 
-  static const Map<String, dynamic> _defaultConfiguration = {
-    'iceServers': [
+  // Konfigurasi ICE/TURN server.
+  //
+  // PRODUKSI: kredensial TURN publik/gratis (openrelay.metered.ca) TIDAK
+  // punya SLA dan bisa mati/dibatasi kapan saja — fatal untuk fitur video/
+  // audio darurat SOS. Set TURN server privat lewat --dart-define saat build:
+  //
+  //   flutter build apk \
+  //     --dart-define=TURN_URL=turn:turn.contoh-domain.com:3478 \
+  //     --dart-define=TURN_USERNAME=xxxx \
+  //     --dart-define=TURN_CREDENTIAL=yyyy
+  //
+  // (bisa pakai coturn self-hosted, atau layanan terkelola seperti Twilio
+  // Network Traversal Service / Cloudflare Calls / Metered.ca berbayar).
+  // Jika TURN_URL tidak diisi, fallback ke relay publik HANYA untuk
+  // development/testing lokal — jangan pernah rilis produksi dengan fallback
+  // ini aktif.
+  static const String _turnUrl = String.fromEnvironment('TURN_URL');
+  static const String _turnUsername = String.fromEnvironment('TURN_USERNAME');
+  static const String _turnCredential = String.fromEnvironment(
+    'TURN_CREDENTIAL',
+  );
+
+  static Map<String, dynamic> _buildDefaultConfiguration() {
+    final iceServers = <Map<String, dynamic>>[
       {'urls': 'stun:stun.l.google.com:19302'},
-      {
-        'urls': 'turn:openrelay.metered.ca:80',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject'
-      },
-      {
-        'urls': 'turn:openrelay.metered.ca:443',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject'
-      },
-      {
-        'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject'
+    ];
+
+    if (_turnUrl.isNotEmpty) {
+      iceServers.add({
+        'urls': _turnUrl,
+        'username': _turnUsername,
+        'credential': _turnCredential,
+      });
+    } else {
+      // ⚠️ DEV-ONLY fallback — lihat catatan di atas. Tidak boleh dipakai
+      // untuk build produksi/rilis publik.
+      if (kDebugMode) {
+        debugPrint(
+          '⚠️ WebRtcSignalingService: TURN_URL tidak diset, memakai relay '
+          'publik openrelay.metered.ca (DEV ONLY). Set --dart-define=TURN_URL '
+          '(+ TURN_USERNAME/TURN_CREDENTIAL) sebelum build produksi.',
+        );
       }
-    ],
-    'sdpSemantics': 'unified-plan',
-  };
+      iceServers.addAll(const [
+        {
+          'urls': 'turn:openrelay.metered.ca:80',
+          'username': 'openrelayproject',
+          'credential': 'openrelayproject',
+        },
+        {
+          'urls': 'turn:openrelay.metered.ca:443',
+          'username': 'openrelayproject',
+          'credential': 'openrelayproject',
+        },
+        {
+          'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
+          'username': 'openrelayproject',
+          'credential': 'openrelayproject',
+        },
+      ]);
+    }
+
+    return {
+      'iceServers': iceServers,
+      'sdpSemantics': 'unified-plan',
+    };
+  }
+
+  static final Map<String, dynamic> _defaultConfiguration =
+      _buildDefaultConfiguration();
 
   WebRtcSignalingService(this._client, {Map<String, dynamic>? configuration})
     : _configuration = configuration ?? _defaultConfiguration;

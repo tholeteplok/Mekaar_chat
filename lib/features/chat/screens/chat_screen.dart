@@ -139,24 +139,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         setState(() => _editingMessage = null);
         return;
       }
-      await actions.editMessage(
-        _editingMessage!.id,
-        text,
-        isGuardianRoom: widget.isGuardian,
-      );
+      try {
+        await actions.editMessage(
+          _editingMessage!.id,
+          text,
+          isGuardianRoom: widget.isGuardian,
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Gagal menyimpan pesan: $e')));
+        }
+        return;
+      }
       _textController.clear();
       setState(() => _editingMessage = null);
       return;
     }
 
-    await actions.sendMessage(
-      widget.chatId,
-      text,
-      type: MessageType.text,
-      isViewOnce: _isViewOnce,
-      replyToId: _replyMessage?.id,
-      autoDeleteHours: _autoDeleteHours,
-    );
+    try {
+      await actions.sendMessage(
+        widget.chatId,
+        text,
+        type: MessageType.text,
+        isViewOnce: _isViewOnce,
+        replyToId: _replyMessage?.id,
+        autoDeleteHours: _autoDeleteHours,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal mengirim pesan: $e')));
+      }
+      // Teks TIDAK dihapus dari composer supaya pengguna bisa coba kirim ulang.
+      return;
+    }
 
     _textController.clear();
     setState(() {
@@ -346,9 +365,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 title: Text(name),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await ref
-                      .read(chatActionsProvider)
-                      .forwardMessage(msg, room['id'] as String);
+                  try {
+                    await ref
+                        .read(chatActionsProvider)
+                        .forwardMessage(msg, room['id'] as String);
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Gagal meneruskan pesan: $e')),
+                      );
+                    }
+                    return;
+                  }
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Pesan diteruskan ke $name')),

@@ -65,10 +65,9 @@ lib/
 ## 🚀 Panduan Memulai
 
 ### 1. Konfigurasi Backend Supabase
-Jalankan skrip migrasi database di **SQL Editor** Supabase Anda secara berurutan:
-1. `supabase/migrations/01_initial_schema.sql` (Membuat tabel)
-2. `supabase/migrations/02_rls_policies.sql` (Mengatur keamanan RLS)
-3. `supabase/migrations/03_database_triggers.sql` (Mencatat log otomatis)
+Jalankan **SELURUH** skrip migrasi di `supabase/migrations/` secara berurutan (01 → 26) di **SQL Editor** Supabase Anda — jangan berhenti di beberapa file awal saja.
+
+> ⚠️ **Wajib, bukan opsional:** migrasi 01–03 saja *tidak cukup* untuk keamanan dasar. Migrasi-migrasi berikutnya (khususnya `05_security_hardening.sql`) mengunci akses ke kolom sangat sensitif di tabel `profiles` (`pin_hash`, `duress_pin_hash`, `two_fa_secret`, `e2ee_key_backup`) sekaligus mempersempit akses tabel `messages`. Menjalankan aplikasi tanpa migrasi lengkap akan membuat data ini berpotensi terbaca oleh pengguna lain.
 
 Di panel Supabase, pastikan Email Auth aktif. Matikan **"Confirm email"** di tab Authentication Settings jika ingin proses registrasi instan untuk keperluan pengujian.
 
@@ -79,7 +78,47 @@ SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 3. Instalasi dan Menjalankan Aplikasi
+### 3. Konfigurasi Tambahan Sebelum Produksi
+
+Dua hal ini **wajib** dikonfigurasi sebelum aplikasi dipakai dengan data pengguna sungguhan (lihat `AUDIT_MEKAAR_MVP_ke_Produksi.md` untuk detail risikonya):
+
+**a) TURN server privat untuk WebRTC (video/audio darurat)**
+Secara default aplikasi jatuh ke relay TURN publik gratis (`openrelay.metered.ca`) yang tidak punya SLA — tidak layak untuk fitur SOS. Set server TURN privat Anda sendiri saat build:
+```bash
+flutter build apk \
+  --dart-define=SUPABASE_URL=https://your-project-id.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=eyJ... \
+  --dart-define=TURN_URL=turn:turn.domain-anda.com:3478 \
+  --dart-define=TURN_USERNAME=xxxx \
+  --dart-define=TURN_CREDENTIAL=yyyy
+```
+Bisa pakai `coturn` self-hosted atau layanan terkelola (Twilio, Cloudflare Calls, dsb). Selama `TURN_URL` kosong, aplikasi memakai fallback publik dan akan mencetak peringatan di log debug.
+
+**b) Kunci penandatanganan log bukti hukum (Edge Function `sign-logs`)**
+```bash
+# 1. Generate keypair Ed25519 sekali (lihat komentar lengkap di
+#    supabase/functions/sign-logs/index.ts):
+deno run -A -e '
+  import * as ed from "https://esm.sh/@noble/ed25519@2.1.0";
+  const priv = ed.utils.randomPrivateKey();
+  const pub = await ed.getPublicKeyAsync(priv);
+  console.log("PRIVATE:", Array.from(priv).map(b=>b.toString(16).padStart(2,"0")).join(""));
+  console.log("PUBLIC :", Array.from(pub).map(b=>b.toString(16).padStart(2,"0")).join(""));
+'
+
+# 2. Simpan private key sebagai secret (JANGAN commit ke repo):
+supabase secrets set LOG_SIGNING_ED25519_PRIVATE_KEY=<hex_private_key>
+
+# 3. Deploy function:
+supabase functions deploy sign-logs
+
+# 4. Publikasikan PUBLIC key di halaman "Tentang"/dokumen resmi aplikasi
+#    agar pihak ketiga (mis. kepolisian/pengadilan) bisa memverifikasi
+#    ekspor log secara independen.
+```
+Tanpa langkah ini, fungsi `sign-logs` akan menolak menandatangani (fail-closed) dan aplikasi otomatis fallback ke ekspor CSV lokal tanpa tanda tangan.
+
+### 4. Instalasi dan Menjalankan Aplikasi
 ```bash
 # Unduh paket dependensi
 flutter pub get

@@ -1,20 +1,55 @@
 # Log Cryptographic Signing — MEKAAR 3.0 (Blind Spot #5)
 #
-# Menandatangani ekspor Log Sistem secara kriptografis (SHA-256) di sisi server
-# sehingga berkas bukti hukum tidak dapat diubah tanpa merusak tanda tangan.
+# Menandatangani ekspor Log Sistem memakai TANDA TANGAN DIGITAL ASIMETRIS
+# (Ed25519), bukan sekadar hash SHA-256 tanpa kunci. Bedanya penting untuk
+# nilai bukti hukum:
+#   - Hash SHA-256 saja HANYA membuktikan integritas selama pemeriksa sudah
+#     percaya angka hash itu berasal dari server yang jujur — siapa pun bisa
+#     menghitung ulang SHA-256 atas dokumen apa pun, termasuk dokumen palsu.
+#   - Tanda tangan Ed25519 dibuat dengan PRIVATE KEY yang hanya dipegang
+#     server (disimpan sebagai secret, tidak pernah dikirim ke client), dan
+#     bisa diverifikasi pihak KETIGA (mis. penyidik/pengadilan) memakai
+#     PUBLIC KEY saja — tanpa perlu mempercayai server itu lagi saat
+#     verifikasi. Ini yang disebut non-repudiation.
 #
-# Deploy (membutuhkan Supabase CLI + project terhubung):
+# ── Setup (wajib sebelum deploy) ──────────────────────────────────────────
+# 1. Generate keypair Ed25519 sekali di mesin lokal (jangan di client app):
+#      deno run -A -e '
+#        import * as ed from "https://esm.sh/@noble/ed25519@2.1.0";
+#        const priv = ed.utils.randomPrivateKey();
+#        const pub = await ed.getPublicKeyAsync(priv);
+#        console.log("PRIVATE (secret, simpan di Supabase secrets):",
+#          Array.from(priv).map(b => b.toString(16).padStart(2,"0")).join(""));
+#        console.log("PUBLIC (boleh dipublikasikan, untuk verifikasi):",
+#          Array.from(pub).map(b => b.toString(16).padStart(2,"0")).join(""));
+#      '
+# 2. Simpan private key sebagai secret Edge Function (JANGAN commit ke repo):
+#      supabase secrets set LOG_SIGNING_ED25519_PRIVATE_KEY=<hex_private_key>
+# 3. Publikasikan public key di tempat yang bisa diakses pihak ketiga untuk
+#    verifikasi independen (mis. halaman "Tentang" aplikasi / dokumen resmi),
+#    terpisah dari respons fungsi ini.
+#
+# Deploy:
 #   supabase functions deploy sign-logs
 #
 # Invoke dari Flutter:
 #   await supabaseClient.functions.invoke('sign-logs', body: {'format': 'csv'});
+#
+# Verifikasi independen (di luar aplikasi, oleh siapa pun yang punya public
+# key), contoh dengan @noble/ed25519:
+#   const ok = await ed.verifyAsync(signatureHexToBytes, payloadUtf8Bytes, publicKeyBytes);
 
 # Supabase Edge Function — Deno runtime
 # Markdown di atas diabaikan oleh Deno; ini adalah file entry function.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { crypto } from "https://deno.land/std@0.200.0/crypto/mod.ts";
-import { encodeHex } from "https://deno.land/std@0.200.0/encoding/hex.ts";
+import * as ed from "https://esm.sh/@noble/ed25519@2.1.0";
+import { sha512 } from "https://esm.sh/@noble/hashes@1.4.0/sha512";
+
+// @noble/ed25519 v2 butuh implementasi SHA-512 di-inject manual di Deno
+// (tidak seperti Node, Deno tidak menyediakannya secara default untuk lib ini).
+ed.etc.sha512Sync = (...m: Uint8Array[]) =>
+  sha512(ed.etc.concatBytes(...m));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +57,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.trim().toLowerCase();
+  if (!/^[0-9a-f]+$/.test(clean) || clean.length % 2 !== 0) {
+    throw new Error("LOG_SIGNING_ED25519_PRIVATE_KEY tidak valid (hex)");
+  }
+  const out = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(clean.substr(i * 2, 2), 16);
+  }
+  return out;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -35,6 +88,23 @@ Deno.serve(async (req: Request) => {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const privHex = Deno.env.get("LOG_SIGNING_ED25519_PRIVATE_KEY");
+    if (!privHex) {
+      // Fail closed: jangan pernah keluarkan dokumen yang diklaim
+      // "ditandatangani" tanpa kunci penandatanganan yang benar terpasang.
+      return new Response(
+        JSON.stringify({
+          error:
+            "Server belum dikonfigurasi untuk penandatanganan log " +
+            "(LOG_SIGNING_ED25519_PRIVATE_KEY belum diset).",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const supabaseClient = createClient(
@@ -78,25 +148,32 @@ Deno.serve(async (req: Request) => {
     });
     const csv = [csvHeader, ...csvLines].join("\n");
 
-    // SHA-256 signature atas isi CSV + timestamp penandatanganan
+    // Tanda tangan Ed25519 atas isi CSV + user id + timestamp penandatanganan.
+    // user_id disertakan supaya tanda tangan terikat ke pemilik log (tidak
+    // bisa dipindah-tempelkan ke ekspor milik pengguna lain).
     const signedAt = new Date().toISOString();
-    const payload = `${csv}\n--SIGNED_AT--${signedAt}`;
-    const hashBuffer = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(payload),
-    );
-    const signature = encodeHex(hashBuffer);
+    const payload = `${csv}\n--USER--${user.id}\n--SIGNED_AT--${signedAt}`;
+    const payloadBytes = new TextEncoder().encode(payload);
+
+    const privateKey = hexToBytes(privHex);
+    const publicKey = await ed.getPublicKeyAsync(privateKey);
+    const signatureBytes = await ed.signAsync(payloadBytes, privateKey);
 
     return new Response(
       JSON.stringify({
         csv,
-        signature,
+        signature: bytesToHex(signatureBytes),
+        public_key: bytesToHex(publicKey),
         signed_at: signedAt,
-        algorithm: "SHA-256",
+        signed_user_id: user.id,
+        algorithm: "Ed25519",
         statement:
-          "Dokumen ini ditandatangani secara kriptografis pada " +
-          signedAt +
-          " dan tidak dapat diubah tanpa merusak tanda tangan ini.",
+          "Dokumen ini ditandatangani dengan tanda tangan digital Ed25519 " +
+          "pada " + signedAt + " oleh server MEKAAR. Verifikasi keaslian " +
+          "dapat dilakukan oleh pihak mana pun menggunakan 'public_key' " +
+          "di atas terhadap payload gabungan CSV + user id + waktu tanda " +
+          "tangan, tanpa perlu mempercayai server ini lagi. Public key " +
+          "resmi juga dipublikasikan terpisah dari respons ini.",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

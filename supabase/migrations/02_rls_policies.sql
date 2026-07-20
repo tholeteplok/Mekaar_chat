@@ -21,13 +21,27 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 1. Profiles Policies
+--
+-- KEAMANAN: profiles menyimpan kolom sangat sensitif (pin_hash, duress_pin_hash,
+-- duress_enabled, two_fa_secret, e2ee_key_backup). Baris HANYA boleh dibaca/ditulis
+-- oleh pemiliknya sendiri. Pencarian/penemuan profil pengguna LAIN wajib lewat
+-- view `public_profiles` (kolom aman saja) dan RPC `search_public_profiles`
+-- yang dibuat di migrasi 05 — bukan lewat SELECT langsung ke tabel ini.
+-- (Versi awal migrasi ini pernah memakai "FOR SELECT USING (true)" yang membuat
+-- seluruh kolom sensitif di atas terbaca oleh siapa pun yang login. Jangan
+-- kembalikan pola itu.)
 DROP POLICY IF EXISTS "Users can manage own profile" ON profiles;
-CREATE POLICY "Users can manage own profile" ON profiles
-  USING (auth.uid() = id);
-
 DROP POLICY IF EXISTS "Users can search other profiles" ON profiles;
-CREATE POLICY "Users can search other profiles" ON profiles
-  FOR SELECT USING (true); -- needed to search other users to add as guardian
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+
+CREATE POLICY "Users can view own profile" ON profiles
+  FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- 2. Guardians Policies
 DROP POLICY IF EXISTS "Users can manage own guardian relations" ON guardians;

@@ -6,6 +6,21 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'supabase_service.dart';
 
+/// Dilempar saat proses enkripsi gagal karena masalah *sementara*
+/// (jaringan, error server, dsb) — BUKAN karena lawan bicara memang belum
+/// punya kunci publik. Pemanggil (mis. ChatRepository.sendMessage) HARUS
+/// memperlakukan ini sebagai kegagalan pengiriman (fail-closed), bukan
+/// alasan untuk mengirim plaintext diam-diam.
+class E2eeUnavailableException implements Exception {
+  final String message;
+  final Object? cause;
+  E2eeUnavailableException(this.message, [this.cause]);
+
+  @override
+  String toString() => 'E2eeUnavailableException: $message'
+      '${cause != null ? ' (cause: $cause)' : ''}';
+}
+
 /// Layanan E2EE untuk chat 1:1 (teks, lokasi, dan media).
 ///
 /// Skema:
@@ -126,6 +141,11 @@ class E2eeService {
 
   // ── Kunci room (ECDH + HKDF) ───────────────────────────────
 
+  /// Ambil/derive kunci room. Melempar [E2eeUnavailableException] bila
+  /// terjadi kegagalan *sementara* (jaringan/server) — pemanggil TIDAK boleh
+  /// menganggap ini sama dengan "lawan belum punya kunci" dan diam-diam
+  /// mengirim plaintext. Hanya return null bila status "belum ada kunci
+  /// publik lawan" itu sendiri sudah dipastikan (bukan karena gagal query).
   Future<SecretKey?> _roomKey(String roomId) async {
     final cached = _roomKeys[roomId];
     if (cached != null) return cached;
@@ -133,7 +153,12 @@ class E2eeService {
     await ensureIdentity();
     final userId = _supabase.currentUserId;
     final identity = _identity;
-    if (userId == null || identity == null) return null;
+    if (userId == null || identity == null) {
+      // Belum login / identitas lokal belum siap — ini kondisi sementara
+      // juga (identitas semestinya selalu ada untuk pengguna yang login),
+      // jadi diperlakukan sebagai kegagalan, bukan fallback plaintext.
+      throw E2eeUnavailableException('Identitas E2EE lokal belum siap');
+    }
 
     // Room self_device tidak punya lawan — pakai kunci publik sendiri.
     String peerId = userId;
@@ -145,18 +170,40 @@ class E2eeService {
           .neq('profile_id', userId)
           .maybeSingle();
       if (peer != null) peerId = peer['profile_id'] as String;
-    } catch (_) {}
+    } catch (e) {
+      throw E2eeUnavailableException(
+        'Gagal memuat data partisipan room',
+        e,
+      );
+    }
 
     String? peerPubB64;
+    bool peerRowFound = false;
     try {
       final row = await _supabase.client
           .from('public_profiles')
           .select('e2ee_public_key')
           .eq('id', peerId)
           .maybeSingle();
+      peerRowFound = row != null;
       peerPubB64 = row?['e2ee_public_key'] as String?;
-    } catch (_) {}
-    if (peerPubB64 == null || peerPubB64.isEmpty) return null;
+    } catch (e) {
+      throw E2eeUnavailableException(
+        'Gagal memuat kunci publik lawan bicara',
+        e,
+      );
+    }
+
+    if (!peerRowFound) {
+      // Query berhasil tapi baris lawan memang tidak ada (akun dihapus dsb).
+      // Ini status pasti, bukan kegagalan sementara — aman untuk fallback.
+      return null;
+    }
+    if (peerPubB64 == null || peerPubB64.isEmpty) {
+      // Query berhasil, lawan memang belum pernah mempublikasikan kunci
+      // (akun lama sebelum fitur E2EE ada). Fallback plaintext sah di sini.
+      return null;
+    }
 
     try {
       final shared = await _x25519.sharedSecretKey(
@@ -174,19 +221,27 @@ class E2eeService {
       );
       _roomKeys[roomId] = roomKey;
       return roomKey;
-    } catch (_) {
-      return null;
+    } catch (e) {
+      // Kunci publik lawan ada tapi proses kriptografi gagal (format
+      // korup dsb) — ini kegagalan nyata, bukan "tidak ada kunci".
+      throw E2eeUnavailableException('Gagal menurunkan kunci room', e);
     }
   }
 
   // ── Envelope pesan ─────────────────────────────────────────
 
-  /// Enkripsi plaintext untuk room. Return null bila lawan belum punya
-  /// kunci publik (akun lama) — pemanggil mengirim plaintext sebagai fallback.
+  /// Enkripsi plaintext untuk room.
+  /// - Return null HANYA bila lawan room dipastikan belum punya kunci
+  ///   publik (akun lama) — pemanggil boleh mengirim plaintext sebagai
+  ///   fallback yang disengaja.
+  /// - Melempar [E2eeUnavailableException] bila enkripsi gagal karena
+  ///   sebab sementara (jaringan/server/kripto). Pemanggil WAJIB
+  ///   memperlakukan ini sebagai kegagalan kirim (fail-closed), BUKAN
+  ///   mengirim plaintext diam-diam.
   Future<String?> encryptForRoom(String roomId, String plainText) async {
+    final key = await _roomKey(roomId);
+    if (key == null) return null;
     try {
-      final key = await _roomKey(roomId);
-      if (key == null) return null;
       final box = await _cipher.encrypt(
         utf8.encode(plainText),
         secretKey: key,
@@ -196,8 +251,8 @@ class E2eeService {
         'a': algorithmName,
         'ct': base64Encode(box.concatenation()),
       });
-    } catch (_) {
-      return null;
+    } catch (e) {
+      throw E2eeUnavailableException('Gagal mengenkripsi pesan', e);
     }
   }
 

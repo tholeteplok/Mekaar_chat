@@ -29,9 +29,12 @@ class SecurityLogNotifier extends StateNotifier<List<SecurityLog>> {
     return await _logRepository.exportLogsToCSV();
   }
 
-  /// Ekspor log yang ditandatangani kriptografis (SHA-256) via Edge Function.
-  /// Mengembalikan map {'csv', 'signature', 'signed_at', 'statement'} jika
-  /// function tersedia; jika tidak (belum deploy), fallback ke CSV lokal.
+  /// Ekspor log yang ditandatangani dengan tanda tangan digital Ed25519 via
+  /// Edge Function (bukan sekadar hash SHA-256 — lihat komentar di
+  /// supabase/functions/sign-logs/index.ts untuk perbedaannya).
+  /// Mengembalikan map {'csv', 'signature', 'public_key', 'algorithm',
+  /// 'signed_at', 'statement'} jika function tersedia & terkonfigurasi;
+  /// jika tidak, fallback ke CSV lokal tanpa tanda tangan.
   Future<Map<String, String>> exportSignedLogs() async {
     try {
       final response = await Supabase.instance.client.functions.invoke(
@@ -39,19 +42,28 @@ class SecurityLogNotifier extends StateNotifier<List<SecurityLog>> {
         body: {'format': 'csv'},
       );
       final data = response.data;
-      if (data is Map && data['csv'] != null) {
+      if (data is Map && data['csv'] != null && data['signature'] != null) {
         return {
           'csv': data['csv'] as String,
           'signature': (data['signature'] as String?) ?? '',
+          'public_key': (data['public_key'] as String?) ?? '',
+          'algorithm': (data['algorithm'] as String?) ?? '',
           'signed_at': (data['signed_at'] as String?) ?? '',
           'statement': (data['statement'] as String?) ?? '',
         };
       }
     } catch (_) {
-      // Edge Function belum di-deploy — fallback ke ekspor lokal.
+      // Edge Function belum di-deploy/dikonfigurasi — fallback ke ekspor lokal.
     }
     final csv = await _logRepository.exportLogsToCSV();
-    return {'csv': csv, 'signature': '', 'signed_at': '', 'statement': ''};
+    return {
+      'csv': csv,
+      'signature': '',
+      'public_key': '',
+      'algorithm': '',
+      'signed_at': '',
+      'statement': '',
+    };
   }
 }
 

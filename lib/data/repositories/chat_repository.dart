@@ -302,14 +302,22 @@ class ChatRepository {
     if (userId == null) throw Exception('Not authenticated');
 
     // Enkripsi E2EE bila lawan room sudah punya kunci publik;
-    // fallback plaintext (is_encrypted=false) untuk akun lama.
+    // fallback plaintext (is_encrypted=false) HANYA untuk akun lama yang
+    // memang belum punya kunci publik E2EE (dipastikan oleh E2eeService).
+    // Kegagalan sementara (jaringan/server/kripto) TIDAK dianggap fallback —
+    // pengiriman dibatalkan (fail-closed) agar pesan tidak pernah diam-diam
+    // terkirim sebagai plaintext akibat error transient.
     var finalContent = content;
     var isEncrypted = false;
     if (content.isNotEmpty) {
-      final envelope = await E2eeService.instance.encryptForRoom(
-        roomId,
-        content,
-      );
+      String? envelope;
+      try {
+        envelope = await E2eeService.instance.encryptForRoom(roomId, content);
+      } on E2eeUnavailableException catch (e) {
+        throw Exception(
+          'Gagal mengenkripsi pesan, pesan tidak dikirim. Coba lagi. ($e)',
+        );
+      }
       if (envelope != null) {
         finalContent = envelope;
         isEncrypted = true;
@@ -374,23 +382,35 @@ class ChatRepository {
   }
 
   // Bila pesan asal terenkripsi, konten baru harus dienkripsi ulang
-  // dengan kunci room yang sama sebelum ditulis ke server.
+  // dengan kunci room yang sama sebelum ditulis ke server. Fail-closed:
+  // bila re-enkripsi gagal karena sebab sementara, lempar error alih-alih
+  // menyimpan plaintext ke pesan yang seharusnya terenkripsi.
   Future<String> _reencryptIfNeeded(String messageId, String newContent) async {
+    Map<String, dynamic>? row;
     try {
-      final row = await _supabaseService.client
+      row = await _supabaseService.client
           .from('messages')
           .select('room_id, is_encrypted')
           .eq('id', messageId)
           .maybeSingle();
-      if (row != null && row['is_encrypted'] == true) {
-        final envelope = await E2eeService.instance.encryptForRoom(
-          row['room_id'] as String,
-          newContent,
-        );
-        if (envelope != null) return envelope;
-      }
-    } catch (_) {}
-    return newContent;
+    } catch (e) {
+      throw Exception('Gagal memeriksa status enkripsi pesan: $e');
+    }
+
+    if (row == null || row['is_encrypted'] != true) return newContent;
+
+    try {
+      final envelope = await E2eeService.instance.encryptForRoom(
+        row['room_id'] as String,
+        newContent,
+      );
+      // envelope == null berarti lawan dipastikan sudah tidak punya kunci
+      // publik lagi (kasus langka) — pertahankan sebagai plaintext eksplisit
+      // hanya dalam kondisi itu.
+      return envelope ?? newContent;
+    } on E2eeUnavailableException catch (e) {
+      throw Exception('Gagal mengenkripsi ulang pesan, coba lagi. ($e)');
+    }
   }
 
   Future<void> markRoomRead(String roomId) async {
