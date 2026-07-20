@@ -311,13 +311,36 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               title: 'Pesan',
               action: wasDuress
                   ? null
-                  : IconButton(
-                      icon: const Icon(
-                        SolarIconsOutline.shieldUser,
-                        color: MekaarColors.guardianTeal,
-                      ),
-                      onPressed: () =>
-                          Navigator.pushNamed(context, AppRoutes.guardian),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            SolarIconsOutline.camera,
+                            color: MekaarColors.cyan,
+                          ),
+                          tooltip: 'Pindai QR Code Teman',
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.contactQrScan),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            SolarIconsOutline.qrCode,
+                            color: MekaarColors.yellow,
+                          ),
+                          tooltip: 'Tampilkan QR Saya',
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.myQr),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            SolarIconsOutline.shieldUser,
+                            color: MekaarColors.guardianTeal,
+                          ),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.guardian),
+                        ),
+                      ],
                     ),
             ),
             // Search Input

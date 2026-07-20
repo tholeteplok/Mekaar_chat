@@ -10,6 +10,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/motion.dart';
+import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 
@@ -208,7 +209,8 @@ class _ChatComposerState extends State<ChatComposer> {
       if (path != null && widget.onSendMedia != null) {
         final file = File(path);
         if (await file.exists() && await file.length() > 0) {
-          await widget.onSendMedia!(file, MessageType.voice);
+          final compressed = await MediaCompressor.compressAudio(file);
+          await widget.onSendMedia!(compressed, MessageType.voice);
         }
       }
     } catch (e) {
@@ -257,7 +259,22 @@ class _ChatComposerState extends State<ChatComposer> {
       );
       if (picked == null || !mounted) return;
       setState(() => _isUploading = true);
-      await widget.onSendMedia!(File(picked.path), MessageType.image);
+      final compressed = await MediaCompressor.compressImage(File(picked.path));
+      await widget.onSendMedia!(compressed, MessageType.image);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<void> _pickVideo(ImageSource source) async {
+    if (widget.onSendMedia == null) return;
+    try {
+      final picked = await _picker.pickVideo(source: source);
+      if (picked == null || !mounted) return;
+      setState(() => _isUploading = true);
+      final compressed = await MediaCompressor.compressVideo(File(picked.path));
+      await widget.onSendMedia!(compressed, MessageType.video);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -306,6 +323,26 @@ class _ChatComposerState extends State<ChatComposer> {
               onTap: () {
                 Navigator.pop(ctx);
                 _pickImage(ImageSource.camera);
+              },
+            ),
+            _attachItem(
+              ctx,
+              icon: SolarIconsOutline.videoLibrary,
+              label: 'Pilih dari Galeri Video',
+              color: MekaarColors.purple,
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickVideo(ImageSource.gallery);
+              },
+            ),
+            _attachItem(
+              ctx,
+              icon: SolarIconsOutline.videocamera,
+              label: 'Rekam Video',
+              color: MekaarColors.pink,
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickVideo(ImageSource.camera);
               },
             ),
             _attachItem(

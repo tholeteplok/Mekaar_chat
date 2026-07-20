@@ -67,8 +67,8 @@ class _SOSButtonState extends State<SOSButton>
   @override
   Widget build(BuildContext context) {
     final baseColor = widget.isActive
-        ? MekaarColors.sosRed
-        : MekaarColors.softCoral;
+        ? MekaarColors.sosDeep
+        : MekaarColors.sosRed;
     final targetSize = widget.size < 48 ? 48.0 : widget.size;
 
     return Semantics(
