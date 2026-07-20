@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 
 class ImagePickerService {
@@ -11,21 +12,43 @@ class ImagePickerService {
 
   Future<File?> pickAndProcessImage(ImageSource source, {BuildContext? context}) async {
     try {
-      // 1. Pick Image
+      // 1. Minta izin galeri sebelum pick (required oleh image_cropper)
+      if (source == ImageSource.gallery) {
+        final status = await Permission.photos.request();
+        if (!status.isGranted) {
+          if (context != null && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Izin akses galeri diperlukan untuk memilih foto.')),
+            );
+          }
+          return null;
+        }
+      }
+
+      // 2. Pick Image
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
         imageQuality: 100,
+        maxWidth: 1024,
+        maxHeight: 1024,
       );
 
       if (pickedFile == null) return null;
 
-      // 2. Crop Image
+      // 3. Salin ke file lokal agar image_cropper bisa mengaksesnya
+      //    (di beberapa device, pickedFile.path adalah content URI)
+      final tempDir = await getTemporaryDirectory();
+      final localPath = '${tempDir.path}/avatar_raw_${const Uuid().v4()}.jpg';
+      final localFile = File(localPath);
+      await localFile.writeAsBytes(await pickedFile.readAsBytes());
+
+      // 4. Crop Image
       final croppedFile = await ImageCropper().cropImage(
-        sourcePath: pickedFile.path,
+        sourcePath: localFile.path,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Potong Foto Profil',
-            toolbarColor: const Color(0xFF0D9488), // Guardian Teal
+            toolbarColor: const Color(0xFF0D9488),
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
@@ -42,15 +65,20 @@ class ImagePickerService {
         ],
       );
 
-      if (croppedFile == null) return null;
+      if (croppedFile == null) {
+        if (await localFile.exists()) await localFile.delete();
+        return null;
+      }
 
-      // 3. Compress Image
-      final tempDir = await getTemporaryDirectory();
-      final targetPath = '${tempDir.path}/compressed_${const Uuid().v4()}.jpg';
+      // 5. Hapus file lokal mentah
+      await localFile.delete();
+
+      // 6. Compress Image
+      final compressedPath = '${tempDir.path}/avatar_${const Uuid().v4()}.jpg';
 
       final compressedFile = await FlutterImageCompress.compressAndGetFile(
         croppedFile.path,
-        targetPath,
+        compressedPath,
         quality: 80,
         minWidth: 512,
         minHeight: 512,

@@ -29,10 +29,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _handlePickAndUploadAvatar(ImageSource source) async {
     if (_isUploadingAvatar) return;
 
-    final file = await _imagePickerService.pickAndProcessImage(source, context: context);
-    if (file == null) return; // User cancelled
-
     setState(() => _isUploadingAvatar = true);
+
+    final file = await _imagePickerService.pickAndProcessImage(source, context: context);
+    if (file == null) {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+      return; // User cancelled or error
+    }
 
     try {
       final authRepo = ref.read(authRepositoryProvider);

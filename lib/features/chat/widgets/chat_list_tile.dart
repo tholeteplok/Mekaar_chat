@@ -29,6 +29,7 @@ class ChatListTile extends StatelessWidget {
     final timestamp = room['timestamp'] as DateTime? ?? DateTime.now();
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final name = room['name'] as String? ?? 'User';
+    final isMuted = room['isMuted'] as bool? ?? false;
 
     final tile = CustomCard(
       padding: EdgeInsets.zero,
@@ -64,7 +65,9 @@ class ChatListTile extends StatelessWidget {
                       const SizedBox(width: MekaarSpacing.sm),
                       Text(
                         DateFormat('HH:mm').format(timestamp),
-                        style: MekaarTypography.bodySM,
+                        style: MekaarTypography.bodySM.copyWith(
+                          color: MekaarColors.textMutedOf(context),
+                        ),
                       ),
                     ],
                   ),
@@ -76,6 +79,13 @@ class ChatListTile extends StatelessWidget {
                           Icons.shield_outlined,
                           size: 13,
                           color: MekaarColors.guardianTeal,
+                        ),
+                        const SizedBox(width: MekaarSpacing.xs),
+                      ] else if (isMuted) ...[
+                        const Icon(
+                          Icons.notifications_off,
+                          size: 13,
+                          color: MekaarColors.warnAmber,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
                       ] else ...[
@@ -92,7 +102,7 @@ class ChatListTile extends StatelessWidget {
                               'Mulai percakapan...',
                           style: MekaarTypography.labelLG.copyWith(
                             fontWeight: FontWeight.w400,
-                            color: MekaarColors.textSecondary,
+                            color: MekaarColors.textMutedOf(context),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

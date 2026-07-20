@@ -311,13 +311,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 arguments: {
                                   'chatId': roomId,
                                   'chatName':
-                                      profile['full_name'] as String? ??
-                                      profile['username'] as String? ??
-                                      'User',
+                                      (profile['display_name'] as String?)?.isNotEmpty == true
+                                          ? profile['display_name'] as String
+                                          : profile['full_name'] as String? ??
+                                          profile['username'] as String? ??
+                                          'User',
                                   'chatAvatar':
-                                      (profile['full_name'] as String? ??
-                                      profile['username'] as String? ??
-                                      'U')[0],
+                                      ((profile['display_name'] as String?)?.isNotEmpty == true
+                                          ? profile['display_name'] as String
+                                          : profile['full_name'] as String? ??
+                                          profile['username'] as String? ??
+                                          'U')[0],
                                   'isGuardian': false,
                                   'otherUserId': profile['id'] as String?,
                                 },
