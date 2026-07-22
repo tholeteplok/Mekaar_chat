@@ -29,6 +29,10 @@ class AuthState {
   final bool lastUnlockWasDuress;
   final bool newDeviceLogin;
 
+  /// True jika E2EE memerlukan restore (ada backup di server tapi kunci lokal belum ada).
+  /// UI harus meminta PIN untuk memulihkan kunci E2EE.
+  final bool e2eeNeedsRestore;
+
   AuthState({
     this.user,
     this.profile,
@@ -39,6 +43,7 @@ class AuthState {
     this.pinLockedUntil,
     this.lastUnlockWasDuress = false,
     this.newDeviceLogin = false,
+    this.e2eeNeedsRestore = false,
   });
 
   bool get isPinLocked {
@@ -62,6 +67,7 @@ class AuthState {
     DateTime? pinLockedUntil,
     bool? lastUnlockWasDuress,
     bool? newDeviceLogin,
+    bool? e2eeNeedsRestore,
   }) {
     return AuthState(
       user: user ?? this.user,
@@ -73,6 +79,7 @@ class AuthState {
       pinLockedUntil: pinLockedUntil ?? this.pinLockedUntil,
       lastUnlockWasDuress: lastUnlockWasDuress ?? this.lastUnlockWasDuress,
       newDeviceLogin: newDeviceLogin ?? this.newDeviceLogin,
+      e2eeNeedsRestore: e2eeNeedsRestore ?? this.e2eeNeedsRestore,
     );
   }
 }
@@ -277,15 +284,72 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  void setE2eeNeedsRestore(bool value) {
+    state = state.copyWith(e2eeNeedsRestore: value);
+  }
+
+  /// Reset PIN dan E2EE dengan verifikasi password / otentikasi.
+  /// Membuka kunci pengguna dan langsung mengizinkan setup PIN baru.
+  Future<bool> resetPinWithVerification(String? password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      // Jika password diberikan (user Email/Password), verifikasi dulu.
+      if (password != null && password.isNotEmpty) {
+        final verified = await _authRepository.verifyPassword(password);
+        if (!verified) {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Password akun salah. Reset PIN dibatalkan.',
+          );
+          return false;
+        }
+      }
+
+      // Reset PIN hash di database & storage
+      await _authRepository.resetPIN();
+
+      // Reset E2EE dan bersihkan pesan terenkripsi lama yang tidak bisa dibaca
+      await E2eeService.instance.forceResetAndPurgeOldMessages();
+
+      state = state.copyWith(
+        isPinSet: false,
+        e2eeNeedsRestore: false,
+        pinAttempts: 0,
+        pinLockedUntil: null,
+        isLoading: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _translateError(e),
+      );
+      return false;
+    }
+  }
+
   // Setup dynamic PIN
   Future<void> setupPIN(String pin) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _authRepository.setPIN(pin);
-      try {
-        await E2eeService.instance.backupWithPin(pin);
-      } catch (_) {}
-      state = state.copyWith(isPinSet: true, isLoading: false);
+
+      // Hanya backup kunci E2EE jika kunci sudah ada dan siap.
+      // Jika kunci belum di-restore (needsRestore), jangan backup
+      // karena kunci lokal belum ada. Jika kunci fresh (baru saja
+      // di-generate untuk user baru), boleh backup.
+      final e2ee = E2eeService.instance;
+      if (!e2ee.needsRestore) {
+        try {
+          await e2ee.backupWithPin(pin);
+        } catch (_) {}
+      }
+
+      state = state.copyWith(
+        isPinSet: true,
+        isLoading: false,
+        e2eeNeedsRestore: e2ee.needsRestore,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _translateError(e));
     }
@@ -314,14 +378,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final isValid = await _authRepository.validatePIN(pin);
 
     if (isValid) {
+      // Coba restore E2EE dengan PIN yang valid.
+      final e2ee = E2eeService.instance;
+      bool e2eeRestored = false;
       try {
-        await E2eeService.instance.restoreWithPin(pin);
+        e2eeRestored = await e2ee.tryRestoreWithPin(pin);
       } catch (_) {}
+
       state = state.copyWith(
         pinAttempts: 0,
         pinLockedUntil: null,
         isLoading: false,
         lastUnlockWasDuress: false,
+        e2eeNeedsRestore: e2ee.needsRestore && !e2eeRestored,
       );
       return true;
     } else {

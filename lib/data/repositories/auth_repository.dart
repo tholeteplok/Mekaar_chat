@@ -314,6 +314,43 @@ class AuthRepository {
     return null;
   }
 
+  // Verify account password for sensitive actions (like PIN reset)
+  Future<bool> verifyPassword(String password) async {
+    final user = _supabaseService.client.auth.currentUser;
+    final email = user?.email;
+    if (email == null) return false;
+    try {
+      final res = await _supabaseService.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      return res.user != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Reset PIN (hancurkan hash lokal & remote agar user bisa setup PIN baru)
+  Future<void> resetPIN() async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('User not logged in');
+
+    try {
+      await _secureStorage
+          .delete(key: 'pin_hash')
+          .timeout(const Duration(seconds: 1));
+      await _secureStorage
+          .delete(key: 'duress_pin_hash')
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {}
+
+    await _supabaseService.client.from('profiles').update({
+      'pin_hash': '',
+      'duress_pin_hash': null,
+      'duress_enabled': false,
+    }).eq('id', userId);
+  }
+
   // Set PIN in database and local secure storage
   Future<void> setPIN(String pin) async {
     final userId = _supabaseService.currentUserId;

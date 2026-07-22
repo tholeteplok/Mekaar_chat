@@ -10,6 +10,7 @@ class Message {
   final bool isViewOnce;
   final String? replyToId;
   final bool isDeleted;
+  final bool isSilentDeleted;
   final DateTime? autoDeleteAt;
   final DateTime? editedAt;
   // Map of emoji → list of user IDs who reacted (e.g. {"👍": ["uid1","uid2"]})
@@ -28,6 +29,7 @@ class Message {
     this.isViewOnce = false,
     this.replyToId,
     this.isDeleted = false,
+    this.isSilentDeleted = false,
     this.isEncrypted = false,
     this.autoDeleteAt,
     this.editedAt,
@@ -71,6 +73,7 @@ class Message {
       isViewOnce: json['is_view_once'] as bool? ?? false,
       replyToId: json['reply_to_id'] as String?,
       isDeleted: json['is_deleted'] as bool? ?? false,
+      isSilentDeleted: json['is_silent_deleted'] as bool? ?? false,
       autoDeleteAt: json['auto_delete_at'] != null
           ? DateTime.parse(json['auto_delete_at'] as String)
           : null,
@@ -95,6 +98,7 @@ class Message {
       'is_view_once': isViewOnce,
       'reply_to_id': replyToId,
       'is_deleted': isDeleted,
+      'is_silent_deleted': isSilentDeleted,
       'auto_delete_at': autoDeleteAt?.toIso8601String(),
       'edited_at': editedAt?.toIso8601String(),
       'reactions': reactions,
@@ -114,6 +118,7 @@ class Message {
     bool? isViewOnce,
     String? replyToId,
     bool? isDeleted,
+    bool? isSilentDeleted,
     DateTime? autoDeleteAt,
     DateTime? editedAt,
     Map<String, List<String>>? reactions,
@@ -131,6 +136,7 @@ class Message {
       isViewOnce: isViewOnce ?? this.isViewOnce,
       replyToId: replyToId ?? this.replyToId,
       isDeleted: isDeleted ?? this.isDeleted,
+      isSilentDeleted: isSilentDeleted ?? this.isSilentDeleted,
       autoDeleteAt: autoDeleteAt ?? this.autoDeleteAt,
       editedAt: editedAt ?? this.editedAt,
       reactions: reactions ?? this.reactions,

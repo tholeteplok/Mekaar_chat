@@ -38,6 +38,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   bool _isLoading = true;
   bool _isBlocked = false;
   String _e2eeFingerprint = '';
+  bool _showE2eeFingerprint = false;
   String? _avatarUrl;
 
   @override
@@ -198,13 +199,33 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ListTile(
                   leading: const Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
                   title: const Text('Sidik Jari Keamanan E2EE'),
-                  subtitle: Text(
-                    _e2eeFingerprint.isNotEmpty ? _e2eeFingerprint : 'Belum mengaktifkan E2EE',
-                    style: MekaarTypography.bodySM.copyWith(
-                      fontFamily: _e2eeFingerprint.isNotEmpty ? 'monospace' : null,
-                      letterSpacing: _e2eeFingerprint.isNotEmpty ? 1.0 : null,
-                    ),
-                  ),
+                  subtitle: _e2eeFingerprint.isEmpty 
+                      ? Text('Belum mengaktifkan E2EE', style: MekaarTypography.bodySM)
+                      : _showE2eeFingerprint
+                          ? Text(
+                              _e2eeFingerprint,
+                              style: MekaarTypography.bodySM.copyWith(
+                                fontFamily: 'monospace',
+                                letterSpacing: 1.0,
+                              ),
+                            )
+                          : Text(
+                              'Ketuk ikon mata untuk melihat',
+                              style: MekaarTypography.bodySM,
+                            ),
+                  trailing: _e2eeFingerprint.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            _showE2eeFingerprint ? SolarIconsOutline.eyeClosed : SolarIconsOutline.eye,
+                            color: MekaarColors.textSecondary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showE2eeFingerprint = !_showE2eeFingerprint;
+                            });
+                          },
+                        )
+                      : null,
                   onTap: _e2eeFingerprint.isNotEmpty
                       ? () {
                           showDialog(
@@ -292,7 +313,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           ),
                           onPressed: () async {
                             Navigator.pop(context);
-                            await ref.read(chatRepositoryProvider).deleteChat(widget.roomId);
+                            await ref.read(chatActionsProvider).deleteChat(widget.roomId);
                             if (context.mounted) {
                               Navigator.of(context).pop();
                             }
@@ -336,12 +357,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   }
 
   Widget _buildDisappearingTile() {
-    final profile = ref.watch(authProvider).profile;
-    final globalHours = profile?.autoDeleteDefaultHours ?? 0;
-    final current = _disappearingOverrideHours;
-    final label = current != null
-        ? _formatDuration(current)
-        : (globalHours > 0 ? 'Global (${_formatDuration(globalHours)})' : 'Nonaktif');
+    final current = _disappearingOverrideHours ?? 0;
+    final label = _formatDuration(current);
 
     return ListTile(
       leading: const Icon(SolarIconsOutline.clockCircle, color: MekaarColors.info),
@@ -353,9 +370,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   }
 
   void _showDisappearingPicker() {
-    final profile = ref.read(authProvider).profile;
-    final globalHours = profile?.autoDeleteDefaultHours ?? 0;
-    final current = _disappearingOverrideHours;
+    final current = _disappearingOverrideHours ?? 0;
 
     MekaarBottomSheet.show(
       context: context,
@@ -380,12 +395,10 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
             Text('Pesan Menghilang Chat Ini', style: MekaarTypography.headingSM),
             const SizedBox(height: 4),
             Text(
-              'Mengganti pengaturan global (${globalHours > 0 ? _formatDuration(globalHours) : "nonaktif"})',
+              'Atur berapa lama pesan baru otomatis terhapus untuk obrolan ini.',
               style: MekaarTypography.bodySM.copyWith(color: MekaarColors.textMuted),
             ),
             const SizedBox(height: 16),
-            if (globalHours > 0)
-              _pickerOption(ctx, 'Gunakan Global (${_formatDuration(globalHours)})', null, current == null),
             _pickerOption(ctx, 'Nonaktif', 0, current == 0),
             _pickerOption(ctx, '1 Jam', 1, current == 1),
             _pickerOption(ctx, '24 Jam', 24, current == 24),

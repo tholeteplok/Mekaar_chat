@@ -5,11 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/message_model.dart';
 import '../../data/services/e2ee_service.dart';
 import '../constants/colors.dart';
 import '../constants/shadows.dart';
+import '../routes/app_routes.dart';
 import '../services/haptic_service.dart';
 import 'animations.dart';
 import 'mekaar_bottom_sheet.dart';
@@ -109,6 +109,8 @@ class ChatBubble extends StatelessWidget {
   final Function(Message, String)? onEdit;
   final Function(Message)? onForward;
   final Function(Message, String)? onReact;
+  final VoidCallback? onUnsend;
+  final bool canUnsend;
   // Read receipt: the other participant's last_read_at timestamp
   final DateTime? otherLastReadAt;
   // Whether to show the read (blue) receipt. Controlled by the current user's
@@ -127,6 +129,8 @@ class ChatBubble extends StatelessWidget {
     this.onEdit,
     this.onForward,
     this.onReact,
+    this.onUnsend,
+    this.canUnsend = false,
     this.otherLastReadAt,
     this.showReadReceipts = true,
   });
@@ -143,15 +147,22 @@ class ChatBubble extends StatelessWidget {
     return ReadReceiptStatus.delivered;
   }
 
-  void _handleLocationTap() async {
+  void _handleLocationTap(BuildContext context) {
     if (message.type == MessageType.location) {
       final parsed = _parseLocationContent(message.content);
       if (parsed != null) {
-        final url = Uri.parse(
-            'https://www.openstreetmap.org/?mlat=${parsed.$1}&mlon=${parsed.$2}#map=17/${parsed.$1}/${parsed.$2}');
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url);
-        }
+        final isLive = message.content.startsWith('LIVE:');
+        HapticService.trigger(MekaarHapticIntent.selection);
+        Navigator.pushNamed(
+          context,
+          AppRoutes.map,
+          arguments: {
+            'latitude': parsed.$1,
+            'longitude': parsed.$2,
+            'locationName':
+                isLive ? 'Lokasi Live (Real-time)' : 'Lokasi Terbagikan',
+          },
+        );
       }
     }
   }
@@ -188,10 +199,12 @@ class ChatBubble extends StatelessWidget {
         canDelete: canDelete,
         canEdit: canEdit,
         canForward: canForward,
+        canUnsend: canUnsend,
         onReply: onReply,
         onEdit: onEdit,
         onForward: onForward,
         onDelete: onDelete,
+        onUnsend: onUnsend,
         onReact: onReact,
       ),
     );
@@ -222,20 +235,42 @@ class ChatBubble extends StatelessWidget {
     }
 
     final isDeleted = message.isDeleted;
+    final emojiCount = (message.type == MessageType.text && !isDeleted)
+        ? _getEmojiOnlyCount(message.content)
+        : 0;
+    final isOnlyEmoji = emojiCount > 0;
+
     Color? bubbleColor;
+    Color? borderColor;
     Gradient? bubbleGradient;
     Color textColor;
 
     if (isMe) {
-      bubbleColor = isDeleted ? MekaarColors.border : MekaarColors.yellow;
-      textColor = isDeleted ? MekaarColors.textMuted : MekaarColors.textOnYellow;
+      if (isDeleted) {
+        bubbleColor = MekaarColors.border;
+        textColor = MekaarColors.textMutedOf(context);
+      } else if (isOnlyEmoji) {
+        bubbleColor = Colors.transparent;
+        borderColor = null;
+        bubbleGradient = null;
+        textColor = MekaarColors.outgoingTextOf(context);
+      } else {
+        bubbleColor = MekaarColors.outgoingBubbleOf(context);
+        borderColor = MekaarColors.outgoingBubbleBorderOf(context);
+        textColor = MekaarColors.outgoingTextOf(context);
+      }
     } else {
       if (isDeleted) {
         bubbleColor = MekaarColors.borderLight;
-        textColor = MekaarColors.textMuted;
+        textColor = MekaarColors.textMutedOf(context);
+      } else if (isOnlyEmoji) {
+        bubbleColor = Colors.transparent;
+        borderColor = null;
+        bubbleGradient = null;
+        textColor = MekaarColors.textPrimaryOf(context);
       } else {
         bubbleGradient = MekaarGradients.incomingBubble;
-        textColor = MekaarColors.textPrimary;
+        textColor = Colors.white;
       }
     }
 
@@ -255,20 +290,25 @@ class ChatBubble extends StatelessWidget {
           children: [
             Container(
               margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: isOnlyEmoji
+                  ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
+                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.76,
               ),
               decoration: BoxDecoration(
                 color: bubbleColor,
                 gradient: bubbleGradient,
+                border: borderColor != null
+                    ? Border.all(color: borderColor, width: 1)
+                    : null,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
                   bottomLeft: Radius.circular(isMe ? 18 : 4),
                   bottomRight: Radius.circular(isMe ? 4 : 18),
                 ),
-                boxShadow: isMe ? null : MekaarShadows.bubble,
+                boxShadow: (isMe || isOnlyEmoji) ? null : MekaarShadows.bubble,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,57 +344,62 @@ class ChatBubble extends StatelessWidget {
                   _buildContentWidget(context, textColor),
                   const SizedBox(height: 4),
                   // Timestamp + edited + read receipt
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (message.isEdited && !isDeleted) ...[
-                        Text(
-                          'diedit ',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontStyle: FontStyle.italic,
-                            color: isMe
-                                ? MekaarColors.textOnYellow.withValues(alpha: 0.5)
-                                : MekaarColors.textMuted,
+                  Builder(
+                    builder: (context) {
+                      final metaColor = isOnlyEmoji
+                          ? MekaarColors.textMutedOf(context)
+                          : (isMe
+                              ? textColor.withValues(alpha: 0.7)
+                              : MekaarColors.textMutedOf(context));
+
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (message.isEdited && !isDeleted) ...[
+                            Text(
+                              'diedit ',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontStyle: FontStyle.italic,
+                                color: metaColor,
+                              ),
+                            ),
+                          ],
+                          if (message.isEncrypted && !isDeleted) ...[
+                            Icon(
+                              Icons.lock_outline,
+                              size: 11,
+                              color: metaColor,
+                            ),
+                            const SizedBox(width: 3),
+                          ],
+                          Text(
+                            DateFormat('HH:mm').format(message.createdAt),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: metaColor,
+                            ),
                           ),
-                        ),
-                      ],
-                      if (message.isEncrypted && !isDeleted) ...[
-                        Icon(
-                          Icons.lock_outline,
-                          size: 10,
-                          color: isMe
-                              ? MekaarColors.textOnYellow.withValues(alpha: 0.6)
-                              : MekaarColors.textMuted,
-                        ),
-                        const SizedBox(width: 3),
-                      ],
-                      Text(
-                        DateFormat('HH:mm').format(message.createdAt),
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: isMe
-                              ? MekaarColors.textOnYellow.withValues(alpha: 0.6)
-                              : MekaarColors.textMuted,
-                        ),
-                      ),
-                      if (message.autoDeleteAt != null && !isDeleted) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.timer_outlined,
-                          size: 10,
-                          color: isMe
-                              ? MekaarColors.textOnYellow.withValues(alpha: 0.6)
-                              : MekaarColors.textMuted,
-                        ),
-                      ],
-                      // Read receipt icon (only for sent messages)
-                      if (isMe && !isDeleted) ...[
-                        const SizedBox(width: 4),
-                        _ReadReceiptIcon(status: receiptStatus),
-                      ],
-                    ],
+                          if (message.autoDeleteAt != null && !isDeleted) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.timer_outlined,
+                              size: 11,
+                              color: metaColor,
+                            ),
+                          ],
+                          // Read receipt icon (only for sent messages)
+                          if (isMe && !isDeleted) ...[
+                            const SizedBox(width: 4),
+                            _ReadReceiptIcon(
+                              status: receiptStatus,
+                              color: metaColor,
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -396,9 +441,19 @@ class ChatBubble extends StatelessWidget {
 
     switch (message.type) {
       case MessageType.text:
+        final count = !message.isDeleted ? _getEmojiOnlyCount(message.content) : 0;
+        if (count > 0) {
+          return Text(
+            message.content,
+            style: TextStyle(
+              fontSize: _getEmojiFontSize(count),
+              height: 1.15,
+            ),
+          );
+        }
         return Text(
           message.content,
-          style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
+          style: TextStyle(color: textColor, fontSize: 16, height: 1.4),
         );
 
       case MessageType.image:
@@ -409,7 +464,11 @@ class ChatBubble extends StatelessWidget {
         );
 
       case MessageType.voice:
-        return _VoiceBubblePlayer(message: message, isMe: isMe);
+        return _VoiceBubblePlayer(
+          message: message,
+          isMe: isMe,
+          textColor: textColor,
+        );
 
       case MessageType.location:
         final isLive = message.content.startsWith('LIVE:');
@@ -417,61 +476,92 @@ class ChatBubble extends StatelessWidget {
             ? _parseLiveRemaining(message.content)
             : null;
         return InkWell(
-          onTap: _handleLocationTap,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.location_on,
-                color: isLive
-                    ? MekaarColors.guardianTeal
-                    : MekaarColors.sosRed,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isLive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: MekaarColors.guardianTeal
-                              .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'LOKASI LIVE',
-                          style: TextStyle(
-                            color: MekaarColors.guardianTeal,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
+          onTap: () => _handleLocationTap(context),
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isLive
+                        ? MekaarColors.guardianTeal.withValues(alpha: 0.15)
+                        : MekaarColors.sosRed.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.location_on,
+                    color: isLive
+                        ? MekaarColors.guardianTeal
+                        : MekaarColors.sosRed,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isLive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          margin: const EdgeInsets.only(bottom: 2),
+                          decoration: BoxDecoration(
+                            color: MekaarColors.guardianTeal
+                                .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'LOKASI LIVE',
+                            style: TextStyle(
+                              color: MekaarColors.guardianTeal,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 9,
+                            ),
                           ),
                         ),
+                      Text(
+                        isLive ? 'Berbagi Lokasi Live' : 'Peta Terbagikan',
+                        style: TextStyle(
+                            color: textColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13),
                       ),
-                    Text(
-                      isLive ? 'Berbagi Lokasi Live' : 'Peta Terbagikan',
-                      style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
-                    ),
-                    Text(
-                      isLive
-                          ? (liveRemaining != null
-                              ? 'Kedaluwarsa dalam ${liveRemaining}s'
-                              : 'Memperbarui...')
-                          : message.content,
-                      style: TextStyle(color: textColor, fontSize: 10),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.map_outlined,
+                            size: 12,
+                            color: isMe
+                                ? textColor.withValues(alpha: 0.8)
+                                : MekaarColors.textMutedOf(context),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isLive
+                                ? (liveRemaining != null
+                                    ? 'Kedaluwarsa ${liveRemaining}s • Ketuk untuk buka'
+                                    : 'Ketuk untuk buka peta')
+                                : 'Ketuk untuk buka peta',
+                            style: TextStyle(
+                              color: isMe
+                                  ? textColor.withValues(alpha: 0.8)
+                                  : MekaarColors.textMutedOf(context),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
 
@@ -510,19 +600,19 @@ class ChatBubble extends StatelessWidget {
 // ─────────────────────────────────────────
 class _ReadReceiptIcon extends StatelessWidget {
   final ReadReceiptStatus status;
+  final Color color;
 
-  const _ReadReceiptIcon({required this.status});
+  const _ReadReceiptIcon({required this.status, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = MekaarColors.textOnYellow.withValues(alpha: 0.5);
     switch (status) {
       case ReadReceiptStatus.pending:
-        return Icon(Icons.access_time, size: 11, color: baseColor);
+        return Icon(Icons.access_time, size: 11, color: color);
       case ReadReceiptStatus.sent:
-        return Icon(Icons.check, size: 11, color: baseColor);
+        return Icon(Icons.check, size: 11, color: color);
       case ReadReceiptStatus.delivered:
-        return Icon(Icons.done_all, size: 11, color: baseColor);
+        return Icon(Icons.done_all, size: 11, color: color);
       case ReadReceiptStatus.read:
         return const Icon(Icons.done_all, size: 11, color: MekaarColors.sosCoral);
     }
@@ -580,7 +670,9 @@ class _MessageContextMenu extends StatelessWidget {
   final Function(Message, String)? onEdit;
   final Function(Message)? onForward;
   final VoidCallback? onDelete;
+  final VoidCallback? onUnsend;
   final Function(Message, String)? onReact;
+  final bool canUnsend;
 
   const _MessageContextMenu({
     required this.message,
@@ -588,10 +680,12 @@ class _MessageContextMenu extends StatelessWidget {
     required this.canDelete,
     required this.canEdit,
     required this.canForward,
+    this.canUnsend = false,
     this.onReply,
     this.onEdit,
     this.onForward,
     this.onDelete,
+    this.onUnsend,
     this.onReact,
   });
 
@@ -627,7 +721,10 @@ class _MessageContextMenu extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            const Divider(color: MekaarColors.borderLight, height: 1),
+            Divider(
+              color: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),
+              height: 1,
+            ),
           ],
           // Action buttons
           if (onReply != null)
@@ -664,11 +761,22 @@ class _MessageContextMenu extends StatelessWidget {
             _menuItem(
               context,
               icon: Icons.delete_outline,
-              label: 'Hapus',
-              color: MekaarColors.sosRed,
+              label: 'Hapus untuk Saya',
+              color: MekaarColors.textMutedOf(context),
               onTap: () {
                 Navigator.pop(context);
                 onDelete!();
+              },
+            ),
+          if (canUnsend && onUnsend != null)
+            _menuItem(
+              context,
+              icon: Icons.delete_forever,
+              label: 'Tarik Pesan',
+              color: MekaarColors.sosRed,
+              onTap: () {
+                Navigator.pop(context);
+                onUnsend!();
               },
             ),
           const SizedBox(height: 8),
@@ -721,13 +829,14 @@ class _MessageContextMenu extends StatelessWidget {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    Color color = MekaarColors.textPrimary,
+    Color? color,
   }) {
+    final itemColor = color ?? MekaarColors.textPrimaryOf(context);
     return ListTile(
-      leading: Icon(icon, color: color, size: 20),
+      leading: Icon(icon, color: itemColor, size: 20),
       title: Text(label,
           style: TextStyle(
-              color: color, fontSize: 14, fontWeight: FontWeight.w500)),
+              color: itemColor, fontSize: 14, fontWeight: FontWeight.w500)),
       onTap: onTap,
       dense: true,
     );
@@ -740,8 +849,13 @@ class _MessageContextMenu extends StatelessWidget {
 class _VoiceBubblePlayer extends StatefulWidget {
   final Message message;
   final bool isMe;
+  final Color textColor;
 
-  const _VoiceBubblePlayer({required this.message, required this.isMe});
+  const _VoiceBubblePlayer({
+    required this.message,
+    required this.isMe,
+    required this.textColor,
+  });
 
   @override
   State<_VoiceBubblePlayer> createState() => _VoiceBubblePlayerState();
@@ -809,11 +923,11 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = widget.isMe ? Colors.white : MekaarColors.softCoral;
-    final activeWave =
-        widget.isMe ? Colors.white : MekaarColors.softCoral;
-    final inactiveWave =
-        widget.isMe ? Colors.white38 : MekaarColors.border;
+    final mainColor = widget.isMe ? widget.textColor : MekaarColors.softCoral;
+    final activeWave = widget.isMe ? widget.textColor : MekaarColors.softCoral;
+    final inactiveWave = widget.isMe
+        ? widget.textColor.withValues(alpha: 0.35)
+        : MekaarColors.textMutedOf(context).withValues(alpha: 0.35);
 
     return GestureDetector(
       onTap: _togglePlay,
@@ -830,7 +944,7 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: iconColor,
+                    color: mainColor,
                   ),
                 ),
               ),
@@ -841,7 +955,7 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
                   ? Icons.pause_circle_filled
                   : Icons.play_circle_filled,
               size: 32,
-              color: iconColor,
+              color: mainColor,
             ),
           const SizedBox(width: 8),
           SizedBox(
@@ -867,7 +981,9 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
           Text(
             _label(),
             style: TextStyle(
-              color: widget.isMe ? Colors.white70 : MekaarColors.textMuted,
+              color: widget.isMe
+                  ? widget.textColor.withValues(alpha: 0.8)
+                  : MekaarColors.textMutedOf(context),
               fontSize: 11,
             ),
           ),
@@ -882,7 +998,12 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
       final s = _position.inSeconds % 60;
       return '$m:${s.toString().padLeft(2, '0')}';
     }
-    return widget.message.content.isNotEmpty ? widget.message.content : '0:00';
+    if (_duration > Duration.zero) {
+      final m = _duration.inMinutes;
+      final s = _duration.inSeconds % 60;
+      return '$m:${s.toString().padLeft(2, '0')}';
+    }
+    return '0:00';
   }
 }
 
@@ -1147,5 +1268,41 @@ class _PopReactionState extends State<_PopReaction>
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────
+// Emoji Detection & Dynamic Scaling Helpers
+// ─────────────────────────────────────────
+int _getEmojiOnlyCount(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return 0;
+
+  final chars = trimmed.characters;
+  if (chars.length > 4) return 0;
+
+  final emojiRegex = RegExp(
+    r'^[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\s]+$',
+    unicode: true,
+  );
+
+  if (emojiRegex.hasMatch(trimmed)) {
+    return chars.length;
+  }
+  return 0;
+}
+
+double _getEmojiFontSize(int count) {
+  switch (count) {
+    case 1:
+      return 52.0;
+    case 2:
+      return 42.0;
+    case 3:
+      return 34.0;
+    case 4:
+      return 28.0;
+    default:
+      return 16.0;
   }
 }

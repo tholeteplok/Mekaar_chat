@@ -32,31 +32,43 @@ class SettingsSwitchTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDestructive
         ? MekaarColors.sosRed
-        : (isDark ? MekaarColors.textSecondary : Colors.black54);
+        : MekaarColors.textSecondaryOf(context);
 
     return SwitchListTile(
       activeThumbColor: MekaarColors.softCoral,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 20,
-        vertical: 0,
+        vertical: 4,
       ),
       secondary: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
-          borderRadius: BorderRadius.circular(10),
+          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2Of(context),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: iconColor, size: 20),
+        child: Icon(icon, color: iconColor, size: 22),
       ),
       title: Text(
         title,
-        style: MekaarTypography.labelLG.copyWith(
-          fontWeight: FontWeight.bold,
-          color: isDestructive ? MekaarColors.sosRed : null,
+        style: MekaarTypography.bodyMD.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: isDestructive
+              ? MekaarColors.sosRed
+              : MekaarColors.textPrimaryOf(context),
         ),
       ),
-      subtitle: Text(subtitle, style: MekaarTypography.bodySM),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          subtitle,
+          style: MekaarTypography.bodySM.copyWith(
+            fontSize: 13.5,
+            color: MekaarColors.textMutedOf(context),
+          ),
+        ),
+      ),
       value: value,
       onChanged: onChanged,
     );
@@ -91,34 +103,44 @@ class SettingsNavTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDestructive
         ? MekaarColors.sosRed
-        : (isDark ? MekaarColors.textSecondary : Colors.black54);
+        : MekaarColors.textSecondaryOf(context);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
-          borderRadius: BorderRadius.circular(10),
+          color: isDark ? MekaarColors.cardDark : MekaarColors.surface2Of(context),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: iconColor, size: 20),
+        child: Icon(icon, color: iconColor, size: 22),
       ),
       title: Text(
         title,
-        style: MekaarTypography.labelLG.copyWith(
-          fontWeight: FontWeight.bold,
+        style: MekaarTypography.bodyMD.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
           color: isDestructive
               ? MekaarColors.sosRed
-              : Theme.of(context).colorScheme.onSurface,
+              : MekaarColors.textPrimaryOf(context),
         ),
       ),
-      subtitle: Text(subtitle, style: MekaarTypography.bodySM),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          subtitle,
+          style: MekaarTypography.bodySM.copyWith(
+            fontSize: 13.5,
+            color: MekaarColors.textMutedOf(context),
+          ),
+        ),
+      ),
       trailing: trailing ??
-          const Icon(
+          Icon(
             SolarIconsOutline.altArrowRight,
             size: 18,
-            color: MekaarColors.textMuted,
+            color: MekaarColors.textMutedOf(context),
           ),
       onTap: onTap,
     );

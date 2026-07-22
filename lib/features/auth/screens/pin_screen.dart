@@ -12,6 +12,7 @@ import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
+import '../../../data/services/e2ee_service.dart';
 import '../providers/auth_provider.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,7 @@ class PinScreen extends ConsumerStatefulWidget {
 
 class _PinScreenState extends ConsumerState<PinScreen>
     with SingleTickerProviderStateMixin {
+  late bool _isSetupMode;
   String _pin = '';
   String _confirmPin = '';
   bool _isConfirming = false;
@@ -46,7 +48,8 @@ class _PinScreenState extends ConsumerState<PinScreen>
   @override
   void initState() {
     super.initState();
-    _statusMessage = widget.isSetup
+    _isSetupMode = widget.isSetup;
+    _statusMessage = _isSetupMode
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
   }
@@ -90,7 +93,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
   Future<void> _processPIN() async {
     final notifier = ref.read(authProvider.notifier);
 
-    if (widget.isSetup) {
+    if (_isSetupMode) {
       if (!_isConfirming) {
         // First step of PIN setup
         _confirmPin = _pin;
@@ -135,10 +138,20 @@ class _PinScreenState extends ConsumerState<PinScreen>
       final isValid = await notifier.validatePIN(_pin);
       if (isValid) {
         if (mounted) {
-          final wasDuress = ref.read(authProvider).lastUnlockWasDuress;
+          final authState = ref.read(authProvider);
+          final wasDuress = authState.lastUnlockWasDuress;
+
+          // Cek apakah E2EE perlu di-restore (perangkat baru / reinstall)
+          if (authState.e2eeNeedsRestore) {
+            // E2EE restore gagal dengan PIN saat ini.
+            // Tampilkan dialog agar user tahu statusnya.
+            await _showE2eeRestoreDialog();
+          }
+
+          if (!mounted) return;
+
           if (wasDuress) {
             // Duress PIN: buka normal (tanpa indikasi) lalu picu SOS silent.
-            // Tidak ada toast/banner agar pelaku tidak curiga (blind spot #1).
             ref
                 .read(sosProvider.notifier)
                 .activateSOS(gps: true, mic: false, video: false);
@@ -299,7 +312,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 _buildKeypadRow(['1', '2', '3']),
                 _buildKeypadRow(['4', '5', '6']),
                 _buildKeypadRow(['7', '8', '9']),
-                _buildKeypadRow([widget.isSetup ? '' : 'Lupa', '0', '⌫']),
+                _buildKeypadRow([_isSetupMode ? '' : 'Lupa', '0', '⌫']),
               ] else ...[
                 const Column(
                   children: [
@@ -422,32 +435,260 @@ class _PinScreenState extends ConsumerState<PinScreen>
   }
 
   Future<void> _showForgotPinDialog() async {
-    final confirm = await MekaarDialog.showConfirmation<bool>(
+    final authState = ref.read(authProvider);
+    final user = authState.user;
+    final provider = user?.appMetadata['provider'] as String? ?? 'email';
+    final isEmailPasswordUser = provider == 'email' || (user?.email != null && user!.email!.isNotEmpty);
+
+    final passwordController = TextEditingController();
+    bool isLoading = false;
+    String? errorMessage;
+
+    final shouldReset = await showDialog<bool>(
       context: context,
-      title: 'Lupa PIN?',
-      message: 'Sesi Anda saat ini akan diakhiri. Anda harus masuk kembali menggunakan Email & Password akun Anda untuk membuat PIN baru.\n\nLanjutkan?',
-      isDestructive: true,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Batal'),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: MekaarColors.surfaceOf(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(SolarIconsOutline.lockUnlocked, color: MekaarColors.sosRed),
+              SizedBox(width: 8),
+              Text('Reset PIN & Keamanan',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Apakah Anda ingin mereset PIN? Anda dapat membuat PIN baru setelah verifikasi.\n\n'
+                '⚠️ Kunci E2EE lama akan diganti dengan kunci baru yang terbungkus (wrapped) dengan PIN baru Anda. Pesan lama yang terenkripsi akan dibersihkan.',
+                style: TextStyle(fontSize: 13),
+              ),
+              if (isEmailPasswordUser) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Konfirmasi Password Akun',
+                    errorText: errorMessage,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: MekaarColors.sosRed,
+              ),
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final pwd = passwordController.text.trim();
+                      if (isEmailPasswordUser && pwd.isEmpty) {
+                        setDialogState(() => errorMessage = 'Masukkan password akun');
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isLoading = true;
+                        errorMessage = null;
+                      });
+
+                      final success = await ref
+                          .read(authProvider.notifier)
+                          .resetPinWithVerification(isEmailPasswordUser ? pwd : null);
+
+                      setDialogState(() => isLoading = false);
+
+                      if (success && ctx.mounted) {
+                        Navigator.pop(ctx, true);
+                      } else {
+                        final err = ref.read(authProvider).error;
+                        setDialogState(() => errorMessage = err ?? 'Verifikasi gagal');
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Reset PIN & Buat Baru'),
+            ),
+          ],
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Ya, Logout'),
-        ),
-      ],
+      ),
     );
 
-    if (confirm == true && mounted) {
-      await ref.read(authProvider.notifier).logout();
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          AppRoutes.login,
-          (route) => false,
-        );
-      }
+    passwordController.dispose();
+
+    if (shouldReset == true && mounted) {
+      setState(() {
+        _isSetupMode = true;
+        _pin = '';
+        _confirmPin = '';
+        _isConfirming = false;
+        _hasError = false;
+        _statusMessage = 'Buat PIN 6 digit baru untuk mengamankan aplikasi.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PIN lama berhasil direset. Silakan buat PIN 6 digit baru.'),
+          backgroundColor: MekaarColors.cyan,
+        ),
+      );
+    }
+  }
+
+  /// Dialog yang muncul setelah PIN valid tapi E2EE perlu restore.
+  /// Menawarkan: input PIN lama untuk restore, atau reset E2EE secara sadar.
+  Future<void> _showE2eeRestoreDialog() async {
+    final pinController = TextEditingController();
+    bool isLoading = false;
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: MekaarColors.surfaceOf(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.warnAmber),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Pemulihan Kunci E2EE',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Perangkat ini belum memiliki kunci enkripsi. '
+                'Masukkan PIN lama Anda untuk memulihkan riwayat chat, '
+                'atau reset untuk memulai dengan kunci baru.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pinController,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: InputDecoration(
+                  labelText: 'PIN Lama (6 digit)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  counterText: '',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      // Reset E2EE secara sadar
+                      final confirmReset = await MekaarDialog.showConfirmation<bool>(
+                        context: ctx,
+                        title: 'Reset Kunci E2EE?',
+                        message:
+                            'Riwayat obrolan lama yang terenkripsi TIDAK akan '
+                            'bisa dibaca lagi selamanya. Hanya pesan baru yang '
+                            'akan terenkripsi dengan kunci baru.\n\n'
+                            'Tindakan ini tidak dapat dibatalkan.',
+                        isDestructive: true,
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Batal'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: MekaarColors.sosRed,
+                            ),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Reset E2EE'),
+                          ),
+                        ],
+                      );
+                      if (confirmReset == true && ctx.mounted) {
+                        Navigator.pop(ctx, 'reset');
+                      }
+                    },
+              child: const Text('Reset E2EE',
+                  style: TextStyle(color: MekaarColors.sosRed)),
+            ),
+            FilledButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final oldPin = pinController.text.trim();
+                      if (oldPin.length != 6) return;
+
+                      setDialogState(() => isLoading = true);
+                      final success =
+                          await E2eeService.instance.tryRestoreWithPin(oldPin);
+                      setDialogState(() => isLoading = false);
+
+                      if (success) {
+                        // Backup ulang dengan PIN baru yang aktif
+                        try {
+                          // PIN yang dimasukkan di layar PIN sebelumnya
+                          // sudah divalidasi — gunakan itu untuk backup baru
+                          await E2eeService.instance.backupWithPin(oldPin);
+                        } catch (_) {}
+                        if (ctx.mounted) Navigator.pop(ctx, 'restored');
+                      } else {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('PIN lama salah. Coba lagi.'),
+                              backgroundColor: MekaarColors.sosRed,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Pulihkan'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    pinController.dispose();
+
+    if (result == 'reset' && mounted) {
+      await E2eeService.instance.forceResetIdentity();
+      ref.read(authProvider.notifier).setE2eeNeedsRestore(false);
+    } else if (result == 'restored' && mounted) {
+      ref.read(authProvider.notifier).setE2eeNeedsRestore(false);
     }
   }
 }

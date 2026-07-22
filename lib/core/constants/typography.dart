@@ -12,13 +12,13 @@ class MekaarTypography {
   // Display — Judul besar halaman
   // ─────────────────────────────────────────
   static TextStyle get displayXL => GoogleFonts.plusJakartaSans(
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: FontWeight.w800,
     height: 1.2,
   );
 
   static TextStyle get displayLG => GoogleFonts.plusJakartaSans(
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: FontWeight.w800,
     height: 1.2,
   );
@@ -35,31 +35,31 @@ class MekaarTypography {
   // Heading — Sub-judul & section title
   // ─────────────────────────────────────────
   static TextStyle get headingLG =>
-      GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w700);
+      GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.w700);
 
   static TextStyle get headingMD =>
-      GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700);
+      GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700);
 
   static TextStyle get headingSM =>
-      GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700);
+      GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700);
 
   // ─────────────────────────────────────────
   // Body — Konten utama
   // ─────────────────────────────────────────
   static TextStyle get bodyLG => GoogleFonts.plusJakartaSans(
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: FontWeight.w400,
     height: 1.6,
   );
 
   static TextStyle get bodyMD => GoogleFonts.plusJakartaSans(
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: FontWeight.w400,
     height: 1.5,
   );
 
   static TextStyle get bodySM => GoogleFonts.plusJakartaSans(
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.4,
   );
@@ -68,7 +68,7 @@ class MekaarTypography {
   // Label — Chip, badge, caption
   // ─────────────────────────────────────────
   static TextStyle get labelLG =>
-      GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600);
+      GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600);
 
   static TextStyle get labelMD => GoogleFonts.plusJakartaSans(
     fontSize: 11,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
-import '../../../core/widgets/mekaar_canvas.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../settings/screens/profile_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import 'chat_list_screen.dart';
@@ -88,38 +88,37 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             : item)
         .toList();
 
-    return MekaarCanvas(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            PageView(
-              controller: _pageController,
-              onPageChanged: (index) {
+    return MekaarScaffold(
+      body: Stack(
+        children: [
+          PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() => _currentIndex = index);
+            },
+            children: _screens,
+          ),
+          MekaarBottomNav(
+            items: items,
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              FocusManager.instance.primaryFocus?.unfocus();
+              if (_currentIndex != index) {
                 setState(() => _currentIndex = index);
-              },
-              children: _screens,
-            ),
-            MekaarBottomNav(
-              items: items,
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                if (_currentIndex != index) {
-                  setState(() => _currentIndex = index);
-                  if (animationsDisabled) {
-                    _pageController.jumpToPage(index);
-                  } else {
-                    _pageController.animateToPage(
-                      index,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                    );
-                  }
+                if (animationsDisabled) {
+                  _pageController.jumpToPage(index);
+                } else {
+                  _pageController.animateToPage(
+                    index,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                  );
                 }
-              },
-            ),
-          ],
-        ),
+              }
+            },
+          ),
+        ],
       ),
     );
   }

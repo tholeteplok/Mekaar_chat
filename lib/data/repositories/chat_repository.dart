@@ -73,6 +73,10 @@ class ChatRepository {
             .maybeSingle();
         if (myParticipant != null && myParticipant['history_cleared_at'] != null) {
           historyClearedAt = DateTime.parse(myParticipant['history_cleared_at'] as String);
+          final now = DateTime.now().toUtc();
+          if (historyClearedAt.isAfter(now)) {
+            historyClearedAt = now;
+          }
         }
       } catch (_) {}
 
@@ -221,11 +225,10 @@ class ChatRepository {
           .eq('profile_id', otherUserId)
           .maybeSingle();
       if (checkOther != null) {
-        // Restore for current user if deleted — also clear history_cleared_at
-        // so the old (possibly timezone-shifted) timestamp won't filter out new messages.
+        // Restore for current user if deleted — NEVER clear history_cleared_at!
         await _supabaseService.client
             .from('room_participants')
-            .update({'deleted_at': null, 'history_cleared_at': null})
+            .update({'deleted_at': null})
             .eq('room_id', roomId)
             .eq('profile_id', userId);
         return roomId;
@@ -274,6 +277,22 @@ class ChatRepository {
             .maybeSingle();
         if (p != null && p['history_cleared_at'] != null) {
           historyClearedAt = DateTime.parse(p['history_cleared_at'] as String);
+          final now = DateTime.now().toUtc();
+          if (historyClearedAt.isAfter(now)) {
+            historyClearedAt = now;
+          }
+        }
+      } catch (_) {}
+
+      Set<String> hiddenMsgIds = {};
+      try {
+        final hiddenData = await _supabaseService.client
+            .from('hidden_messages')
+            .select('message_id')
+            .eq('profile_id', userId);
+        
+        for (var row in hiddenData) {
+          hiddenMsgIds.add(row['message_id'] as String);
         }
       } catch (_) {}
 
@@ -289,13 +308,16 @@ class ChatRepository {
               msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
             }
 
+            // Filter out silent_deleted and hidden messages
+            msgs = msgs.where((m) => !m.isSilentDeleted && !hiddenMsgIds.contains(m.id)).toList();
+
             final decryptedMsgs = await Future.wait(msgs.map((m) async {
               if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
                 try {
                   final plain = await E2eeService.instance.decryptForRoom(roomId, m.content);
                   return m.copyWith(content: plain);
                 } catch (_) {
-                  return m.copyWith(content: '[Gagal mendekripsi pesan]');
+                  return m.copyWith(content: E2eeService.undecryptableText);
                 }
               }
               return m;
@@ -363,7 +385,7 @@ class ChatRepository {
       'msg_type': type.name,
       'is_view_once': isViewOnce,
       'reply_to_id': replyToId,
-      'auto_delete_at': autoDeleteAt?.toIso8601String(),
+      'auto_delete_at': autoDeleteAt?.toUtc().toIso8601String(),
       'is_encrypted': isEncrypted,
     };
 
@@ -376,18 +398,27 @@ class ChatRepository {
     return Message.fromJson(response);
   }
 
-  // Soft-delete a message through RPC so guardian rooms keep an evidence snapshot.
-  Future<void> softDeleteMessage(String messageId) async {
+  // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone
+  Future<void> deleteMessageForEveryone(String messageId) async {
+    try {
+      // Try the new advanced RPC first
+      await _supabaseService.client.rpc(
+        'delete_message_for_everyone',
+        params: {'msg_uuid': messageId},
+      );
+      return;
+    } catch (_) {}
+
+    // Fallback if migration 31 hasn't run yet, try older soft_delete_message
     try {
       await _supabaseService.client.rpc(
         'soft_delete_message',
         params: {'message_uuid': messageId},
       );
       return;
-    } catch (_) {
-      // Fallback for dev DBs before 05_security_hardening.sql is applied.
-    }
+    } catch (_) {}
 
+    // Legacy fallback
     await _supabaseService.client
         .from('messages')
         .update({
@@ -398,7 +429,24 @@ class ChatRepository {
         .eq('id', messageId);
   }
 
-  Future<void> deleteMessage(String messageId) => softDeleteMessage(messageId);
+  // Local delete: hides message for the current user only (like WhatsApp)
+  Future<void> hideMessageForMe(String messageId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+    try {
+      await _supabaseService.client.rpc(
+        'hide_message_for_me',
+        params: {'msg_uuid': messageId},
+      );
+    } catch (_) {
+      try {
+        await _supabaseService.client.from('hidden_messages').upsert({
+          'profile_id': userId,
+          'message_id': messageId,
+        }, onConflict: 'profile_id,message_id');
+      } catch (_) {}
+    }
+  }
 
   // Perbarui konten pesan lokasi live (berbagi lokasi sukarela, bukan SOS).
   Future<void> updateMessageContent(String messageId, String content) async {
@@ -630,28 +678,73 @@ class ChatRepository {
   }
 
   /// Clear Chat History for current user in a room
+  /// Clear Chat History for current user in a room
   Future<void> clearChatHistory(String roomId) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
-    await _supabaseService.client
-        .from('room_participants')
-        .update({'history_cleared_at': DateTime.now().toUtc().toIso8601String()})
-        .eq('room_id', roomId)
-        .eq('profile_id', userId);
+
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    try {
+      await _supabaseService.client
+          .from('room_participants')
+          .update({'history_cleared_at': nowIso})
+          .eq('room_id', roomId)
+          .eq('profile_id', userId);
+    } catch (_) {}
+
+    // Double-Lock Protection: Upsert all existing message IDs in room to hidden_messages
+    try {
+      final existingMsgs = await _supabaseService.client
+          .from('messages')
+          .select('id')
+          .eq('room_id', roomId);
+
+      if (existingMsgs.isNotEmpty) {
+        final rows = existingMsgs
+            .map((m) => {'profile_id': userId, 'message_id': m['id'] as String})
+            .toList();
+        await _supabaseService.client
+            .from('hidden_messages')
+            .upsert(rows, onConflict: 'profile_id,message_id');
+      }
+    } catch (_) {}
   }
 
   /// Soft delete Chat Room for current user (hides from list)
   Future<void> deleteChat(String roomId) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
-    await _supabaseService.client
-        .from('room_participants')
-        .update({
-          'deleted_at': DateTime.now().toUtc().toIso8601String(),
-          'history_cleared_at': DateTime.now().toUtc().toIso8601String()
-        })
-        .eq('room_id', roomId)
-        .eq('profile_id', userId);
+
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    try {
+      await _supabaseService.client
+          .from('room_participants')
+          .update({
+            'deleted_at': nowIso,
+            'history_cleared_at': nowIso,
+          })
+          .eq('room_id', roomId)
+          .eq('profile_id', userId);
+    } catch (_) {}
+
+    // Double-Lock Protection: Upsert all existing message IDs in room to hidden_messages
+    try {
+      final existingMsgs = await _supabaseService.client
+          .from('messages')
+          .select('id')
+          .eq('room_id', roomId);
+
+      if (existingMsgs.isNotEmpty) {
+        final rows = existingMsgs
+            .map((m) => {'profile_id': userId, 'message_id': m['id'] as String})
+            .toList();
+        await _supabaseService.client
+            .from('hidden_messages')
+            .upsert(rows, onConflict: 'profile_id,message_id');
+      }
+    } catch (_) {}
   }
 
   /// Ambil pengaturan privasi per-room untuk current user.

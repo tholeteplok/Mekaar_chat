@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/constants/typography.dart';
+
 import '../../../core/constants/motion.dart';
 import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
@@ -20,32 +20,26 @@ class ChatComposer extends StatefulWidget {
   final TextEditingController controller;
   final Message? replyMessage;
   final Message? editingMessage; // non-null when in edit mode
-  final bool isViewOnce;
   final VoidCallback onSend;
-  final VoidCallback onToggleViewOnce;
   final VoidCallback onCancelReply;
   final VoidCallback? onCancelEdit;
   final Future<void> Function(File file, MessageType type)? onSendMedia;
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
-  final int autoDeleteHours;
-  final ValueChanged<int>? onAutoDeleteChanged;
+  final bool enabled;
 
   const ChatComposer({
     super.key,
     required this.controller,
     required this.replyMessage,
-    required this.isViewOnce,
     required this.onSend,
-    required this.onToggleViewOnce,
     required this.onCancelReply,
     this.editingMessage,
     this.onCancelEdit,
     this.onSendMedia,
     this.onSendLocation,
     this.onShareLiveLocation,
-    this.autoDeleteHours = 0,
-    this.onAutoDeleteChanged,
+    this.enabled = true,
   });
 
   @override
@@ -55,6 +49,7 @@ class ChatComposer extends StatefulWidget {
 class _ChatComposerState extends State<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+  bool _showEmojiPicker = false;
 
   AudioRecorder? _audioRecorder;
   bool _isRecording = false;
@@ -67,65 +62,10 @@ class _ChatComposerState extends State<ChatComposer> {
   bool get _isEditMode => widget.editingMessage != null;
   bool get _hasText => widget.controller.text.trim().isNotEmpty;
 
-  late int _autoDeleteHours;
-
   @override
   void initState() {
     super.initState();
-    _autoDeleteHours = widget.autoDeleteHours;
     widget.controller.addListener(_onTextChanged);
-  }
-
-  void _setAutoDeleteHours(int hours) {
-    setState(() => _autoDeleteHours = hours);
-    widget.onAutoDeleteChanged?.call(hours);
-  }
-
-  String _autoDeleteLabel() {
-    if (_autoDeleteHours <= 0) return 'Pesan Menghilang';
-    if (_autoDeleteHours == 1) return 'Menghilang: 1 jam';
-    if (_autoDeleteHours == 24) return 'Menghilang: 1 hari';
-    if (_autoDeleteHours == 168) return 'Menghilang: 7 hari';
-    return 'Menghilang: $_autoDeleteHours jam';
-  }
-
-  Future<void> _showAutoDeleteMenu() async {
-    final choice = await MekaarBottomSheet.show<int>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        final options = [
-          (0, 'Mati', 'Pesan disimpan selamanya'),
-          (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
-          (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
-          (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
-        ];
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Pesan Menghilang', style: MekaarTypography.headingSM),
-            const SizedBox(height: 8),
-            ...options.map((opt) {
-              final selected = opt.$1 == _autoDeleteHours;
-              return ListTile(
-                leading: Icon(
-                  selected ? SolarIconsBold.history : SolarIconsOutline.history,
-                  color: selected ? MekaarColors.softCoral : null,
-                ),
-                title: Text(opt.$2),
-                subtitle: Text(opt.$3),
-                trailing: selected
-                    ? const Icon(Icons.check, color: MekaarColors.softCoral)
-                    : null,
-                onTap: () => Navigator.pop(ctx, opt.$1),
-              );
-            }),
-            const SizedBox(height: 12),
-          ],
-        );
-      },
-    );
-    if (choice != null) _setAutoDeleteHours(choice);
   }
 
   @override
@@ -415,6 +355,99 @@ class _ChatComposerState extends State<ChatComposer> {
     );
   }
 
+  void _toggleEmojiPicker() {
+    if (_showEmojiPicker) {
+      setState(() => _showEmojiPicker = false);
+    } else {
+      FocusScope.of(context).unfocus();
+      setState(() => _showEmojiPicker = true);
+    }
+  }
+
+  Widget _buildEmojiPickerPanel() {
+    final emojiCategories = <String, List<String>>{
+      'Ekspresi & Wajah': [
+        '😀', '😂', '😍', '🥰', '😎', '🥳', '🤩', '😇',
+        '😋', '🤪', '😜', '🤗', '🤔', '🫣', '😌', '😏',
+        '😤', '😭', '🥺', '😱', '🤯', '😴', '😷', '😈',
+      ],
+      'Isyarat & Tangan': [
+        '👍', '👎', '👏', '🙌', '🤝', '🙏', '✌️', '🤞',
+        '🤟', '🤘', '👌', '🤏', '👈', '👉', '👆', '👇',
+        '💪', '🔥', '✨', '⭐', '⚡', '💥', '🎉', '🎊',
+      ],
+      'Hati & Cinta': [
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+        '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+      ],
+      'Simbol & Benda': [
+        '🎈', '🎁', '🏆', '💯', '🌟', '☀️', '🌙', '☕',
+        '🍕', '🚀', '🛡️', '🔒', '🔑', '💬', '📢', '🔔',
+      ],
+    };
+
+    return Container(
+      height: 240,
+      decoration: BoxDecoration(
+        color: MekaarColors.surfaceOf(context),
+        border: Border(
+          top: BorderSide(
+            color: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: emojiCategories.entries.map((category) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 6),
+                  child: Text(
+                    category.key,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: MekaarColors.textMutedOf(context),
+                    ),
+                  ),
+                ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: category.value.map((emoji) {
+                    return GestureDetector(
+                      onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        final text = widget.controller.text;
+                        final selection = widget.controller.selection;
+                        final newText = selection.isValid
+                            ? text.replaceRange(selection.start, selection.end, emoji)
+                            : text + emoji;
+                        widget.controller.text = newText;
+                        widget.controller.selection = TextSelection.collapsed(
+                          offset: (selection.isValid ? selection.start : text.length) + emoji.length,
+                        );
+                      },
+                      child: Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 26),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -571,40 +604,26 @@ class _ChatComposerState extends State<ChatComposer> {
                 ))
               : Row(
                   children: [
-                    // Auto-delete (disappearing messages) toggle
-                    IconButton(
-                      icon: Icon(
-                        _autoDeleteHours > 0
-                            ? SolarIconsBold.history
-                            : SolarIconsOutline.history,
-                        color: _autoDeleteHours > 0
-                            ? MekaarColors.softCoral
-                            : MekaarColors.textMuted,
-                        size: 22,
-                      ),
-                      onPressed: _showAutoDeleteMenu,
-                      tooltip: _autoDeleteLabel(),
-                    ),
-                    // View-once toggle
-                    IconButton(
-                      icon: Icon(
-                        SolarIconsOutline.eye,
-                        color: widget.isViewOnce
-                            ? MekaarColors.softCoral
-                            : MekaarColors.textMuted,
-                        size: 22,
-                      ),
-                      onPressed: widget.onToggleViewOnce,
-                      tooltip: 'Mode Sekali Lihat',
-                    ),
-                    // Attachment button
-                    if (!_isEditMode)
+                    // Attachment button & Emoji button
+                    if (!_isEditMode) ...[
                       IconButton(
                         icon: const Icon(SolarIconsOutline.paperclip,
                             color: MekaarColors.textMuted, size: 22),
-                        onPressed: _showAttachmentSheet,
+                        onPressed: widget.enabled ? _showAttachmentSheet : null,
                         tooltip: 'Lampiran',
                       ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.sentiment_satisfied_alt_outlined,
+                          color: _showEmojiPicker
+                              ? MekaarColors.softCoral
+                              : MekaarColors.textMutedOf(context),
+                          size: 24,
+                        ),
+                        onPressed: widget.enabled ? _toggleEmojiPicker : null,
+                        tooltip: 'Emoji',
+                      ),
+                    ],
                     // Text input
                     Expanded(
                       child: Container(
@@ -617,10 +636,11 @@ class _ChatComposerState extends State<ChatComposer> {
                         ),
                         child: TextField(
                           controller: widget.controller,
+                          enabled: widget.enabled,
                           decoration: InputDecoration(
-                            hintText: _isEditMode
-                                ? 'Edit pesan...'
-                                : 'Ketik pesan...',
+                            hintText: !widget.enabled
+                                ? 'Menyiapkan enkripsi...'
+                                : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
                             border: InputBorder.none,
                             focusedBorder: InputBorder.none,
                             enabledBorder: InputBorder.none,
@@ -631,8 +651,13 @@ class _ChatComposerState extends State<ChatComposer> {
                           ),
                           minLines: 1,
                           maxLines: 4,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => widget.onSend(),
+                          onSubmitted: (_) =>
+                              widget.enabled ? widget.onSend() : null,
+                          onTap: () {
+                            if (_showEmojiPicker) {
+                              setState(() => _showEmojiPicker = false);
+                            }
+                          },
                         ),
                       ),
                     ),
@@ -644,7 +669,9 @@ class _ChatComposerState extends State<ChatComposer> {
                           ? 'Simpan edit'
                           : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
                       child: PressableScale(
-                        onTap: _isEditMode || _hasText ? widget.onSend : _startRecording,
+                        onTap: !widget.enabled
+                            ? null
+                            : (_isEditMode || _hasText ? widget.onSend : _startRecording),
                         child: AnimatedContainer(
                           duration: MekaarMotion.fast,
                           curve: MekaarMotion.standard,
@@ -675,6 +702,7 @@ class _ChatComposerState extends State<ChatComposer> {
                   ],
                 ),
         ),
+        if (_showEmojiPicker) _buildEmojiPickerPanel(),
       ],
     );
   }

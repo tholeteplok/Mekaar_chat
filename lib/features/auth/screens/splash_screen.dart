@@ -5,6 +5,7 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/services/e2ee_service.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -59,8 +60,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (authState.user != null) {
       final isPinLockEnabled = ref.read(pinLockEnabledProvider);
 
+      // Cek apakah E2EE memerlukan restore (perangkat baru / reinstall).
+      // Jika ya, PAKSA layar PIN meskipun PIN Lock dinonaktifkan,
+      // agar kunci E2EE bisa dipulihkan sebelum user masuk chat.
+      final e2eeNeedsRestore = E2eeService.instance.needsRestore;
+
       if (authState.isPinSet) {
-        if (isPinLockEnabled) {
+        if (isPinLockEnabled || e2eeNeedsRestore) {
           // Go to validation screen (1x input)
           Navigator.pushReplacementNamed(
             context,
@@ -69,6 +75,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           );
         } else {
           // Bypass PIN lock screen if disabled in settings
+          // AND E2EE doesn't need restore
           Navigator.pushReplacementNamed(context, AppRoutes.home);
         }
       } else {

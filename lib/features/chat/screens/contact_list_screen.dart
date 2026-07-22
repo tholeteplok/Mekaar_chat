@@ -17,11 +17,16 @@ class ContactListScreen extends ConsumerStatefulWidget {
   ConsumerState<ContactListScreen> createState() => _ContactListScreenState();
 }
 
-class _ContactListScreenState extends ConsumerState<ContactListScreen> {
+class _ContactListScreenState extends ConsumerState<ContactListScreen>
+    with AutomaticKeepAliveClientMixin {
   String _searchQuery = '';
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final authState = ref.watch(authProvider);
     final wasDuress = authState.lastUnlockWasDuress;
     final roomsAsync = ref.watch(chatRoomsProvider);
@@ -121,10 +126,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
             const SizedBox(height: 20),
             Text(
               hasFilter ? 'Kontak Tidak Ditemukan' : 'Belum Ada Kontak',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: MekaarColors.textPrimary,
+                color: MekaarColors.textPrimaryOf(context),
               ),
               textAlign: TextAlign.center,
             ),
@@ -133,9 +138,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
               hasFilter
                   ? 'Coba cari dengan kata kunci lain.'
                   : 'Mulai kirim pesan di tab Pesan untuk menambahkan kontak ke daftar Anda.',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: MekaarColors.textSecondary,
+                color: MekaarColors.textSecondaryOf(context),
               ),
               textAlign: TextAlign.center,
             ),
@@ -167,6 +172,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             leading: Avatar(
+              imageUrl: contact['avatarUrl'] as String?,
               initial: avatar,
               isGuardian: isGuardian,
               size: 48,
@@ -176,10 +182,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
                 Expanded(
                   child: Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: MekaarColors.textPrimary,
+                      color: MekaarColors.textPrimaryOf(context),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -207,9 +213,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen> {
             ),
             subtitle: Text(
               username.isNotEmpty ? '@$username' : email,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: MekaarColors.textMuted,
+                color: MekaarColors.textMutedOf(context),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

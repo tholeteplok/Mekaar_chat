@@ -131,20 +131,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: MekaarColors.yellow,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: MekaarColors.yellow.withValues(alpha: 0.3),
+                          color: MekaarColors.yellow.withValues(alpha: 0.25),
                           blurRadius: 8,
-                          offset: const Offset(0, 4),
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      SolarIconsBold.shield,
-                      color: MekaarColors.textOnYellow,
-                      size: 20,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/logo/app_icon.webp',
+                        width: 38,
+                        height: 38,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),

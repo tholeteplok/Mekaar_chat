@@ -42,10 +42,12 @@ class MekaarBottomNav extends StatelessWidget {
   final Color? activeColor;
   final Color? inactiveColor;
 
-  static const double _iconSize = 24.0; // z
-  static const double _activeSize = _iconSize + 16.0; // z + 16 = 40
-  static const double _barHeight = _iconSize + 32.0; // z + 32 = 56
-  static const double _tabWidth = _barHeight; // 56px per tab
+  static const double _tabDimension = 64.0; // 64.0 (lebar & tinggi simetris 1:1)
+  static const double _barHeight = _tabDimension; // 64.0
+  static const double _tabWidth = _tabDimension; // 64.0
+  static const double _containerSize = _tabDimension - 16.0; // 48.0 (64 - 16)
+  static const double _iconSize = 20.0;
+  static const double _fontSize = 9.5;
 
   const MekaarBottomNav({
     super.key,
@@ -100,11 +102,11 @@ class MekaarBottomNav extends StatelessWidget {
               button: true,
               selected: isActive,
               label: item.label,
-              child: InkResponse(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(100),
                 onTap: () {
                   if (currentIndex != index) onTap(index);
                 },
-                radius: _barHeight / 2,
                 child: SizedBox(
                   width: _tabWidth,
                   height: _barHeight,
@@ -114,67 +116,89 @@ class MekaarBottomNav extends StatelessWidget {
                           ? Duration.zero
                           : MekaarMotion.fast,
                       curve: MekaarMotion.standard,
-                      width: isActive ? _activeSize : _iconSize,
-                      height: isActive ? _activeSize : _iconSize,
+                      width: _containerSize,
+                      height: _containerSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color:
-                            isActive ? effectiveActive : Colors.transparent,
-                        boxShadow: isActive
-                            ? [
-                                BoxShadow(
-                                  color:
-                                      effectiveActive.withValues(alpha: 0.3),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ]
-                            : null,
+                        color: isActive
+                            ? effectiveActive.withValues(alpha: 0.15)
+                            : Colors.transparent,
                       ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Center(
-                            child: Icon(
-                              isActive
-                                  ? item.activeIcon
-                                  : item.inactiveIcon,
-                              color:
-                                  isActive ? Colors.white : effectiveInactive,
-                              size: _iconSize,
-                            ),
-                          ),
-                          // Unread badge
-                          if (item.unreadCount != null &&
-                              item.unreadCount! > 0)
-                            Positioned(
-                              top: -2,
-                              right: -4,
-                              child: Container(
-                                constraints:
-                                    const BoxConstraints(minWidth: 18),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: MekaarColors.softCoral,
-                                  borderRadius:
-                                      BorderRadius.circular(MekaarRadius.pill),
-                                  border: Border.all(
-                                    color: navBgColor,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Text(
-                                  item.unreadCount! > 99
-                                      ? '99+'
-                                      : '${item.unreadCount}',
-                                  textAlign: TextAlign.center,
-                                  style: MekaarTypography.badge,
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              AnimatedScale(
+                                scale: isActive ? 1.08 : 1.0,
+                                duration: animationsDisabled
+                                    ? Duration.zero
+                                    : MekaarMotion.fast,
+                                child: Icon(
+                                  isActive
+                                      ? item.activeIcon
+                                      : item.inactiveIcon,
+                                  color: isActive
+                                      ? effectiveActive
+                                      : effectiveInactive,
+                                  size: _iconSize,
                                 ),
                               ),
+                              // Unread badge
+                              if (item.unreadCount != null &&
+                                  item.unreadCount! > 0)
+                                Positioned(
+                                  top: -4,
+                                  right: -8,
+                                  child: Container(
+                                    constraints:
+                                        const BoxConstraints(minWidth: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: MekaarColors.softCoral,
+                                      borderRadius: BorderRadius.circular(
+                                          MekaarRadius.pill),
+                                      border: Border.all(
+                                        color: navBgColor,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      item.unreadCount! > 99
+                                          ? '99+'
+                                          : '${item.unreadCount}',
+                                      textAlign: TextAlign.center,
+                                      style: MekaarTypography.badge,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          AnimatedDefaultTextStyle(
+                            duration: animationsDisabled
+                                ? Duration.zero
+                                : MekaarMotion.fast,
+                            style: TextStyle(
+                              fontSize: _fontSize,
+                              fontWeight:
+                                  isActive ? FontWeight.w700 : FontWeight.w500,
+                              color: isActive
+                                  ? effectiveActive
+                                  : effectiveInactive,
+                              letterSpacing: -0.2,
                             ),
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                              softWrap: false,
+                            ),
+                          ),
                         ],
                       ),
                     ),

@@ -91,6 +91,21 @@ class MekaarColors {
 
   static Color textMutedOf(BuildContext c) =>
       Theme.of(c).colorScheme.onSurfaceVariant.withValues(alpha: 0.72);
+
+  static Color outgoingBubbleOf(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+          ? const Color(0xFF2E2718)
+          : const Color(0xFFFEF9C3);
+
+  static Color outgoingBubbleBorderOf(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+          ? const Color(0xFF4D3E20)
+          : const Color(0xFFFDE68A);
+
+  static Color outgoingTextOf(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+          ? const Color(0xFFF8FAFF)
+          : const Color(0xFF1E2A63);
 }
 
 class MekaarGradients {

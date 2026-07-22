@@ -29,13 +29,17 @@ class ChatRoomsNotifier
     refreshRooms();
   }
 
-  Future<void> refreshRooms() async {
+  Future<void> refreshRooms({bool forceLoading = false}) async {
     try {
-      state = const AsyncValue.loading();
+      if (forceLoading || !state.hasValue) {
+        state = const AsyncValue.loading();
+      }
       final rooms = await _chatRepository.getRooms();
       state = AsyncValue.data(rooms);
     } catch (e, stack) {
-      state = AsyncValue.error(e, stack);
+      if (!state.hasValue) {
+        state = AsyncValue.error(e, stack);
+      }
     }
   }
 
@@ -163,9 +167,16 @@ class ChatActionsNotifier {
     await _chatRepository.reactToMessage(messageId, emoji);
   }
 
-  Future<void> deleteMessage(String messageId) async {
-    await _chatRepository.softDeleteMessage(messageId);
+  Future<void> deleteMessageForEveryone(String messageId) async {
+    await _chatRepository.deleteMessageForEveryone(messageId);
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> hideMessageForMe(String messageId) async {
+    await _chatRepository.hideMessageForMe(messageId);
+    // Kita tidak merefresh rooms di sini karena hideMessageForMe hanya menyembunyikan lokal
+    // dan stream akan memperbaruinya di chat screen secara otomatis saat listener baru (jika direstart).
+    // Tapi untuk memastikan screen update seketika, caller di UI harus menggunakan provider atau refresh lokal.
   }
 
   Future<void> forwardMessage(Message message, String roomId) async {

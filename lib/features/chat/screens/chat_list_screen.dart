@@ -29,13 +29,17 @@ class ChatListScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+class _ChatListScreenState extends ConsumerState<ChatListScreen>
+    with AutomaticKeepAliveClientMixin {
   String _searchQuery = '';
   String _selectedTab = 'All';
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
 
   final List<String> _tabs = ['All', 'Guardian', 'Arsip'];
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -171,9 +175,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           ),
           onPressed: () async {
             Navigator.pop(context);
-            await ref.read(chatRepositoryProvider).deleteChat(room['id'] as String);
-            if (!mounted) return;
-            ref.read(chatRoomsProvider.notifier).refreshRooms();
+            await ref.read(chatActionsProvider).deleteChat(room['id'] as String);
           },
           child: const Text('Hapus'),
         ),
@@ -370,6 +372,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final chatRoomsState = ref.watch(chatRoomsProvider);
     final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
 

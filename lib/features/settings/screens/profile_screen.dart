@@ -11,6 +11,7 @@ import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -20,7 +21,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with AutomaticKeepAliveClientMixin {
   bool _isEditingUsername = false;
   bool _isEditingDisplayName = false;
   late TextEditingController _usernameController;
@@ -102,6 +104,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _saveDisplayName() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final newName = _displayNameController.text.trim();
     setState(() => _isEditingDisplayName = false);
     try {
@@ -121,6 +124,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _saveUsername() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final newUsername = _usernameController.text.trim();
     if (newUsername.isEmpty || newUsername.length < 3) {
       if (mounted) {
@@ -170,7 +174,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final authState = ref.watch(authProvider);
     final wasDuress = authState.lastUnlockWasDuress;
     final user = authState.user;
@@ -181,8 +189,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final username = profile?.username ?? '';
     final pinSet = authState.isPinSet;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
+    return MekaarScaffold(
       body: SafeArea(
         child: Column(
           children: [
@@ -325,6 +332,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ? TextField(
                                         controller: _displayNameController,
                                         autofocus: true,
+                                        onSubmitted: (_) => _saveDisplayName(),
                                         style: MekaarTypography.bodyMD.copyWith(
                                           color: MekaarColors.textPrimaryOf(context),
                                         ),
@@ -393,6 +401,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ? TextField(
                                         controller: _usernameController,
                                         autofocus: true,
+                                        onSubmitted: (_) => _saveUsername(),
                                         style: MekaarTypography.bodyMD.copyWith(
                                           color: MekaarColors.textPrimaryOf(
                                             context,

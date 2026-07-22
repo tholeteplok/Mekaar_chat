@@ -12,7 +12,6 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
-import '../providers/auto_delete_provider.dart';
 import '../providers/two_fa_provider.dart';
 import '../providers/notification_preferences_provider.dart';
 import '../widgets/settings_tiles.dart';
@@ -83,6 +82,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────
   // SECTION 3: Privasi
   // ─────────────────────────────────────────────────
   Widget _buildPrivacySection(BuildContext context, WidgetRef ref) {
@@ -93,8 +93,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSwitchTile(
           icon: SolarIconsOutline.screenShare,
           title: 'Proteksi Layar',
-          subtitle:
-              'Jadikan proteksi sebagai default untuk ruang baru. Mencegah screenshot dan perekaman di Android; menyamarkan konten saat perekaman terdeteksi di iOS.',
+          subtitle: 'Cegah screenshot & perekaman layar',
           value: ref.watch(screenshotBlockProvider),
           onChanged: (value) =>
               ref.read(screenshotBlockProvider.notifier).toggle(value),
@@ -102,8 +101,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSwitchTile(
           icon: SolarIconsOutline.eye,
           title: 'Sembunyikan Notifikasi Darurat',
-          subtitle:
-              'Samarkan teks SOS/Alarm di layar kunci agar pelaku tidak curiga',
+          subtitle: 'Samarkan teks alarm di layar kunci',
           value: ref.watch(notificationMaskingProvider),
           onChanged: (value) =>
               ref.read(notificationMaskingProvider.notifier).setEnabled(value),
@@ -117,16 +115,10 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSwitchTile(
           icon: SolarIconsOutline.eye,
           title: 'Bukti Baca (Read Receipt)',
-          subtitle: 'Izinkan orang lain melihat pesan Anda telah dibaca',
+          subtitle: 'Tanda centang biru saat pesan dibaca',
           value: ref.watch(readReceiptsProvider),
           onChanged: (value) =>
               ref.read(readReceiptsProvider.notifier).setEnabled(value),
-        ),
-        SettingsNavTile(
-          icon: SolarIconsOutline.history,
-          title: 'Pesan Menghilang',
-          subtitle: _autoDeleteLabel(ref.watch(autoDeleteDefaultProvider)),
-          onTap: () => _showAutoDeleteSheet(context, ref),
         ),
       ],
     );
@@ -145,7 +137,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSwitchTile(
           icon: SolarIconsOutline.lock,
           title: 'Kunci PIN Aplikasi',
-          subtitle: 'Minta PIN keamanan saat membuka aplikasi',
+          subtitle: 'Kunci aplikasi dengan 6-digit PIN',
           value: ref.watch(pinLockEnabledProvider),
           onChanged: (bool value) async {
             try {
@@ -164,21 +156,21 @@ class SettingsScreen extends ConsumerWidget {
           SettingsNavTile(
             icon: SolarIconsOutline.lockKeyhole,
             title: 'PIN Paksaan (Duress)',
-            subtitle: 'PIN terpisah yang diam-diam memicu SOS saat dipaksa',
+            subtitle: 'PIN rahasia pemicu alarm SOS',
             onTap: () => Navigator.pushNamed(context, AppRoutes.duressPin),
           ),
           SettingsNavTile(
             icon: SolarIconsOutline.shieldKeyhole,
             title: 'Verifikasi 2 Langkah',
             subtitle: ref.watch(twoFaProvider)
-                ? 'Aktif · kode dari authenticator diperlukan saat login'
-                : 'Nonaktif · aktifkan untuk keamanan ekstra',
+                ? 'Aktif · kode authenticator'
+                : 'Nonaktif · keamanan ekstra',
             onTap: () => _handleTwoFactor(context, ref),
           ),
           SettingsNavTile(
             icon: SolarIconsOutline.billList,
             title: 'Riwayat SOS',
-            subtitle: 'Chat tetap privat; hanya insiden SOS yang dicatat',
+            subtitle: 'Catatan insiden darurat SOS',
             onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
           ),
         ],
@@ -197,7 +189,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavTile(
           icon: SolarIconsOutline.bell,
           title: 'Nada & Suara',
-          subtitle: 'Pilih nada notifikasi pesan & alarm darurat SOS',
+          subtitle: 'Nada notifikasi pesan & alarm SOS',
           onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
         ),
       ],
@@ -313,73 +305,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────
-  // Helper: label auto-delete
-  // ─────────────────────────────────────────────────
-  String _autoDeleteLabel(int hours) {
-    if (hours <= 0) return 'Mati';
-    if (hours == 1) return '1 Jam';
-    if (hours == 24) return '1 Hari';
-    if (hours == 168) return '7 Hari';
-    return '$hours Jam';
-  }
 
-  // ─────────────────────────────────────────────────
-  // Bottom sheet: Auto Delete
-  // ─────────────────────────────────────────────────
-  void _showAutoDeleteSheet(BuildContext context, WidgetRef ref) {
-    MekaarBottomSheet.show(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        final current = ref.watch(autoDeleteDefaultProvider);
-        final options = [
-          (0, 'Mati', 'Pesan disimpan selamanya'),
-          (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
-          (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
-          (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
-        ];
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Text('Pesan Menghilang', style: MekaarTypography.headingSM),
-              const SizedBox(height: 8),
-              Text(
-                'Atur berapa lama pesan otomatis terhapus secara default.',
-                style: MekaarTypography.bodySM,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              ...options.map((opt) {
-                final selected = opt.$1 == current;
-                return ListTile(
-                  leading: Icon(
-                    selected
-                        ? SolarIconsBold.history
-                        : SolarIconsOutline.history,
-                    color: selected ? MekaarColors.softCoral : null,
-                  ),
-                  title: Text(opt.$2),
-                  subtitle: Text(opt.$3),
-                  trailing: selected
-                      ? const Icon(Icons.check, color: MekaarColors.softCoral)
-                      : null,
-                  onTap: () {
-                    ref
-                        .read(autoDeleteDefaultProvider.notifier)
-                        .setHours(opt.$1);
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   // ─────────────────────────────────────────────────
   // Bottom sheet: Last Seen Privacy

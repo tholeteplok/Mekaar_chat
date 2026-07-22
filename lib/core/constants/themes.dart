@@ -23,41 +23,41 @@ class MekaarTheme {
       textTheme: GoogleFonts.plusJakartaSansTextTheme(
         const TextTheme(
           displayLarge: TextStyle(
-            fontSize: 32,
+            fontSize: 36,
             fontWeight: FontWeight.w800,
             color: Color(0xFF1B2145),
           ),
           displayMedium: TextStyle(
-            fontSize: 28,
+            fontSize: 32,
             fontWeight: FontWeight.w800,
             color: Color(0xFF1B2145),
           ),
           displaySmall: TextStyle(
-            fontSize: 24,
+            fontSize: 28,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1B2145),
           ),
           headlineMedium: TextStyle(
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1B2145),
           ),
           headlineSmall: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1B2145),
           ),
           bodyLarge: TextStyle(
-            fontSize: 15,
+            fontSize: 18,
             height: 1.6,
             color: Color(0xFF1B2145),
           ),
           bodyMedium: TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             height: 1.5,
             color: Color(0xFF56617F),
           ),
-          bodySmall: TextStyle(fontSize: 12, color: Color(0xFF56617F)),
+          bodySmall: TextStyle(fontSize: 14, color: Color(0xFF56617F)),
         ),
       ),
       appBarTheme: const AppBarTheme(
@@ -142,41 +142,41 @@ class MekaarTheme {
       textTheme: GoogleFonts.plusJakartaSansTextTheme(
         const TextTheme(
           displayLarge: TextStyle(
-            fontSize: 32,
+            fontSize: 36,
             fontWeight: FontWeight.w800,
             color: MekaarColors.textPrimary,
           ),
           displayMedium: TextStyle(
-            fontSize: 28,
+            fontSize: 32,
             fontWeight: FontWeight.w800,
             color: MekaarColors.textPrimary,
           ),
           displaySmall: TextStyle(
-            fontSize: 24,
+            fontSize: 28,
             fontWeight: FontWeight.w700,
             color: MekaarColors.textPrimary,
           ),
           headlineMedium: TextStyle(
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.w700,
             color: MekaarColors.textPrimary,
           ),
           headlineSmall: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             color: MekaarColors.textPrimary,
           ),
           bodyLarge: TextStyle(
-            fontSize: 15,
+            fontSize: 18,
             height: 1.6,
             color: MekaarColors.textPrimary,
           ),
           bodyMedium: TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             height: 1.5,
             color: MekaarColors.textSecondary,
           ),
-          bodySmall: TextStyle(fontSize: 12, color: MekaarColors.textMuted),
+          bodySmall: TextStyle(fontSize: 14, color: MekaarColors.textMuted),
         ),
       ),
       appBarTheme: const AppBarTheme(

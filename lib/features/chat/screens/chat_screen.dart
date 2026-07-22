@@ -21,6 +21,8 @@ import '../providers/chat_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/typing_indicator.dart';
+import '../widgets/e2ee_preparation_banner.dart';
+import '../providers/e2ee_room_status_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/media_upload_service.dart';
@@ -89,9 +91,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Muat preferensi per-kontak: pesan menghilang override
       final preferences = await repo.getRoomPreferences(widget.chatId);
       if (!mounted) return;
-      _autoDeleteHours = preferences?.disappearingOverrideHours
-          ?? ref.read(authProvider).profile?.autoDeleteDefaultHours
-          ?? 0;
+      _autoDeleteHours = preferences?.disappearingOverrideHours ?? 0;
       // Best-effort purge pesan kedaluwarsa (authoritative via cron Supabase).
       try {
         await repo.purgeExpiredMessages();
@@ -296,10 +296,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _handleDeleteMessage(Message msg) {
     MekaarDialog.showConfirmation<void>(
       context: context,
-      title: 'Hapus Pesan?',
-      message: widget.isGuardian
-          ? 'Konten pesan akan hilang dari layar. Log sistem tetap mencatat snapshot penghapusan demi integritas bukti.'
-          : 'Pesan akan disembunyikan untuk Anda dan tetap tercatat sebagai soft-delete.',
+      title: 'Hapus untuk Saya?',
+      message: 'Pesan akan disembunyikan untuk Anda saja. Lawan bicara tetap dapat melihat pesan ini.',
       isDestructive: true,
       actions: [
         TextButton(
@@ -308,12 +306,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         TextButton(
           onPressed: () async {
-            await ref.read(chatActionsProvider).deleteMessage(msg.id);
+            await ref.read(chatActionsProvider).hideMessageForMe(msg.id);
             if (!mounted) return;
             Navigator.pop(context);
           },
           child: const Text(
             'Hapus',
+            style: TextStyle(color: MekaarColors.textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _handleUnsendMessage(Message msg) {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Tarik Pesan?',
+      message: widget.isGuardian
+          ? 'Konten pesan akan hilang dari layar. Log sistem tetap mencatat snapshot penghapusan demi integritas bukti.'
+          : 'Pesan akan dihapus untuk semua orang. Jika belum dibaca, pesan ini akan ditarik tanpa jejak.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () async {
+            await ref.read(chatActionsProvider).deleteMessageForEveryone(msg.id);
+            if (!mounted) return;
+            Navigator.pop(context);
+          },
+          child: const Text(
+            'Tarik Pesan',
             style: TextStyle(color: MekaarColors.sosRed),
           ),
         ),
@@ -389,6 +415,60 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
           : 'Mode Sekali Lihat Dinonaktifkan.',
     );
+  }
+
+  void _setAutoDeleteHours(int hours) {
+    setState(() => _autoDeleteHours = hours);
+  }
+
+  String _autoDeleteLabel() {
+    if (_autoDeleteHours <= 0) return 'Mati';
+    if (_autoDeleteHours == 1) return '1 Jam';
+    if (_autoDeleteHours == 24) return '1 Hari';
+    if (_autoDeleteHours == 168) return '7 Hari';
+    return '$_autoDeleteHours Jam';
+  }
+
+  Future<void> _showAutoDeleteMenu() async {
+    final choice = await MekaarBottomSheet.show<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final options = [
+          (0, 'Mati', 'Pesan disimpan selamanya'),
+          (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
+          (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
+          (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
+        ];
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Pesan Menghilang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ...options.map((opt) {
+              final selected = opt.$1 == _autoDeleteHours;
+              return ListTile(
+                leading: Icon(
+                  selected ? SolarIconsBold.history : SolarIconsOutline.history,
+                  color: selected ? MekaarColors.softCoral : null,
+                ),
+                title: Text(opt.$2),
+                subtitle: Text(opt.$3),
+                trailing: selected
+                    ? const Icon(Icons.check, color: MekaarColors.softCoral)
+                    : null,
+                onTap: () => Navigator.pop(ctx, opt.$1),
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
+    );
+    if (choice != null) {
+      _setAutoDeleteHours(choice);
+      await ref.read(chatRepositoryProvider).updateRoomDisappearingOverride(widget.chatId, choice);
+    }
   }
 
   void _initiateCall(String callType) {
@@ -522,6 +602,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
+    final isE2eeReady = e2eeStatus == E2eeRoomStatus.ready;
+
     final messagesStream = ref.watch(chatMessagesProvider(widget.chatId));
     final protectionAsync = ref.watch(
       roomScreenProtectionProvider(widget.chatId),
@@ -594,6 +677,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     'Pengaturan proteksi belum dapat disinkronkan',
                   );
                 }
+              } else if (value == 'auto_delete') {
+                _showAutoDeleteMenu();
+              } else if (value == 'view_once') {
+                _toggleViewOnce();
               } else if (value == 'clear') {
                 _confirmClearHistory();
               } else if (value == 'delete') {
@@ -627,9 +714,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     const SizedBox(width: 8),
                     Text(
                       protection?.callerEnabled == true
-                          ? 'Nonaktifkan preferensi saya'
+                          ? 'Nonaktifkan proteksi layar'
                           : 'Aktifkan proteksi layar',
                     ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'auto_delete',
+                child: Row(
+                  children: [
+                    Icon(
+                      _autoDeleteHours > 0
+                          ? SolarIconsBold.history
+                          : SolarIconsOutline.history,
+                      size: 20,
+                      color: _autoDeleteHours > 0
+                          ? MekaarColors.softCoral
+                          : MekaarColors.textPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Pesan Menghilang: ${_autoDeleteLabel()}'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'view_once',
+                child: Row(
+                  children: [
+                    Icon(
+                      _isViewOnce ? SolarIconsBold.eye : SolarIconsOutline.eye,
+                      size: 20,
+                      color: _isViewOnce
+                          ? MekaarColors.softCoral
+                          : MekaarColors.textPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Sekali Lihat: ${_isViewOnce ? 'Aktif' : 'Mati'}'),
                   ],
                 ),
               ),
@@ -673,6 +794,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Column(
             children: [
+              E2eePreparationBanner(status: e2eeStatus),
               if (protection?.effective ?? true)
                 ScreenProtectionStatusBadge(
                   label: protection?.statusLabel ?? 'Proteksi ruang aktif',
@@ -727,9 +849,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 controller: _textController,
                 replyMessage: _replyMessage,
                 editingMessage: _editingMessage,
-                isViewOnce: _isViewOnce,
+                enabled: isE2eeReady,
                 onSend: _handleSend,
-                onToggleViewOnce: _toggleViewOnce,
                 onCancelReply: () => setState(() => _replyMessage = null),
                 onCancelEdit: () {
                   setState(() => _editingMessage = null);
@@ -738,9 +859,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 onSendMedia: _handleSendMedia,
                 onSendLocation: _handleSendLocation,
                 onShareLiveLocation: _handleShareLiveLocation,
-                autoDeleteHours: _autoDeleteHours,
-                onAutoDeleteChanged: (hours) =>
-                    setState(() => _autoDeleteHours = hours),
               ),
             ],
           ),
@@ -796,13 +914,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final bubble = ChatBubble(
         message: msg,
         isMe: isMe,
-        canDelete: isMe,
+        canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
+        canUnsend: isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
         canEdit: isMe && canEdit,
         canForward: actions.canForward(msg),
         otherLastReadAt: _otherLastRead,
         showReadReceipts:
             ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
         onDelete: () => _handleDeleteMessage(msg),
+        onUnsend: () => _handleUnsendMessage(msg),
         onReply: (replyMsg) {
           setState(() {
             _replyMessage = replyMsg;

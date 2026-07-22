@@ -59,24 +59,40 @@ class E2eeService {
   String? _identityPublicB64;
   final Map<String, SecretKey> _roomKeys = {};
 
+  /// True jika perangkat ini belum punya kunci lokal tapi ada backup di server.
+  /// UI harus meminta PIN untuk memulihkan sebelum membiarkan user masuk chat.
+  bool _needsRestore = false;
+  bool get needsRestore => _needsRestore;
+
+  /// True jika kunci yang saat ini aktif adalah kunci baru (freshly generated),
+  /// bukan kunci yang dipulihkan dari backup. Digunakan untuk mencegah
+  /// overwrite backup lama secara tidak sengaja.
+  bool _isFreshKey = false;
+  bool get isFreshKey => _isFreshKey;
+
   String? get myPublicKeyB64 => _identityPublicB64;
 
   String _storageKeyFor(String userId) => '$_privStorageKeyPrefix$userId';
 
   // ── Identitas ──────────────────────────────────────────────
 
-  /// Muat identitas dari secure storage, atau buat + publikasikan baru.
+  /// Muat identitas dari secure storage. Jika tidak ada secara lokal,
+  /// periksa apakah backup ada di server sebelum membuat kunci baru.
+  /// Jika backup ada, set flag [needsRestore] dan JANGAN generate kunci baru.
   /// Dipanggil lazy dari jalur enkripsi/dekripsi.
   Future<void> ensureIdentity() async {
     if (_identity != null) return;
     final userId = _supabase.currentUserId;
     if (userId == null) return;
 
+    // 1. Coba muat dari secure storage lokal
     try {
       final raw = await _secureStorage.read(key: _storageKeyFor(userId));
       if (raw != null) {
         final bytes = base64Decode(raw);
         await _loadIdentityFromBytes(bytes);
+        _needsRestore = false;
+        _isFreshKey = false;
         await _publishPublicKeyIfNeeded();
         return;
       }
@@ -84,7 +100,21 @@ class E2eeService {
       _logger.e('Gagal memuat identitas dari secure storage', error: e);
     }
 
+    // 2. Tidak ada kunci lokal. Cek apakah ada backup di server.
+    final hasBackup = await hasBackupOnServer();
+    if (hasBackup) {
+      // Backup ada — JANGAN buat kunci baru.
+      // UI harus meminta PIN untuk memulihkan.
+      _needsRestore = true;
+      _logger.w('Kunci lokal tidak ada, backup ditemukan di server. '
+          'Menunggu restore dengan PIN.');
+      return;
+    }
+
+    // 3. Benar-benar user baru (tidak ada backup). Aman untuk generate.
+    _logger.i('User baru tanpa backup, membuat identitas E2EE baru.');
     await _generateAndPublishIdentity(userId);
+    _isFreshKey = true;
   }
 
   Future<void> _loadIdentityFromBytes(List<int> privateBytes) async {
@@ -95,17 +125,98 @@ class E2eeService {
 
   Future<void> _generateAndPublishIdentity(String userId) async {
     try {
+      _logger.w('Generating new E2EE identity for user $userId');
       _identity = await _x25519.newKeyPair();
       final privBytes = await _identity!.extractPrivateKeyBytes();
       await _secureStorage.write(
         key: _storageKeyFor(userId),
         value: base64Encode(privBytes),
       );
+      _logger.i('Successfully generated and saved new E2EE identity');
       final pub = await _identity!.extractPublicKey();
       _identityPublicB64 = base64Encode(pub.bytes);
+      _needsRestore = false;
+      _isFreshKey = true;
       await _publishPublicKeyIfNeeded(force: true);
     } catch (e) {
       _logger.e('Gagal generate dan mempublikasikan identitas', error: e);
+    }
+  }
+
+  // ── Backup & Restore API ────────────────────────────────────
+
+  /// Cek apakah user sudah punya backup E2EE di server (profiles.e2ee_key_backup).
+  Future<bool> hasBackupOnServer() async {
+    try {
+      final userId = _supabase.currentUserId;
+      if (userId == null) return false;
+      final row = await _supabase.client
+          .from('profiles')
+          .select('e2ee_key_backup')
+          .eq('id', userId)
+          .maybeSingle();
+      final backup = row?['e2ee_key_backup'] as String?;
+      return backup != null && backup.isNotEmpty;
+    } catch (e) {
+      _logger.e('Gagal memeriksa backup E2EE di server', error: e);
+      return false;
+    }
+  }
+
+  /// Coba pulihkan identitas dari backup di server menggunakan [pin].
+  /// Mengembalikan true jika berhasil, false jika gagal (PIN salah / tidak ada backup).
+  /// TIDAK melempar exception — aman digunakan di UI.
+  Future<bool> tryRestoreWithPin(String pin) async {
+    try {
+      final result = await restoreWithPin(pin);
+      if (result) {
+        _needsRestore = false;
+        _isFreshKey = false;
+      }
+      return result;
+    } catch (e) {
+      _logger.e('tryRestoreWithPin gagal', error: e);
+      return false;
+    }
+  }
+
+  /// Reset identitas E2EE secara sadar (user memilih ini karena lupa PIN).
+  /// Ini akan:
+  /// 1. Generate kunci baru
+  /// 2. Publish kunci publik baru ke server
+  /// 3. Menghapus backup lama di server (karena sudah tidak cocok)
+  /// 4. Menyimpan kunci baru ke secure storage
+  ///
+  /// Pesan lama yang dienkripsi dengan kunci lama TIDAK akan bisa dibaca lagi.
+  Future<void> forceResetIdentity() async {
+    final userId = _supabase.currentUserId;
+    if (userId == null) return;
+
+    _logger.w('⚠️ Force reset E2EE identity for user $userId — '
+        'pesan lama tidak akan bisa dibaca lagi.');
+
+    // Hapus kunci lokal lama (jika ada)
+    try {
+      await _secureStorage.delete(key: _storageKeyFor(userId));
+    } catch (_) {}
+
+    // Bersihkan state
+    _identity = null;
+    _identityPublicB64 = null;
+    _roomKeys.clear();
+    _needsRestore = false;
+
+    // Generate kunci baru
+    await _generateAndPublishIdentity(userId);
+
+    // Hapus backup lama di server (sudah tidak cocok dengan kunci baru)
+    try {
+      await _supabase.client
+          .from('profiles')
+          .update({'e2ee_key_backup': null})
+          .eq('id', userId);
+    } catch (e) {
+      _logger.e('Gagal menghapus backup E2EE lama', error: e);
     }
   }
 
@@ -281,15 +392,22 @@ class E2eeService {
 
     try {
       final key = await _roomKey(roomId);
-      if (key == null) return undecryptableText;
+      if (key == null) {
+        _logger.e('decryptForRoom failed: key is null for room $roomId');
+        return undecryptableText;
+      }
+      final ctString = map['ct'] as String;
+      final ctBytes = base64Decode(ctString);
+      
       final box = SecretBox.fromConcatenation(
-        base64Decode(map['ct'] as String),
+        ctBytes,
         nonceLength: 24,
         macLength: 16,
       );
       final clear = await _cipher.decrypt(box, secretKey: key);
-      return utf8.decode(clear);
-    } catch (_) {
+      return utf8.decode(clear, allowMalformed: true);
+    } catch (e, st) {
+      _logger.e('decryptForRoom error in room $roomId', error: e, stackTrace: st);
       return undecryptableText;
     }
   }
@@ -390,12 +508,15 @@ class E2eeService {
         backupWithPin(pin);
       }
 
-      // Verifikasi: public key hasil restore harus cocok dengan yang terpublikasi.
+      // Self-healing: Jika public key di server berbeda dengan hasil restore backup,
+      // perbarui public key di server agar cocok dengan private key asli dari backup.
       if (expectedPub != null &&
           expectedPub.isNotEmpty &&
           expectedPub != _identityPublicB64) {
-        clearSession();
-        return false;
+        _logger.w('Self-healing: Kunci publik di server ($expectedPub) '
+            'berbeda dengan kunci hasil restore ($_identityPublicB64). '
+            'Memperbarui kunci publik di server agar cocok dengan backup.');
+        await _publishPublicKeyIfNeeded(force: true);
       }
 
       await _secureStorage.write(
@@ -405,6 +526,50 @@ class E2eeService {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Reset identitas E2EE secara sadar & bersihkan pesan lama yang terenkripsi.
+  /// Dipanggil saat user melakukan Reset PIN / Lupa PIN terverifikasi.
+  Future<void> forceResetAndPurgeOldMessages() async {
+    final userId = _supabase.currentUserId;
+    if (userId == null) return;
+
+    _logger.w('⚠️ Force reset E2EE identity & purge old unreadable messages for user $userId');
+
+    // Hapus kunci lokal lama (jika ada)
+    try {
+      await _secureStorage.delete(key: _storageKeyFor(userId));
+    } catch (_) {}
+
+    // Bersihkan state
+    _identity = null;
+    _identityPublicB64 = null;
+    _roomKeys.clear();
+    _needsRestore = false;
+
+    // Generate kunci baru
+    await _generateAndPublishIdentity(userId);
+
+    // Hapus backup lama di server
+    try {
+      await _supabase.client
+          .from('profiles')
+          .update({'e2ee_key_backup': null})
+          .eq('id', userId);
+    } catch (e) {
+      _logger.e('Gagal menghapus backup E2EE lama', error: e);
+    }
+
+    // Membersihkan pesan terenkripsi lama milik user ini
+    try {
+      await _supabase.client
+          .from('messages')
+          .delete()
+          .eq('sender_id', userId)
+          .eq('is_encrypted', true);
+    } catch (e) {
+      _logger.e('Gagal membersihkan pesan terenkripsi lama', error: e);
     }
   }
 

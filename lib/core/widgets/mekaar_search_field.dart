@@ -42,6 +42,10 @@ class MekaarSearchField extends StatelessWidget {
             child: TextField(
               controller: controller,
               onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
