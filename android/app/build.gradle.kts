@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mekaar.app"
+    namespace = "com.mekaar.mekaar_chat"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
