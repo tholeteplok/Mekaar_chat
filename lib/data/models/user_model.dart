@@ -56,10 +56,12 @@ class Profile {
     this.lastLoginAt,
   });
 
+  bool get hasUsername => username.trim().isNotEmpty;
+
   factory Profile.fromJson(Map<String, dynamic> json) {
     return Profile(
       id: json['id'] as String,
-      username: json['username'] as String,
+      username: json['username'] as String? ?? '',
       email: json['email'] as String,
       pinHash: json['pin_hash'] as String? ?? '',
       pinLockedUntil: json['pin_locked_until'] != null

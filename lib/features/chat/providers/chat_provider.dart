@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../data/services/location_service.dart';
@@ -88,31 +89,94 @@ final otherParticipantLastReadProvider =
     });
 
 // ─────────────────────────────────────────
-// Typing indicator state (per room)
+// Typing indicator state (per room via Realtime Broadcast)
 // ─────────────────────────────────────────
 class TypingNotifier extends StateNotifier<bool> {
+  final Ref _ref;
+  final String _roomId;
+  RealtimeChannel? _channel;
+  Timer? _debounceTimer;
   Timer? _hideTimer;
-  TypingNotifier() : super(false);
 
+  TypingNotifier(this._ref, this._roomId) : super(false) {
+    _subscribe();
+  }
+
+  void _subscribe() {
+    try {
+      final client = _ref.read(supabaseServiceProvider).client;
+      final currentUserId = client.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      _channel = client.channel('room_typing:$_roomId');
+      _channel?.onBroadcast(
+        event: 'typing',
+        callback: (payload) {
+          final senderId = payload['sender_id'] as String?;
+          final isTyping = payload['is_typing'] as bool? ?? false;
+
+          // Abaikan sinyal dari diri sendiri (echo broadcast)
+          if (senderId == null || senderId == currentUserId) return;
+
+          if (mounted) {
+            state = isTyping;
+            if (isTyping) {
+              _hideTimer?.cancel();
+              _hideTimer = Timer(const Duration(seconds: 3), () {
+                if (mounted) state = false;
+              });
+            }
+          }
+        },
+      );
+      _channel?.subscribe();
+    } catch (_) {}
+  }
+
+  /// Mengirim sinyal broadcast pengetikan ke peserta lain di room
   void setTyping(bool typing) {
-    state = typing;
-    if (typing) {
-      _hideTimer?.cancel();
-      _hideTimer = Timer(const Duration(seconds: 3), () => state = false);
-    }
+    try {
+      final client = _ref.read(supabaseServiceProvider).client;
+      final currentUserId = client.auth.currentUser?.id;
+      if (currentUserId != null && _channel != null) {
+        if (typing) {
+          if (!(_debounceTimer?.isActive ?? false)) {
+            _debounceTimer = Timer(const Duration(milliseconds: 1500), () {});
+            _channel?.sendBroadcastMessage(
+              event: 'typing',
+              payload: {
+                'sender_id': currentUserId,
+                'is_typing': true,
+              },
+            );
+          }
+        } else {
+          _channel?.sendBroadcastMessage(
+            event: 'typing',
+            payload: {
+              'sender_id': currentUserId,
+              'is_typing': false,
+            },
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _hideTimer?.cancel();
+    _channel?.unsubscribe();
+    _channel = null;
     super.dispose();
   }
 }
 
 final typingStateProvider =
     StateNotifierProvider.family<TypingNotifier, bool, String>(
-      (ref, roomId) => TypingNotifier(),
-    );
+  (ref, roomId) => TypingNotifier(ref, roomId),
+);
 
 // ─────────────────────────────────────────
 // Chat Actions (send, edit, react, delete, mark read)
@@ -264,4 +328,17 @@ class ChatActionsNotifier {
 final chatActionsProvider = Provider<ChatActionsNotifier>((ref) {
   final repo = ref.watch(chatRepositoryProvider);
   return ChatActionsNotifier(repo, ref);
+});
+
+final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final supabase = ref.watch(supabaseServiceProvider);
+  final currentUserId = supabase.currentUserId;
+  if (currentUserId == null) return [];
+
+  final resp = await supabase.client
+      .from('public_profiles')
+      .select('id, username, full_name, display_name, avatar_url')
+      .neq('id', currentUserId);
+
+  return (resp as List).cast<Map<String, dynamic>>();
 });

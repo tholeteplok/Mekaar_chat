@@ -14,6 +14,7 @@ import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 
 class ChatComposer extends StatefulWidget {
@@ -450,67 +451,69 @@ class _ChatComposerState extends State<ChatComposer> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Reply preview
-        if (widget.replyMessage != null && !_isEditMode)
-          _ReplyPreview(
-            message: widget.replyMessage!,
-            onCancel: widget.onCancelReply,
-          ),
-        // Edit mode banner
-        if (_isEditMode)
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: MekaarColors.softCoral.withValues(alpha: 0.08),
-            child: Row(
-              children: [
-                const Icon(SolarIconsOutline.pen,
-                    size: 16, color: MekaarColors.softCoral),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Mengedit pesan',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: MekaarColors.softCoral,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: widget.onCancelEdit,
-                  child: const Icon(SolarIconsOutline.closeSquare,
-                      size: 18, color: MekaarColors.softCoral),
-                ),
-              ],
+    return MekaarGlassBlurContainer(
+      position: BlurPosition.bottom,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reply preview
+          if (widget.replyMessage != null && !_isEditMode)
+            _ReplyPreview(
+              message: widget.replyMessage!,
+              onCancel: widget.onCancelReply,
             ),
-          ),
-        // Upload progress indicator
-        if (_isUploading)
-          const LinearProgressIndicator(
-            backgroundColor: MekaarColors.borderLight,
-            color: MekaarColors.softCoral,
-            minHeight: 2,
-          ),
-        // Main composer row
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: MekaarSpacing.md,
-            vertical: MekaarSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.08),
-                width: 1,
+          // Edit mode banner
+          if (_isEditMode)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: MekaarColors.softCoral.withValues(alpha: 0.08),
+              child: Row(
+                children: [
+                  const Icon(SolarIconsOutline.pen,
+                      size: 16, color: MekaarColors.softCoral),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Mengedit pesan',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: MekaarColors.softCoral,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: widget.onCancelEdit,
+                    child: const Icon(SolarIconsOutline.closeSquare,
+                        size: 18, color: MekaarColors.softCoral),
+                  ),
+                ],
               ),
             ),
-          ),
+          // Upload progress indicator
+          if (_isUploading)
+            const LinearProgressIndicator(
+              backgroundColor: MekaarColors.borderLight,
+              color: MekaarColors.softCoral,
+              minHeight: 2,
+            ),
+          // Main composer row
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MekaarSpacing.md,
+              vertical: MekaarSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.black.withValues(alpha: 0.08),
+                  width: 1,
+                ),
+              ),
+            ),
           child: _isRecording
               ? GestureDetector(
                   onHorizontalDragUpdate: (details) {
@@ -704,8 +707,9 @@ class _ChatComposerState extends State<ChatComposer> {
         ),
         if (_showEmojiPicker) _buildEmojiPickerPanel(),
       ],
-    );
-  }
+    ),
+  );
+}
 }
 
 class _BlinkingDot extends StatefulWidget {

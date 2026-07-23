@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
+import 'package:mekaar_chat/core/navigation/app_navigator.dart';
+import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/data/services/supabase_service.dart';
 import 'package:mekaar_chat/data/services/notification_service.dart';
+import 'package:mekaar_chat/data/services/push_notification_service.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
 import 'app.dart';
 
@@ -44,8 +47,20 @@ void main() async {
     }
   }
 
-  // 3. Initialize local notifications. Native failure remains non-fatal.
+  // 3. Initialize local & push notifications. Native failure remains non-fatal.
   await NotificationService.initialize();
+  await PushNotificationService.initialize(
+    onNotificationClick: (roomId) {
+      final context = AppNavigator.currentContext;
+      if (context != null && context.mounted) {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.chat,
+          arguments: {'roomId': roomId},
+        );
+      }
+    },
+  );
 
   // 4. Run Application
   runApp(

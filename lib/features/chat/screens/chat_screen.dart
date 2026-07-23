@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:location/location.dart' as loc;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/chat_date_separator.dart';
@@ -35,6 +37,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String chatAvatar;
   final String? chatAvatarUrl;
   final bool isGuardian;
+  final bool isGroup;
   final String? otherUserId;
 
   const ChatScreen({
@@ -44,6 +47,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     required this.chatAvatar,
     this.chatAvatarUrl,
     this.isGuardian = false,
+    this.isGroup = false,
     this.otherUserId,
   });
 
@@ -64,6 +68,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _autoDeleteHours = 0;
   bool _showScrollButton = false;
   int _newMessageCount = 0;
+  Map<String, String> _participantNames = {};
+
+  Future<void> _loadGroupParticipants() async {
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final details = await repo.getGroupDetails(widget.chatId);
+      if (details != null && mounted) {
+        final participants = (details['participants'] as List?) ?? [];
+        final names = <String, String>{};
+        for (final p in participants) {
+          final pid = p['profile_id'] as String?;
+          final profile = p['public_profiles'] as Map<String, dynamic>?;
+          if (pid != null && profile != null) {
+            final name = (profile['display_name'] as String?)?.isNotEmpty == true
+                ? profile['display_name'] as String
+                : profile['full_name'] as String? ??
+                    profile['username'] as String? ??
+                    'Anggota';
+            names[pid] = name;
+          }
+        }
+        setState(() => _participantNames = names);
+      }
+    } catch (_) {}
+  }
 
   void _onScrollChanged() {
     final atBottom = _scrollController.hasClients &&
@@ -77,6 +106,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Timer? _presenceHeartbeatTimer;
+
+  void _startPresenceHeartbeat() {
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      if (!mounted) return;
+      final repo = ref.read(chatRepositoryProvider);
+      await repo.updateLastSeen();
+      if (widget.otherUserId != null) {
+        final lastSeen = await repo.getLastSeen(widget.otherUserId!);
+        if (mounted) {
+          setState(() {
+            _otherLastSeen = lastSeen;
+          });
+        }
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -85,6 +133,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
     // untuk tidak memunculkan notif saat user sedang melihat percakapan.
     ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
+    _startPresenceHeartbeat();
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
@@ -100,44 +149,84 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (widget.otherUserId != null) {
         _otherLastSeen = await repo.getLastSeen(widget.otherUserId!);
       }
+      if (widget.isGroup) {
+        _loadGroupParticipants();
+      }
       repo.updateLastSeen();
       if (mounted) setState(() {});
     });
   }
 
   void _onTextChanged() {
-    // Local typing indicator — broadcast event to partner via Realtime
-    // For now set local state only; Realtime Broadcast can be wired later
-    // without changing the UI contract.
     final isTyping = _textController.text.isNotEmpty;
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(isTyping);
   }
 
-  /// Build presence subtitle: typing > online (< 5 min) > last seen > hidden
+  /// Build presence subtitle: typing > online (< 2 min) > last seen (formatted) > hidden privacy
   String _buildPresenceSubtitle() {
-    if (_partnerIsTyping) return 'sedang mengetik...';
-    // Jika null, bisa jadi belum pernah online ATAU pengguna menyembunyikan
-    // "terakhir dilihat" (enforce di server via get_last_seen_for). Sembunyikan
-    // detail demi privasi.
-    if (_otherLastSeen == null) return '';
-    final diff = DateTime.now().difference(_otherLastSeen!);
-    if (diff.inMinutes < 5) return 'Online';
-    if (diff.inMinutes < 60) {
-      return 'Terakhir dilihat ${diff.inMinutes} menit lalu';
+    final isTyping = ref.watch(typingStateProvider(widget.chatId));
+    if (isTyping) return 'sedang mengetik...';
+
+    // Jika null: pengguna menyembunyikan "terakhir dilihat" (enforce di server via RPC get_last_seen_for)
+    if (_otherLastSeen == null) return 'Terakhir dilihat baru-baru ini';
+
+    final now = DateTime.now();
+    final lastSeen = _otherLastSeen!;
+    final diff = now.difference(lastSeen);
+
+    if (diff.inMinutes < 2) {
+      return 'Online';
     }
-    if (diff.inHours < 24) return 'Terakhir dilihat ${diff.inHours} jam lalu';
-    final days = diff.inDays;
-    if (days == 1) return 'Terakhir dilihat kemarin';
-    return 'Terakhir dilihat $days hari lalu';
+
+    final isSameDay = now.year == lastSeen.year &&
+        now.month == lastSeen.month &&
+        now.day == lastSeen.day;
+
+    final yesterday = now.subtract(const Duration(days: 1));
+    final isYesterday = yesterday.year == lastSeen.year &&
+        yesterday.month == lastSeen.month &&
+        yesterday.day == lastSeen.day;
+
+    final hourStr = lastSeen.hour.toString().padLeft(2, '0');
+    final minuteStr = lastSeen.minute.toString().padLeft(2, '0');
+    final timeStr = '$hourStr:$minuteStr';
+
+    if (isSameDay) {
+      return 'Terakhir dilihat hari ini pukul $timeStr';
+    } else if (isYesterday) {
+      return 'Terakhir dilihat kemarin pukul $timeStr';
+    } else if (now.year == lastSeen.year) {
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des'
+      ];
+      final monthName = monthNames[lastSeen.month - 1];
+      return 'Terakhir dilihat ${lastSeen.day} $monthName pukul $timeStr';
+    } else {
+      final dayStr = lastSeen.day.toString().padLeft(2, '0');
+      final monthStr = lastSeen.month.toString().padLeft(2, '0');
+      return 'Terakhir dilihat $dayStr/$monthStr/${lastSeen.year}';
+    }
   }
 
   bool get _isCurrentlyOnline {
     if (_otherLastSeen == null) return false;
-    return DateTime.now().difference(_otherLastSeen!).inMinutes < 5;
+    return DateTime.now().difference(_otherLastSeen!).inMinutes < 2;
   }
 
   @override
   void dispose() {
+    _presenceHeartbeatTimer?.cancel();
     // Bersihkan penanda room aktif agar notif pesan kembali aktif
     // saat user meninggalkan percakapan ini.
     if (ref.read(activeRoomIdProvider) == widget.chatId) {
@@ -152,20 +241,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
+    // Tactile Feedback 0ms: Pemicuan getaran ringan instan saat tombol diketuk
+    HapticService.trigger(MekaarHapticIntent.selection);
+
     final actions = ref.read(chatActionsProvider);
 
+    // ── Mode 1: Edit Pesan ──
     if (_editingMessage != null) {
-      if (!actions.canEdit(
-        _editingMessage!,
-        isGuardianRoom: widget.isGuardian,
-      )) {
+      final msgToEdit = _editingMessage!;
+      if (!actions.canEdit(msgToEdit, isGuardianRoom: widget.isGuardian)) {
         _textController.clear();
         setState(() => _editingMessage = null);
         return;
       }
+
+      _textController.clear();
+      setState(() => _editingMessage = null);
+      ref.read(typingStateProvider(widget.chatId).notifier).setTyping(false);
+
       try {
         await actions.editMessage(
-          _editingMessage!.id,
+          msgToEdit.id,
           text,
           isGuardianRoom: widget.isGuardian,
         );
@@ -173,37 +269,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (mounted) {
           MekaarSnackbar.error(context, 'Gagal menyimpan pesan: $e');
         }
-        return;
       }
-      _textController.clear();
-      setState(() => _editingMessage = null);
       return;
     }
 
-    try {
-      await actions.sendMessage(
-        widget.chatId,
-        text,
-        type: MessageType.text,
-        isViewOnce: _isViewOnce,
-        replyToId: _replyMessage?.id,
-        autoDeleteHours: _autoDeleteHours,
-      );
-    } catch (e) {
-      if (mounted) {
-        MekaarSnackbar.error(context, 'Gagal mengirim pesan: $e');
-      }
-      // Teks TIDAK dihapus dari composer supaya pengguna bisa coba kirim ulang.
-      return;
-    }
+    // ── Mode 2: Kirim Pesan Baru (Optimistic Input Clearing) ──
+    final textToSend = text;
+    final replyToMessage = _replyMessage;
+    final isViewOnceToSend = _isViewOnce;
 
+    // Pengosongan Input Bar & Reset State UI Secara Instan (0ms Delay bagi Pengguna)
     _textController.clear();
     setState(() {
       _isViewOnce = false;
       _replyMessage = null;
     });
-
+    ref.read(typingStateProvider(widget.chatId).notifier).setTyping(false);
     _scrollToBottom();
+
+    try {
+      await actions.sendMessage(
+        widget.chatId,
+        textToSend,
+        type: MessageType.text,
+        isViewOnce: isViewOnceToSend,
+        replyToId: replyToMessage?.id,
+        autoDeleteHours: _autoDeleteHours,
+      );
+    } catch (e) {
+      // Fail-Safe Restoration: Kembalikan teks dan state bila pengiriman jaringan gagal
+      if (mounted) {
+        setState(() {
+          _textController.text = textToSend;
+          _replyMessage = replyToMessage;
+          _isViewOnce = isViewOnceToSend;
+        });
+        MekaarSnackbar.error(context, 'Gagal mengirim pesan: $e');
+      }
+    }
   }
 
   Future<void> _handleSendMedia(File file, MessageType type) async {
@@ -622,19 +725,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         showOnlineIndicator: true,
         isOnline: _isCurrentlyOnline || _partnerIsTyping,
         subtitle: _buildPresenceSubtitle(),
-        onAvatarTap: widget.otherUserId != null
+        onAvatarTap: widget.isGroup
             ? () => Navigator.pushNamed(
                   context,
-                  AppRoutes.contactSettings,
+                  AppRoutes.groupDetails,
                   arguments: {
                     'roomId': widget.chatId,
-                    'chatName': widget.chatName,
-                    'chatAvatar': widget.chatAvatar,
-                    'otherUserId': widget.otherUserId!,
-                    'isGuardian': widget.isGuardian,
+                    'groupName': widget.chatName,
+                    'groupAvatarUrl': widget.chatAvatarUrl,
                   },
                 )
-            : null,
+            : (widget.otherUserId != null
+                ? () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.contactSettings,
+                      arguments: {
+                        'roomId': widget.chatId,
+                        'chatName': widget.chatName,
+                        'chatAvatar': widget.chatAvatar,
+                        'otherUserId': widget.otherUserId!,
+                        'isGuardian': widget.isGuardian,
+                      },
+                    )
+                : null),
         actions: [
           // E2EE Lock/Secure Indicator
           IconButton(
@@ -862,17 +975,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ],
           ),
-          // Scroll-to-bottom floating button
+          // Scroll-to-bottom floating button (ditengah horizontal di atas composer bar)
           Positioned(
-            right: 16,
-            bottom: 8,
-            child: ScrollToBottomButton(
-              visible: _showScrollButton,
-              newMessageCount: _newMessageCount,
-              onTap: () {
-                _scrollToBottom();
-                setState(() => _newMessageCount = 0);
-              },
+            left: 0,
+            right: 0,
+            bottom: 84,
+            child: Center(
+              child: ScrollToBottomButton(
+                visible: _showScrollButton,
+                newMessageCount: _newMessageCount,
+                onTap: () {
+                  _scrollToBottom();
+                  setState(() => _newMessageCount = 0);
+                },
+              ),
             ),
           ),
         ],
@@ -921,6 +1037,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         otherLastReadAt: _otherLastRead,
         showReadReceipts:
             ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
+        senderName: widget.isGroup ? _participantNames[msg.senderId] : null,
         onDelete: () => _handleDeleteMessage(msg),
         onUnsend: () => _handleUnsendMessage(msg),
         onReply: (replyMsg) {

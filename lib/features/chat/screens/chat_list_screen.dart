@@ -199,8 +199,39 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.softCoral.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      SolarIconsOutline.usersGroupTwoRounded,
+                      color: MekaarColors.softCoral,
+                      size: 22,
+                    ),
+                  ),
+                  title: Text(
+                    'Buat Grup Baru',
+                    style: MekaarTypography.bodyMD.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: MekaarColors.softCoral,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Obrolan bersama beberapa anggota',
+                    style: MekaarTypography.bodySM,
+                  ),
+                  onTap: () {
+                    Navigator.pop(stateCtx);
+                    Navigator.pushNamed(context, AppRoutes.createGroupSelectMembers);
+                  },
+                ),
+                const Divider(height: 24),
                 Text(
-                  'Masukkan username atau email teman Anda untuk memulai obrolan.',
+                  'Masukkan username atau email teman Anda untuk obrolan 1-on-1.',
                   style: MekaarTypography.bodySM,
                 ),
                 const SizedBox(height: 16),
@@ -655,7 +686,7 @@ class _EmptyChats extends StatelessWidget {
             child: Column(
               children: [
                 const MikaIllustration(
-                  pose: MikaPose.phone,
+                  pose: MikaPose.sleep,
                   size: 120,
                   semanticLabel: 'Mika menyapa dari layar kosong',
                 ),

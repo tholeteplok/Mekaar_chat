@@ -7,6 +7,7 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/e2ee_service.dart';
 import 'chat_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import 'call_invitation_listener.dart';
 
 /// Listener terpusat untuk notifikasi pesan masuk (Opsi A dari Implementation Plan).
 ///
@@ -170,6 +171,7 @@ class _NotificationListenerHostState
     // Pastikan tidak ada room "aktif" tersisa dari sesi sebelumnya.
     ref.read(activeRoomIdProvider.notifier).state = null;
     ref.read(messageNotificationListenerProvider).start();
+    ref.read(callInvitationListenerProvider).start();
   }
 
   @override

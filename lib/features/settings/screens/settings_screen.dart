@@ -5,6 +5,8 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../../core/providers/font_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -46,9 +48,12 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────
-  // SECTION 1: Tampilan — selector tema
+  // SECTION 1: Tampilan — selector tema & font
   // ─────────────────────────────────────────────────
-  Widget _buildDisplaySection(WidgetRef ref) {
+  Widget _buildDisplaySection(BuildContext context, WidgetRef ref) {
+    final currentFontKey = ref.watch(fontFamilyProvider);
+    final activeFont = AppFontFamily.findByKey(currentFontKey);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -57,6 +62,13 @@ class SettingsScreen extends ConsumerWidget {
           current: ref.watch(themeModeProvider),
           onChanged: (mode) =>
               ref.read(themeModeProvider.notifier).setMode(mode),
+        ),
+        SettingsNavTile(
+          icon: SolarIconsOutline.textSquare,
+          title: 'Gaya Font',
+          subtitle:
+              '${activeFont.displayName} (${activeFont.category == FontCategory.playful ? "Playful" : "Modern"})',
+          onTap: () => _showFontPickerSheet(context, ref),
         ),
       ],
     );
@@ -113,7 +125,7 @@ class SettingsScreen extends ConsumerWidget {
           onTap: () => _showLastSeenSheet(context, ref),
         ),
         SettingsSwitchTile(
-          icon: SolarIconsOutline.eye,
+          icon: SolarIconsOutline.checkCircle,
           title: 'Bukti Baca (Read Receipt)',
           subtitle: 'Tanda centang biru saat pesan dibaca',
           value: ref.watch(readReceiptsProvider),
@@ -211,8 +223,8 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         _sectionHeader('Sistem'),
         SettingsSwitchTile(
-          icon: SolarIconsOutline.smartphone,
-          title: 'Getaran (Haptic Feedback)',
+          icon: SolarIconsOutline.smartphoneVibration,
+          title: 'Getaran',
           subtitle:
               'Aktifkan respons getar untuk ketukan, konfirmasi, dan peringatan di seluruh aplikasi',
           value: hapticsEnabled,
@@ -225,7 +237,7 @@ class SettingsScreen extends ConsumerWidget {
         if (!wasDuress) ...[
           SettingsSwitchTile(
             icon: SolarIconsOutline.volumeLoud,
-            title: 'Izinkan Guardian Bunyikan Alarm',
+            title: 'Izin Guardian Alarm',
             subtitle:
                 'Izinkan wali membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
             value: ref.watch(allowGuardianAlarmProvider),
@@ -269,7 +281,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
 
                     // ── 1. Tampilan ──
-                    _buildDisplaySection(ref),
+                    _buildDisplaySection(context, ref),
                     _divider(context),
 
                     // ── 2. Akun ──
@@ -305,7 +317,167 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────
+  // Bottom sheet: Custom Font Picker (Playful & Modern)
+  // ─────────────────────────────────────────────────
+  void _showFontPickerSheet(BuildContext context, WidgetRef ref) {
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Consumer(
+          builder: (context, refWatch, _) {
+            final activeKey = refWatch.watch(fontFamilyProvider);
 
+            final playfulFonts = AppFontFamily.availableFonts
+                .where((f) => f.category == FontCategory.playful)
+                .toList();
+            final modernFonts = AppFontFamily.availableFonts
+                .where((f) => f.category == FontCategory.modern)
+                .toList();
+
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Text(
+                          'Pilih Gaya Font Aplikasi',
+                          style: MekaarTypography.headingSM,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Center(
+                        child: Text(
+                          'Ubah karakter teks di seluruh aplikasi (Youth & Playful)',
+                          style: MekaarTypography.bodySM.copyWith(
+                            color: isDark
+                                ? MekaarColors.textMuted
+                                : Colors.black54,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Kategori 1: Youth & Playful / Comic
+                      _fontCategoryHeader('YOUTH & PLAYFUL / COMIC'),
+                      const SizedBox(height: 8),
+                      ...playfulFonts.map(
+                        (font) => _buildFontTile(
+                          ctx,
+                          ref,
+                          font,
+                          activeKey == font.key,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Kategori 2: Clean & Modern
+                      _fontCategoryHeader('CLEAN & MODERN'),
+                      const SizedBox(height: 8),
+                      ...modernFonts.map(
+                        (font) => _buildFontTile(
+                          ctx,
+                          ref,
+                          font,
+                          activeKey == font.key,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _fontCategoryHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4.0),
+      child: Text(
+        title,
+        style: MekaarTypography.overline.copyWith(
+          color: MekaarColors.softCoral,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFontTile(
+    BuildContext context,
+    WidgetRef ref,
+    AppFontFamily font,
+    bool isSelected,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fontStyle = GoogleFonts.getFont(
+      font.key,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? MekaarColors.softCoral.withValues(alpha: isDark ? 0.2 : 0.1)
+            : (isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.black.withValues(alpha: 0.03)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? MekaarColors.softCoral : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          font.displayName,
+          style: fontStyle.copyWith(
+            color: isSelected
+                ? MekaarColors.softCoral
+                : (isDark ? Colors.white : Colors.black87),
+          ),
+        ),
+        subtitle: Text(
+          font.subtitle,
+          style: MekaarTypography.bodySM.copyWith(
+            fontSize: 12,
+            color: isDark ? MekaarColors.textMuted : Colors.black54,
+          ),
+        ),
+        trailing: isSelected
+            ? const Icon(
+                SolarIconsBold.checkCircle,
+                color: MekaarColors.softCoral,
+              )
+            : const Icon(
+                Icons.radio_button_unchecked,
+                color: MekaarColors.textMuted,
+                size: 20,
+              ),
+        onTap: () {
+          ref.read(fontFamilyProvider.notifier).setFontFamily(font.key);
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────────
   // Bottom sheet: Last Seen Privacy

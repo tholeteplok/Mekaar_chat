@@ -45,9 +45,9 @@ class ScrollToBottomButton extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(
+                Icon(
                   SolarIconsOutline.altArrowDown,
-                  color: MekaarColors.textPrimary,
+                  color: MekaarColors.textPrimaryOf(context),
                   size: 22,
                 ),
                 if (newMessageCount > 0)

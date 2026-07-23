@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
@@ -6,6 +7,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../providers/chat_provider.dart';
 
 class ChatListTile extends StatelessWidget {
   final Map<String, dynamic> room;
@@ -26,6 +28,7 @@ class ChatListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGuardian = room['isGuardian'] as bool? ?? false;
+    final isGroup = room['isGroup'] as bool? ?? false;
     final timestamp = room['timestamp'] as DateTime? ?? DateTime.now();
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final name = room['name'] as String? ?? 'User';
@@ -82,6 +85,13 @@ class ChatListTile extends StatelessWidget {
                           color: MekaarColors.guardianTeal,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
+                      ] else if (isGroup) ...[
+                        const Icon(
+                          Icons.groups_outlined,
+                          size: 14,
+                          color: MekaarColors.softCoral,
+                        ),
+                        const SizedBox(width: MekaarSpacing.xs),
                       ] else if (isMuted) ...[
                         const Icon(
                           Icons.notifications_off,
@@ -98,15 +108,33 @@ class ChatListTile extends StatelessWidget {
                         const SizedBox(width: MekaarSpacing.xs),
                       ],
                       Expanded(
-                        child: Text(
-                          room['lastMessage'] as String? ??
-                              'Mulai percakapan...',
-                          style: MekaarTypography.labelLG.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: MekaarColors.textMutedOf(context),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Consumer(
+                          builder: (context, ref, _) {
+                            final roomId = room['id'] as String? ?? '';
+                            final isTyping = ref.watch(typingStateProvider(roomId));
+                            if (isTyping) {
+                              return Text(
+                                'sedang mengetik...',
+                                style: MekaarTypography.labelLG.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontStyle: FontStyle.italic,
+                                  color: MekaarColors.softCoral,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            }
+                            return Text(
+                              room['lastMessage'] as String? ??
+                                  'Mulai percakapan...',
+                              style: MekaarTypography.labelLG.copyWith(
+                                fontWeight: FontWeight.w400,
+                                color: MekaarColors.textMutedOf(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
                         ),
                       ),
                       if (unreadCount > 0) ...[

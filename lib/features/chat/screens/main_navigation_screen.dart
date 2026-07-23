@@ -35,16 +35,16 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     ),
     MekaarNavItem(
       label: 'Kontak',
-      inactiveIcon: SolarIconsOutline.usersGroupRounded,
-      activeIcon: SolarIconsBold.usersGroupRounded,
-    ),
-    MekaarNavItem(
-      label: 'Profil',
       inactiveIcon: SolarIconsOutline.user,
       activeIcon: SolarIconsBold.user,
     ),
     MekaarNavItem(
-      label: 'Pengaturan',
+      label: 'Profil',
+      inactiveIcon: SolarIconsOutline.userCircle,
+      activeIcon: SolarIconsBold.userCircle,
+    ),
+    MekaarNavItem(
+      label: 'Setelan',
       inactiveIcon: SolarIconsOutline.settings,
       activeIcon: SolarIconsBold.settings,
     ),
@@ -89,6 +89,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         .toList();
 
     return MekaarScaffold(
+      extendBody: true,
       body: Stack(
         children: [
           PageView(

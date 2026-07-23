@@ -116,6 +116,8 @@ class ChatBubble extends StatelessWidget {
   // Whether to show the read (blue) receipt. Controlled by the current user's
   // own "Bukti Baca" privacy setting.
   final bool showReadReceipts;
+  // Nama pengirim pada obrolan grup
+  final String? senderName;
 
   const ChatBubble({
     super.key,
@@ -133,6 +135,7 @@ class ChatBubble extends StatelessWidget {
     this.canUnsend = false,
     this.otherLastReadAt,
     this.showReadReceipts = true,
+    this.senderName,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
@@ -314,6 +317,19 @@ class ChatBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (!isMe && senderName != null && senderName!.isNotEmpty && !isDeleted) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        senderName!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: MekaarColors.softCoral,
+                        ),
+                      ),
+                    ),
+                  ],
                   // Reply preview
                   if (message.replyToId != null && !isDeleted) ...[
                     Container(

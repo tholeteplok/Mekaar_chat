@@ -13,6 +13,8 @@ class MekaarScaffold extends ConsumerWidget {
   final Widget? bottomNavigationBar;
   final bool resizeToAvoidBottomInset;
   final bool forceDark;
+  final bool extendBodyBehindAppBar;
+  final bool extendBody;
 
   const MekaarScaffold({
     super.key,
@@ -23,6 +25,8 @@ class MekaarScaffold extends ConsumerWidget {
     this.bottomNavigationBar,
     this.resizeToAvoidBottomInset = true,
     this.forceDark = false,
+    this.extendBodyBehindAppBar = false,
+    this.extendBody = false,
   });
 
   @override
@@ -49,6 +53,8 @@ class MekaarScaffold extends ConsumerWidget {
       floatingActionButtonLocation: floatingActionButtonLocation,
       bottomNavigationBar: bottomNavigationBar,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+      extendBodyBehindAppBar: extendBodyBehindAppBar,
+      extendBody: extendBody,
     );
 
     if (forceDark) {

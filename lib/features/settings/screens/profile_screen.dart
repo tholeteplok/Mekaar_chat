@@ -479,7 +479,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
-                                  SolarIconsOutline.lock,
+                                  SolarIconsOutline.lockPassword,
                                   color: MekaarColors.textSecondary,
                                   size: 18,
                                 ),

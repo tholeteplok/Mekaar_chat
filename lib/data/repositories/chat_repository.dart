@@ -29,37 +29,58 @@ class ChatRepository {
       final roomData = row['chat_rooms'] as Map<String, dynamic>?;
       if (roomData == null) continue;
       final roomType = roomData['room_type'] as String;
-
-      // Get other participant profile_id
-      final otherParticipant = await _supabaseService.client
-          .from('room_participants')
-          .select('profile_id')
-          .eq('room_id', roomId)
-          .neq('profile_id', userId)
-          .maybeSingle();
+      final bool isGroup = (roomType == 'group');
 
       String chatName = 'Saved Messages';
       String chatAvatar = '';
+      String? avatarUrl;
       String otherUserId = userId;
       bool isGuardian = (roomType == 'guardian');
       Map<String, dynamic>? profile;
+      int memberCount = 0;
 
-      if (otherParticipant != null) {
-        otherUserId = otherParticipant['profile_id'] as String;
+      if (isGroup) {
+        chatName = (roomData['name'] as String?)?.isNotEmpty == true
+            ? roomData['name'] as String
+            : 'Grup Mekaar';
+        avatarUrl = roomData['avatar_url'] as String?;
+        chatAvatar = chatName.isNotEmpty ? chatName[0].toUpperCase() : 'G';
+
         try {
-          final profileResponse = await _supabaseService.client
-              .from('public_profiles')
-              .select('id, username, full_name, display_name, avatar_url')
-              .eq('id', otherUserId)
-              .maybeSingle();
-          if (profileResponse != null) {
-            profile = profileResponse;
-            chatName = (profile['display_name'] as String?)?.isNotEmpty == true
-                ? profile['display_name'] as String
-                : profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
-            chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
-          }
+          final membersResp = await _supabaseService.client
+              .from('room_participants')
+              .select('profile_id')
+              .eq('room_id', roomId)
+              .isFilter('deleted_at', null);
+          memberCount = (membersResp as List).length;
         } catch (_) {}
+      } else {
+        // Get other participant profile_id
+        final otherParticipant = await _supabaseService.client
+            .from('room_participants')
+            .select('profile_id')
+            .eq('room_id', roomId)
+            .neq('profile_id', userId)
+            .maybeSingle();
+
+        if (otherParticipant != null) {
+          otherUserId = otherParticipant['profile_id'] as String;
+          try {
+            final profileResponse = await _supabaseService.client
+                .from('public_profiles')
+                .select('id, username, full_name, display_name, avatar_url')
+                .eq('id', otherUserId)
+                .maybeSingle();
+            if (profileResponse != null) {
+              profile = profileResponse;
+              chatName = (profile['display_name'] as String?)?.isNotEmpty == true
+                  ? profile['display_name'] as String
+                  : profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
+              chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
+              avatarUrl = profile['avatar_url'] as String?;
+            }
+          } catch (_) {}
+        }
       }
 
       // Check if history was cleared for this user
@@ -153,11 +174,13 @@ class ChatRepository {
         'id': roomId,
         'name': chatName,
         'avatar': chatAvatar,
-        'avatarUrl': profile?['avatar_url'] as String?,
+        'avatarUrl': avatarUrl,
         'lastMessage': lastMessageText,
         'timestamp': lastMessageTime,
         'unreadCount': unreadCount,
         'isGuardian': isGuardian,
+        'isGroup': isGroup,
+        'memberCount': memberCount,
         'otherUserId': otherUserId,
         'otherUsername': profile?['username'] ?? '',
         'otherEmail': profile?['email'] ?? '',
@@ -803,6 +826,138 @@ class ChatRepository {
     await _supabaseService.client
         .from('room_participants')
         .update({'is_archived': false})
+        .eq('room_id', roomId)
+        .eq('profile_id', userId);
+  }
+
+  /// Membuat room obrolan grup baru.
+  Future<String> createGroupRoom({
+    required String name,
+    String? avatarUrl,
+    String? description,
+    required List<String> participantIds,
+  }) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    try {
+      final response = await _supabaseService.client.rpc(
+        'create_group_room',
+        params: {
+          'p_name': name,
+          'p_avatar_url': avatarUrl,
+          'p_description': description,
+          'p_participant_ids': participantIds,
+        },
+      );
+      if (response is String && response.isNotEmpty) {
+        return response;
+      }
+    } catch (_) {
+      // Fallback pembuatan manual jika RPC belum dijalankan
+    }
+
+    final roomResp = await _supabaseService.client
+        .from('chat_rooms')
+        .insert({
+          'room_type': 'group',
+          'name': name,
+          'avatar_url': avatarUrl,
+          'description': description,
+          'created_by': userId,
+        })
+        .select()
+        .single();
+    final roomId = roomResp['id'] as String;
+
+    final participantsToInsert = <Map<String, dynamic>>[
+      {
+        'room_id': roomId,
+        'profile_id': userId,
+        'role': 'owner',
+        'screenshot_protection_enabled': true,
+      }
+    ];
+
+    for (final pid in participantIds) {
+      if (pid != userId) {
+        participantsToInsert.add({
+          'room_id': roomId,
+          'profile_id': pid,
+          'role': 'member',
+          'invited_by': userId,
+          'screenshot_protection_enabled': true,
+        });
+      }
+    }
+
+    await _supabaseService.client
+        .from('room_participants')
+        .insert(participantsToInsert);
+
+    return roomId;
+  }
+
+  /// Mendapatkan detail informasi & peserta grup.
+  Future<Map<String, dynamic>?> getGroupDetails(String roomId) async {
+    try {
+      final roomResp = await _supabaseService.client
+          .from('chat_rooms')
+          .select('id, name, avatar_url, description, created_by, created_at')
+          .eq('id', roomId)
+          .maybeSingle();
+
+      if (roomResp == null) return null;
+
+      final participantsResp = await _supabaseService.client
+          .from('room_participants')
+          .select('profile_id, role, joined_at, public_profiles(id, username, full_name, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .isFilter('deleted_at', null);
+
+      return {
+        'room': roomResp,
+        'participants': participantsResp,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Menambahkan anggota baru ke grup.
+  Future<void> addGroupParticipants(String roomId, List<String> profileIds) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+
+    final toInsert = profileIds.map((pid) => {
+      'room_id': roomId,
+      'profile_id': pid,
+      'role': 'member',
+      'invited_by': userId,
+    }).toList();
+
+    await _supabaseService.client
+        .from('room_participants')
+        .upsert(toInsert);
+  }
+
+  /// Mengeluarkan anggota dari grup (Owner/Admin).
+  Future<void> removeGroupParticipant(String roomId, String profileId) async {
+    await _supabaseService.client
+        .from('room_participants')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('profile_id', profileId);
+  }
+
+  /// Keluar dari grup.
+  Future<void> leaveGroup(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+
+    await _supabaseService.client
+        .from('room_participants')
+        .delete()
         .eq('room_id', roomId)
         .eq('profile_id', userId);
   }

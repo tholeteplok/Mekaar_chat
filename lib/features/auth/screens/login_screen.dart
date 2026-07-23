@@ -104,7 +104,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
-    final success = await ref.read(authProvider.notifier).loginWithGoogle();
+    final success = await ref.read(authProvider.notifier).signInWithGoogle();
     if (!success && mounted) {
       final error = ref.read(authProvider).error ?? 'Gagal masuk dengan Google';
       MekaarSnackbar.error(context, error);
@@ -332,33 +332,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : Text(_isLogin ? 'Masuk' : 'Daftar Sekarang'),
                         ),
                       ),
-                      if (_isLogin) ...[
-                        const SizedBox(height: 16),
-                        // Secondary Button: outline brand.cyan, cyan text, pill shape
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: OutlinedButton.icon(
-                            onPressed: authState.isLoading
-                                ? null
-                                : _signInWithGoogle,
-                            icon: const Icon(Icons.g_mobiledata, size: 28),
-                            label: const Text('Lanjut dengan Google'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: MekaarColors.cyan,
-                              side: const BorderSide(
-                                color: MekaarColors.cyan,
-                                width: 2,
-                              ),
-                              shape: const StadiumBorder(),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
+                      const SizedBox(height: 16),
+                      // Secondary Button: outline brand.cyan, cyan text, pill shape
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: OutlinedButton.icon(
+                          onPressed:
+                              authState.isLoading ? null : _signInWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 28),
+                          label: const Text('Lanjut dengan Google'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: MekaarColors.cyan,
+                            side: const BorderSide(
+                              color: MekaarColors.cyan,
+                              width: 2,
+                            ),
+                            shape: const StadiumBorder(),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),

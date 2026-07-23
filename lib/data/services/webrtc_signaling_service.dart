@@ -15,6 +15,7 @@ class WebRtcSignalingService {
 
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
   bool _remoteDescriptionSet = false;
+  bool _hasCreatedOffer = false;
   bool _isCleaningUp = false;
   bool _isCleanedUp = false;
 
@@ -206,16 +207,14 @@ class WebRtcSignalingService {
         if (onCallStateChange != null) {
           onCallStateChange!('calling');
         }
-        final offer = await _peerConnection!.createOffer();
-        await _peerConnection!.setLocalDescription(offer);
-        await _sendSignal(myUserId, 'offer', {
-          'sdp': offer.sdp,
-          'type': offer.type,
-        });
+        // Kirim sinyal caller_ready untuk memberi tahu receiver jika receiver sudah subscribe
+        await _sendSignal(myUserId, 'caller_ready', {});
       } else {
         if (onCallStateChange != null) {
           onCallStateChange!('ringing');
         }
+        // Penerima langsung mengirim sinyal 'joined' ke kanal
+        await _sendSignal(myUserId, 'joined', {});
       }
     } catch (error) {
       _emitError(error);
@@ -242,6 +241,24 @@ class WebRtcSignalingService {
       }
 
       switch (type) {
+        case 'caller_ready':
+          if (!isCaller) {
+            await _sendSignal(myUserId, 'joined', {});
+          }
+          break;
+
+        case 'joined':
+          if (isCaller && !_hasCreatedOffer) {
+            _hasCreatedOffer = true;
+            final offer = await connection.createOffer();
+            await connection.setLocalDescription(offer);
+            await _sendSignal(myUserId, 'offer', {
+              'sdp': offer.sdp,
+              'type': offer.type,
+            });
+          }
+          break;
+
         case 'offer':
           if (!isCaller && data != null) {
             await connection.setRemoteDescription(
@@ -389,6 +406,7 @@ class WebRtcSignalingService {
 
     _pendingCandidates.clear();
     _remoteDescriptionSet = false;
+    _hasCreatedOffer = false;
 
     final channel = _channel;
     _channel = null;

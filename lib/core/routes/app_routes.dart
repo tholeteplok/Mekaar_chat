@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mekaar_chat/features/auth/screens/set_username_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/login_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/pin_screen.dart';
@@ -27,6 +28,9 @@ import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_qr_scan_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_settings_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/create_group_select_members_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/create_group_details_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/group_details_screen.dart';
 import '../constants/motion.dart';
 
 /// MekaarPageRoute — Transisi halaman terpusat.
@@ -65,6 +69,7 @@ class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
   static const String login = '/login';
+  static const String setUsername = '/set-username';
   static const String pin = '/pin';
   static const String home = '/home';
   static const String chat = '/chat';
@@ -91,6 +96,9 @@ class AppRoutes {
   static const String contactQrScan = '/chat/qr-scan';
   static const String myQr = '/chat/my-qr';
   static const String contactSettings = '/chat/settings';
+  static const String createGroupSelectMembers = '/chat/group/select-members';
+  static const String createGroupDetails = '/chat/group/details';
+  static const String groupDetails = '/chat/group/info';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -102,6 +110,9 @@ class AppRoutes {
 
       case AppRoutes.login:
         return MekaarPageRoute(builder: (_) => const LoginScreen());
+
+      case AppRoutes.setUsername:
+        return MekaarPageRoute(builder: (_) => const SetUsernameScreen());
 
       case AppRoutes.pin:
         final isSetup = settings.arguments as bool? ?? false;
@@ -129,6 +140,7 @@ class AppRoutes {
         final args = settings.arguments as Map<String, dynamic>;
         return MekaarPageRoute(
           builder: (_) => CallScreen(
+            callId: args['callId'] as String?,
             roomId: args['roomId'],
             chatName: args['chatName'],
             callerId: args['callerId'],
@@ -209,12 +221,6 @@ class AppRoutes {
           ),
         );
 
-      case AppRoutes.contactQrScan:
-        return MekaarPageRoute(builder: (_) => const ContactQrScanScreen());
-
-      case AppRoutes.myQr:
-        return MekaarPageRoute(builder: (_) => const MyQrScreen());
-
       case AppRoutes.contactSettings:
         final args = settings.arguments as Map<String, dynamic>;
         return MekaarPageRoute(
@@ -226,6 +232,42 @@ class AppRoutes {
             isGuardian: args['isGuardian'] ?? false,
           ),
         );
+
+      case AppRoutes.createGroupSelectMembers:
+        return MekaarPageRoute(
+            builder: (_) => const CreateGroupSelectMembersScreen());
+
+      case AppRoutes.createGroupDetails:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final ids = (args['selectedUserIds'] as List?)?.cast<String>() ?? [];
+        final profiles = (args['selectedUserProfiles'] as List?)
+                ?.cast<Map<String, dynamic>>() ??
+            [];
+        return MekaarPageRoute(
+          builder: (_) => CreateGroupDetailsScreen(
+            selectedUserIds: ids,
+            selectedUserProfiles: profiles,
+          ),
+        );
+
+      case AppRoutes.groupDetails:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final roomId = args['roomId'] as String? ?? '';
+        final name = args['groupName'] as String? ?? 'Detail Grup';
+        final avatarUrl = args['groupAvatarUrl'] as String?;
+        return MekaarPageRoute(
+          builder: (_) => GroupDetailsScreen(
+            roomId: roomId,
+            groupName: name,
+            groupAvatarUrl: avatarUrl,
+          ),
+        );
+
+      case AppRoutes.contactQrScan:
+        return MekaarPageRoute(builder: (_) => const ContactQrScanScreen());
+
+      case AppRoutes.myQr:
+        return MekaarPageRoute(builder: (_) => const MyQrScreen());
 
       default:
         return MekaarPageRoute(

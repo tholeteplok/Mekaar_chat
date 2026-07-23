@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../services/supabase_service.dart';
 
@@ -16,6 +17,44 @@ class AuthRepository {
   );
 
   AuthRepository(this._supabaseService);
+
+  Future<User?> signInWithGoogle() async {
+    const webClientId =
+        '5478970655-cc7ai5bm7370leogup4pkv32rkrs1lae.apps.googleusercontent.com';
+    final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) return null; // Dibatalkan oleh pengguna
+
+    final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    final accessToken = googleAuth.accessToken;
+
+    if (idToken == null) {
+      throw Exception('Gagal memperoleh ID Token dari Google.');
+    }
+
+    final response = await _supabaseService.client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
+    );
+
+    return response.user;
+  }
+
+  Future<bool> isUsernameAvailable(String username) async {
+    try {
+      final res = await _supabaseService.client
+          .from('profiles')
+          .select('id')
+          .eq('username', username)
+          .maybeSingle();
+      return res == null;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<String?> uploadAndUpdateAvatar(File imageFile) async {
     try {

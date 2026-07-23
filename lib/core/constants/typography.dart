@@ -8,22 +8,42 @@ import 'colors.dart';
 class MekaarTypography {
   MekaarTypography._();
 
+  /// Font family aktif yang disinkronkan dengan preferensi pengguna.
+  static String fontFamily = 'Plus Jakarta Sans';
+
+  static TextStyle _font({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.w400,
+    double? height,
+    double? letterSpacing,
+    Color? color,
+  }) {
+    return GoogleFonts.getFont(
+      fontFamily,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      height: height,
+      letterSpacing: letterSpacing,
+      color: color,
+    );
+  }
+
   // ─────────────────────────────────────────
   // Display — Judul besar halaman
   // ─────────────────────────────────────────
-  static TextStyle get displayXL => GoogleFonts.plusJakartaSans(
+  static TextStyle get displayXL => _font(
     fontSize: 36,
     fontWeight: FontWeight.w800,
     height: 1.2,
   );
 
-  static TextStyle get displayLG => GoogleFonts.plusJakartaSans(
+  static TextStyle get displayLG => _font(
     fontSize: 32,
     fontWeight: FontWeight.w800,
     height: 1.2,
   );
 
-  static TextStyle get wordmark => GoogleFonts.plusJakartaSans(
+  static TextStyle get wordmark => _font(
     fontSize: 38,
     fontWeight: FontWeight.w900,
     letterSpacing: -1.0,
@@ -35,30 +55,30 @@ class MekaarTypography {
   // Heading — Sub-judul & section title
   // ─────────────────────────────────────────
   static TextStyle get headingLG =>
-      GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.w700);
+      _font(fontSize: 24, fontWeight: FontWeight.w700);
 
   static TextStyle get headingMD =>
-      GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700);
+      _font(fontSize: 20, fontWeight: FontWeight.w700);
 
   static TextStyle get headingSM =>
-      GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700);
+      _font(fontSize: 18, fontWeight: FontWeight.w700);
 
   // ─────────────────────────────────────────
   // Body — Konten utama
   // ─────────────────────────────────────────
-  static TextStyle get bodyLG => GoogleFonts.plusJakartaSans(
+  static TextStyle get bodyLG => _font(
     fontSize: 18,
     fontWeight: FontWeight.w400,
     height: 1.6,
   );
 
-  static TextStyle get bodyMD => GoogleFonts.plusJakartaSans(
+  static TextStyle get bodyMD => _font(
     fontSize: 16,
     fontWeight: FontWeight.w400,
     height: 1.5,
   );
 
-  static TextStyle get bodySM => GoogleFonts.plusJakartaSans(
+  static TextStyle get bodySM => _font(
     fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.4,
@@ -68,28 +88,28 @@ class MekaarTypography {
   // Label — Chip, badge, caption
   // ─────────────────────────────────────────
   static TextStyle get labelLG =>
-      GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600);
+      _font(fontSize: 14, fontWeight: FontWeight.w600);
 
-  static TextStyle get labelMD => GoogleFonts.plusJakartaSans(
+  static TextStyle get labelMD => _font(
     fontSize: 11,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.2,
   );
 
-  static TextStyle get labelSM => GoogleFonts.plusJakartaSans(
+  static TextStyle get labelSM => _font(
     fontSize: 9,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.3,
   );
 
-  static TextStyle get caption => GoogleFonts.plusJakartaSans(
+  static TextStyle get caption => _font(
     fontSize: 10,
     fontWeight: FontWeight.w700,
     height: 1.2,
     letterSpacing: 0.2,
   );
 
-  static TextStyle get badge => GoogleFonts.plusJakartaSans(
+  static TextStyle get badge => _font(
     fontSize: 10,
     fontWeight: FontWeight.w800,
     color: Colors.white,
@@ -97,13 +117,13 @@ class MekaarTypography {
     letterSpacing: 0.1,
   );
 
-  static TextStyle get snackbar => GoogleFonts.plusJakartaSans(
+  static TextStyle get snackbar => _font(
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: 1.4,
   );
 
-  static TextStyle get overline => GoogleFonts.plusJakartaSans(
+  static TextStyle get overline => _font(
     fontSize: 10,
     fontWeight: FontWeight.w800,
     letterSpacing: 1.0,
@@ -131,14 +151,14 @@ class MekaarTypography {
   // ─────────────────────────────────────────
   // Button
   // ─────────────────────────────────────────
-  static TextStyle get buttonLG => GoogleFonts.plusJakartaSans(
+  static TextStyle get buttonLG => _font(
     fontSize: 15,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.2,
   );
 
   static TextStyle get buttonMD =>
-      GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700);
+      _font(fontSize: 13, fontWeight: FontWeight.w700);
 
   // ─────────────────────────────────────────
   // Helpers — Variant warna umum

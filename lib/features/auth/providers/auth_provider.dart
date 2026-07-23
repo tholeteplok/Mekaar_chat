@@ -46,6 +46,9 @@ class AuthState {
     this.e2eeNeedsRestore = false,
   });
 
+  bool get needsUsername =>
+      user != null && (profile == null || !profile!.hasUsername);
+
   bool get isPinLocked {
     if (pinLockedUntil == null) return false;
     return pinLockedUntil!.isAfter(DateTime.now());
@@ -147,6 +150,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       state = state.copyWith(isLoading: false, error: 'Login gagal');
       return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
+  Future<bool> signInWithGoogle() async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      state = state.copyWith(isLoading: false, error: configError);
+      return false;
+    }
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final user = await _authRepository.signInWithGoogle();
+      if (user == null) {
+        state = state.copyWith(isLoading: false);
+        return false;
+      }
+      state = state.copyWith(user: user);
+      await loadProfile();
+      final isNewDevice = await _recordDeviceLogin();
+      state = state.copyWith(newDeviceLogin: isNewDevice);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
+  Future<bool> setUsername(String newUsername) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _authRepository.updateUsername(newUsername);
+      await loadProfile();
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _translateError(e));
       return false;

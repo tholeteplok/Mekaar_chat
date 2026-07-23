@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
@@ -20,21 +21,6 @@ class MekaarNavItem {
 }
 
 /// MekaarBottomNav — Floating pill bottom navigation bar terpusat.
-///
-/// Ekstraksi dari [MainNavigationScreen] agar bisa dipakai ulang dan memiliki
-/// dukungan badge unread.
-///
-/// Contoh:
-/// ```dart
-/// MekaarBottomNav(
-///   items: const [
-///     MekaarNavItem(label: 'Pesan', inactiveIcon: ..., activeIcon: ..., unreadCount: 3),
-///     MekaarNavItem(label: 'Kontak', inactiveIcon: ..., activeIcon: ...),
-///   ],
-///   currentIndex: _index,
-///   onTap: (i) => setState(() => _index = i),
-/// )
-/// ```
 class MekaarBottomNav extends StatelessWidget {
   final List<MekaarNavItem> items;
   final int currentIndex;
@@ -42,12 +28,12 @@ class MekaarBottomNav extends StatelessWidget {
   final Color? activeColor;
   final Color? inactiveColor;
 
-  static const double _tabDimension = 64.0; // 64.0 (lebar & tinggi simetris 1:1)
-  static const double _barHeight = _tabDimension; // 64.0
-  static const double _tabWidth = _tabDimension; // 64.0
-  static const double _containerSize = _tabDimension - 16.0; // 48.0 (64 - 16)
-  static const double _iconSize = 20.0;
-  static const double _fontSize = 9.5;
+  static const double _tabDimension = 72.0; // 72.0 (lebar & tinggi simetris 1:1)
+  static const double _barHeight = _tabDimension; // 72.0
+  static const double _tabWidth = _tabDimension; // 72.0
+  static const double _containerSize = 56.0; // 72.0 * (40.0 / 64.0)
+  static const double _iconSize = 24.0;
+  static const double _fontSize = 10.0;
 
   const MekaarBottomNav({
     super.key,
@@ -61,9 +47,9 @@ class MekaarBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final navBgColor = isDark ? MekaarColors.cardDark : Colors.white;
+    final navBgColor = (isDark ? MekaarColors.cardDark : Colors.white).withValues(alpha: 0.82);
     final navBorderColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
+        ? Colors.white.withValues(alpha: 0.12)
         : Colors.black.withValues(alpha: 0.08);
     final effectiveActive = activeColor ?? MekaarColors.softCoral;
     final effectiveInactive = inactiveColor ??
@@ -78,9 +64,7 @@ class MekaarBottomNav extends StatelessWidget {
         width: totalWidth,
         height: _barHeight,
         decoration: BoxDecoration(
-          color: navBgColor,
           borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: navBorderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
@@ -91,122 +75,135 @@ class MekaarBottomNav extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
-          children: List.generate(items.length, (index) {
-            final item = items[index];
-            final isActive = currentIndex == index;
-            final animationsDisabled =
-                MediaQuery.disableAnimationsOf(context);
-
-            return Semantics(
-              button: true,
-              selected: isActive,
-              label: item.label,
-              child: InkWell(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(100),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: navBgColor,
                 borderRadius: BorderRadius.circular(100),
-                onTap: () {
-                  if (currentIndex != index) onTap(index);
-                },
-                child: SizedBox(
-                  width: _tabWidth,
-                  height: _barHeight,
-                  child: Center(
-                    child: AnimatedContainer(
-                      duration: animationsDisabled
-                          ? Duration.zero
-                          : MekaarMotion.fast,
-                      curve: MekaarMotion.standard,
-                      width: _containerSize,
-                      height: _containerSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isActive
-                            ? effectiveActive.withValues(alpha: 0.15)
-                            : Colors.transparent,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              AnimatedScale(
-                                scale: isActive ? 1.08 : 1.0,
-                                duration: animationsDisabled
-                                    ? Duration.zero
-                                    : MekaarMotion.fast,
-                                child: Icon(
-                                  isActive
-                                      ? item.activeIcon
-                                      : item.inactiveIcon,
-                                  color: isActive
-                                      ? effectiveActive
-                                      : effectiveInactive,
-                                  size: _iconSize,
-                                ),
-                              ),
-                              // Unread badge
-                              if (item.unreadCount != null &&
-                                  item.unreadCount! > 0)
-                                Positioned(
-                                  top: -4,
-                                  right: -8,
-                                  child: Container(
-                                    constraints:
-                                        const BoxConstraints(minWidth: 16),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 1,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: MekaarColors.softCoral,
-                                      borderRadius: BorderRadius.circular(
-                                          MekaarRadius.pill),
-                                      border: Border.all(
-                                        color: navBgColor,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      item.unreadCount! > 99
-                                          ? '99+'
-                                          : '${item.unreadCount}',
-                                      textAlign: TextAlign.center,
-                                      style: MekaarTypography.badge,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          AnimatedDefaultTextStyle(
+                border: Border.all(color: navBorderColor, width: 1.5),
+              ),
+              child: Row(
+                children: List.generate(items.length, (index) {
+                  final item = items[index];
+                  final isActive = currentIndex == index;
+                  final animationsDisabled =
+                      MediaQuery.disableAnimationsOf(context);
+
+                  return Semantics(
+                    button: true,
+                    selected: isActive,
+                    label: item.label,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(100),
+                      onTap: () {
+                        if (currentIndex != index) onTap(index);
+                      },
+                      child: SizedBox(
+                        width: _tabWidth,
+                        height: _barHeight,
+                        child: Center(
+                          child: AnimatedContainer(
                             duration: animationsDisabled
                                 ? Duration.zero
                                 : MekaarMotion.fast,
-                            style: TextStyle(
-                              fontSize: _fontSize,
-                              fontWeight:
-                                  isActive ? FontWeight.w700 : FontWeight.w500,
+                            curve: MekaarMotion.standard,
+                            width: _containerSize,
+                            height: _containerSize,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
                               color: isActive
-                                  ? effectiveActive
-                                  : effectiveInactive,
-                              letterSpacing: -0.2,
+                                  ? effectiveActive.withValues(alpha: 0.15)
+                                  : Colors.transparent,
                             ),
-                            child: Text(
-                              item.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.clip,
-                              softWrap: false,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    AnimatedScale(
+                                      scale: isActive ? 1.08 : 1.0,
+                                      duration: animationsDisabled
+                                          ? Duration.zero
+                                          : MekaarMotion.fast,
+                                      child: Icon(
+                                        isActive
+                                            ? item.activeIcon
+                                            : item.inactiveIcon,
+                                        color: isActive
+                                            ? effectiveActive
+                                            : effectiveInactive,
+                                        size: _iconSize,
+                                      ),
+                                    ),
+                                    // Unread badge
+                                    if (item.unreadCount != null &&
+                                        item.unreadCount! > 0)
+                                      Positioned(
+                                        top: -4,
+                                        right: -8,
+                                        child: Container(
+                                          constraints:
+                                              const BoxConstraints(minWidth: 16),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 1,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: MekaarColors.softCoral,
+                                            borderRadius: BorderRadius.circular(
+                                                MekaarRadius.pill),
+                                            border: Border.all(
+                                              color: navBgColor,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            item.unreadCount! > 99
+                                                ? '99+'
+                                                : '${item.unreadCount}',
+                                            textAlign: TextAlign.center,
+                                            style: MekaarTypography.badge,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                AnimatedDefaultTextStyle(
+                                  duration: animationsDisabled
+                                      ? Duration.zero
+                                      : MekaarMotion.fast,
+                                  style: TextStyle(
+                                    fontSize: _fontSize,
+                                    fontWeight:
+                                        isActive ? FontWeight.w700 : FontWeight.w500,
+                                    color: isActive
+                                        ? effectiveActive
+                                        : effectiveInactive,
+                                    letterSpacing: -0.2,
+                                  ),
+                                  child: Text(
+                                    item.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.clip,
+                                    softWrap: false,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ),
-            );
-          }),
+            ),
+          ),
         ),
       ),
     );

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
+import 'typography.dart';
 
 class MekaarTheme {
-  static ThemeData lightTheme() {
+  static ThemeData lightTheme([String fontFamily = 'Plus Jakarta Sans']) {
+    MekaarTypography.fontFamily = fontFamily;
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -20,7 +22,8 @@ class MekaarTheme {
         onSurface: Color(0xFF1B2145), // Dark text on light card
         onSurfaceVariant: Color(0xFF56617F),
       ),
-      textTheme: GoogleFonts.plusJakartaSansTextTheme(
+      textTheme: GoogleFonts.getTextTheme(
+        fontFamily,
         const TextTheme(
           displayLarge: TextStyle(
             fontSize: 36,
@@ -124,7 +127,8 @@ class MekaarTheme {
     );
   }
 
-  static ThemeData darkTheme() {
+  static ThemeData darkTheme([String fontFamily = 'Plus Jakarta Sans']) {
+    MekaarTypography.fontFamily = fontFamily;
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -139,7 +143,8 @@ class MekaarTheme {
         onPrimary: MekaarColors.textOnYellow,
         onSurface: MekaarColors.textPrimary,
       ),
-      textTheme: GoogleFonts.plusJakartaSansTextTheme(
+      textTheme: GoogleFonts.getTextTheme(
+        fontFamily,
         const TextTheme(
           displayLarge: TextStyle(
             fontSize: 36,

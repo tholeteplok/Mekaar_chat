@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -5,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
+import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
 import '../providers/screen_protection_provider.dart';
@@ -12,6 +14,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/avatar.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
+  final String? callId;
   final String roomId;
   final String chatName;
   final String callerId;
@@ -21,6 +24,7 @@ class CallScreen extends ConsumerStatefulWidget {
 
   const CallScreen({
     super.key,
+    this.callId,
     required this.roomId,
     required this.chatName,
     required this.callerId,
@@ -53,6 +57,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   String _callStatus = 'Menyiapkan panggilan...';
   String? _myUserId;
   String? _avatarUrl;
+  String? _currentCallId;
+  RealtimeChannel? _statusChannel;
+  Timer? _callTimeoutTimer;
 
   bool get _isVideoCall => widget.callType == 'video';
 
@@ -60,17 +67,55 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   void initState() {
     super.initState();
     _myUserId = ref.read(authProvider).user?.id;
+    _currentCallId = widget.callId;
     _isVideoOn = _isVideoCall;
     _isSpeakerOn = _isVideoCall;
     _loadAvatar();
-    if (!widget.isCaller) {
-      NotificationService.showIncomingCallNotification(
-        callerName: widget.chatName,
-        callType: widget.callType,
-        payload: widget.roomId,
-      );
-    }
     _initializeCall();
+  }
+
+  void _watchCallStatusIfCaller() {
+    final callId = _currentCallId;
+    if (callId == null) return;
+    final client = ref.read(supabaseServiceProvider).client;
+    _statusChannel = client
+        .channel('public:calls:caller_watch:$callId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'calls',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: callId,
+          ),
+          callback: (payload) {
+            final newStatus = payload.newRecord['status'] as String?;
+            if (newStatus == 'declined') {
+              _callTimeoutTimer?.cancel();
+              _finishCall('Panggilan ditolak');
+            } else if (newStatus == 'answered') {
+              _callTimeoutTimer?.cancel();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  void _startCallTimeoutTimer() {
+    _callTimeoutTimer?.cancel();
+    _callTimeoutTimer = Timer(const Duration(seconds: 45), () async {
+      if (_callStatus != 'Tersambung' && !_isEnding && !_isDisposed) {
+        if (_currentCallId != null) {
+          try {
+            await ref
+                .read(callRepositoryProvider)
+                .updateCallStatus(_currentCallId!, 'missed');
+          } catch (_) {}
+        }
+        _finishCall('Tidak dijawab');
+      }
+    });
   }
 
   Future<void> _loadAvatar() async {
@@ -91,6 +136,23 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
   Future<void> _initializeCall() async {
     try {
+      if (widget.isCaller && _currentCallId == null) {
+        try {
+          final callRow = await ref.read(callRepositoryProvider).createCall(
+                roomId: widget.roomId,
+                callerId: widget.callerId,
+                receiverId: widget.receiverId,
+                callType: widget.callType,
+              );
+          _currentCallId = callRow['id'] as String?;
+        } catch (_) {}
+      }
+
+      if (widget.isCaller && _currentCallId != null) {
+        _watchCallStatusIfCaller();
+        _startCallTimeoutTimer();
+      }
+
       await _localRenderer.initialize();
       _localRendererInitialized = true;
       if (_isDisposed) {
@@ -198,6 +260,12 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       });
       final normalizedState = state.toLowerCase();
       if (normalizedState == 'connected') {
+        _callTimeoutTimer?.cancel();
+        if (_currentCallId != null) {
+          try {
+            ref.read(callRepositoryProvider).updateCallStatus(_currentCallId!, 'answered');
+          } catch (_) {}
+        }
         NotificationService.cancelIncomingCallNotification();
         HapticService.trigger(MekaarHapticIntent.success);
       } else if (isDisconnected) {
@@ -310,6 +378,13 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     _isEnding = true;
+    _callTimeoutTimer?.cancel();
+    if (_currentCallId != null) {
+      try {
+        final endStatus = _callStatus == 'Tersambung' ? 'ended' : 'missed';
+        ref.read(callRepositoryProvider).updateCallStatus(_currentCallId!, endStatus);
+      } catch (_) {}
+    }
     NotificationService.cancelIncomingCallNotification();
     HapticService.trigger(MekaarHapticIntent.destructive);
     if (mounted) {
@@ -340,6 +415,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     _isEnding = true;
+    _callTimeoutTimer?.cancel();
     _cleanUp();
     if (mounted) {
       setState(() {
@@ -369,6 +445,8 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     _isCleanedUp = true;
+    _callTimeoutTimer?.cancel();
+    _statusChannel?.unsubscribe();
     NotificationService.cancelIncomingCallNotification();
     final signaling = _signaling;
     if (signaling != null) {

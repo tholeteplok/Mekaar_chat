@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import 'avatar.dart';
+import 'mekaar_glass_blur_container.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -13,6 +14,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final VoidCallback? onBackPress;
   final VoidCallback? onAvatarTap;
+  final bool enableGlassBlur;
 
   const CustomAppBar({
     super.key,
@@ -26,12 +28,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.onBackPress,
     this.onAvatarTap,
+    this.enableGlassBlur = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       titleSpacing: 0,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      flexibleSpace: enableGlassBlur
+          ? const MekaarGlassBlurContainer(
+              position: BlurPosition.top,
+              child: SizedBox.expand(),
+            )
+          : null,
       leading: Navigator.canPop(context)
           ? IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, size: 20),
