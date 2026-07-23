@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:logger/logger.dart';
@@ -9,6 +11,11 @@ import 'supabase_service.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
+    WidgetsFlutterBinding.ensureInitialized();
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      return;
+    }
     await Firebase.initializeApp();
     await NotificationService.initialize();
 
@@ -51,6 +58,14 @@ class PushNotificationService {
   static Future<void> initialize({
     required Function(String roomId) onNotificationClick,
   }) async {
+    // FCM Push notifications hanya didukung di Android & iOS secara native
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      _logger.i('PushNotificationService: Platform desktop/web, FCM dilewati.');
+      return;
+    }
+
     try {
       await Firebase.initializeApp();
       _messaging = FirebaseMessaging.instance;

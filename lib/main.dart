@@ -48,19 +48,23 @@ void main() async {
   }
 
   // 3. Initialize local & push notifications. Native failure remains non-fatal.
-  await NotificationService.initialize();
-  await PushNotificationService.initialize(
-    onNotificationClick: (roomId) {
-      final context = AppNavigator.currentContext;
-      if (context != null && context.mounted) {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.chat,
-          arguments: {'roomId': roomId},
-        );
-      }
-    },
-  );
+  try {
+    await NotificationService.initialize();
+    await PushNotificationService.initialize(
+      onNotificationClick: (roomId) {
+        final context = AppNavigator.currentContext;
+        if (context != null && context.mounted) {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.chat,
+            arguments: {'roomId': roomId},
+          );
+        }
+      },
+    );
+  } catch (e) {
+    logger.w('Notifikasi initialization non-fatal error: $e');
+  }
 
   // 4. Run Application
   runApp(
