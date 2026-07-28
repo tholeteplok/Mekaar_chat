@@ -1,6 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/supabase_service.dart';
 import 'alarm_service.dart';
 import '../../core/services/haptic_service.dart';
@@ -15,7 +14,11 @@ class NotificationService {
   // disamarkan (teks benign) agar pelaku tidak curiga. Default aktif.
   static bool maskingEnabled = true;
 
-  static Future<void> initialize() async {
+  /// Callback untuk navigasi saat user mengetuk local notification.
+  static Function(String roomId)? _onNotificationTap;
+
+  static Future<void> initialize({Function(String roomId)? onNotificationTap}) async {
+    _onNotificationTap = onNotificationTap;
     try {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings(
@@ -24,10 +27,22 @@ class NotificationService {
         requestSoundPermission: true,
       );
       const initSettings = InitializationSettings(android: androidSettings, iOS: iosSettings);
-      await _localNotificationsPlugin.initialize(initSettings);
+      await _localNotificationsPlugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onDidReceiveNotificationResponse,
+      );
       _logger.i("Notification Service Initialized (Flutter Local Notifications)");
     } catch (e) {
       _logger.w("Notification Service: Gagal inisialisasi native driver (fallback aktif): $e");
+    }
+  }
+
+  /// Handler saat user mengetuk local notification.
+  static void _onDidReceiveNotificationResponse(NotificationResponse response) {
+    final roomId = response.payload;
+    if (roomId != null && roomId.isNotEmpty) {
+      _logger.i("Local notification tapped, roomId: $roomId");
+      _onNotificationTap?.call(roomId);
     }
   }
 
@@ -36,7 +51,10 @@ class NotificationService {
     required String body,
     String? roomId,
   }) async {
-    await AlarmService.playMessageSound();
+    // Fire-and-forget: suara tidak boleh memblokir tampilan banner
+    // (playMessageSound internally awaits player.onPlayerComplete.first)
+    AlarmService.playMessageSound();
+
     // Haptik ringan untuk pesan masuk — hormati toggle "Haptic Feedback".
     // Bukan intent .emergency agar tidak membocorkan status SOS ke korban.
     await HapticService.trigger(MekaarHapticIntent.success);
@@ -83,6 +101,7 @@ class NotificationService {
         ongoing: true,
         autoCancel: false,
         playSound: false,
+        fullScreenIntent: true,
       ),
       iOS: DarwinNotificationDetails(presentSound: false),
     );
@@ -106,8 +125,7 @@ class NotificationService {
     required String body,
     Map<String, dynamic>? data,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final isMasked = prefs.getBool('is_notification_masked') ?? true;
+    final isMasked = maskingEnabled;
     
     // Tentukan apakah perangkat ini adalah korban (pengirim SOS)
     final isVictim = data != null && data['role'] == 'victim';
@@ -202,6 +220,22 @@ class NotificationService {
       );
     } catch (e) {
       _logger.e("Gagal mengirim SOS alert ke Guardian $guardianId: $e");
+    }
+  }
+
+  /// Cek apakah app di-launch dari tap local notification (cold start).
+  /// Dipanggil setelah navigasi framework siap.
+  static Future<void> handleAppLaunchNotification() async {
+    try {
+      final details = await _localNotificationsPlugin
+          .getNotificationAppLaunchDetails();
+      if (details != null &&
+          details.didNotificationLaunchApp &&
+          details.notificationResponse != null) {
+        _onDidReceiveNotificationResponse(details.notificationResponse!);
+      }
+    } catch (e) {
+      _logger.w('Error checking app launch notification: $e');
     }
   }
 }

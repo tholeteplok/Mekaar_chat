@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
@@ -126,9 +127,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             const SizedBox(height: 20),
             Text(
               hasFilter ? 'Kontak Tidak Ditemukan' : 'Belum Ada Kontak',
-              style: TextStyle(
+              style: MekaarTypography.bodyMD.copyWith(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: MekaarColors.textPrimaryOf(context),
               ),
               textAlign: TextAlign.center,
@@ -138,8 +139,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               hasFilter
                   ? 'Coba cari dengan kata kunci lain.'
                   : 'Mulai kirim pesan di tab Pesan untuk menambahkan kontak ke daftar Anda.',
-              style: TextStyle(
-                fontSize: 13,
+              style: MekaarTypography.bodySM.copyWith(
+                fontSize: 13.5,
                 color: MekaarColors.textSecondaryOf(context),
               ),
               textAlign: TextAlign.center,
@@ -182,9 +183,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 Expanded(
                   child: Text(
                     name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                    style: MekaarTypography.bodyMD.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: MekaarColors.textPrimaryOf(context),
                     ),
                     maxLines: 1,
@@ -199,12 +200,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       color: MekaarColors.guardianLight,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Guardian',
-                      style: TextStyle(
+                      style: MekaarTypography.caption.copyWith(
                         color: MekaarColors.guardianTeal,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -213,8 +212,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             ),
             subtitle: Text(
               username.isNotEmpty ? '@$username' : email,
-              style: TextStyle(
-                fontSize: 12,
+              style: MekaarTypography.bodySM.copyWith(
+                fontSize: 13.5,
                 color: MekaarColors.textMutedOf(context),
               ),
               maxLines: 1,

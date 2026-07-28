@@ -789,23 +789,31 @@ class ChatRepository {
   }
 
   /// Toggle mute notifikasi untuk room.
+  ///
+  /// SENGAJA tidak menelan error di sini (beda dari beberapa method lain
+  /// di file ini yang best-effort) -- kegagalan RPC pengaturan seperti ini
+  /// HARUS terlihat oleh pengguna/UI, bukan tampak "berhasil" padahal
+  /// diam-diam tidak tersimpan ke database. Ini persis pola yang membuat
+  /// bug RPC search_path (lihat migrations/40_fix_room_participant_rpcs_
+  /// search_path.sql) tidak terdeteksi sekian lama.
   Future<void> updateRoomMute(String roomId, bool muted) async {
-    try {
-      await _supabaseService.client.rpc(
-        'toggle_room_mute',
-        params: {'p_room_id': roomId, 'p_muted': muted},
-      );
-    } catch (_) {}
+    await _supabaseService.client.rpc(
+      'toggle_room_mute',
+      params: {'p_room_id': roomId, 'p_muted': muted},
+    );
   }
 
-  /// Set pesan menghilang override untuk satu room.
+  /// Set pesan menghilang override untuk satu room. `hours == null` berarti
+  /// "matikan override" (server akan menyimpannya sebagai NULL, bukan 0 --
+  /// lihat RPC `set_room_disappearing_override`, yang memakai
+  /// `NULLIF(p_hours, 0)`).
+  ///
+  /// SENGAJA tidak menelan error -- lihat catatan di [updateRoomMute].
   Future<void> updateRoomDisappearingOverride(String roomId, int? hours) async {
-    try {
-      await _supabaseService.client.rpc(
-        'set_room_disappearing_override',
-        params: {'p_room_id': roomId, 'p_hours': hours ?? 0},
-      );
-    } catch (_) {}
+    await _supabaseService.client.rpc(
+      'set_room_disappearing_override',
+      params: {'p_room_id': roomId, 'p_hours': hours ?? 0},
+    );
   }
 
   /// Arsipkan room (sembunyikan dari daftar utama).

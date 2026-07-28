@@ -118,6 +118,9 @@ class ChatBubble extends StatelessWidget {
   final bool showReadReceipts;
   // Nama pengirim pada obrolan grup
   final String? senderName;
+  // Pesan yang dibalas & nama pengirimnya (untuk tampilan kutipan balas)
+  final Message? replyToMessage;
+  final String? replyToSenderName;
 
   const ChatBubble({
     super.key,
@@ -136,6 +139,8 @@ class ChatBubble extends StatelessWidget {
     this.otherLastReadAt,
     this.showReadReceipts = true,
     this.senderName,
+    this.replyToMessage,
+    this.replyToSenderName,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
@@ -331,31 +336,8 @@ class ChatBubble extends StatelessWidget {
                     ),
                   ],
                   // Reply preview
-                  if (message.replyToId != null && !isDeleted) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isMe
-                            ? Colors.white.withValues(alpha: 0.1)
-                            : MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border(
-                          left: BorderSide(
-                            color: isMe
-                                ? MekaarColors.softCoral
-                                : MekaarColors.guardianTeal,
-                            width: 3,
-                          ),
-                        ),
-                      ),
-                      child: const Text(
-                        "Membalas pesan...",
-                        style: TextStyle(
-                            fontSize: 10, fontStyle: FontStyle.italic),
-                      ),
-                    ),
-                  ],
+                  if (message.replyToId != null && !isDeleted)
+                    _buildQuotedReplyBox(context),
                   // Main content
                   _buildContentWidget(context, textColor),
                   const SizedBox(height: 4),
@@ -457,6 +439,63 @@ class ChatBubble extends StatelessWidget {
 
     switch (message.type) {
       case MessageType.text:
+        if (!message.isDeleted &&
+            (message.content.startsWith('📍 Auto Check-In') ||
+                message.content.startsWith('⚠️ Peringatan Keterlambatan'))) {
+          final isWarning = message.content.startsWith('⚠️');
+          return Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isWarning
+                  ? MekaarColors.sosCoral.withValues(alpha: 0.15)
+                  : MekaarColors.success.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isWarning ? MekaarColors.sosCoral : MekaarColors.success,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  isWarning
+                      ? Icons.warning_amber_rounded
+                      : Icons.verified_user_rounded,
+                  color: isWarning ? MekaarColors.sosCoral : MekaarColors.success,
+                  size: 24,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isWarning
+                            ? '🛡️ Delayed Check-In Alert'
+                            : '🛡️ Auto Check-In Status',
+                        style: TextStyle(
+                          color: isWarning
+                              ? MekaarColors.sosCoral
+                              : MekaarColors.success,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        message.content,
+                        style: TextStyle(
+                            color: textColor, fontSize: 14, height: 1.3),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         final count = !message.isDeleted ? _getEmojiOnlyCount(message.content) : 0;
         if (count > 0) {
           return Text(
@@ -608,6 +647,103 @@ class ChatBubble extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildQuotedReplyBox(BuildContext context) {
+    String senderTitle = replyToSenderName ?? 'Pengirim';
+    String previewText = 'Pesan yang dibalas';
+
+    if (replyToMessage != null) {
+      final target = replyToMessage!;
+      if (target.isDeleted) {
+        previewText = '🚫 Pesan telah dihapus';
+      } else {
+        switch (target.type) {
+          case MessageType.image:
+            previewText = target.content.isNotEmpty ? '📷 ${target.content}' : '📷 Foto';
+            break;
+          case MessageType.voice:
+            previewText = '🎙️ Pesan Suara';
+            break;
+          case MessageType.location:
+            previewText = '📍 Lokasi Terbagikan';
+            break;
+          case MessageType.system:
+            if (target.content.contains('auto_checkin')) {
+              previewText = '🛡️ Auto Check-In Rute';
+            } else if (target.content.contains('delayed_alert')) {
+              previewText = '🛡️ Peringatan Terlambat Arrival';
+            } else {
+              previewText = target.content;
+            }
+            break;
+          case MessageType.video:
+            previewText = '🎥 Video';
+            break;
+          case MessageType.text:
+            previewText = target.content.isNotEmpty ? target.content : 'Pesan';
+            break;
+        }
+      }
+    }
+
+    final accentColor = isMe
+        ? MekaarColors.softCoral
+        : (Theme.of(context).brightness == Brightness.dark
+            ? MekaarColors.cyan
+            : MekaarColors.guardianTeal);
+
+    final quoteBg = isMe
+        ? Colors.black.withValues(alpha: 0.15)
+        : (Theme.of(context).brightness == Brightness.dark
+            ? Colors.black.withValues(alpha: 0.25)
+            : Colors.black.withValues(alpha: 0.05));
+
+    final titleColor = isMe ? Colors.white : accentColor;
+    final bodyColor = isMe
+        ? Colors.white.withValues(alpha: 0.85)
+        : MekaarColors.textSecondaryOf(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: quoteBg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          left: BorderSide(
+            color: accentColor,
+            width: 3,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            senderTitle,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: titleColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            previewText,
+            style: TextStyle(
+              fontSize: 11,
+              color: bodyColor,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -61,6 +61,14 @@ class MekaarColors {
   static const Color backgroundDark = Color(0xFF0A0A0F);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF18181B);
+
+  // Time-based palette tokens (tema otomatis Pagi/Siang/Sore/Malam)
+  // Pagi: sunrise warm
+  static const Color morningSurface = Color(0xFFFFF8EE);
+  static const Color morningOnSurface = Color(0xFF3D2814);
+  // Sore: golden hour warm
+  static const Color eveningSurface = Color(0xFFFFE4D6);
+  static const Color eveningOnSurface = Color(0xFF4A1E2F);
   static const Color surface2 = Color(0xFFF4F6F8);
   static const Color surface2Dark = Color(0xFF1E2235);
   static const Color surface3 = Color(0xFFEAEEF2);
@@ -131,6 +139,35 @@ class MekaarGradients {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [Color(0xFFD92632), Color(0xFF7F1D2B)],
+  );
+
+  // Canvas Morning (Sunrise Glow): FF9A8B → FFC3A0 → FECF6A → A1E3FF
+  static const LinearGradient canvasMorning = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFFF9A8B), // Pink coral
+      Color(0xFFFFC3A0), // Soft peach
+      Color(0xFFFECF6A), // Warm yellow
+      Color(0xFFA1E3FF), // Light blue
+    ],
+  );
+
+  static const LinearGradient canvasAfternoon = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF4F7FF), Color(0xFFE3ECFF)],
+  );
+
+  // Canvas Evening (Sunset on the Waves): FFC857 → FF6B6B → 1D3557
+  static const LinearGradient canvasEvening = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFFFFC857), // Golden yellow
+      Color(0xFFFF6B6B), // Coral red
+      Color(0xFF1D3557), // Deep navy
+    ],
   );
 
   static const LinearGradient incomingBubble = LinearGradient(

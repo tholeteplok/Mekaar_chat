@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:location/location.dart' as loc;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/haptic_service.dart';
@@ -137,10 +138,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
+      final globalAutoDelete = ref.read(authProvider).profile?.autoDeleteDefaultHours ?? 0;
+      
       // Muat preferensi per-kontak: pesan menghilang override
       final preferences = await repo.getRoomPreferences(widget.chatId);
+      
+      // Muat preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
+      bool savedViewOnce = false;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        savedViewOnce = prefs.getBool('room_view_once_${widget.chatId}') ?? false;
+      } catch (_) {}
+
       if (!mounted) return;
-      _autoDeleteHours = preferences?.disappearingOverrideHours ?? 0;
+      setState(() {
+        _autoDeleteHours = preferences?.disappearingOverrideHours ?? globalAutoDelete;
+        _isViewOnce = savedViewOnce;
+      });
+
       // Best-effort purge pesan kedaluwarsa (authoritative via cron Supabase).
       try {
         await repo.purgeExpiredMessages();
@@ -153,7 +168,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _loadGroupParticipants();
       }
       repo.updateLastSeen();
-      if (mounted) setState(() {});
     });
   }
 
@@ -281,7 +295,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Pengosongan Input Bar & Reset State UI Secara Instan (0ms Delay bagi Pengguna)
     _textController.clear();
     setState(() {
-      _isViewOnce = false;
       _replyMessage = null;
     });
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(false);
@@ -510,11 +523,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  void _toggleViewOnce() {
-    setState(() => _isViewOnce = !_isViewOnce);
+  void _toggleViewOnce() async {
+    final newValue = !_isViewOnce;
+    setState(() => _isViewOnce = newValue);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('room_view_once_${widget.chatId}', newValue);
+    } catch (_) {}
+    if (!mounted) return;
     MekaarSnackbar.info(
       context,
-      _isViewOnce
+      newValue
           ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
           : 'Mode Sekali Lihat Dinonaktifkan.',
     );
@@ -569,8 +588,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       },
     );
     if (choice != null) {
+      final previousHours = _autoDeleteHours;
       _setAutoDeleteHours(choice);
-      await ref.read(chatRepositoryProvider).updateRoomDisappearingOverride(widget.chatId, choice);
+      try {
+        await ref
+            .read(chatRepositoryProvider)
+            .updateRoomDisappearingOverride(widget.chatId, choice);
+      } catch (e) {
+        // Rollback tampilan optimis -- jangan biarkan UI menunjukkan
+        // pilihan baru seolah tersimpan padahal RPC gagal (ini persis
+        // pola yang sebelumnya membuat pengaturan tampak "hilang"/
+        // "terkunci" tanpa disadari, lihat migrations/40_fix_room_
+        // participant_rpcs_search_path.sql untuk akar masalahnya).
+        if (mounted) {
+          _setAutoDeleteHours(previousHours);
+          MekaarSnackbar.error(
+            context,
+            'Gagal menyimpan pengaturan pesan menghilang: $e',
+          );
+        }
+      }
     }
   }
 
@@ -917,7 +954,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   data: (messages) {
                     if (messages.isEmpty) {
                       return const MekaarStateView(
-                        pose: MikaPose.ask,
+                        pose: MikaPose.sleep,
                         title: 'Belum Ada Pesan',
                         message: 'Belum ada pesan. Kirim pesan pertama!',
                       );
@@ -1005,6 +1042,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final items = <Widget>[];
     DateTime? lastDate;
 
+    // Pemetaan ID pesan ke Objek Pesan untuk pencarian cepat (O(1)) saat menampilkan kutipan balas
+    final messageMap = {for (var m in messages) m.id: m};
+
     for (var i = 0; i < messages.length; i++) {
       final msg = messages[i];
       final msgDate = DateTime(
@@ -1027,6 +1067,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         isGuardianRoom: widget.isGuardian,
       );
 
+      Message? replyToMsg;
+      String? replyToSender;
+      if (msg.replyToId != null) {
+        replyToMsg = messageMap[msg.replyToId];
+        if (replyToMsg != null) {
+          if (replyToMsg.senderId == currentUserId) {
+            replyToSender = 'Anda';
+          } else {
+            replyToSender = _participantNames[replyToMsg.senderId] ?? 'Pengirim';
+          }
+        }
+      }
+
       final bubble = ChatBubble(
         message: msg,
         isMe: isMe,
@@ -1038,6 +1091,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         showReadReceipts:
             ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
         senderName: widget.isGroup ? _participantNames[msg.senderId] : null,
+        replyToMessage: replyToMsg,
+        replyToSenderName: replyToSender,
         onDelete: () => _handleDeleteMessage(msg),
         onUnsend: () => _handleUnsendMessage(msg),
         onReply: (replyMsg) {

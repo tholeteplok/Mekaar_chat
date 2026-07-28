@@ -19,6 +19,9 @@ import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/sound_picker_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/blocked_list_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/two_factor_setup_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/trip_list_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/add_trip_screen.dart';
+import 'package:mekaar_chat/features/map/screens/location_picker_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
@@ -86,12 +89,15 @@ class AppRoutes {
   static const String logs = '/logs';
   static const String profile = '/profile';
   static const String blockedList = '/settings/blocked';
+  static const String tripList = '/settings/trips';
+  static const String addTrip = '/settings/trips/add';
   static const String twoFactorSetup = '/settings/2fa/setup';
   static const String twoFactor = '/auth/2fa';
   static const String sosActive = '/sos/active';
   static const String sosVideo = '/sos/video';
   static const String deviceLost = '/sos/lost';
   static const String map = '/map';
+  static const String mapPicker = '/map/picker';
   static const String call = '/call';
   static const String contactQrScan = '/chat/qr-scan';
   static const String myQr = '/chat/my-qr';
@@ -195,6 +201,15 @@ class AppRoutes {
         return MekaarPageRoute(builder: (_) => const SoundPickerScreen());
       case AppRoutes.blockedList:
         return MekaarPageRoute(builder: (_) => const BlockedListScreen());
+      case AppRoutes.tripList:
+        return MekaarPageRoute(builder: (_) => const TripListScreen());
+      case AppRoutes.addTrip:
+        return MekaarPageRoute(builder: (_) => const AddTripScreen());
+      case AppRoutes.mapPicker:
+        final radius = settings.arguments as int? ?? 150;
+        return MekaarPageRoute(
+          builder: (_) => LocationPickerScreen(radiusMeters: radius),
+        );
       case AppRoutes.twoFactorSetup:
         return MekaarPageRoute(builder: (_) => const TwoFactorSetupScreen());
       case AppRoutes.twoFactor:

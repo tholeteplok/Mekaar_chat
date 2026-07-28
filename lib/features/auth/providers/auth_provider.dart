@@ -47,7 +47,9 @@ class AuthState {
   });
 
   bool get needsUsername =>
-      user != null && (profile == null || !profile!.hasUsername);
+      !isLoading &&
+      user != null &&
+      (profile == null || !profile!.hasUsername);
 
   bool get isPinLocked {
     if (pinLockedUntil == null) return false;

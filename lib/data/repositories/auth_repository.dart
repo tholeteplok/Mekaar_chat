@@ -288,6 +288,16 @@ class AuthRepository {
 
   // Sign out
   Future<void> signOut() async {
+    // Hapus FCM token dari server SEBELUM signout
+    // Mencegah push terkirim ke perangkat setelah user berganti
+    try {
+      if (SupabaseService.isInitialized) {
+        await _supabaseService.client.rpc('clear_fcm_token');
+      }
+    } catch (_) {
+      // Lanjutkan signout meskipun gagal clear token
+    }
+
     try {
       await _secureStorage
           .delete(key: 'pin_hash')

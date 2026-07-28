@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/navigation/app_navigator.dart';
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/notification_dedup_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'chat_provider.dart';
 import '../screens/incoming_call_screen.dart';
@@ -56,6 +57,10 @@ class CallInvitationListener {
     if (callId == null || roomId == null || callerId == null || status != 'ringing') {
       return;
     }
+
+    // Dedup: cek apakah sudah dinotifikasi dari jalur FCM
+    if (NotificationDedupService.isDuplicate('call_$callId')) return;
+    NotificationDedupService.markNotified('call_$callId');
 
     final repo = _ref.read(chatRepositoryProvider);
     String callerName = 'Panggilan Masuk';

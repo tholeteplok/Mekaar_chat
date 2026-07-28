@@ -3,11 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/constants/time_palette.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/font_provider.dart';
+import '../../../core/utils/time_theme_helper.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -22,17 +28,7 @@ import '../widgets/account_snippet_card.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  // ─────────────────────────────────────────────────
-  // Helper: divider antar section
-  // ─────────────────────────────────────────────────
-  Widget _divider(BuildContext context) {
-    return Divider(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? Colors.white.withValues(alpha: 0.08)
-          : Colors.black.withValues(alpha: 0.08),
-      height: 32,
-    );
-  }
+
 
   // ─────────────────────────────────────────────────
   // Helper: header section (label uppercase)
@@ -41,7 +37,7 @@ class SettingsScreen extends ConsumerWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Text(label.toUpperCase(), style: MekaarTypography.overline),
       ),
     );
@@ -51,7 +47,7 @@ class SettingsScreen extends ConsumerWidget {
   // SECTION 1: Tampilan — selector tema & font
   // ─────────────────────────────────────────────────
   Widget _buildDisplaySection(BuildContext context, WidgetRef ref) {
-    final currentFontKey = ref.watch(fontFamilyProvider);
+    final currentFontKey = ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
     final activeFont = AppFontFamily.findByKey(currentFontKey);
 
     return Column(
@@ -59,16 +55,21 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         _sectionHeader('Tampilan'),
         _ThemeSelector(
-          current: ref.watch(themeModeProvider),
-          onChanged: (mode) =>
-              ref.read(themeModeProvider.notifier).setMode(mode),
+          current: ref.watch(themePreferenceProvider).valueOrNull ??
+              ThemePreference.auto,
+          onChanged: (pref) =>
+              ref.read(themePreferenceProvider.notifier).setPreference(pref),
         ),
-        SettingsNavTile(
-          icon: SolarIconsOutline.textSquare,
-          title: 'Gaya Font',
-          subtitle:
-              '${activeFont.displayName} (${activeFont.category == FontCategory.playful ? "Playful" : "Modern"})',
-          onTap: () => _showFontPickerSheet(context, ref),
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: SettingsNavTile(
+            icon: SolarIconsOutline.textSquare,
+            title: 'Gaya Font',
+            subtitle:
+                '${activeFont.displayName} (${activeFont.category == FontCategory.playful ? "Playful" : "Modern"})',
+            onTap: () => _showFontPickerSheet(context, ref),
+          ),
         ),
       ],
     );
@@ -102,35 +103,49 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Privasi'),
-        SettingsSwitchTile(
-          icon: SolarIconsOutline.screenShare,
-          title: 'Proteksi Layar',
-          subtitle: 'Cegah screenshot & perekaman layar',
-          value: ref.watch(screenshotBlockProvider),
-          onChanged: (value) =>
-              ref.read(screenshotBlockProvider.notifier).toggle(value),
-        ),
-        SettingsSwitchTile(
-          icon: SolarIconsOutline.eye,
-          title: 'Sembunyikan Notifikasi Darurat',
-          subtitle: 'Samarkan teks alarm di layar kunci',
-          value: ref.watch(notificationMaskingProvider),
-          onChanged: (value) =>
-              ref.read(notificationMaskingProvider.notifier).setEnabled(value),
-        ),
-        SettingsNavTile(
-          icon: SolarIconsOutline.user,
-          title: 'Terakhir Dilihat & Online',
-          subtitle: ref.watch(lastSeenPrivacyProvider).label,
-          onTap: () => _showLastSeenSheet(context, ref),
-        ),
-        SettingsSwitchTile(
-          icon: SolarIconsOutline.checkCircle,
-          title: 'Bukti Baca (Read Receipt)',
-          subtitle: 'Tanda centang biru saat pesan dibaca',
-          value: ref.watch(readReceiptsProvider),
-          onChanged: (value) =>
-              ref.read(readReceiptsProvider.notifier).setEnabled(value),
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            children: [
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.screenShare,
+                title: 'Proteksi Layar',
+                subtitle: 'Cegah screenshot & perekaman layar',
+                value: ref.watch(screenshotBlockProvider),
+                onChanged: (value) =>
+                    ref.read(screenshotBlockProvider.notifier).toggle(value),
+              ),
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.eye,
+                title: 'Sembunyikan Notifikasi Darurat',
+                subtitle: 'Samarkan teks alarm di layar kunci',
+                value: ref.watch(notificationMaskingProvider),
+                onChanged: (value) =>
+                    ref.read(notificationMaskingProvider.notifier).setEnabled(value),
+              ),
+              SettingsNavTile(
+                icon: SolarIconsOutline.user,
+                title: 'Terakhir Dilihat & Online',
+                subtitle: ref.watch(lastSeenPrivacyProvider).label,
+                onTap: () => _showLastSeenSheet(context, ref),
+              ),
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.checkCircle,
+                title: 'Bukti Baca (Read Receipt)',
+                subtitle: 'Tanda centang biru saat pesan dibaca',
+                value: ref.watch(readReceiptsProvider),
+                onChanged: (value) =>
+                    ref.read(readReceiptsProvider.notifier).setEnabled(value),
+              ),
+              SettingsNavTile(
+                icon: SolarIconsOutline.mapPoint,
+                title: 'Auto Check-In Rute',
+                subtitle: 'Otomatisasi pengiriman pesan aman ke Guardian',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -146,46 +161,54 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Keamanan'),
-        SettingsSwitchTile(
-          icon: SolarIconsOutline.lock,
-          title: 'Kunci PIN Aplikasi',
-          subtitle: 'Kunci aplikasi dengan 6-digit PIN',
-          value: ref.watch(pinLockEnabledProvider),
-          onChanged: (bool value) async {
-            try {
-              await ref.read(pinLockEnabledProvider.notifier).toggle(value);
-            } catch (_) {
-              if (context.mounted) {
-                MekaarSnackbar.error(
-                  context,
-                  'Pengaturan kunci PIN gagal disimpan. Coba lagi.',
-                );
-              }
-            }
-          },
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            children: [
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.lock,
+                title: 'Kunci PIN Aplikasi',
+                subtitle: 'Kunci aplikasi dengan 6-digit PIN',
+                value: ref.watch(pinLockEnabledProvider),
+                onChanged: (bool value) async {
+                  try {
+                    await ref.read(pinLockEnabledProvider.notifier).toggle(value);
+                  } catch (_) {
+                    if (context.mounted) {
+                      MekaarSnackbar.error(
+                        context,
+                        'Pengaturan kunci PIN gagal disimpan. Coba lagi.',
+                      );
+                    }
+                  }
+                },
+              ),
+              if (!wasDuress) ...[
+                SettingsNavTile(
+                  icon: SolarIconsOutline.lockKeyhole,
+                  title: 'PIN Paksaan (Duress)',
+                  subtitle: 'PIN rahasia pemicu alarm SOS',
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.duressPin),
+                ),
+                SettingsNavTile(
+                  icon: SolarIconsOutline.shieldKeyhole,
+                  title: 'Verifikasi 2 Langkah',
+                  subtitle: ref.watch(twoFaProvider)
+                      ? 'Aktif · kode authenticator'
+                      : 'Nonaktif · keamanan ekstra',
+                  onTap: () => _handleTwoFactor(context, ref),
+                ),
+                SettingsNavTile(
+                  icon: SolarIconsOutline.billList,
+                  title: 'Riwayat SOS',
+                  subtitle: 'Catatan insiden darurat SOS',
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
+                ),
+              ],
+            ],
+          ),
         ),
-        if (!wasDuress) ...[
-          SettingsNavTile(
-            icon: SolarIconsOutline.lockKeyhole,
-            title: 'PIN Paksaan (Duress)',
-            subtitle: 'PIN rahasia pemicu alarm SOS',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.duressPin),
-          ),
-          SettingsNavTile(
-            icon: SolarIconsOutline.shieldKeyhole,
-            title: 'Verifikasi 2 Langkah',
-            subtitle: ref.watch(twoFaProvider)
-                ? 'Aktif · kode authenticator'
-                : 'Nonaktif · keamanan ekstra',
-            onTap: () => _handleTwoFactor(context, ref),
-          ),
-          SettingsNavTile(
-            icon: SolarIconsOutline.billList,
-            title: 'Riwayat SOS',
-            subtitle: 'Catatan insiden darurat SOS',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
-          ),
-        ],
       ],
     );
   }
@@ -198,11 +221,15 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Notifikasi'),
-        SettingsNavTile(
-          icon: SolarIconsOutline.bell,
-          title: 'Nada & Suara',
-          subtitle: 'Nada notifikasi pesan & alarm SOS',
-          onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: SettingsNavTile(
+            icon: SolarIconsOutline.bell,
+            title: 'Nada & Suara',
+            subtitle: 'Nada notifikasi pesan & alarm SOS',
+            onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
+          ),
         ),
       ],
     );
@@ -222,41 +249,49 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Sistem'),
-        SettingsSwitchTile(
-          icon: SolarIconsOutline.smartphoneVibration,
-          title: 'Getaran',
-          subtitle:
-              'Aktifkan respons getar untuk ketukan, konfirmasi, dan peringatan di seluruh aplikasi',
-          value: hapticsEnabled,
-          onChanged: prefsAsync.hasValue
-              ? (value) => ref
-                  .read(notificationPreferencesProvider.notifier)
-                  .toggleHaptics(value)
-              : null,
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            children: [
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.smartphoneVibration,
+                title: 'Getaran',
+                subtitle:
+                    'Aktifkan respons getar untuk ketukan, konfirmasi, dan peringatan di seluruh aplikasi',
+                value: hapticsEnabled,
+                onChanged: prefsAsync.hasValue
+                    ? (value) => ref
+                        .read(notificationPreferencesProvider.notifier)
+                        .toggleHaptics(value)
+                    : null,
+              ),
+              if (!wasDuress) ...[
+                SettingsSwitchTile(
+                  icon: SolarIconsOutline.volumeLoud,
+                  title: 'Izin Guardian Alarm',
+                  subtitle:
+                      'Izinkan wali membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
+                  value: ref.watch(allowGuardianAlarmProvider),
+                  onChanged: (value) =>
+                      ref.read(allowGuardianAlarmProvider.notifier).setEnabled(value),
+                ),
+                SettingsNavTile(
+                  icon: SolarIconsOutline.gps,
+                  title: 'Temukan Ponsel Saya',
+                  subtitle: 'Mode perangkat hilang (self-guardian)',
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
+                ),
+                SettingsNavTile(
+                  icon: SolarIconsOutline.userBlock,
+                  title: 'Daftar Blokir',
+                  subtitle: 'Kelola pengguna yang diblokir',
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.blockedList),
+                ),
+              ],
+            ],
+          ),
         ),
-        if (!wasDuress) ...[
-          SettingsSwitchTile(
-            icon: SolarIconsOutline.volumeLoud,
-            title: 'Izin Guardian Alarm',
-            subtitle:
-                'Izinkan wali membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
-            value: ref.watch(allowGuardianAlarmProvider),
-            onChanged: (value) =>
-                ref.read(allowGuardianAlarmProvider.notifier).setEnabled(value),
-          ),
-          SettingsNavTile(
-            icon: SolarIconsOutline.gps,
-            title: 'Temukan Ponsel Saya',
-            subtitle: 'Mode perangkat hilang (self-guardian)',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
-          ),
-          SettingsNavTile(
-            icon: SolarIconsOutline.userBlock,
-            title: 'Daftar Blokir',
-            subtitle: 'Kelola pengguna yang diblokir',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.blockedList),
-          ),
-        ],
       ],
     );
   }
@@ -276,31 +311,27 @@ class SettingsScreen extends ConsumerWidget {
             const MekaarTabHeader(title: 'Pengaturan'),
             Expanded(
               child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
 
                     // ── 1. Tampilan ──
                     _buildDisplaySection(context, ref),
-                    _divider(context),
 
                     // ── 2. Akun ──
                     _buildAccountSection(context, ref),
-                    _divider(context),
 
                     // ── 3. Privasi (tersembunyi saat duress) ──
                     if (!wasDuress) ...[
                       _buildPrivacySection(context, ref),
-                      _divider(context),
                     ],
 
                     // ── 4. Keamanan ──
                     _buildSecuritySection(context, ref),
-                    _divider(context),
 
                     // ── 5. Notifikasi ──
                     _buildNotificationSection(context),
-                    _divider(context),
 
                     // ── 6. Sistem ──
                     _buildSystemSection(context, ref),
@@ -327,7 +358,7 @@ class SettingsScreen extends ConsumerWidget {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return Consumer(
           builder: (context, refWatch, _) {
-            final activeKey = refWatch.watch(fontFamilyProvider);
+            final activeKey = refWatch.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
 
             final playfulFonts = AppFontFamily.availableFonts
                 .where((f) => f.category == FontCategory.playful)
@@ -576,111 +607,207 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────
-// Theme Selector Widget (tidak berubah dari versi sebelumnya)
+// Theme Selector Widget — tiru RASIO ukuran MekaarBottomNav
+// (bukan ukuran absolut). Anchor _tabDimension dikecilkan ke 60dp
+// supaya 5 sel = 300dp total muat di phone 360dp. Rasio dari bottom
+// nav: container/tab≈0.778, icon/tab=0.333, font/tab≈0.139.
+// Pair Icon (Bold aktif / Outline non-aktif) tetap dari helper pusat.
 // ─────────────────────────────────────────────────
 class _ThemeSelector extends StatelessWidget {
-  final ThemeMode current;
-  final ValueChanged<ThemeMode> onChanged;
+  final ThemePreference current;
+  final ValueChanged<ThemePreference> onChanged;
+
+  /// Anchor ukuran diturunkan dari MekaarBottomNav. Semua konstanta
+  /// lain mengikuti rasio anchor ini — ubah [_tabDimension] saja untuk
+  /// me-resize seluruh pill.
+  static const double _tabDimension = 60.0;
+
+  /// containerSize / _tabDimension ≈ 56 / 72 = 0.778 → 60 × 0.778 ≈ 47.
+  static const double _containerSize = _tabDimension * (56.0 / 72.0);
+
+  /// iconSize / _tabDimension = 24 / 72 = 0.333 → 60 × 0.333 = 20.
+  static const double _iconSize = _tabDimension * (24.0 / 72.0);
+
+  /// fontSize / _tabDimension ≈ 10 / 72 = 0.139 → 60 × 0.139 ≈ 8.
+  static const double _fontSize = _tabDimension * (10.0 / 72.0);
+
+  static const double _tabWidth = _tabDimension;
+  static const double _barHeight = _tabDimension;
 
   const _ThemeSelector({required this.current, required this.onChanged});
-
-  static const double z = 24.0;
-  static const double activeSize = z + 16.0;
-  static const double barHeight = z + 32.0;
-  static const double barWidth = 3.0 * (z + 32.0);
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
-    final navBgColor = isDark ? MekaarColors.cardDark : MekaarColors.surface2;
+    final navBgColor =
+        (isDark ? MekaarColors.cardDark : Colors.white).withValues(alpha: 0.82);
     final navBorderColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
+        ? Colors.white.withValues(alpha: 0.12)
         : Colors.black.withValues(alpha: 0.08);
+    final effectiveActive = MekaarColors.softCoral;
+    final effectiveInactive =
+        isDark ? MekaarColors.textMuted : Colors.black45;
 
-    const options = [
-      (ThemeMode.system, SolarIconsOutline.tuning, 'Sistem'),
-      (ThemeMode.light, SolarIconsOutline.sun, 'Terang'),
-      (ThemeMode.dark, SolarIconsOutline.moon, 'Gelap'),
+    // Opsi tema dengan active + inactive icon (sama-sama dari helper terpusat).
+    final options = <_ThemeOption>[
+      _ThemeOption(
+        pref: ThemePreference.auto,
+        activeIcon: SolarIconsBold.clockCircle,
+        inactiveIcon: SolarIconsOutline.clockCircle,
+      ),
+      _ThemeOption(
+        pref: ThemePreference.morning,
+        activeIcon: SolarIconsBold.sunrise,
+        inactiveIcon: SolarIconsOutline.sunrise,
+      ),
+      _ThemeOption(
+        pref: ThemePreference.afternoon,
+        activeIcon: SolarIconsBold.sun,
+        inactiveIcon: SolarIconsOutline.sun,
+      ),
+      _ThemeOption(
+        pref: ThemePreference.evening,
+        activeIcon: SolarIconsBold.sunset,
+        inactiveIcon: SolarIconsOutline.sunset,
+      ),
+      _ThemeOption(
+        pref: ThemePreference.night,
+        activeIcon: SolarIconsBold.moonStars,
+        inactiveIcon: SolarIconsOutline.moonStars,
+      ),
     ];
+
+    final totalWidth = options.length * _tabWidth;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: Container(
-          width: barWidth,
-          height: barHeight,
-          padding: EdgeInsets.zero,
+          margin: EdgeInsets.zero,
+          width: totalWidth,
+          height: _barHeight,
           decoration: BoxDecoration(
-            color: navBgColor,
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(color: navBorderColor, width: 1.5),
+            borderRadius: BorderRadius.circular(MekaarRadius.pill),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(
+                  alpha: isDark ? 0.35 : 0.12,
+                ),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: options.map((opt) {
-              final selected = current == opt.$1;
-              final inactiveColor =
-                  isDark ? MekaarColors.textMuted : Colors.black45;
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(MekaarRadius.pill),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: navBgColor,
+                  borderRadius: BorderRadius.circular(MekaarRadius.pill),
+                  border: Border.all(color: navBorderColor, width: 1.5),
+                ),
+                child: Row(
+                  children: List.generate(options.length, (index) {
+                    final opt = options[index];
+                    final selected = current == opt.pref;
 
-              return Semantics(
-                button: true,
-                selected: selected,
-                label: 'Tema ${opt.$3.toLowerCase()}',
-                child: InkResponse(
-                  onTap: () => onChanged(opt.$1),
-                  radius: barHeight / 2,
-                  child: SizedBox(
-                    width: z + 32.0,
-                    height: barHeight,
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: animationsDisabled
-                            ? Duration.zero
-                            : const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        width: selected ? activeSize : z,
-                        height: selected ? activeSize : z,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: selected
-                              ? MekaarColors.softCoral
-                              : Colors.transparent,
-                          boxShadow: selected
-                              ? [
-                                  BoxShadow(
-                                    color: MekaarColors.softCoral
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 3),
+                    return Semantics(
+                      button: true,
+                      selected: selected,
+                      label: 'Tema ${themePreferenceLabel(opt.pref)}',
+                      child: InkWell(
+                        borderRadius:
+                            BorderRadius.circular(MekaarRadius.pill),
+                        onTap: () => onChanged(opt.pref),
+                        child: SizedBox(
+                          width: _tabWidth,
+                          height: _barHeight,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: animationsDisabled
+                                  ? Duration.zero
+                                  : MekaarMotion.fast,
+                              curve: MekaarMotion.standard,
+                              width: _containerSize,
+                              height: _containerSize,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: selected
+                                    ? effectiveActive.withValues(alpha: 0.15)
+                                    : Colors.transparent,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedScale(
+                                    scale: selected ? 1.08 : 1.0,
+                                    duration: animationsDisabled
+                                        ? Duration.zero
+                                        : MekaarMotion.fast,
+                                    child: Icon(
+                                      selected
+                                          ? opt.activeIcon
+                                          : opt.inactiveIcon,
+                                      color: selected
+                                          ? effectiveActive
+                                          : effectiveInactive,
+                                      size: _iconSize,
+                                    ),
                                   ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            opt.$2,
-                            color: selected ? Colors.white : inactiveColor,
-                            size: z,
+                                  const SizedBox(height: 2),
+                                  AnimatedDefaultTextStyle(
+                                    duration: animationsDisabled
+                                        ? Duration.zero
+                                        : MekaarMotion.fast,
+                                    style: TextStyle(
+                                      fontSize: _fontSize,
+                                      fontWeight: selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: selected
+                                          ? effectiveActive
+                                          : effectiveInactive,
+                                      letterSpacing: -0.2,
+                                    ),
+                                    child: Text(
+                                      themePreferenceLabel(opt.pref),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.clip,
+                                      softWrap: false,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
-              );
-            }).toList(),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// Opsi internal untuk [_ThemeSelector]. Setiap preferensi punya sepasang
+/// icon (active + inactive) yang konsisten dengan style bottom nav.
+class _ThemeOption {
+  final ThemePreference pref;
+  final IconData activeIcon;
+  final IconData inactiveIcon;
+
+  const _ThemeOption({
+    required this.pref,
+    required this.activeIcon,
+    required this.inactiveIcon,
+  });
 }

@@ -49,7 +49,22 @@ void main() async {
 
   // 3. Initialize local & push notifications. Native failure remains non-fatal.
   try {
-    await NotificationService.initialize();
+    await NotificationService.initialize(
+      onNotificationTap: (roomId) {
+        final context = AppNavigator.currentContext;
+        if (context != null && context.mounted) {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.chat,
+            arguments: {'chatId': roomId},
+          );
+        }
+      },
+    );
+
+    // Cek apakah app cold-started dari tap local notification
+    await NotificationService.handleAppLaunchNotification();
+
     await PushNotificationService.initialize(
       onNotificationClick: (roomId) {
         final context = AppNavigator.currentContext;
@@ -57,7 +72,7 @@ void main() async {
           Navigator.pushNamed(
             context,
             AppRoutes.chat,
-            arguments: {'roomId': roomId},
+            arguments: {'chatId': roomId},
           );
         }
       },

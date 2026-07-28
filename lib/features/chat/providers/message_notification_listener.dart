@@ -5,9 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/services/notification_dedup_service.dart';
 import 'chat_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'call_invitation_listener.dart';
+import 'sos_alert_listener.dart';
 
 /// Listener terpusat untuk notifikasi pesan masuk (Opsi A dari Implementation Plan).
 ///
@@ -65,6 +67,7 @@ class MessageNotificationListener {
     // 1. Echo broadcast: abaikan pesan sendiri.
     // 2. User sedang di room ini? Jangan ganggu.
     // 3. Pesan yang di-soft-delete tidak perlu notif.
+    // 4. Dedup: abaikan jika sudah dinotifikasi dari jalur FCM.
     if (!shouldNotify(
       currentUserId: currentUserId,
       senderId: senderId,
@@ -73,6 +76,16 @@ class MessageNotificationListener {
       isDeleted: isDeleted,
     )) {
       return;
+    }
+
+    // Dedup: cek apakah sudah dinotifikasi dari jalur FCM
+    final messageId = newRow['id'] as String?;
+    if (messageId != null &&
+        NotificationDedupService.isDuplicate('msg_$messageId')) {
+      return;
+    }
+    if (messageId != null) {
+      NotificationDedupService.markNotified('msg_$messageId');
     }
 
     _notify(roomId, senderId, content, isEncrypted);
@@ -105,6 +118,9 @@ class MessageNotificationListener {
     String content,
     bool isEncrypted,
   ) async {
+    // Cek apakah room di-mute oleh user
+    if (await _isRoomMuted(roomId)) return;
+
     final repo = _ref.read(chatRepositoryProvider);
     String senderName = 'Seseorang';
     try {
@@ -134,6 +150,34 @@ class MessageNotificationListener {
       body: displayContent,
       roomId: roomId,
     );
+  }
+
+  /// Cek apakah room saat ini di-mute oleh user yang sedang login.
+  Future<bool> _isRoomMuted(String roomId) async {
+    try {
+      final client = _ref.read(supabaseServiceProvider).client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      final response = await client
+          .from('room_participants')
+          .select('is_muted, muted_until')
+          .eq('room_id', roomId)
+          .eq('profile_id', userId)
+          .maybeSingle();
+
+      if (response == null) return false;
+
+      final isMuted = response['is_muted'] as bool? ?? false;
+      if (!isMuted) return false;
+
+      final mutedUntil = response['muted_until'] as String?;
+      if (mutedUntil == null) return true; // muted tanpa batas waktu
+
+      return DateTime.parse(mutedUntil).isAfter(DateTime.now().toUtc());
+    } catch (_) {
+      return false; // default: jangan blokir notifikasi jika query gagal
+    }
   }
 
   void dispose() {
@@ -172,6 +216,7 @@ class _NotificationListenerHostState
     ref.read(activeRoomIdProvider.notifier).state = null;
     ref.read(messageNotificationListenerProvider).start();
     ref.read(callInvitationListenerProvider).start();
+    ref.read(sosAlertListenerProvider).start();
   }
 
   @override

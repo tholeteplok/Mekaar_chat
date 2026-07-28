@@ -97,25 +97,27 @@ class AppFontFamily {
 
 /// Mengelola preferensi gaya font aplikasi (dinamis via GoogleFonts).
 /// Persisten via SharedPreferences (`app_font_family`).
-class FontFamilyNotifier extends StateNotifier<String> {
-  FontFamilyNotifier() : super(AppFontFamily.defaultFontKey) {
+class FontFamilyNotifier extends StateNotifier<AsyncValue<String>> {
+  FontFamilyNotifier() : super(const AsyncValue.loading()) {
     _load();
   }
 
   static const String _key = 'app_font_family';
 
   Future<void> _load() async {
-    try {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString(_key);
       if (saved != null && saved.isNotEmpty) {
-        state = saved;
+        return saved;
       }
-    } catch (_) {}
+      return AppFontFamily.defaultFontKey;
+    });
   }
 
   Future<void> setFontFamily(String fontFamilyKey) async {
-    state = fontFamilyKey;
+    state = AsyncValue.data(fontFamilyKey);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_key, fontFamilyKey);
@@ -124,6 +126,6 @@ class FontFamilyNotifier extends StateNotifier<String> {
 }
 
 final fontFamilyProvider =
-    StateNotifierProvider<FontFamilyNotifier, String>((ref) {
+    StateNotifierProvider<FontFamilyNotifier, AsyncValue<String>>((ref) {
   return FontFamilyNotifier();
 });

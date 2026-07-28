@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
@@ -449,6 +451,57 @@ class _ChatComposerState extends State<ChatComposer> {
     );
   }
 
+  Future<void> _handleKeyboardContentInserted(
+    KeyboardInsertedContent content,
+  ) async {
+    if (!widget.enabled || widget.onSendMedia == null) return;
+
+    try {
+      setState(() => _isUploading = true);
+      HapticFeedback.selectionClick();
+
+      Uint8List? bytes = content.data;
+      if (bytes == null || bytes.isEmpty) {
+        final uri = Uri.parse(content.uri);
+        if (uri.scheme == 'file') {
+          bytes = await File(uri.toFilePath()).readAsBytes();
+        } else if (uri.scheme == 'http' || uri.scheme == 'https') {
+          final request = await HttpClient().getUrl(uri);
+          final response = await request.close();
+          bytes = await consolidateHttpClientResponseBytes(response);
+        }
+      }
+
+      if (bytes == null || bytes.isEmpty) {
+        if (mounted) {
+          MekaarSnackbar.error(
+            context,
+            'Gagal membaca stiker/GIF dari keyboard.',
+          );
+        }
+        return;
+      }
+
+      final ext = content.mimeType.contains('gif')
+          ? 'gif'
+          : (content.mimeType.contains('webp') ? 'webp' : 'png');
+
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(
+        '${tempDir.path}/gboard_${DateTime.now().millisecondsSinceEpoch}.$ext',
+      );
+      await tempFile.writeAsBytes(bytes);
+
+      await widget.onSendMedia!(tempFile, MessageType.image);
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal mengirim stiker/GIF: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MekaarGlassBlurContainer(
@@ -640,6 +693,16 @@ class _ChatComposerState extends State<ChatComposer> {
                         child: TextField(
                           controller: widget.controller,
                           enabled: widget.enabled,
+                          contentInsertionConfiguration:
+                              ContentInsertionConfiguration(
+                            allowedMimeTypes: const <String>[
+                              'image/gif',
+                              'image/png',
+                              'image/jpeg',
+                              'image/webp',
+                            ],
+                            onContentInserted: _handleKeyboardContentInserted,
+                          ),
                           decoration: InputDecoration(
                             hintText: !widget.enabled
                                 ? 'Menyiapkan enkripsi...'

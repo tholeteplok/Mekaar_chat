@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'core/routes/app_routes.dart';
 import 'core/constants/themes.dart';
 import 'core/providers/theme_provider.dart';
@@ -22,17 +23,21 @@ class MekaarApp extends ConsumerWidget {
     // Sync Notification Masking preference ke service statis.
     NotificationService.maskingEnabled = ref.watch(notificationMaskingProvider);
 
-    final themeMode = ref.watch(themeModeProvider);
-    final fontFamily = ref.watch(fontFamilyProvider);
+    // Tema otomatis berbasis waktu: MaterialApp menerima ThemeData final
+    // yang sudah di-resolve (light/dark + palet sesuai preferensi).
+    final themeData = ref.watch(resolvedThemeDataProvider);
+    final themeMode = ref.watch(resolvedThemeModeProvider);
+    final fontFamily =
+        ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
     final protectionController = ref.watch(screenProtectionControllerProvider);
     final authState = ref.watch(authProvider);
 
     return MaterialApp(
       navigatorKey: AppNavigator.navigatorKey,
       title: 'MEKAAR',
-      theme: MekaarTheme.lightTheme(fontFamily),
+      theme: themeData,
       darkTheme: MekaarTheme.darkTheme(fontFamily),
-      themeMode: themeMode, // Sistem / Terang / Gelap (persisten)
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.splash,
       onGenerateRoute: AppRoutes.generateRoute,

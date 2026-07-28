@@ -6,6 +6,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -53,6 +54,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     final blocked = await ref.read(blockRepositoryProvider).isBlocked(widget.otherUserId);
     final peerPub = await E2eeService.instance.getPeerPublicKey(widget.otherUserId);
     final fingerprint = peerPub != null ? E2eeService.getPublicKeyFingerprint(peerPub) : '';
+    // Tidak ada lagi fallback ke "pengaturan global" -- NULL/belum diatur
+    // diperlakukan sama seperti 0 (Mati), murni per-room.
     
     String? peerAvatarUrl;
     try {
@@ -76,13 +79,38 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   }
 
   Future<void> _toggleMute(bool muted) async {
+    final previous = _isMuted;
     setState(() => _isMuted = muted);
-    await ref.read(chatRepositoryProvider).updateRoomMute(widget.roomId, muted);
+    try {
+      await ref.read(chatRepositoryProvider).updateRoomMute(widget.roomId, muted);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isMuted = previous);
+        MekaarSnackbar.error(context, 'Gagal menyimpan pengaturan mute: $e');
+      }
+    }
   }
 
   Future<void> _setDisappearing(int? hours) async {
+    final previous = _disappearingOverrideHours;
     setState(() => _disappearingOverrideHours = hours);
-    await ref.read(chatRepositoryProvider).updateRoomDisappearingOverride(widget.roomId, hours);
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .updateRoomDisappearingOverride(widget.roomId, hours);
+    } catch (e) {
+      if (mounted) {
+        // Rollback tampilan optimis -- jangan sampai layar ini menunjukkan
+        // pilihan baru seolah tersimpan padahal RPC gagal (lihat
+        // migrations/40_fix_room_participant_rpcs_search_path.sql untuk
+        // akar masalah yang sebelumnya membuat ini gagal 100% diam-diam).
+        setState(() => _disappearingOverrideHours = previous);
+        MekaarSnackbar.error(
+          context,
+          'Gagal menyimpan pengaturan pesan menghilang: $e',
+        );
+      }
+    }
   }
 
   Future<void> _toggleBlock() async {
@@ -357,8 +385,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   }
 
   Widget _buildDisappearingTile() {
-    final current = _disappearingOverrideHours ?? 0;
-    final label = _formatDuration(current);
+    final effectiveHours = _disappearingOverrideHours ?? 0;
+    final label = _formatDuration(effectiveHours);
 
     return ListTile(
       leading: const Icon(SolarIconsOutline.clockCircle, color: MekaarColors.info),
@@ -370,7 +398,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   }
 
   void _showDisappearingPicker() {
-    final current = _disappearingOverrideHours ?? 0;
+    final currentEffective = _disappearingOverrideHours ?? 0;
 
     MekaarBottomSheet.show(
       context: context,
@@ -399,11 +427,11 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
               style: MekaarTypography.bodySM.copyWith(color: MekaarColors.textMuted),
             ),
             const SizedBox(height: 16),
-            _pickerOption(ctx, 'Nonaktif', 0, current == 0),
-            _pickerOption(ctx, '1 Jam', 1, current == 1),
-            _pickerOption(ctx, '24 Jam', 24, current == 24),
-            _pickerOption(ctx, '7 Hari', 168, current == 168),
-            _pickerOption(ctx, '30 Hari', 720, current == 720),
+            _pickerOption(ctx, 'Nonaktif', 0, currentEffective == 0),
+            _pickerOption(ctx, '1 Jam', 1, currentEffective == 1),
+            _pickerOption(ctx, '24 Jam', 24, currentEffective == 24),
+            _pickerOption(ctx, '7 Hari', 168, currentEffective == 168),
+            _pickerOption(ctx, '30 Hari', 720, currentEffective == 720),
             const SizedBox(height: 12),
           ],
         ),

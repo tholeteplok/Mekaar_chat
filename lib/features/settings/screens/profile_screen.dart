@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_info_tile.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -298,10 +299,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          _infoRow(
-                            SolarIconsOutline.letter,
-                            'Email',
-                            userEmail,
+                          MekaarInfoTile(
+                            icon: SolarIconsOutline.letter,
+                            label: 'Email',
+                            value: userEmail,
                           ),
                           Divider(
                             height: 24,
@@ -311,150 +312,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 : Colors.black.withValues(alpha: 0.08),
                           ),
                           // Display Name — editable
-                          Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: MekaarColors.surface2Of(context),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  SolarIconsOutline.user,
-                                  color: MekaarColors.textSecondary,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _isEditingDisplayName
-                                    ? TextField(
-                                        controller: _displayNameController,
-                                        autofocus: true,
-                                        onSubmitted: (_) => _saveDisplayName(),
-                                        style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(context),
-                                        ),
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                          border: UnderlineInputBorder(),
-                                          hintText: 'Masukkan nama tampilan',
-                                        ),
-                                      )
-                                    : Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Nama Tampilan',
-                                            style: MekaarTypography.bodySM,
-                                          ),
-                                          Text(
-                                            (profile?.displayName ??
-                                                    profile?.fullName ??
-                                                    profile?.username ??
-                                                    'Belum diatur'),
-                                            style: MekaarTypography.bodyMD.copyWith(
-                                              color: MekaarColors.textPrimaryOf(context),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _isEditingDisplayName
-                                      ? SolarIconsOutline.checkCircle
-                                      : SolarIconsOutline.pen,
-                                  color: _isEditingDisplayName
-                                      ? MekaarColors.softCoral
-                                      : MekaarColors.textMuted,
-                                  size: 18,
-                                ),
-                                onPressed: _isEditingDisplayName
-                                    ? _saveDisplayName
-                                    : () => setState(() => _isEditingDisplayName = true),
-                              ),
-                            ],
+                          _buildEditableRow(
+                            icon: SolarIconsOutline.user,
+                            label: 'Nama Tampilan',
+                            value: profile?.displayName ??
+                                profile?.fullName ??
+                                profile?.username ??
+                                'Belum diatur',
+                            isEditing: _isEditingDisplayName,
+                            controller: _displayNameController,
+                            onSubmitted: _saveDisplayName,
+                            onToggle: () => setState(
+                              () => _isEditingDisplayName = true,
+                            ),
+                            onSave: _saveDisplayName,
                           ),
                           const Divider(height: 24, color: Colors.transparent),
                           // Username — editable
-                          Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: MekaarColors.surface2Of(context),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  SolarIconsOutline.mentionSquare,
-                                  color: MekaarColors.textSecondary,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _isEditingUsername
-                                    ? TextField(
-                                        controller: _usernameController,
-                                        autofocus: true,
-                                        onSubmitted: (_) => _saveUsername(),
-                                        style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(
-                                            context,
-                                          ),
-                                        ),
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          border: UnderlineInputBorder(),
-                                        ),
-                                      )
-                                    : Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Username',
-                                            style: MekaarTypography.bodySM,
-                                          ),
-                                          Text(
-                                            username.isNotEmpty
-                                                ? '@$username'
-                                                : 'Belum diatur',
-                                            style: MekaarTypography.bodyMD
-                                                .copyWith(
-                                                  color:
-                                                      MekaarColors.textPrimaryOf(
-                                                        context,
-                                                      ),
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _isEditingUsername
-                                      ? SolarIconsOutline.checkCircle
-                                      : SolarIconsOutline.pen,
-                                  color: _isEditingUsername
-                                      ? MekaarColors.softCoral
-                                      : MekaarColors.textMuted,
-                                  size: 18,
-                                ),
-                                onPressed: _isEditingUsername
-                                    ? _saveUsername
-                                    : () => setState(
-                                        () => _isEditingUsername = true,
-                                      ),
-                              ),
-                            ],
+                          _buildEditableRow(
+                            icon: SolarIconsOutline.mentionSquare,
+                            label: 'Username',
+                            value: username.isNotEmpty
+                                ? '@$username'
+                                : 'Belum diatur',
+                            isEditing: _isEditingUsername,
+                            controller: _usernameController,
+                            onSubmitted: _saveUsername,
+                            onToggle: () => setState(
+                              () => _isEditingUsername = true,
+                            ),
+                            onSave: _saveUsername,
                           ),
                         ],
                       ),
@@ -472,31 +359,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           children: [
                             ListTile(
                               leading: Container(
-                                width: 36,
-                                height: 36,
+                                width: 44,
+                                height: 44,
                                 decoration: BoxDecoration(
-                                  color: MekaarColors.surface2Of(context),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? MekaarColors.cardDark
+                                      : MekaarColors.surface2Of(context),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(
                                   SolarIconsOutline.lockPassword,
                                   color: MekaarColors.textSecondary,
-                                  size: 18,
+                                  size: 22,
                                 ),
                               ),
                               title: Text(
                                 pinSet ? 'Ubah PIN' : 'Buat PIN',
-                                style: MekaarTypography.labelLG,
+                                style: MekaarTypography.bodyMD.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: MekaarColors.textPrimaryOf(context),
+                                ),
                               ),
                               subtitle: Text(
                                 pinSet
                                     ? 'Perbarui PIN 6 digit keamanan Anda.'
                                     : 'Buat PIN untuk melindungi akses aplikasi.',
-                                style: MekaarTypography.bodySM,
+                                style: MekaarTypography.bodySM.copyWith(
+                                  fontSize: 13.5,
+                                  color: MekaarColors.textMutedOf(context),
+                                ),
                               ),
-                              trailing: const Icon(
+                              trailing: Icon(
                                 SolarIconsOutline.altArrowRight,
-                                color: MekaarColors.textMuted,
+                                color: MekaarColors.textMutedOf(context),
                                 size: 18,
                               ),
                               onTap: _navigateToChangePin,
@@ -515,27 +411,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
                           leading: Container(
-                            width: 36,
-                            height: 36,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: MekaarColors.sosLight,
-                              borderRadius: BorderRadius.circular(8),
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? MekaarColors.sosRed.withValues(alpha: 0.15)
+                                  : MekaarColors.sosLight,
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
                               SolarIconsOutline.logout,
                               color: MekaarColors.sosRed,
-                              size: 18,
+                              size: 22,
                             ),
                           ),
                           title: Text(
                             'Keluar',
-                            style: MekaarTypography.labelLG.copyWith(
+                            style: MekaarTypography.bodyMD.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                               color: MekaarColors.sosRed,
                             ),
                           ),
                           subtitle: Text(
                             'Sesi login dan PIN lokal akan dihapus.',
-                            style: MekaarTypography.bodySM,
+                            style: MekaarTypography.bodySM.copyWith(
+                              fontSize: 13.5,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
                           ),
                           onTap: _confirmLogout,
                         ),
@@ -552,30 +455,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) {
+  Widget _buildEditableRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool isEditing,
+    required TextEditingController controller,
+    required VoidCallback onSubmitted,
+    required VoidCallback onToggle,
+    required VoidCallback onSave,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       children: [
         Container(
-          width: 36,
-          height: 36,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            color: MekaarColors.surface2Of(context),
-            borderRadius: BorderRadius.circular(8),
+            color: isDark
+                ? MekaarColors.cardDark
+                : MekaarColors.surface2Of(context),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: MekaarColors.textSecondary, size: 18),
+          child: Icon(icon, color: MekaarColors.textSecondaryOf(context), size: 22),
         ),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: MekaarTypography.bodySM),
-            Text(
-              value,
-              style: MekaarTypography.bodyMD.copyWith(
-                color: MekaarColors.textPrimaryOf(context),
-              ),
-            ),
-          ],
+        Expanded(
+          child: isEditing
+              ? TextField(
+                  controller: controller,
+                  autofocus: true,
+                  onSubmitted: (_) => onSubmitted(),
+                  style: MekaarTypography.bodyMD.copyWith(
+                    color: MekaarColors.textPrimaryOf(context),
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    border: UnderlineInputBorder(),
+                    hintText: 'Masukkan nilai',
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: MekaarTypography.bodySM),
+                    Text(
+                      value,
+                      style: MekaarTypography.bodyMD.copyWith(
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+        IconButton(
+          icon: Icon(
+            isEditing
+                ? SolarIconsOutline.checkCircle
+                : SolarIconsOutline.pen,
+            color: isEditing
+                ? MekaarColors.softCoral
+                : MekaarColors.textMutedOf(context),
+            size: 18,
+          ),
+          onPressed: isEditing ? onSave : onToggle,
         ),
       ],
     );
