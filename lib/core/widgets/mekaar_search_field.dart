@@ -20,21 +20,35 @@ class MekaarSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
+    final borderColor = errorText != null
+        ? MekaarColors.sosRed
+        : (isDark ? Colors.white.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.14));
+
+    final borderWidth = errorText != null ? 1.2 : 1.0;
+
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? MekaarColors.cardDark : MekaarColors.surface2,
+        color: MekaarColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(MekaarRadius.lg),
         border: Border.all(
-          color: errorText == null ? Colors.transparent : MekaarColors.sosRed,
+          color: borderColor,
+          width: borderWidth,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.lg),
       child: Row(
         children: [
           Icon(
             SolarIconsOutline.magnifier,
-            color: isDark ? MekaarColors.textMuted : Colors.black45,
+            color: MekaarColors.textMutedOf(context),
             size: MekaarSizes.iconMd,
           ),
           const SizedBox(width: MekaarSpacing.md),
@@ -47,13 +61,13 @@ class MekaarSearchField extends StatelessWidget {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
+                color: MekaarColors.textPrimaryOf(context),
                 fontSize: 14,
               ),
               decoration: InputDecoration(
                 hintText: hintText,
                 hintStyle: TextStyle(
-                  color: isDark ? MekaarColors.textMuted : Colors.black38,
+                  color: MekaarColors.textMutedOf(context),
                 ),
                 errorText: errorText,
                 border: InputBorder.none,

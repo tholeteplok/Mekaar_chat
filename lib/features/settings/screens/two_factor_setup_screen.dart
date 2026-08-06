@@ -73,6 +73,7 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
     final uri = TotpUtil.otpAuthUri(account, _secret);
 
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Verifikasi 2 Langkah'),
       body: _isEnabled
           ? _buildEnabledView()

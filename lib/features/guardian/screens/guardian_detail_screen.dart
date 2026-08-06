@@ -139,6 +139,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     final isExpired = widget.guardian.isExpired;
 
     return MekaarScaffold(
+      flat: true,
       appBar: CustomAppBar(
         title: 'Detail Guardian',
         actions: [
@@ -313,7 +314,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               child: Column(
                 children: [
                   SwitchListTile(
-                    activeThumbColor: MekaarColors.softCoral,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
+                    activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                     secondary: Container(
                       width: 36,
                       height: 36,
@@ -348,7 +350,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     indent: 72,
                   ),
                   SwitchListTile(
-                    activeThumbColor: MekaarColors.softCoral,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
+                    activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                     secondary: Container(
                       width: 36,
                       height: 36,
@@ -383,7 +386,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     indent: 72,
                   ),
                   SwitchListTile(
-                    activeThumbColor: MekaarColors.softCoral,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
+                    activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                     secondary: Container(
                       width: 36,
                       height: 36,

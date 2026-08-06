@@ -61,7 +61,8 @@ class AuthRepository {
       final user = _supabaseService.client.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      final ext = imageFile.path.split('.').last;
+      final rawExt = imageFile.path.split('.').last.toLowerCase();
+      final ext = (rawExt == 'jpeg' || rawExt == 'jpg' || rawExt == 'png' || rawExt == 'webp') ? rawExt : 'jpg';
       final fileName = 'avatar.$ext';
       final storagePath = '${user.id}/$fileName';
 

@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../providers/chat_provider.dart';
 
 class CreateGroupSelectMembersScreen extends ConsumerStatefulWidget {
@@ -129,7 +132,7 @@ class _CreateGroupSelectMembersScreenState
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.close,
+                              MekaarIcons.close,
                               size: 12,
                               color: Colors.white,
                             ),
@@ -236,14 +239,18 @@ class _CreateGroupSelectMembersScreenState
                   },
                 );
               },
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: MekaarColors.softCoral),
+              loading: () => const MekaarStateView(
+                pose: MikaPose.hi,
+                title: 'Memuat Kontak',
+                message: 'Mengambil daftar kontak untuk dipilih…',
+                semanticLabel: 'Memuat daftar kontak',
               ),
-              error: (err, stack) => Center(
-                child: Text(
-                  'Gagal memuat kontak.',
-                  style: TextStyle(color: MekaarColors.textMutedOf(context)),
-                ),
+              error: (err, stack) => MekaarStateView(
+                pose: MikaPose.huft,
+                title: 'Gagal Memuat Kontak',
+                message: 'Tidak dapat mengambil daftar kontak.',
+                actionLabel: 'Coba Lagi',
+                onAction: () => ref.invalidate(contactsProvider),
               ),
             ),
           ),
@@ -262,8 +269,8 @@ class _CreateGroupSelectMembersScreenState
                   },
                 );
               },
-              backgroundColor: MekaarColors.softCoral,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               icon: const Icon(SolarIconsOutline.arrowRight),
               label: Text('Lanjut (${_selectedUserIds.length})'),
             )

@@ -13,6 +13,8 @@ import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart'
 import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.dart';
 import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/theme_settings_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/chat_theme_settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/duress_pin_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
@@ -21,6 +23,7 @@ import 'package:mekaar_chat/features/settings/screens/blocked_list_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/two_factor_setup_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/trip_list_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/add_trip_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/trip_arrival_confirm_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_picker_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
@@ -39,7 +42,7 @@ import '../constants/motion.dart';
 /// MekaarPageRoute — Transisi halaman terpusat.
 ///
 /// Semua navigasi antar layar memakai route ini agar animasi transisi
-/// (fade + slide halus 250ms, [MekaarMotion.standard]) selalu konsisten
+/// (fade + slide + scale, [MekaarMotion.bounce]) selalu konsisten
 /// dan menghormati [MediaQuery.disableAnimationsOf].
 class MekaarPageRoute extends PageRouteBuilder {
   MekaarPageRoute({required WidgetBuilder builder})
@@ -52,20 +55,34 @@ class MekaarPageRoute extends PageRouteBuilder {
             if (MediaQuery.disableAnimationsOf(context)) return child;
             final curved = CurvedAnimation(
               parent: animation,
-              curve: MekaarMotion.standard,
+              curve: MekaarMotion.bounce,
             );
-            return FadeTransition(
-              opacity: curved,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.04),
-                  end: Offset.zero,
-                ).animate(curved),
-                child: child,
-              ),
+            final reverse = CurvedAnimation(
+              parent: animation,
+              curve: MekaarMotion.standard,
+              reverseCurve: MekaarMotion.standard,
+            );
+            return AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) {
+                final isForward = animation.status == AnimationStatus.forward;
+                final t = isForward ? curved.value : reverse.value;
+                return Opacity(
+                  opacity: t,
+                  child: Transform.translate(
+                    offset: Offset(0, 20 * (1 - t)),
+                    child: Transform.scale(
+                      scale: 0.96 + 0.04 * t,
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: child,
             );
           },
           transitionDuration: MekaarMotion.normal,
+          reverseTransitionDuration: MekaarMotion.fast,
         );
 }
 class AppRoutes {
@@ -84,6 +101,8 @@ class AppRoutes {
   static const String guardianSwap = '/guardian/swap';
   static const String guardianTracking = '/guardian/tracking';
   static const String settings = '/settings';
+  static const String themeSettings = '/settings/theme';
+  static const String chatThemeSettings = '/settings/theme/chat';
   static const String duressPin = '/settings/duress';
   static const String soundPicker = '/settings/sound';
   static const String logs = '/logs';
@@ -91,6 +110,7 @@ class AppRoutes {
   static const String blockedList = '/settings/blocked';
   static const String tripList = '/settings/trips';
   static const String addTrip = '/settings/trips/add';
+  static const String tripArrivalConfirm = '/settings/trips/confirm';
   static const String twoFactorSetup = '/settings/2fa/setup';
   static const String twoFactor = '/auth/2fa';
   static const String sosActive = '/sos/active';
@@ -188,6 +208,12 @@ class AppRoutes {
       case AppRoutes.settings:
         return MekaarPageRoute(builder: (_) => const SettingsScreen());
 
+      case AppRoutes.themeSettings:
+        return MekaarPageRoute(builder: (_) => const ThemeSettingsScreen());
+
+      case AppRoutes.chatThemeSettings:
+        return MekaarPageRoute(builder: (_) => const ChatThemeSettingsScreen());
+
       case AppRoutes.duressPin:
         return MekaarPageRoute(builder: (_) => const DuressPinScreen());
 
@@ -205,6 +231,11 @@ class AppRoutes {
         return MekaarPageRoute(builder: (_) => const TripListScreen());
       case AppRoutes.addTrip:
         return MekaarPageRoute(builder: (_) => const AddTripScreen());
+      case AppRoutes.tripArrivalConfirm:
+        final tripId = (settings.arguments as Map<String, dynamic>?)?['tripId'] as String? ?? '';
+        return MekaarPageRoute(
+          builder: (_) => TripArrivalConfirmScreen(tripId: tripId),
+        );
       case AppRoutes.mapPicker:
         final radius = settings.arguments as int? ?? 150;
         return MekaarPageRoute(

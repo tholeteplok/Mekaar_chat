@@ -6,6 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/avatar.dart';
 import '../providers/block_provider.dart';
@@ -22,6 +23,7 @@ class BlockedListScreen extends ConsumerWidget {
     final repo = ChatRepository(supabaseService);
 
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Daftar Blokir'),
       body: blockedState.when(
         data: (list) {
@@ -98,9 +100,17 @@ class BlockedListScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Text('Gagal memuat: $err', style: MekaarTypography.bodyMD),
+        loading: () => const MekaarStateView(
+          pose: MikaPose.hide,
+          title: 'Memuat Daftar Blokir',
+          message: 'Sedang mengambil daftar pengguna yang Anda blokir...',
+        ),
+        error: (err, _) => MekaarStateView(
+          pose: MikaPose.neutral,
+          title: 'Gagal Memuat Daftar Blokir',
+          message: err.toString(),
+          actionLabel: 'Coba Lagi',
+          onAction: () => ref.invalidate(blockProvider),
         ),
       ),
     );

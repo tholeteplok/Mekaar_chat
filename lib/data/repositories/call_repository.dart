@@ -28,12 +28,40 @@ class CallRepository {
     return Map<String, dynamic>.from(response);
   }
 
-  /// Perbarui status panggilan ('answered', 'declined', 'missed', 'ended', 'failed')
-  Future<void> updateCallStatus(String callId, String status) async {
-    await _client.from('calls').update({
+  /// Perbarui status panggilan ('answered', 'declined', 'busy', 'missed', 'ended', 'failed')
+  Future<void> updateCallStatus(
+    String callId,
+    String status, {
+    DateTime? startedAt,
+    DateTime? endedAt,
+    int? durationSeconds,
+  }) async {
+    final Map<String, dynamic> updates = {
       'status': status,
       'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', callId);
+    };
+    if (startedAt != null) updates['started_at'] = startedAt.toIso8601String();
+    if (endedAt != null) updates['ended_at'] = endedAt.toIso8601String();
+    if (durationSeconds != null) updates['duration_seconds'] = durationSeconds;
+
+    await _client.from('calls').update(updates).eq('id', callId);
+  }
+
+  /// Mengakhiri panggilan dan mencatat durasi secara otomatis
+  Future<void> endCall(String callId, {DateTime? startedAt}) async {
+    final now = DateTime.now();
+    int duration = 0;
+    if (startedAt != null) {
+      duration = now.difference(startedAt).inSeconds;
+      if (duration < 0) duration = 0;
+    }
+    await updateCallStatus(
+      callId,
+      'ended',
+      startedAt: startedAt,
+      endedAt: now,
+      durationSeconds: duration,
+    );
   }
 
   /// Ambil detail panggilan berdasarkan ID

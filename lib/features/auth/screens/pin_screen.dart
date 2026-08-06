@@ -6,6 +6,8 @@ import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/mika_animated.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
@@ -25,7 +27,8 @@ class PinScreen extends ConsumerStatefulWidget {
 }
 
 class _PinScreenState extends ConsumerState<PinScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  final _mikaKey = GlobalKey<MikaAnimatedState>();
   late bool _isSetupMode;
   String _pin = '';
   String _confirmPin = '';
@@ -116,6 +119,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 _statusMessage = authState.error!;
               });
             } else {
+              _mikaKey.currentState?.react(MikaReaction.ok);
               Navigator.pushReplacementNamed(context, AppRoutes.home);
             }
           }
@@ -124,6 +128,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
           if (!MediaQuery.disableAnimationsOf(context)) {
             _shakeController.forward(from: 0);
           }
+          _mikaKey.currentState?.react(MikaReaction.huft);
           setState(() {
             _pin = '';
             _hasError = true;
@@ -155,8 +160,10 @@ class _PinScreenState extends ConsumerState<PinScreen>
             ref
                 .read(sosProvider.notifier)
                 .activateSOS(gps: true, mic: false, video: false);
+            _mikaKey.currentState?.react(MikaReaction.ok);
             Navigator.pushReplacementNamed(context, AppRoutes.home);
           } else {
+            _mikaKey.currentState?.react(MikaReaction.ok);
             Navigator.pushReplacementNamed(context, AppRoutes.home);
           }
         }
@@ -165,6 +172,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
         if (!disableAnimations) {
           _shakeController.forward(from: 0);
         }
+        _mikaKey.currentState?.react(MikaReaction.huft);
         setState(() {
           _pin = '';
           _hasError = true;
@@ -213,6 +221,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
     return MekaarScaffold(
+      flat: true,
       forceDark: true, // PIN Screen is always dark navy gradient background
       body: SafeArea(
         child: Padding(
@@ -257,7 +266,14 @@ class _PinScreenState extends ConsumerState<PinScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 12),
+              MikaAnimated(
+                key: _mikaKey,
+                pose: MikaPose.key,
+                size: 64,
+                idle: true,
+              ),
+              const SizedBox(height: 28),
               // Dots indicators (shake saat salah, pop saat terisi)
               Semantics(
                 label: 'PIN',

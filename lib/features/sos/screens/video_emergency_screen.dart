@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -281,7 +282,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.circle, color: Colors.green, size: 8),
+                        Icon(MekaarIcons.circle, color: Colors.green, size: 8),
                         SizedBox(width: 6),
                         Text(
                           'Kamera & Mic Aktif',

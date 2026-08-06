@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/dimensions.dart';
+import '../constants/icons.dart';
 
 class MekaarDialog extends StatelessWidget {
   final Widget? icon;
@@ -95,7 +96,7 @@ class MekaarDialog extends StatelessWidget {
       barrierDismissible: false,
       isDestructive: true,
       icon: Icon(
-        Icons.shield_outlined,
+        MekaarIcons.shieldOutline,
         color: Theme.of(context).colorScheme.error,
       ),
       title: 'Belum Ada Guardian Aktif',
@@ -139,8 +140,8 @@ class MekaarDialog extends StatelessWidget {
           icon ??
               Icon(
                 isDestructive
-                    ? Icons.warning_amber_rounded
-                    : Icons.info_outline,
+                    ? MekaarIcons.warningAmberRounded
+                    : MekaarIcons.infoOutline,
                 color: accentColor,
               ),
           const SizedBox(width: MekaarSpacing.sm),

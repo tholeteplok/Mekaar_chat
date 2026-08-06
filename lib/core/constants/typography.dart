@@ -29,24 +29,24 @@ class MekaarTypography {
   }
 
   // ─────────────────────────────────────────
-  // Display — Judul besar halaman
+  // Display — Judul besar halaman (Playful Display: Baloo 2)
   // ─────────────────────────────────────────
-  static TextStyle get displayXL => _font(
+  static TextStyle get displayXL => GoogleFonts.baloo2(
     fontSize: 36,
     fontWeight: FontWeight.w800,
     height: 1.2,
   );
 
-  static TextStyle get displayLG => _font(
+  static TextStyle get displayLG => GoogleFonts.baloo2(
     fontSize: 32,
     fontWeight: FontWeight.w800,
     height: 1.2,
   );
 
-  static TextStyle get wordmark => _font(
+  static TextStyle get wordmark => GoogleFonts.baloo2(
     fontSize: 38,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -1.0,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.5,
   );
 
   static TextStyle get tabHeader => displayLG.copyWith(color: Colors.white);
@@ -54,8 +54,11 @@ class MekaarTypography {
   // ─────────────────────────────────────────
   // Heading — Sub-judul & section title
   // ─────────────────────────────────────────
-  static TextStyle get headingLG =>
-      _font(fontSize: 24, fontWeight: FontWeight.w700);
+  static TextStyle get headingLG => GoogleFonts.baloo2(
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
+  );
 
   static TextStyle get headingMD =>
       _font(fontSize: 20, fontWeight: FontWeight.w700);

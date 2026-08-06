@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -34,18 +38,17 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final currentUserId = ref.watch(supabaseServiceProvider).currentUserId;
 
     return roomsAsync.when(
-      loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: MekaarColors.softCoral),
-        ),
+      loading: () => const MekaarStateView(
+        pose: MikaPose.phone,
+        title: 'Memuat Kontak',
+        message: 'Sedang mengambil daftar kontak Anda...',
       ),
-      error: (err, stack) => Scaffold(
-        body: Center(
-          child: Text(
-            'Gagal memuat kontak: $err',
-            style: const TextStyle(color: MekaarColors.sosRed),
-          ),
-        ),
+      error: (err, stack) => MekaarStateView(
+        pose: MikaPose.neutral,
+        title: 'Gagal Memuat Kontak',
+        message: err.toString(),
+        actionLabel: 'Coba Lagi',
+        onAction: () => ref.invalidate(chatRoomsProvider),
       ),
       data: (rooms) {
         // Saring data room:
@@ -152,14 +155,13 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   }
 
   Widget _buildContactsList(List<Map<String, dynamic>> contacts) {
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8).copyWith(bottom: 110),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? MekaarColors.textPrimary : const Color(0xFF1B2145);
+    final mutedColor = isDark ? MekaarColors.textMuted : const Color(0xFF56617F);
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.md, vertical: MekaarSpacing.xs).copyWith(bottom: 110),
       itemCount: contacts.length,
-      separatorBuilder: (context, index) => const Divider(
-        color: MekaarColors.borderLight,
-        height: 1,
-        indent: 68,
-      ),
       itemBuilder: (context, index) {
         final contact = contacts[index];
         final name = contact['name'] as String;
@@ -170,55 +172,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
         return AnimatedAppear(
           delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            leading: Avatar(
-              imageUrl: contact['avatarUrl'] as String?,
-              initial: avatar,
-              isGuardian: isGuardian,
-              size: 48,
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    name,
-                    style: MekaarTypography.bodyMD.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: MekaarColors.textPrimaryOf(context),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isGuardian) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.guardianLight,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'Guardian',
-                      style: MekaarTypography.caption.copyWith(
-                        color: MekaarColors.guardianTeal,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            subtitle: Text(
-              username.isNotEmpty ? '@$username' : email,
-              style: MekaarTypography.bodySM.copyWith(
-                fontSize: 13.5,
-                color: MekaarColors.textMutedOf(context),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+          child: CustomCard(
+            margin: const EdgeInsets.only(bottom: MekaarSpacing.sm),
+            padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.sm, vertical: MekaarSpacing.xs),
             onTap: () {
               Navigator.pushNamed(
                 context,
@@ -233,6 +189,61 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 },
               );
             },
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Avatar(
+                imageUrl: contact['avatarUrl'] as String?,
+                initial: avatar,
+                isGuardian: isGuardian,
+                size: 48,
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: MekaarTypography.bodyMD.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: primaryColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isGuardian) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.guardianLight,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Guardian',
+                        style: MekaarTypography.caption.copyWith(
+                          color: MekaarColors.guardianTeal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              subtitle: Text(
+                username.isNotEmpty ? '@$username' : email,
+                style: MekaarTypography.bodySM.copyWith(
+                  fontSize: 13.5,
+                  color: mutedColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Icon(
+                SolarIconsOutline.altArrowRight,
+                color: mutedColor,
+                size: 18,
+              ),
+            ),
           ),
         );
       },

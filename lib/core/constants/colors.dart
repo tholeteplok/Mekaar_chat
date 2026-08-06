@@ -8,9 +8,10 @@ class MekaarColors {
   static const Color canvasMid = Color(0xFF1E2A63);
   static const Color canvasBottom = Color(0xFF2E63B8);
 
-  // Playful accents
-  static const Color yellow = Color(0xFFFFD84D);
+  // Playful accents & Primary Brand Token
+  static const Color primary = Color(0xFF38BDF8);
   static const Color cyan = Color(0xFF38BDF8);
+  static const Color yellow = Color(0xFFFFD84D);
   static const Color purple = Color(0xFF8B5CF6);
   static const Color purpleLight = Color(0xFFA78BFA);
   static const Color pink = Color(0xFFF472B6);
@@ -31,6 +32,9 @@ class MekaarColors {
   static const Color textOnYellow = Color(
     0xFF2B2400,
   ); // Dark text for yellow button/bubble
+  static const Color textOnLime = Color(
+    0xFF1A2E05,
+  ); // Dark text for lime button
 
   static const Color card = Color(0xFFFFFFFF); // Light surface card
   static const Color cardDark = Color(0xFF232A52); // Dark surface card
@@ -77,28 +81,52 @@ class MekaarColors {
   static const Color borderLight = Color(0xFFF1F5F9);
 
   static Color surfaceOf(BuildContext c) =>
-      Theme.of(c).brightness == Brightness.dark
-      ? MekaarColors.surfaceDark
-      : MekaarColors.surface;
+      Theme.of(c).colorScheme.surface;
 
-  static Color surface2Of(BuildContext c) =>
-      Theme.of(c).brightness == Brightness.dark
-      ? MekaarColors.surface2Dark
-      : MekaarColors.surface2;
+  static Color surface2Of(BuildContext c) {
+    final isDark = Theme.of(c).brightness == Brightness.dark;
+    if (isDark) return MekaarColors.surface2Dark;
+    final surface = Theme.of(c).colorScheme.surface;
+    if (surface == MekaarColors.morningSurface) return const Color(0xFFFFF1DF);
+    if (surface == MekaarColors.eveningSurface) return const Color(0xFFFFD9C9);
+    return MekaarColors.surface2;
+  }
 
   static Color backgroundOf(BuildContext c) =>
-      Theme.of(c).brightness == Brightness.dark
-      ? MekaarColors.backgroundDark
-      : MekaarColors.background;
+      Theme.of(c).colorScheme.surface;
 
-  static Color textPrimaryOf(BuildContext c) =>
-      Theme.of(c).colorScheme.onSurface;
+  static Color dividerOf(BuildContext c) =>
+      Theme.of(c).dividerColor;
 
-  static Color textSecondaryOf(BuildContext c) =>
-      Theme.of(c).colorScheme.onSurfaceVariant;
+  static Color textPrimaryOf(BuildContext c) {
+    final isDark = Theme.of(c).brightness == Brightness.dark;
+    if (isDark) return MekaarColors.textPrimary;
+    final onSurface = Theme.of(c).colorScheme.onSurface;
+    if (onSurface == Colors.white || onSurface.computeLuminance() > 0.5) {
+      return const Color(0xFF1B2145);
+    }
+    return onSurface;
+  }
 
-  static Color textMutedOf(BuildContext c) =>
-      Theme.of(c).colorScheme.onSurfaceVariant.withValues(alpha: 0.72);
+  static Color textSecondaryOf(BuildContext c) {
+    final isDark = Theme.of(c).brightness == Brightness.dark;
+    if (isDark) return MekaarColors.textSecondary;
+    final onSurfaceVariant = Theme.of(c).colorScheme.onSurfaceVariant;
+    if (onSurfaceVariant.computeLuminance() > 0.5) {
+      return const Color(0xFF56617F);
+    }
+    return onSurfaceVariant;
+  }
+
+  static Color textMutedOf(BuildContext c) {
+    final isDark = Theme.of(c).brightness == Brightness.dark;
+    if (isDark) return MekaarColors.textMuted;
+    final onSurfaceVariant = Theme.of(c).colorScheme.onSurfaceVariant;
+    if (onSurfaceVariant.computeLuminance() > 0.5) {
+      return const Color(0xFF56617F).withValues(alpha: 0.72);
+    }
+    return onSurfaceVariant.withValues(alpha: 0.72);
+  }
 
   static Color outgoingBubbleOf(BuildContext c) =>
       Theme.of(c).brightness == Brightness.dark
@@ -132,7 +160,7 @@ class MekaarGradients {
   static const LinearGradient canvasLight = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFF4F7FF), Color(0xFFE3ECFF)],
+    colors: [Color.fromARGB(255, 146, 226, 253), Color(0xFFE3ECFF)],
   );
 
   static const LinearGradient canvasSos = LinearGradient(

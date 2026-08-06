@@ -26,7 +26,7 @@ class CustomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = color ?? Theme.of(context).cardColor;
+    final cardColor = color ?? MekaarColors.surfaceOf(context);
     final radius = borderRadius ?? MekaarRadius.lg;
 
     final decoration = BoxDecoration(

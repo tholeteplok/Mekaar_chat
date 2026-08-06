@@ -8,6 +8,8 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../providers/guardian_provider.dart';
 
 // Layar "Kode QR Saya": tampilkan ke teman terpercaya agar ia bisa
@@ -72,6 +74,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Kode QR Saya'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -87,9 +90,11 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
             ),
             const SizedBox(height: 32),
             if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(64.0),
-                child: CircularProgressIndicator(),
+              const MekaarStateView(
+                pose: MikaPose.shield,
+                title: 'Menyiapkan Kode QR',
+                message: 'Membuat kode undangan Guardian Anda…',
+                semanticLabel: 'Memuat kode QR undangan',
               )
             else if (_token != null)
               Container(

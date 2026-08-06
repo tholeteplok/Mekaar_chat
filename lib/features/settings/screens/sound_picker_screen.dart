@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/notification_preferences.dart';
 import '../providers/notification_preferences_provider.dart';
@@ -99,6 +101,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
     final prefsState = ref.watch(notificationPreferencesProvider);
 
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Nada & Suara'),
       body: prefsState.when(
         data: (prefs) => SingleChildScrollView(
@@ -159,8 +162,18 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
             ],
           ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        loading: () => const MekaarStateView(
+          pose: MikaPose.phone,
+          title: 'Memuat Preferensi Suara',
+          message: 'Sedang mengambil pengaturan nada & suara Anda...',
+        ),
+        error: (err, _) => MekaarStateView(
+          pose: MikaPose.neutral,
+          title: 'Gagal Memuat Pengaturan',
+          message: err.toString(),
+          actionLabel: 'Coba Lagi',
+          onAction: () => ref.invalidate(notificationPreferencesProvider),
+        ),
       ),
     );
   }

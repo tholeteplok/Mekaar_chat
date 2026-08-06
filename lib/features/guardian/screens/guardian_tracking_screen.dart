@@ -8,6 +8,8 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
 import '../../sos/providers/sos_provider.dart';
 
@@ -110,8 +112,12 @@ class _GuardianTrackingScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: MekaarColors.sosRed),
+      return const MekaarStateView(
+        pose: MikaPose.shield,
+        title: 'Memuat Lokasi Darurat',
+        message: 'Mengambil sesi SOS yang sedang Anda jaga…',
+        layout: MekaarStateLayout.centered,
+        semanticLabel: 'Memuat lokasi darurat',
       );
     }
     if (_hasError) {

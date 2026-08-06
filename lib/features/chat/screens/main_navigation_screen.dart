@@ -88,38 +88,57 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             : item)
         .toList();
 
-    return MekaarScaffold(
-      extendBody: true,
-      body: Stack(
-        children: [
-          PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              FocusManager.instance.primaryFocus?.unfocus();
-              setState(() => _currentIndex = index);
-            },
-            children: _screens,
-          ),
-          MekaarBottomNav(
-            items: items,
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              FocusManager.instance.primaryFocus?.unfocus();
-              if (_currentIndex != index) {
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          if (animationsDisabled) {
+            _pageController.jumpToPage(0);
+          } else {
+            _pageController.animateToPage(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        }
+      },
+      child: MekaarScaffold(
+        flat: true,
+        extendBody: true,
+        body: Stack(
+          children: [
+            PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                FocusManager.instance.primaryFocus?.unfocus();
                 setState(() => _currentIndex = index);
-                if (animationsDisabled) {
-                  _pageController.jumpToPage(index);
-                } else {
-                  _pageController.animateToPage(
-                    index,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                  );
+              },
+              children: _screens,
+            ),
+            MekaarBottomNav(
+              items: items,
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                if (_currentIndex != index) {
+                  setState(() => _currentIndex = index);
+                  if (animationsDisabled) {
+                    _pageController.jumpToPage(index);
+                  } else {
+                    _pageController.animateToPage(
+                      index,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                    );
+                  }
                 }
-              }
-            },
-          ),
-        ],
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

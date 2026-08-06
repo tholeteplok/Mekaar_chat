@@ -7,6 +7,8 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -158,11 +160,17 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       appBar: AppBar(
         title: const Text('Info Kontak'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const MekaarStateView(
+              pose: MikaPose.ask,
+              title: 'Memuat Info Kontak',
+              message: 'Mengambil detail profil kontak Anda…',
+              semanticLabel: 'Memuat info kontak',
+            )
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
@@ -198,14 +206,14 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 const SizedBox(height: 32),
 
                 // Pengaturan Privasi
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
                     'Pengaturan Privasi',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
-                      color: MekaarColors.textSecondary,
+                      color: MekaarColors.textSecondaryOf(context),
                     ),
                   ),
                 ),
@@ -245,7 +253,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                       ? IconButton(
                           icon: Icon(
                             _showE2eeFingerprint ? SolarIconsOutline.eyeClosed : SolarIconsOutline.eye,
-                            color: MekaarColors.textSecondary,
+                            color: MekaarColors.textSecondaryOf(context),
                           ),
                           onPressed: () {
                             setState(() {
@@ -266,9 +274,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Untuk memverifikasi bahwa chat ini aman dan dienkripsi ujung-ke-ujung (E2EE) secara sah, cocokkan nomor berikut dengan perangkat milik kontak Anda.',
-                                    style: TextStyle(color: MekaarColors.textSecondary, fontSize: 13),
+                                    style: TextStyle(color: MekaarColors.textSecondaryOf(context), fontSize: 13),
                                   ),
                                   const SizedBox(height: 16),
                                   Container(

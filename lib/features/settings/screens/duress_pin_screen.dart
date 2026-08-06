@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class DuressPinScreen extends ConsumerStatefulWidget {
@@ -172,12 +175,18 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
             ),
             const Spacer(),
             if (_isSetting)
-              const CircularProgressIndicator()
+              const MekaarStateView(
+                pose: MikaPose.pin,
+                title: 'Mengatur PIN Paksaan',
+                message: 'Tunggu sebentar, kami mengamankan akun Anda.',
+                illustrationSize: 96,
+                semanticLabel: 'Mengatur PIN Paksaan',
+              )
             else if (_enabled) ...[
               const SizedBox(height: 12),
               ElevatedButton.icon(
                 onPressed: _disable,
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(MekaarIcons.delete),
                 label: const Text('Nonaktifkan PIN Paksaan'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: MekaarColors.sosRed,

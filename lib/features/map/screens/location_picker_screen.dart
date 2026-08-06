@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../data/services/location_service.dart';
 
@@ -83,6 +84,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     final surfaceColor = MekaarColors.surfaceOf(context);
 
     return MekaarScaffold(
+      flat: true,
       appBar: CustomAppBar(
         title: widget.title,
         subtitle: 'Ketuk peta untuk menentukan lokasi tujuan',
@@ -160,19 +162,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             left: MekaarSpacing.md,
             right: MekaarSpacing.md,
             bottom: MekaarSpacing.lg,
-            child: Container(
+            child: CustomCard(
+              margin: EdgeInsets.zero,
               padding: const EdgeInsets.all(MekaarSpacing.md),
-              decoration: BoxDecoration(
-                color: surfaceColor,
-                borderRadius: BorderRadius.circular(MekaarRadius.lg),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 16,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -226,8 +218,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: MekaarColors.yellow,
-                        foregroundColor: MekaarColors.textOnYellow,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         shape: const StadiumBorder(),
                       ),
                       child: const Text(

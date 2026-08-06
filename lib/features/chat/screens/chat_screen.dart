@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -7,6 +8,8 @@ import 'package:location/location.dart' as loc;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/icons.dart';
+import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/chat_bubble.dart';
@@ -30,6 +33,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/media_upload_service.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/models/chat_theme_model.dart';
+import '../../settings/providers/chat_theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -562,28 +567,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
           (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
         ];
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Pesan Menghilang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ...options.map((opt) {
-              final selected = opt.$1 == _autoDeleteHours;
-              return ListTile(
-                leading: Icon(
-                  selected ? SolarIconsBold.history : SolarIconsOutline.history,
-                  color: selected ? MekaarColors.softCoral : null,
-                ),
-                title: Text(opt.$2),
-                subtitle: Text(opt.$3),
-                trailing: selected
-                    ? const Icon(Icons.check, color: MekaarColors.softCoral)
-                    : null,
-                onTap: () => Navigator.pop(ctx, opt.$1),
-              );
-            }),
-            const SizedBox(height: 12),
-          ],
+        return MekaarBottomSheet(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Pesan Menghilang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ...options.map((opt) {
+                final selected = opt.$1 == _autoDeleteHours;
+                return ListTile(
+                  leading: Icon(
+                    selected ? SolarIconsBold.history : SolarIconsOutline.history,
+                    color: selected ? MekaarColors.softCoral : null,
+                  ),
+                  title: Text(opt.$2),
+                  subtitle: Text(opt.$3),
+                  trailing: selected
+                      ? const Icon(MekaarIcons.check, color: MekaarColors.softCoral)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, opt.$1),
+                );
+              }),
+              const SizedBox(height: 12),
+            ],
+          ),
         );
       },
     );
@@ -691,7 +698,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MekaarColors.surfaceOf(context),
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
@@ -700,23 +707,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Text('Enkripsi Ujung-ke-Ujung', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Pesan dan panggilan dalam chat ini dilindungi dengan enkripsi ujung-ke-ujung (E2EE) menggunakan pasangan kunci asimetris X25519.',
-              style: TextStyle(color: MekaarColors.textPrimary, fontSize: 13),
+              style: TextStyle(color: MekaarColors.textPrimaryOf(context), fontSize: 13),
             ),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 12),
+            const Text(
               '⚠️ Batasan Forward Secrecy:',
               style: TextStyle(color: MekaarColors.warnAmber, fontWeight: FontWeight.bold, fontSize: 13),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               'MEKAAR saat ini tidak menggunakan rotasi kunci otomatis (Forward Secrecy). Jika kunci privat salah satu pihak bocor di masa mendatang, pesan-pesan lama dalam ruang obrolan ini secara teoritis dapat didekripsi. Amankan PIN dan perangkat Anda.',
-              style: TextStyle(color: MekaarColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: MekaarColors.textMutedOf(context), fontSize: 12),
             ),
           ],
         ),
@@ -752,271 +759,135 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final protection = protectionAsync.valueOrNull;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
+    final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+
+    final topAreaHeight = MediaQuery.of(context).padding.top + kToolbarHeight + 16.0;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return MekaarScaffold(
-      appBar: CustomAppBar(
-        title: widget.chatName,
-        avatarInitial: widget.chatAvatar,
-        avatarUrl: widget.chatAvatarUrl,
-        isGuardian: widget.isGuardian,
-        showOnlineIndicator: true,
-        isOnline: _isCurrentlyOnline || _partnerIsTyping,
-        subtitle: _buildPresenceSubtitle(),
-        onAvatarTap: widget.isGroup
-            ? () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.groupDetails,
-                  arguments: {
-                    'roomId': widget.chatId,
-                    'groupName': widget.chatName,
-                    'groupAvatarUrl': widget.chatAvatarUrl,
-                  },
-                )
-            : (widget.otherUserId != null
-                ? () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.contactSettings,
-                      arguments: {
-                        'roomId': widget.chatId,
-                        'chatName': widget.chatName,
-                        'chatAvatar': widget.chatAvatar,
-                        'otherUserId': widget.otherUserId!,
-                        'isGuardian': widget.isGuardian,
-                      },
-                    )
-                : null),
-        actions: [
-          // E2EE Lock/Secure Indicator
-          IconButton(
-            icon: const Icon(
-              SolarIconsOutline.shieldKeyhole,
-              color: MekaarColors.guardianTeal,
-            ),
-            onPressed: _showE2eeInfoDialog,
-            tooltip: 'Informasi Enkripsi',
-          ),
-          // Voice Call icon
-          IconButton(
-            icon: const Icon(
-              SolarIconsOutline.phone,
-              color: MekaarColors.softCoral,
-            ),
-            onPressed: () => _initiateCall('voice'),
-            tooltip: 'Panggilan Suara',
-          ),
-          // Actions Popup Menu
-          PopupMenuButton<String>(
-            icon: const Icon(
-              SolarIconsOutline.menuDots,
-              color: MekaarColors.softCoral,
-            ),
-            onSelected: (value) async {
-              if (value == 'video') {
-                _initiateCall('video');
-              } else if (value == 'screen_protection') {
-                final nextValue = !(protection?.callerEnabled ?? true);
-                final ctx = context;
-                try {
-                  await ref
-                      .read(screenProtectionControllerProvider)
-                      .setRoomPreference(widget.chatId, nextValue);
-                } catch (_) {
-                  if (!ctx.mounted) return;
-                  MekaarSnackbar.error(
-                    ctx,
-                    'Pengaturan proteksi belum dapat disinkronkan',
-                  );
-                }
-              } else if (value == 'auto_delete') {
-                _showAutoDeleteMenu();
-              } else if (value == 'view_once') {
-                _toggleViewOnce();
-              } else if (value == 'clear') {
-                _confirmClearHistory();
-              } else if (value == 'delete') {
-                _confirmDeleteChat();
-              }
-            },
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem<String>(
-                value: 'video',
-                child: Row(
-                  children: [
-                    Icon(
-                      SolarIconsOutline.videocamera,
-                      size: 20,
-                      color: MekaarColors.textPrimary,
-                    ),
-                    SizedBox(width: 8),
-                    Text('Panggilan Video'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'screen_protection',
-                child: Row(
-                  children: [
-                    const Icon(
-                      SolarIconsOutline.shieldCheck,
-                      size: 20,
-                      color: MekaarColors.safeTeal,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      protection?.callerEnabled == true
-                          ? 'Nonaktifkan proteksi layar'
-                          : 'Aktifkan proteksi layar',
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'auto_delete',
-                child: Row(
-                  children: [
-                    Icon(
-                      _autoDeleteHours > 0
-                          ? SolarIconsBold.history
-                          : SolarIconsOutline.history,
-                      size: 20,
-                      color: _autoDeleteHours > 0
-                          ? MekaarColors.softCoral
-                          : MekaarColors.textPrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('Pesan Menghilang: ${_autoDeleteLabel()}'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'view_once',
-                child: Row(
-                  children: [
-                    Icon(
-                      _isViewOnce ? SolarIconsBold.eye : SolarIconsOutline.eye,
-                      size: 20,
-                      color: _isViewOnce
-                          ? MekaarColors.softCoral
-                          : MekaarColors.textPrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('Sekali Lihat: ${_isViewOnce ? 'Aktif' : 'Mati'}'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(
-                      SolarIconsOutline.trashBinMinimalistic,
-                      size: 20,
-                      color: MekaarColors.textPrimary,
-                    ),
-                    SizedBox(width: 8),
-                    Text('Bersihkan Riwayat'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(
-                      SolarIconsOutline.trashBinMinimalistic,
-                      size: 20,
-                      color: MekaarColors.sosRed,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Hapus Chat',
-                      style: TextStyle(color: MekaarColors.sosRed),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-
+      flat: false,
+      extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          Column(
-            children: [
-              E2eePreparationBanner(status: e2eeStatus),
-              if (protection?.effective ?? true)
-                ScreenProtectionStatusBadge(
-                  label: protection?.statusLabel ?? 'Proteksi ruang aktif',
-                ),
-              Expanded(
-                child: messagesStream.when(
-                  data: (messages) {
-                    if (messages.isEmpty) {
-                      return const MekaarStateView(
-                        pose: MikaPose.sleep,
-                        title: 'Belum Ada Pesan',
-                        message: 'Belum ada pesan. Kirim pesan pertama!',
+          // ── Layer 0: Wallpaper/Background ──
+          _buildWallpaperBackground(chatPref),
+
+          // ── Layer 1: Daftar Pesan (full screen, padding atas & bawah) ──
+          Positioned.fill(
+            child: Column(
+              children: [
+                // Banner E2EE & proteksi harus di atas padding header agar
+                // tidak tertimpa header floating
+                // Spacer mulai dari tengah kapsul header (Telegram-style fade)
+                SizedBox(height: topAreaHeight - (kToolbarHeight * 0.5)),
+                E2eePreparationBanner(status: e2eeStatus),
+                if (protection?.effective ?? true)
+                  ScreenProtectionStatusBadge(
+                    label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                  ),
+                Expanded(
+                  child: messagesStream.when(
+                    data: (messages) {
+                      if (messages.isEmpty) {
+                        return const MekaarStateView(
+                          pose: MikaPose.sleep,
+                          title: 'Belum Ada Pesan',
+                          message: 'Belum ada pesan. Kirim pesan pertama!',
+                        );
+                      }
+
+                      final reversed = messages.reversed.toList();
+
+                      // Build items with date separators interleaved
+                      final itemBuilder = _buildMessageItems(
+                        reversed,
+                        currentUserId,
+                        actions,
                       );
-                    }
 
-                    final reversed = messages.reversed.toList();
-
-                    // Build items with date separators interleaved
-                    final itemBuilder = _buildMessageItems(
-                      reversed,
-                      currentUserId,
-                      actions,
-                    );
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: itemBuilder.length,
-                      itemBuilder: (context, index) => itemBuilder[index],
-                    );
-                  },
-                  loading: () => const MekaarStateView(
-                    pose: MikaPose.neutral,
-                    title: 'Memuat',
-                    message: 'Memuat pesan...',
-                  ),
-                  error: (err, stack) => MekaarStateView(
-                    pose: MikaPose.huft,
-                    title: 'Gagal Memuat',
-                    message: 'Gagal memuat pesan: $err',
-                    actionLabel: 'Coba Lagi',
-                    onAction: () => ref.invalidate(
-                      chatMessagesProvider(widget.chatId),
+                      // ShaderMask: bubble memudar tepat di tengah kapsul (Telegram-style)
+                      return ShaderMask(
+                        shaderCallback: (Rect rect) {
+                          final topStop = ((kToolbarHeight * 0.5) / rect.height).clamp(0.0, 1.0);
+                          final bottomStop = (1.0 - (30.0 + keyboardHeight) / rect.height).clamp(topStop, 1.0);
+                          return LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: const [
+                              Colors.transparent, // tengah kapsul header (invisible)
+                              Colors.black,        // bawah kapsul header (full)
+                              Colors.black,        // atas composer (full)
+                              Colors.transparent, // tengah kapsul composer (invisible)
+                            ],
+                            stops: [
+                              0.0,
+                              topStop,
+                              bottomStop,
+                              1.0,
+                            ],
+                          ).createShader(rect);
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          // Padding bawah memberi ruang untuk composer floating + inset keyboard
+                          padding: EdgeInsets.only(top: 8, bottom: 130 + keyboardHeight),
+                          itemCount: itemBuilder.length,
+                          itemBuilder: (context, index) => itemBuilder[index],
+                        ),
+                      );
+                    },
+                    loading: () => const MekaarStateView(
+                      pose: MikaPose.neutral,
+                      title: 'Memuat',
+                      message: 'Memuat pesan...',
                     ),
-                    icon: SolarIconsOutline.refresh,
+                    error: (err, stack) => MekaarStateView(
+                      pose: MikaPose.huft,
+                      title: 'Gagal Memuat',
+                      message: 'Gagal memuat pesan: $err',
+                      actionLabel: 'Coba Lagi',
+                      onAction: () => ref.invalidate(
+                        chatMessagesProvider(widget.chatId),
+                      ),
+                      icon: SolarIconsOutline.refresh,
+                    ),
                   ),
                 ),
-              ),
-              if (_partnerIsTyping) const TypingIndicator(),
-              ChatComposer(
-                controller: _textController,
-                replyMessage: _replyMessage,
-                editingMessage: _editingMessage,
-                enabled: isE2eeReady,
-                onSend: _handleSend,
-                onCancelReply: () => setState(() => _replyMessage = null),
-                onCancelEdit: () {
-                  setState(() => _editingMessage = null);
-                  _textController.clear();
-                },
-                onSendMedia: _handleSendMedia,
-                onSendLocation: _handleSendLocation,
-                onShareLiveLocation: _handleShareLiveLocation,
-              ),
-            ],
+                if (_partnerIsTyping) const TypingIndicator(),
+              ],
+            ),
           ),
-          // Scroll-to-bottom floating button (ditengah horizontal di atas composer bar)
+
+          // ── Layer 2: Composer Floating (bawah) ──
           Positioned(
             left: 0,
             right: 0,
-            bottom: 84,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            child: ChatComposer(
+              controller: _textController,
+              replyMessage: _replyMessage,
+              editingMessage: _editingMessage,
+              enabled: isE2eeReady,
+              onSend: _handleSend,
+              onCancelReply: () => setState(() => _replyMessage = null),
+              onCancelEdit: () {
+                setState(() => _editingMessage = null);
+                _textController.clear();
+              },
+              onSendMedia: _handleSendMedia,
+              onSendLocation: _handleSendLocation,
+              onShareLiveLocation: _handleShareLiveLocation,
+            ),
+          ),
+
+          // ── Layer 5: Scroll-to-bottom button ──
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 120,
             child: Center(
               child: ScrollToBottomButton(
                 visible: _showScrollButton,
@@ -1028,10 +899,228 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
           ),
+
+          // ── Layer 4: Header Floating (atas) ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: CustomAppBar(
+              isFloating: true,
+              title: widget.chatName,
+              avatarInitial: widget.chatAvatar,
+              avatarUrl: widget.chatAvatarUrl,
+              isGuardian: widget.isGuardian,
+              showOnlineIndicator: true,
+              isOnline: _isCurrentlyOnline || _partnerIsTyping,
+              subtitle: _buildPresenceSubtitle(),
+              onAvatarTap: widget.isGroup
+                  ? () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.groupDetails,
+                        arguments: {
+                          'roomId': widget.chatId,
+                          'groupName': widget.chatName,
+                          'groupAvatarUrl': widget.chatAvatarUrl,
+                        },
+                      )
+                  : (widget.otherUserId != null
+                      ? () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.contactSettings,
+                            arguments: {
+                              'roomId': widget.chatId,
+                              'chatName': widget.chatName,
+                              'chatAvatar': widget.chatAvatar,
+                              'otherUserId': widget.otherUserId!,
+                              'isGuardian': widget.isGuardian,
+                            },
+                          )
+                      : null),
+              actions: [
+                // Voice Call icon
+                IconButton(
+                  icon: const Icon(
+                    SolarIconsOutline.phone,
+                    color: MekaarColors.softCoral,
+                  ),
+                  onPressed: () => _initiateCall('voice'),
+                  tooltip: 'Panggilan Suara',
+                ),
+                // Actions Popup Menu
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    SolarIconsOutline.menuDots,
+                    color: MekaarColors.softCoral,
+                  ),
+                  onSelected: (value) async {
+                    if (value == 'video') {
+                      _initiateCall('video');
+                    } else if (value == 'screen_protection') {
+                      final nextValue = !(protection?.callerEnabled ?? true);
+                      final ctx = context;
+                      try {
+                        await ref
+                            .read(screenProtectionControllerProvider)
+                            .setRoomPreference(widget.chatId, nextValue);
+                      } catch (_) {
+                        if (!ctx.mounted) return;
+                        MekaarSnackbar.error(
+                          ctx,
+                          'Pengaturan proteksi belum dapat disinkronkan',
+                        );
+                      }
+                    } else if (value == 'theme') {
+                      Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
+                    } else if (value == 'auto_delete') {
+                      _showAutoDeleteMenu();
+                    } else if (value == 'view_once') {
+                      _toggleViewOnce();
+                    } else if (value == 'clear') {
+                      _confirmClearHistory();
+                    } else if (value == 'e2ee_info') {
+                      _showE2eeInfoDialog();
+                    } else if (value == 'delete') {
+                      _confirmDeleteChat();
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    // E2EE Info (hanya informasi, dipindah ke menu)
+                    PopupMenuItem<String>(
+                      value: 'e2ee_info',
+                      child: Row(
+                        children: [
+                          Icon(
+                            SolarIconsOutline.shieldKeyhole,
+                            size: 20,
+                            color: MekaarColors.guardianTeal,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Informasi Enkripsi E2EE'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'video',
+                      child: Row(
+                        children: [
+                          Icon(
+                            SolarIconsOutline.videocamera,
+                            size: 20,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Panggilan Video'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'theme',
+                      child: Row(
+                        children: [
+                          Icon(
+                            SolarIconsOutline.palette,
+                            size: 20,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Tema & Wallpaper Chat'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'screen_protection',
+                      child: Row(
+                        children: [
+                          Icon(
+                            protection?.callerEnabled ?? true
+                                ? SolarIconsOutline.shieldCheck
+                                : SolarIconsOutline.shieldCross,
+                            size: 20,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            protection?.callerEnabled ?? true
+                                ? 'Nonaktifkan Proteksi Layar'
+                                : 'Aktifkan Proteksi Layar',
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'auto_delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            SolarIconsOutline.history,
+                            size: 20,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Pesan Menghilang (${_autoDeleteLabel()})'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'view_once',
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isViewOnce
+                                ? SolarIconsBold.eyeClosed
+                                : SolarIconsOutline.eyeClosed,
+                            size: 20,
+                            color: _isViewOnce
+                                ? MekaarColors.softCoral
+                                : MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(_isViewOnce ? 'Mode Sekali Lihat (Aktif)' : 'Mode Sekali Lihat'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'clear',
+                      child: Row(
+                        children: [
+                          Icon(
+                            SolarIconsOutline.trashBinMinimalistic,
+                            size: 20,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Bersihkan Riwayat'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            SolarIconsOutline.trashBinMinimalistic,
+                            size: 20,
+                            color: MekaarColors.sosRed,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Hapus Chat',
+                            style: TextStyle(color: MekaarColors.sosRed),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
 
   /// Build message list items with date separators and entrance animations.
   List<Widget> _buildMessageItems(
@@ -1137,6 +1226,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     return items;
+  }
+
+  Widget _buildWallpaperBackground(ChatThemePreference pref) {
+    return ChatPresetResolver.buildWallpaper(pref, context);
   }
 }
 

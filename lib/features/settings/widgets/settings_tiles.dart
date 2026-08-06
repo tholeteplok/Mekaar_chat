@@ -30,12 +30,17 @@ class SettingsSwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
     final iconColor = isDestructive
         ? MekaarColors.sosRed
         : MekaarColors.textSecondaryOf(context);
 
     return SwitchListTile(
-      activeThumbColor: MekaarColors.softCoral,
+      activeThumbColor: primary,
+      activeTrackColor: primary.withValues(alpha: 0.4),
+      inactiveTrackColor: isDark
+          ? MekaarColors.cardDark
+          : MekaarColors.surface2Of(context),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 4,

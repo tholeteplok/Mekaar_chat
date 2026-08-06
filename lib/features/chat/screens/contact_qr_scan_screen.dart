@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/widgets/mika_illustration.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -136,6 +138,7 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Pindai QR Kontak'),
       body: Stack(
         children: [
@@ -162,8 +165,15 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
           ),
           if (_isProcessing)
             const ColoredBox(
-              color: Colors.black45,
-              child: Center(child: CircularProgressIndicator()),
+              color: Colors.black54,
+              child: Center(
+                child: MekaarStateView(
+                  pose: MikaPose.ask,
+                  title: 'Memproses kode...',
+                  message: 'Mekaar sedang mengenali profil teman Anda.',
+                  illustrationSize: 96,
+                ),
+              ),
             ),
         ],
       ),

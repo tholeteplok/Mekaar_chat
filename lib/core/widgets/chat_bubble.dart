@@ -11,8 +11,12 @@ import '../constants/colors.dart';
 import '../constants/shadows.dart';
 import '../routes/app_routes.dart';
 import '../services/haptic_service.dart';
-import 'animations.dart';
 import 'mekaar_bottom_sheet.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/chat_theme_model.dart';
+import '../../features/settings/providers/chat_theme_provider.dart';
+import '../theme/chat_preset_resolver.dart';
+import '../../../core/constants/icons.dart';
 
 // Helper function to download, decrypt, and cache E2EE media locally.
 Future<File?> _getOrDecryptMedia({
@@ -98,7 +102,7 @@ enum ReadReceiptStatus {
 // ─────────────────────────────────────────
 // ChatBubble widget
 // ─────────────────────────────────────────
-class ChatBubble extends StatelessWidget {
+class ChatBubble extends ConsumerWidget {
   final Message message;
   final bool isMe;
   final VoidCallback? onDelete;
@@ -219,7 +223,9 @@ class ChatBubble extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+
     if (message.type == MessageType.system) {
       return Center(
         child: Container(
@@ -231,9 +237,9 @@ class ChatBubble extends StatelessWidget {
           ),
           child: Text(
             message.content,
-            style: const TextStyle(
+            style: TextStyle(
               color: MekaarColors.info,
-              fontSize: 11,
+              fontSize: 11 * chatPref.textScale,
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
@@ -248,46 +254,38 @@ class ChatBubble extends StatelessWidget {
         : 0;
     final isOnlyEmoji = emojiCount > 0;
 
-    Color? bubbleColor;
-    Color? borderColor;
-    Gradient? bubbleGradient;
-    Color textColor;
+    // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
+    final spec = ChatPresetResolver.getBubbleSpec(chatPref, context, isMe: isMe);
 
-    if (isMe) {
-      if (isDeleted) {
-        bubbleColor = MekaarColors.border;
-        textColor = MekaarColors.textMutedOf(context);
-      } else if (isOnlyEmoji) {
-        bubbleColor = Colors.transparent;
-        borderColor = null;
-        bubbleGradient = null;
-        textColor = MekaarColors.outgoingTextOf(context);
-      } else {
-        bubbleColor = MekaarColors.outgoingBubbleOf(context);
-        borderColor = MekaarColors.outgoingBubbleBorderOf(context);
-        textColor = MekaarColors.outgoingTextOf(context);
-      }
-    } else {
-      if (isDeleted) {
-        bubbleColor = MekaarColors.borderLight;
-        textColor = MekaarColors.textMutedOf(context);
-      } else if (isOnlyEmoji) {
-        bubbleColor = Colors.transparent;
-        borderColor = null;
-        bubbleGradient = null;
-        textColor = MekaarColors.textPrimaryOf(context);
-      } else {
-        bubbleGradient = MekaarGradients.incomingBubble;
-        textColor = Colors.white;
-      }
+    Color bubbleColor = spec.backgroundColor;
+    Border? border = spec.border;
+    Gradient? bubbleGradient = spec.gradient;
+    BorderRadius radius = spec.borderRadius;
+    List<BoxShadow>? shadows = spec.boxShadow;
+    Color textColor = spec.textColor;
+    String? fontFamily = spec.fontFamily;
+
+    if (isDeleted) {
+      bubbleColor = isMe ? MekaarColors.border : MekaarColors.borderLight;
+      textColor = MekaarColors.textMutedOf(context);
+      border = null;
+      bubbleGradient = null;
+      shadows = null;
+    } else if (isOnlyEmoji) {
+      bubbleColor = Colors.transparent;
+      border = null;
+      bubbleGradient = null;
+      shadows = null;
+      textColor = isMe
+          ? MekaarColors.outgoingTextOf(context)
+          : MekaarColors.textPrimaryOf(context);
     }
 
     final receiptStatus = _getReceiptStatus();
+    final entranceSpec = ChatPresetResolver.getEntranceAnimation(chatPref.preset);
 
-    return AnimatedAppear(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutBack,
-      offsetY: 10,
+    return AnimatedPresetBubbleEntrance(
+      spec: entranceSpec,
       child: Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
@@ -307,21 +305,15 @@ class ChatBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: bubbleColor,
                 gradient: bubbleGradient,
-                border: borderColor != null
-                    ? Border.all(color: borderColor, width: 1)
-                    : null,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMe ? 18 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 18),
-                ),
-                boxShadow: (isMe || isOnlyEmoji) ? null : MekaarShadows.bubble,
+                border: border,
+                borderRadius: radius,
+                boxShadow: shadows,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (spec.headerWidget != null && !isDeleted) spec.headerWidget!,
                   if (!isMe && senderName != null && senderName!.isNotEmpty && !isDeleted) ...[
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
@@ -339,7 +331,7 @@ class ChatBubble extends StatelessWidget {
                   if (message.replyToId != null && !isDeleted)
                     _buildQuotedReplyBox(context),
                   // Main content
-                  _buildContentWidget(context, textColor),
+                  _buildContentWidget(context, textColor, fontFamily, spec.textStyle),
                   const SizedBox(height: 4),
                   // Timestamp + edited + read receipt
                   Builder(
@@ -366,7 +358,7 @@ class ChatBubble extends StatelessWidget {
                           ],
                           if (message.isEncrypted && !isDeleted) ...[
                             Icon(
-                              Icons.lock_outline,
+                              MekaarIcons.lockOutline,
                               size: 11,
                               color: metaColor,
                             ),
@@ -382,7 +374,7 @@ class ChatBubble extends StatelessWidget {
                           if (message.autoDeleteAt != null && !isDeleted) ...[
                             const SizedBox(width: 4),
                             Icon(
-                              Icons.timer_outlined,
+                              MekaarIcons.timerOutlined,
                               size: 11,
                               color: metaColor,
                             ),
@@ -418,12 +410,17 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildContentWidget(BuildContext context, Color textColor) {
+  Widget _buildContentWidget(
+    BuildContext context,
+    Color textColor,
+    String? fontFamily,
+    TextStyle? customTextStyle,
+  ) {
     if (message.isDeleted) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.block, size: 14, color: textColor),
+          Icon(MekaarIcons.block, size: 14, color: textColor),
           const SizedBox(width: 6),
           Text(
             'Pesan telah dihapus',
@@ -460,8 +457,8 @@ class ChatBubble extends StatelessWidget {
               children: [
                 Icon(
                   isWarning
-                      ? Icons.warning_amber_rounded
-                      : Icons.verified_user_rounded,
+                      ? MekaarIcons.warningAmberRounded
+                      : MekaarIcons.verifiedUserRounded,
                   color: isWarning ? MekaarColors.sosCoral : MekaarColors.success,
                   size: 24,
                 ),
@@ -508,7 +505,13 @@ class ChatBubble extends StatelessWidget {
         }
         return Text(
           message.content,
-          style: TextStyle(color: textColor, fontSize: 16, height: 1.4),
+          style: customTextStyle ??
+              TextStyle(
+                color: textColor,
+                fontSize: 16,
+                height: 1.4,
+                fontFamily: fontFamily,
+              ),
         );
 
       case MessageType.image:
@@ -547,7 +550,7 @@ class ChatBubble extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.location_on,
+                    MekaarIcons.locationPin,
                     color: isLive
                         ? MekaarColors.guardianTeal
                         : MekaarColors.sosRed,
@@ -589,7 +592,7 @@ class ChatBubble extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.map_outlined,
+                            MekaarIcons.mapOutlined,
                             size: 12,
                             color: isMe
                                 ? textColor.withValues(alpha: 0.8)
@@ -635,12 +638,12 @@ class ChatBubble extends StatelessWidget {
                   height: 180,
                   width: 220,
                   color: Colors.black.withValues(alpha: 0.85),
-                  child: const Icon(Icons.video_library,
+                  child: const Icon(MekaarIcons.videoLibrary,
                       color: Colors.white24, size: 40),
                 ),
               ),
             ),
-            const Icon(Icons.play_circle_outline, color: Colors.white, size: 48),
+            const Icon(MekaarIcons.playCircleOutline, color: Colors.white, size: 48),
           ],
         );
 
@@ -760,13 +763,13 @@ class _ReadReceiptIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case ReadReceiptStatus.pending:
-        return Icon(Icons.access_time, size: 11, color: color);
+        return Icon(MekaarIcons.timerOutlined, size: 11, color: color);
       case ReadReceiptStatus.sent:
-        return Icon(Icons.check, size: 11, color: color);
+        return Icon(MekaarIcons.check, size: 11, color: color);
       case ReadReceiptStatus.delivered:
-        return Icon(Icons.done_all, size: 11, color: color);
+        return Icon(MekaarIcons.doneAll, size: 11, color: color);
       case ReadReceiptStatus.read:
-        return const Icon(Icons.done_all, size: 11, color: MekaarColors.sosCoral);
+        return const Icon(MekaarIcons.doneAll, size: 11, color: MekaarColors.sosCoral);
     }
   }
 }
@@ -882,7 +885,7 @@ class _MessageContextMenu extends StatelessWidget {
           if (onReply != null)
             _menuItem(
               context,
-              icon: Icons.reply,
+              icon: MekaarIcons.reply,
               label: 'Balas',
               onTap: () {
                 Navigator.pop(context);
@@ -892,7 +895,7 @@ class _MessageContextMenu extends StatelessWidget {
           if (canEdit && onEdit != null)
             _menuItem(
               context,
-              icon: Icons.edit_outlined,
+              icon: MekaarIcons.edit,
               label: 'Edit Pesan',
               onTap: () {
                 Navigator.pop(context);
@@ -902,7 +905,7 @@ class _MessageContextMenu extends StatelessWidget {
           if (canForward && onForward != null)
             _menuItem(
               context,
-              icon: Icons.forward,
+              icon: MekaarIcons.forward,
               label: 'Teruskan',
               onTap: () {
                 Navigator.pop(context);
@@ -912,7 +915,7 @@ class _MessageContextMenu extends StatelessWidget {
           if (canDelete && onDelete != null)
             _menuItem(
               context,
-              icon: Icons.delete_outline,
+              icon: MekaarIcons.delete,
               label: 'Hapus untuk Saya',
               color: MekaarColors.textMutedOf(context),
               onTap: () {
@@ -923,7 +926,7 @@ class _MessageContextMenu extends StatelessWidget {
           if (canUnsend && onUnsend != null)
             _menuItem(
               context,
-              icon: Icons.delete_forever,
+              icon: MekaarIcons.deleteForever,
               label: 'Tarik Pesan',
               color: MekaarColors.sosRed,
               onTap: () {
@@ -1104,8 +1107,8 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
           else
             Icon(
               _isPlaying
-                  ? Icons.pause_circle_filled
-                  : Icons.play_circle_filled,
+                  ? MekaarIcons.pauseCircleFilled
+                  : MekaarIcons.playCircleFilled,
               size: 32,
               color: mainColor,
             ),
@@ -1245,7 +1248,7 @@ class _ImageBubble extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.visibility_off,
+                        Icon(MekaarIcons.visibilityOff,
                             color: Colors.white, size: 30),
                         SizedBox(height: 6),
                         Text(
@@ -1304,7 +1307,7 @@ class _ImageBubble extends StatelessWidget {
               color: MekaarColors.surface2Of(context),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.broken_image, color: MekaarColors.textMuted),
+            child: const Icon(MekaarIcons.brokenImage, color: MekaarColors.textMuted),
           );
         }
 
@@ -1354,7 +1357,7 @@ class _ImageBubble extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.visibility_off, color: Colors.white54, size: 30),
+            Icon(MekaarIcons.visibilityOff, color: Colors.white54, size: 30),
             SizedBox(height: 6),
             Text(
               'Media sudah dilihat',
@@ -1456,5 +1459,234 @@ double _getEmojiFontSize(int count) {
       return 28.0;
     default:
       return 16.0;
+  }
+}
+
+/// Generic Entrance Animation Wrapper for all 12 Presets.
+class AnimatedPresetBubbleEntrance extends StatefulWidget {
+  final Widget child;
+  final BubbleEntranceSpec spec;
+
+  const AnimatedPresetBubbleEntrance({
+    super.key,
+    required this.child,
+    required this.spec,
+  });
+
+  @override
+  State<AnimatedPresetBubbleEntrance> createState() =>
+      _AnimatedPresetBubbleEntranceState();
+}
+
+class _AnimatedPresetBubbleEntranceState
+    extends State<AnimatedPresetBubbleEntrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.spec.duration,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: widget.spec.curve,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (widget.spec.type) {
+      // 1. Neumorphism: Scale 0.97 -> 1.0 + fade
+      case EntranceType.neumorphismSoft:
+        return FadeTransition(
+          opacity: _animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.97, end: 1.0).animate(_animation),
+            child: widget.child,
+          ),
+        );
+
+      // 2. Glassmorphism: Opacity fade-in 280ms
+      case EntranceType.glassmorphismBlur:
+        return FadeTransition(
+          opacity: _animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(_animation),
+            child: widget.child,
+          ),
+        );
+
+      // 3. Pixel Garden 8-Bit: 3-frame discrete step scale 0.7 -> 0.9 -> 1.0 + scanline flicker
+      case EntranceType.pixelGlitchStep:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final val = _animation.value;
+            double scale = 0.7;
+            double opacity = 0.6;
+            if (val >= 0.66) {
+              scale = 1.0;
+              opacity = 1.0;
+            } else if (val >= 0.33) {
+              scale = 0.9;
+              opacity = 0.85;
+            }
+            return Opacity(
+              opacity: opacity,
+              child: Transform.scale(
+                scale: scale,
+                child: child,
+              ),
+            );
+          },
+          child: widget.child,
+        );
+
+      // 4. Isometric 3D: Rigid translateY 6px -> 0px 120ms (linear snap)
+      case EntranceType.isometricSnap:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final dy = (1.0 - _animation.value) * 6.0;
+            return Transform.translate(
+              offset: Offset(0, dy),
+              child: child,
+            );
+          },
+          child: widget.child,
+        );
+
+      // 5. Retro Y2K: Header titlebar first / instant snap
+      case EntranceType.retroY2KHeaderFirst:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            return Opacity(
+              opacity: _animation.value >= 0.2 ? 1.0 : 0.0,
+              child: child,
+            );
+          },
+          child: widget.child,
+        );
+
+      // 6. Swiss Minimalist: Horizontal clip reveal dari kiri ke kanan 150ms
+      case EntranceType.swissRevealHorizontal:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            return ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: _animation.value.clamp(0.0, 1.0),
+                child: child,
+              ),
+            );
+          },
+          child: widget.child,
+        );
+
+      // 7. Solarpunk: Scale 0.6 -> 1.0 elastic growth
+      case EntranceType.solarpunkGrowth:
+        return FadeTransition(
+          opacity: _animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.6, end: 1.0).animate(_animation),
+            child: widget.child,
+          ),
+        );
+
+      // 8. Neon Cyberpunk: Flicker kedipan cepat 3-4x 200ms
+      case EntranceType.neonFlickerGlow:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final val = _animation.value;
+            double opacity = 1.0;
+            if (val < 0.2) {
+              opacity = val * 5.0;
+            } else if (val < 0.4) {
+              opacity = 0.3;
+            } else if (val < 0.7) {
+              opacity = 1.0;
+            } else if (val < 0.85) {
+              opacity = 0.6;
+            } else {
+              opacity = 1.0;
+            }
+
+            return Opacity(
+              opacity: opacity.clamp(0.0, 1.0),
+              child: child,
+            );
+          },
+          child: widget.child,
+        );
+
+      // 9. Comic Pop Art: Elastic bounce scale 0.7 -> 1.15 -> 1.0 dengan rotasi ±3°
+      case EntranceType.comicPopElastic:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final val = _animation.value;
+            final rot = (1.0 - val) * 0.05; // ~ 3 degrees
+            return Transform.rotate(
+              angle: rot,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.7, end: 1.0).animate(_animation),
+                child: child,
+              ),
+            );
+          },
+          child: widget.child,
+        );
+
+      // 10. Firefly Night: Slow fade-in 450ms
+      case EntranceType.fireflySlowGlow:
+        return FadeTransition(
+          opacity: _animation,
+          child: widget.child,
+        );
+
+      // 11. Buku Harian: Fade + slide 4px dari kiri (searah tulisan)
+      case EntranceType.diaryWritingSlideLeft:
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final dx = (1.0 - _animation.value) * -4.0;
+            return Transform.translate(
+              offset: Offset(dx, 0),
+              child: Opacity(
+                opacity: _animation.value.clamp(0.0, 1.0),
+                child: child,
+              ),
+            );
+          },
+          child: widget.child,
+        );
+
+      // 12. Dynamic Time: Standard fade 0->1 + slide 8px dari bawah 200ms
+      case EntranceType.dynamicTimeFadeSlide:
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(_animation),
+          child: FadeTransition(
+            opacity: _animation,
+            child: widget.child,
+          ),
+        );
+    }
   }
 }

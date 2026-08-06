@@ -10,8 +10,10 @@ import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
 import '../providers/screen_protection_provider.dart';
+import '../providers/call_state_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/constants/icons.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
   final String? callId;
@@ -60,6 +62,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   String? _currentCallId;
   RealtimeChannel? _statusChannel;
   Timer? _callTimeoutTimer;
+  DateTime? _connectedAt;
 
   bool get _isVideoCall => widget.callType == 'video';
 
@@ -70,6 +73,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     _currentCallId = widget.callId;
     _isVideoOn = _isVideoCall;
     _isSpeakerOn = _isVideoCall;
+
+    // Register active call ID in Riverpod
+    final initialId = _currentCallId ?? widget.roomId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(activeCallIdProvider.notifier).state = initialId;
+      }
+    });
+
     _loadAvatar();
     _initializeCall();
   }
@@ -94,8 +106,14 @@ class _CallScreenState extends ConsumerState<CallScreen> {
             if (newStatus == 'declined') {
               _callTimeoutTimer?.cancel();
               _finishCall('Panggilan ditolak');
+            } else if (newStatus == 'busy') {
+              _callTimeoutTimer?.cancel();
+              _finishCall('Pengguna sedang dalam panggilan lain');
             } else if (newStatus == 'answered') {
               _callTimeoutTimer?.cancel();
+              if (_myUserId != null) {
+                _signaling?.createOfferIfPending(_myUserId!);
+              }
             }
           },
         )
@@ -199,10 +217,11 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       }
 
       await signaling.startSignaling(
-        widget.roomId,
-        userId,
-        widget.isCaller,
-        _isVideoCall,
+        roomId: widget.roomId,
+        callId: _currentCallId ?? widget.roomId,
+        myUserId: userId,
+        isCaller: widget.isCaller,
+        isVideo: _isVideoCall,
       );
       if (_isDisposed || _isEnding) {
         _cleanUp();
@@ -260,10 +279,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       });
       final normalizedState = state.toLowerCase();
       if (normalizedState == 'connected') {
+        _connectedAt ??= DateTime.now();
         _callTimeoutTimer?.cancel();
         if (_currentCallId != null) {
           try {
-            ref.read(callRepositoryProvider).updateCallStatus(_currentCallId!, 'answered');
+            ref.read(callRepositoryProvider).updateCallStatus(
+                  _currentCallId!,
+                  'answered',
+                  startedAt: _connectedAt,
+                );
           } catch (_) {}
         }
         NotificationService.cancelIncomingCallNotification();
@@ -381,8 +405,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     _callTimeoutTimer?.cancel();
     if (_currentCallId != null) {
       try {
-        final endStatus = _callStatus == 'Tersambung' ? 'ended' : 'missed';
-        ref.read(callRepositoryProvider).updateCallStatus(_currentCallId!, endStatus);
+        if (_connectedAt != null) {
+          await ref.read(callRepositoryProvider).endCall(
+                _currentCallId!,
+                startedAt: _connectedAt,
+              );
+        } else {
+          final endStatus = _callStatus == 'Tersambung' ? 'ended' : 'missed';
+          await ref.read(callRepositoryProvider).updateCallStatus(_currentCallId!, endStatus);
+        }
       } catch (_) {}
     }
     NotificationService.cancelIncomingCallNotification();
@@ -447,6 +478,12 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     _isCleanedUp = true;
     _callTimeoutTimer?.cancel();
     _statusChannel?.unsubscribe();
+
+    // Reset activeCallIdProvider in Riverpod
+    try {
+      ref.read(activeCallIdProvider.notifier).state = null;
+    } catch (_) {}
+
     NotificationService.cancelIncomingCallNotification();
     final signaling = _signaling;
     if (signaling != null) {
@@ -555,7 +592,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                     children: [
                       if (_statusIsError) ...[
                         const Icon(
-                          Icons.error_outline,
+                          MekaarIcons.errorOutline,
                           color: MekaarColors.sosRed,
                           size: 18,
                         ),
@@ -601,29 +638,33 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _controlButton(
-                    icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_down,
+                    icon: _isSpeakerOn ? MekaarIcons.volumeUp : MekaarIcons.volumeDown,
                     color: _isSpeakerOn ? Colors.white : Colors.white24,
                     iconColor: _isSpeakerOn ? Colors.black : Colors.white,
                     onTap: _mediaReady && !_isEnding ? _toggleSpeaker : null,
+                    tooltip: _isSpeakerOn ? 'Matikan Speaker' : 'Nyalakan Speaker',
                   ),
                   if (_isVideoCall)
                     _controlButton(
-                      icon: _isVideoOn ? Icons.videocam : Icons.videocam_off,
+                      icon: _isVideoOn ? MekaarIcons.videocam : MekaarIcons.videocamOff,
                       color: _isVideoOn ? Colors.white : Colors.white24,
                       iconColor: _isVideoOn ? Colors.black : Colors.white,
                       onTap: _mediaReady && !_isEnding ? _toggleVideo : null,
+                      tooltip: _isVideoOn ? 'Matikan Kamera' : 'Nyalakan Kamera',
                     ),
                   _controlButton(
-                    icon: _isMuted ? Icons.mic_off : Icons.mic,
+                    icon: _isMuted ? MekaarIcons.micOff : MekaarIcons.mic,
                     color: _isMuted ? Colors.white : Colors.white24,
                     iconColor: _isMuted ? Colors.black : Colors.white,
                     onTap: _mediaReady && !_isEnding ? _toggleMute : null,
+                    tooltip: _isMuted ? 'Nyalakan Mikrofon' : 'Mute Mikrofon',
                   ),
                   _controlButton(
-                    icon: Icons.call_end,
+                    icon: MekaarIcons.callEnd,
                     color: MekaarColors.sosRed,
                     iconColor: Colors.white,
                     onTap: _isEnding ? null : _hangup,
+                    tooltip: 'Akhiri Panggilan',
                     size: 64,
                   ),
                 ],
@@ -640,19 +681,28 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     required Color color,
     required Color iconColor,
     required VoidCallback? onTap,
+    String? tooltip,
     double size = 52,
   }) {
-    return Opacity(
-      opacity: onTap == null ? 0.4 : 1,
-      child: IgnorePointer(
-        ignoring: onTap == null,
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-            child: Icon(icon, color: iconColor, size: size * 0.5),
+    return Semantics(
+      label: tooltip,
+      button: true,
+      enabled: onTap != null,
+      child: Tooltip(
+        message: tooltip ?? '',
+        child: Opacity(
+          opacity: onTap == null ? 0.4 : 1,
+          child: IgnorePointer(
+            ignoring: onTap == null,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+                child: Icon(icon, color: iconColor, size: size * 0.5),
+              ),
+            ),
           ),
         ),
       ),

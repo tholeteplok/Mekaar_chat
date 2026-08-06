@@ -1,10 +1,18 @@
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/mika_animated.dart';
+import '../../../core/widgets/mika_illustration.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../chat/providers/screen_protection_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../providers/sos_provider.dart';
@@ -18,10 +26,14 @@ class SOSActiveScreen extends ConsumerStatefulWidget {
 
 class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   bool _allowPop = false;
+  late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
     Future.microtask(() {
       ref
           .read(screenProtectionControllerProvider)
@@ -34,65 +46,55 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
 
   @override
   void dispose() {
+    _confettiController.dispose();
     ref
         .read(screenProtectionControllerProvider)
         .leaveMandatorySurface('sos_active');
     super.dispose();
   }
 
-  String _formatDuration(int totalSeconds) {
-    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  void _handleEndSOS(SOSState sosState) {
+  void _handleEndSOS(SOSState sosState) async {
     final isQueued = sosState.status == SOSStatus.queuedOffline;
-    showDialog(
+    final confirmed = await MekaarDialog.showConfirmation<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          isQueued ? 'Batalkan SOS Tertunda?' : 'Akhiri Mode Darurat?',
+      title: isQueued ? 'Batalkan SOS Tertunda?' : 'Akhiri Mode Darurat?',
+      message: isQueued
+          ? 'Permintaan SOS akan dihapus dari perangkat dan tidak dikirim saat koneksi kembali.'
+          : 'Sesi SOS aktif, akses lokasi, dan perekaman audio akan dihentikan.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
         ),
-        content: Text(
-          isQueued
-              ? 'Permintaan SOS akan dihapus dari perangkat dan tidak dikirim saat koneksi kembali.'
-              : 'Sesi SOS aktif, akses lokasi, dan perekaman audio akan dihentikan.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await ref.read(sosProvider.notifier).endSOS();
-              if (!mounted) return;
-              if (dialogContext.mounted) Navigator.pop(dialogContext);
-              final current = ref.read(sosProvider);
-              if (current.status == SOSStatus.idle) {
-                setState(() => _allowPop = true);
-                await WidgetsBinding.instance.endOfFrame;
-                if (!mounted) return;
-                Navigator.pop(context);
-              } else if (current.message != null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(current.message!)));
-              }
-            },
-            child: Text(
-              isQueued ? 'Batalkan' : 'Akhiri',
-              style: const TextStyle(
-                color: MekaarColors.sosRed,
-                fontWeight: FontWeight.bold,
-              ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(
+            isQueued ? 'Batalkan' : 'Akhiri',
+            style: const TextStyle(
+              color: MekaarColors.sosRed,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
+
+    if (confirmed == true && mounted) {
+      await ref.read(sosProvider.notifier).endSOS();
+      if (!mounted) return;
+      final current = ref.read(sosProvider);
+      if (current.status == SOSStatus.idle) {
+        HapticService.trigger(MekaarHapticIntent.success);
+        _confettiController.play();
+        setState(() => _allowPop = true);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        Navigator.pop(context);
+      } else if (current.message != null) {
+        MekaarSnackbar.error(context, current.message!);
+      }
+    }
   }
 
   @override
@@ -154,6 +156,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
         ).showSnackBar(SnackBar(content: Text(message)));
       },
       child: MekaarScaffold(
+        flat: true,
         body: SafeArea(
           child: Container(
             decoration: BoxDecoration(
@@ -171,6 +174,28 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
               child: Column(
                 children: [
                   const Spacer(),
+                  IgnorePointer(
+                    child: ConfettiWidget(
+                      confettiController: _confettiController,
+                      colors: const [
+                        MekaarColors.yellow,
+                        MekaarColors.cyan,
+                        MekaarColors.pink,
+                        MekaarColors.lime,
+                      ],
+                      blastDirectionality: BlastDirectionality.explosive,
+                      shouldLoop: false,
+                      numberOfParticles: 30,
+                      gravity: 0.3,
+                      emissionFrequency: 0.05,
+                    ),
+                  ),
+                  MikaAnimated(
+                    pose: MikaPose.shield,
+                    size: 48,
+                    idle: false,
+                  ),
+                  const SizedBox(height: 8),
                   TweenAnimationBuilder<double>(
                     tween: Tween(begin: 1, end: 1.15),
                     duration: const Duration(seconds: 1),
@@ -240,34 +265,6 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                     ),
                   ],
                   if (isActive) ...[
-                    const SizedBox(height: 48),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        _formatDuration(sosState.elapsedSeconds),
-                        style: MekaarTypography.monoXL,
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  if (isActive) ...[
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -306,13 +303,12 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.videocam_outlined),
+                        icon: const Icon(MekaarIcons.videocam),
                         label: const Text('Kirim Video ke Guardian'),
                         onPressed: () =>
                             Navigator.pushNamed(context, '/sos/video'),
                       ),
-                    ),
-                    const SizedBox(height: 14),
+                    ).animate().fadeIn(duration: 200.ms, delay: 100.ms),
                   ],
                   if (canEnd)
                     SizedBox(
@@ -334,7 +330,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         ),
                         onPressed: () => _handleEndSOS(sosState),
                       ),
-                    ),
+                    ).animate().fadeIn(duration: 200.ms),
                   if (sosState.status == SOSStatus.failed)
                     SizedBox(
                       width: double.infinity,

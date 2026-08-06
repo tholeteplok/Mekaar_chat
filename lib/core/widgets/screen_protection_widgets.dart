@@ -15,30 +15,41 @@ class ScreenProtectionStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       label: label,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        color: MekaarColors.safeTeal.withValues(alpha: 0.12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              SolarIconsOutline.shieldCheck,
-              size: 17,
-              color: MekaarColors.safeTeal,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: MekaarColors.safeTeal.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: MekaarColors.safeTeal.withValues(alpha: 0.3),
+              width: 1.0,
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w600,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                SolarIconsOutline.shieldCheck,
+                size: 15,
+                color: MekaarColors.safeTeal,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: MekaarTypography.bodySM.copyWith(
+                    fontSize: 11,
+                    color: MekaarColors.textPrimaryOf(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

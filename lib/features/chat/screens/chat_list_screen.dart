@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/permissions.dart';
@@ -13,6 +14,7 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/skeletons.dart';
+import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
@@ -71,7 +73,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         MekaarDialog.showConfirmation<void>(
           context: context,
           barrierDismissible: false,
-          icon: const Icon(Icons.security, color: MekaarColors.softCoral),
+          icon: const Icon(MekaarIcons.security, color: MekaarColors.softCoral),
           title: 'Izin Sensor Darurat',
           message:
               'Untuk perlindungan maksimal, MEKAAR memerlukan izin akses:\n\n'
@@ -409,8 +411,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: Column(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
           children: [
             MekaarTabHeader(
               title: 'Pesan',
@@ -467,8 +471,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 itemBuilder: (context, index) {
                   final tab = _tabs[index];
                   final isActive = _selectedTab == tab;
-                  final isDark =
-                      Theme.of(context).brightness == Brightness.dark;
+                  final primaryColor = Theme.of(context).colorScheme.primary;
 
                   return GestureDetector(
                     onTap: () => setState(() => _selectedTab = tab),
@@ -480,7 +483,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       ),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? MekaarColors.yellow
+                            ? primaryColor
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(100),
                       ),
@@ -489,10 +492,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         style: MekaarTypography.labelLG.copyWith(
                           fontWeight: FontWeight.w700,
                           color: isActive
-                              ? MekaarColors.textOnYellow
-                              : (isDark
-                                    ? MekaarColors.textMuted
-                                    : Colors.black54),
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : MekaarColors.textMutedOf(context),
                         ),
                       ),
                     ),
@@ -520,6 +521,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             ),
           ],
         ),
+      ),
+      Positioned(
+        right: 24,
+        bottom: 180,
+        child: const _FloatingMika(),
+      ),
+      ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
@@ -685,7 +693,7 @@ class _EmptyChats extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                const MikaIllustration(
+                MikaAnimated(
                   pose: MikaPose.sleep,
                   size: 120,
                   semanticLabel: 'Mika menyapa dari layar kosong',
@@ -708,8 +716,8 @@ class _EmptyChats extends StatelessWidget {
                     icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
                     label: const Text('Mulai obrolan'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: MekaarColors.softCoral,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ],
@@ -717,6 +725,50 @@ class _EmptyChats extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FloatingMika extends StatefulWidget {
+  const _FloatingMika();
+
+  @override
+  State<_FloatingMika> createState() => _FloatingMikaState();
+}
+
+class _FloatingMikaState extends State<_FloatingMika> {
+  final _mikaKey = GlobalKey<MikaAnimatedState>();
+  DateTime? _lastTap;
+
+  static final _randomReactions = [
+    MikaReaction.happy,
+    MikaReaction.love,
+    MikaReaction.hi,
+    MikaReaction.ok,
+    MikaReaction.huft,
+  ];
+
+  void _onTap() {
+    final now = DateTime.now();
+    if (_lastTap != null && now.difference(_lastTap!).inSeconds < 5) return;
+    _lastTap = now;
+    final reaction = _randomReactions[
+        DateTime.now().millisecondsSinceEpoch % _randomReactions.length];
+    _mikaKey.currentState?.react(reaction);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _onTap,
+      child: Opacity(
+        opacity: 0.7,
+        child: MikaAnimated(
+          key: _mikaKey,
+          pose: MikaPose.happy,
+          size: 40,
+        ),
       ),
     );
   }

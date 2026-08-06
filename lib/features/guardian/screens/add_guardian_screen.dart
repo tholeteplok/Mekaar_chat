@@ -128,6 +128,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Undang Guardian'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -188,7 +189,8 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             const SizedBox(height: 20),
             // GPS permission switch
             SwitchListTile(
-              activeThumbColor: MekaarColors.softCoral,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
+              activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
               contentPadding: EdgeInsets.zero,
               title: Text(
                 'Lacak Lokasi (GPS)',
@@ -203,7 +205,8 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             const Divider(color: MekaarColors.borderLight),
             // Audio permission switch
             SwitchListTile(
-              activeThumbColor: MekaarColors.softCoral,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
+              activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
               contentPadding: EdgeInsets.zero,
               title: Text(
                 'Akses Mikrofon (Audio)',
@@ -217,7 +220,8 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
             ),
             const Divider(color: MekaarColors.borderLight),
             SwitchListTile(
-              activeThumbColor: MekaarColors.softCoral,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
+              activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
               contentPadding: EdgeInsets.zero,
               title: Text(
                 'Akses Kamera (Video Darurat)',

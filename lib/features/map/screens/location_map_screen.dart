@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -69,7 +70,7 @@ class LocationMapScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const Icon(
-                                  Icons.location_on,
+                                  MekaarIcons.location,
                                   color: MekaarColors.sosRed,
                                   size: 48,
                                 ),
@@ -104,7 +105,7 @@ class LocationMapScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.location_pin, color: MekaarColors.sosRed, size: 22),
+                    const Icon(MekaarIcons.location, color: MekaarColors.sosRed, size: 22),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -125,7 +126,7 @@ class LocationMapScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.copy_all_outlined, size: 18),
+                        icon: const Icon(MekaarIcons.copy, size: 18),
                         label: const Text('Salin Koordinat'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: MekaarColors.textPrimaryOf(context),
@@ -149,7 +150,7 @@ class LocationMapScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.directions_outlined, size: 18),
+                        icon: const Icon(MekaarIcons.directions, size: 18),
                         label: const Text('Rute Navigasi'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.softCoral,

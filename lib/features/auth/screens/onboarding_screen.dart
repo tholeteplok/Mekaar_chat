@@ -56,6 +56,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: false,
       forceDark: true, // Always dark-navy gradient for onboarding
       body: SafeArea(
         child: Padding(

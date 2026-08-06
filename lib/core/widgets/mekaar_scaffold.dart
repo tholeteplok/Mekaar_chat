@@ -17,6 +17,7 @@ class MekaarScaffold extends ConsumerWidget {
   final Widget? bottomNavigationBar;
   final bool resizeToAvoidBottomInset;
   final bool forceDark;
+  final bool flat;
   final bool extendBodyBehindAppBar;
   final bool extendBody;
 
@@ -29,6 +30,7 @@ class MekaarScaffold extends ConsumerWidget {
     this.bottomNavigationBar,
     this.resizeToAvoidBottomInset = true,
     this.forceDark = false,
+    this.flat = true,
     this.extendBodyBehindAppBar = false,
     this.extendBody = false,
   });
@@ -75,7 +77,7 @@ class MekaarScaffold extends ConsumerWidget {
     // dan status bar icons.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
-      child: MekaarCanvas(forceDark: forceDark, child: mainScaffold),
+      child: MekaarCanvas(forceDark: forceDark, flat: flat, child: mainScaffold),
     );
   }
 }

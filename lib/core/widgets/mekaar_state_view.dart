@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../constants/dimensions.dart';
 import '../constants/typography.dart';
+import 'mika_animated.dart';
 import 'mika_illustration.dart';
 
 enum MekaarStateLayout { centered, edge }
 
-class MekaarStateView extends StatelessWidget {
+class MekaarStateView extends StatefulWidget {
   const MekaarStateView({
     super.key,
     required this.pose,
@@ -18,6 +19,7 @@ class MekaarStateView extends StatelessWidget {
     this.illustrationSize = 112,
     this.semanticLabel,
     this.icon = SolarIconsOutline.refresh,
+    this.reaction,
   });
 
   final MikaPose pose;
@@ -29,42 +31,72 @@ class MekaarStateView extends StatelessWidget {
   final double illustrationSize;
   final String? semanticLabel;
   final IconData icon;
+  final MikaReaction? reaction;
+
+  @override
+  State<MekaarStateView> createState() => _MekaarStateViewState();
+}
+
+class _MekaarStateViewState extends State<MekaarStateView> {
+  final _mikaKey = GlobalKey<MikaAnimatedState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.reaction != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mikaKey.currentState?.react(widget.reaction!);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MekaarStateView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.reaction != oldWidget.reaction && widget.reaction != null) {
+      _mikaKey.currentState?.react(widget.reaction!);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isEdge = widget.layout == MekaarStateLayout.edge;
+
     final text = Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: layout == MekaarStateLayout.edge
-          ? CrossAxisAlignment.start
-          : CrossAxisAlignment.center,
+      crossAxisAlignment:
+          isEdge ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         Text(
-          title,
-          textAlign: layout == MekaarStateLayout.edge
-              ? TextAlign.left
-              : TextAlign.center,
+          widget.title,
+          textAlign: isEdge ? TextAlign.left : TextAlign.center,
           style: MekaarTypography.headingMD,
         ),
         const SizedBox(height: MekaarSpacing.sm),
         Text(
-          message,
-          textAlign: layout == MekaarStateLayout.edge
-              ? TextAlign.left
-              : TextAlign.center,
+          widget.message,
+          textAlign: isEdge ? TextAlign.left : TextAlign.center,
           style: MekaarTypography.bodyMD,
         ),
-        if (actionLabel != null && onAction != null) ...[
+        if (widget.actionLabel != null && widget.onAction != null) ...[
           const SizedBox(height: MekaarSpacing.lg),
           ElevatedButton.icon(
-            onPressed: onAction,
-            icon: Icon(icon, size: 18),
-            label: Text(actionLabel!),
+            onPressed: widget.onAction,
+            icon: Icon(widget.icon, size: 18),
+            label: Text(widget.actionLabel!),
           ),
         ],
       ],
     );
 
-    if (layout == MekaarStateLayout.edge) {
+    final mika = MikaAnimated(
+      key: _mikaKey,
+      pose: widget.pose,
+      size: widget.illustrationSize,
+      semanticLabel: widget.semanticLabel,
+    );
+
+    if (isEdge) {
       return LayoutBuilder(
         builder: (context, constraints) => SizedBox(
           width: double.infinity,
@@ -81,14 +113,9 @@ class MekaarStateView extends StatelessWidget {
                 child: text,
               ),
               Positioned(
-                right: -illustrationSize * 0.2,
-                bottom: -illustrationSize * 0.12,
-                child: MikaIllustration(
-                  pose: pose,
-                  size: illustrationSize,
-                  semanticLabel: semanticLabel,
-                  animate: true,
-                ),
+                right: -widget.illustrationSize * 0.2,
+                bottom: -widget.illustrationSize * 0.12,
+                child: mika,
               ),
             ],
           ),
@@ -104,12 +131,7 @@ class MekaarStateView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              MikaIllustration(
-                pose: pose,
-                size: illustrationSize,
-                semanticLabel: semanticLabel,
-                animate: true,
-              ),
+              mika,
               const SizedBox(height: MekaarSpacing.lg),
               text,
             ],

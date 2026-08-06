@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
+import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'call_invitation_listener.dart';
@@ -217,6 +218,7 @@ class _NotificationListenerHostState
     ref.read(messageNotificationListenerProvider).start();
     ref.read(callInvitationListenerProvider).start();
     ref.read(sosAlertListenerProvider).start();
+    ref.read(tripMonitorSchedulerProvider).start();
   }
 
   @override

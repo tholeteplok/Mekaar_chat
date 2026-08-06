@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,8 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-
-import '../../../core/constants/motion.dart';
+import '../../../core/constants/icons.dart';
 import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
@@ -234,7 +234,7 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickImage(ImageSource.gallery);
             },
-          ),
+          ).animate().fadeIn(duration: 200.ms, delay: 0.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
           _attachItem(
             ctx,
             icon: SolarIconsOutline.camera,
@@ -244,7 +244,7 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickImage(ImageSource.camera);
             },
-          ),
+          ).animate().fadeIn(duration: 200.ms, delay: 50.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
           _attachItem(
             ctx,
             icon: SolarIconsOutline.videoLibrary,
@@ -254,7 +254,7 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickVideo(ImageSource.gallery);
             },
-          ),
+          ).animate().fadeIn(duration: 200.ms, delay: 100.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
           _attachItem(
             ctx,
             icon: SolarIconsOutline.videocamera,
@@ -264,7 +264,7 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickVideo(ImageSource.camera);
             },
-          ),
+          ).animate().fadeIn(duration: 200.ms, delay: 150.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
           _attachItem(
             ctx,
             icon: SolarIconsOutline.mapPoint,
@@ -274,7 +274,7 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               widget.onSendLocation?.call();
             },
-          ),
+          ).animate().fadeIn(duration: 200.ms, delay: 200.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
           if (widget.onShareLiveLocation != null)
             _attachItem(
               ctx,
@@ -285,7 +285,7 @@ class _ChatComposerState extends State<ChatComposer> {
                 Navigator.pop(ctx);
                 _showLiveDurationSheet(ctx);
               },
-            ),
+            ).animate().fadeIn(duration: 200.ms, delay: 250.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
           const SizedBox(height: 16),
         ],
       ),
@@ -504,275 +504,284 @@ class _ChatComposerState extends State<ChatComposer> {
 
   @override
   Widget build(BuildContext context) {
-    return MekaarGlassBlurContainer(
-      position: BlurPosition.bottom,
+    final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
+    final systemBottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = viewInsetsBottom > 0 ? 0.0 : systemBottomPadding;
+
+    return Padding(
+      padding: EdgeInsets.only(left: 8, right: 8, bottom: bottomPadding + 6, top: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Reply preview
           if (widget.replyMessage != null && !_isEditMode)
-            _ReplyPreview(
-              message: widget.replyMessage!,
-              onCancel: widget.onCancelReply,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: MekaarGlassBlurContainer(
+                isFloating: true,
+                borderRadius: BorderRadius.circular(16),
+                child: _ReplyPreview(
+                  message: widget.replyMessage!,
+                  onCancel: widget.onCancelReply,
+                ),
+              ),
             ),
           // Edit mode banner
           if (_isEditMode)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: MekaarColors.softCoral.withValues(alpha: 0.08),
-              child: Row(
-                children: [
-                  const Icon(SolarIconsOutline.pen,
-                      size: 16, color: MekaarColors.softCoral),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Mengedit pesan',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: MekaarColors.softCoral,
-                          fontWeight: FontWeight.w600),
-                    ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: MekaarGlassBlurContainer(
+                isFloating: true,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(SolarIconsOutline.pen, size: 16, color: MekaarColors.softCoral),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Mengedit pesan',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: MekaarColors.softCoral,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: widget.onCancelEdit,
+                        child: const Icon(SolarIconsOutline.closeSquare, size: 18, color: MekaarColors.softCoral),
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: widget.onCancelEdit,
-                    child: const Icon(SolarIconsOutline.closeSquare,
-                        size: 18, color: MekaarColors.softCoral),
-                  ),
-                ],
+                ),
               ),
             ),
           // Upload progress indicator
           if (_isUploading)
-            const LinearProgressIndicator(
-              backgroundColor: MekaarColors.borderLight,
-              color: MekaarColors.softCoral,
-              minHeight: 2,
-            ),
-          // Main composer row
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MekaarSpacing.md,
-              vertical: MekaarSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.black.withValues(alpha: 0.08),
-                  width: 1,
-                ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 6),
+              child: LinearProgressIndicator(
+                backgroundColor: MekaarColors.borderLight,
+                color: MekaarColors.softCoral,
+                minHeight: 2,
               ),
             ),
-          child: _isRecording
-              ? GestureDetector(
-                  onHorizontalDragUpdate: (details) {
-                    setState(() => _recordingSwipeOffset += details.delta.dx);
-                  },
-                  onHorizontalDragEnd: (details) {
-                    if (_recordingSwipeOffset.abs() > _recordingSwipeThreshold) {
-                      _cancelRecording();
-                    }
-                    setState(() => _recordingSwipeOffset = 0);
-                  },
-                  child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        SolarIconsOutline.trashBinMinimalistic,
-                        color: MekaarColors.sosRed,
-                        size: 22,
-                      ),
-                      onPressed: _cancelRecording,
-                      tooltip: 'Batal Rekam',
+
+          // Main composer row (3 Floating Glass Containers)
+          _isRecording
+              ? MekaarGlassBlurContainer(
+                  isFloating: true,
+                  height: 48,
+                  borderRadius: BorderRadius.circular(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: GestureDetector(
+                    onHorizontalDragUpdate: (details) {
+                      setState(() => _recordingSwipeOffset += details.delta.dx);
+                    },
+                    onHorizontalDragEnd: (details) {
+                      if (_recordingSwipeOffset.abs() > _recordingSwipeThreshold) {
+                        _cancelRecording();
+                      }
+                      setState(() => _recordingSwipeOffset = 0);
+                    },
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            SolarIconsOutline.trashBinMinimalistic,
+                            color: MekaarColors.sosRed,
+                            size: 20,
+                          ),
+                          onPressed: _cancelRecording,
+                          tooltip: 'Batal Rekam',
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              if (_recordingSwipeOffset.abs() > 60)
+                                const Icon(
+                                  SolarIconsOutline.trashBinMinimalistic,
+                                  color: MekaarColors.sosRed,
+                                  size: 16,
+                                )
+                              else ...[
+                                const _BlinkingDot(),
+                                const SizedBox(width: 8),
+                              ],
+                              Text(
+                                _recordingSwipeOffset.abs() > 60
+                                    ? 'Geser untuk batal'
+                                    : 'Merekam... ${_formatDuration(_recordDuration)}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _recordingSwipeOffset.abs() > 60
+                                      ? MekaarColors.sosRed
+                                      : MekaarColors.textSecondaryOf(context),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PressableScale(
+                          onTap: _stopAndSendRecording,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: MekaarColors.softCoral,
+                            ),
+                            child: const Icon(
+                              SolarIconsOutline.plain,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: MekaarSpacing.sm),
+                  ),
+                )
+              : Row(
+                  children: [
+                    // ── Container 1 (Kiri): Tombol Lampiran 📎 ──
+                    if (!_isEditMode) ...[
+                      MekaarGlassBlurContainer(
+                        isFloating: true,
+                        shape: BoxShape.circle,
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Icon(
+                            SolarIconsOutline.paperclip,
+                            color: MekaarColors.textMutedOf(context),
+                            size: 20,
+                          ),
+                          onPressed: widget.enabled ? _showAttachmentSheet : null,
+                          tooltip: 'Lampiran',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
+                    // ── Container 2 (Tengah): Input Teks + Emoji 😀 ──
                     Expanded(
-                      child: AnimatedContainer(
-                        duration: MekaarMotion.fast,
-                        decoration: BoxDecoration(
-                          color: _recordingSwipeOffset.abs() > 60
-                              ? MekaarColors.sosRed.withValues(alpha: 0.15)
-                              : MekaarColors.surface2Of(context),
-                          borderRadius: BorderRadius.circular(MekaarRadius.xl),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MekaarSpacing.lg,
-                          vertical: MekaarSpacing.md,
-                        ),
+                      child: MekaarGlassBlurContainer(
+                        isFloating: true,
+                        height: 44,
+                        borderRadius: BorderRadius.circular(22),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Row(
                           children: [
-                            if (_recordingSwipeOffset.abs() > 60)
-                              const Icon(
-                                SolarIconsOutline.trashBinMinimalistic,
-                                color: MekaarColors.sosRed,
-                                size: 16,
-                              )
-                            else ...[
-                              const _BlinkingDot(),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_recordingSwipeOffset.abs() > 60)
-                              const SizedBox(width: 8),
-                            Text(
-                              _recordingSwipeOffset.abs() > 60
-                                  ? 'Geser untuk batal'
-                                  : 'Merekam... ${_formatDuration(_recordDuration)}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _recordingSwipeOffset.abs() > 60
-                                    ? MekaarColors.sosRed
-                                    : MekaarColors.textSecondary,
-                                fontWeight: FontWeight.w500,
+                            if (!_isEditMode)
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                icon: Icon(
+                                  MekaarIcons.smile,
+                                  color: _showEmojiPicker
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textMutedOf(context),
+                                  size: 22,
+                                ),
+                                onPressed: widget.enabled ? _toggleEmojiPicker : null,
+                                tooltip: 'Emoji',
+                              ),
+                            Expanded(
+                              child: TextField(
+                                controller: widget.controller,
+                                enabled: widget.enabled,
+                                contentInsertionConfiguration: ContentInsertionConfiguration(
+                                  allowedMimeTypes: const <String>[
+                                    'image/gif',
+                                    'image/png',
+                                    'image/jpeg',
+                                    'image/webp',
+                                  ],
+                                  onContentInserted: _handleKeyboardContentInserted,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: !widget.enabled
+                                      ? 'Menyiapkan enkripsi...'
+                                      : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
+                                  hintStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: MekaarColors.textMutedOf(context),
+                                  ),
+                                  border: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  fillColor: Colors.transparent,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: MekaarColors.textPrimaryOf(context),
+                                ),
+                                minLines: 1,
+                                maxLines: 4,
+                                onSubmitted: (_) => widget.enabled ? widget.onSend() : null,
+                                onTap: () {
+                                  if (_showEmojiPicker) {
+                                    setState(() => _showEmojiPicker = false);
+                                  }
+                                },
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: MekaarSpacing.sm),
-                    Semantics(
-                      button: true,
-                      label: 'Kirim rekaman',
-                      child: PressableScale(
-                        onTap: _stopAndSendRecording,
-                        child: AnimatedContainer(
-                          duration: MekaarMotion.fast,
-                          curve: MekaarMotion.standard,
-                          width: MekaarSizes.composerButton,
-                          height: MekaarSizes.composerButton,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: MekaarColors.softCoral,
-                          ),
-                          child: const Icon(
-                            SolarIconsOutline.plain,
-                            color: Colors.white,
-                            size: MekaarSizes.iconSm,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ))
-              : Row(
-                  children: [
-                    // Attachment button & Emoji button
-                    if (!_isEditMode) ...[
-                      IconButton(
-                        icon: const Icon(SolarIconsOutline.paperclip,
-                            color: MekaarColors.textMuted, size: 22),
-                        onPressed: widget.enabled ? _showAttachmentSheet : null,
-                        tooltip: 'Lampiran',
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.sentiment_satisfied_alt_outlined,
-                          color: _showEmojiPicker
-                              ? MekaarColors.softCoral
-                              : MekaarColors.textMutedOf(context),
-                          size: 24,
-                        ),
-                        onPressed: widget.enabled ? _toggleEmojiPicker : null,
-                        tooltip: 'Emoji',
-                      ),
-                    ],
-                    // Text input
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: MekaarColors.surface2Of(context),
-                          borderRadius: BorderRadius.circular(MekaarRadius.xl),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MekaarSpacing.lg,
-                        ),
-                        child: TextField(
-                          controller: widget.controller,
-                          enabled: widget.enabled,
-                          contentInsertionConfiguration:
-                              ContentInsertionConfiguration(
-                            allowedMimeTypes: const <String>[
-                              'image/gif',
-                              'image/png',
-                              'image/jpeg',
-                              'image/webp',
-                            ],
-                            onContentInserted: _handleKeyboardContentInserted,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: !widget.enabled
-                                ? 'Menyiapkan enkripsi...'
-                                : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
-                            border: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            fillColor: Colors.transparent,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: MekaarSpacing.md,
+
+                    const SizedBox(width: 8),
+
+                    // ── Container 3 (Kanan): Mikrofon / Kirim 🎤 / ✈️ ──
+                    MekaarGlassBlurContainer(
+                      isFloating: true,
+                      shape: BoxShape.circle,
+                      width: 44,
+                      height: 44,
+                      child: Semantics(
+                        button: true,
+                        label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
+                        child: PressableScale(
+                          onTap: !widget.enabled
+                              ? null
+                              : (_isEditMode || _hasText ? widget.onSend : _startRecording),
+                          child: Center(
+                            child: Icon(
+                              _isEditMode
+                                  ? SolarIconsOutline.checkCircle
+                                  : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
+                              color: (_isEditMode || _hasText)
+                                  ? MekaarColors.softCoral
+                                  : MekaarColors.textPrimaryOf(context),
+                              size: 20,
                             ),
-                          ),
-                          minLines: 1,
-                          maxLines: 4,
-                          onSubmitted: (_) =>
-                              widget.enabled ? widget.onSend() : null,
-                          onTap: () {
-                            if (_showEmojiPicker) {
-                              setState(() => _showEmojiPicker = false);
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: MekaarSpacing.sm),
-                    // Send/Mic button (morph antara mic & kirim tergantung ada teks)
-                    Semantics(
-                      button: true,
-                      label: _isEditMode
-                          ? 'Simpan edit'
-                          : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
-                      child: PressableScale(
-                        onTap: !widget.enabled
-                            ? null
-                            : (_isEditMode || _hasText ? widget.onSend : _startRecording),
-                        child: AnimatedContainer(
-                          duration: MekaarMotion.fast,
-                          curve: MekaarMotion.standard,
-                          width: MekaarSizes.composerButton,
-                          height: MekaarSizes.composerButton,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _isEditMode
-                                ? MekaarColors.softCoral
-                                : (_hasText
-                                    ? MekaarColors.softCoral
-                                    : MekaarColors.surface2Of(context)),
-                          ),
-                          child: Icon(
-                            _isEditMode
-                                ? SolarIconsOutline.checkCircle
-                                : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
-                            color: (_isEditMode || _hasText)
-                                ? Colors.white
-                                : (Theme.of(context).brightness == Brightness.light
-                                    ? const Color(0xFF1B2145)
-                                    : MekaarColors.textPrimary),
-                            size: MekaarSizes.iconSm,
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-        ),
-        if (_showEmojiPicker) _buildEmojiPickerPanel(),
-      ],
-    ),
-  );
-}
+          // Panel Emoji
+          if (_showEmojiPicker) ...[
+            const SizedBox(height: 8),
+            MekaarGlassBlurContainer(
+              isFloating: true,
+              borderRadius: BorderRadius.circular(20),
+              child: _buildEmojiPickerPanel(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _BlinkingDot extends StatefulWidget {

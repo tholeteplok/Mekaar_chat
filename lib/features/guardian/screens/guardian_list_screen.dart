@@ -10,6 +10,8 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/guardian_provider.dart';
@@ -43,6 +45,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     return DefaultTabController(
       length: 2,
       child: MekaarScaffold(
+        flat: true,
         appBar: CustomAppBar(
           title: 'Sistem Guardian',
           subtitle: 'Saling menjaga dalam situasi darurat',
@@ -146,7 +149,12 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           const SizedBox(height: 20),
           Expanded(
             child: status == GuardianLoadStatus.loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const MekaarStateView(
+                    pose: MikaPose.ask,
+                    title: 'Memuat Guardian',
+                    message: 'Sedang mengambil daftar Guardian Anda...',
+                    layout: MekaarStateLayout.centered,
+                  )
                 : status == GuardianLoadStatus.error
                 ? _buildLoadError(
                     () =>
@@ -158,7 +166,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const MikaIllustration(
+                          MikaAnimated(
                             pose: MikaPose.ask,
                             size: 110,
                             semanticLabel: 'Belum ada guardian',
@@ -200,7 +208,12 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: status == GuardianLoadStatus.loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const MekaarStateView(
+              pose: MikaPose.ask,
+              title: 'Memuat Daftar',
+              message: 'Sedang mengambil daftar yang menjaga Anda...',
+              layout: MekaarStateLayout.centered,
+            )
           : status == GuardianLoadStatus.error
           ? _buildLoadError(
               () => ref.read(whoAddedMeProvider.notifier).refresh(),

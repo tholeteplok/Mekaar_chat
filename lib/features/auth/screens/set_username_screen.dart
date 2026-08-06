@@ -107,6 +107,7 @@ class _SetUsernameScreenState extends ConsumerState<SetUsernameScreen> {
     return PopScope(
       canPop: false,
       child: MekaarScaffold(
+        flat: true,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(MekaarSpacing.xl),
@@ -182,7 +183,7 @@ class _SetUsernameScreenState extends ConsumerState<SetUsernameScreen> {
                         ? _handleSubmit
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: MekaarColors.yellow,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: MekaarColors.textOnYellow,
                       shape: const StadiumBorder(),
                       elevation: 0,

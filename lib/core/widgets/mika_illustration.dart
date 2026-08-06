@@ -12,7 +12,9 @@ enum MikaPose {
   phone('mika_phone.webp'),
   shield('mika_shield.webp'),
   pin('mika_pin.webp'),
-  sleep('mika_sleep.webp');
+  sleep('mika_sleep.webp'),
+  welcome('mika_welcome.webp'),
+  key('mika_key.webp');
 
   const MikaPose(this.fileName);
 

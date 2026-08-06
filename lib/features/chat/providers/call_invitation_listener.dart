@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/navigation/app_navigator.dart';
+import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'chat_provider.dart';
+import 'call_state_provider.dart';
 import '../screens/incoming_call_screen.dart';
 
 /// Listener terpusat untuk mendeteksi undangan panggilan masuk secara realtime.
@@ -55,6 +57,18 @@ class CallInvitationListener {
     final status = newRow['status'] as String?;
 
     if (callId == null || roomId == null || callerId == null || status != 'ringing') {
+      return;
+    }
+
+    // Call Collision Guard: Jika user sedang aktif dalam panggilan lain, otomatis tolak dengan status 'busy'
+    final activeCallId = _ref.read(activeCallIdProvider);
+    if (activeCallId != null && activeCallId != callId) {
+      _log.w('User sedang sibuk dalam panggilan $activeCallId. Menolak panggilan masuk $callId (busy).');
+      try {
+        await _ref.read(callRepositoryProvider).updateCallStatus(callId, 'busy');
+      } catch (e) {
+        _log.e('Gagal memperbarui status panggilan ke busy: $e');
+      }
       return;
     }
 

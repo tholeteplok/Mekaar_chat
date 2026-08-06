@@ -7,6 +7,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class MyQrScreen extends ConsumerStatefulWidget {
@@ -29,22 +31,25 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'QR Code Profil'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Tunjukkan kode QR ini ke teman Anda agar mereka dapat langsung memindai dan memulai chat 1:1 terenkripsi end-to-end.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: MekaarColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: MekaarColors.textSecondaryOf(context)),
             ),
             const SizedBox(height: 32),
             if (userId == null)
-              const Padding(
-                padding: EdgeInsets.all(64.0),
-                child: CircularProgressIndicator(),
+              const MekaarStateView(
+                pose: MikaPose.key,
+                title: 'Menyiapkan Kode QR',
+                message: 'Menghasilkan kode profil Anda…',
+                semanticLabel: 'Memuat kode QR profil',
               )
             else ...[
               Container(
@@ -119,8 +124,8 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                   icon: const Icon(SolarIconsOutline.copy, size: 18),
                   label: const Text('Salin Tautan Profil'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.softCoral,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     shape: const StadiumBorder(),
                   ),
                 ),

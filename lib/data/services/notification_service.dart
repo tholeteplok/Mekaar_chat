@@ -14,11 +14,30 @@ class NotificationService {
   // disamarkan (teks benign) agar pelaku tidak curiga. Default aktif.
   static bool maskingEnabled = true;
 
-  /// Callback untuk navigasi saat user mengetuk local notification.
+  /// Callback untuk navigasi saat user mengetuk local notification pesan chat.
   static Function(String roomId)? _onNotificationTap;
 
-  static Future<void> initialize({Function(String roomId)? onNotificationTap}) async {
+  /// Callback navigasi khusus notifikasi konfirmasi kedatangan Auto
+  /// Check-In (buka TripArrivalConfirmScreen).
+  static Function(String tripId)? _onTripNotificationTap;
+
+  /// Callback saat pengguna menekan action button LANGSUNG di notification
+  /// tray ("Sudah Sampai"/"Tunda 15 Menit") tanpa membuka app.
+  static Function(String tripId, {required bool arrived, int? snoozeMinutes})?
+      _onTripAction;
+
+  /// Prefix payload untuk membedakan notifikasi trip dari notifikasi chat biasa.
+  static const String _tripPayloadPrefix = 'trip:';
+
+  static Future<void> initialize({
+    Function(String roomId)? onNotificationTap,
+    Function(String tripId)? onTripNotificationTap,
+    Function(String tripId, {required bool arrived, int? snoozeMinutes})?
+        onTripAction,
+  }) async {
     _onNotificationTap = onNotificationTap;
+    _onTripNotificationTap = onTripNotificationTap;
+    _onTripAction = onTripAction;
     try {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings(
@@ -37,13 +56,32 @@ class NotificationService {
     }
   }
 
-  /// Handler saat user mengetuk local notification.
+  /// Handler saat user mengetuk local notification ATAU menekan action button.
   static void _onDidReceiveNotificationResponse(NotificationResponse response) {
-    final roomId = response.payload;
-    if (roomId != null && roomId.isNotEmpty) {
-      _logger.i("Local notification tapped, roomId: $roomId");
-      _onNotificationTap?.call(roomId);
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+
+    if (payload.startsWith(_tripPayloadPrefix)) {
+      final tripId = payload.substring(_tripPayloadPrefix.length);
+
+      switch (response.actionId) {
+        case 'trip_confirm_arrived':
+          _logger.i("Trip action: konfirmasi tiba, tripId: $tripId");
+          _onTripAction?.call(tripId, arrived: true);
+          return;
+        case 'trip_snooze_15':
+          _logger.i("Trip action: tunda 15 menit, tripId: $tripId");
+          _onTripAction?.call(tripId, arrived: false, snoozeMinutes: 15);
+          return;
+      }
+
+      _logger.i("Local notification tapped, tripId: $tripId");
+      _onTripNotificationTap?.call(tripId);
+      return;
     }
+
+    _logger.i("Local notification tapped, roomId: $payload");
+    _onNotificationTap?.call(payload);
   }
 
   static Future<void> showMessageNotification({
@@ -51,12 +89,7 @@ class NotificationService {
     required String body,
     String? roomId,
   }) async {
-    // Fire-and-forget: suara tidak boleh memblokir tampilan banner
-    // (playMessageSound internally awaits player.onPlayerComplete.first)
     AlarmService.playMessageSound();
-
-    // Haptik ringan untuk pesan masuk — hormati toggle "Haptic Feedback".
-    // Bukan intent .emergency agar tidak membocorkan status SOS ke korban.
     await HapticService.trigger(MekaarHapticIntent.success);
 
     const details = NotificationDetails(
@@ -83,6 +116,54 @@ class NotificationService {
     required String title,
     required String body,
   }) => showMessageNotification(title: title, body: body);
+
+  static int _tripNotificationId(String tripId) =>
+      0x54524950 ^ tripId.hashCode;
+
+  static Future<void> showTripConfirmationNotification({
+    required String tripId,
+    required String destinationLabel,
+    required int graceMinutes,
+  }) async {
+    await HapticService.trigger(MekaarHapticIntent.warning);
+
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'mekaar_trip_channel',
+        'Auto Check-In',
+        channelDescription: 'Konfirmasi kedatangan rute perjalanan',
+        importance: Importance.high,
+        priority: Priority.high,
+        actions: const [
+          AndroidNotificationAction(
+            'trip_confirm_arrived',
+            'Sudah Sampai',
+            showsUserInterface: false,
+          ),
+          AndroidNotificationAction(
+            'trip_snooze_15',
+            'Tunda 15 Menit',
+            showsUserInterface: false,
+          ),
+        ],
+      ),
+      iOS: const DarwinNotificationDetails(
+        categoryIdentifier: 'trip_confirmation',
+      ),
+    );
+
+    await _localNotificationsPlugin.show(
+      _tripNotificationId(tripId),
+      '📍 Konfirmasi Tiba di $destinationLabel',
+      'Waktu perkiraan tiba Anda telah lewat $graceMinutes menit. '
+          'Apakah Anda sudah sampai?',
+      details,
+      payload: '$_tripPayloadPrefix$tripId',
+    );
+  }
+
+  static Future<void> cancelTripConfirmationNotification(String tripId) =>
+      _localNotificationsPlugin.cancel(_tripNotificationId(tripId));
 
   static Future<void> showIncomingCallNotification({
     required String callerName,
@@ -119,25 +200,20 @@ class NotificationService {
     await _localNotificationsPlugin.cancel(incomingCallNotificationId);
   }
 
-  // Menampilkan notifikasi darurat SOS
   static Future<void> showLocalSOSNotification({
     required String title,
     required String body,
     Map<String, dynamic>? data,
   }) async {
     final isMasked = maskingEnabled;
-    
-    // Tentukan apakah perangkat ini adalah korban (pengirim SOS)
     final isVictim = data != null && data['role'] == 'victim';
 
     if (isMasked && isVictim) {
-      // HP KORBAN: tampilkan notifikasi samaran (senyap)
       _logger.w("🚨 ALARM MASKED (HP KORBAN): menyamarkan notifikasi darurat.");
       await showMaskedVictimNotification();
       return;
     }
 
-    // HP GUARDIAN: bunyikan alarm sirine bising & looping
     _logger.w("🚨 ALARM PUSH RECEIVED (GUARDIAN): $title - $body. Data: $data");
     await AlarmService.playSOSAlarm();
 
@@ -147,7 +223,7 @@ class NotificationService {
       channelDescription: 'Saluran prioritas tinggi untuk alarm SOS darurat',
       importance: Importance.max,
       priority: Priority.high,
-      playSound: false, // Suara looping keras dikontrol penuh lewat AlarmService
+      playSound: false,
     );
     const iosDetails = DarwinNotificationDetails(
       presentSound: false,
@@ -155,15 +231,13 @@ class NotificationService {
     const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _localNotificationsPlugin.show(
-      999, // ID statis untuk SOS agar menimpa notifikasi sebelumnya
+      999,
       title,
       body,
       details,
     );
   }
 
-  // Notifikasi penyamaran di HP KORBAN: teks benign agar pelaku tidak curiga.
-  // (Blind spot #2 — jangan pernah tampilkan status SOS asli di layar korban.)
   static Future<void> showMaskedVictimNotification() async {
     _logger.i("System notification masked (benign OS-update style)");
 
@@ -188,11 +262,9 @@ class NotificationService {
     );
   }
 
-  // Teks samaran untuk notifikasi korban (tidak mengandung kata SOS/Lokasi/Alarm).
   static const String maskedVictimTitle = 'Pembaruan Sistem Selesai';
   static const String maskedVictimBody = 'Perangkat Anda telah disinkronkan.';
 
-  // Catat hasil pengiriman alert sebagai metadata insiden milik pemilik SOS.
   static Future<void> sendSOSNotification({
     required String guardianId,
     required String sessionId,
@@ -223,8 +295,6 @@ class NotificationService {
     }
   }
 
-  /// Cek apakah app di-launch dari tap local notification (cold start).
-  /// Dipanggil setelah navigasi framework siap.
   static Future<void> handleAppLaunchNotification() async {
     try {
       final details = await _localNotificationsPlugin

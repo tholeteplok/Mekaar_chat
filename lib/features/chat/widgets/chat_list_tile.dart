@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/chat_provider.dart';
@@ -34,6 +35,9 @@ class ChatListTile extends StatelessWidget {
     final name = room['name'] as String? ?? 'User';
     final isMuted = room['isMuted'] as bool? ?? false;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final nameColor = isDark ? MekaarColors.textPrimary : const Color(0xFF1B2145);
+
     final tile = CustomCard(
       padding: EdgeInsets.zero,
       onTap: onTap,
@@ -60,8 +64,10 @@ class ChatListTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           name,
-                          style: MekaarTypography.headingSM
-                              .copyWith(fontWeight: FontWeight.w800),
+                          style: MekaarTypography.headingSM.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: nameColor,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -80,28 +86,28 @@ class ChatListTile extends StatelessWidget {
                     children: [
                       if (isGuardian) ...[
                         const Icon(
-                          Icons.shield_outlined,
+                          MekaarIcons.shieldOutline,
                           size: 13,
                           color: MekaarColors.guardianTeal,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
                       ] else if (isGroup) ...[
                         const Icon(
-                          Icons.groups_outlined,
+                          MekaarIcons.groupsOutline,
                           size: 14,
                           color: MekaarColors.softCoral,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
                       ] else if (isMuted) ...[
                         const Icon(
-                          Icons.notifications_off,
+                          MekaarIcons.notificationsOff,
                           size: 13,
                           color: MekaarColors.warnAmber,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
                       ] else ...[
                         const Icon(
-                          Icons.lock_outline,
+                          MekaarIcons.lockOutline,
                           size: 13,
                           color: MekaarColors.textMuted,
                         ),
@@ -162,7 +168,7 @@ class ChatListTile extends StatelessWidget {
               onPressed: (_) => onMute!(),
               backgroundColor: MekaarColors.warnAmber,
               foregroundColor: MekaarColors.textOnYellow,
-              icon: Icons.notifications_off,
+              icon: MekaarIcons.notificationsOff,
               label: 'Bisukan',
             ),
           if (onArchive != null)
@@ -170,7 +176,7 @@ class ChatListTile extends StatelessWidget {
               onPressed: (_) => onArchive!(),
               backgroundColor: MekaarColors.textMuted,
               foregroundColor: MekaarColors.textPrimary,
-              icon: Icons.archive,
+              icon: MekaarIcons.archive,
               label: 'Arsip',
             ),
         ],
@@ -183,7 +189,7 @@ class ChatListTile extends StatelessWidget {
               onPressed: (_) => onDelete!(),
               backgroundColor: MekaarColors.sosRed,
               foregroundColor: Colors.white,
-              icon: Icons.delete,
+              icon: MekaarIcons.delete,
               label: 'Hapus',
             ),
         ],

@@ -41,6 +41,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       forceDark: true,
       body: SafeArea(
         child: SingleChildScrollView(
@@ -88,6 +89,8 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   letterSpacing: 10,
                 ),
                 decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.1),
                   hintText: '••••••',
                   hintStyle: const TextStyle(
                     color: MekaarColors.textMuted,
@@ -97,8 +100,6 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                     SolarIconsOutline.shieldKeyhole,
                     color: MekaarColors.textSecondary,
                   ),
-                  fillColor: Colors.white.withValues(alpha: 0.08),
-                  filled: true,
                 ),
                 onSubmitted: (_) => _verify(),
               ),

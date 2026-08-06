@@ -9,6 +9,8 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mika_illustration.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -94,6 +96,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(
         title: 'Tukar Posisi',
         subtitle: 'Saling menjaga satu sama lain',
@@ -204,7 +207,8 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             child: Column(
               children: [
                 SwitchListTile(
-                  activeThumbColor: MekaarColors.softCoral,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
+                  activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                   title: Text(
                     'Lacak Lokasi GPS',
                     style: MekaarTypography.labelLG,
@@ -222,7 +226,8 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   indent: 72,
                 ),
                 SwitchListTile(
-                  activeThumbColor: MekaarColors.softCoral,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
+                  activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                   title: Text(
                     'Akses Mikrofon',
                     style: MekaarTypography.labelLG,
@@ -240,7 +245,8 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   indent: 72,
                 ),
                 SwitchListTile(
-                  activeThumbColor: MekaarColors.softCoral,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
+                  activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                   title: Text(
                     'Akses Kamera (Video Darurat)',
                     style: MekaarTypography.labelLG,
@@ -322,7 +328,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           ),
           const Spacer(),
           if (_isLoading)
-            const CircularProgressIndicator(color: MekaarColors.guardianTeal)
+            const MekaarStateView(
+              pose: MikaPose.pin,
+              title: 'Memproses perubahan...',
+              message: 'Tunggu sebentar ya, Mekaar menyimpan pengaturan Anda.',
+              illustrationSize: 96,
+            )
           else
             _buildKeypad(),
           const SizedBox(height: 24),

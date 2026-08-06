@@ -8,6 +8,7 @@ import 'package:mekaar_chat/data/services/supabase_service.dart';
 import 'package:mekaar_chat/data/services/notification_service.dart';
 import 'package:mekaar_chat/data/services/push_notification_service.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
+import 'package:mekaar_chat/data/repositories/trip_repository.dart';
 import 'app.dart';
 
 final logger = Logger();
@@ -58,6 +59,29 @@ void main() async {
             AppRoutes.chat,
             arguments: {'chatId': roomId},
           );
+        }
+      },
+      onTripNotificationTap: (tripId) {
+        final context = AppNavigator.currentContext;
+        if (context != null && context.mounted) {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.tripArrivalConfirm,
+            arguments: {'tripId': tripId},
+          );
+        }
+      },
+      onTripAction: (tripId, {required arrived, snoozeMinutes}) async {
+        try {
+          final repo = TripRepository(SupabaseService());
+          if (arrived) {
+            await repo.confirmArrivalManually(tripId);
+          } else if (snoozeMinutes != null) {
+            await repo.snoozeTrip(tripId, snoozeMinutes);
+          }
+          await NotificationService.cancelTripConfirmationNotification(tripId);
+        } catch (e) {
+          logger.w('Gagal memproses trip notification action: $e');
         }
       },
     );

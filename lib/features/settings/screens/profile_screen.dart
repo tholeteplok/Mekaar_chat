@@ -191,6 +191,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final pinSet = authState.isPinSet;
 
     return MekaarScaffold(
+      flat: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -306,10 +307,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           ),
                           Divider(
                             height: 24,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.08),
+                            color: MekaarColors.dividerOf(context),
                           ),
                           // Display Name — editable
                           _buildEditableRow(
@@ -362,9 +360,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 width: 44,
                                 height: 44,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? MekaarColors.cardDark
-                                      : MekaarColors.surface2Of(context),
+                                  color: MekaarColors.surface2Of(context),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(
@@ -376,7 +372,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                               title: Text(
                                 pinSet ? 'Ubah PIN' : 'Buat PIN',
                                 style: MekaarTypography.bodyMD.copyWith(
-                                  fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                   color: MekaarColors.textPrimaryOf(context),
                                 ),
@@ -386,7 +381,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     ? 'Perbarui PIN 6 digit keamanan Anda.'
                                     : 'Buat PIN untuk melindungi akses aplikasi.',
                                 style: MekaarTypography.bodySM.copyWith(
-                                  fontSize: 13.5,
                                   color: MekaarColors.textMutedOf(context),
                                 ),
                               ),
@@ -414,9 +408,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? MekaarColors.sosRed.withValues(alpha: 0.15)
-                                  : MekaarColors.sosLight,
+                              color: MekaarColors.sosLight,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -428,7 +420,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           title: Text(
                             'Keluar',
                             style: MekaarTypography.bodyMD.copyWith(
-                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: MekaarColors.sosRed,
                             ),
@@ -436,7 +427,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           subtitle: Text(
                             'Sesi login dan PIN lokal akan dihapus.',
                             style: MekaarTypography.bodySM.copyWith(
-                              fontSize: 13.5,
                               color: MekaarColors.textMutedOf(context),
                             ),
                           ),
@@ -465,17 +455,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     required VoidCallback onToggle,
     required VoidCallback onSave,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Row(
       children: [
         Container(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: isDark
-                ? MekaarColors.cardDark
-                : MekaarColors.surface2Of(context),
+            color: MekaarColors.surface2Of(context),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: MekaarColors.textSecondaryOf(context), size: 22),

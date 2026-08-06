@@ -12,15 +12,26 @@ import '../../features/sos/providers/sos_provider.dart';
 class MekaarCanvas extends ConsumerWidget {
   final Widget child;
   final bool forceDark;
+  final bool flat;
 
   const MekaarCanvas({
     super.key,
     required this.child,
     this.forceDark = false,
+    this.flat = true,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (flat && !forceDark) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Theme.of(context).colorScheme.surface,
+        child: child,
+      );
+    }
+
     // Trigger rebuild per menit agar auto-theme bisa switch palet.
     ref.watch(timeTickProvider);
 

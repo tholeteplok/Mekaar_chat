@@ -105,6 +105,11 @@ dependencies:
   flutter_slidable: ^4.0.3
   image_cropper: ^12.2.1
 
+  # Playful Motion
+  lottie: ^3.1.0
+  flutter_animate: ^4.5.0
+  confetti: ^0.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -121,6 +121,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
     final logs = ref.watch(securityLogProvider);
 
     return MekaarScaffold(
+      flat: true,
       appBar: CustomAppBar(
         title: 'Riwayat SOS',
         subtitle: 'Catatan insiden darurat selama 90 hari',

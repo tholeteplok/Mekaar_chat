@@ -10,6 +10,7 @@ import '../../../core/widgets/avatar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/call_state_provider.dart';
 
 class IncomingCallScreen extends ConsumerStatefulWidget {
   final String callId;
@@ -74,6 +75,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     if (_isResponding) return;
     setState(() => _isResponding = true);
     HapticService.trigger(MekaarHapticIntent.success);
+
+    // Set active call ID in Riverpod so collision guard protects ongoing call
+    ref.read(activeCallIdProvider.notifier).state = widget.callId;
 
     try {
       await ref.read(callRepositoryProvider).updateCallStatus(widget.callId, 'answered');

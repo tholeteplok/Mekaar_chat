@@ -5,29 +5,20 @@ import 'package:latlong2/latlong.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../data/models/guardian_model.dart';
 import '../../../data/models/saved_place_model.dart';
 import '../../../data/models/trip_model.dart';
 import '../../../data/repositories/saved_places_repository.dart';
 import '../../../data/repositories/trip_repository.dart';
 import '../../../data/services/location_service.dart';
-import '../../../features/guardian/providers/guardian_provider.dart';
 import '../../map/screens/location_picker_screen.dart';
-
-final activeGuardiansProvider = FutureProvider.autoDispose<List<Guardian>>((ref) async {
-  final repo = ref.watch(guardianRepositoryProvider);
-  return repo.getMyGuardians();
-});
-
-final savedPlacesProvider = FutureProvider.autoDispose<Map<String, SavedPlace>>((ref) async {
-  final repo = ref.watch(savedPlacesRepositoryProvider);
-  return repo.getSavedPlaces();
-});
+import '../providers/trip_provider.dart';
 
 class AddTripScreen extends ConsumerStatefulWidget {
   const AddTripScreen({super.key});
@@ -48,6 +39,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
 
   int _radiusMeters = 150;
   final int _gracePeriodMinutes = 30;
+  final List<int> _selectedActiveDays = [1, 2, 3, 4, 5, 6, 7]; // 1 = Mon, 7 = Sun
   final List<String> _selectedGuardianIds = [];
   bool _isSaving = false;
 
@@ -81,6 +73,38 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     super.dispose();
   }
 
+  Future<void> _selectExpectedTime() async {
+    HapticFeedback.selectionClick();
+    TimeOfDay initial = const TimeOfDay(hour: 18, minute: 30);
+    final parts = _expectedTimeController.text.split(':');
+    if (parts.length == 2) {
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h != null && m != null) {
+        initial = TimeOfDay(hour: h, minute: m);
+      }
+    }
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child ?? const SizedBox(),
+        );
+      },
+    );
+
+    if (picked != null) {
+      final hh = picked.hour.toString().padLeft(2, '0');
+      final mm = picked.minute.toString().padLeft(2, '0');
+      setState(() {
+        _expectedTimeController.text = '$hh:$mm';
+      });
+    }
+  }
+
   Future<void> _openMapPicker({String? autoSaveId, String? autoSaveName}) async {
     HapticFeedback.selectionClick();
     final result = await Navigator.pushNamed(
@@ -97,7 +121,6 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
         }
       });
 
-      // Simpan koordinat lokasi jika ini adalah penyiapan bookmark (Rumah, Kantor, Kampus)
       if (autoSaveId != null && autoSaveName != null) {
         final savedPlace = SavedPlace(
           id: autoSaveId,
@@ -136,7 +159,6 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
 
     final existingPlace = savedPlacesMap[id];
     if (existingPlace != null) {
-      // Lokasi sudah tersimpan di database lokal — langsung pakai koordinat aslinya!
       setState(() {
         _destinationLocation = LatLng(existingPlace.latitude, existingPlace.longitude);
       });
@@ -145,7 +167,6 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
         'Koordinat tersimpan "$name" diterapkan (${existingPlace.latitude.toStringAsFixed(4)}, ${existingPlace.longitude.toStringAsFixed(4)})',
       );
     } else {
-      // Lokasi belum pernah disimpan — buka peta untuk menentukan titik asli Rumah/Kantor
       MekaarSnackbar.info(
         context,
         'Lokasi "$name" belum memiliki titik koordinat tersimpan. Tentukan di peta.',
@@ -158,6 +179,14 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_destinationLocation == null) {
       MekaarSnackbar.error(context, 'Silakan pilih lokasi tujuan di peta terlebih dahulu');
+      return;
+    }
+    if (_selectedActiveDays.isEmpty) {
+      MekaarSnackbar.error(context, 'Pilih minimal 1 hari aktif rute perjalanan');
+      return;
+    }
+    if (_selectedGuardianIds.isEmpty) {
+      MekaarSnackbar.error(context, 'Pilih minimal 1 Guardian penerima Auto Check-In');
       return;
     }
 
@@ -180,10 +209,12 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
             destinationZone: destZone,
             expectedTime: _expectedTimeController.text.trim(),
             gracePeriodMinutes: _gracePeriodMinutes,
+            activeDays: _selectedActiveDays,
             guardians: guardians,
           );
 
       if (mounted) {
+        ref.invalidate(userTripsProvider);
         MekaarSnackbar.success(context, 'Rute perjalanan berhasil disimpan!');
         Navigator.pop(context);
       }
@@ -200,12 +231,22 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   Widget build(BuildContext context) {
     final guardiansAsync = ref.watch(activeGuardiansProvider);
     final savedPlacesAsync = ref.watch(savedPlacesProvider);
-    final surfaceColor = MekaarColors.surfaceOf(context);
 
     final String latStr = _destinationLocation?.latitude.toStringAsFixed(4) ?? 'Belum ditentukan';
     final String lngStr = _destinationLocation?.longitude.toStringAsFixed(4) ?? 'Belum ditentukan';
 
+    const dayLabels = {
+      1: 'Sen',
+      2: 'Sel',
+      3: 'Rab',
+      4: 'Kam',
+      5: 'Jum',
+      6: 'Sab',
+      7: 'Min',
+    };
+
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(
         title: 'Tambah Rute Auto Check-In',
       ),
@@ -322,7 +363,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
 
                       return ActionChip(
                         avatar: Icon(
-                          isSaved ? Icons.bookmark_added : icon,
+                          isSaved ? MekaarIcons.bookmarkAdded : icon,
                           size: 16,
                           color: isSaved ? MekaarColors.cyan : MekaarColors.textMutedOf(context),
                         ),
@@ -332,7 +373,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                             Text(name),
                             if (isSaved) ...[
                               const SizedBox(width: 4),
-                              const Icon(Icons.check_circle, size: 12, color: MekaarColors.cyan),
+                              const Icon(MekaarIcons.checkCircle, size: 12, color: MekaarColors.cyan),
                             ],
                           ],
                         ),
@@ -351,13 +392,9 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
               const SizedBox(height: MekaarSpacing.md),
 
               // 4. Kartu Titik Lokasi Tujuan di Peta Real-Time
-              Container(
+              CustomCard(
                 padding: const EdgeInsets.all(MekaarSpacing.md),
-                decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                  border: Border.all(color: MekaarColors.cyan.withValues(alpha: 0.3)),
-                ),
+                border: Border.all(color: MekaarColors.cyan.withValues(alpha: 0.3)),
                 child: Column(
                   children: [
                     Row(
@@ -425,19 +462,73 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
               ),
               const SizedBox(height: MekaarSpacing.md),
 
-              // 6. Estimasi Waktu Tiba
-              TextFormField(
-                controller: _expectedTimeController,
-                decoration: const InputDecoration(
-                  labelText: 'Estimasi Waktu Tiba (HH:mm)',
-                  hintText: '18:30',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(SolarIconsOutline.clockCircle, color: MekaarColors.cyan),
+              // 6. Hari Aktif (Recurring Days)
+              Text(
+                'Hari Aktif Rute Perjalanan:',
+                style: MekaarTypography.bodyMD.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: MekaarSpacing.xs),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: dayLabels.entries.map((entry) {
+                  final dayInt = entry.key;
+                  final dayName = entry.value;
+                  final isSelected = _selectedActiveDays.contains(dayInt);
+                  return FilterChip(
+                    label: Text(dayName),
+                    selected: isSelected,
+                    selectedColor: MekaarColors.cyan.withValues(alpha: 0.25),
+                    checkmarkColor: MekaarColors.cyan,
+                    side: BorderSide(
+                      color: isSelected ? MekaarColors.cyan : MekaarColors.surface2Of(context),
+                    ),
+                    onSelected: (selected) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        if (selected) {
+                          _selectedActiveDays.add(dayInt);
+                        } else {
+                          _selectedActiveDays.remove(dayInt);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: MekaarSpacing.md),
+
+              // 7. Estimasi Waktu Tiba (TimePicker)
+              InkWell(
+                onTap: _selectExpectedTime,
+                borderRadius: BorderRadius.circular(8),
+                child: IgnorePointer(
+                  child: TextFormField(
+                    controller: _expectedTimeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Estimasi Waktu Tiba (WIB)',
+                      hintText: '18:30',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(SolarIconsOutline.clockCircle, color: MekaarColors.cyan),
+                      suffixIcon: Icon(SolarIconsOutline.altArrowDown, color: MekaarColors.cyan),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Estimasi waktu wajib diisi';
+                      final parts = v.trim().split(':');
+                      if (parts.length != 2) return 'Format waktu tidak valid (HH:mm)';
+                      final h = int.tryParse(parts[0]);
+                      final m = int.tryParse(parts[1]);
+                      if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+                        return 'Waktu tidak valid';
+                      }
+                      return null;
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: MekaarSpacing.md),
 
-              // 7. Pemilih Guardian Penerima
+              // 8. Pemilih Guardian Penerima
               Text(
                 'Pilih Guardian Penerima Auto Check-In:',
                 style: MekaarTypography.bodyMD.copyWith(fontWeight: FontWeight.bold),
@@ -483,7 +574,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.yellow,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: MekaarColors.textOnYellow,
                     shape: const StadiumBorder(),
                   ),

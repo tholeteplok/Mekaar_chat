@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -116,6 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     return MekaarScaffold(
+      flat: true,
       forceDark: true, // Login page is always dark navy gradient
       body: SafeArea(
         child: SingleChildScrollView(
@@ -203,10 +205,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           autofillHints: const [AutofillHints.newUsername],
                           textInputAction: TextInputAction.next,
                           style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.1),
                             hintText: 'Username unik',
-                            hintStyle: TextStyle(color: MekaarColors.textMuted),
-                            prefixIcon: Icon(
+                            hintStyle: const TextStyle(color: MekaarColors.textMuted),
+                            prefixIcon: const Icon(
                               SolarIconsOutline.mentionSquare,
                               size: 20,
                               color: MekaarColors.textSecondary,
@@ -230,6 +234,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         autocorrect: false,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white.withValues(alpha: 0.1),
                           hintText: _isLogin ? 'Email atau Username' : 'Email',
                           hintStyle: const TextStyle(
                             color: MekaarColors.textMuted,
@@ -274,6 +280,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         obscureText: _obscurePassword,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white.withValues(alpha: 0.1),
                           hintText: 'Password',
                           hintStyle: const TextStyle(
                             color: MekaarColors.textMuted,
@@ -340,7 +348,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: OutlinedButton.icon(
                           onPressed:
                               authState.isLoading ? null : _signInWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata, size: 28),
+                          icon: const Icon(MekaarIcons.gMobiledata, size: 28),
                           label: const Text('Lanjut dengan Google'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: MekaarColors.cyan,

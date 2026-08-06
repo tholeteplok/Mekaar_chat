@@ -7,6 +7,8 @@ import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../providers/chat_provider.dart';
 
 class GroupDetailsScreen extends ConsumerStatefulWidget {
@@ -106,8 +108,11 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
         subtitle: '${_participants.length} Anggota',
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: MekaarColors.softCoral),
+          ? const MekaarStateView(
+              pose: MikaPose.hi,
+              title: 'Memuat Detail Grup',
+              message: 'Mengambil informasi dan anggota grup…',
+              semanticLabel: 'Memuat detail grup',
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(MekaarSpacing.lg),

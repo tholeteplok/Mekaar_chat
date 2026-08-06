@@ -96,6 +96,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: false,
       forceDark: true, // Always dark-navy gradient for splash
       body: Center(
         child: FadeTransition(
@@ -108,7 +109,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 duration: const Duration(milliseconds: 500),
                 offsetY: 24,
                 child: const MikaIllustration(
-                  pose: MikaPose.hi,
+                  pose: MikaPose.welcome,
                   size: 150,
                   semanticLabel: 'Mika menyambut Anda',
                 ),

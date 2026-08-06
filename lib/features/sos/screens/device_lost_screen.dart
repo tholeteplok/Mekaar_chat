@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/alarm_service.dart';
@@ -123,6 +124,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
+      flat: true,
       appBar: const CustomAppBar(title: 'Temukan Ponsel Saya'),
       body: Column(
         children: [
@@ -132,7 +134,13 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
               children: [
                 Expanded(
                   child: _isLoadingLocation
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const MekaarStateView(
+                          pose: MikaPose.phone,
+                          title: 'Mencari Lokasi',
+                          message: 'Menentukan posisi perangkat Anda…',
+                          illustrationSize: 96,
+                          semanticLabel: 'Mencari lokasi perangkat',
+                        )
                       : _locationError != null
                       ? Center(
                           child: Padding(
@@ -150,9 +158,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                                   _locationError!,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.white70
-                                        : MekaarColors.textSecondary,
+                                    color: MekaarColors.textSecondaryOf(context),
                                   ),
                                 ),
                                 const SizedBox(height: 12),
@@ -201,9 +207,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                         : 'Koordinat: $_lat, $_lon',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white70
-                          : MekaarColors.textSecondary,
+                      color: MekaarColors.textSecondaryOf(context),
                     ),
                   ),
                 ),
@@ -235,9 +239,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : MekaarColors.textPrimary,
+                    color: MekaarColors.textPrimaryOf(context),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -283,9 +285,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white70
-                        : MekaarColors.textSecondary,
+                    color: MekaarColors.textSecondaryOf(context),
                   ),
                 ),
                 const SizedBox(height: 8),

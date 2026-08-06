@@ -278,8 +278,8 @@ class _CreateGroupDetailsScreenState
               child: ElevatedButton.icon(
                 onPressed: _isLoading ? null : _createGroup,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: MekaarColors.softCoral,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

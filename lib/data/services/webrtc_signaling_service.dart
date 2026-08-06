@@ -14,10 +14,16 @@ class WebRtcSignalingService {
   final Map<String, dynamic> _configuration;
 
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
+  final List<Map<String, dynamic>> _myLocalCandidates = <Map<String, dynamic>>[];
   bool _remoteDescriptionSet = false;
   bool _hasCreatedOffer = false;
+  bool _hasReceivedAnswer = false;
   bool _isCleaningUp = false;
   bool _isCleanedUp = false;
+
+  Timer? _retryTimer;
+  int _retryCount = 0;
+  static const int _maxRetries = 6;
 
   Function(MediaStream stream)? onLocalStream;
   Function(MediaStream stream)? onRemoteStream;
@@ -25,22 +31,6 @@ class WebRtcSignalingService {
   Function()? onHangup;
   Function(Object error)? onError;
 
-  // Konfigurasi ICE/TURN server.
-  //
-  // PRODUKSI: kredensial TURN publik/gratis (openrelay.metered.ca) TIDAK
-  // punya SLA dan bisa mati/dibatasi kapan saja — fatal untuk fitur video/
-  // audio darurat SOS. Set TURN server privat lewat --dart-define saat build:
-  //
-  //   flutter build apk \
-  //     --dart-define=TURN_URL=turn:turn.contoh-domain.com:3478 \
-  //     --dart-define=TURN_USERNAME=xxxx \
-  //     --dart-define=TURN_CREDENTIAL=yyyy
-  //
-  // (bisa pakai coturn self-hosted, atau layanan terkelola seperti Twilio
-  // Network Traversal Service / Cloudflare Calls / Metered.ca berbayar).
-  // Jika TURN_URL tidak diisi, fallback ke relay publik HANYA untuk
-  // development/testing lokal — jangan pernah rilis produksi dengan fallback
-  // ini aktif.
   static const String _turnUrl = String.fromEnvironment('TURN_URL');
   static const String _turnUsername = String.fromEnvironment('TURN_USERNAME');
   static const String _turnCredential = String.fromEnvironment(
@@ -49,7 +39,15 @@ class WebRtcSignalingService {
 
   static Map<String, dynamic> _buildDefaultConfiguration() {
     final iceServers = <Map<String, dynamic>>[
-      {'urls': 'stun:stun.l.google.com:19302'},
+      {
+        'urls': [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+          'stun:stun2.l.google.com:19302',
+          'stun:stun3.l.google.com:19302',
+          'stun:stun4.l.google.com:19302',
+        ],
+      },
     ];
 
     if (_turnUrl.isNotEmpty) {
@@ -59,8 +57,6 @@ class WebRtcSignalingService {
         'credential': _turnCredential,
       });
     } else {
-      // ⚠️ DEV-ONLY fallback — lihat catatan di atas. Tidak boleh dipakai
-      // untuk build produksi/rilis publik.
       if (kDebugMode) {
         debugPrint(
           '⚠️ WebRtcSignalingService: TURN_URL tidak diset, memakai relay '
@@ -126,12 +122,13 @@ class WebRtcSignalingService {
     }
   }
 
-  Future<void> startSignaling(
-    String roomId,
-    String myUserId,
-    bool isCaller,
-    bool isVideo,
-  ) async {
+  Future<void> startSignaling({
+    required String roomId,
+    required String callId,
+    required String myUserId,
+    required bool isCaller,
+    required bool isVideo,
+  }) async {
     try {
       _peerConnection = await createPeerConnection(_configuration);
 
@@ -143,11 +140,13 @@ class WebRtcSignalingService {
 
       _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
         if (candidate.candidate != null) {
-          _sendSignal(myUserId, 'candidate', {
+          final candData = {
             'candidate': candidate.candidate,
             'sdpMid': candidate.sdpMid,
             'sdpMLineIndex': candidate.sdpMLineIndex,
-          });
+          };
+          _myLocalCandidates.add(candData);
+          _sendSignal(myUserId, 'candidate', candData);
         }
       };
 
@@ -168,7 +167,9 @@ class WebRtcSignalingService {
         _handleIceConnectionState(state);
       };
 
-      _channel = _client.channel('room_call:$roomId');
+      // Topik dispesifikkan ke ID panggilan unik (call:$callId) untuk mencegah interferensi
+      final channelTopic = 'call_signal:$callId';
+      _channel = _client.channel(channelTopic);
 
       _channel!.onBroadcast(
         event: 'signal',
@@ -207,18 +208,79 @@ class WebRtcSignalingService {
         if (onCallStateChange != null) {
           onCallStateChange!('calling');
         }
-        // Kirim sinyal caller_ready untuk memberi tahu receiver jika receiver sudah subscribe
         await _sendSignal(myUserId, 'caller_ready', {});
       } else {
         if (onCallStateChange != null) {
           onCallStateChange!('ringing');
         }
-        // Penerima langsung mengirim sinyal 'joined' ke kanal
-        await _sendSignal(myUserId, 'joined', {});
+        // Penerima memancarkan sinyal 'joined' secara berkala (handshake retry)
+        _startHandshakeRetry(myUserId, 'joined', {});
       }
     } catch (error) {
       _emitError(error);
       rethrow;
+    }
+  }
+
+  void _startHandshakeRetry(String myUserId, String type, Map<String, dynamic> data) {
+    _retryTimer?.cancel();
+    _retryCount = 0;
+
+    _sendSignal(myUserId, type, data);
+
+    _retryTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+      if (_isCleaningUp || _isCleanedUp) {
+        _retryTimer?.cancel();
+        return;
+      }
+
+      if (type == 'joined' && (_hasCreatedOffer || _remoteDescriptionSet)) {
+        _retryTimer?.cancel();
+        return;
+      }
+
+      if (type == 'offer' && _hasReceivedAnswer) {
+        _retryTimer?.cancel();
+        return;
+      }
+
+      _retryCount++;
+      if (_retryCount >= _maxRetries) {
+        _retryTimer?.cancel();
+        return;
+      }
+
+      _sendSignal(myUserId, type, data);
+    });
+  }
+
+  /// Pemicu manual pembentukan Offer (dipanggil jika DB status = 'answered' tetapi broadcast 'joined' terlewati)
+  Future<void> createOfferIfPending(String myUserId) async {
+    final connection = _peerConnection;
+    if (connection == null || _hasCreatedOffer || _isCleaningUp || _isCleanedUp) {
+      return;
+    }
+
+    try {
+      _hasCreatedOffer = true;
+      final offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      
+      final offerData = {
+        'sdp': offer.sdp,
+        'type': offer.type,
+      };
+
+      _startHandshakeRetry(myUserId, 'offer', offerData);
+      _retransmitLocalCandidates(myUserId);
+    } catch (error) {
+      _emitError(error);
+    }
+  }
+
+  void _retransmitLocalCandidates(String myUserId) {
+    for (final candData in _myLocalCandidates) {
+      _sendSignal(myUserId, 'candidate', candData);
     }
   }
 
@@ -243,24 +305,21 @@ class WebRtcSignalingService {
       switch (type) {
         case 'caller_ready':
           if (!isCaller) {
-            await _sendSignal(myUserId, 'joined', {});
+            _startHandshakeRetry(myUserId, 'joined', {});
           }
           break;
 
         case 'joined':
           if (isCaller && !_hasCreatedOffer) {
-            _hasCreatedOffer = true;
-            final offer = await connection.createOffer();
-            await connection.setLocalDescription(offer);
-            await _sendSignal(myUserId, 'offer', {
-              'sdp': offer.sdp,
-              'type': offer.type,
-            });
+            await createOfferIfPending(myUserId);
+          } else if (isCaller && _hasCreatedOffer) {
+            _retransmitLocalCandidates(myUserId);
           }
           break;
 
         case 'offer':
           if (!isCaller && data != null) {
+            _retryTimer?.cancel();
             await connection.setRemoteDescription(
               RTCSessionDescription(data['sdp'], data['type']),
             );
@@ -269,15 +328,21 @@ class WebRtcSignalingService {
 
             final answer = await connection.createAnswer();
             await connection.setLocalDescription(answer);
-            await _sendSignal(myUserId, 'answer', {
+            
+            final answerData = {
               'sdp': answer.sdp,
               'type': answer.type,
-            });
+            };
+
+            await _sendSignal(myUserId, 'answer', answerData);
+            _retransmitLocalCandidates(myUserId);
           }
           break;
 
         case 'answer':
           if (isCaller && data != null) {
+            _retryTimer?.cancel();
+            _hasReceivedAnswer = true;
             await connection.setRemoteDescription(
               RTCSessionDescription(data['sdp'], data['type']),
             );
@@ -335,6 +400,7 @@ class WebRtcSignalingService {
     }
     switch (state) {
       case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
+        _retryTimer?.cancel();
         onCallStateChange!('connected');
         break;
       case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
@@ -357,6 +423,11 @@ class WebRtcSignalingService {
       return;
     }
     switch (state) {
+      case RTCIceConnectionState.RTCIceConnectionStateConnected:
+      case RTCIceConnectionState.RTCIceConnectionStateCompleted:
+        _retryTimer?.cancel();
+        onCallStateChange!('connected');
+        break;
       case RTCIceConnectionState.RTCIceConnectionStateFailed:
         onCallStateChange!('failed');
         break;
@@ -391,6 +462,7 @@ class WebRtcSignalingService {
   }
 
   Future<void> hangup(String myUserId) async {
+    _retryTimer?.cancel();
     await _sendSignal(myUserId, 'hangup', {});
     await cleanUp();
     if (onHangup != null) {
@@ -403,10 +475,13 @@ class WebRtcSignalingService {
       return;
     }
     _isCleaningUp = true;
+    _retryTimer?.cancel();
 
     _pendingCandidates.clear();
+    _myLocalCandidates.clear();
     _remoteDescriptionSet = false;
     _hasCreatedOffer = false;
+    _hasReceivedAnswer = false;
 
     final channel = _channel;
     _channel = null;

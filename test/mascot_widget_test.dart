@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mekaar_chat/core/widgets/mika_animated.dart';
 import 'package:mekaar_chat/core/widgets/mika_illustration.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_state_view.dart';
 
@@ -75,7 +76,7 @@ void main() {
 
       expect(find.text('Belum ada obrolan'), findsOneWidget);
       expect(find.text('Mulai percakapan pertamamu.'), findsOneWidget);
-      expect(find.byType(MikaIllustration), findsOneWidget);
+      expect(find.byType(MikaAnimated), findsOneWidget);
     });
 
     testWidgets('shows action button when actionLabel and onAction set', (
