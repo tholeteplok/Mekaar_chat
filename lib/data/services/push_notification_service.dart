@@ -199,6 +199,8 @@ class PushNotificationService {
             ? 'msg_fcm_${roomId}_${DateTime.now().millisecondsSinceEpoch ~/ 1000}'
             : null;
       case 'call':
+        final callId = data['callId'] as String? ?? data['call_id'] as String?;
+        if (callId != null && callId.isNotEmpty) return 'call_$callId';
         final roomId = data['roomId'] as String?;
         return roomId != null ? 'call_$roomId' : null;
       case 'sos':

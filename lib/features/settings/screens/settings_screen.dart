@@ -8,6 +8,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -60,7 +61,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Mode terang/gelap & font ${activeFont.displayName}',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.themeSettings),
               ),
-              Divider(height: 1, color: MekaarColors.dividerOf(context)),
+              const MekaarCardDivider(),
               SettingsNavTile(
                 icon: SolarIconsOutline.chatRoundDots,
                 title: 'Tema & Wallpaper Chat',

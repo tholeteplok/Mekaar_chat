@@ -24,7 +24,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void initState() {
     super.initState();
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _fadeAnimation = CurvedAnimation(
@@ -37,12 +37,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigateToNext() async {
-    // Wait at least 1.5 seconds for fade animation
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Wait 800ms for smooth splash presentation
+    await Future.delayed(const Duration(milliseconds: 800));
 
     // Wait until profile & session loading finishes to avoid race conditions
     while (ref.read(authProvider).isLoading) {
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 50));
     }
 
     if (!mounted) return;
@@ -58,6 +58,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final authState = ref.read(authProvider);
     if (authState.user != null) {
+      // 2FA Gatekeeping Check
+      final twoFaEnabled = authState.profile?.twoFaEnabled ?? false;
+      final twoFaSecret = authState.profile?.twoFaSecret;
+      if (twoFaEnabled && twoFaSecret != null && twoFaSecret.isNotEmpty) {
+        final authRepo = ref.read(authRepositoryProvider);
+        final is2faVerified = await authRepo.is2faVerified();
+        if (!is2faVerified) {
+          if (!mounted) return;
+          final verified = await Navigator.pushNamed(
+            context,
+            AppRoutes.twoFactor,
+            arguments: {'twoFaSecret': twoFaSecret},
+          );
+          if (verified != true) return;
+        }
+      }
+
+      if (!mounted) return;
       final isPinLockEnabled = ref.read(pinLockEnabledProvider);
 
       // Cek apakah E2EE memerlukan restore (perangkat baru / reinstall).

@@ -15,6 +15,18 @@ class SOSRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('User belum masuk');
 
+    // High 5: Cek apakah sudah ada sesi SOS yang aktif
+    final active = await _supabaseService.client
+        .from('sos_sessions')
+        .select()
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+    if (active != null) {
+      return SOSSession.fromJson(active);
+    }
+
     final response = await _supabaseService.client
         .from('sos_sessions')
         .insert({
@@ -42,8 +54,8 @@ class SOSRepository {
         .eq('id', sessionId);
   }
 
-  // Fetch my active SOS session
-  Future<SOSSession?> getMyActiveSOS() async {
+  // Fetch active SOS session for current user
+  Future<SOSSession?> getActiveSOS() async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return null;
 
@@ -56,6 +68,42 @@ class SOSRepository {
 
     if (response == null) return null;
     return SOSSession.fromJson(response);
+  }
+
+  // Stream active SOS session changes for current user
+  Stream<SOSSession?> streamActiveSOS() {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return Stream.value(null);
+
+    return _supabaseService.client
+        .from('sos_sessions')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .map((events) {
+          final activeEvents =
+              events.where((e) => e['status'] == 'active').toList();
+          if (activeEvents.isEmpty) return null;
+          return SOSSession.fromJson(activeEvents.first);
+        });
+  }
+
+  // Fetch all active SOS sessions (for Guardians)
+  Future<List<Map<String, dynamic>>> getActiveSOSForGuardians() async {
+    final sessionsResponse = await _supabaseService.client
+        .from('sos_sessions')
+        .select('*, profiles:user_id(full_name, username, email)')
+        .eq('status', 'active');
+
+    return (sessionsResponse as List).map((e) {
+      final sessionMap = Map<String, dynamic>.from(e);
+      final profile = sessionMap['profiles'] as Map<String, dynamic>;
+      sessionMap['user_name'] =
+          profile['full_name'] as String? ??
+          profile['username'] as String? ??
+          'User';
+      sessionMap['user_email'] = profile['email'] as String? ?? '';
+      return sessionMap;
+    }).toList();
   }
 
   // Ping location
@@ -114,9 +162,9 @@ class SOSRepository {
     try {
       final response = await _supabaseService.client
           .from('location_pings')
-          .select('latitude, longitude, created_at, accuracy')
+          .select('latitude, longitude, timestamp, accuracy')
           .eq('session_id', sessionId)
-          .order('created_at', ascending: false)
+          .order('timestamp', ascending: false)
           .limit(1)
           .maybeSingle();
 
@@ -125,7 +173,7 @@ class SOSRepository {
       return {
         'latitude': (response['latitude'] as num).toDouble(),
         'longitude': (response['longitude'] as num).toDouble(),
-        'timestamp': response['created_at'] as String,
+        'timestamp': response['timestamp'] as String,
         'accuracy': response['accuracy'] == null
             ? null
             : (response['accuracy'] as num).toDouble(),

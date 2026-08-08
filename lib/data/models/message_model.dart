@@ -8,6 +8,8 @@ class Message {
   final String? mediaUrl;
   final MessageType type;
   final bool isViewOnce;
+  final bool isOpened;
+  final DateTime? openedAt;
   final String? replyToId;
   final bool isDeleted;
   final bool isSilentDeleted;
@@ -27,6 +29,8 @@ class Message {
     this.mediaUrl,
     required this.type,
     this.isViewOnce = false,
+    this.isOpened = false,
+    this.openedAt,
     this.replyToId,
     this.isDeleted = false,
     this.isSilentDeleted = false,
@@ -71,6 +75,10 @@ class Message {
       mediaUrl: json['media_url'] as String?,
       type: mType,
       isViewOnce: json['is_view_once'] as bool? ?? false,
+      isOpened: json['is_opened'] as bool? ?? false,
+      openedAt: json['opened_at'] != null
+          ? DateTime.parse(json['opened_at'] as String)
+          : null,
       replyToId: json['reply_to_id'] as String?,
       isDeleted: json['is_deleted'] as bool? ?? false,
       isSilentDeleted: json['is_silent_deleted'] as bool? ?? false,
@@ -96,6 +104,8 @@ class Message {
       'media_url': mediaUrl,
       'msg_type': type.name,
       'is_view_once': isViewOnce,
+      'is_opened': isOpened,
+      'opened_at': openedAt?.toIso8601String(),
       'reply_to_id': replyToId,
       'is_deleted': isDeleted,
       'is_silent_deleted': isSilentDeleted,
@@ -116,6 +126,8 @@ class Message {
     String? mediaUrl,
     MessageType? type,
     bool? isViewOnce,
+    bool? isOpened,
+    DateTime? openedAt,
     String? replyToId,
     bool? isDeleted,
     bool? isSilentDeleted,
@@ -134,6 +146,8 @@ class Message {
       mediaUrl: mediaUrl ?? this.mediaUrl,
       type: type ?? this.type,
       isViewOnce: isViewOnce ?? this.isViewOnce,
+      isOpened: isOpened ?? this.isOpened,
+      openedAt: openedAt ?? this.openedAt,
       replyToId: replyToId ?? this.replyToId,
       isDeleted: isDeleted ?? this.isDeleted,
       isSilentDeleted: isSilentDeleted ?? this.isSilentDeleted,

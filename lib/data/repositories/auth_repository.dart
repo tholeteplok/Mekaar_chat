@@ -568,4 +568,61 @@ class AuthRepository {
           .update({'duress_enabled': false, 'duress_pin_hash': null}).eq('id', userId);
     } catch (_) {}
   }
+
+  // ── Persistent PIN Lockout & 2FA State ──────────────────────
+  Future<void> savePinLockout(int attempts, DateTime? lockedUntil) async {
+    try {
+      await _secureStorage.write(key: 'pin_attempts', value: attempts.toString());
+      if (lockedUntil != null) {
+        await _secureStorage.write(key: 'pin_locked_until', value: lockedUntil.toIso8601String());
+      } else {
+        await _secureStorage.delete(key: 'pin_locked_until');
+      }
+    } catch (e) {
+      debugPrint('Error saving PIN lockout state: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getPinLockout() async {
+    try {
+      final attemptsStr = await _secureStorage.read(key: 'pin_attempts');
+      final lockedUntilStr = await _secureStorage.read(key: 'pin_locked_until');
+
+      final attempts = int.tryParse(attemptsStr ?? '0') ?? 0;
+      DateTime? lockedUntil;
+      if (lockedUntilStr != null && lockedUntilStr.isNotEmpty) {
+        lockedUntil = DateTime.tryParse(lockedUntilStr);
+      }
+
+      return {'attempts': attempts, 'lockedUntil': lockedUntil};
+    } catch (_) {
+      return {'attempts': 0, 'lockedUntil': null};
+    }
+  }
+
+  Future<void> clearPinLockout() async {
+    try {
+      await _secureStorage.delete(key: 'pin_attempts');
+      await _secureStorage.delete(key: 'pin_locked_until');
+    } catch (_) {}
+  }
+
+  Future<void> save2faVerified(bool verified) async {
+    try {
+      if (verified) {
+        await _secureStorage.write(key: '2fa_verified_session', value: 'true');
+      } else {
+        await _secureStorage.delete(key: '2fa_verified_session');
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> is2faVerified() async {
+    try {
+      final val = await _secureStorage.read(key: '2fa_verified_session');
+      return val == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
 }

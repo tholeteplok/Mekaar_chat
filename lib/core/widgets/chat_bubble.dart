@@ -16,7 +16,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/chat_theme_model.dart';
 import '../../features/settings/providers/chat_theme_provider.dart';
 import '../theme/chat_preset_resolver.dart';
-import '../../../core/constants/icons.dart';
+import '../constants/icons.dart';
+import '../../data/repositories/screen_protection_repository.dart';
+import '../../features/chat/providers/chat_provider.dart';
 
 // Helper function to download, decrypt, and cache E2EE media locally.
 Future<File?> _getOrDecryptMedia({
@@ -624,6 +626,13 @@ class ChatBubble extends ConsumerWidget {
         );
 
       case MessageType.video:
+        if (message.isViewOnce) {
+          return _ImageBubble(
+            message: message,
+            textColor: textColor,
+            onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
+          );
+        }
         return Stack(
           alignment: Alignment.center,
           children: [
@@ -1001,7 +1010,7 @@ class _MessageContextMenu extends StatelessWidget {
 // ─────────────────────────────────────────
 // Voice Note Player (replaces static mock)
 // ─────────────────────────────────────────
-class _VoiceBubblePlayer extends StatefulWidget {
+class _VoiceBubblePlayer extends ConsumerStatefulWidget {
   final Message message;
   final bool isMe;
   final Color textColor;
@@ -1013,15 +1022,16 @@ class _VoiceBubblePlayer extends StatefulWidget {
   });
 
   @override
-  State<_VoiceBubblePlayer> createState() => _VoiceBubblePlayerState();
+  ConsumerState<_VoiceBubblePlayer> createState() => _VoiceBubblePlayerState();
 }
 
-class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
+class _VoiceBubblePlayerState extends ConsumerState<_VoiceBubblePlayer> {
   final AudioPlayer _player = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoading = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  File? _downloadedFile;
 
   @override
   void initState() {
@@ -1037,13 +1047,35 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
       if (mounted) setState(() => _position = p);
     });
     _player.onPlayerComplete.listen((_) {
-      if (mounted) setState(() => _position = Duration.zero);
+      if (!mounted) return;
+      setState(() => _position = Duration.zero);
+      if (widget.message.isViewOnce) {
+        ViewOnceStore.markViewed(widget.message.id);
+        try {
+          ref.read(chatActionsProvider).markViewOnceOpened(widget.message.id);
+        } catch (_) {}
+        final temp = _downloadedFile;
+        if (temp != null && temp.existsSync()) {
+          try {
+            temp.deleteSync();
+          } catch (_) {}
+        }
+        setState(() {});
+      }
     });
   }
 
   @override
   void dispose() {
     _player.dispose();
+    if (widget.message.isViewOnce) {
+      final temp = _downloadedFile;
+      if (temp != null && temp.existsSync()) {
+        try {
+          temp.deleteSync();
+        } catch (_) {}
+      }
+    }
     super.dispose();
   }
 
@@ -1062,6 +1094,7 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
           fileKeyB64: widget.message.content,
         );
         if (file != null) {
+          _downloadedFile = file;
           await _player.play(DeviceFileSource(file.path));
         }
       }
@@ -1078,6 +1111,40 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.message.isViewOnce) {
+      return FutureBuilder<bool>(
+        future: ViewOnceStore.isViewed(widget.message.id),
+        initialData: widget.message.isOpened,
+        builder: (ctx, snap) {
+          final alreadyViewed = widget.message.isOpened || (snap.data ?? false);
+          if (alreadyViewed) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(MekaarIcons.visibilityOff, color: Colors.white54, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Pesan suara telah diputar',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            );
+          }
+          return _buildPlayerRow(context);
+        },
+      );
+    }
+    return _buildPlayerRow(context);
+  }
+
+  Widget _buildPlayerRow(BuildContext context) {
     final mainColor = widget.isMe ? widget.textColor : MekaarColors.softCoral;
     final activeWave = widget.isMe ? widget.textColor : MekaarColors.softCoral;
     final inactiveWave = widget.isMe
@@ -1165,10 +1232,40 @@ class _VoiceBubblePlayerState extends State<_VoiceBubblePlayer> {
 // ─────────────────────────────────────────
 // Full-screen image viewer (photo_view)
 // ─────────────────────────────────────────
-class _FullScreenImageViewer extends StatelessWidget {
+// ─────────────────────────────────────────
+// Full-screen image viewer (photo_view)
+// ─────────────────────────────────────────
+class _FullScreenImageViewer extends StatefulWidget {
   final ImageProvider imageProvider;
+  final File? tempFileToPurge;
 
-  const _FullScreenImageViewer({required this.imageProvider});
+  const _FullScreenImageViewer({
+    required this.imageProvider,
+    this.tempFileToPurge,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  @override
+  void initState() {
+    super.initState();
+    NativeScreenProtection().setEnabled(true);
+  }
+
+  @override
+  void dispose() {
+    NativeScreenProtection().setEnabled(false);
+    final file = widget.tempFileToPurge;
+    if (file != null && file.existsSync()) {
+      try {
+        file.deleteSync();
+      } catch (_) {}
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1179,7 +1276,7 @@ class _FullScreenImageViewer extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: PhotoView(
-        imageProvider: imageProvider,
+        imageProvider: widget.imageProvider,
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 3,
         backgroundDecoration: const BoxDecoration(color: Colors.black),
@@ -1189,7 +1286,7 @@ class _FullScreenImageViewer extends StatelessWidget {
 }
 
 // Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka.
-class _ImageBubble extends StatelessWidget {
+class _ImageBubble extends ConsumerWidget {
   final Message message;
   final Color textColor;
   final VoidCallback onViewOnceOpened;
@@ -1201,15 +1298,15 @@ class _ImageBubble extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isViewOnce = message.isViewOnce;
 
     if (isViewOnce) {
       return FutureBuilder<bool>(
         future: ViewOnceStore.isViewed(message.id),
-        initialData: false,
+        initialData: message.isOpened,
         builder: (ctx, snap) {
-          final alreadyViewed = snap.data ?? false;
+          final alreadyViewed = message.isOpened || (snap.data ?? false);
           if (alreadyViewed) {
             return _viewOnceHidden(textColor);
           }
@@ -1219,6 +1316,10 @@ class _ImageBubble extends StatelessWidget {
               GestureDetector(
                 onTap: () async {
                   onViewOnceOpened();
+                  try {
+                    ref.read(chatActionsProvider).markViewOnceOpened(message.id);
+                  } catch (_) {}
+
                   if (ctx.mounted && message.mediaUrl != null) {
                     final file = await _getOrDecryptMedia(
                       messageId: message.id,
@@ -1227,13 +1328,20 @@ class _ImageBubble extends StatelessWidget {
                       fileKeyB64: message.content,
                     );
                     if (file != null && ctx.mounted) {
-                      Navigator.push(
+                      await Navigator.push(
                         ctx,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              _FullScreenImageViewer(imageProvider: FileImage(file)),
+                          builder: (_) => _FullScreenImageViewer(
+                            imageProvider: FileImage(file),
+                            tempFileToPurge: file,
+                          ),
                         ),
                       );
+                      if (file.existsSync()) {
+                        try {
+                          file.deleteSync();
+                        } catch (_) {}
+                      }
                     }
                   }
                 },

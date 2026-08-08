@@ -64,17 +64,23 @@ class Guardian {
     }
 
     return Guardian(
-      id: json['id'] as String,
-      ownerId: json['owner_id'] as String,
-      guardianId: json['guardian_id'] as String,
+      id: json['id']?.toString() ?? '',
+      ownerId: json['owner_id']?.toString() ?? '',
+      guardianId: json['guardian_id']?.toString() ?? '',
       name: guardianName,
       email: guardianEmail,
       permissions: perms,
       storageOption: json['storage_option'] as String? ?? 'stream_only',
       status: json['status'] as String? ?? 'pending',
-      expiresAt: json['expires_at'] != null ? DateTime.parse(json['expires_at'] as String) : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      expiresAt: json['expires_at'] != null
+          ? DateTime.tryParse(json['expires_at'].toString())
+          : null,
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? (DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now())
+          : DateTime.now(),
     );
   }
 

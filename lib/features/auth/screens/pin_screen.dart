@@ -147,9 +147,8 @@ class _PinScreenState extends ConsumerState<PinScreen>
           final wasDuress = authState.lastUnlockWasDuress;
 
           // Cek apakah E2EE perlu di-restore (perangkat baru / reinstall)
-          if (authState.e2eeNeedsRestore) {
-            // E2EE restore gagal dengan PIN saat ini.
-            // Tampilkan dialog agar user tahu statusnya.
+          // HANYA tampilkan jika BUKAN duress PIN agar tidak membocorkan rahasia duress PIN
+          if (authState.e2eeNeedsRestore && !wasDuress) {
             await _showE2eeRestoreDialog();
           }
 

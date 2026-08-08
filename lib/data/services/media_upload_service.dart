@@ -14,6 +14,11 @@ class MediaUploadService {
   /// Uploads [file] to chat-media bucket under [roomId] folder.
   /// Returns the public URL of the uploaded file.
   Future<String> uploadChatMedia(File file, String roomId) async {
+    final length = await file.length();
+    if (length > 50 * 1024 * 1024) {
+      throw Exception('Ukuran file melebihi batas maksimal 50 MB.');
+    }
+
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     final ext = _extensionFromMime(mimeType);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -33,6 +38,10 @@ class MediaUploadService {
   /// Uploads and encrypts [file] before storing it in Supabase Storage.
   /// Returns the public URL and the Base64-encoded secret key used for encryption.
   Future<({String url, String keyB64})> uploadEncryptedChatMedia(File file, String roomId) async {
+    final length = await file.length();
+    if (length > 50 * 1024 * 1024) {
+      throw Exception('Ukuran file melebihi batas maksimal 50 MB.');
+    }
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     final ext = _extensionFromMime(mimeType);
     final timestamp = DateTime.now().millisecondsSinceEpoch;

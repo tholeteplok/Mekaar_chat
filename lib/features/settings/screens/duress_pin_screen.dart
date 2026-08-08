@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -68,6 +69,19 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
       });
       return;
     }
+
+    // High 18 / Med 5: Pastikan Duress PIN tidak sama dengan PIN utama
+    final isSameAsPrimary = await ref.read(authProvider.notifier).validatePIN(_pin);
+    if (isSameAsPrimary) {
+      HapticService.trigger(MekaarHapticIntent.destructive);
+      setState(() {
+        _pin = '';
+        _isConfirming = false;
+        _status = 'PIN Paksaan tidak boleh sama dengan PIN utama.';
+      });
+      return;
+    }
+
     setState(() => _isSetting = true);
     await ref.read(authProvider.notifier).setupDuressPIN(_pin);
     if (mounted) {
@@ -83,6 +97,14 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
   }
 
   Future<void> _disable() async {
+    // Re-authentication prior to disabling Duress PIN
+    final verified = await Navigator.pushNamed(
+      context,
+      AppRoutes.pin,
+      arguments: false, // validate primary PIN
+    );
+    if (verified != true) return;
+
     await ref.read(authProvider.notifier).disableDuressPIN();
     if (mounted) {
       setState(() => _enabled = false);

@@ -215,6 +215,10 @@ class ChatActionsNotifier {
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
+  Future<void> markViewOnceOpened(String messageId) async {
+    await _chatRepository.markViewOnceOpened(messageId);
+  }
+
   Future<void> editMessage(
     String messageId,
     String newContent, {

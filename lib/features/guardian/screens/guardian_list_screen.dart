@@ -10,6 +10,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -353,9 +354,15 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                     ),
                     tooltip: 'Terima undangan Guardian',
                     onPressed: () async {
-                      await ref
-                          .read(whoAddedMeProvider.notifier)
-                          .accept(guardian.id);
+                      try {
+                        await ref
+                            .read(whoAddedMeProvider.notifier)
+                            .accept(guardian.id);
+                      } catch (e) {
+                        if (mounted) {
+                          MekaarSnackbar.error(context, 'Gagal menerima undangan: $e');
+                        }
+                      }
                     },
                   ),
                   IconButton(
@@ -390,17 +397,20 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         TextButton(
           onPressed: () async {
             Navigator.pop(context);
-            await ref
-                .read(guardianProvider.notifier)
-                .breakGuardian(guardian.id);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Hubungan dengan ${guardian.name} diputus. Blokir 24 jam aktif.',
-                  ),
-                ),
-              );
+            try {
+              await ref
+                  .read(guardianProvider.notifier)
+                  .breakGuardian(guardian.id);
+              if (mounted) {
+                MekaarSnackbar.success(
+                  context,
+                  'Hubungan dengan ${guardian.name} diputus.',
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                MekaarSnackbar.error(context, 'Gagal memutus hubungan: $e');
+              }
             }
           },
           child: const Text(

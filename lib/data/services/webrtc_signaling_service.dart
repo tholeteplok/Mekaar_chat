@@ -167,8 +167,8 @@ class WebRtcSignalingService {
         _handleIceConnectionState(state);
       };
 
-      // Topik dispesifikkan ke ID panggilan unik (call:$callId) untuk mencegah interferensi
-      final channelTopic = 'call_signal:$callId';
+      // Topik dispesifikkan ke ID panggilan unik (room_call:$callId) sesuai RLS Supabase
+      final channelTopic = 'room_call:$callId';
       _channel = _client.channel(channelTopic);
 
       _channel!.onBroadcast(

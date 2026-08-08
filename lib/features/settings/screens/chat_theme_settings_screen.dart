@@ -9,6 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -306,7 +307,7 @@ class _ChatThemeSettingsScreenState extends ConsumerState<ChatThemeSettingsScree
                     : const Icon(SolarIconsOutline.altArrowRight, size: 18),
                 onTap: _pickImageFromGallery,
               ),
-              Divider(height: 1, color: MekaarColors.dividerOf(context)),
+              const MekaarCardDivider(),
               ListTile(
                 leading: CircleAvatar(
                   backgroundColor: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),

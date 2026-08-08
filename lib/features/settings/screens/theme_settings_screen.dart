@@ -14,6 +14,7 @@ import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/time_tick_provider.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -137,7 +138,10 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                       child: Text('Auto', style: MekaarTypography.bodySM.copyWith(fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  Divider(height: 24, color: MekaarColors.dividerOf(context)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: MekaarCardDivider(),
+                  ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Container(
@@ -355,7 +359,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                     : null,
                 onTap: () => notifier.setPreference(opt.$1),
               ),
-              if (!isLast) Divider(height: 1, color: MekaarColors.dividerOf(context)),
+              if (!isLast) const MekaarCardDivider(),
             ],
           );
         }),
@@ -426,7 +430,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: MekaarSpacing.md),
       itemCount: fonts.length,
-      separatorBuilder: (ctx, index) => Divider(height: 1, color: MekaarColors.dividerOf(context)),
+      separatorBuilder: (ctx, index) => const MekaarCardDivider(indent: 16),
       itemBuilder: (ctx, idx) {
         final font = fonts[idx];
         final selected = font.key == currentFontKey;

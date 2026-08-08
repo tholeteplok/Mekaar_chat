@@ -346,6 +346,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         url = await uploader.uploadChatMedia(file, widget.chatId);
       }
 
+      final isViewOnceToSend = _isViewOnce;
+
       await ref
           .read(chatActionsProvider)
           .sendMessage(
@@ -353,6 +355,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             fileKeyB64 ?? '',
             mediaUrl: url,
             type: type,
+            isViewOnce: isViewOnceToSend,
             autoDeleteHours: _autoDeleteHours,
           );
       _scrollToBottom();

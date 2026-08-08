@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -310,7 +311,10 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                       : null,
                 ),
 
-                const Divider(height: 40, indent: 20, endIndent: 20),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: MekaarCardDivider(fullWidth: true),
+                ),
 
                 // Tindakan
                 const Padding(

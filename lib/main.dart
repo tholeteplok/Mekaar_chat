@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -48,7 +49,18 @@ void main() async {
     }
   }
 
-  // 3. Initialize local & push notifications. Native failure remains non-fatal.
+  // 2. Run Application Immediately (<50ms) to mount Flutter Engine & render SplashScreen
+  runApp(
+    ProviderScope(
+      child: NotificationListenerHost(child: const MekaarApp()),
+    ),
+  );
+
+  // 3. Parallel Background Initialization for Native Notification & Push FCM
+  unawaited(_initializeSecondaryServices());
+}
+
+Future<void> _initializeSecondaryServices() async {
   try {
     await NotificationService.initialize(
       onNotificationTap: (roomId) {
@@ -104,13 +116,6 @@ void main() async {
   } catch (e) {
     logger.w('Notifikasi initialization non-fatal error: $e');
   }
-
-  // 4. Run Application
-  runApp(
-    ProviderScope(
-      child: NotificationListenerHost(child: const MekaarApp()),
-    ),
-  );
 }
 
 String? _validateSupabaseConfig(String supabaseUrl, String supabaseAnonKey) {

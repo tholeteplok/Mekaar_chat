@@ -421,6 +421,16 @@ class ChatRepository {
     return Message.fromJson(response);
   }
 
+  /// Menandai pesan media sekali lihat (View Once) sebagai sudah dibuka di database Supabase
+  Future<void> markViewOnceOpened(String messageId) async {
+    try {
+      await _supabaseService.client.rpc(
+        'mark_view_once_opened',
+        params: {'target_message_id': messageId},
+      );
+    } catch (_) {}
+  }
+
   // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone
   Future<void> deleteMessageForEveryone(String messageId) async {
     try {

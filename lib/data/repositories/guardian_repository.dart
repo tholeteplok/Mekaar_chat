@@ -167,7 +167,10 @@ class GuardianRepository {
   }
 
   // Switch roles (two-way swap request)
-  Future<void> initiateSwap(String guardianRelationId) async {
+  Future<void> initiateSwap(
+    String guardianRelationId, {
+    Map<String, dynamic>? newPermissions,
+  }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
 
@@ -196,7 +199,7 @@ class GuardianRepository {
         params: {
           'p_owner': currentGuardianId,
           'p_guardian': currentOwnerId,
-          'p_permissions': record['permissions'],
+          'p_permissions': newPermissions ?? record['permissions'],
         },
       );
     }

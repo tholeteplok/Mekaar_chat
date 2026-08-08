@@ -71,7 +71,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
         .subscribe();
   }
 
-  Future<void> _acceptCall() async {
+  void _acceptCall() {
     if (_isResponding) return;
     setState(() => _isResponding = true);
     HapticService.trigger(MekaarHapticIntent.success);
@@ -79,11 +79,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     // Set active call ID in Riverpod so collision guard protects ongoing call
     ref.read(activeCallIdProvider.notifier).state = widget.callId;
 
-    try {
-      await ref.read(callRepositoryProvider).updateCallStatus(widget.callId, 'answered');
-    } catch (_) {}
-
-    await NotificationService.cancelIncomingCallNotification();
+    // Fire & forget background update to keep UI instant (<50ms)
+    unawaited(ref.read(callRepositoryProvider).updateCallStatus(widget.callId, 'answered'));
+    unawaited(NotificationService.cancelIncomingCallNotification());
 
     if (!mounted) return;
     final myUserId = ref.read(authProvider).user?.id ?? '';
@@ -103,16 +101,16 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     );
   }
 
-  Future<void> _declineCall() async {
+  void _declineCall() {
     if (_isResponding) return;
     setState(() => _isResponding = true);
     HapticService.trigger(MekaarHapticIntent.destructive);
 
-    try {
-      await ref.read(callRepositoryProvider).updateCallStatus(widget.callId, 'declined');
-    } catch (_) {}
+    ref.read(activeCallIdProvider.notifier).state = null;
 
-    await NotificationService.cancelIncomingCallNotification();
+    // Fire & forget background update
+    unawaited(ref.read(callRepositoryProvider).updateCallStatus(widget.callId, 'declined'));
+    unawaited(NotificationService.cancelIncomingCallNotification());
 
     if (mounted) {
       Navigator.of(context).pop();
@@ -173,69 +171,40 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Geser ke atas untuk merespons',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white38,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ],
             ),
 
-            // Tombol Terima / Tolak Panggilan
+            // Tombol Slide Up Terima / Tolak Panggilan
             Padding(
-              padding: const EdgeInsets.only(bottom: 60.0, left: 36.0, right: 36.0),
+              padding: const EdgeInsets.only(bottom: 50.0, left: 40.0, right: 40.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  // Tombol Tolak
-                  GestureDetector(
-                    onTap: _isResponding ? null : _declineCall,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: MekaarColors.sosRed,
-                          ),
-                          child: const Icon(
-                            SolarIconsBold.phone,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Tolak',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
+                  // Slider Tolak (Geser ke atas)
+                  _SlideUpCallButton(
+                    label: 'Tolak',
+                    icon: SolarIconsBold.phone,
+                    color: MekaarColors.sosRed,
+                    onTrigger: _declineCall,
+                    disabled: _isResponding,
                   ),
 
-                  // Tombol Terima
-                  GestureDetector(
-                    onTap: _isResponding ? null : _acceptCall,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: MekaarColors.safeTeal,
-                          ),
-                          child: const Icon(
-                            SolarIconsBold.phone,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Terima',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
+                  // Slider Terima (Geser ke atas)
+                  _SlideUpCallButton(
+                    label: 'Terima',
+                    icon: SolarIconsBold.phone,
+                    color: MekaarColors.safeTeal,
+                    onTrigger: _acceptCall,
+                    disabled: _isResponding,
                   ),
                 ],
               ),
@@ -243,6 +212,146 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Widget Tombol Slide-Up Interaktif (Geser Ke Atas Untuk Merespons Panggilan)
+class _SlideUpCallButton extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTrigger;
+  final bool disabled;
+
+  const _SlideUpCallButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTrigger,
+    required this.disabled,
+  });
+
+  @override
+  State<_SlideUpCallButton> createState() => _SlideUpCallButtonState();
+}
+
+class _SlideUpCallButtonState extends State<_SlideUpCallButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _pulseAnim;
+  double _dragOffsetY = 0.0;
+  static const double _triggerThreshold = -85.0; // Pemicu 85px geser ke atas
+  bool _hasTriggered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _pulseAnim = Tween<double>(begin: 0.0, end: 6.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    if (widget.disabled || _hasTriggered) return;
+    setState(() {
+      _dragOffsetY += details.delta.dy;
+      if (_dragOffsetY > 0) _dragOffsetY = 0; // Hanya izinkan geser ke atas
+      if (_dragOffsetY < -110) _dragOffsetY = -110; // Batasi geser maksimum
+    });
+
+    if (_dragOffsetY <= _triggerThreshold && !_hasTriggered) {
+      _hasTriggered = true;
+      HapticService.trigger(MekaarHapticIntent.warning);
+      widget.onTrigger();
+    }
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) {
+    if (_hasTriggered) return;
+    // Spring back jika belum mencapai ambang batas
+    setState(() {
+      _dragOffsetY = 0.0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Panah indikator melayang ke atas dengan animasi
+        AnimatedBuilder(
+          animation: _pulseAnim,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, -_pulseAnim.value),
+              child: Opacity(
+                opacity: (1.0 - (_dragOffsetY.abs() / 100.0)).clamp(0.2, 1.0),
+                child: const Icon(
+                  SolarIconsOutline.altArrowUp,
+                  color: Colors.white60,
+                  size: 22,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+
+        // Handle Tombol yang dapat digeser
+        GestureDetector(
+          onVerticalDragUpdate: _onVerticalDragUpdate,
+          onVerticalDragEnd: _onVerticalDragEnd,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(0, _dragOffsetY, 0),
+            child: Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withValues(alpha: 0.4),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                widget.icon,
+                color: Colors.white,
+                size: 34,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+        Text(
+          widget.label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

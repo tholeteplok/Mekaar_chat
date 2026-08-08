@@ -7,6 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/utils/totp.dart';
+import '../providers/auth_provider.dart';
 
 class TwoFactorScreen extends ConsumerStatefulWidget {
   final String twoFaSecret;
@@ -27,13 +28,15 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
     super.dispose();
   }
 
-  void _verify() {
+  void _verify() async {
     final code = _codeController.text.trim();
     if (!TotpUtil.verify(widget.twoFaSecret, code)) {
       MekaarSnackbar.error(context, 'Kode tidak valid. Coba lagi.');
       return;
     }
     setState(() => _isVerifying = true);
+    await ref.read(authRepositoryProvider).save2faVerified(true);
+    if (!mounted) return;
     // Berhasil — kembalikan true agar caller melanjutkan ke layar PIN.
     Navigator.pop(context, true);
   }

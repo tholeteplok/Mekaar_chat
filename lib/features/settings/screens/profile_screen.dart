@@ -8,6 +8,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_info_tile.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -305,9 +306,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             label: 'Email',
                             value: userEmail,
                           ),
-                          Divider(
-                            height: 24,
-                            color: MekaarColors.dividerOf(context),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: MekaarCardDivider(),
                           ),
                           // Display Name — editable
                           _buildEditableRow(

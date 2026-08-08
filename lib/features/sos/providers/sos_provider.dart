@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -263,7 +265,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
 
   Future<bool> _checkActiveSOS() async {
     try {
-      final active = await _sosRepository.getMyActiveSOS();
+      final active = await _sosRepository.getActiveSOS();
       if (active != null) {
         _flushTimer?.cancel();
         _flushTimer = null;
@@ -450,7 +452,6 @@ class SOSNotifier extends StateNotifier<SOSState> {
   /// Mulai streaming GPS ke Supabase location_pings
   void _startLocationStreaming(String sessionId) {
     _locationSubscription?.cancel();
-
     // Kirim lokasi pertama segera
     LocationService.getCurrentLocation().then((locData) {
       if (state.status == SOSStatus.active &&
@@ -465,24 +466,29 @@ class SOSNotifier extends StateNotifier<SOSState> {
           accuracy: locData.accuracy,
         );
       }
+    }).catchError((e) {
+      debugPrint('Location first ping non-fatal error: $e');
     });
 
     // Listen to location stream
-    _locationSubscription = LocationService.getLocationStream().listen((
-      locData,
-    ) {
-      if (state.status == SOSStatus.active &&
-          state.activeSession?.id == sessionId &&
-          locData.latitude != null &&
-          locData.longitude != null) {
-        _sosRepository.pingLocation(
-          sessionId,
-          locData.latitude!,
-          locData.longitude!,
-          accuracy: locData.accuracy,
-        );
-      }
-    });
+    _locationSubscription = LocationService.getLocationStream().listen(
+      (locData) {
+        if (state.status == SOSStatus.active &&
+            state.activeSession?.id == sessionId &&
+            locData.latitude != null &&
+            locData.longitude != null) {
+          _sosRepository.pingLocation(
+            sessionId,
+            locData.latitude!,
+            locData.longitude!,
+            accuracy: locData.accuracy,
+          );
+        }
+      },
+      onError: (e) {
+        debugPrint('Location stream error: $e');
+      },
+    );
   }
 
   /// Pantau akselerometer — deteksi apakah perangkat bergerak atau diam
@@ -491,15 +497,17 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _accelerometerSubscription = accelerometerEventStream().listen((
       AccelerometerEvent event,
     ) {
-      // Magnitude total akselerasi (tanpa gravitasi tidak bisa dipisahkan di sini,
-      // tapi perubahan antara sample berturut-turut mencerminkan gerakan)
+      // Magnitude linear akselerasi dalam m/s^2 (akar dari sum of squares)
       final magnitude =
-          (event.x * event.x + event.y * event.y + event.z * event.z);
+          math.sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
       final delta = (magnitude - _lastAccelMagnitude).abs();
       _deviceIsMoving = delta > _movementThreshold;
       _lastAccelMagnitude = magnitude;
     });
   }
+
+  Timer? _inactivityPromptTimer;
+  Timer? _inactivityAutoEndTimer;
 
   /// Toggle video streaming state
   void toggleVideo(bool enabled) {
@@ -533,10 +541,11 @@ class SOSNotifier extends StateNotifier<SOSState> {
   /// bukti). Menit ke-2: jika perangkat diam & tak ada respon, baru putus video.
   void resetInactivityTimer() {
     if (state.status != SOSStatus.active) return;
-    _inactivityTimer?.cancel();
+    _inactivityPromptTimer?.cancel();
+    _inactivityAutoEndTimer?.cancel();
     state = state.copyWith(needsInactivityAck: false);
 
-    _inactivityTimer = Timer(const Duration(seconds: 90), () {
+    _inactivityPromptTimer = Timer(const Duration(seconds: 90), () {
       if (state.status == SOSStatus.active &&
           state.isVideoStreaming &&
           !_deviceIsMoving) {
@@ -545,7 +554,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
       }
     });
 
-    _inactivityTimer = Timer(const Duration(minutes: 2), () {
+    _inactivityAutoEndTimer = Timer(const Duration(minutes: 2), () {
       // Hanya auto-end jika perangkat benar-benar diam (tidak bergerak)
       if (state.status != SOSStatus.active) return;
       if (state.isVideoStreaming && !_deviceIsMoving) {

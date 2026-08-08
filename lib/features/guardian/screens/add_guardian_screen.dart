@@ -8,6 +8,7 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../providers/guardian_provider.dart';
 import '../../settings/providers/block_provider.dart';
@@ -202,7 +203,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               value: _gpsPermission,
               onChanged: (value) => setState(() => _gpsPermission = value),
             ),
-            const Divider(color: MekaarColors.borderLight),
+            const MekaarCardDivider(),
             // Audio permission switch
             SwitchListTile(
               activeThumbColor: Theme.of(context).colorScheme.primary,
@@ -218,7 +219,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
               value: _audioPermission,
               onChanged: (value) => setState(() => _audioPermission = value),
             ),
-            const Divider(color: MekaarColors.borderLight),
+            const MekaarCardDivider(),
             SwitchListTile(
               activeThumbColor: Theme.of(context).colorScheme.primary,
               activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),

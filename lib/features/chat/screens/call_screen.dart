@@ -62,6 +62,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   String? _currentCallId;
   RealtimeChannel? _statusChannel;
   Timer? _callTimeoutTimer;
+  Timer? _statusPollingTimer;
   DateTime? _connectedAt;
 
   bool get _isVideoCall => widget.callType == 'video';
@@ -86,12 +87,40 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     _initializeCall();
   }
 
-  void _watchCallStatusIfCaller() {
+  void _handleStatusChange(String? newStatus) {
+    if (newStatus == null || _isEnding || _isDisposed) return;
+    if (newStatus == 'declined') {
+      _callTimeoutTimer?.cancel();
+      _statusPollingTimer?.cancel();
+      _finishCall('Panggilan ditolak');
+    } else if (newStatus == 'busy') {
+      _callTimeoutTimer?.cancel();
+      _statusPollingTimer?.cancel();
+      _finishCall('Pengguna sedang dalam panggilan lain');
+    } else if (newStatus == 'ended') {
+      _callTimeoutTimer?.cancel();
+      _statusPollingTimer?.cancel();
+      _finishCall('Panggilan berakhir');
+    } else if (newStatus == 'missed') {
+      _callTimeoutTimer?.cancel();
+      _statusPollingTimer?.cancel();
+      _finishCall('Tidak dijawab');
+    } else if (newStatus == 'answered') {
+      _callTimeoutTimer?.cancel();
+      if (widget.isCaller && _myUserId != null) {
+        _signaling?.createOfferIfPending(_myUserId!);
+      }
+    }
+  }
+
+  void _watchCallStatus() {
     final callId = _currentCallId;
     if (callId == null) return;
     final client = ref.read(supabaseServiceProvider).client;
+
+    // 1. Realtime Postgres Changes
     _statusChannel = client
-        .channel('public:calls:caller_watch:$callId')
+        .channel('public:calls:watch:$callId')
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
           schema: 'public',
@@ -103,21 +132,26 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           ),
           callback: (payload) {
             final newStatus = payload.newRecord['status'] as String?;
-            if (newStatus == 'declined') {
-              _callTimeoutTimer?.cancel();
-              _finishCall('Panggilan ditolak');
-            } else if (newStatus == 'busy') {
-              _callTimeoutTimer?.cancel();
-              _finishCall('Pengguna sedang dalam panggilan lain');
-            } else if (newStatus == 'answered') {
-              _callTimeoutTimer?.cancel();
-              if (_myUserId != null) {
-                _signaling?.createOfferIfPending(_myUserId!);
-              }
-            }
+            _handleStatusChange(newStatus);
           },
         )
         .subscribe();
+
+    // 2. Periodic Polling Fallback (1.5 Detik) - Menjamin status pasti ter-update walau WebSocket missed
+    _statusPollingTimer?.cancel();
+    _statusPollingTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
+      if (_isEnding || _isDisposed || _callStatus == 'Tersambung') {
+        _statusPollingTimer?.cancel();
+        return;
+      }
+      try {
+        final callData = await ref.read(callRepositoryProvider).getCall(callId);
+        if (callData != null) {
+          final status = callData['status'] as String?;
+          _handleStatusChange(status);
+        }
+      } catch (_) {}
+    });
   }
 
   void _startCallTimeoutTimer() {
@@ -166,9 +200,11 @@ class _CallScreenState extends ConsumerState<CallScreen> {
         } catch (_) {}
       }
 
-      if (widget.isCaller && _currentCallId != null) {
-        _watchCallStatusIfCaller();
-        _startCallTimeoutTimer();
+      if (_currentCallId != null) {
+        _watchCallStatus();
+        if (widget.isCaller) {
+          _startCallTimeoutTimer();
+        }
       }
 
       await _localRenderer.initialize();
@@ -477,6 +513,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     }
     _isCleanedUp = true;
     _callTimeoutTimer?.cancel();
+    _statusPollingTimer?.cancel();
     _statusChannel?.unsubscribe();
 
     // Reset activeCallIdProvider in Riverpod
@@ -491,7 +528,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       signaling.onRemoteStream = null;
       signaling.onCallStateChange = null;
       signaling.onHangup = null;
-      signaling.cleanUp();
+      unawaited(signaling.cleanUp());
     }
     if (_localRendererInitialized) {
       _localRenderer.srcObject = null;

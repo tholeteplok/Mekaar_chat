@@ -9,6 +9,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../providers/guardian_provider.dart';
@@ -68,9 +69,17 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
 
     // PIN valid — kirim permintaan tukar posisi
     try {
+      final newPermissions = {
+        'gps': _gpsForB,
+        'mic': _micForB,
+        'video': _videoForB,
+      };
       await ref
           .read(guardianProvider.notifier)
-          .initiateRoleSwap(widget.guardian.id);
+          .initiateRoleSwap(
+            widget.guardian.id,
+            newPermissions: newPermissions,
+          );
       if (mounted) {
         MekaarSnackbar.success(
           context,
@@ -220,11 +229,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   value: _gpsForB,
                   onChanged: (v) => setState(() => _gpsForB = v),
                 ),
-                const Divider(
-                  height: 1,
-                  color: MekaarColors.borderLight,
-                  indent: 72,
-                ),
+                const MekaarCardDivider(),
                 SwitchListTile(
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                   activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
@@ -239,11 +244,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   value: _micForB,
                   onChanged: (v) => setState(() => _micForB = v),
                 ),
-                const Divider(
-                  height: 1,
-                  color: MekaarColors.borderLight,
-                  indent: 72,
-                ),
+                const MekaarCardDivider(),
                 SwitchListTile(
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                   activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),

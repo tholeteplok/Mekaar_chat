@@ -9,6 +9,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../providers/guardian_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/models/guardian_model.dart';
@@ -344,11 +345,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     value: _gpsEnabled,
                     onChanged: (v) => setState(() => _gpsEnabled = v),
                   ),
-                  const Divider(
-                    height: 1,
-                    color: MekaarColors.borderLight,
-                    indent: 72,
-                  ),
+                  const MekaarCardDivider(),
                   SwitchListTile(
                     activeThumbColor: Theme.of(context).colorScheme.primary,
                     activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
@@ -380,11 +377,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     value: _micEnabled,
                     onChanged: (v) => setState(() => _micEnabled = v),
                   ),
-                  const Divider(
-                    height: 1,
-                    color: MekaarColors.borderLight,
-                    indent: 72,
-                  ),
+                  const MekaarCardDivider(),
                   SwitchListTile(
                     activeThumbColor: Theme.of(context).colorScheme.primary,
                     activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
@@ -601,12 +594,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 onTap: () =>
                     setState(() => _storageOption = opt['value'] as String),
               ),
-              if (!isLast)
-                const Divider(
-                  height: 1,
-                  color: MekaarColors.borderLight,
-                  indent: 72,
-                ),
+              if (!isLast) const MekaarCardDivider(),
             ],
           );
         }).toList(),

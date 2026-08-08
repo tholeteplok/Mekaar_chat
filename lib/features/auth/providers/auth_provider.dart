@@ -99,6 +99,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _checkInitialAuth() async {
     try {
+      final lockout = await _authRepository.getPinLockout();
+      state = state.copyWith(
+        pinAttempts: lockout['attempts'] as int,
+        pinLockedUntil: lockout['lockedUntil'] as DateTime?,
+      );
+
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
         state = state.copyWith(user: session.user, isLoading: true);
@@ -114,10 +120,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final profile = await _authRepository.getProfile();
       final isPinSet = await _authRepository.isPINSet();
+      final lockout = await _authRepository.getPinLockout();
+
       state = state.copyWith(
         profile: profile,
         user: Supabase.instance.client.auth.currentUser,
         isPinSet: isPinSet,
+        pinAttempts: lockout['attempts'] as int,
+        pinLockedUntil: lockout['lockedUntil'] as DateTime?,
         isLoading: false,
       );
     } catch (e) {
@@ -408,6 +418,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // Cek Duress PIN lebih dulu — BUKAN dihitung sebagai gagal.
     final isDuress = await _authRepository.validateDuressPIN(pin);
     if (isDuress) {
+      await _authRepository.clearPinLockout();
       state = state.copyWith(
         pinAttempts: 0,
         pinLockedUntil: null,
@@ -420,6 +431,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final isValid = await _authRepository.validatePIN(pin);
 
     if (isValid) {
+      await _authRepository.clearPinLockout();
       // Coba restore E2EE dengan PIN yang valid.
       final e2ee = E2eeService.instance;
       bool e2eeRestored = false;
@@ -441,6 +453,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (newAttempts >= 5) {
         lockedUntil = DateTime.now().add(const Duration(minutes: 30));
       }
+      await _authRepository.savePinLockout(newAttempts, lockedUntil);
+
       state = state.copyWith(
         pinAttempts: newAttempts,
         pinLockedUntil: lockedUntil,

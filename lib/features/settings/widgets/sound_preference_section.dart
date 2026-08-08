@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
-import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 
 class SoundOption {
   final String name;
@@ -79,7 +79,7 @@ class SoundPreferenceSection extends StatelessWidget {
                       onSelected: onSelected,
                       onPreview: onPreview,
                     ),
-                  const Divider(color: MekaarColors.borderLight, height: 1),
+                  const MekaarCardDivider(),
                   ListTile(
                     enabled: enabled,
                     leading: Icon(

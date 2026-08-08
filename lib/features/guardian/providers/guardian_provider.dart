@@ -82,8 +82,14 @@ class GuardiansNotifier extends StateNotifier<List<Guardian>> {
     await refreshGuardians();
   }
 
-  Future<void> initiateRoleSwap(String guardianRelationId) async {
-    await _guardianRepository.initiateSwap(guardianRelationId);
+  Future<void> initiateRoleSwap(
+    String guardianRelationId, {
+    Map<String, dynamic>? newPermissions,
+  }) async {
+    await _guardianRepository.initiateSwap(
+      guardianRelationId,
+      newPermissions: newPermissions,
+    );
     await refreshGuardians();
     await _ref.read(whoAddedMeProvider.notifier).refresh();
   }
