@@ -572,10 +572,15 @@ class ChatRepository {
     return null;
   }
 
-  bool canForwardMessage(Message message) {
-    if (message.type == MessageType.location || message.type == MessageType.system) {
+  bool canForwardMessage(
+    Message message, {
+    bool forwardingProtectionActive = false,
+  }) {
+    if (message.type == MessageType.location ||
+        message.type == MessageType.system) {
       return false;
     }
+    if (forwardingProtectionActive) return false;
     return true;
   }
 

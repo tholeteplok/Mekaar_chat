@@ -103,6 +103,36 @@ class AuthRepository {
     return response.user;
   }
 
+  /// Send password reset OTP code to user's email.
+  /// Resolves username to email if necessary.
+  Future<String> sendPasswordResetEmail(String input) async {
+    final email = await resolveEmailFromUsername(input);
+    if (email == null || email.isEmpty) {
+      throw Exception('Akun dengan email/username tersebut tidak ditemukan.');
+    }
+    await _supabaseService.client.auth.resetPasswordForEmail(email);
+    return email;
+  }
+
+  /// Verify recovery OTP code/token and update user's password.
+  Future<void> resetPasswordWithOtp({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
+    final session = _supabaseService.client.auth.currentSession;
+    if (session == null) {
+      await _supabaseService.client.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.recovery,
+      );
+    }
+    await _supabaseService.client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+  }
+
   // Sign up with email, password, and username
   Future<User?> signUpWithEmail(
     String email,

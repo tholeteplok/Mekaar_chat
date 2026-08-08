@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mekaar_chat/features/auth/screens/forgot_password_screen.dart';
+import 'package:mekaar_chat/features/auth/screens/new_password_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/set_username_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/login_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
@@ -113,6 +115,8 @@ class AppRoutes {
   static const String tripArrivalConfirm = '/settings/trips/confirm';
   static const String twoFactorSetup = '/settings/2fa/setup';
   static const String twoFactor = '/auth/2fa';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String newPassword = '/auth/new-password';
   static const String sosActive = '/sos/active';
   static const String sosVideo = '/sos/video';
   static const String deviceLost = '/sos/lost';
@@ -247,6 +251,12 @@ class AppRoutes {
         final secret = settings.arguments as String? ?? '';
         return MekaarPageRoute(
             builder: (_) => TwoFactorScreen(twoFaSecret: secret));
+
+      case AppRoutes.forgotPassword:
+        return MekaarPageRoute(builder: (_) => const ForgotPasswordScreen());
+
+      case AppRoutes.newPassword:
+        return MekaarPageRoute(builder: (_) => const NewPasswordScreen());
 
       case AppRoutes.sosActive:
         return MekaarPageRoute(builder: (_) => const SOSActiveScreen());

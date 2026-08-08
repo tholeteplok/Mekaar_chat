@@ -23,7 +23,9 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
 import '../../../core/widgets/scroll_to_bottom_button.dart';
+import '../../../data/repositories/forwarding_protection_repository.dart';
 import '../providers/chat_provider.dart';
+import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/typing_indicator.dart';
@@ -760,6 +762,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       roomScreenProtectionProvider(widget.chatId),
     );
     final protection = protectionAsync.valueOrNull;
+
+    final forwardingProtectionAsync = ref.watch(
+      roomForwardingProtectionProvider(widget.chatId),
+    );
+    final forwardingProtection = forwardingProtectionAsync.valueOrNull;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
     final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
@@ -807,6 +814,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         reversed,
                         currentUserId,
                         actions,
+                        forwardingProtection: forwardingProtection,
                       );
 
                       // ShaderMask: bubble memudar tepat di tengah kapsul (Telegram-style)
@@ -973,6 +981,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           'Pengaturan proteksi belum dapat disinkronkan',
                         );
                       }
+                    } else if (value == 'forwarding_protection') {
+                      final nextValue = !(forwardingProtection?.callerEnabled ?? false);
+                      final ctx = context;
+                      try {
+                        await ref
+                            .read(forwardingProtectionControllerProvider)
+                            .setRoomPreference(widget.chatId, nextValue);
+                      } catch (_) {
+                        if (!ctx.mounted) return;
+                        MekaarSnackbar.error(
+                          ctx,
+                          'Pengaturan larang teruskan belum dapat disinkronkan',
+                        );
+                      }
                     } else if (value == 'theme') {
                       Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
                     } else if (value == 'auto_delete') {
@@ -1047,6 +1069,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             protection?.callerEnabled ?? true
                                 ? 'Nonaktifkan Proteksi Layar'
                                 : 'Aktifkan Proteksi Layar',
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'forwarding_protection',
+                      child: Row(
+                        children: [
+                          Icon(
+                            (forwardingProtection?.callerEnabled ?? false)
+                                ? SolarIconsOutline.forbiddenCircle
+                                : SolarIconsOutline.forward,
+                            size: 20,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            (forwardingProtection?.callerEnabled ?? false)
+                                ? 'Izinkan Teruskan Pesan'
+                                : 'Larang Teruskan Pesan',
                           ),
                         ],
                       ),
@@ -1129,8 +1171,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Widget> _buildMessageItems(
     List<Message> messages,
     String? currentUserId,
-    ChatActionsNotifier actions,
-  ) {
+    ChatActionsNotifier actions, {
+    RoomForwardingProtection? forwardingProtection,
+  }) {
     final items = <Widget>[];
     DateTime? lastDate;
 
@@ -1178,7 +1221,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
         canUnsend: isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
         canEdit: isMe && canEdit,
-        canForward: actions.canForward(msg),
+        canForward: actions.canForward(
+          msg,
+          forwardingProtectionActive:
+              forwardingProtection?.effective ?? false,
+        ),
         otherLastReadAt: _otherLastRead,
         showReadReceipts:
             ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
@@ -1208,7 +1255,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 isGuardianRoom: widget.isGuardian,
               );
         },
-        onForward: (forwardMsg) => _handleForwardMessage(forwardMsg),
+        onForward: (forwardingProtection?.effective ?? false)
+            ? null
+            : (forwardMsg) => _handleForwardMessage(forwardMsg),
         onReact: (reactMsg, emoji) =>
             _handleReactToMessage(reactMsg, emoji),
       );

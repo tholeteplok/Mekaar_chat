@@ -308,7 +308,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ? 'Password minimal 6 karakter'
                             : null,
                       ),
-                      if (!_isLogin) ...[
+                      if (_isLogin) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.forgotPassword,
+                              );
+                            },
+                            child: const Text(
+                              'Lupa Password?',
+                              style: TextStyle(
+                                color: MekaarColors.yellow,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ] else ...[
                         const SizedBox(height: 8),
                         const Align(
                           alignment: Alignment.centerLeft,

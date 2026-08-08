@@ -10,6 +10,7 @@ import 'package:mekaar_chat/data/services/notification_service.dart';
 import 'package:mekaar_chat/data/services/push_notification_service.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
 import 'package:mekaar_chat/data/repositories/trip_repository.dart';
+import 'package:mekaar_chat/data/services/deep_link_service.dart';
 import 'app.dart';
 
 final logger = Logger();
@@ -62,6 +63,17 @@ void main() async {
 
 Future<void> _initializeSecondaryServices() async {
   try {
+    await DeepLinkService.initialize();
+
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        final context = AppNavigator.currentContext;
+        if (context != null && context.mounted) {
+          Navigator.pushNamed(context, AppRoutes.newPassword);
+        }
+      }
+    });
+
     await NotificationService.initialize(
       onNotificationTap: (roomId) {
         final context = AppNavigator.currentContext;

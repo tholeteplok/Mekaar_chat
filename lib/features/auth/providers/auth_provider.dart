@@ -168,6 +168,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Kirim email reset password. Mengembalikan alamat email teresolusi.
+  Future<String?> sendPasswordReset(String input) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final email = await _authRepository.sendPasswordResetEmail(input);
+      state = state.copyWith(isLoading: false);
+      return email;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return null;
+    }
+  }
+
+  /// Verifikasi kode OTP pemulihan dan perbarui password pengguna.
+  Future<bool> confirmPasswordReset({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _authRepository.resetPasswordWithOtp(
+        email: email,
+        token: token,
+        newPassword: newPassword,
+      );
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
   Future<bool> signInWithGoogle() async {
     final configError = _configurationErrorMessage();
     if (configError != null) {

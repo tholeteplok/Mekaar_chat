@@ -307,8 +307,14 @@ class ChatActionsNotifier {
     await _chatRepository.updateLastSeen();
   }
 
-  bool canForward(Message message) {
-    return _chatRepository.canForwardMessage(message);
+  bool canForward(
+    Message message, {
+    bool forwardingProtectionActive = false,
+  }) {
+    return _chatRepository.canForwardMessage(
+      message,
+      forwardingProtectionActive: forwardingProtectionActive,
+    );
   }
 
   bool canEdit(Message message, {required bool isGuardianRoom}) {
