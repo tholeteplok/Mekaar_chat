@@ -15,6 +15,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/repositories/report_repository.dart';
 
 class ContactSettingsScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -119,28 +120,26 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   Future<void> _toggleBlock() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: MekaarColors.surfaceOf(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          _isBlocked ? 'Buka Blokir?' : 'Blokir ${widget.chatName}?',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          _isBlocked
-              ? 'Anda akan menerima pesan dari ${widget.chatName} lagi.'
-              : 'Blokir ${widget.chatName}? Anda tidak akan menerima pesan dari kontak ini.',
-          style: const TextStyle(color: MekaarColors.textSecondary),
-        ),
+      builder: (ctx) => MekaarDialog(
+        title: _isBlocked ? 'Buka Blokir?' : 'Blokir ${widget.chatName}?',
+        message: _isBlocked
+            ? 'Anda akan menerima pesan dari ${widget.chatName} lagi.'
+            : 'Blokir ${widget.chatName}? Anda tidak akan menerima pesan dari kontak ini.',
+        isDestructive: !_isBlocked,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal', style: TextStyle(color: MekaarColors.textMuted)),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: MekaarColors.textMutedOf(context)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _isBlocked ? MekaarColors.guardianTeal : MekaarColors.sosRed,
+              backgroundColor: _isBlocked
+                  ? MekaarColors.guardianTeal
+                  : MekaarColors.sosRed,
               foregroundColor: Colors.white,
             ),
             child: Text(_isBlocked ? 'Buka Blokir' : 'Blokir'),
@@ -267,42 +266,25 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                       ? () {
                           showDialog(
                             context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: MekaarColors.surfaceOf(context),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              title: const Text('Sidik Jari Keamanan', style: TextStyle(fontWeight: FontWeight.bold)),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Untuk memverifikasi bahwa chat ini aman dan dienkripsi ujung-ke-ujung (E2EE) secara sah, cocokkan nomor berikut dengan perangkat milik kontak Anda.',
-                                    style: TextStyle(color: MekaarColors.textSecondaryOf(context), fontSize: 13),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: MekaarColors.surface2Of(context),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: SelectableText(
-                                      _e2eeFingerprint,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontFamily: 'monospace',
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.0,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            builder: (ctx) => MekaarDialog(
+                              icon: const Icon(
+                                SolarIconsBold.shieldCheck,
+                                color: MekaarColors.guardianTeal,
+                                size: 28,
                               ),
+                              title: 'Sidik Jari Keamanan',
+                              message:
+                                  'Untuk memverifikasi bahwa chat ini aman dan dienkripsi ujung-ke-ujung (E2EE) secara sah, cocokkan nomor berikut dengan perangkat milik kontak Anda:\n\n$_e2eeFingerprint',
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('Tutup', style: TextStyle(color: MekaarColors.guardianTeal)),
+                                  child: const Text(
+                                    'Tutup',
+                                    style: TextStyle(
+                                      color: MekaarColors.guardianTeal,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -374,8 +356,25 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   title: Text(_isBlocked ? 'Buka Blokir Kontak' : 'Blokir Kontak'),
                   onTap: _toggleBlock,
                 ),
+
+                // Laporkan Pengguna
+                ListTile(
+                  leading: const Icon(SolarIconsOutline.flag, color: MekaarColors.warnAmber),
+                  title: const Text('Laporkan Pengguna'),
+                  onTap: _showReportDialog,
+                ),
               ],
             ),
+    );
+  }
+
+  void _showReportDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => _ReportUserDialog(
+        otherUserId: widget.otherUserId,
+        roomId: widget.roomId,
+      ),
     );
   }
 
@@ -398,13 +397,32 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
 
   Widget _buildDisappearingTile() {
     final effectiveHours = _disappearingOverrideHours ?? 0;
+    final isDisappearingActive = effectiveHours > 0;
     final label = _formatDuration(effectiveHours);
 
     return ListTile(
-      leading: const Icon(SolarIconsOutline.clockCircle, color: MekaarColors.info),
+      leading: Icon(
+        isDisappearingActive
+            ? SolarIconsBold.history
+            : SolarIconsOutline.clockCircle,
+        color: isDisappearingActive
+            ? MekaarColors.softCoral
+            : MekaarColors.textPrimaryOf(context),
+      ),
       title: const Text('Pesan Menghilang'),
-      subtitle: Text(label, style: MekaarTypography.bodySM),
-      trailing: const Icon(SolarIconsOutline.altArrowRight, size: 18, color: MekaarColors.textMuted),
+      subtitle: Text(
+        label,
+        style: MekaarTypography.bodySM.copyWith(
+          color: isDisappearingActive
+              ? MekaarColors.softCoral
+              : MekaarColors.textSecondaryOf(context),
+        ),
+      ),
+      trailing: const Icon(
+        SolarIconsOutline.altArrowRight,
+        size: 18,
+        color: MekaarColors.textMuted,
+      ),
       onTap: () => _showDisappearingPicker(),
     );
   }
@@ -467,5 +485,144 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     if (hours < 24) return '$hours jam';
     if (hours < 168) return '${hours ~/ 24} hari';
     return '${hours ~/ 24} hari';
+  }
+}
+
+class _ReportUserDialog extends ConsumerStatefulWidget {
+  final String otherUserId;
+  final String roomId;
+
+  const _ReportUserDialog({
+    required this.otherUserId,
+    required this.roomId,
+  });
+
+  @override
+  ConsumerState<_ReportUserDialog> createState() => _ReportUserDialogState();
+}
+
+class _ReportUserDialogState extends ConsumerState<_ReportUserDialog> {
+  String _selectedCategory = 'spam';
+  late final TextEditingController _reasonController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reasonController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitReport() async {
+    final reason = _reasonController.text.trim();
+    if (reason.isEmpty) {
+      MekaarSnackbar.warning(context, 'Alasan laporan wajib diisi');
+      return;
+    }
+    setState(() => _isSubmitting = true);
+    try {
+      final repo = ReportRepository(ref.read(supabaseServiceProvider));
+      await repo.submitReport(
+        reportedUserId: widget.otherUserId,
+        roomId: widget.roomId,
+        category: _selectedCategory,
+        reason: reason,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      MekaarSnackbar.success(
+        context,
+        'Laporan Anda telah berhasil dikirim ke tim Moderasi',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      MekaarSnackbar.error(context, 'Gagal mengirim laporan: $e');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: MekaarColors.surface2Of(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(
+            SolarIconsBold.shieldWarning,
+            color: MekaarColors.warnAmber,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Text('Laporkan Pengguna', style: MekaarTypography.headingSM),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Pilih kategori pelanggaran:', style: MekaarTypography.labelMD),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedCategory,
+              isExpanded: true,
+              dropdownColor: MekaarColors.surface2Of(context),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'spam', child: Text('Spamming / Bot')),
+                DropdownMenuItem(value: 'harassment', child: Text('Pelecehan / Ancaman')),
+                DropdownMenuItem(value: 'fake_sos', child: Text('Penyalahgunaan Fitur Darurat SOS')),
+                DropdownMenuItem(value: 'impersonation', child: Text('Akun Palsu / Penyamaran')),
+                DropdownMenuItem(value: 'other', child: Text('Lainnya')),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedCategory = val);
+              },
+            ),
+            const SizedBox(height: 16),
+            Text('Alasan & Detail Laporan:', style: MekaarTypography.labelMD),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Jelaskan indikasi pelanggaran yang dilakukan...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.warnAmber,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _isSubmitting ? null : _submitReport,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Kirim Laporan'),
+        ),
+      ],
+    );
   }
 }

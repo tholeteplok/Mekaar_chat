@@ -34,9 +34,7 @@ class ChatListTile extends StatelessWidget {
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final name = room['name'] as String? ?? 'User';
     final isMuted = room['isMuted'] as bool? ?? false;
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final nameColor = isDark ? MekaarColors.textPrimary : const Color(0xFF1B2145);
+    final nameColor = MekaarColors.textPrimaryOf(context);
 
     final tile = CustomCard(
       padding: EdgeInsets.zero,

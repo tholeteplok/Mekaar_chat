@@ -319,36 +319,73 @@ class ChatRepository {
         }
       } catch (_) {}
 
+      // Guard: jangan subscribe jika stream sudah di-cancel (race condition)
+      if (controller.isClosed) return;
+
+      List<Map<String, dynamic>>? pendingBatch;
+      bool isProcessing = false;
+
+      Future<void> processBatch(List<Map<String, dynamic>> maps) async {
+        try {
+          var msgs = maps.map((map) => Message.fromJson(map)).toList();
+          if (historyClearedAt != null) {
+            msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
+          }
+
+          // Dynamically refresh hiddenMsgIds per stream update
+          Set<String> currentHiddenIds = {};
+          try {
+            final hiddenData = await _supabaseService.client
+                .from('hidden_messages')
+                .select('message_id')
+                .eq('profile_id', userId);
+            for (var row in hiddenData) {
+              currentHiddenIds.add(row['message_id'] as String);
+            }
+          } catch (_) {}
+
+          // Filter out silent_deleted and hidden messages
+          msgs = msgs.where((m) => !m.isSilentDeleted && !currentHiddenIds.contains(m.id)).toList();
+
+          final decryptedMsgs = await Future.wait(msgs.map((m) async {
+            if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
+              try {
+                final plain = await E2eeService.instance.decryptForRoom(roomId, m.content);
+                return m.copyWith(content: plain);
+              } catch (_) {
+                return m.copyWith(content: E2eeService.undecryptableText);
+              }
+            }
+            return m;
+          }));
+
+          if (!controller.isClosed) {
+            controller.add(decryptedMsgs);
+          }
+        } finally {
+          isProcessing = false;
+          if (pendingBatch != null) {
+            final nextBatch = pendingBatch!;
+            pendingBatch = null;
+            isProcessing = true;
+            processBatch(nextBatch);
+          }
+        }
+      }
+
       // Start stream listening ONLY after historyClearedAt is retrieved (fixes race condition)
       streamSubscription = _supabaseService.client
           .from('messages')
           .stream(primaryKey: ['id'])
           .eq('room_id', roomId)
           .order('created_at', ascending: true)
-          .listen((maps) async {
-            var msgs = maps.map((map) => Message.fromJson(map)).toList();
-            if (historyClearedAt != null) {
-              msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
+          .listen((maps) {
+            if (isProcessing) {
+              pendingBatch = maps;
+              return;
             }
-
-            // Filter out silent_deleted and hidden messages
-            msgs = msgs.where((m) => !m.isSilentDeleted && !hiddenMsgIds.contains(m.id)).toList();
-
-            final decryptedMsgs = await Future.wait(msgs.map((m) async {
-              if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
-                try {
-                  final plain = await E2eeService.instance.decryptForRoom(roomId, m.content);
-                  return m.copyWith(content: plain);
-                } catch (_) {
-                  return m.copyWith(content: E2eeService.undecryptableText);
-                }
-              }
-              return m;
-            }));
-
-            if (!controller.isClosed) {
-              controller.add(decryptedMsgs);
-            }
+            isProcessing = true;
+            processBatch(maps);
           }, onError: (err) {
             if (!controller.isClosed) {
               controller.addError(err);
@@ -428,7 +465,11 @@ class ChatRepository {
         'mark_view_once_opened',
         params: {'target_message_id': messageId},
       );
-    } catch (_) {}
+    } catch (e) {
+      // Log error — jika gagal, pesan view-once mungkin bisa dibuka berkali-kali
+      // ignore: avoid_print
+      print('[ChatRepository] markViewOnceOpened gagal: $e');
+    }
   }
 
   // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone

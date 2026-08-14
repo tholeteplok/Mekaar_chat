@@ -61,6 +61,27 @@ class ChatBubbleSpec {
   });
 }
 
+/// Spec styling lengkap untuk seluruh komponen UI Chat Room (AppBar, Composer, Buttons, Dividers, Badges).
+class ChatRoomThemeSpec {
+  final Color primaryAccentColor;
+  final Color secondaryAccentColor;
+  final Color iconColor;
+  final Color textColor;
+  final Color subtitleColor;
+  final Border? glassBorder;
+  final Color? glassBackgroundColor;
+
+  const ChatRoomThemeSpec({
+    required this.primaryAccentColor,
+    required this.secondaryAccentColor,
+    required this.iconColor,
+    required this.textColor,
+    required this.subtitleColor,
+    this.glassBorder,
+    this.glassBackgroundColor,
+  });
+}
+
 /// Resolver tersentralisasi untuk 12 Preset Tema Chat Mekaar.
 class ChatPresetResolver {
   ChatPresetResolver._();
@@ -86,18 +107,28 @@ class ChatPresetResolver {
           curve: Curves.easeOut,
           type: EntranceType.pixelGlitchStep,
         );
+      case ChatThemePreset.neonDreams:
+      case ChatThemePreset.neonCyberpunk:
+        return const BubbleEntranceSpec(
+          duration: Duration(milliseconds: 200),
+          curve: Curves.linear,
+          type: EntranceType.neonFlickerGlow,
+        );
+      case ChatThemePreset.candyPop:
       case ChatThemePreset.isometric3d:
         return const BubbleEntranceSpec(
-          duration: Duration(milliseconds: 120),
-          curve: Curves.linear,
-          type: EntranceType.isometricSnap,
+          duration: Duration(milliseconds: 280),
+          curve: Curves.elasticOut,
+          type: EntranceType.comicPopElastic,
         );
+      case ChatThemePreset.retroWave:
       case ChatThemePreset.retroY2K:
         return const BubbleEntranceSpec(
           duration: Duration(milliseconds: 200),
           curve: Curves.easeOut,
           type: EntranceType.retroY2KHeaderFirst,
         );
+      case ChatThemePreset.monoVibe:
       case ChatThemePreset.swissMinimalist:
         return const BubbleEntranceSpec(
           duration: Duration(milliseconds: 150),
@@ -109,12 +140,6 @@ class ChatPresetResolver {
           duration: Duration(milliseconds: 320),
           curve: Curves.elasticOut,
           type: EntranceType.solarpunkGrowth,
-        );
-      case ChatThemePreset.neonCyberpunk:
-        return const BubbleEntranceSpec(
-          duration: Duration(milliseconds: 200),
-          curve: Curves.linear,
-          type: EntranceType.neonFlickerGlow,
         );
       case ChatThemePreset.comicPopArt:
         return const BubbleEntranceSpec(
@@ -158,6 +183,7 @@ class ChatPresetResolver {
     TextStyle resolveTextStyle(Color textColor) {
       try {
         switch (pref.preset) {
+          case ChatThemePreset.neonDreams:
           case ChatThemePreset.neonCyberpunk:
             return GoogleFonts.spaceGrotesk(
               color: textColor,
@@ -165,6 +191,14 @@ class ChatPresetResolver {
               height: 1.35,
               letterSpacing: 0.2,
               fontWeight: isMe ? FontWeight.w700 : FontWeight.w500,
+            );
+          case ChatThemePreset.candyPop:
+          case ChatThemePreset.isometric3d:
+            return GoogleFonts.fredoka(
+              color: textColor,
+              fontSize: fontSize,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
             );
           case ChatThemePreset.comicPopArt:
             return GoogleFonts.comicNeue(
@@ -195,22 +229,18 @@ class ChatPresetResolver {
               height: 1.35,
               fontWeight: FontWeight.w600,
             );
-          case ChatThemePreset.isometric3d:
-            return GoogleFonts.spaceGrotesk(
+          case ChatThemePreset.retroWave:
+          case ChatThemePreset.retroY2K:
+            return GoogleFonts.orbitron(
               color: textColor,
-              fontSize: fontSize,
-              height: 1.35,
+              fontSize: fontSize - 1,
+              height: 1.3,
+              letterSpacing: 0.5,
               fontWeight: FontWeight.w600,
             );
-          case ChatThemePreset.retroY2K:
-            return GoogleFonts.vt323(
-              color: textColor,
-              fontSize: fontSize + 4,
-              height: 1.15,
-              letterSpacing: 0.5,
-            );
+          case ChatThemePreset.monoVibe:
           case ChatThemePreset.swissMinimalist:
-            return GoogleFonts.dmSans(
+            return GoogleFonts.spaceGrotesk(
               color: textColor,
               fontSize: fontSize,
               height: 1.35,
@@ -250,6 +280,55 @@ class ChatPresetResolver {
           color: textColor,
           fontSize: fontSize,
           height: 1.4,
+        );
+      }
+    }
+
+    // Helper parsing Hex Color
+    Color? parseHexColor(String? hex) {
+      if (hex == null || hex.isEmpty) return null;
+      try {
+        final cleaned = hex.replaceAll('#', '').trim();
+        final val = int.parse(cleaned, radix: 16);
+        return Color(cleaned.length == 6 ? 0xFF000000 | val : val);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // 0. Custom Bubble Color Override (with 2-Color Gradient Support & Auto Contrast)
+    if (pref.useCustomBubbleColors) {
+      final hex1 = isMe ? pref.outgoingColor1 : pref.incomingColor1;
+      final hex2 = isMe ? pref.outgoingColor2 : pref.incomingColor2;
+      final color1 = parseHexColor(hex1);
+      final color2 = parseHexColor(hex2);
+
+      if (color1 != null) {
+        final gradient = color2 != null
+            ? LinearGradient(
+                colors: [color1, color2],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null;
+
+        final txtColor = color1.computeLuminance() < 0.45
+            ? Colors.white
+            : const Color(0xFF1A1A1A);
+
+        return ChatBubbleSpec(
+          backgroundColor: color1,
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: color1.withValues(alpha: isDark ? 0.3 : 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+          textColor: txtColor,
+          textStyle: resolveTextStyle(txtColor),
         );
       }
     }
@@ -387,39 +466,35 @@ class ChatPresetResolver {
       }
     }
 
-    // 4. Isometric / 2.5D Tech
-    if (pref.preset == ChatThemePreset.isometric3d ||
+    // 4. Candy Pop (Playful Youth)
+    if (pref.preset == ChatThemePreset.candyPop ||
+        pref.preset == ChatThemePreset.isometric3d ||
         pref.bubbleStyle == ChatBubbleStyle.isometric3D) {
       if (isMe) {
         const txt = Colors.white;
         return ChatBubbleSpec(
-          backgroundColor: const Color(0xFF3B82F6),
-          border: Border.all(color: const Color(0xFF1D4ED8), width: 1.5),
-          borderRadius: BorderRadius.zero,
+          backgroundColor: const Color(0xFFFF6B9D), // Candy Pink
+          borderRadius: BorderRadius.circular(22),
           boxShadow: const [
             BoxShadow(
-              color: Color(0xFF1E40AF),
-              offset: Offset(4, 4),
-              blurRadius: 0,
+              color: Color(0x29FF6B9D),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ],
           textColor: txt,
           textStyle: resolveTextStyle(txt),
         );
       } else {
-        final txt = isDark ? Colors.white : const Color(0xFF0F172A);
+        const txt = Color(0xFF1A2B2C); // Dark teal text
         return ChatBubbleSpec(
-          backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-          border: Border.all(
-            color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.zero,
-          boxShadow: [
+          backgroundColor: const Color(0xFF4ECDC4), // Candy Mint
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
             BoxShadow(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-              offset: const Offset(4, 4),
-              blurRadius: 0,
+              color: Color(0x294ECDC4),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ],
           textColor: txt,
@@ -428,69 +503,73 @@ class ChatPresetResolver {
       }
     }
 
-    // 5. Retro OS / Y2K (Win 95/98)
-    if (pref.preset == ChatThemePreset.retroY2K ||
+    // 5. Retro Wave (Nostalgic Youth)
+    if (pref.preset == ChatThemePreset.retroWave ||
+        pref.preset == ChatThemePreset.retroY2K ||
         pref.bubbleStyle == ChatBubbleStyle.retroBevel) {
       if (isMe) {
         const txt = Colors.white;
         return ChatBubbleSpec(
-          backgroundColor: const Color(0xFF000080),
-          border: const Border(
-            top: BorderSide(color: Color(0xFF0000FF), width: 2),
-            left: BorderSide(color: Color(0xFF0000FF), width: 2),
-            bottom: BorderSide(color: Color(0xFF000040), width: 2),
-            right: BorderSide(color: Color(0xFF000040), width: 2),
+          backgroundColor: const Color(0xFFFF006E),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF006E), Color(0xFF8338EC)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.zero,
+          border: Border.all(color: const Color(0xFFC0C0C0), width: 1.2), // Chrome border
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x408338EC),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
           textColor: txt,
-          fontFamily: 'monospace',
           textStyle: resolveTextStyle(txt),
-          headerWidget: _buildWin95Titlebar(isMe: true),
         );
       } else {
-        const txt = Colors.black;
+        const txt = Color(0xFFE2E8F0);
         return ChatBubbleSpec(
-          backgroundColor: const Color(0xFFC0C0C0),
-          border: const Border(
-            top: BorderSide(color: Color(0xFFFFFFFF), width: 2),
-            left: BorderSide(color: Color(0xFFFFFFFF), width: 2),
-            bottom: BorderSide(color: Color(0xFF808080), width: 2),
-            right: BorderSide(color: Color(0xFF808080), width: 2),
-          ),
-          borderRadius: BorderRadius.zero,
+          backgroundColor: const Color(0xFF1A1128), // Metallic dark purple
+          border: Border.all(color: const Color(0xFFC0C0C0), width: 1.2), // Chrome border
+          borderRadius: BorderRadius.circular(18),
           textColor: txt,
-          fontFamily: 'monospace',
           textStyle: resolveTextStyle(txt),
-          headerWidget: _buildWin95Titlebar(isMe: false),
         );
       }
     }
 
-    // 6. Monochrome Minimalist (Swiss Style)
-    if (pref.preset == ChatThemePreset.swissMinimalist ||
+    // 6. Mono Vibe (Minimalist Youth)
+    if (pref.preset == ChatThemePreset.monoVibe ||
+        pref.preset == ChatThemePreset.swissMinimalist ||
         pref.bubbleStyle == ChatBubbleStyle.swissSquare) {
       if (isMe) {
-        const txt = Colors.white;
+        const txt = Color(0xFF39FF14); // Lime accent text
         return ChatBubbleSpec(
-          backgroundColor: const Color(0xFFFF5722),
-          border: Border.all(color: const Color(0xFFE64A19), width: 1),
-          borderRadius: BorderRadius.zero,
+          backgroundColor: const Color(0xFF1A1A1A),
+          border: Border.all(color: const Color(0xFF39FF14), width: 1.5), // Lime accent
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF39FF14).withValues(alpha: 0.2),
+              blurRadius: 6,
+            ),
+          ],
           textColor: txt,
           textStyle: resolveTextStyle(txt),
-          headerWidget: _buildSwissAccentLabel(isMe: true),
         );
       } else {
-        final txt = isDark ? Colors.white : Colors.black;
+        final txt = isDark ? const Color(0xFFF5F5F5) : const Color(0xFF1A1A1A);
         return ChatBubbleSpec(
-          backgroundColor: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
+          backgroundColor: isDark ? const Color(0xFF2D2D2D) : const Color(0xFFF5F5F5),
           border: Border.all(
-            color: isDark ? const Color(0xFF3F3F46) : const Color(0xFF18181B),
-            width: 1,
+            color: isDark ? const Color(0xFF404040) : const Color(0xFFE5E5E5),
+            width: 1.2,
           ),
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.circular(14),
           textColor: txt,
           textStyle: resolveTextStyle(txt),
-          headerWidget: _buildSwissAccentLabel(isMe: false),
         );
       }
     }
@@ -536,28 +615,45 @@ class ChatPresetResolver {
       }
     }
 
-    // 8. Neon Cyberpunk
-    if (pref.preset == ChatThemePreset.neonCyberpunk ||
+    // 8. Neon Dreams (Night Youth)
+    if (pref.preset == ChatThemePreset.neonDreams ||
+        pref.preset == ChatThemePreset.neonCyberpunk ||
         pref.bubbleStyle == ChatBubbleStyle.cyberEdge) {
-      final txt = isMe ? Colors.black : const Color(0xFFFF007F);
-      return ChatBubbleSpec(
-        backgroundColor: isMe ? const Color(0xFF00F0FF) : const Color(0xFF1E1B4B),
-        border: Border.all(
-          color: isMe ? const Color(0xFF00F0FF) : const Color(0xFFFF007F),
-          width: 1.5,
-        ),
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: (isMe ? const Color(0xFF00F0FF) : const Color(0xFFFF007F))
-                .withValues(alpha: 0.4),
-            blurRadius: 8,
-            spreadRadius: 1,
+      if (isMe) {
+        const txt = Color(0xFF00F5D4); // Neon Teal text
+        return ChatBubbleSpec(
+          backgroundColor: const Color(0xFF0F0B1E), // Deep purple-black
+          border: Border.all(color: const Color(0xFF00F5D4), width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00F5D4).withValues(alpha: 0.35),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+          textColor: txt,
+          textStyle: resolveTextStyle(txt),
+        );
+      } else {
+        const txt = Color(0xFFE2E8F0);
+        return ChatBubbleSpec(
+          backgroundColor: const Color(0xFF1E1535), // Dark purple
+          border: Border.all(
+            color: const Color(0xFFFF006E).withValues(alpha: 0.5),
+            width: 1.2,
           ),
-        ],
-        textColor: txt,
-        textStyle: resolveTextStyle(txt),
-      );
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF006E).withValues(alpha: 0.2),
+              blurRadius: 8,
+            ),
+          ],
+          textColor: txt,
+          textStyle: resolveTextStyle(txt),
+        );
+      }
     }
 
     // 9. Comic Pop Art
@@ -642,6 +738,236 @@ class ChatPresetResolver {
       boxShadow: (isMe ? null : MekaarShadows.bubble),
       textColor: txt,
       textStyle: resolveTextStyle(txt),
+    );
+  }
+
+  /// Mendapatkan spesifikasi tema tersentralisasi untuk komponen chat room (AppBar, Composer, Buttons, Badges).
+  static ChatRoomThemeSpec getRoomThemeSpec(
+    ChatThemePreference pref,
+    BuildContext context,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultPrimary = MekaarColors.softCoral;
+    final defaultSecondary = isDark ? const Color(0xFF38BDF8) : MekaarColors.cyan;
+    final defaultText = MekaarColors.textPrimaryOf(context);
+    final defaultSubtitle = MekaarColors.textMutedOf(context);
+
+    // Helper parsing Hex Color
+    Color? parseHexColor(String? hex) {
+      if (hex == null || hex.isEmpty) return null;
+      try {
+        final cleaned = hex.replaceAll('#', '').trim();
+        final val = int.parse(cleaned, radix: 16);
+        return Color(cleaned.length == 6 ? 0xFF000000 | val : val);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // 0. Custom Color Override jika pengguna memilih warna manual
+    if (pref.useCustomBubbleColors) {
+      final custom1 = parseHexColor(pref.outgoingColor1);
+      if (custom1 != null) {
+        final accent = custom1;
+        final isAccentDark = accent.computeLuminance() < 0.45;
+        final iconClr = isDark ? Colors.white : (isAccentDark ? accent : const Color(0xFF1E293B));
+        return ChatRoomThemeSpec(
+          primaryAccentColor: accent,
+          secondaryAccentColor: custom1.withValues(alpha: 0.8),
+          iconColor: iconClr,
+          textColor: defaultText,
+          subtitleColor: defaultSubtitle,
+          glassBorder: Border.all(
+            color: accent.withValues(alpha: isDark ? 0.4 : 0.3),
+            width: 1.2,
+          ),
+          glassBackgroundColor: accent.withValues(alpha: isDark ? 0.12 : 0.08),
+        );
+      }
+    }
+
+    // 1. Neumorphism
+    if (pref.preset == ChatThemePreset.neumorphism ||
+        pref.bubbleStyle == ChatBubbleStyle.neumorphicSoft) {
+      final accent = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: isDark ? const Color(0xFF64748B) : const Color(0xFF64748B),
+        iconColor: isDark ? Colors.white70 : const Color(0xFF334155),
+        textColor: defaultText,
+        subtitleColor: defaultSubtitle,
+        glassBorder: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFCBD5E1),
+          width: 1.2,
+        ),
+        glassBackgroundColor: isDark ? const Color(0x33242A38) : const Color(0x33E2E8F0),
+      );
+    }
+
+    // 2. Glassmorphism
+    if (pref.preset == ChatThemePreset.glassmorphism ||
+        pref.bubbleStyle == ChatBubbleStyle.glassmorphism) {
+      final accent = isDark ? const Color(0xFFA78BFA) : const Color(0xFF8B5CF6);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: isDark ? const Color(0xFF818CF8) : const Color(0xFF3B82F6),
+        iconColor: accent,
+        textColor: defaultText,
+        subtitleColor: defaultSubtitle,
+        glassBorder: Border.all(
+          color: Colors.white.withValues(alpha: isDark ? 0.35 : 0.6),
+          width: 1.2,
+        ),
+        glassBackgroundColor: isDark ? const Color(0x228B5CF6) : const Color(0x183B82F6),
+      );
+    }
+
+    // 3. Pixel Garden 8-Bit
+    if (pref.preset == ChatThemePreset.pixelGarden ||
+        pref.bubbleStyle == ChatBubbleStyle.pixelGardenStyle) {
+      const accent = Color(0xFF3B567D);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFF5B769D),
+        iconColor: const Color(0xFF1B2A4A),
+        textColor: const Color(0xFF1B2A4A),
+        subtitleColor: const Color(0xFF3B567D),
+        glassBorder: Border.all(color: const Color(0xFF1B2A4A), width: 1.5),
+        glassBackgroundColor: const Color(0xDDFFFFFF),
+      );
+    }
+
+    // 4. Candy Pop
+    if (pref.preset == ChatThemePreset.candyPop ||
+        pref.preset == ChatThemePreset.isometric3d ||
+        pref.bubbleStyle == ChatBubbleStyle.isometric3D) {
+      const accent = Color(0xFFFF6B9D);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFF4ECDC4),
+        iconColor: accent,
+        textColor: defaultText,
+        subtitleColor: defaultSubtitle,
+        glassBorder: Border.all(color: accent.withValues(alpha: 0.4), width: 1.2),
+        glassBackgroundColor: accent.withValues(alpha: isDark ? 0.15 : 0.08),
+      );
+    }
+
+    // 5. Retro Wave
+    if (pref.preset == ChatThemePreset.retroWave ||
+        pref.preset == ChatThemePreset.retroY2K ||
+        pref.bubbleStyle == ChatBubbleStyle.retroBevel) {
+      const accent = Color(0xFFFF006E);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFF8338EC),
+        iconColor: accent,
+        textColor: defaultText,
+        subtitleColor: defaultSubtitle,
+        glassBorder: Border.all(color: const Color(0xFFC0C0C0), width: 1.2),
+        glassBackgroundColor: const Color(0x661A1128),
+      );
+    }
+
+    // 6. Mono Vibe
+    if (pref.preset == ChatThemePreset.monoVibe ||
+        pref.preset == ChatThemePreset.swissMinimalist ||
+        pref.bubbleStyle == ChatBubbleStyle.swissSquare) {
+      const accent = Color(0xFF39FF14);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: isDark ? const Color(0xFFFAFAFA) : const Color(0xFF1A1A1A),
+        iconColor: accent,
+        textColor: isDark ? const Color(0xFFFAFAFA) : const Color(0xFF1A1A1A),
+        subtitleColor: accent,
+        glassBorder: Border.all(color: accent, width: 1.5),
+        glassBackgroundColor: const Color(0xAA1A1A1A),
+      );
+    }
+
+    // 7. Solarpunk
+    if (pref.preset == ChatThemePreset.solarpunk ||
+        pref.bubbleStyle == ChatBubbleStyle.solarpunkLeaf) {
+      const accent = Color(0xFF10B981);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFF059669),
+        iconColor: accent,
+        textColor: defaultText,
+        subtitleColor: defaultSubtitle,
+        glassBorder: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.4), width: 1.2),
+        glassBackgroundColor: accent.withValues(alpha: isDark ? 0.15 : 0.08),
+      );
+    }
+
+    // 8. Neon Dreams
+    if (pref.preset == ChatThemePreset.neonDreams ||
+        pref.preset == ChatThemePreset.neonCyberpunk ||
+        pref.bubbleStyle == ChatBubbleStyle.cyberEdge) {
+      const accent = Color(0xFF00F5D4);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFFFF006E),
+        iconColor: accent,
+        textColor: accent,
+        subtitleColor: const Color(0xFFFF006E),
+        glassBorder: Border.all(color: accent.withValues(alpha: 0.5), width: 1.2),
+        glassBackgroundColor: const Color(0xAA0F0B1E),
+      );
+    }
+
+    // 9. Comic Pop Art
+    if (pref.preset == ChatThemePreset.comicPopArt ||
+        pref.bubbleStyle == ChatBubbleStyle.playfulOutlined) {
+      const accent = Color(0xFFFFD84D);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: Colors.black,
+        iconColor: Colors.black,
+        textColor: Colors.black,
+        subtitleColor: Colors.black87,
+        glassBorder: Border.all(color: Colors.black, width: 2.0),
+        glassBackgroundColor: const Color(0xEEFFFDF0),
+      );
+    }
+
+    // 10. Kunang-kunang / Firefly Night
+    if (pref.preset == ChatThemePreset.fireflyNight ||
+        pref.bubbleStyle == ChatBubbleStyle.fireflyAmber) {
+      const accent = Color(0xFFF5C97D);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFFFBF0B9),
+        iconColor: accent,
+        textColor: defaultText,
+        subtitleColor: defaultSubtitle,
+        glassBorder: Border.all(color: accent.withValues(alpha: 0.3), width: 1.0),
+        glassBackgroundColor: const Color(0x22F5C97D),
+      );
+    }
+
+    // 11. Buku Harian / Diary
+    if (pref.preset == ChatThemePreset.diary ||
+        pref.bubbleStyle == ChatBubbleStyle.diaryHandwriting) {
+      const accent = Color(0xFF1E3A8A);
+      return ChatRoomThemeSpec(
+        primaryAccentColor: accent,
+        secondaryAccentColor: const Color(0xFF3B82F6),
+        iconColor: accent,
+        textColor: const Color(0xFF1E3A8A),
+        subtitleColor: const Color(0xFF3B82F6),
+        glassBorder: Border.all(color: accent.withValues(alpha: 0.25), width: 1.0),
+        glassBackgroundColor: const Color(0x111E3A8A),
+      );
+    }
+
+    // 12. Dynamic Time (Default Fallback)
+    return ChatRoomThemeSpec(
+      primaryAccentColor: defaultPrimary,
+      secondaryAccentColor: defaultSecondary,
+      iconColor: defaultText,
+      textColor: defaultText,
+      subtitleColor: defaultSubtitle,
     );
   }
 
@@ -781,61 +1107,6 @@ class ChatPresetResolver {
     return Positioned.fill(
       child: Container(
         decoration: BoxDecoration(gradient: timeGradient),
-      ),
-    );
-  }
-
-  static Widget _buildWin95Titlebar({required bool isMe}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: isMe ? const Color(0xFF000080) : const Color(0xFF808080),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            isMe ? '[USER_01.EXE]' : '[MESSAGE.TXT]',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
-            ),
-          ),
-          Container(
-            width: 10,
-            height: 10,
-            color: const Color(0xFFC0C0C0),
-            child: const Center(
-              child: Text(
-                '×',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 8,
-                  height: 1,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Widget _buildSwissAccentLabel({required bool isMe}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        isMe ? '// SENT' : '// RECEIVED',
-        style: const TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.0,
-          color: Color(0xFF888888),
-        ),
       ),
     );
   }

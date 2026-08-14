@@ -6,6 +6,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../sos/providers/sos_provider.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -41,8 +42,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 800));
 
     // Wait until profile & session loading finishes to avoid race conditions
-    while (ref.read(authProvider).isLoading) {
+    // Timeout setelah 15 detik untuk mencegah infinite loop
+    int waitAttempts = 0;
+    while (ref.read(authProvider).isLoading && waitAttempts < 300) {
       await Future.delayed(const Duration(milliseconds: 50));
+      waitAttempts++;
     }
 
     if (!mounted) return;
@@ -58,7 +62,37 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final authState = ref.read(authProvider);
     if (authState.user != null) {
-      // 2FA Gatekeeping Check
+      // 1. Suspension Lockout Check (dengan SOS immunity guard)
+      if (authState.profile?.isSuspended == true) {
+        try {
+          final activeSos = await ref.read(sosRepositoryProvider).getActiveSOS();
+          if (activeSos == null) {
+            if (!mounted) return;
+            Navigator.pushReplacementNamed(
+              context,
+              AppRoutes.accountSuspended,
+              arguments: {
+                'reason': authState.profile?.suspensionReason,
+                'suspendedAt': authState.profile?.suspendedAt?.toIso8601String(),
+              },
+            );
+            return;
+          }
+        } catch (_) {
+          // Fallback if SOS fetch fails
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.accountSuspended,
+            arguments: {
+              'reason': authState.profile?.suspensionReason,
+            },
+          );
+          return;
+        }
+      }
+
+      // 2. 2FA Gatekeeping Check
       final twoFaEnabled = authState.profile?.twoFaEnabled ?? false;
       final twoFaSecret = authState.profile?.twoFaSecret;
       if (twoFaEnabled && twoFaSecret != null && twoFaSecret.isNotEmpty) {
@@ -69,7 +103,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           final verified = await Navigator.pushNamed(
             context,
             AppRoutes.twoFactor,
-            arguments: {'twoFaSecret': twoFaSecret},
+            arguments: twoFaSecret,
           );
           if (verified != true) return;
         }
@@ -94,7 +128,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         } else {
           // Bypass PIN lock screen if disabled in settings
           // AND E2EE doesn't need restore
-          Navigator.pushReplacementNamed(context, AppRoutes.home);
+          if (authState.needsUsername) {
+            Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.home);
+          }
         }
       } else {
         // Must setup PIN first time (2x input: create & confirm)

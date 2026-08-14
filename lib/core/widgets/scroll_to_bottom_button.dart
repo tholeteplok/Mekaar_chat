@@ -9,12 +9,16 @@ class ScrollToBottomButton extends StatelessWidget {
   final VoidCallback onTap;
   final int newMessageCount;
   final bool visible;
+  final Color? accentColor;
+  final Color? iconColor;
 
   const ScrollToBottomButton({
     super.key,
     required this.onTap,
     this.newMessageCount = 0,
     this.visible = false,
+    this.accentColor,
+    this.iconColor,
   });
 
   @override
@@ -47,7 +51,7 @@ class ScrollToBottomButton extends StatelessWidget {
               children: [
                 Icon(
                   SolarIconsOutline.altArrowDown,
-                  color: MekaarColors.textPrimaryOf(context),
+                  color: iconColor ?? MekaarColors.textPrimaryOf(context),
                   size: 22,
                 ),
                 if (newMessageCount > 0)
@@ -61,7 +65,7 @@ class ScrollToBottomButton extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: MekaarColors.softCoral,
+                        color: accentColor ?? MekaarColors.softCoral,
                         borderRadius: BorderRadius.circular(MekaarRadius.pill),
                       ),
                       child: Text(

@@ -74,8 +74,13 @@ class _SOSButtonState extends State<SOSButton>
     return Semantics(
       button: true,
       enabled: widget.onPressed != null,
-      label: 'Tombol SOS',
-      hint: 'Aktifkan bantuan darurat',
+      liveRegion: true,
+      label: widget.isActive
+          ? 'Sesi Darurat SOS Sedang Aktif'
+          : 'Tombol Darurat SOS',
+      hint: widget.isActive
+          ? 'Ketuk untuk melihat status darurat'
+          : 'Ketuk untuk mengirim sinyal darurat ke wali dan kontak terdekat',
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         child: Material(

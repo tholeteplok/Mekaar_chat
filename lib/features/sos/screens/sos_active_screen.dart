@@ -38,9 +38,12 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
       ref
           .read(screenProtectionControllerProvider)
           .enterMandatorySurface('sos_active');
-      ref
-          .read(sosProvider.notifier)
-          .activateSOS(gps: true, mic: true, video: false);
+      final sosState = ref.read(sosProvider);
+      if (sosState.status == SOSStatus.idle) {
+        ref
+            .read(sosProvider.notifier)
+            .activateSOS(gps: true, mic: true, video: false);
+      }
     });
   }
 

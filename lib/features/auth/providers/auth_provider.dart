@@ -49,7 +49,8 @@ class AuthState {
   bool get needsUsername =>
       !isLoading &&
       user != null &&
-      (profile == null || !profile!.hasUsername);
+      profile != null &&
+      !profile!.hasUsername;
 
   bool get isPinLocked {
     if (pinLockedUntil == null) return false;
@@ -100,9 +101,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _checkInitialAuth() async {
     try {
       final lockout = await _authRepository.getPinLockout();
+      final wasDuress = await _authRepository.getDuressUnlockStatus();
       state = state.copyWith(
         pinAttempts: lockout['attempts'] as int,
         pinLockedUntil: lockout['lockedUntil'] as DateTime?,
+        lastUnlockWasDuress: wasDuress,
       );
 
       final session = Supabase.instance.client.auth.currentSession;
@@ -110,8 +113,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(user: session.user, isLoading: true);
         await loadProfile();
       }
-    } catch (_) {
-      // Supabase is not initialized in widget tests, ignore safely.
+    } catch (e) {
+      // Jika startup gagal (mis. network error), set isLoading false
+      // agar Splash Screen tidak terjebak di loading loop.
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -374,13 +379,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(e2eeNeedsRestore: value);
   }
 
-  /// Reset PIN dan E2EE dengan verifikasi password / otentikasi.
+  /// Reset PIN dan E2EE dengan verifikasi password / otentikasi Google.
   /// Membuka kunci pengguna dan langsung mengizinkan setup PIN baru.
-  Future<bool> resetPinWithVerification(String? password) async {
+  Future<bool> resetPinWithVerification({
+    String? password,
+    bool isGoogleUser = false,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // Jika password diberikan (user Email/Password), verifikasi dulu.
-      if (password != null && password.isNotEmpty) {
+      if (isGoogleUser) {
+        final googleUser = await _authRepository.signInWithGoogle();
+        if (googleUser == null) {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Verifikasi akun Google dibatalkan.',
+          );
+          return false;
+        }
+      } else if (password != null && password.isNotEmpty) {
         final verified = await _authRepository.verifyPassword(password);
         if (!verified) {
           state = state.copyWith(
@@ -389,6 +405,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           );
           return false;
         }
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Verifikasi identitas diperlukan untuk mereset PIN.',
+        );
+        return false;
       }
 
       // Reset PIN hash di database & storage
@@ -453,6 +475,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final isDuress = await _authRepository.validateDuressPIN(pin);
     if (isDuress) {
       await _authRepository.clearPinLockout();
+      await _authRepository.saveDuressUnlockStatus(true);
       state = state.copyWith(
         pinAttempts: 0,
         pinLockedUntil: null,
@@ -466,6 +489,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     if (isValid) {
       await _authRepository.clearPinLockout();
+      await _authRepository.saveDuressUnlockStatus(false);
       // Coba restore E2EE dengan PIN yang valid.
       final e2ee = E2eeService.instance;
       bool e2eeRestored = false;
@@ -485,7 +509,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final newAttempts = state.pinAttempts + 1;
       DateTime? lockedUntil;
       if (newAttempts >= 5) {
-        lockedUntil = DateTime.now().add(const Duration(minutes: 30));
+        final serverTime = await _authRepository.getServerTime();
+        lockedUntil = serverTime.add(const Duration(minutes: 30));
       }
       await _authRepository.savePinLockout(newAttempts, lockedUntil);
 

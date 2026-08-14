@@ -6,13 +6,17 @@ import 'package:mekaar_chat/features/auth/screens/login_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/pin_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/splash_screen.dart';
+import 'package:mekaar_chat/features/auth/screens/account_suspended_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/main_navigation_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/chat_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/chat_requests_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/qr_invite_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/qr_scan_screen.dart';
 import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/features/settings/screens/settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/theme_settings_screen.dart';
@@ -31,6 +35,7 @@ import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
+import 'package:mekaar_chat/features/sos/screens/device_lost_lock_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_map_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
@@ -120,6 +125,7 @@ class AppRoutes {
   static const String sosActive = '/sos/active';
   static const String sosVideo = '/sos/video';
   static const String deviceLost = '/sos/lost';
+  static const String deviceLostLock = '/sos/lost/lock';
   static const String map = '/map';
   static const String mapPicker = '/map/picker';
   static const String call = '/call';
@@ -129,9 +135,21 @@ class AppRoutes {
   static const String createGroupSelectMembers = '/chat/group/select-members';
   static const String createGroupDetails = '/chat/group/details';
   static const String groupDetails = '/chat/group/info';
+  static const String accountSuspended = '/auth/account-suspended';
+  static const String chatRequests = '/chat/requests';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case AppRoutes.chatRequests:
+        return MekaarPageRoute(builder: (_) => const ChatRequestsScreen());
+      case AppRoutes.accountSuspended:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MekaarPageRoute(
+          builder: (_) => AccountSuspendedScreen(
+            reason: args['reason'] as String?,
+            suspendedAt: args['suspendedAt'] as String?,
+          ),
+        );
       case AppRoutes.splash:
         return MekaarPageRoute(builder: (_) => const SplashScreen());
 
@@ -154,7 +172,7 @@ class AppRoutes {
             builder: (_) => const MainNavigationScreen());
 
       case AppRoutes.chat:
-        final args = settings.arguments as Map<String, dynamic>;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MekaarPageRoute(
           builder: (_) => ChatScreen(
             chatId: args['chatId'],
@@ -167,7 +185,7 @@ class AppRoutes {
         );
 
       case AppRoutes.call:
-        final args = settings.arguments as Map<String, dynamic>;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MekaarPageRoute(
           builder: (_) => CallScreen(
             callId: args['callId'] as String?,
@@ -188,18 +206,24 @@ class AppRoutes {
         return MekaarPageRoute(
             builder: (_) => const AddGuardianScreen());
 
+      case AppRoutes.guardianQrInvite:
+        return MekaarPageRoute(
+            builder: (_) => const QrInviteScreen());
+
+      case AppRoutes.guardianQrScan:
+        return MekaarPageRoute(
+            builder: (_) => const QrScanScreen());
+
       case AppRoutes.guardianDetail:
-        final g =
-            (settings.arguments as Map<String, dynamic>)['guardian']
-                as Guardian;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final g = args['guardian'] as Guardian;
         return MekaarPageRoute(
           builder: (_) => GuardianDetailScreen(guardian: g),
         );
 
       case AppRoutes.guardianSwap:
-        final g =
-            (settings.arguments as Map<String, dynamic>)['guardian']
-                as Guardian;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final g = args['guardian'] as Guardian;
         return MekaarPageRoute(
           builder: (_) => SwapGuardianScreen(guardian: g),
         );
@@ -267,8 +291,11 @@ class AppRoutes {
       case AppRoutes.deviceLost:
         return MekaarPageRoute(builder: (_) => const DeviceLostScreen());
 
+      case AppRoutes.deviceLostLock:
+        return MekaarPageRoute(builder: (_) => const DeviceLostLockScreen());
+
       case AppRoutes.map:
-        final args = settings.arguments as Map<String, dynamic>;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MekaarPageRoute(
           builder: (_) => LocationMapScreen(
             latitude: args['latitude'] as double,
@@ -278,7 +305,7 @@ class AppRoutes {
         );
 
       case AppRoutes.contactSettings:
-        final args = settings.arguments as Map<String, dynamic>;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MekaarPageRoute(
           builder: (_) => ContactSettingsScreen(
             roomId: args['roomId'],

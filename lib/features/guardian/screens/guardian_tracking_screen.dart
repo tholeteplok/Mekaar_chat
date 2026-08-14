@@ -7,9 +7,11 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/services/alarm_service.dart';
 import '../../../data/services/location_service.dart';
 import '../../sos/providers/sos_provider.dart';
 
@@ -90,6 +92,49 @@ class _GuardianTrackingScreenState
     } catch (_) {
       if (!mounted) return;
       MekaarSnackbar.error(context, 'Tidak dapat membuka OpenStreetMap.');
+    }
+  }
+
+  Future<void> _handleTriggerAlarm(String userName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => MekaarDialog(
+        icon: const Icon(
+          SolarIconsBold.bellBing,
+          color: MekaarColors.sosRed,
+          size: 28,
+        ),
+        title: 'Bunyikan Sirine?',
+        message:
+            'Sirine darurat akan dibunyikan pada perangkat untuk membantu menemukan dan memberi sinyal peringatan kepada orang di sekitar $userName.',
+        isDestructive: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: MekaarColors.textMutedOf(context)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MekaarColors.sosRed,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Bunyikan Sirine'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await AlarmService.playSOSAlarm();
+      if (mounted) {
+        MekaarSnackbar.warning(
+          context,
+          'Sirine peringatan darurat dibunyikan.',
+        );
+      }
     }
   }
 
@@ -332,16 +377,42 @@ class _GuardianTrackingScreenState
                 ),
               ],
             ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(
+                SolarIconsOutline.volumeLoud,
+                size: 18,
+                color: MekaarColors.sosRed,
+              ),
+              label: const Text(
+                'Bunyikan Sirine Peringatan',
+                style: TextStyle(
+                  color: MekaarColors.sosRed,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: MekaarColors.sosRed),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => _handleTriggerAlarm(userName),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildPingInfo(Map<String, dynamic> ping) {
-    final lat = ping['latitude'] as double;
-    final lon = ping['longitude'] as double;
+    final lat = (ping['latitude'] as num).toDouble();
+    final lon = (ping['longitude'] as num).toDouble();
     final timestamp = ping['timestamp'] as String;
-    final accuracy = ping['accuracy'] as double?;
+    final accuracy = (ping['accuracy'] as num?)?.toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

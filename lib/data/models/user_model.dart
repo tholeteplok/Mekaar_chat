@@ -34,6 +34,17 @@ class Profile {
   final String? twoFaSecret;
   final String? lastLoginDevice;
   final DateTime? lastLoginAt;
+  final DateTime? lastSeenAt;
+  final String? e2eePublicKey;
+  final String? e2eeKeyBackup;
+  final String? fcmToken;
+  final bool isSuspended;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
+  final bool isAdmin;
+  final bool legalHoldActive;
+  final String? legalHoldCaseRef;
+  final String chatInvitationMode;
 
   Profile({
     required this.id,
@@ -54,6 +65,17 @@ class Profile {
     this.twoFaSecret,
     this.lastLoginDevice,
     this.lastLoginAt,
+    this.lastSeenAt,
+    this.e2eePublicKey,
+    this.e2eeKeyBackup,
+    this.fcmToken,
+    this.isSuspended = false,
+    this.suspendedAt,
+    this.suspensionReason,
+    this.isAdmin = false,
+    this.legalHoldActive = false,
+    this.legalHoldCaseRef,
+    this.chatInvitationMode = 'approved_only',
   });
 
   bool get hasUsername => username.trim().isNotEmpty;
@@ -62,7 +84,7 @@ class Profile {
     return Profile(
       id: json['id'] as String,
       username: json['username'] as String? ?? '',
-      email: json['email'] as String,
+      email: json['email'] as String? ?? '',
       pinHash: json['pin_hash'] as String? ?? '',
       pinLockedUntil: json['pin_locked_until'] != null
           ? DateTime.parse(json['pin_locked_until'] as String)
@@ -71,8 +93,8 @@ class Profile {
       fullName: json['full_name'] as String?,
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : DateTime.now(),
       lastSeenPrivacy:
           LastSeenPrivacy.fromValue(json['last_seen_privacy'] as String?),
       readReceiptsEnabled: json['read_receipts_enabled'] as bool? ?? true,
@@ -83,6 +105,21 @@ class Profile {
       lastLoginAt: json['last_login_at'] != null
           ? DateTime.parse(json['last_login_at'] as String)
           : null,
+      lastSeenAt: json['last_seen_at'] != null
+          ? DateTime.parse(json['last_seen_at'] as String)
+          : null,
+      e2eePublicKey: json['e2ee_public_key'] as String?,
+      e2eeKeyBackup: json['e2ee_key_backup'] as String?,
+      fcmToken: json['fcm_token'] as String?,
+      isSuspended: json['is_suspended'] as bool? ?? false,
+      suspendedAt: json['suspended_at'] != null
+          ? DateTime.parse(json['suspended_at'] as String)
+          : null,
+      suspensionReason: json['suspension_reason'] as String?,
+      isAdmin: json['is_admin'] as bool? ?? false,
+      legalHoldActive: json['legal_hold_active'] as bool? ?? false,
+      legalHoldCaseRef: json['legal_hold_case_ref'] as String?,
+      chatInvitationMode: json['chat_invitation_mode'] as String? ?? 'approved_only',
     );
   }
 
@@ -105,6 +142,17 @@ class Profile {
       'two_fa_secret': twoFaSecret,
       'last_login_device': lastLoginDevice,
       'last_login_at': lastLoginAt?.toIso8601String(),
+      'last_seen_at': lastSeenAt?.toIso8601String(),
+      'e2ee_public_key': e2eePublicKey,
+      'e2ee_key_backup': e2eeKeyBackup,
+      'fcm_token': fcmToken,
+      'is_suspended': isSuspended,
+      'suspended_at': suspendedAt?.toIso8601String(),
+      'suspension_reason': suspensionReason,
+      'is_admin': isAdmin,
+      'legal_hold_active': legalHoldActive,
+      'legal_hold_case_ref': legalHoldCaseRef,
+      'chat_invitation_mode': chatInvitationMode,
     };
   }
 
@@ -126,6 +174,17 @@ class Profile {
     String? twoFaSecret,
     String? lastLoginDevice,
     DateTime? lastLoginAt,
+    DateTime? lastSeenAt,
+    String? e2eePublicKey,
+    String? e2eeKeyBackup,
+    String? fcmToken,
+    bool? isSuspended,
+    DateTime? suspendedAt,
+    String? suspensionReason,
+    bool? isAdmin,
+    bool? legalHoldActive,
+    String? legalHoldCaseRef,
+    String? chatInvitationMode,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -146,6 +205,17 @@ class Profile {
       twoFaSecret: twoFaSecret ?? this.twoFaSecret,
       lastLoginDevice: lastLoginDevice ?? this.lastLoginDevice,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      e2eePublicKey: e2eePublicKey ?? this.e2eePublicKey,
+      e2eeKeyBackup: e2eeKeyBackup ?? this.e2eeKeyBackup,
+      fcmToken: fcmToken ?? this.fcmToken,
+      isSuspended: isSuspended ?? this.isSuspended,
+      suspendedAt: suspendedAt ?? this.suspendedAt,
+      suspensionReason: suspensionReason ?? this.suspensionReason,
+      isAdmin: isAdmin ?? this.isAdmin,
+      legalHoldActive: legalHoldActive ?? this.legalHoldActive,
+      legalHoldCaseRef: legalHoldCaseRef ?? this.legalHoldCaseRef,
+      chatInvitationMode: chatInvitationMode ?? this.chatInvitationMode,
     );
   }
 }

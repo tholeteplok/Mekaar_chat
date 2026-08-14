@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -97,6 +98,7 @@ class _SetUsernameScreenState extends ConsumerState<SetUsernameScreen> {
     final success = await ref.read(authProvider.notifier).setUsername(username);
     if (success && mounted) {
       MekaarSnackbar.success(context, 'Username @$username berhasil didaftarkan!');
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
     }
   }
 

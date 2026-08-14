@@ -64,7 +64,11 @@ class TripMonitorScheduler with WidgetsBindingObserver {
 }
 
 final tripMonitorSchedulerProvider = Provider<TripMonitorScheduler>((ref) {
+  final user = ref.watch(authProvider.select((s) => s.user));
   final scheduler = TripMonitorScheduler(ref);
+  if (user == null) {
+    scheduler.dispose();
+  }
   ref.onDispose(scheduler.dispose);
   return scheduler;
 });

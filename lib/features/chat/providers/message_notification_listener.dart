@@ -11,6 +11,7 @@ import 'chat_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'call_invitation_listener.dart';
 import 'sos_alert_listener.dart';
+import '../../auth/providers/password_change_alert_listener.dart';
 
 /// Listener terpusat untuk notifikasi pesan masuk (Opsi A dari Implementation Plan).
 ///
@@ -218,6 +219,7 @@ class _NotificationListenerHostState
     ref.read(messageNotificationListenerProvider).start();
     ref.read(callInvitationListenerProvider).start();
     ref.read(sosAlertListenerProvider).start();
+    ref.read(passwordChangeAlertListenerProvider).start();
     ref.read(tripMonitorSchedulerProvider).start();
   }
 

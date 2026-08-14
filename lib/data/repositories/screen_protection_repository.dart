@@ -175,7 +175,14 @@ class ScreenProtectionController {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getBool('screen_protection_room_$roomId');
       _states[roomId] = cached == false
-          ? const RoomScreenProtection.failClosed()
+          ? const RoomScreenProtection(
+              effective: false,
+              callerEnabled: false,
+              protectorCount: 0,
+              participantCount: 0,
+              lastChange: null,
+              isFromCache: true,
+            )
           : const RoomScreenProtection.failClosed();
     }
     _stateController.add(Map.unmodifiable(_states));

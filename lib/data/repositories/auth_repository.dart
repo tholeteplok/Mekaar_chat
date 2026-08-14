@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
+import '../services/e2ee_service.dart';
 import '../services/supabase_service.dart';
 
 class AuthRepository {
@@ -30,8 +31,8 @@ class AuthRepository {
     final idToken = googleAuth.idToken;
     final accessToken = googleAuth.accessToken;
 
-    if (idToken == null) {
-      throw Exception('Gagal memperoleh ID Token dari Google.');
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Gagal memperoleh ID Token dari Google. Pastikan Google Auth terkonfigurasi dengan benar.');
     }
 
     final response = await _supabaseService.client.auth.signInWithIdToken(
@@ -262,6 +263,23 @@ class AuthRepository {
     return Profile.fromJson(response);
   }
 
+  // Update chat_invitation_mode preference
+  Future<Profile> updateChatInvitationMode(String mode) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'chat_invitation_mode': mode,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
+  }
+
   // Update default auto-delete (disappearing messages) hours
   Future<Profile> updateAutoDeleteDefault(int hours) async {
     final userId = _supabaseService.currentUserId;
@@ -292,10 +310,17 @@ class AuthRepository {
     return profile;
   }
 
-  // Disable 2FA: remove secret and deactivate.
-  Future<Profile> disableTwoFa() async {
+  // Disable 2FA: remove secret and deactivate (dengan verifikasi password).
+  Future<Profile> disableTwoFa({String? password}) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
+
+    final provider = _supabaseService.currentUser?.appMetadata['provider'] as String? ?? 'email';
+    if (provider == 'email' && (password != null && password.isNotEmpty)) {
+      final verified = await verifyPassword(password);
+      if (!verified) throw Exception('Password konfirmasi salah.');
+    }
+
     await _supabaseService.client.rpc('disable_2fa');
     final profile = await getProfile();
     if (profile == null) throw Exception('Profil tidak ditemukan');
@@ -337,6 +362,10 @@ class AuthRepository {
           .delete(key: 'duress_pin_hash')
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
+    try {
+      E2eeService.instance.clearSession();
+    } catch (_) {}
+
     if (SupabaseService.isInitialized) {
       await _supabaseService.client.auth.signOut();
     }
@@ -584,6 +613,25 @@ class AuthRepository {
     return false;
   }
 
+  Future<void> saveDuressUnlockStatus(bool wasDuress) async {
+    try {
+      if (wasDuress) {
+        await _secureStorage.write(key: 'last_unlock_was_duress', value: 'true');
+      } else {
+        await _secureStorage.delete(key: 'last_unlock_was_duress');
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> getDuressUnlockStatus() async {
+    try {
+      final val = await _secureStorage.read(key: 'last_unlock_was_duress');
+      return val == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> disableDuressPIN() async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
@@ -599,12 +647,26 @@ class AuthRepository {
     } catch (_) {}
   }
 
+  /// Dapatkan waktu server terverifikasi (UTC) untuk menghindari manipulasi jam lokal
+  Future<DateTime> getServerTime() async {
+    try {
+      if (SupabaseService.isInitialized) {
+        final res = await _supabaseService.client.rpc('get_server_time');
+        if (res != null) {
+          return DateTime.parse(res as String).toUtc();
+        }
+      }
+    } catch (_) {}
+    return DateTime.now().toUtc();
+  }
+
   // ── Persistent PIN Lockout & 2FA State ──────────────────────
   Future<void> savePinLockout(int attempts, DateTime? lockedUntil) async {
     try {
       await _secureStorage.write(key: 'pin_attempts', value: attempts.toString());
       if (lockedUntil != null) {
-        await _secureStorage.write(key: 'pin_locked_until', value: lockedUntil.toIso8601String());
+        await _secureStorage.write(
+            key: 'pin_locked_until', value: lockedUntil.toUtc().toIso8601String());
       } else {
         await _secureStorage.delete(key: 'pin_locked_until');
       }
@@ -621,7 +683,7 @@ class AuthRepository {
       final attempts = int.tryParse(attemptsStr ?? '0') ?? 0;
       DateTime? lockedUntil;
       if (lockedUntilStr != null && lockedUntilStr.isNotEmpty) {
-        lockedUntil = DateTime.tryParse(lockedUntilStr);
+        lockedUntil = DateTime.tryParse(lockedUntilStr)?.toUtc();
       }
 
       return {'attempts': attempts, 'lockedUntil': lockedUntil};

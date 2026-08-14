@@ -22,6 +22,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onAvatarTap;
   final bool enableGlassBlur;
   final bool isFloating;
+  final BoxBorder? glassBorder;
+  final Color? glassBackgroundColor;
+  final Color? iconColor;
+  final Color? textColor;
+  final Color? subtitleColor;
 
   const CustomAppBar({
     super.key,
@@ -37,6 +42,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onAvatarTap,
     this.enableGlassBlur = true,
     this.isFloating = false,
+    this.glassBorder,
+    this.glassBackgroundColor,
+    this.iconColor,
+    this.textColor,
+    this.subtitleColor,
   });
 
   @override
@@ -70,12 +80,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               shape: BoxShape.circle,
               width: 58,
               height: 58,
+              border: glassBorder,
+              customColor: glassBackgroundColor,
               child: IconButton(
                 padding: EdgeInsets.zero,
                 icon: Icon(
                   MekaarIcons.arrowBackIosNew,
                   size: 18,
-                  color: MekaarColors.textPrimaryOf(context),
+                  color: iconColor ?? MekaarColors.textPrimaryOf(context),
                 ),
                 onPressed: onBackPress ?? () => Navigator.pop(context),
                 tooltip: 'Kembali',
@@ -86,11 +98,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
           // ── Container 2 (Tengah): Informasi Kontak (Avatar, Nama, Status) ──
           Expanded(
-            child: MekaarGlassBlurContainer(
+            child: Semantics(
+              header: true,
+              label: '$title, ${subtitle ?? (isOnline ? 'Online' : 'Offline')}',
+              hint: onAvatarTap != null ? 'Ketuk untuk membuka profil' : null,
+              child: MekaarGlassBlurContainer(
               isFloating: true,
               height: 58,
               borderRadius: BorderRadius.circular(29),
               padding: const EdgeInsets.symmetric(horizontal: 12),
+              border: glassBorder,
+              customColor: glassBackgroundColor,
               child: InkWell(
                 onTap: onAvatarTap,
                 borderRadius: BorderRadius.circular(29),
@@ -115,7 +133,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: MekaarColors.textPrimaryOf(context),
+                                  color: textColor ?? MekaarColors.textPrimaryOf(context),
                                   letterSpacing: -0.2,
                                 ),
                             overflow: TextOverflow.ellipsis,
@@ -132,7 +150,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                       shape: BoxShape.circle,
                                       color: isOnline
                                           ? MekaarColors.success
-                                          : MekaarColors.textMutedOf(context),
+                                          : (subtitleColor ?? MekaarColors.textMutedOf(context)),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -145,7 +163,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                       fontWeight: FontWeight.w500,
                                       color: isOnline && showOnlineIndicator
                                           ? MekaarColors.success
-                                          : MekaarColors.textMutedOf(context),
+                                          : (subtitleColor ?? MekaarColors.textMutedOf(context)),
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -154,9 +172,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             ),
                           ],
                         ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -170,6 +189,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               height: 58,
               borderRadius: BorderRadius.circular(29),
               padding: const EdgeInsets.symmetric(horizontal: 6),
+              border: glassBorder,
+              customColor: glassBackgroundColor,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: actions!,

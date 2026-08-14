@@ -6,7 +6,8 @@ import '../../../core/constants/shadows.dart';
 /// Indikator "sedang mengetik" bergaya tiga titik memantul, tampil
 /// sebagai bubble kecil di sisi kiri (seperti pesan masuk).
 class TypingIndicator extends StatefulWidget {
-  const TypingIndicator({super.key});
+  final Color? dotColor;
+  const TypingIndicator({super.key, this.dotColor});
 
   @override
   State<TypingIndicator> createState() => _TypingIndicatorState();
@@ -85,7 +86,8 @@ class _TypingIndicatorState extends State<TypingIndicator>
           margin: const EdgeInsets.symmetric(horizontal: 2),
           transform: Matrix4.translationValues(0, -3 * bounce, 0),
           decoration: BoxDecoration(
-            color: MekaarColors.textMuted.withValues(alpha: 0.5 + 0.5 * bounce),
+            color: (widget.dotColor ?? MekaarColors.textMutedOf(context))
+                .withValues(alpha: 0.5 + 0.5 * bounce),
             shape: BoxShape.circle,
           ),
         );

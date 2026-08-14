@@ -116,10 +116,14 @@ class MekaarBottomNav extends StatelessWidget {
                       children: List.generate(items.length, (index) {
                         final item = items[index];
                         final isActive = safeIndex == index;
+                        final unreadLabel = (item.unreadCount != null && item.unreadCount! > 0)
+                            ? ', ${item.unreadCount! > 99 ? 'lebih dari 99' : item.unreadCount} belum dibaca'
+                            : '';
                         return Semantics(
                           button: true,
                           selected: isActive,
-                          label: item.label,
+                          label: '${item.label}$unreadLabel',
+                          hint: 'Ketuk untuk membuka menu ${item.label}',
                           child: BounceInteractive(
                             scaleFactor: 0.94,
                             duration: const Duration(milliseconds: 120),

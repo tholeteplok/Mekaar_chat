@@ -59,17 +59,22 @@ enum ChatBubbleColorPreset {
 enum ChatThemePreset {
   custom,
   dynamicTime,
-  neonCyberpunk,
+  neonDreams,
   comicPopArt,
   neumorphism,
   glassmorphism,
   pixelGarden,
-  isometric3d,
-  retroY2K,
-  swissMinimalist,
+  candyPop,
+  retroWave,
+  monoVibe,
   solarpunk,
   fireflyNight,
   diary,
+  // Alias untuk kompatibilitas riwayat preferensi lama
+  neonCyberpunk,
+  isometric3d,
+  retroY2K,
+  swissMinimalist,
 }
 
 /// Model persisten untuk simpan/muat preferensi tema obrolan.
@@ -81,6 +86,13 @@ class ChatThemePreference {
   final ChatBubbleColorPreset bubbleColorPreset;
   final double textScale;
 
+  // Custom Bubble Colors (Support 2-Color Gradient for Outgoing & Incoming)
+  final bool useCustomBubbleColors;
+  final String? outgoingColor1;
+  final String? outgoingColor2;
+  final String? incomingColor1;
+  final String? incomingColor2;
+
   const ChatThemePreference({
     this.preset = ChatThemePreset.dynamicTime,
     this.wallpaperType = WallpaperType.dynamicTime,
@@ -88,6 +100,11 @@ class ChatThemePreference {
     this.bubbleStyle = ChatBubbleStyle.modernPill,
     this.bubbleColorPreset = ChatBubbleColorPreset.defaultTime,
     this.textScale = 1.0,
+    this.useCustomBubbleColors = false,
+    this.outgoingColor1,
+    this.outgoingColor2,
+    this.incomingColor1,
+    this.incomingColor2,
   });
 
   ChatThemePreference copyWith({
@@ -97,6 +114,11 @@ class ChatThemePreference {
     ChatBubbleStyle? bubbleStyle,
     ChatBubbleColorPreset? bubbleColorPreset,
     double? textScale,
+    bool? useCustomBubbleColors,
+    String? outgoingColor1,
+    String? outgoingColor2,
+    String? incomingColor1,
+    String? incomingColor2,
   }) {
     return ChatThemePreference(
       preset: preset ?? this.preset,
@@ -105,6 +127,12 @@ class ChatThemePreference {
       bubbleStyle: bubbleStyle ?? this.bubbleStyle,
       bubbleColorPreset: bubbleColorPreset ?? this.bubbleColorPreset,
       textScale: textScale ?? this.textScale,
+      useCustomBubbleColors:
+          useCustomBubbleColors ?? this.useCustomBubbleColors,
+      outgoingColor1: outgoingColor1 ?? this.outgoingColor1,
+      outgoingColor2: outgoingColor2 ?? this.outgoingColor2,
+      incomingColor1: incomingColor1 ?? this.incomingColor1,
+      incomingColor2: incomingColor2 ?? this.incomingColor2,
     );
   }
 
@@ -116,15 +144,34 @@ class ChatThemePreference {
       'bubbleStyle': bubbleStyle.name,
       'bubbleColorPreset': bubbleColorPreset.name,
       'textScale': textScale,
+      'useCustomBubbleColors': useCustomBubbleColors,
+      'outgoingColor1': outgoingColor1,
+      'outgoingColor2': outgoingColor2,
+      'incomingColor1': incomingColor1,
+      'incomingColor2': incomingColor2,
     };
   }
 
   factory ChatThemePreference.fromJson(Map<String, dynamic> json) {
-    return ChatThemePreference(
-      preset: ChatThemePreset.values.firstWhere(
-        (e) => e.name == json['preset'],
+    final rawPreset = json['preset'] as String?;
+    ChatThemePreset p;
+    if (rawPreset == 'neonCyberpunk') {
+      p = ChatThemePreset.neonDreams;
+    } else if (rawPreset == 'isometric3d') {
+      p = ChatThemePreset.candyPop;
+    } else if (rawPreset == 'retroY2K') {
+      p = ChatThemePreset.retroWave;
+    } else if (rawPreset == 'swissMinimalist') {
+      p = ChatThemePreset.monoVibe;
+    } else {
+      p = ChatThemePreset.values.firstWhere(
+        (e) => e.name == rawPreset,
         orElse: () => ChatThemePreset.dynamicTime,
-      ),
+      );
+    }
+
+    return ChatThemePreference(
+      preset: p,
       wallpaperType: WallpaperType.values.firstWhere(
         (e) => e.name == json['wallpaperType'],
         orElse: () => WallpaperType.dynamicTime,
@@ -139,6 +186,11 @@ class ChatThemePreference {
         orElse: () => ChatBubbleColorPreset.defaultTime,
       ),
       textScale: (json['textScale'] as num?)?.toDouble() ?? 1.0,
+      useCustomBubbleColors: json['useCustomBubbleColors'] as bool? ?? false,
+      outgoingColor1: json['outgoingColor1'] as String?,
+      outgoingColor2: json['outgoingColor2'] as String?,
+      incomingColor1: json['incomingColor1'] as String?,
+      incomingColor2: json['incomingColor2'] as String?,
     );
   }
 
@@ -151,14 +203,15 @@ class ChatThemePreference {
     textScale: 1.0,
   );
 
-  /// Preset 2: Neon Cyberpunk.
-  static const neonCyberpunk = ChatThemePreference(
-    preset: ChatThemePreset.neonCyberpunk,
+  /// Preset 2: Neon Dreams (Night Youth).
+  static const neonDreams = ChatThemePreference(
+    preset: ChatThemePreset.neonDreams,
     wallpaperType: WallpaperType.neonGrid,
     bubbleStyle: ChatBubbleStyle.cyberEdge,
     bubbleColorPreset: ChatBubbleColorPreset.cyberpunkNeon,
     textScale: 1.0,
   );
+  static const neonCyberpunk = neonDreams;
 
   /// Preset 3: Comic Pop Art.
   static const comicPopArt = ChatThemePreference(
@@ -196,32 +249,35 @@ class ChatThemePreference {
     textScale: 1.0,
   );
 
-  /// Preset 7: Isometric / 2.5D Tech.
-  static const isometric3d = ChatThemePreference(
-    preset: ChatThemePreset.isometric3d,
-    wallpaperType: WallpaperType.isometricGrid,
-    bubbleStyle: ChatBubbleStyle.isometric3D,
-    bubbleColorPreset: ChatBubbleColorPreset.isometricBlock,
+  /// Preset 7: Candy Pop (Playful Youth).
+  static const candyPop = ChatThemePreference(
+    preset: ChatThemePreset.candyPop,
+    wallpaperType: WallpaperType.pattern,
+    bubbleStyle: ChatBubbleStyle.modernPill,
+    bubbleColorPreset: ChatBubbleColorPreset.roseGold,
     textScale: 1.0,
   );
+  static const isometric3d = candyPop;
 
-  /// Preset 8: Retro OS / Y2K Aesthetic.
-  static const retroY2K = ChatThemePreference(
-    preset: ChatThemePreset.retroY2K,
+  /// Preset 8: Retro Wave (Nostalgic Youth).
+  static const retroWave = ChatThemePreference(
+    preset: ChatThemePreset.retroWave,
     wallpaperType: WallpaperType.retroY2KCanvas,
-    bubbleStyle: ChatBubbleStyle.retroBevel,
-    bubbleColorPreset: ChatBubbleColorPreset.retroWin95,
+    bubbleStyle: ChatBubbleStyle.modernPill,
+    bubbleColorPreset: ChatBubbleColorPreset.purpleDream,
     textScale: 1.0,
   );
+  static const retroY2K = retroWave;
 
-  /// Preset 9: Monochrome Minimalist (Swiss Style).
-  static const swissMinimalist = ChatThemePreference(
-    preset: ChatThemePreset.swissMinimalist,
+  /// Preset 9: Mono Vibe (Minimalist Youth).
+  static const monoVibe = ChatThemePreference(
+    preset: ChatThemePreset.monoVibe,
     wallpaperType: WallpaperType.swissGrid,
-    bubbleStyle: ChatBubbleStyle.swissSquare,
+    bubbleStyle: ChatBubbleStyle.compactSharp,
     bubbleColorPreset: ChatBubbleColorPreset.swissElectric,
     textScale: 1.0,
   );
+  static const swissMinimalist = monoVibe;
 
   /// Preset 10: Solarpunk / Organic Eco-Tech.
   static const solarpunk = ChatThemePreference(

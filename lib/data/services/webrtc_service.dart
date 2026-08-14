@@ -42,9 +42,9 @@ class WebRTCService {
     
     // Add local stream tracks to peer connection
     if (_localStream != null) {
-      _localStream!.getTracks().forEach((track) {
-        _peerConnection!.addTrack(track, _localStream!);
-      });
+      for (final track in _localStream!.getTracks()) {
+        await _peerConnection!.addTrack(track, _localStream!);
+      }
     }
     
     return _peerConnection!;
@@ -83,6 +83,9 @@ class WebRTCService {
   // Dispose stream
   Future<void> disposeLocalStream() async {
     if (_localStream != null) {
+      for (final track in _localStream!.getTracks()) {
+        await track.stop();
+      }
       await _localStream!.dispose();
       _localStream = null;
     }

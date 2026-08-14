@@ -7,8 +7,15 @@ import '../constants/typography.dart';
 /// Menampilkan label kontekstual: "Hari ini", "Kemarin", "Senin, 20 Jul", dll.
 class ChatDateSeparator extends StatelessWidget {
   final DateTime date;
+  final Color? accentColor;
+  final Color? textColor;
 
-  const ChatDateSeparator({super.key, required this.date});
+  const ChatDateSeparator({
+    super.key,
+    required this.date,
+    this.accentColor,
+    this.textColor,
+  });
 
   String _formatLabel(BuildContext context) {
     final now = DateTime.now();
@@ -49,13 +56,17 @@ class ChatDateSeparator extends StatelessWidget {
             vertical: MekaarSpacing.xs + 2,
           ),
           decoration: BoxDecoration(
-            color: MekaarColors.surface2Of(context).withValues(alpha: 0.7),
+            color: accentColor?.withValues(alpha: 0.15) ??
+                MekaarColors.surface2Of(context).withValues(alpha: 0.7),
+            border: accentColor != null
+                ? Border.all(color: accentColor!.withValues(alpha: 0.3), width: 1)
+                : null,
             borderRadius: BorderRadius.circular(MekaarRadius.pill),
           ),
           child: Text(
             _formatLabel(context),
             style: MekaarTypography.labelSM.copyWith(
-              color: MekaarColors.textMutedOf(context),
+              color: textColor ?? MekaarColors.textMutedOf(context),
             ),
           ),
         ),

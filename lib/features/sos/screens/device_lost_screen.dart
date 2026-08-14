@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -11,16 +13,18 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/alarm_service.dart';
+import '../providers/device_lost_provider.dart';
 
-class DeviceLostScreen extends StatefulWidget {
+class DeviceLostScreen extends ConsumerStatefulWidget {
   const DeviceLostScreen({super.key});
 
   @override
-  State<DeviceLostScreen> createState() => _DeviceLostScreenState();
+  ConsumerState<DeviceLostScreen> createState() => _DeviceLostScreenState();
 }
 
-class _DeviceLostScreenState extends State<DeviceLostScreen> {
+class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
   final _messageController = TextEditingController();
+  final _contactController = TextEditingController();
   double? _lat;
   double? _lon;
   bool _isLoadingLocation = true;
@@ -32,6 +36,10 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
     super.initState();
     Future.microtask(_loadLocation);
     _isAlarmPlaying = AlarmService.isPlaying;
+
+    final currentLostState = ref.read(deviceLostProvider);
+    _messageController.text = currentLostState.lockMessage;
+    _contactController.text = currentLostState.recoveryContact ?? '';
   }
 
   Future<void> _toggleAlarm() async {
@@ -91,6 +99,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
   @override
   void dispose() {
     _messageController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
@@ -121,8 +130,28 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
     }
   }
 
+  Future<void> _handleLockDevice() async {
+    final msg = _messageController.text.trim();
+    final contact = _contactController.text.trim();
+
+    await ref.read(deviceLostProvider.notifier).lockDevice(
+          lockMessage: msg,
+          recoveryContact: contact.isEmpty ? null : contact,
+        );
+
+    if (!mounted) return;
+    MekaarSnackbar.success(
+      context,
+      'Pesan Layar Kunci disimpan. Mode Hilang Aktif!',
+    );
+
+    Navigator.pushNamed(context, AppRoutes.deviceLostLock);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final deviceLostState = ref.watch(deviceLostProvider);
+
     return MekaarScaffold(
       flat: true,
       appBar: const CustomAppBar(title: 'Temukan Ponsel Saya'),
@@ -171,8 +200,11 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                             ),
                           ),
                         )
-                      : FlutterMap(
-                          options: MapOptions(
+                      : Semantics(
+                          label: 'Peta lokasi terakhir perangkat',
+                          hint: 'Menampilkan posisi lokasi pada koordinat $_lat, $_lon',
+                          child: FlutterMap(
+                            options: MapOptions(
                             initialCenter: LatLng(_lat!, _lon!),
                             initialZoom: 15,
                           ),
@@ -198,6 +230,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                             ),
                           ],
                         ),
+                      ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -216,7 +249,7 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
           ),
           // Remote command interface panel
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             decoration: BoxDecoration(
               color: MekaarColors.surfaceOf(context),
               borderRadius: const BorderRadius.vertical(
@@ -230,94 +263,153 @@ class _DeviceLostScreenState extends State<DeviceLostScreen> {
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Perintah Jarak Jauh',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: MekaarColors.textPrimaryOf(context),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Perintah Jarak Jauh',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: MekaarColors.textPrimaryOf(context),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(SolarIconsOutline.volumeLoud),
-                        label: Text(_isAlarmPlaying ? 'Matikan Alarm' : 'Bunyikan Alarm'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _isAlarmPlaying
-                              ? Theme.of(context).colorScheme.error
-                              : Theme.of(context).colorScheme.primary,
-                          foregroundColor: _isAlarmPlaying
-                              ? Theme.of(context).colorScheme.onError
-                              : Theme.of(context).colorScheme.onPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(SolarIconsOutline.volumeLoud),
+                          label: Text(_isAlarmPlaying ? 'Matikan Alarm' : 'Bunyikan Alarm'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isAlarmPlaying
+                                ? Theme.of(context).colorScheme.error
+                                : Theme.of(context).colorScheme.primary,
+                            foregroundColor: _isAlarmPlaying
+                                ? Theme.of(context).colorScheme.onError
+                                : Theme.of(context).colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _toggleAlarm,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(SolarIconsOutline.map),
+                      label: const Text('Buka di OpenStreetMap'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const StadiumBorder(),
+                      ),
+                      onPressed: _openInOsm,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Pesan Kunci Layar (Mode Hilang)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: MekaarColors.textPrimaryOf(context),
+                        ),
+                      ),
+                      if (deviceLostState.isLocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: MekaarColors.sosRed.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          child: const Text(
+                            'Mode Terkunci Aktif',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: MekaarColors.sosRed,
+                            ),
+                          ),
                         ),
-                        onPressed: _toggleAlarm,
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _messageController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      hintText: 'Misal: Ponsel ini hilang. Hubungi 08123456789 jika menemukan.',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(SolarIconsOutline.map),
-                    label: const Text('Buka di OpenStreetMap'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: const StadiumBorder(),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _contactController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      hintText: 'Nomor HP Pemulihan (opsional, mis. 08123456789)',
+                      prefixIcon: Icon(SolarIconsOutline.phone),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
-                    onPressed: _openInOsm,
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Pesan Kunci Layar (belum tersedia)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: MekaarColors.textSecondaryOf(context),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        enabled: false,
-                        decoration: const InputDecoration(
-                          hintText: 'Ponsel ini hilang. Hubungi 0812...',
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _handleLockDevice,
+                          icon: const Icon(SolarIconsOutline.lockKeyhole),
+                          label: Text(
+                            deviceLostState.isLocked
+                                ? 'Perbarui & Buka Layar Kunci'
+                                : 'Kirim & Kunci Layar',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: MekaarColors.sosRed,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    IconButton.filled(
-                      onPressed: null,
-                      icon: const Icon(SolarIconsOutline.plain, size: 20),
-                      style: IconButton.styleFrom(
-                        fixedSize: const Size(48, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      if (deviceLostState.isLocked) ...[
+                        const SizedBox(width: 10),
+                        IconButton.filledTonal(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.deviceLostLock,
+                            );
+                          },
+                          icon: const Icon(SolarIconsOutline.eye),
+                          tooltip: 'Tampilkan Layar Terkunci',
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],

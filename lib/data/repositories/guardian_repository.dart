@@ -122,22 +122,26 @@ class GuardianRepository {
 
   // Accept a guardian invitation lewat RPC (guardian-side, hanya status).
   Future<void> acceptInvitation(String guardianRelationId) async {
-    await _supabaseService.client.rpc(
-      'accept_guardian_invite',
-      params: {'p_relation_id': guardianRelationId},
-    );
-
-    final response = await _supabaseService.client
-        .from('guardians')
-        .select('owner_id')
-        .eq('id', guardianRelationId)
-        .single();
-
-    final ownerId = response['owner_id'] as String;
-
     try {
-      await _chatRepository.createRoom(ownerId, 'guardian');
-    } catch (_) {}
+      await _supabaseService.client.rpc(
+        'accept_guardian_invite',
+        params: {'p_relation_id': guardianRelationId},
+      );
+
+      final response = await _supabaseService.client
+          .from('guardians')
+          .select('owner_id')
+          .eq('id', guardianRelationId)
+          .single();
+
+      final ownerId = response['owner_id'] as String;
+
+      try {
+        await _chatRepository.createRoom(ownerId, 'guardian');
+      } catch (_) {}
+    } catch (e) {
+      throw Exception('Gagal menerima undangan guardian: $e');
+    }
   }
 
   // Reject/Delete a guardian relation
@@ -160,8 +164,9 @@ class GuardianRepository {
           'permissions': permissions,
           'storage_option': storageOption,
           'expires_at': DateTime.now()
-              .add(const Duration(days: 30))
-              .toIso8601String(), // extend 30 days upon update
+              .toUtc()
+              .add(const Duration(days: 7))
+              .toIso8601String(), // extend 7 days upon update
         })
         .eq('id', guardianRelationId);
   }
@@ -184,7 +189,7 @@ class GuardianRepository {
     final currentOwnerId = record['owner_id'] as String;
     final currentGuardianId = record['guardian_id'] as String;
 
-    // Check if swap already exists in reverse direction
+    // Check if active swap already exists in reverse direction
     final reverseRecord = await _supabaseService.client
         .from('guardians')
         .select()
@@ -192,7 +197,10 @@ class GuardianRepository {
         .eq('guardian_id', currentOwnerId)
         .maybeSingle();
 
-    if (reverseRecord == null) {
+    final revStatus = reverseRecord?['status'] as String?;
+    final isBrokenOrExpired = revStatus == 'expired' || revStatus == 'broken' || revStatus == 'rejected';
+
+    if (reverseRecord == null || isBrokenOrExpired) {
       // Buat relasi terbalik lewat RPC; pihak lain harus menyetujui.
       await _supabaseService.client.rpc(
         'invite_guardian',
@@ -261,6 +269,7 @@ class GuardianRepository {
     if (userId == null) throw Exception('Not authenticated');
 
     final blockedUntil = DateTime.now()
+        .toUtc()
         .add(const Duration(hours: 24))
         .toIso8601String();
 

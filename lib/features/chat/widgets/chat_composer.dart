@@ -18,6 +18,7 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/theme/chat_preset_resolver.dart';
 
 class ChatComposer extends StatefulWidget {
   final TextEditingController controller;
@@ -30,6 +31,7 @@ class ChatComposer extends StatefulWidget {
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
   final bool enabled;
+  final ChatRoomThemeSpec? roomThemeSpec;
 
   const ChatComposer({
     super.key,
@@ -43,6 +45,7 @@ class ChatComposer extends StatefulWidget {
     this.onSendLocation,
     this.onShareLiveLocation,
     this.enabled = true,
+    this.roomThemeSpec,
   });
 
   @override
@@ -508,6 +511,11 @@ class _ChatComposerState extends State<ChatComposer> {
     final systemBottomPadding = MediaQuery.of(context).padding.bottom;
     final bottomPadding = viewInsetsBottom > 0 ? 0.0 : systemBottomPadding;
 
+    final primaryAccent = widget.roomThemeSpec?.primaryAccentColor ?? MekaarColors.softCoral;
+    final secondaryAccent = widget.roomThemeSpec?.secondaryAccentColor ?? MekaarColors.textMutedOf(context);
+    final glassBorder = widget.roomThemeSpec?.glassBorder;
+    final glassBg = widget.roomThemeSpec?.glassBackgroundColor;
+
     return Padding(
       padding: EdgeInsets.only(left: 8, right: 8, bottom: bottomPadding + 6, top: 4),
       child: Column(
@@ -520,6 +528,8 @@ class _ChatComposerState extends State<ChatComposer> {
               child: MekaarGlassBlurContainer(
                 isFloating: true,
                 borderRadius: BorderRadius.circular(16),
+                border: glassBorder,
+                customColor: glassBg,
                 child: _ReplyPreview(
                   message: widget.replyMessage!,
                   onCancel: widget.onCancelReply,
@@ -533,25 +543,27 @@ class _ChatComposerState extends State<ChatComposer> {
               child: MekaarGlassBlurContainer(
                 isFloating: true,
                 borderRadius: BorderRadius.circular(16),
+                border: glassBorder,
+                customColor: glassBg,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
-                      const Icon(SolarIconsOutline.pen, size: 16, color: MekaarColors.softCoral),
+                      Icon(SolarIconsOutline.pen, size: 16, color: primaryAccent),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Mengedit pesan',
                           style: TextStyle(
                             fontSize: 12,
-                            color: MekaarColors.softCoral,
+                            color: primaryAccent,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       GestureDetector(
                         onTap: widget.onCancelEdit,
-                        child: const Icon(SolarIconsOutline.closeSquare, size: 18, color: MekaarColors.softCoral),
+                        child: Icon(SolarIconsOutline.closeSquare, size: 18, color: primaryAccent),
                       ),
                     ],
                   ),
@@ -560,11 +572,11 @@ class _ChatComposerState extends State<ChatComposer> {
             ),
           // Upload progress indicator
           if (_isUploading)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 6),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
               child: LinearProgressIndicator(
                 backgroundColor: MekaarColors.borderLight,
-                color: MekaarColors.softCoral,
+                color: primaryAccent,
                 minHeight: 2,
               ),
             ),
@@ -576,6 +588,8 @@ class _ChatComposerState extends State<ChatComposer> {
                   height: 48,
                   borderRadius: BorderRadius.circular(24),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
+                  border: glassBorder,
+                  customColor: glassBg,
                   child: GestureDetector(
                     onHorizontalDragUpdate: (details) {
                       setState(() => _recordingSwipeOffset += details.delta.dx);
@@ -631,9 +645,9 @@ class _ChatComposerState extends State<ChatComposer> {
                           child: Container(
                             width: 36,
                             height: 36,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: MekaarColors.softCoral,
+                              color: primaryAccent,
                             ),
                             child: const Icon(
                               SolarIconsOutline.plain,
@@ -655,11 +669,13 @@ class _ChatComposerState extends State<ChatComposer> {
                         shape: BoxShape.circle,
                         width: 44,
                         height: 44,
+                        border: glassBorder,
+                        customColor: glassBg,
                         child: IconButton(
                           padding: EdgeInsets.zero,
                           icon: Icon(
                             SolarIconsOutline.paperclip,
-                            color: MekaarColors.textMutedOf(context),
+                            color: secondaryAccent,
                             size: 20,
                           ),
                           onPressed: widget.enabled ? _showAttachmentSheet : null,
@@ -676,6 +692,8 @@ class _ChatComposerState extends State<ChatComposer> {
                         height: 44,
                         borderRadius: BorderRadius.circular(22),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
+                        border: glassBorder,
+                        customColor: glassBg,
                         child: Row(
                           children: [
                             if (!_isEditMode)
@@ -685,8 +703,8 @@ class _ChatComposerState extends State<ChatComposer> {
                                 icon: Icon(
                                   MekaarIcons.smile,
                                   color: _showEmojiPicker
-                                      ? MekaarColors.softCoral
-                                      : MekaarColors.textMutedOf(context),
+                                      ? primaryAccent
+                                      : secondaryAccent,
                                   size: 22,
                                 ),
                                 onPressed: widget.enabled ? _toggleEmojiPicker : null,
@@ -711,7 +729,7 @@ class _ChatComposerState extends State<ChatComposer> {
                                       : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
                                   hintStyle: TextStyle(
                                     fontSize: 14,
-                                    color: MekaarColors.textMutedOf(context),
+                                    color: widget.roomThemeSpec?.subtitleColor ?? MekaarColors.textMutedOf(context),
                                   ),
                                   border: InputBorder.none,
                                   focusedBorder: InputBorder.none,
@@ -721,7 +739,7 @@ class _ChatComposerState extends State<ChatComposer> {
                                 ),
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: MekaarColors.textPrimaryOf(context),
+                                  color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
                                 ),
                                 minLines: 1,
                                 maxLines: 4,
@@ -746,6 +764,8 @@ class _ChatComposerState extends State<ChatComposer> {
                       shape: BoxShape.circle,
                       width: 44,
                       height: 44,
+                      border: glassBorder,
+                      customColor: glassBg,
                       child: Semantics(
                         button: true,
                         label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
@@ -759,8 +779,8 @@ class _ChatComposerState extends State<ChatComposer> {
                                   ? SolarIconsOutline.checkCircle
                                   : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
                               color: (_isEditMode || _hasText)
-                                  ? MekaarColors.softCoral
-                                  : MekaarColors.textPrimaryOf(context),
+                                  ? primaryAccent
+                                  : (widget.roomThemeSpec?.iconColor ?? MekaarColors.textPrimaryOf(context)),
                               size: 20,
                             ),
                           ),
@@ -775,6 +795,8 @@ class _ChatComposerState extends State<ChatComposer> {
             MekaarGlassBlurContainer(
               isFloating: true,
               borderRadius: BorderRadius.circular(20),
+              border: glassBorder,
+              customColor: glassBg,
               child: _buildEmojiPickerPanel(),
             ),
           ],

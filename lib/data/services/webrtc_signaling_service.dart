@@ -63,24 +63,24 @@ class WebRtcSignalingService {
           'publik openrelay.metered.ca (DEV ONLY). Set --dart-define=TURN_URL '
           '(+ TURN_USERNAME/TURN_CREDENTIAL) sebelum build produksi.',
         );
+        iceServers.addAll(const [
+          {
+            'urls': 'turn:openrelay.metered.ca:80',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject',
+          },
+          {
+            'urls': 'turn:openrelay.metered.ca:443',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject',
+          },
+          {
+            'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject',
+          },
+        ]);
       }
-      iceServers.addAll(const [
-        {
-          'urls': 'turn:openrelay.metered.ca:80',
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
-        {
-          'urls': 'turn:openrelay.metered.ca:443',
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
-        {
-          'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
-      ]);
     }
 
     return {
@@ -271,6 +271,7 @@ class WebRtcSignalingService {
         'type': offer.type,
       };
 
+      _myLocalCandidates.clear();
       _startHandshakeRetry(myUserId, 'offer', offerData);
       _retransmitLocalCandidates(myUserId);
     } catch (error) {
@@ -531,7 +532,7 @@ class WebRtcSignalingService {
   }
 
   void _emitError(Object error) {
-    if (onError != null) {
+    if (!_isCleanedUp && !_isCleaningUp && onError != null) {
       onError!(error);
     }
   }

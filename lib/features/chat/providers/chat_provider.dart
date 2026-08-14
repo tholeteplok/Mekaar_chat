@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:location/location.dart' as loc;
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../data/services/location_service.dart';
@@ -257,9 +258,15 @@ class ChatActionsNotifier {
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
+  StreamSubscription<loc.LocationData>? _liveLocationSub;
+  Timer? _liveLocationTimer;
+
   /// Bagikan lokasi live (sukarela, bukan SOS) selama [durationMinutes].
   /// Memperbarui satu pesan lokasi tiap interval sampai waktu habis.
   Future<String> shareLiveLocation(String roomId, int durationMinutes) async {
+    // Cancel existing active live location sharing if any
+    await stopLiveLocationShare();
+
     final loc = await LocationService.getCurrentLocation();
     if (loc == null || loc.latitude == null || loc.longitude == null) {
       throw Exception('Lokasi tidak tersedia');
@@ -268,33 +275,58 @@ class ChatActionsNotifier {
     final start = DateTime.now();
     final end = start.add(Duration(minutes: durationMinutes));
 
-    String formatContent() {
+    String formatContent(double lat, double lng) {
       final remaining = end.difference(DateTime.now());
       final secs = remaining.inSeconds.clamp(0, 9999);
-      return 'LIVE:${loc.latitude},${loc.longitude}:$secs';
+      return 'LIVE:$lat,$lng:$secs';
     }
 
     final message = await _chatRepository.sendMessage(
       roomId,
-      formatContent(),
+      formatContent(loc.latitude!, loc.longitude!),
       type: MessageType.location,
     );
 
-    final subscription = LocationService.getLocationStream().listen((
+    // Throttle: update paling sering setiap 10 detik untuk menghindari
+    // overload database dan menghemat baterai.
+    DateTime? lastLocUpdate;
+    _liveLocationSub = LocationService.getLocationStream().listen((
       data,
     ) async {
-      if (DateTime.now().isAfter(end)) return;
-      try {
-        await _chatRepository.updateMessageContent(message.id, formatContent());
-      } catch (_) {}
+      if (DateTime.now().isAfter(end)) {
+        await stopLiveLocationShare();
+        return;
+      }
+      // Throttle check
+      final now = DateTime.now();
+      if (lastLocUpdate != null &&
+          now.difference(lastLocUpdate!).inSeconds < 10) {
+        return;
+      }
+      final lat = data.latitude;
+      final lng = data.longitude;
+      if (lat != null && lng != null) {
+        try {
+          await _chatRepository.updateMessageContent(message.id, formatContent(lat, lng));
+          lastLocUpdate = now;
+        } catch (_) {}
+      }
     });
 
     // Hentikan share saat waktu habis.
-    Timer(Duration(minutes: durationMinutes), () {
-      subscription.cancel();
+    _liveLocationTimer = Timer(Duration(minutes: durationMinutes), () {
+      stopLiveLocationShare();
     });
 
     return message.id;
+  }
+
+  /// Membatalkan langganan lokasi live secara eksplisit
+  Future<void> stopLiveLocationShare() async {
+    await _liveLocationSub?.cancel();
+    _liveLocationSub = null;
+    _liveLocationTimer?.cancel();
+    _liveLocationTimer = null;
   }
 
   Future<void> markRoomRead(String roomId) async {
@@ -337,7 +369,11 @@ class ChatActionsNotifier {
 
 final chatActionsProvider = Provider<ChatActionsNotifier>((ref) {
   final repo = ref.watch(chatRepositoryProvider);
-  return ChatActionsNotifier(repo, ref);
+  final notifier = ChatActionsNotifier(repo, ref);
+  ref.onDispose(() {
+    notifier.stopLiveLocationShare();
+  });
+  return notifier;
 });
 
 final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {

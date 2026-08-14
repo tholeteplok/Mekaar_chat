@@ -18,6 +18,7 @@ class LastSeenPrivacyNotifier extends StateNotifier<LastSeenPrivacy> {
             LastSeenPrivacy.everyone);
 
   Future<void> setPrivacy(LastSeenPrivacy privacy) async {
+    final previous = state;
     state = privacy;
     try {
       final updated = await _repo.updateLastSeenPrivacy(privacy.value);
@@ -27,7 +28,10 @@ class LastSeenPrivacyNotifier extends StateNotifier<LastSeenPrivacy> {
               current.copyWith(lastSeenPrivacy: updated.lastSeenPrivacy),
             );
       }
-    } catch (_) {}
+    } catch (e) {
+      state = previous;
+      rethrow;
+    }
   }
 }
 
@@ -46,6 +50,7 @@ class ReadReceiptsNotifier extends StateNotifier<bool> {
       : super(_ref.read(authProvider).profile?.readReceiptsEnabled ?? true);
 
   Future<void> setEnabled(bool enabled) async {
+    final previous = state;
     state = enabled;
     try {
       final updated = await _repo.updateReadReceipts(enabled);
@@ -55,7 +60,10 @@ class ReadReceiptsNotifier extends StateNotifier<bool> {
               current.copyWith(readReceiptsEnabled: updated.readReceiptsEnabled),
             );
       }
-    } catch (_) {}
+    } catch (e) {
+      state = previous;
+      rethrow;
+    }
   }
 }
 
@@ -63,4 +71,37 @@ final readReceiptsProvider =
     StateNotifierProvider<ReadReceiptsNotifier, bool>((ref) {
   final repo = ref.watch(authRepositoryPrivacyProvider);
   return ReadReceiptsNotifier(repo, ref);
+});
+
+/// Provider untuk mengontrol mode proteksi undangan chat.
+class ChatInvitationModeNotifier extends StateNotifier<String> {
+  final AuthRepository _repo;
+  final Ref _ref;
+
+  ChatInvitationModeNotifier(this._repo, this._ref)
+      : super(_ref.read(authProvider).profile?.chatInvitationMode ??
+            'approved_only');
+
+  Future<void> setMode(String mode) async {
+    final previous = state;
+    state = mode;
+    try {
+      final updated = await _repo.updateChatInvitationMode(mode);
+      final current = _ref.read(authProvider).profile;
+      if (current != null) {
+        _ref.read(authProvider.notifier).setProfileSilently(
+              current.copyWith(chatInvitationMode: updated.chatInvitationMode),
+            );
+      }
+    } catch (e) {
+      state = previous;
+      rethrow;
+    }
+  }
+}
+
+final chatInvitationModeProvider =
+    StateNotifierProvider<ChatInvitationModeNotifier, String>((ref) {
+  final repo = ref.watch(authRepositoryPrivacyProvider);
+  return ChatInvitationModeNotifier(repo, ref);
 });

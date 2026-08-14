@@ -14,7 +14,15 @@ class LocationService {
     try {
       final status = await Permission.location.request();
       if (status.isGranted) return true;
-      
+
+      // Jika user sudah permanently deny, arahkan ke Settings
+      if (status.isPermanentlyDenied) {
+        await openAppSettings();
+        // Cek lagi setelah user kembali dari settings
+        final recheckStatus = await Permission.location.status;
+        return recheckStatus.isGranted;
+      }
+
       // Fallback to location package's request
       final permissionStatus = await _location.requestPermission();
       return permissionStatus == loc.PermissionStatus.granted;

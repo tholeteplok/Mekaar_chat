@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:solar_icons/solar_icons.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -188,6 +190,38 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                       onPressed: sending
                           ? null
                           : () async {
+                              final confirmed =
+                                  await MekaarDialog.showConfirmation<bool>(
+                                context: context,
+                                icon: const Icon(
+                                  SolarIconsOutline.infoCircle,
+                                  color: MekaarColors.guardianTeal,
+                                ),
+                                title: 'Catatan Penting',
+                                message:
+                                    'Dengan menambahkan Guardian via QR, Anda memberikan izin kepada orang ini untuk memantau keberadaan Anda HANYA saat Anda mengaktifkan tombol SOS.\n\n'
+                                    'Guardian TIDAK BISA memantau Anda secara diam-diam. Akses hanya tersedia saat SOS aktif dan tercatat di Riwayat SOS.',
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Batal'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text(
+                                      'Saya Mengerti, Kirim',
+                                      style: TextStyle(
+                                        color: MekaarColors.softCoral,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                              if (confirmed != true) return;
+
                               setSheetState(() => sending = true);
                               try {
                                 await ref

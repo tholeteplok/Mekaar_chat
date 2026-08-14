@@ -34,6 +34,7 @@ class Avatar extends StatelessWidget {
     );
 
     if (imageUrl != null && imageUrl!.isNotEmpty) {
+      final cacheDim = (innerSize * MediaQuery.devicePixelRatioOf(context)).round();
       avatarChild = ClipRRect(
         borderRadius: BorderRadius.circular(size),
         child: Image.network(
@@ -41,6 +42,8 @@ class Avatar extends StatelessWidget {
           fit: BoxFit.cover,
           width: innerSize,
           height: innerSize,
+          cacheWidth: cacheDim > 0 ? cacheDim : null,
+          cacheHeight: cacheDim > 0 ? cacheDim : null,
           errorBuilder: (context, error, stackTrace) => avatarChild,
         ),
       );

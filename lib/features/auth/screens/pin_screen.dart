@@ -120,7 +120,11 @@ class _PinScreenState extends ConsumerState<PinScreen>
               });
             } else {
               _mikaKey.currentState?.react(MikaReaction.ok);
-              Navigator.pushReplacementNamed(context, AppRoutes.home);
+              if (authState.needsUsername) {
+                Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
+              } else {
+                Navigator.pushReplacementNamed(context, AppRoutes.home);
+              }
             }
           }
         } else {
@@ -160,10 +164,18 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 .read(sosProvider.notifier)
                 .activateSOS(gps: true, mic: false, video: false);
             _mikaKey.currentState?.react(MikaReaction.ok);
-            Navigator.pushReplacementNamed(context, AppRoutes.home);
+            if (authState.needsUsername) {
+              Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.home);
+            }
           } else {
             _mikaKey.currentState?.react(MikaReaction.ok);
-            Navigator.pushReplacementNamed(context, AppRoutes.home);
+            if (authState.needsUsername) {
+              Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.home);
+            }
           }
         }
       } else {
@@ -453,7 +465,8 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final authState = ref.read(authProvider);
     final user = authState.user;
     final provider = user?.appMetadata['provider'] as String? ?? 'email';
-    final isEmailPasswordUser = provider == 'email' || (user?.email != null && user!.email!.isNotEmpty);
+    final isGoogleUser = provider == 'google';
+    final isEmailPasswordUser = !isGoogleUser;
 
     final passwordController = TextEditingController();
     bool isLoading = false;
@@ -478,10 +491,13 @@ class _PinScreenState extends ConsumerState<PinScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Apakah Anda ingin mereset PIN? Anda dapat membuat PIN baru setelah verifikasi.\n\n'
-                '⚠️ Kunci E2EE lama akan diganti dengan kunci baru yang terbungkus (wrapped) dengan PIN baru Anda. Pesan lama yang terenkripsi akan dibersihkan.',
-                style: TextStyle(fontSize: 13),
+              Text(
+                isGoogleUser
+                    ? 'Apakah Anda ingin mereset PIN? Karena Anda masuk dengan Google, Anda akan diminta untuk melakukan login Google kembali untuk mengonfirmasi identitas Anda.\n\n'
+                      '⚠️ Kunci E2EE lama akan diganti dengan kunci baru yang terbungkus (wrapped) dengan PIN baru Anda. Pesan lama yang terenkripsi akan dibersihkan.'
+                    : 'Apakah Anda ingin mereset PIN? Anda dapat membuat PIN baru setelah verifikasi password akun.\n\n'
+                      '⚠️ Kunci E2EE lama akan diganti dengan kunci baru yang terbungkus (wrapped) dengan PIN baru Anda. Pesan lama yang terenkripsi akan dibersihkan.',
+                style: const TextStyle(fontSize: 13),
               ),
               if (isEmailPasswordUser) ...[
                 const SizedBox(height: 16),
@@ -524,7 +540,10 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
                       final success = await ref
                           .read(authProvider.notifier)
-                          .resetPinWithVerification(isEmailPasswordUser ? pwd : null);
+                          .resetPinWithVerification(
+                            password: isEmailPasswordUser ? pwd : null,
+                            isGoogleUser: isGoogleUser,
+                          );
 
                       setDialogState(() => isLoading = false);
 
@@ -666,11 +685,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
                       setDialogState(() => isLoading = false);
 
                       if (success) {
-                        // Backup ulang dengan PIN baru yang aktif
+                        // Backup ulang dengan PIN baru yang aktif (_pin)
                         try {
-                          // PIN yang dimasukkan di layar PIN sebelumnya
-                          // sudah divalidasi — gunakan itu untuk backup baru
-                          await E2eeService.instance.backupWithPin(oldPin);
+                          await E2eeService.instance.backupWithPin(_pin);
                         } catch (_) {}
                         if (ctx.mounted) Navigator.pop(ctx, 'restored');
                       } else {

@@ -22,8 +22,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
+import '../../../data/repositories/chat_request_repository.dart';
 import '../widgets/chat_list_tile.dart';
-
+import '../widgets/send_chat_invite_dialog.dart';
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -323,6 +324,29 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     return;
                                   }
 
+                                  // Cek proteksi undangan chat
+                                  final chatReqRepo = ref.read(chatRequestRepositoryProvider);
+                                  final isApproved = await chatReqRepo.isChatApproved(profile['id'] as String);
+
+                                  if (!isApproved) {
+                                    if (!stateCtx.mounted) return;
+                                    // Tampilkan dialog undangan
+                                    final sent = await SendChatInviteDialog.show(
+                                      stateCtx,
+                                      receiverId: profile['id'] as String,
+                                      receiverUsername: profile['username'] as String? ?? 'User',
+                                    );
+                                    if (stateCtx.mounted) {
+                                      Navigator.pop(stateCtx);
+                                      if (sent == true) {
+                                        setSheetState(() {
+                                          isSearching = false;
+                                        });
+                                      }
+                                    }
+                                    return;
+                                  }
+
                                   // Create or get chat room
                                   final roomId = await ref
                                       .read(chatRoomsProvider.notifier)
@@ -451,6 +475,42 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         ),
                       ],
                     ),
+            ),
+             // Chat Requests Banner (jika ada permintaan pending)
+            StreamBuilder<int>(
+              stream: ref.watch(chatRequestRepositoryProvider).streamPendingRequestsCount(),
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                if (count == 0) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: InkWell(
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.chatRequests),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.softCoral.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: MekaarColors.softCoral.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(SolarIconsOutline.shieldUser, color: MekaarColors.softCoral, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '$count Permintaan Chat Masuk Baru',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: MekaarColors.softCoral),
+                            ),
+                          ),
+                          const Icon(SolarIconsOutline.altArrowRight, size: 16, color: MekaarColors.softCoral),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             // Search Input
             Padding(

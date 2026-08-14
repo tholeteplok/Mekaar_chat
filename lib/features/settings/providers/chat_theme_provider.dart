@@ -36,8 +36,9 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
       case ChatThemePreset.dynamicTime:
         await _save(ChatThemePreference.dynamicTime);
         break;
+      case ChatThemePreset.neonDreams:
       case ChatThemePreset.neonCyberpunk:
-        await _save(ChatThemePreference.neonCyberpunk);
+        await _save(ChatThemePreference.neonDreams);
         break;
       case ChatThemePreset.comicPopArt:
         await _save(ChatThemePreference.comicPopArt);
@@ -51,14 +52,17 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
       case ChatThemePreset.pixelGarden:
         await _save(ChatThemePreference.pixelGarden);
         break;
+      case ChatThemePreset.candyPop:
       case ChatThemePreset.isometric3d:
-        await _save(ChatThemePreference.isometric3d);
+        await _save(ChatThemePreference.candyPop);
         break;
+      case ChatThemePreset.retroWave:
       case ChatThemePreset.retroY2K:
-        await _save(ChatThemePreference.retroY2K);
+        await _save(ChatThemePreference.retroWave);
         break;
+      case ChatThemePreset.monoVibe:
       case ChatThemePreset.swissMinimalist:
-        await _save(ChatThemePreference.swissMinimalist);
+        await _save(ChatThemePreference.monoVibe);
         break;
       case ChatThemePreset.solarpunk:
         await _save(ChatThemePreference.solarpunk);
@@ -93,11 +97,36 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
     ));
   }
 
-  Future<void> setBubbleColor(ChatBubbleColorPreset colorPreset) async {
+  Future<void> setCustomOutgoingColors({
+    required String color1,
+    String? color2,
+  }) async {
     final current = state.valueOrNull ?? const ChatThemePreference();
     await _save(current.copyWith(
       preset: ChatThemePreset.custom,
-      bubbleColorPreset: colorPreset,
+      useCustomBubbleColors: true,
+      outgoingColor1: color1,
+      outgoingColor2: color2,
+    ));
+  }
+
+  Future<void> setCustomIncomingColors({
+    required String color1,
+    String? color2,
+  }) async {
+    final current = state.valueOrNull ?? const ChatThemePreference();
+    await _save(current.copyWith(
+      preset: ChatThemePreset.custom,
+      useCustomBubbleColors: true,
+      incomingColor1: color1,
+      incomingColor2: color2,
+    ));
+  }
+
+  Future<void> resetCustomBubbleColors() async {
+    final current = state.valueOrNull ?? const ChatThemePreference();
+    await _save(current.copyWith(
+      useCustomBubbleColors: false,
     ));
   }
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
+import '../../../core/constants/colors.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../settings/screens/profile_screen.dart';
 import '../../settings/screens/settings_screen.dart';
+import '../../guardian/providers/trip_permission_provider.dart';
 import 'chat_list_screen.dart';
 import 'contact_list_screen.dart';
 import '../providers/chat_provider.dart';
@@ -136,6 +138,71 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                   }
                 }
               },
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 16,
+              right: 16,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final activeTrip = ref.watch(tripPermissionNotifierProvider);
+                  if (activeTrip == null || !activeTrip.isActive) return const SizedBox.shrink();
+                  final endTimeStr = '${activeTrip.endTime.hour.toString().padLeft(2, '0')}:${activeTrip.endTime.minute.toString().padLeft(2, '0')}';
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.softCoral,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: MekaarColors.softCoral.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(SolarIconsOutline.mapPoint, color: Colors.white, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '📍 Sharing Lokasi Hangout ke ${activeTrip.destinationName} s.d $endTimeStr',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () async {
+                            await ref.read(tripPermissionNotifierProvider.notifier).cancelHangout();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Hentikan',
+                              style: TextStyle(
+                                color: MekaarColors.softCoral,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

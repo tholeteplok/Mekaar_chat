@@ -9,7 +9,6 @@ import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
-import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -128,6 +127,14 @@ class SettingsScreen extends ConsumerWidget {
                 value: ref.watch(readReceiptsProvider),
                 onChanged: (value) =>
                     ref.read(readReceiptsProvider.notifier).setEnabled(value),
+              ),
+              SettingsNavTile(
+                icon: SolarIconsOutline.shieldUser,
+                title: 'Proteksi Undangan Chat',
+                subtitle: ref.watch(chatInvitationModeProvider) == 'approved_only'
+                    ? 'Hanya yang disetujui'
+                    : 'Semua orang',
+                onTap: () => _showChatInvitationModeSheet(context, ref),
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.mapPoint,
@@ -339,7 +346,64 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────
-
+  void _showChatInvitationModeSheet(BuildContext context, WidgetRef ref) {
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final current = ref.watch(chatInvitationModeProvider);
+        final options = [
+          ('approved_only', 'Hanya yang Disetujui', 'Pengguna baru harus mengirim permintaan chat terlebih dahulu'),
+          ('everyone', 'Semua Orang', 'Siapapun dapat langsung mengirim pesan kepada Anda'),
+        ];
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text(
+                'Proteksi Undangan Chat',
+                style: MekaarTypography.headingSM,
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Tentukan siapa yang dapat mengirim pesan langsung kepada Anda.',
+                  style: MekaarTypography.bodySM,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...options.map((opt) {
+                final selected = opt.$1 == current;
+                return ListTile(
+                  leading: Icon(
+                    selected
+                        ? SolarIconsBold.checkCircle
+                        : SolarIconsOutline.shieldUser,
+                    color: selected ? MekaarColors.softCoral : null,
+                  ),
+                  title: Text(opt.$2),
+                  subtitle: Text(opt.$3, style: const TextStyle(fontSize: 12)),
+                  trailing: selected
+                      ? const Icon(MekaarIcons.check, color: MekaarColors.softCoral)
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(chatInvitationModeProvider.notifier)
+                        .setMode(opt.$1);
+                    Navigator.pop(ctx);
+                  },
+                );
+              }),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   // ─────────────────────────────────────────────────
   // Bottom sheet: Last Seen Privacy
@@ -395,25 +459,47 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _handleTwoFactor(BuildContext context, WidgetRef ref) async {
     final enabled = ref.read(twoFaProvider);
     if (enabled) {
-      final confirmed = await MekaarDialog.showConfirmation<bool>(
+      final passwordController = TextEditingController();
+      final password = await showDialog<String>(
         context: context,
-        title: 'Matikan 2 Langkah?',
-        message: 'Login tidak lagi meminta kode authenticator. Akun jadi kurang aman.',
-        isDestructive: true,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+        builder: (ctx) => AlertDialog(
+          backgroundColor: MekaarColors.surface2Of(ctx),
+          title: Text('Matikan 2 Langkah', style: MekaarTypography.headingSM),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Masukkan password Anda untuk mengonfirmasi penonaktifan 2FA.',
+                style: MekaarTypography.bodySM,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Matikan'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, passwordController.text.trim()),
+              child: const Text('Konfirmasi'),
+            ),
+          ],
+        ),
       );
-      if (confirmed == true && context.mounted) {
+
+      if (password != null && password.isNotEmpty && context.mounted) {
         try {
-          await ref.read(twoFaProvider.notifier).disable();
+          await ref.read(twoFaProvider.notifier).disable(password);
           if (context.mounted) {
             MekaarSnackbar.success(context, 'Verifikasi 2 Langkah dimatikan.');
           }

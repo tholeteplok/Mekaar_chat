@@ -39,9 +39,9 @@ Future<File?> _getOrDecryptMedia({
       return cachedFile;
     }
 
-    final client = HttpClient();
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 30);
     final request = await client.getUrl(uri);
-    final response = await request.close();
+    final response = await request.close().timeout(const Duration(seconds: 45));
     if (response.statusCode != 200) return null;
 
     final bytes = await response.fold<List<int>>([], (a, b) => a..addAll(b));
@@ -229,22 +229,25 @@ class ChatBubble extends ConsumerWidget {
     final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
 
     if (message.type == MessageType.system) {
-      return Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: MekaarColors.infoLight,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            message.content,
-            style: TextStyle(
-              color: MekaarColors.info,
-              fontSize: 11 * chatPref.textScale,
-              fontWeight: FontWeight.w600,
+      return Semantics(
+        label: 'Pemberitahuan sistem: ${message.content}',
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: MekaarColors.infoLight,
+              borderRadius: BorderRadius.circular(20),
             ),
-            textAlign: TextAlign.center,
+            child: Text(
+              message.content,
+              style: TextStyle(
+                color: MekaarColors.info,
+                fontSize: 11 * chatPref.textScale,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       );
@@ -1257,7 +1260,8 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
 
   @override
   void dispose() {
-    NativeScreenProtection().setEnabled(false);
+    // Catatan: Jangan panggil setEnabled(false) di sini agar tidak mematikan
+    // screen protection global milik room obrolan di bawahnya.
     final file = widget.tempFileToPurge;
     if (file != null && file.existsSync()) {
       try {
@@ -1502,6 +1506,14 @@ class _PopReactionState extends State<_PopReaction>
     vsync: this,
     duration: const Duration(milliseconds: 280),
   )..forward();
+
+  @override
+  void didUpdateWidget(covariant _PopReaction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.count != widget.count) {
+      _ctrl.forward(from: 0);
+    }
+  }
 
   @override
   void dispose() {

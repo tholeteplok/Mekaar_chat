@@ -85,4 +85,21 @@ class MediaUploadService {
         mimeType.startsWith('audio/x-m4a')) { return '.m4a'; }
     return '';
   }
+
+  /// Deletes a file from chat-media bucket by its public URL.
+  Future<void> deleteMediaByUrl(String publicUrl) async {
+    try {
+      final uri = Uri.parse(publicUrl);
+      final pathSegments = uri.pathSegments;
+      final bucketIdx = pathSegments.indexOf('chat-media');
+      if (bucketIdx != -1 && bucketIdx < pathSegments.length - 1) {
+        final storagePath = pathSegments.sublist(bucketIdx + 1).join('/');
+        await _client.storage.from('chat-media').remove([storagePath]);
+      }
+    } catch (e) {
+      // Log: file orphan di storage jika deletion gagal
+      // ignore: avoid_print
+      print('[MediaUploadService] deleteMediaByUrl gagal: $e');
+    }
+  }
 }

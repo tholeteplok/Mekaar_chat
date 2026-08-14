@@ -35,8 +35,15 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
     await Future.delayed(const Duration(milliseconds: 350));
 
     // 2. Tes derivasi enkripsi kamar
-    final testResult = await E2eeService.instance.encryptForRoom(_roomId, 'test-handshake');
-    if (testResult == null) {
+    try {
+      final testResult = await E2eeService.instance.encryptForRoom(_roomId, 'test-handshake');
+      if (testResult == null) {
+        state = E2eeRoomStatus.peerMissingKey;
+        return;
+      }
+    } catch (_) {
+      // Network error atau peer key belum tersedia — jangan crash,
+      // biarkan user retry via tombol di UI.
       state = E2eeRoomStatus.peerMissingKey;
       return;
     }

@@ -10,6 +10,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../data/repositories/chat_request_repository.dart';
 
 class ContactQrScanScreen extends ConsumerStatefulWidget {
   const ContactQrScanScreen({super.key});
@@ -85,7 +86,16 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
         return;
       }
 
-      // 3. Buat atau dapatkan room chat personal
+      // 3. Otomatisasi persetujuan chat via QR Code (tatap muka = implied consent)
+      try {
+        await ref.read(chatRequestRepositoryProvider).sendChatRequest(
+              receiverId: userId,
+              invitationNote: 'Terhubung melalui QR Code',
+              viaQrCode: true,
+            );
+      } catch (_) {}
+
+      // 4. Buat atau dapatkan room chat personal
       final roomId = await ref
           .read(chatRoomsProvider.notifier)
           .getOrCreateRoom(

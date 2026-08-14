@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -71,7 +72,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
         .subscribe();
   }
 
-  void _acceptCall() {
+  Future<void> _acceptCall() async {
     if (_isResponding) return;
     setState(() => _isResponding = true);
     HapticService.trigger(MekaarHapticIntent.success);
@@ -79,8 +80,18 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     // Set active call ID in Riverpod so collision guard protects ongoing call
     ref.read(activeCallIdProvider.notifier).state = widget.callId;
 
-    // Fire & forget background update to keep UI instant (<50ms)
-    unawaited(ref.read(callRepositoryProvider).updateCallStatus(widget.callId, 'answered'));
+    try {
+      await ref
+          .read(callRepositoryProvider)
+          .updateCallStatus(widget.callId, 'answered');
+    } catch (e) {
+      ref.read(activeCallIdProvider.notifier).state = null;
+      if (mounted) {
+        setState(() => _isResponding = false);
+        MekaarSnackbar.error(context, 'Gagal menjawab panggilan: $e');
+      }
+      return;
+    }
     unawaited(NotificationService.cancelIncomingCallNotification());
 
     if (!mounted) return;

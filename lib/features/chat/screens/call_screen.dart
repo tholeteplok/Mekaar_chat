@@ -39,7 +39,8 @@ class CallScreen extends ConsumerStatefulWidget {
   ConsumerState<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends ConsumerState<CallScreen> {
+class _CallScreenState extends ConsumerState<CallScreen>
+    with WidgetsBindingObserver {
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
 
@@ -70,6 +71,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _myUserId = ref.read(authProvider).user?.id;
     _currentCallId = widget.callId;
     _isVideoOn = _isVideoCall;
@@ -105,6 +107,10 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
       _finishCall('Tidak dijawab');
+    } else if (newStatus == 'failed') {
+      _callTimeoutTimer?.cancel();
+      _statusPollingTimer?.cancel();
+      _finishCall('Koneksi panggilan gagal');
     } else if (newStatus == 'answered') {
       _callTimeoutTimer?.cancel();
       if (widget.isCaller && _myUserId != null) {
@@ -156,7 +162,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
   void _startCallTimeoutTimer() {
     _callTimeoutTimer?.cancel();
-    _callTimeoutTimer = Timer(const Duration(seconds: 45), () async {
+    _callTimeoutTimer = Timer(const Duration(seconds: 30), () async {
       if (_callStatus != 'Tersambung' && !_isEnding && !_isDisposed) {
         if (_currentCallId != null) {
           try {
@@ -197,15 +203,19 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                 callType: widget.callType,
               );
           _currentCallId = callRow['id'] as String?;
-        } catch (_) {}
+          if (_currentCallId != null && mounted) {
+            ref.read(activeCallIdProvider.notifier).state = _currentCallId!;
+          }
+        } catch (e) {
+          _finishCall('Gagal terhubung ke panggilan');
+          return;
+        }
       }
 
       if (_currentCallId != null) {
         _watchCallStatus();
-        if (widget.isCaller) {
-          _startCallTimeoutTimer();
-        }
       }
+      _startCallTimeoutTimer();
 
       await _localRenderer.initialize();
       _localRendererInitialized = true;
@@ -290,6 +300,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
     signaling.onRemoteStream = (stream) {
       if (!mounted || _isDisposed || !_remoteRendererInitialized) {
+        return;
+      }
+      if (stream.getAudioTracks().isEmpty && stream.getVideoTracks().isEmpty) {
         return;
       }
       setState(() {
@@ -394,7 +407,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     final enabled = !audioTracks.first.enabled;
-    audioTracks.first.enabled = enabled;
+    for (final track in audioTracks) {
+      track.enabled = enabled;
+    }
     if (mounted) {
       setState(() => _isMuted = !enabled);
       HapticService.trigger(MekaarHapticIntent.selection);
@@ -426,7 +441,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       return;
     }
     final enabled = !videoTracks.first.enabled;
-    videoTracks.first.enabled = enabled;
+    for (final track in videoTracks) {
+      track.enabled = enabled;
+    }
     if (mounted) {
       setState(() => _isVideoOn = enabled);
       HapticService.trigger(MekaarHapticIntent.selection);
@@ -507,7 +524,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     });
   }
 
-  void _cleanUp() {
+  Future<void> _cleanUp() async {
     if (_isCleanedUp) {
       return;
     }
@@ -528,7 +545,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       signaling.onRemoteStream = null;
       signaling.onCallStateChange = null;
       signaling.onHangup = null;
-      unawaited(signaling.cleanUp());
+      await signaling.cleanUp();
     }
     if (_localRendererInitialized) {
       _localRenderer.srcObject = null;
@@ -539,7 +556,35 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isDisposed) return;
+    final localStream = _localRenderer.srcObject;
+    if (localStream == null) return;
+
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        // Pause local video tracks when app is backgrounded to conserve bandwidth and privacy
+        for (final track in localStream.getVideoTracks()) {
+          track.enabled = false;
+        }
+        break;
+      case AppLifecycleState.resumed:
+        // Restore local video tracks when app returns to foreground if video was enabled
+        if (_isVideoOn) {
+          for (final track in localStream.getVideoTracks()) {
+            track.enabled = true;
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _isDisposed = true;
     _cleanUp();
     if (_localRendererInitialized) {

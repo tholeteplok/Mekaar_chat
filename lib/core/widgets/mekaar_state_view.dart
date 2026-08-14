@@ -123,21 +123,35 @@ class _MekaarStateViewState extends State<MekaarStateView> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(MekaarSpacing.xl),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              mika,
-              const SizedBox(height: MekaarSpacing.lg),
-              text,
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minH = constraints.maxHeight.isFinite && constraints.maxHeight > 0
+            ? constraints.maxHeight
+            : 0.0;
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(MekaarSpacing.xl),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: minH > (MekaarSpacing.xl * 2)
+                    ? minH - (MekaarSpacing.xl * 2)
+                    : 0.0,
+                maxWidth: 420,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  mika,
+                  const SizedBox(height: MekaarSpacing.lg),
+                  text,
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:logger/logger.dart';
@@ -55,6 +56,7 @@ class E2eeService {
   final X25519 _x25519 = X25519();
   final Xchacha20 _cipher = Xchacha20.poly1305Aead();
 
+  Completer<void>? _ensureIdentityCompleter;
   SimpleKeyPair? _identity;
   String? _identityPublicB64;
   final Map<String, SecretKey> _roomKeys = {};
@@ -76,45 +78,62 @@ class E2eeService {
 
   // ── Identitas ──────────────────────────────────────────────
 
-  /// Muat identitas dari secure storage. Jika tidak ada secara lokal,
   /// periksa apakah backup ada di server sebelum membuat kunci baru.
   /// Jika backup ada, set flag [needsRestore] dan JANGAN generate kunci baru.
   /// Dipanggil lazy dari jalur enkripsi/dekripsi.
   Future<void> ensureIdentity() async {
     if (_identity != null) return;
-    final userId = _supabase.currentUserId;
-    if (userId == null) return;
-
-    // 1. Coba muat dari secure storage lokal
+    // Lock: jika inisialisasi sedang berjalan, tunggu hingga selesai
+    if (_ensureIdentityCompleter != null) {
+      return _ensureIdentityCompleter!.future;
+    }
+    _ensureIdentityCompleter = Completer<void>();
     try {
-      final raw = await _secureStorage.read(key: _storageKeyFor(userId));
-      if (raw != null) {
-        final bytes = base64Decode(raw);
-        await _loadIdentityFromBytes(bytes);
-        _needsRestore = false;
-        _isFreshKey = false;
-        await _publishPublicKeyIfNeeded();
+      final userId = _supabase.currentUserId;
+      if (userId == null) {
+        _ensureIdentityCompleter!.complete();
         return;
       }
+
+      // 1. Coba muat dari secure storage lokal
+      try {
+        final raw = await _secureStorage.read(key: _storageKeyFor(userId));
+        if (raw != null) {
+          final bytes = base64Decode(raw);
+          await _loadIdentityFromBytes(bytes);
+          _needsRestore = false;
+          _isFreshKey = false;
+          await _publishPublicKeyIfNeeded();
+          _ensureIdentityCompleter!.complete();
+          return;
+        }
+      } catch (e) {
+        _logger.e('Gagal memuat identitas dari secure storage', error: e);
+      }
+
+      // 2. Tidak ada kunci lokal. Cek apakah ada backup di server.
+      final hasBackup = await hasBackupOnServer();
+      if (hasBackup) {
+        // Backup ada — JANGAN buat kunci baru.
+        // UI harus meminta PIN untuk memulihkan.
+        _needsRestore = true;
+        _logger.w('Kunci lokal tidak ada, backup ditemukan di server. '
+            'Menunggu restore dengan PIN.');
+        _ensureIdentityCompleter!.complete();
+        return;
+      }
+
+      // 3. Benar-benar user baru (tidak ada backup). Aman untuk generate.
+      _logger.i('User baru tanpa backup, membuat identitas E2EE baru.');
+      await _generateAndPublishIdentity(userId);
+      _isFreshKey = true;
+      _ensureIdentityCompleter!.complete();
     } catch (e) {
-      _logger.e('Gagal memuat identitas dari secure storage', error: e);
+      _ensureIdentityCompleter?.completeError(e);
+      rethrow;
+    } finally {
+      _ensureIdentityCompleter = null;
     }
-
-    // 2. Tidak ada kunci lokal. Cek apakah ada backup di server.
-    final hasBackup = await hasBackupOnServer();
-    if (hasBackup) {
-      // Backup ada — JANGAN buat kunci baru.
-      // UI harus meminta PIN untuk memulihkan.
-      _needsRestore = true;
-      _logger.w('Kunci lokal tidak ada, backup ditemukan di server. '
-          'Menunggu restore dengan PIN.');
-      return;
-    }
-
-    // 3. Benar-benar user baru (tidak ada backup). Aman untuk generate.
-    _logger.i('User baru tanpa backup, membuat identitas E2EE baru.');
-    await _generateAndPublishIdentity(userId);
-    _isFreshKey = true;
   }
 
   Future<void> _loadIdentityFromBytes(List<int> privateBytes) async {

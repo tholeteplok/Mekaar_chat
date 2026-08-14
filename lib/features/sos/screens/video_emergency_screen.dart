@@ -9,6 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/services/webrtc_service.dart';
+import '../../chat/providers/screen_protection_provider.dart';
 import '../providers/sos_provider.dart';
 
 class VideoEmergencyScreen extends ConsumerStatefulWidget {
@@ -24,8 +25,8 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   bool _isFrontCamera = true;
   bool _isScreenLocked = false;
-  int _recordingSeconds = 0;
   Timer? _timer;
+  int _recordingSeconds = 0;
 
   // Durasi maksimal rekaman sebelum otomatis berhenti (menit). 0 = tanpa batas.
   int _autoStopMinutes = 0;
@@ -34,6 +35,11 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   @override
   void initState() {
     super.initState();
+    Future.microtask(() {
+      ref
+          .read(screenProtectionControllerProvider)
+          .enterMandatorySurface('sos_video');
+    });
     _initVideo();
     _startTimer();
   }
@@ -43,8 +49,8 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   }
 
   Future<void> _initVideo() async {
-    await _localRenderer.initialize();
     try {
+      await _localRenderer.initialize();
       final stream = await _webrtcService.getLocalStream(
         audio: true,
         video: true,
@@ -134,6 +140,8 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   }
 
   void _stopRecording() async {
+    _timer?.cancel();
+    _timer = null;
     ref.read(sosProvider.notifier).toggleVideo(false);
     await _webrtcService.cleanUp();
     _localRenderer.srcObject = null;
@@ -146,7 +154,10 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   void dispose() {
     _timer?.cancel();
     _localRenderer.dispose();
-    _webrtcService.cleanUp();
+    unawaited(_webrtcService.cleanUp());
+    ref
+        .read(screenProtectionControllerProvider)
+        .leaveMandatorySurface('sos_video');
     super.dispose();
   }
 

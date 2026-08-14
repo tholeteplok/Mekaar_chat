@@ -224,6 +224,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
                 'Pembatalan terlambat diterima dan sesi SOS sudah aktif. Akhiri Mode Darurat untuk mencoba lagi.',
           );
           _startSessionTimers(session.id);
+          _startLocationStreaming(session.id);
+          _startAccelerometerWatch();
         }
         return;
       }
@@ -575,6 +577,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _timer?.cancel();
     _locationSubscription?.cancel();
     _inactivityTimer?.cancel();
+    _inactivityPromptTimer?.cancel();
+    _inactivityAutoEndTimer?.cancel();
     _accelerometerSubscription?.cancel();
     _flushTimer?.cancel();
     _audioService.dispose();

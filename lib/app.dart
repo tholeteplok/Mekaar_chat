@@ -10,7 +10,6 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/chat/providers/screen_protection_provider.dart';
 import 'data/services/notification_service.dart';
 
-import 'features/auth/screens/set_username_screen.dart';
 import 'core/navigation/app_navigator.dart';
 
 class MekaarApp extends ConsumerWidget {
@@ -18,8 +17,13 @@ class MekaarApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch screenshotBlockProvider to apply the block setting at startup dynamically
-    ref.watch(screenshotBlockProvider);
+    final isScreenshotBlocked = ref.watch(screenshotBlockProvider);
+    final protectionController = ref.watch(screenProtectionControllerProvider);
+    if (isScreenshotBlocked) {
+      protectionController.enterMandatorySurface('global_screenshot_block');
+    } else {
+      protectionController.leaveMandatorySurface('global_screenshot_block');
+    }
     // Sync Notification Masking preference ke service statis.
     NotificationService.maskingEnabled = ref.watch(notificationMaskingProvider);
 
@@ -29,8 +33,6 @@ class MekaarApp extends ConsumerWidget {
     final themeMode = ref.watch(resolvedThemeModeProvider);
     final fontFamily =
         ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
-    final protectionController = ref.watch(screenProtectionControllerProvider);
-    final authState = ref.watch(authProvider);
 
     return MaterialApp(
       navigatorKey: AppNavigator.navigatorKey,
@@ -42,10 +44,7 @@ class MekaarApp extends ConsumerWidget {
       initialRoute: AppRoutes.splash,
       onGenerateRoute: AppRoutes.generateRoute,
       builder: (context, child) {
-        Widget currentChild = child ?? const SizedBox();
-        if (authState.needsUsername) {
-          currentChild = const SetUsernameScreen();
-        }
+        final currentChild = child ?? const SizedBox();
 
         return StreamBuilder<bool>(
           stream: protectionController.captureState,

@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/shadows.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -91,13 +92,7 @@ class LocationMapScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: MekaarColors.surfaceOf(context),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  blurRadius: 16,
-                  offset: Offset(0, -4),
-                ),
-              ],
+              boxShadow: MekaarShadows.floating,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

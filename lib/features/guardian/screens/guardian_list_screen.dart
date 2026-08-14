@@ -436,8 +436,15 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         ),
         TextButton(
           onPressed: () async {
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
             Navigator.pop(context);
-            await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
+            try {
+              await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
+            } catch (e) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(content: Text('Gagal menolak undangan: $e')),
+              );
+            }
           },
           child: const Text(
             'Tolak',

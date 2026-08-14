@@ -30,8 +30,14 @@ class TwoFaNotifier extends StateNotifier<bool> {
     }
   }
 
-  /// Matikan 2FA.
-  Future<void> disable() async {
+  /// Matikan 2FA setelah verifikasi password.
+  Future<void> disable(String password) async {
+    final authRepo = _ref.read(authRepositoryProvider);
+    final verified = await authRepo.verifyPassword(password);
+    if (!verified) {
+      throw Exception('Password salah. Verifikasi gagal.');
+    }
+
     final updated = await _repo.disableTwoFa();
     state = updated.twoFaEnabled;
     final current = _ref.read(authProvider).profile;
