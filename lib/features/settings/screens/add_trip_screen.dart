@@ -248,7 +248,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     return MekaarScaffold(
       flat: true,
       appBar: const CustomAppBar(
-        title: 'Tambah Rute Auto Check-In',
+        title: 'Tambah Rute Beacon',
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(MekaarSpacing.md),

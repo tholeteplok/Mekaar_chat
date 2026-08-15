@@ -22,12 +22,10 @@ class ChatRepository {
         .isFilter('deleted_at', null);
 
 
-    final List<Map<String, dynamic>> roomsList = [];
-
-    for (final row in roomsResponse) {
+    final roomFutures = (roomsResponse as List).map((row) async {
       final roomId = row['room_id'] as String;
       final roomData = row['chat_rooms'] as Map<String, dynamic>?;
-      if (roomData == null) continue;
+      if (roomData == null) return null;
       final roomType = roomData['room_type'] as String;
       final bool isGroup = (roomType == 'group');
 
@@ -170,7 +168,7 @@ class ChatRepository {
         }
       } catch (_) {}
 
-      roomsList.add({
+      return {
         'id': roomId,
         'name': chatName,
         'avatar': chatAvatar,
@@ -186,8 +184,11 @@ class ChatRepository {
         'otherEmail': profile?['email'] ?? '',
         'isMuted': row['is_muted'] as bool? ?? false,
         'isArchived': row['is_archived'] as bool? ?? false,
-      });
-    }
+      };
+    });
+
+    final results = await Future.wait(roomFutures);
+    final roomsList = results.whereType<Map<String, dynamic>>().toList();
 
     // Sort by last message time
     roomsList.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
@@ -344,8 +345,13 @@ class ChatRepository {
             }
           } catch (_) {}
 
-          // Filter out silent_deleted and hidden messages
-          msgs = msgs.where((m) => !m.isSilentDeleted && !currentHiddenIds.contains(m.id)).toList();
+          // Filter out silent_deleted, hidden, dan expired messages
+          final now = DateTime.now().toUtc();
+          msgs = msgs.where((m) {
+            if (m.isSilentDeleted || currentHiddenIds.contains(m.id)) return false;
+            if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) return false;
+            return true;
+          }).toList();
 
           final decryptedMsgs = await Future.wait(msgs.map((m) async {
             if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
@@ -859,17 +865,32 @@ class ChatRepository {
     );
   }
 
-  /// Set pesan menghilang override untuk satu room. `hours == null` berarti
-  /// "matikan override" (server akan menyimpannya sebagai NULL, bukan 0 --
-  /// lihat RPC `set_room_disappearing_override`, yang memakai
-  /// `NULLIF(p_hours, 0)`).
-  ///
-  /// SENGAJA tidak menelan error -- lihat catatan di [updateRoomMute].
-  Future<void> updateRoomDisappearingOverride(String roomId, int? hours) async {
+  /// Set pesan menghilang level ruangan (tersinkronisasi untuk semua peserta).
+  /// Memanggil RPC `set_room_disappearing_hours`.
+  Future<void> updateRoomDisappearingHours(String roomId, int hours) async {
     await _supabaseService.client.rpc(
-      'set_room_disappearing_override',
-      params: {'p_room_id': roomId, 'p_hours': hours ?? 0},
+      'set_room_disappearing_hours',
+      params: {'p_room_id': roomId, 'p_hours': hours},
     );
+  }
+
+  /// Ambil setelan pesan menghilang level ruangan (dalam jam).
+  Future<int> getRoomDisappearingHours(String roomId) async {
+    try {
+      final room = await _supabaseService.client
+          .from('chat_rooms')
+          .select('disappearing_hours')
+          .eq('id', roomId)
+          .maybeSingle();
+      return (room?['disappearing_hours'] as int?) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Set pesan menghilang override untuk satu room (backward compatibility).
+  Future<void> updateRoomDisappearingOverride(String roomId, int? hours) async {
+    await updateRoomDisappearingHours(roomId, hours ?? 0);
   }
 
   /// Arsipkan room (sembunyikan dari daftar utama).

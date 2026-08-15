@@ -75,31 +75,31 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
       case E2eeRoomStatus.preparing:
         iconData = SolarIconsOutline.shieldKeyhole;
         accentColor = MekaarColors.cyan;
-        message = 'Sistem sedang menyiapkan percakapan yang aman untuk Anda';
+        message = 'Mekaar Aegis: Menyiapkan jalur percakapan privat...';
         showSpinner = true;
         break;
       case E2eeRoomStatus.negotiating:
         iconData = SolarIconsOutline.lockKeyhole;
         accentColor = MekaarColors.yellow;
-        message = 'Proses berjalan...';
+        message = 'Mekaar Aegis: Negosiasi kunci kriptografi...';
         showSpinner = true;
         break;
       case E2eeRoomStatus.ready:
         iconData = SolarIconsBold.checkCircle;
         accentColor = MekaarColors.safeTeal;
-        message = 'Selesai, percakapan aman sudah siap';
+        message = 'Mekaar Aegis: Percakapan terlindungi E2EE';
         showSpinner = false;
         break;
       case E2eeRoomStatus.peerMissingKey:
         iconData = SolarIconsOutline.infoCircle;
         accentColor = MekaarColors.warnAmber;
-        message = 'Menunggu penerima mengaktifkan kunci keamanan E2EE';
+        message = 'Menunggu penerima mengaktifkan kunci keamanan Mekaar Aegis';
         showSpinner = false;
         break;
       case E2eeRoomStatus.needsRestore:
         iconData = SolarIconsOutline.keyMinimalisticSquare;
         accentColor = MekaarColors.sosCoral;
-        message = 'Kunci lokal perlu dipulihkan dengan PIN';
+        message = 'Kunci Mekaar Aegis perlu dipulihkan dengan PIN';
         showSpinner = false;
         break;
     }

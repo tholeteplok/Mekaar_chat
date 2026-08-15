@@ -667,8 +667,8 @@ class _ChatComposerState extends State<ChatComposer> {
                       MekaarGlassBlurContainer(
                         isFloating: true,
                         shape: BoxShape.circle,
-                        width: 44,
-                        height: 44,
+                        width: 48,
+                        height: 48,
                         border: glassBorder,
                         customColor: glassBg,
                         child: IconButton(
@@ -676,7 +676,7 @@ class _ChatComposerState extends State<ChatComposer> {
                           icon: Icon(
                             SolarIconsOutline.paperclip,
                             color: secondaryAccent,
-                            size: 20,
+                            size: 22,
                           ),
                           onPressed: widget.enabled ? _showAttachmentSheet : null,
                           tooltip: 'Lampiran',
@@ -689,9 +689,9 @@ class _ChatComposerState extends State<ChatComposer> {
                     Expanded(
                       child: MekaarGlassBlurContainer(
                         isFloating: true,
-                        height: 44,
-                        borderRadius: BorderRadius.circular(22),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        height: 48,
+                        borderRadius: BorderRadius.circular(24),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
                         border: glassBorder,
                         customColor: glassBg,
                         child: Row(
@@ -699,7 +699,7 @@ class _ChatComposerState extends State<ChatComposer> {
                             if (!_isEditMode)
                               IconButton(
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                constraints: const BoxConstraints.tightFor(width: 40, height: 40),
                                 icon: Icon(
                                   MekaarIcons.smile,
                                   color: _showEmojiPicker
@@ -735,7 +735,7 @@ class _ChatComposerState extends State<ChatComposer> {
                                   focusedBorder: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   fillColor: Colors.transparent,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
                                 style: TextStyle(
                                   fontSize: 14,
@@ -762,8 +762,8 @@ class _ChatComposerState extends State<ChatComposer> {
                     MekaarGlassBlurContainer(
                       isFloating: true,
                       shape: BoxShape.circle,
-                      width: 44,
-                      height: 44,
+                      width: 48,
+                      height: 48,
                       border: glassBorder,
                       customColor: glassBg,
                       child: Semantics(
@@ -781,7 +781,7 @@ class _ChatComposerState extends State<ChatComposer> {
                               color: (_isEditMode || _hasText)
                                   ? primaryAccent
                                   : (widget.roomThemeSpec?.iconColor ?? MekaarColors.textPrimaryOf(context)),
-                              size: 20,
+                              size: 22,
                             ),
                           ),
                         ),

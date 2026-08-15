@@ -4,7 +4,6 @@ import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/notification_service.dart';
-import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
@@ -136,16 +135,8 @@ class MessageNotificationListener {
       // Fallback ke nama default jika profil gagal diambil.
     }
 
-    // Dekripsi konten pesan jika terenkripsi
-    String displayContent = content;
-    if (isEncrypted && content.isNotEmpty) {
-      try {
-        final decrypted = await E2eeService.instance.decryptForRoom(roomId, content);
-        displayContent = decrypted;
-      } catch (_) {
-        displayContent = E2eeService.undecryptableText;
-      }
-    }
+    // Untuk pesan terenkripsi, gunakan label aman tanpa membebani isolate utama
+    final String displayContent = isEncrypted ? '🔒 Pesan terenkripsi' : content;
 
     await NotificationService.showMessageNotification(
       title: senderName,

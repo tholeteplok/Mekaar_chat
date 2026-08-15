@@ -138,8 +138,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.mapPoint,
-                title: 'Auto Check-In Rute',
-                subtitle: 'Otomatisasi pengiriman pesan aman ke Guardian',
+                title: 'Mekaar Beacon (Auto Check-In Rute)',
+                subtitle: 'Otomatisasi pengiriman sinyal aman ke Guardian saat perjalanan',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
               ),
             ],
@@ -159,6 +159,50 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Keamanan'),
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: MekaarColors.guardianTeal.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: MekaarColors.guardianTeal.withValues(alpha: 0.25),
+              width: 0.8,
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                SolarIconsBold.shieldCheck,
+                color: MekaarColors.guardianTeal,
+                size: 20,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mekaar Aegis Protocol',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: MekaarColors.guardianTeal,
+                      ),
+                    ),
+                    Text(
+                      'Enkripsi ujung-ke-ujung & proteksi privasi aktif',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: MekaarColors.guardianTeal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -269,7 +313,7 @@ class SettingsScreen extends ConsumerWidget {
                   icon: SolarIconsOutline.volumeLoud,
                   title: 'Izin Guardian Alarm',
                   subtitle:
-                      'Izinkan wali membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
+                      'Izinkan Guardian membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
                   value: ref.watch(allowGuardianAlarmProvider),
                   onChanged: (value) =>
                       ref.read(allowGuardianAlarmProvider.notifier).setEnabled(value),

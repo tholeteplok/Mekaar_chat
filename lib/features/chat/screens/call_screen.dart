@@ -774,15 +774,20 @@ class _CallScreenState extends ConsumerState<CallScreen>
         message: tooltip ?? '',
         child: Opacity(
           opacity: onTap == null ? 0.4 : 1,
-          child: IgnorePointer(
-            ignoring: onTap == null,
-            child: GestureDetector(
-              onTap: onTap,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-                child: Icon(icon, color: iconColor, size: size * 0.5),
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: Ink(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onTap,
+                child: Center(
+                  child: Icon(icon, color: iconColor, size: size * 0.5),
+                ),
               ),
             ),
           ),

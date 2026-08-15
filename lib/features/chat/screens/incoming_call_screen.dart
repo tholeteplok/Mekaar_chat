@@ -321,33 +321,48 @@ class _SlideUpCallButtonState extends State<_SlideUpCallButton>
         ),
         const SizedBox(height: 8),
 
-        // Handle Tombol yang dapat digeser
-        GestureDetector(
-          onVerticalDragUpdate: _onVerticalDragUpdate,
-          onVerticalDragEnd: _onVerticalDragEnd,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            curve: Curves.easeOut,
-            transform: Matrix4.translationValues(0, _dragOffsetY, 0),
-            child: Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: widget.color,
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                widget.icon,
-                color: Colors.white,
-                size: 34,
+        // Handle Tombol yang dapat digeser (didukung Semantics untuk TalkBack/VoiceOver)
+        Semantics(
+          button: true,
+          enabled: !widget.disabled,
+          label: widget.label == 'Terima' ? 'Terima panggilan' : 'Tolak panggilan',
+          hint: 'Ketuk dua kali atau geser ke atas untuk ${widget.label.toLowerCase()} panggilan',
+          onTap: widget.disabled
+              ? null
+              : () {
+                  if (!_hasTriggered) {
+                    _hasTriggered = true;
+                    HapticService.trigger(MekaarHapticIntent.warning);
+                    widget.onTrigger();
+                  }
+                },
+          child: GestureDetector(
+            onVerticalDragUpdate: _onVerticalDragUpdate,
+            onVerticalDragEnd: _onVerticalDragEnd,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeOut,
+              transform: Matrix4.translationValues(0, _dragOffsetY, 0),
+              child: Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.color,
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.color.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  widget.icon,
+                  color: Colors.white,
+                  size: 34,
+                ),
               ),
             ),
           ),

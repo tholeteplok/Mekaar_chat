@@ -52,7 +52,7 @@ class _StartHangoutSheetState extends ConsumerState<StartHangoutSheet> {
               const Icon(SolarIconsOutline.mapPoint, color: MekaarColors.softCoral, size: 24),
               const SizedBox(width: 10),
               Text(
-                'Mulai Sesi Hangout (Bagi Lokasi)',
+                'Mekaar Beacon: Sesi Hangout',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -63,7 +63,7 @@ class _StartHangoutSheetState extends ConsumerState<StartHangoutSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Lokasi Anda akan dibagikan sementara ke Wali penerima secara berkala (tiap 5 menit). Anda dapat menghentikan sesi kapan saja.',
+            'Sinyal suar (Beacon) akan menyiarkan lokasi Anda secara berkala (tiap 5 menit) ke Guardian penerima. Anda dapat menghentikan sesi kapan saja.',
             style: TextStyle(
               fontSize: 12,
               color: MekaarColors.textSecondaryOf(context),
@@ -128,7 +128,7 @@ class _StartHangoutSheetState extends ConsumerState<StartHangoutSheet> {
           // 3. Pengingat 15m Sebelum Selesai (Opsional)
           SwitchListTile(
             title: const Text('Pengingat 15 Menit Sebelum Selesai'),
-            subtitle: const Text('Kirim notifikasi ke anak & wali sebelum sesi berakhir'),
+            subtitle: const Text('Kirim notifikasi ke anak & Guardian sebelum sesi berakhir'),
             value: _reminder15mEnabled,
             activeTrackColor: MekaarColors.softCoral,
             onChanged: (val) => setState(() => _reminder15mEnabled = val),
@@ -136,17 +136,17 @@ class _StartHangoutSheetState extends ConsumerState<StartHangoutSheet> {
           ),
           const SizedBox(height: 12),
 
-          // 4. Pilih Wali Penerima
+          // 4. Pilih Guardian Penerima
           if (guardians.isEmpty)
             const Text(
-              'Belum ada Wali terhubung. Tambahkan Wali terlebih dahulu.',
+              'Belum ada Guardian terhubung. Tambahkan Guardian terlebih dahulu.',
               style: TextStyle(color: MekaarColors.sosRed, fontSize: 12),
             )
           else ...[
             DropdownButtonFormField<Guardian>(
               initialValue: _selectedGuardian ?? guardians.first,
               decoration: const InputDecoration(
-                labelText: 'Pilih Wali Penerima',
+                labelText: 'Pilih Guardian Penerima',
                 prefixIcon: Icon(SolarIconsOutline.userHeart),
               ),
               items: guardians.map((g) {
@@ -191,7 +191,7 @@ class _StartHangoutSheetState extends ConsumerState<StartHangoutSheet> {
     final guardians = ref.read(guardianProvider);
     final guardian = _selectedGuardian ?? (guardians.isNotEmpty ? guardians.first : null);
     if (guardian == null) {
-      MekaarSnackbar.error(context, 'Harap pilih wali penerima');
+      MekaarSnackbar.error(context, 'Harap pilih Guardian penerima');
       return;
     }
 

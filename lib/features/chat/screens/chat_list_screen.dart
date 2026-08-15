@@ -13,6 +13,8 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
+import '../../../core/widgets/mekaar_live_safety_pill.dart';
+import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
 import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -35,11 +37,14 @@ class ChatListScreen extends ConsumerStatefulWidget {
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with AutomaticKeepAliveClientMixin {
   String _searchQuery = '';
-  String _selectedTab = 'All';
+  bool _isSearchActive = false;
+  late final TextEditingController _searchController;
+  int _selectedTabIndex = 0;
+  final List<String> _tabs = ['Semua', 'Guardian', 'Arsip'];
+  String get _selectedTab => _tabs[_selectedTabIndex];
+
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
-
-  final List<String> _tabs = ['All', 'Guardian', 'Arsip'];
 
   @override
   bool get wantKeepAlive => true;
@@ -47,10 +52,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     Future.microtask(() {
       ref.read(chatRoomsProvider.notifier).refreshRooms();
       _checkAndRequestPermissions();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkAndRequestPermissions() async {
@@ -331,18 +343,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   if (!isApproved) {
                                     if (!stateCtx.mounted) return;
                                     // Tampilkan dialog undangan
-                                    final sent = await SendChatInviteDialog.show(
+                                    await SendChatInviteDialog.show(
                                       stateCtx,
                                       receiverId: profile['id'] as String,
                                       receiverUsername: profile['username'] as String? ?? 'User',
                                     );
                                     if (stateCtx.mounted) {
                                       Navigator.pop(stateCtx);
-                                      if (sent == true) {
-                                        setSheetState(() {
-                                          isSearching = false;
-                                        });
-                                      }
+                                      setSheetState(() {
+                                        isSearching = false;
+                                      });
                                     }
                                     return;
                                   }
@@ -442,6 +452,25 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           children: [
             MekaarTabHeader(
               title: 'Pesan',
+              subtitle: wasDuress
+                  ? null
+                  : MekaarLiveSafetyPill(
+                      activeGuardiansCount:
+                          activeGuardiansOf(ref.watch(guardianProvider)).length,
+                      isE2eeActive: true,
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.guardian),
+                    ),
+              isSearchActive: _isSearchActive,
+              searchController: _searchController,
+              onSearchChanged: (value) => setState(() => _searchQuery = value),
+              onSearchClosed: () {
+                setState(() {
+                  _isSearchActive = false;
+                  _searchQuery = '';
+                  _searchController.clear();
+                });
+              },
               action: wasDuress
                   ? null
                   : Row(
@@ -449,19 +478,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       children: [
                         IconButton(
                           icon: const Icon(
-                            SolarIconsOutline.camera,
+                            SolarIconsOutline.magnifier,
                             color: MekaarColors.cyan,
                           ),
-                          tooltip: 'Pindai QR Code Teman',
+                          tooltip: 'Cari Chat',
                           onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.contactQrScan),
+                              setState(() => _isSearchActive = true),
                         ),
                         IconButton(
                           icon: const Icon(
                             SolarIconsOutline.qrCode,
-                            color: MekaarColors.yellow,
+                            color: MekaarColors.primary,
                           ),
-                          tooltip: 'Tampilkan QR Saya',
+                          tooltip: 'Kode QR & Pindai',
                           onPressed: () =>
                               Navigator.pushNamed(context, AppRoutes.myQr),
                         ),
@@ -470,13 +499,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                             SolarIconsOutline.shieldUser,
                             color: MekaarColors.guardianTeal,
                           ),
+                          tooltip: 'Guardian Saya',
                           onPressed: () =>
                               Navigator.pushNamed(context, AppRoutes.guardian),
                         ),
                       ],
                     ),
             ),
-             // Chat Requests Banner (jika ada permintaan pending)
+            // Chat Requests Banner (jika ada permintaan pending)
             StreamBuilder<int>(
               stream: ref.watch(chatRequestRepositoryProvider).streamPendingRequestsCount(),
               builder: (context, snapshot) {
@@ -512,54 +542,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 );
               },
             ),
-            // Search Input
-            Padding(
-              padding: MekaarSpacing.screen,
-              child: MekaarSearchField(
-                hintText: 'Cari chat atau teman...',
-                onChanged: (value) => setState(() => _searchQuery = value),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Tabs Bar
-            SizedBox(
-              height: 38,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _tabs.length,
-                itemBuilder: (context, index) {
-                  final tab = _tabs[index];
-                  final isActive = _selectedTab == tab;
-                  final primaryColor = Theme.of(context).colorScheme.primary;
-
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedTab = tab),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? primaryColor
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        tab,
-                        style: MekaarTypography.labelLG.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: isActive
-                              ? Theme.of(context).colorScheme.onPrimary
-                              : MekaarColors.textMutedOf(context),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            const SizedBox(height: 6),
+            // Sliding Segment Tabs Bar
+            MekaarSlidingSegmentBar(
+              tabs: _tabs,
+              selectedIndex: _selectedTabIndex,
+              onTabSelected: (index) => setState(() => _selectedTabIndex = index),
             ),
             const SizedBox(height: 8),
             // Chat List Content
@@ -649,7 +637,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       if (_selectedTab == 'Arsip') {
         return room['isArchived'] as bool? ?? false;
       }
-      // Tab 'All': exclude archived
+      // Tab 'Semua' / 'All': exclude archived
       final isArchived = room['isArchived'] as bool? ?? false;
       return !isArchived;
     }).toList();

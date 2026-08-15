@@ -10,6 +10,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -161,8 +162,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   Widget build(BuildContext context) {
     return MekaarScaffold(
       flat: true,
-      appBar: AppBar(
-        title: const Text('Info Kontak'),
+      appBar: const CustomAppBar(
+        title: 'Info Kontak',
       ),
       body: _isLoading
           ? const MekaarStateView(

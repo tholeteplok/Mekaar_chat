@@ -80,7 +80,7 @@ class _SOSButtonState extends State<SOSButton>
           : 'Tombol Darurat SOS',
       hint: widget.isActive
           ? 'Ketuk untuk melihat status darurat'
-          : 'Ketuk untuk mengirim sinyal darurat ke wali dan kontak terdekat',
+          : 'Ketuk untuk mengirim sinyal darurat ke Guardian dan kontak terdekat',
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         child: Material(

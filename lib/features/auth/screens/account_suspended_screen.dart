@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/colors.dart';
-
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../providers/auth_provider.dart';
 
@@ -26,8 +26,8 @@ class AccountSuspendedScreen extends ConsumerWidget {
         authState.profile?.suspensionReason ??
         'Terdapat indikasi pelanggaran kebijakan keselamatan atau ketentuan komunitas MEKAAR.';
 
-    return Scaffold(
-      backgroundColor: MekaarColors.backgroundOf(context),
+    return MekaarScaffold(
+      flat: true,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),

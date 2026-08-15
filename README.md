@@ -2,7 +2,7 @@
 
 MEKAAR 3.0 adalah aplikasi obrolan modern yang dirancang khusus untuk segmen remaja/youth dengan mengutamakan aspek estetika breathable, interaksi dinamis, serta sistem perlindungan keamanan berlapis yang sepenuhnya dikendalikan oleh pengguna.
 
-Aplikasi ini memadukan obrolan pribadi sehari-hari yang seru dengan protokol darurat terpadu (SOS) bersama orang tua/wali tepercaya (Guardian).
+Aplikasi ini memadukan obrolan pribadi sehari-hari yang seru dengan protokol darurat terpadu (SOS) bersama lingkaran tepercaya (Guardian).
 
 ---
 
@@ -16,16 +16,18 @@ Aplikasi ini memadukan obrolan pribadi sehari-hari yang seru dengan protokol dar
 ### 🛡️ 2. Sistem Saling Menjaga (Guardian & Swap System)
 * **Izin Terkontrol**: Guardian tidak bisa melacak atau mendengar audio Anda saat mode normal. Akses pelacakan GPS dan mikrofon hanya terbuka **jika dan hanya jika** Anda menekan tombol SOS dalam bahaya.
 * **Durasi Otorisasi Terbatas**: Hubungan Guardian aktif maksimal selama 30 hari demi menjaga relevansi lingkaran kepercayaan.
-* **Dynamic Role Swapping**: Tukar peran instan (misal, Anak menjadi Wali bagi Ibunya) secara fleksibel dengan persetujuan dua arah.
+* **Dynamic Role Swapping**: Tukar peran instan (misal, Saling Menjaga dua arah) secara fleksibel dengan persetujuan dua arah.
+* **Mekaar Beacon (Live Signal & Auto Check-In)**: Siarkan sinyal lokasi sementara dan estimasi tiba ke Guardian terpilih saat sesi Hangout atau perjalanan rutin secara transparan.
 
 ### 🚨 3. Protokol Darurat Terpadu (SOS Mode)
 * **Breathing Panic Button**: Tombol darurat dengan efek pulsasi visual agresif dan getaran (*haptic feedback*) berat.
 * **Real-time GPS Pings**: Pembaruan koordinat posisi Anda setiap saat ke Supabase dan dipetakan di OpenStreetMap (OSM) interaktif.
-* **Audio & Video WebRTC Streaming**: Kirim streaming umpan kamera dan mikrofon langsung ke layar wali Anda secara real-time.
+* **Audio & Video WebRTC Streaming**: Kirim streaming umpan kamera dan mikrofon langsung ke layar Guardian Anda secara real-time.
 * **Inactivity Watchdog**: Streaming video akan otomatis ditutup setelah 2 menit jika sensor mendeteksi perangkat tidak bergerak/tidak aktif untuk menjaga privasi pengguna.
 * **Device Lost Mode**: Cari ponsel hilang via map, bunyikan alarm keras jarak jauh, dan kirim pesan kustom pada layar kunci hp.
 
-### 🔒 4. Keamanan & Logs Bukti Hukum
+### 🔒 4. Mekaar Aegis Shield (Keamanan Kriptografis & Logs)
+* **Mekaar Aegis Protocol**: Enkripsi ujung-ke-ujung (E2EE) berbasis kurva asimetris X25519 & ChaCha20-Poly1305 untuk menjamin kerahasiaan pesan obrolan.
 * **Persistent Security Logs**: Setiap penghapusan pesan guardian, pemicuan/pengakhiran SOS, akses GPS/mic, akan dicatat secara permanen di database. Penghapusan log keamanan ini tetap akan meninggalkan jejak log baru.
 * **Secure Storage PIN**: Enkripsi lokal menggunakan `flutter_secure_storage` untuk verifikasi PIN 6-digit dengan auto-lockout (5 kali salah = kunci 30 menit).
 
@@ -37,7 +39,7 @@ Aplikasi ini memadukan obrolan pribadi sehari-hari yang seru dengan protokol dar
 * **Database & Auth**: Supabase (PostgreSQL, Row Level Security, Real-time Subscription)
 * **Live Streaming**: WebRTC (`flutter_webrtc`)
 * **Mapping**: OpenStreetMap (`flutter_map`)
-* **Security Storage**: AES PIN Hashing (`crypto` SHA-256) & `flutter_secure_storage`
+* **Security & Crypto**: Mekaar Aegis Protocol (X25519, AES PIN Hashing SHA-256 & `flutter_secure_storage`)
 
 ---
 
@@ -55,7 +57,7 @@ lib/
 └── features/
     ├── auth/            # Halaman Login/Register, PIN Setup, Lockout, Splash, Onboarding
     ├── chat/            # Obrolan rooms, streaming pesan masuk, pengiriman media sekali lihat
-    ├── guardian/        # Manajemen wali, tukar posisi peran, persetujuan undangan
+    ├── guardian/        # Manajemen Guardian, tukar posisi peran, persetujuan undangan
     ├── map/             # Peta pelacakan lokasi OSM
     └── sos/             # Papan darurat SOS aktif, camera WebRTC, HP hilang
 ```

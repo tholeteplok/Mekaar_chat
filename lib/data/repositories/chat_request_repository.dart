@@ -30,6 +30,24 @@ class ChatRequestRepository {
       throw Exception('Keterangan undangan wajib diisi minimal 10 karakter');
     }
 
+    if (invitationNote.trim().isEmpty) {
+      throw Exception('Keterangan undangan tidak boleh kosong');
+    }
+
+    // Cegah duplikasi permintaan pending ke penerima yang sama
+    final existing = await _client
+        .from('chat_requests')
+        .select('id')
+        .eq('sender_id', senderId)
+        .eq('receiver_id', receiverId)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+    if (existing != null) {
+      throw Exception(
+          'Anda sudah mengirim permintaan chat sebelumnya. Tunggu persetujuan.');
+    }
+
     try {
       final response = await _client
           .from('chat_requests')
@@ -58,14 +76,68 @@ class ChatRequestRepository {
     try {
       final response = await _client
           .from('chat_requests')
-          .select('*, sender_profile:profiles!chat_requests_sender_id_fkey(username, avatar_url)')
+          .select()
           .eq('receiver_id', userId)
           .eq('status', 'pending')
           .order('created_at', ascending: false);
 
-      return (response as List).map((e) => ChatRequest.fromMap(e)).toList();
+      final rows = response as List<dynamic>;
+      if (rows.isEmpty) return [];
+
+      // Kumpulkan ID unik semua pengirim
+      final senderIds = rows
+          .map((r) => r['sender_id'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      Map<String, Map<String, dynamic>> profileMap = {};
+      if (senderIds.isNotEmpty) {
+        try {
+          final profilesResp = await _client
+              .from('public_profiles')
+              .select('id, username, full_name, display_name, avatar_url')
+              .inFilter('id', senderIds);
+          for (final p in profilesResp) {
+            profileMap[p['id'] as String] = p;
+          }
+        } catch (e) {
+          _log.w('ChatRequestRepository: Gagal batch fetch profil pengirim: $e');
+        }
+      }
+
+      return rows.map((r) {
+        final map = Map<String, dynamic>.from(r as Map);
+        final senderId = map['sender_id'] as String?;
+        final profile = senderId != null ? profileMap[senderId] : null;
+
+        // Sanitasi catatan undangan agar tidak pernah kosong di UI
+        final note = (map['invitation_note'] as String?)?.trim() ?? '';
+        if (note.isEmpty) {
+          map['invitation_note'] = 'Ingin terhubung dan memulai obrolan dengan Anda.';
+        }
+
+        if (profile != null) {
+          final username = (profile['display_name'] as String?)?.isNotEmpty == true
+              ? profile['display_name']
+              : (profile['full_name'] as String?)?.isNotEmpty == true
+                  ? profile['full_name']
+                  : profile['username'] ?? 'Pengguna MEKAAR';
+          map['sender_profile'] = {
+            'username': username,
+            'avatar_url': profile['avatar_url'],
+          };
+        } else {
+          map['sender_profile'] = {
+            'username': 'Pengguna MEKAAR',
+            'avatar_url': null,
+          };
+        }
+
+        return ChatRequest.fromMap(map);
+      }).toList();
     } catch (e) {
-      _log.w('ChatRequestRepository: fetchIncomingRequests failed: $e');
+      _log.e('ChatRequestRepository: fetchIncomingRequests failed: $e');
       return [];
     }
   }

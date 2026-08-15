@@ -28,32 +28,52 @@ class ChatRequestsScreen extends ConsumerWidget {
 
     return MekaarScaffold(
       appBar: const CustomAppBar(title: 'Permintaan Chat Masuk'),
-      body: requestsAsync.when(
-        data: (requests) {
-          if (requests.isEmpty) {
-            return const Center(
-              child: MekaarStateView(
-                pose: MikaPose.ok,
-                title: 'Tidak Ada Permintaan',
-                message: 'Semua pesan masuk dari pengirim terverifikasi.',
-                illustrationSize: 100,
-                semanticLabel: 'Daftar permintaan chat kosong',
-              ),
-            );
-          }
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(incomingRequestsProvider),
+        child: requestsAsync.when(
+          data: (requests) {
+            if (requests.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 80),
+                  MekaarStateView(
+                    pose: MikaPose.ok,
+                    title: 'Tidak Ada Permintaan',
+                    message: 'Semua pesan masuk dari pengirim terverifikasi.',
+                    illustrationSize: 100,
+                    semanticLabel: 'Daftar permintaan chat kosong',
+                  ),
+                ],
+              );
+            }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: requests.length,
-            separatorBuilder: (_, index) => const SizedBox(height: 12),
-            itemBuilder: (ctx, index) {
-              final req = requests[index];
-              return _RequestCard(request: req);
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: requests.length,
+              separatorBuilder: (_, index) => const SizedBox(height: 12),
+              itemBuilder: (ctx, index) {
+                final req = requests[index];
+                return _RequestCard(request: req);
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              const SizedBox(height: 80),
+              MekaarStateView(
+                pose: MikaPose.huft,
+                title: 'Gagal Memuat Permintaan',
+                message: 'Terjadi kesalahan: $err',
+                actionLabel: 'Coba Lagi',
+                onAction: () => ref.invalidate(incomingRequestsProvider),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -74,7 +94,12 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
   @override
   Widget build(BuildContext context) {
     final req = widget.request;
-    final username = req.senderUsername ?? 'Pengguna MEKAAR';
+    final username = (req.senderUsername != null && req.senderUsername!.trim().isNotEmpty)
+        ? req.senderUsername!
+        : 'Pengguna MEKAAR';
+    final note = req.invitationNote.trim().isNotEmpty
+        ? req.invitationNote.trim()
+        : 'Ingin terhubung dan memulai obrolan dengan Anda.';
 
     return CustomCard(
       padding: const EdgeInsets.all(16),
@@ -141,7 +166,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  req.invitationNote,
+                  note,
                   style: TextStyle(
                     fontSize: 13,
                     color: MekaarColors.textPrimaryOf(context),

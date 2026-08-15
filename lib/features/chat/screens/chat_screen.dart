@@ -63,6 +63,22 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
+enum _ChatItemKind { message, dateSeparator }
+
+class _ChatItemEntry {
+  final _ChatItemKind kind;
+  final Message? message;
+  final DateTime? date;
+
+  const _ChatItemEntry.message(this.message)
+      : kind = _ChatItemKind.message,
+        date = null;
+
+  const _ChatItemEntry.dateSeparator(this.date)
+      : kind = _ChatItemKind.dateSeparator,
+        message = null;
+}
+
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -74,9 +90,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ignore: prefer_final_fields — mutable: updated when partner sends typing event
   bool _partnerIsTyping = false;
   int _autoDeleteHours = 0;
-  bool _showScrollButton = false;
+  final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
   int _newMessageCount = 0;
   Map<String, String> _participantNames = {};
+  Timer? _purgeTimer;
 
   Future<void> _loadGroupParticipants() async {
     try {
@@ -106,11 +123,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final atBottom = _scrollController.hasClients &&
         _scrollController.position.pixels >=
             _scrollController.position.minScrollExtent + 200;
-    if (_showScrollButton != atBottom) {
-      setState(() {
-        _showScrollButton = atBottom;
-        if (!atBottom) _newMessageCount = 0;
-      });
+    if (_showScrollButton.value != atBottom) {
+      _showScrollButton.value = atBottom;
+      if (!atBottom && _newMessageCount > 0) {
+        setState(() => _newMessageCount = 0);
+      }
     }
   }
 
@@ -142,13 +159,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // untuk tidak memunculkan notif saat user sedang melihat percakapan.
     ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
     _startPresenceHeartbeat();
+
+    // Timer periodik pembersihan pesan kedaluwarsa (client guard)
+    _purgeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      try {
+        ref.read(chatRepositoryProvider).purgeExpiredMessages();
+      } catch (_) {}
+    });
+
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
-      final globalAutoDelete = ref.read(authProvider).profile?.autoDeleteDefaultHours ?? 0;
       
-      // Muat preferensi per-kontak: pesan menghilang override
-      final preferences = await repo.getRoomPreferences(widget.chatId);
+      // Muat preferensi pesan menghilang level room (tersinkronisasi untuk kedua pihak)
+      final roomAutoDelete = await repo.getRoomDisappearingHours(widget.chatId);
       
       // Muat preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
       bool savedViewOnce = false;
@@ -159,11 +183,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       if (!mounted) return;
       setState(() {
-        _autoDeleteHours = preferences?.disappearingOverrideHours ?? globalAutoDelete;
+        _autoDeleteHours = roomAutoDelete;
         _isViewOnce = savedViewOnce;
       });
 
-      // Best-effort purge pesan kedaluwarsa (authoritative via cron Supabase).
+      // Best-effort purge pesan kedaluwarsa saat pertama buka chat
       try {
         await repo.purgeExpiredMessages();
       } catch (_) {}
@@ -248,6 +272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void dispose() {
     _presenceHeartbeatTimer?.cancel();
+    _purgeTimer?.cancel();
     // Hentikan live location sharing jika masih aktif saat meninggalkan room
     ref.read(chatActionsProvider).stopLiveLocationShare();
     // Bersihkan penanda room aktif agar notif pesan kembali aktif
@@ -257,6 +282,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     _textController.dispose();
     _scrollController.dispose();
+    _showScrollButton.dispose();
     super.dispose();
   }
 
@@ -624,7 +650,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       try {
         await ref
             .read(chatRepositoryProvider)
-            .updateRoomDisappearingOverride(widget.chatId, choice);
+            .updateRoomDisappearingHours(widget.chatId, choice);
       } catch (e) {
         // Rollback tampilan optimis -- jangan biarkan UI menunjukkan
         // pilihan baru seolah tersimpan padahal RPC gagal (ini persis
@@ -728,7 +754,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
             SizedBox(width: 8),
-            Text('Enkripsi Ujung-ke-Ujung', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Mekaar Aegis Shield (E2EE)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: Column(
@@ -736,7 +762,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Pesan dan panggilan dalam chat ini dilindungi dengan enkripsi ujung-ke-ujung (E2EE) menggunakan pasangan kunci asimetris X25519.',
+              'Pesan dan panggilan dalam chat ini dilindungi oleh Mekaar Aegis Shield dengan enkripsi ujung-ke-ujung (E2EE) menggunakan pasangan kunci asimetris X25519 & ChaCha20-Poly1305.',
               style: TextStyle(color: MekaarColors.textPrimaryOf(context), fontSize: 13),
             ),
             const SizedBox(height: 12),
@@ -827,47 +853,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       }
 
                       final reversed = messages.reversed.toList();
+                      final itemEntries = _buildItemEntries(reversed);
+                      final messageMap = {for (var m in messages) m.id: m};
 
-                      // Build items with date separators interleaved
-                      final itemBuilder = _buildMessageItems(
-                        reversed,
-                        currentUserId,
-                        actions,
-                        forwardingProtection: forwardingProtection,
-                        roomThemeSpec: roomThemeSpec,
-                      );
-
-                      // ShaderMask: bubble memudar tepat di tengah kapsul (Telegram-style)
-                      return ShaderMask(
-                        shaderCallback: (Rect rect) {
-                          final topStop = ((kToolbarHeight * 0.5) / rect.height).clamp(0.0, 1.0);
-                          final bottomStop = (1.0 - (30.0 + keyboardHeight) / rect.height).clamp(topStop, 1.0);
-                          return LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: const [
-                              Colors.transparent, // tengah kapsul header (invisible)
-                              Colors.black,        // bawah kapsul header (full)
-                              Colors.black,        // atas composer (full)
-                              Colors.transparent, // tengah kapsul composer (invisible)
-                            ],
-                            stops: [
-                              0.0,
-                              topStop,
-                              bottomStop,
-                              1.0,
-                            ],
-                          ).createShader(rect);
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        // Padding bawah memberi ruang untuk composer floating + inset keyboard
+                        padding: EdgeInsets.only(top: 8, bottom: 130 + keyboardHeight),
+                        itemCount: itemEntries.length,
+                        itemBuilder: (context, index) {
+                          return _buildLazyMessageItem(
+                            itemEntries[index],
+                            currentUserId,
+                            actions,
+                            messageMap,
+                            forwardingProtection: forwardingProtection,
+                            roomThemeSpec: roomThemeSpec,
+                          );
                         },
-                        blendMode: BlendMode.dstIn,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          reverse: true,
-                          // Padding bawah memberi ruang untuk composer floating + inset keyboard
-                          padding: EdgeInsets.only(top: 8, bottom: 130 + keyboardHeight),
-                          itemCount: itemBuilder.length,
-                          itemBuilder: (context, index) => itemBuilder[index],
-                        ),
                       );
                     },
                     loading: () => const MekaarStateView(
@@ -921,14 +925,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             right: 0,
             bottom: MediaQuery.of(context).viewInsets.bottom + 120,
             child: Center(
-              child: ScrollToBottomButton(
-                visible: _showScrollButton,
-                newMessageCount: _newMessageCount,
-                accentColor: roomThemeSpec.primaryAccentColor,
-                iconColor: roomThemeSpec.iconColor,
-                onTap: () {
-                  _scrollToBottom();
-                  setState(() => _newMessageCount = 0);
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _showScrollButton,
+                builder: (context, showButton, _) {
+                  return ScrollToBottomButton(
+                    visible: showButton,
+                    newMessageCount: _newMessageCount,
+                    accentColor: roomThemeSpec.primaryAccentColor,
+                    iconColor: roomThemeSpec.iconColor,
+                    onTap: () {
+                      _scrollToBottom();
+                      setState(() => _newMessageCount = 0);
+                    },
+                  );
                 },
               ),
             ),
@@ -1222,122 +1231,127 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
 
-  /// Build message list items with date separators and entrance animations.
-  List<Widget> _buildMessageItems(
-    List<Message> messages,
-    String? currentUserId,
-    ChatActionsNotifier actions, {
-    RoomForwardingProtection? forwardingProtection,
-    ChatRoomThemeSpec? roomThemeSpec,
-  }) {
-    final items = <Widget>[];
+  /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
+  List<_ChatItemEntry> _buildItemEntries(List<Message> reversedMessages) {
+    final entries = <_ChatItemEntry>[];
     DateTime? lastDate;
 
-    // Pemetaan ID pesan ke Objek Pesan untuk pencarian cepat (O(1)) saat menampilkan kutipan balas
-    final messageMap = {for (var m in messages) m.id: m};
-
-    for (var i = 0; i < messages.length; i++) {
-      final msg = messages[i];
+    for (var i = 0; i < reversedMessages.length; i++) {
+      final msg = reversedMessages[i];
       final msgDate = DateTime(
         msg.createdAt.year,
         msg.createdAt.month,
         msg.createdAt.day,
       );
 
-      // Insert date separator when date changes
+      // Sisipkan pemisah tanggal jika hari berubah
       if (lastDate == null || msgDate != lastDate) {
-        items.add(
-          ChatDateSeparator(
-            date: msg.createdAt,
-            accentColor: roomThemeSpec?.secondaryAccentColor,
-            textColor: roomThemeSpec?.textColor,
-          ),
-        );
+        entries.add(_ChatItemEntry.dateSeparator(msg.createdAt));
         lastDate = msgDate;
       }
 
-      final isMe = msg.senderId == currentUserId;
-      final canEdit = actions.canEdit(
-        msg,
-        isGuardianRoom: widget.isGuardian,
-      );
+      entries.add(_ChatItemEntry.message(msg));
+    }
+    return entries;
+  }
 
-      Message? replyToMsg;
-      String? replyToSender;
-      if (msg.replyToId != null) {
-        replyToMsg = messageMap[msg.replyToId];
-        if (replyToMsg != null) {
-          if (replyToMsg.senderId == currentUserId) {
-            replyToSender = 'Anda';
-          } else {
-            replyToSender = _participantNames[replyToMsg.senderId] ?? 'Pengirim';
-          }
-        }
-      }
-
-      final bubble = ChatBubble(
-        message: msg,
-        isMe: isMe,
-        canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
-        canUnsend: isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
-        canEdit: isMe && canEdit,
-        canForward: actions.canForward(
-          msg,
-          forwardingProtectionActive:
-              forwardingProtection?.effective ?? false,
-        ),
-        otherLastReadAt: _otherLastRead,
-        showReadReceipts:
-            ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
-        senderName: widget.isGroup ? _participantNames[msg.senderId] : null,
-        replyToMessage: replyToMsg,
-        replyToSenderName: replyToSender,
-        onDelete: () => _handleDeleteMessage(msg),
-        onUnsend: () => _handleUnsendMessage(msg),
-        onReply: (replyMsg) {
-          setState(() {
-            _replyMessage = replyMsg;
-            _editingMessage = null;
-          });
-        },
-        onEdit: (editMsg, newContent) {
-          if (!actions.canEdit(
-            editMsg,
-            isGuardianRoom: widget.isGuardian,
-          )) {
-            return;
-          }
-          ref
-              .read(chatActionsProvider)
-              .editMessage(
-                editMsg.id,
-                newContent,
-                isGuardianRoom: widget.isGuardian,
-              );
-        },
-        onForward: (forwardingProtection?.effective ?? false)
-            ? null
-            : (forwardMsg) => _handleForwardMessage(forwardMsg),
-        onReact: (reactMsg, emoji) =>
-            _handleReactToMessage(reactMsg, emoji),
-      );
-
-      // Wrap with swipe-to-reply gesture
-      items.add(
-        _SwipeToReplyWrapper(
-          onReply: () => setState(() {
-            _replyMessage = msg;
-            _editingMessage = null;
-          }),
-          child: AnimatedAppear(
-            key: ValueKey('bubble_${msg.id}'),
-            child: bubble,
-          ),
-        ),
+  /// Bangun widget pesan individual secara lazy pada index viewport yang sedang aktif.
+  Widget _buildLazyMessageItem(
+    _ChatItemEntry entry,
+    String? currentUserId,
+    ChatActionsNotifier actions,
+    Map<String, Message> messageMap, {
+    RoomForwardingProtection? forwardingProtection,
+    ChatRoomThemeSpec? roomThemeSpec,
+  }) {
+    if (entry.kind == _ChatItemKind.dateSeparator) {
+      return ChatDateSeparator(
+        date: entry.date!,
+        accentColor: roomThemeSpec?.secondaryAccentColor,
+        textColor: roomThemeSpec?.textColor,
       );
     }
 
-    return items;
+    final msg = entry.message!;
+    final isMe = msg.senderId == currentUserId;
+    final canEdit = actions.canEdit(
+      msg,
+      isGuardianRoom: widget.isGuardian,
+    );
+
+    Message? replyToMsg;
+    String? replyToSender;
+    if (msg.replyToId != null) {
+      replyToMsg = messageMap[msg.replyToId];
+      if (replyToMsg != null) {
+        if (replyToMsg.senderId == currentUserId) {
+          replyToSender = 'Anda';
+        } else {
+          replyToSender = _participantNames[replyToMsg.senderId] ?? 'Pengirim';
+        }
+      }
+    }
+
+    final bubble = ChatBubble(
+      message: msg,
+      isMe: isMe,
+      canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
+      canUnsend: isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
+      canEdit: isMe && canEdit,
+      canForward: actions.canForward(
+        msg,
+        forwardingProtectionActive:
+            forwardingProtection?.effective ?? false,
+      ),
+      otherLastReadAt: _otherLastRead,
+      showReadReceipts:
+          ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
+      senderName: widget.isGroup ? _participantNames[msg.senderId] : null,
+      replyToMessage: replyToMsg,
+      replyToSenderName: replyToSender,
+      onDelete: () => _handleDeleteMessage(msg),
+      onUnsend: () => _handleUnsendMessage(msg),
+      onReply: (replyMsg) {
+        setState(() {
+          _replyMessage = replyMsg;
+          _editingMessage = null;
+        });
+      },
+      onEdit: (editMsg, newContent) {
+        if (!actions.canEdit(
+          editMsg,
+          isGuardianRoom: widget.isGuardian,
+        )) {
+          return;
+        }
+        ref
+            .read(chatActionsProvider)
+            .editMessage(
+              editMsg.id,
+              newContent,
+              isGuardianRoom: widget.isGuardian,
+            );
+      },
+      onForward: (forwardingProtection?.effective ?? false)
+          ? null
+          : (forwardMsg) => _handleForwardMessage(forwardMsg),
+      onReact: (reactMsg, emoji) =>
+          _handleReactToMessage(reactMsg, emoji),
+    );
+
+    // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeToReply
+    return RepaintBoundary(
+      child: _SwipeToReplyWrapper(
+        onReply: () => setState(() {
+          _replyMessage = msg;
+          _editingMessage = null;
+        }),
+        child: AnimatedAppear(
+          key: ValueKey('bubble_${msg.id}'),
+          child: bubble,
+        ),
+      ),
+    );
   }
 
   Widget _buildQuickPrivacyBar({

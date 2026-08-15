@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -122,23 +123,11 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   Center(
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 42,
-                          backgroundColor:
-                              MekaarColors.softCoral.withValues(alpha: 0.15),
-                          backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                              ? NetworkImage(avatarUrl)
-                              : null,
-                          child: avatarUrl == null || avatarUrl.isEmpty
-                              ? Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : 'G',
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: MekaarColors.softCoral,
-                                  ),
-                                )
-                              : null,
+                        Avatar(
+                          size: 84,
+                          imageUrl: avatarUrl,
+                          initial: name.isNotEmpty ? name[0] : 'G',
+                          backgroundColor: MekaarColors.softCoral,
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -205,21 +194,10 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                         final memberAvatar = profile['avatar_url'] as String?;
 
                         return ListTile(
-                          leading: CircleAvatar(
-                            radius: 18,
-                            backgroundColor: MekaarColors.surface2Of(context),
-                            backgroundImage: memberAvatar != null && memberAvatar.isNotEmpty
-                                ? NetworkImage(memberAvatar)
-                                : null,
-                            child: memberAvatar == null || memberAvatar.isEmpty
-                                ? Text(
-                                    memberName.isNotEmpty ? memberName[0].toUpperCase() : 'A',
-                                    style: TextStyle(
-                                      color: MekaarColors.textPrimaryOf(context),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
+                          leading: Avatar(
+                            size: 36,
+                            imageUrl: memberAvatar,
+                            initial: memberName.isNotEmpty ? memberName[0] : 'A',
                           ),
                           title: Text(
                             memberName,
