@@ -142,7 +142,7 @@ class TypingNotifier extends StateNotifier<bool> {
       if (currentUserId != null && _channel != null) {
         if (typing) {
           if (!(_debounceTimer?.isActive ?? false)) {
-            _debounceTimer = Timer(const Duration(milliseconds: 1500), () {});
+            _debounceTimer = Timer(const Duration(milliseconds: 2500), () {});
             _channel?.sendBroadcastMessage(
               event: 'typing',
               payload: {
@@ -213,7 +213,6 @@ class ChatActionsNotifier {
     );
 
     _chatRepository.updateLastSeen();
-    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> markViewOnceOpened(String messageId) async {
@@ -229,7 +228,6 @@ class ChatActionsNotifier {
       throw Exception('Tidak dapat mengedit pesan di Chat Guardian');
     }
     await _chatRepository.editMessage(messageId, newContent);
-    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> reactToMessage(String messageId, String emoji) async {
@@ -238,7 +236,6 @@ class ChatActionsNotifier {
 
   Future<void> deleteMessageForEveryone(String messageId) async {
     await _chatRepository.deleteMessageForEveryone(messageId);
-    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> hideMessageForMe(String messageId) async {
@@ -255,7 +252,6 @@ class ChatActionsNotifier {
       mediaUrl: message.mediaUrl,
       type: message.type,
     );
-    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   StreamSubscription<loc.LocationData>? _liveLocationSub;

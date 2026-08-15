@@ -113,26 +113,32 @@ class MessageNotificationListener {
     return true;
   }
 
+  final Map<String, String> _senderNameCache = {};
+  final Map<String, ({bool isMuted, DateTime? mutedUntil, DateTime cachedAt})> _roomMuteCache = {};
+
   Future<void> _notify(
     String roomId,
     String senderId,
     String content,
     bool isEncrypted,
   ) async {
-    // Cek apakah room di-mute oleh user
+    // Cek apakah room di-mute oleh user (dengan cache in-memory)
     if (await _isRoomMuted(roomId)) return;
 
     final repo = _ref.read(chatRepositoryProvider);
-    String senderName = 'Seseorang';
-    try {
-      final profile = await repo.searchProfileById(senderId);
-      if (profile != null) {
-        senderName = (profile['full_name'] as String?) ??
-            (profile['username'] as String?) ??
-            'Seseorang';
+    String senderName = _senderNameCache[senderId] ?? 'Seseorang';
+    if (!_senderNameCache.containsKey(senderId)) {
+      try {
+        final profile = await repo.searchProfileById(senderId);
+        if (profile != null) {
+          senderName = (profile['full_name'] as String?) ??
+              (profile['username'] as String?) ??
+              'Seseorang';
+          _senderNameCache[senderId] = senderName;
+        }
+      } catch (_) {
+        // Fallback ke nama default jika profil gagal diambil.
       }
-    } catch (_) {
-      // Fallback ke nama default jika profil gagal diambil.
     }
 
     // Untuk pesan terenkripsi, gunakan label aman tanpa membebani isolate utama
@@ -145,8 +151,16 @@ class MessageNotificationListener {
     );
   }
 
-  /// Cek apakah room saat ini di-mute oleh user yang sedang login.
+  /// Cek apakah room saat ini di-mute oleh user yang sedang login (dengan TTL 5 menit).
   Future<bool> _isRoomMuted(String roomId) async {
+    final now = DateTime.now();
+    final cached = _roomMuteCache[roomId];
+    if (cached != null && now.difference(cached.cachedAt) < const Duration(minutes: 5)) {
+      if (!cached.isMuted) return false;
+      if (cached.mutedUntil == null) return true;
+      return cached.mutedUntil!.isAfter(DateTime.now().toUtc());
+    }
+
     try {
       final client = _ref.read(supabaseServiceProvider).client;
       final userId = client.auth.currentUser?.id;
@@ -159,15 +173,21 @@ class MessageNotificationListener {
           .eq('profile_id', userId)
           .maybeSingle();
 
-      if (response == null) return false;
+      if (response == null) {
+        _roomMuteCache[roomId] = (isMuted: false, mutedUntil: null, cachedAt: now);
+        return false;
+      }
 
       final isMuted = response['is_muted'] as bool? ?? false;
-      if (!isMuted) return false;
+      final mutedUntilStr = response['muted_until'] as String?;
+      final mutedUntil = mutedUntilStr != null ? DateTime.parse(mutedUntilStr) : null;
 
-      final mutedUntil = response['muted_until'] as String?;
+      _roomMuteCache[roomId] = (isMuted: isMuted, mutedUntil: mutedUntil, cachedAt: now);
+
+      if (!isMuted) return false;
       if (mutedUntil == null) return true; // muted tanpa batas waktu
 
-      return DateTime.parse(mutedUntil).isAfter(DateTime.now().toUtc());
+      return mutedUntil.isAfter(DateTime.now().toUtc());
     } catch (_) {
       return false; // default: jangan blokir notifikasi jika query gagal
     }

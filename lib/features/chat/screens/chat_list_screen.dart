@@ -43,6 +43,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   final List<String> _tabs = ['Semua', 'Guardian', 'Arsip'];
   String get _selectedTab => _tabs[_selectedTabIndex];
 
+  // Cache memoization untuk filter room
+  List<Map<String, dynamic>>? _cachedRooms;
+  List<Map<String, dynamic>>? _cachedFiltered;
+  String? _lastSearchQuery;
+  int? _lastTabIndex;
+  Set<String>? _lastBlockedIds;
+
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
 
@@ -611,36 +618,53 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           orElse: () => <String>{},
         );
 
-    // Filter rooms by query and selected tab
-    final filtered = rooms.where((room) {
-      final name = room['name'] as String;
-      final username = room['otherUsername'] as String? ?? '';
-      final email = room['otherEmail'] as String? ?? '';
-      final otherUserId = room['otherUserId'] as String?;
+    // Memoized filter rooms by query and selected tab
+    final bool isCacheValid = _cachedFiltered != null &&
+        identical(_cachedRooms, rooms) &&
+        _lastSearchQuery == _searchQuery &&
+        _lastTabIndex == _selectedTabIndex &&
+        _lastBlockedIds == blockedIds;
 
-      // Jangan tampilkan chat dengan pengguna yang diblokir.
-      if (otherUserId != null && blockedIds.contains(otherUserId)) {
-        return false;
-      }
+    final List<Map<String, dynamic>> filtered;
+    if (isCacheValid) {
+      filtered = _cachedFiltered!;
+    } else {
+      filtered = rooms.where((room) {
+        final name = room['name'] as String;
+        final username = room['otherUsername'] as String? ?? '';
+        final email = room['otherEmail'] as String? ?? '';
+        final otherUserId = room['otherUserId'] as String?;
 
-      final query = _searchQuery.toLowerCase();
-      final matchQuery =
-          name.toLowerCase().contains(query) ||
-          username.toLowerCase().contains(query) ||
-          email.toLowerCase().contains(query);
+        // Jangan tampilkan chat dengan pengguna yang diblokir.
+        if (otherUserId != null && blockedIds.contains(otherUserId)) {
+          return false;
+        }
 
-      if (!matchQuery) return false;
+        final query = _searchQuery.toLowerCase();
+        final matchQuery =
+            name.toLowerCase().contains(query) ||
+            username.toLowerCase().contains(query) ||
+            email.toLowerCase().contains(query);
 
-      if (_selectedTab == 'Guardian') {
-        return room['isGuardian'] as bool;
-      }
-      if (_selectedTab == 'Arsip') {
-        return room['isArchived'] as bool? ?? false;
-      }
-      // Tab 'Semua' / 'All': exclude archived
-      final isArchived = room['isArchived'] as bool? ?? false;
-      return !isArchived;
-    }).toList();
+        if (!matchQuery) return false;
+
+        if (_selectedTab == 'Guardian') {
+          return room['isGuardian'] as bool;
+        }
+        if (_selectedTab == 'Arsip') {
+          return room['isArchived'] as bool? ?? false;
+        }
+        // Tab 'Semua' / 'All': exclude archived
+        final isArchived = room['isArchived'] as bool? ?? false;
+        return !isArchived;
+      }).toList();
+
+      _cachedRooms = rooms;
+      _cachedFiltered = filtered;
+      _lastSearchQuery = _searchQuery;
+      _lastTabIndex = _selectedTabIndex;
+      _lastBlockedIds = blockedIds;
+    }
 
     if (filtered.isEmpty) {
       final hasSearch = _searchQuery.trim().isNotEmpty;

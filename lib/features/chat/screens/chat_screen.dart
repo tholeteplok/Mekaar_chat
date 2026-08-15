@@ -87,8 +87,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Message? _editingMessage;
   DateTime? _otherLastRead;
   DateTime? _otherLastSeen;
-  // ignore: prefer_final_fields — mutable: updated when partner sends typing event
-  bool _partnerIsTyping = false;
   int _autoDeleteHours = 0;
   final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
   int _newMessageCount = 0;
@@ -207,11 +205,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(isTyping);
   }
 
-  /// Build presence subtitle: typing > online (< 2 min) > last seen (formatted) > hidden privacy
-  String _buildPresenceSubtitle() {
-    final isTyping = ref.watch(typingStateProvider(widget.chatId));
-    if (isTyping) return 'sedang mengetik...';
-
+  /// Format presence subtitle: online (< 2 min) > last seen (formatted) > hidden privacy
+  String _formatPresenceSubtitle() {
     // Jika null: pengguna menyembunyikan "terakhir dilihat" (enforce di server via RPC get_last_seen_for)
     if (_otherLastSeen == null) return 'Terakhir dilihat baru-baru ini';
 
@@ -891,7 +886,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                   ),
                 ),
-                if (_partnerIsTyping) TypingIndicator(dotColor: roomThemeSpec.primaryAccentColor),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final isTyping = ref.watch(typingStateProvider(widget.chatId));
+                    if (!isTyping) return const SizedBox.shrink();
+                    return TypingIndicator(dotColor: roomThemeSpec.primaryAccentColor);
+                  },
+                ),
               ],
             ),
           ),
@@ -951,270 +952,155 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CustomAppBar(
-                  isFloating: true,
-                  title: widget.chatName,
-                  avatarInitial: widget.chatAvatar,
-                  avatarUrl: widget.chatAvatarUrl,
-                  isGuardian: widget.isGuardian,
-                  showOnlineIndicator: true,
-                  isOnline: _isCurrentlyOnline || _partnerIsTyping,
-                  subtitle: _buildPresenceSubtitle(),
-                  glassBorder: roomThemeSpec.glassBorder,
-                  glassBackgroundColor: roomThemeSpec.glassBackgroundColor,
-                  iconColor: roomThemeSpec.iconColor,
-                  textColor: roomThemeSpec.textColor,
-                  subtitleColor: roomThemeSpec.subtitleColor,
-                  onAvatarTap: widget.isGroup
-                      ? () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.groupDetails,
-                            arguments: {
-                              'roomId': widget.chatId,
-                              'groupName': widget.chatName,
-                              'groupAvatarUrl': widget.chatAvatarUrl,
-                            },
-                          )
-                      : (widget.otherUserId != null
+                Consumer(
+                  builder: (context, ref, _) {
+                    final isTyping = ref.watch(typingStateProvider(widget.chatId));
+                    return CustomAppBar(
+                      isFloating: true,
+                      title: widget.chatName,
+                      avatarInitial: widget.chatAvatar,
+                      avatarUrl: widget.chatAvatarUrl,
+                      isGuardian: widget.isGuardian,
+                      showOnlineIndicator: true,
+                      isOnline: _isCurrentlyOnline || isTyping,
+                      subtitle: isTyping ? 'sedang mengetik...' : _formatPresenceSubtitle(),
+                      glassBorder: roomThemeSpec.glassBorder,
+                      glassBackgroundColor: roomThemeSpec.glassBackgroundColor,
+                      iconColor: roomThemeSpec.iconColor,
+                      textColor: roomThemeSpec.textColor,
+                      subtitleColor: roomThemeSpec.subtitleColor,
+                      onAvatarTap: widget.isGroup
                           ? () => Navigator.pushNamed(
                                 context,
-                                AppRoutes.contactSettings,
+                                AppRoutes.groupDetails,
                                 arguments: {
                                   'roomId': widget.chatId,
-                                  'chatName': widget.chatName,
-                                  'chatAvatar': widget.chatAvatar,
-                                  'otherUserId': widget.otherUserId!,
-                                  'isGuardian': widget.isGuardian,
+                                  'groupName': widget.chatName,
+                                  'groupAvatarUrl': widget.chatAvatarUrl,
                                 },
                               )
-                          : null),
-                  actions: [
-                    // Voice Call icon
-                    IconButton(
-                      icon: Icon(
-                        SolarIconsOutline.phone,
-                        color: roomThemeSpec.primaryAccentColor,
-                      ),
-                      onPressed: () => _initiateCall('voice'),
-                      tooltip: 'Panggilan Suara',
-                    ),
-                    // Actions Popup Menu
-                    PopupMenuButton<String>(
-                      icon: Icon(
-                        SolarIconsOutline.menuDots,
-                        color: roomThemeSpec.primaryAccentColor,
-                      ),
-                      onSelected: (value) async {
-                        if (value == 'video') {
-                          _initiateCall('video');
-                        } else if (value == 'screen_protection') {
-                          final nextValue = !(protection?.callerEnabled ?? true);
-                          final ctx = context;
-                          try {
-                            await ref
-                                .read(screenProtectionControllerProvider)
-                                .setRoomPreference(widget.chatId, nextValue);
-                          } catch (_) {
-                            if (!ctx.mounted) return;
-                            MekaarSnackbar.error(
-                              ctx,
-                              'Pengaturan proteksi belum dapat disinkronkan',
-                            );
-                          }
-                        } else if (value == 'forwarding_protection') {
-                          final nextValue = !(forwardingProtection?.callerEnabled ?? false);
-                          final ctx = context;
-                          try {
-                            await ref
-                                .read(forwardingProtectionControllerProvider)
-                                .setRoomPreference(widget.chatId, nextValue);
-                          } catch (_) {
-                            if (!ctx.mounted) return;
-                            MekaarSnackbar.error(
-                              ctx,
-                              'Pengaturan larang teruskan belum dapat disinkronkan',
-                            );
-                          }
-                        } else if (value == 'theme') {
-                          Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
-                        } else if (value == 'auto_delete') {
-                          _showAutoDeleteMenu();
-                        } else if (value == 'view_once') {
-                          _toggleViewOnce();
-                        } else if (value == 'clear') {
-                          _confirmClearHistory();
-                        } else if (value == 'e2ee_info') {
-                          _showE2eeInfoDialog();
-                        } else if (value == 'delete') {
-                          _confirmDeleteChat();
-                        }
-                      },
-                      itemBuilder: (BuildContext context) => [
-                        // E2EE Info (hanya informasi, dipindah ke menu)
-                        PopupMenuItem<String>(
-                          value: 'e2ee_info',
-                          child: Row(
-                            children: [
-                              Icon(
-                                SolarIconsOutline.shieldKeyhole,
-                                size: 20,
-                                color: MekaarColors.guardianTeal,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Informasi Enkripsi E2EE'),
-                            ],
+                          : (widget.otherUserId != null
+                              ? () => Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.contactSettings,
+                                    arguments: {
+                                      'roomId': widget.chatId,
+                                      'chatName': widget.chatName,
+                                      'chatAvatar': widget.chatAvatar,
+                                      'otherUserId': widget.otherUserId!,
+                                      'isGuardian': widget.isGuardian,
+                                    },
+                                  )
+                              : null),
+                      actions: [
+                        // Voice Call icon
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.phone,
+                            color: roomThemeSpec.primaryAccentColor,
                           ),
+                          onPressed: () => _initiateCall('voice'),
+                          tooltip: 'Panggilan Suara',
                         ),
-                        PopupMenuItem<String>(
-                          value: 'video',
-                          child: Row(
-                            children: [
-                              Icon(
-                                SolarIconsOutline.videocamera,
-                                size: 20,
-                                color: MekaarColors.textPrimaryOf(context),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Panggilan Video'),
-                            ],
+                        // Actions Popup Menu
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            SolarIconsOutline.menuDots,
+                            color: roomThemeSpec.primaryAccentColor,
                           ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'theme',
-                          child: Row(
-                            children: [
-                              Icon(
-                                SolarIconsOutline.palette,
-                                size: 20,
-                                color: MekaarColors.textPrimaryOf(context),
+                          onSelected: (value) async {
+                            if (value == 'video') {
+                              _initiateCall('video');
+                            } else if (value == 'theme') {
+                              Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
+                            } else if (value == 'clear') {
+                              _confirmClearHistory();
+                            } else if (value == 'e2ee_info') {
+                              _showE2eeInfoDialog();
+                            } else if (value == 'delete') {
+                              _confirmDeleteChat();
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem<String>(
+                              value: 'e2ee_info',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    SolarIconsOutline.shieldKeyhole,
+                                    size: 20,
+                                    color: MekaarColors.guardianTeal,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('Informasi Enkripsi E2EE'),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              const Text('Tema & Wallpaper Chat'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'screen_protection',
-                          child: Row(
-                            children: [
-                              Icon(
-                                (protection?.callerEnabled ?? true)
-                                    ? SolarIconsBold.shieldCheck
-                                    : SolarIconsOutline.shieldCross,
-                                size: 20,
-                                color: (protection?.callerEnabled ?? true)
-                                    ? MekaarColors.softCoral
-                                    : MekaarColors.textPrimaryOf(context),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'video',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    SolarIconsOutline.videocamera,
+                                    size: 20,
+                                    color: MekaarColors.textPrimaryOf(context),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('Panggilan Video'),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                (protection?.callerEnabled ?? true)
-                                    ? 'Proteksi Layar (Aktif)'
-                                    : 'Proteksi Layar (Nonaktif)',
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'theme',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    SolarIconsOutline.palette,
+                                    size: 20,
+                                    color: MekaarColors.textPrimaryOf(context),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('Tema & Wallpaper Chat'),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'forwarding_protection',
-                          child: Row(
-                            children: [
-                              Icon(
-                                (forwardingProtection?.callerEnabled ?? false)
-                                    ? SolarIconsBold.forbiddenCircle
-                                    : SolarIconsOutline.forward,
-                                size: 20,
-                                color: (forwardingProtection?.callerEnabled ?? false)
-                                    ? MekaarColors.softCoral
-                                    : MekaarColors.textPrimaryOf(context),
+                            ),
+                            const PopupMenuDivider(),
+                            PopupMenuItem<String>(
+                              value: 'clear',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    SolarIconsOutline.eraser,
+                                    size: 20,
+                                    color: MekaarColors.warning,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('Bersihkan Obrolan'),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                (forwardingProtection?.callerEnabled ?? false)
-                                    ? 'Larang Teruskan (Aktif)'
-                                    : 'Larang Teruskan (Nonaktif)',
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    SolarIconsOutline.trashBinTrash,
+                                    size: 20,
+                                    color: MekaarColors.sosRed,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Hapus Chat',
+                                    style: TextStyle(color: MekaarColors.sosRed),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'auto_delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                _autoDeleteHours > 0
-                                    ? SolarIconsBold.history
-                                    : SolarIconsOutline.history,
-                                size: 20,
-                                color: _autoDeleteHours > 0
-                                    ? MekaarColors.softCoral
-                                    : MekaarColors.textPrimaryOf(context),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _autoDeleteHours > 0
-                                    ? 'Pesan Menghilang (${_autoDeleteLabel()})'
-                                    : 'Pesan Menghilang (Nonaktif)',
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'view_once',
-                          child: Row(
-                            children: [
-                              Icon(
-                                _isViewOnce
-                                    ? SolarIconsBold.eyeClosed
-                                    : SolarIconsOutline.eyeClosed,
-                                size: 20,
-                                color: _isViewOnce
-                                    ? MekaarColors.softCoral
-                                    : MekaarColors.textPrimaryOf(context),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isViewOnce
-                                    ? 'Mode Sekali Lihat (Aktif)'
-                                    : 'Mode Sekali Lihat (Nonaktif)',
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'clear',
-                          child: Row(
-                            children: [
-                              Icon(
-                                SolarIconsOutline.trashBinMinimalistic,
-                                size: 20,
-                                color: MekaarColors.textPrimaryOf(context),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Bersihkan Riwayat'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem<String>(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                SolarIconsOutline.trashBinMinimalistic,
-                                size: 20,
-                                color: MekaarColors.sosRed,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Hapus Obrolan',
-                                style: TextStyle(color: MekaarColors.sosRed),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
                 _buildQuickPrivacyBar(
                   isScreenProtectionOn: protection?.callerEnabled ?? true,

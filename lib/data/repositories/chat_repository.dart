@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
@@ -118,13 +119,12 @@ class ChatRepository {
       DateTime lastMessageTime = DateTime.now();
 
       if (lastMsgResponse != null) {
-        var lastMsg = Message.fromJson(lastMsgResponse);
-        if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty && !lastMsg.isDeleted) {
-          final plain = await E2eeService.instance.decryptForRoom(roomId, lastMsg.content);
-          lastMsg = lastMsg.copyWith(content: plain);
-        }
+        final lastMsg = Message.fromJson(lastMsgResponse);
         if (lastMsg.isDeleted) {
           lastMessageText = 'Pesan telah dihapus';
+        } else if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty) {
+          // Tampilkan label aman tanpa membebani isolate utama dengan puluhan dekripsi paralel
+          lastMessageText = '🔒 Pesan terenkripsi';
         } else if (lastMsg.type == MessageType.image) {
           lastMessageText = '📷 Foto';
         } else if (lastMsg.type == MessageType.voice) {
@@ -163,8 +163,8 @@ class ChatRepository {
             unreadQuery = unreadQuery.gt('created_at', myHistoryCleared);
           }
 
-          final unreadResp = await unreadQuery;
-          unreadCount = (unreadResp as List).length;
+          final unreadResp = await unreadQuery.count(CountOption.exact);
+          unreadCount = unreadResp.count;
         }
       } catch (_) {}
 
@@ -240,22 +240,28 @@ class ChatRepository {
         .eq('profile_id', userId)
         .eq('chat_rooms.room_type', type);
 
-    for (final row in checkQuery) {
-      final roomId = row['room_id'] as String;
-      final checkOther = await _supabaseService.client
+    final roomIds = (checkQuery as List)
+        .map((r) => r['room_id'] as String?)
+        .whereType<String>()
+        .toList();
+
+    if (roomIds.isNotEmpty) {
+      final existingMatch = await _supabaseService.client
           .from('room_participants')
-          .select()
-          .eq('room_id', roomId)
+          .select('room_id')
+          .inFilter('room_id', roomIds)
           .eq('profile_id', otherUserId)
           .maybeSingle();
-      if (checkOther != null) {
+
+      if (existingMatch != null) {
+        final matchedRoomId = existingMatch['room_id'] as String;
         // Restore for current user if deleted — NEVER clear history_cleared_at!
         await _supabaseService.client
             .from('room_participants')
             .update({'deleted_at': null})
-            .eq('room_id', roomId)
+            .eq('room_id', matchedRoomId)
             .eq('profile_id', userId);
-        return roomId;
+        return matchedRoomId;
       }
     }
 
@@ -333,22 +339,10 @@ class ChatRepository {
             msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
           }
 
-          // Dynamically refresh hiddenMsgIds per stream update
-          Set<String> currentHiddenIds = {};
-          try {
-            final hiddenData = await _supabaseService.client
-                .from('hidden_messages')
-                .select('message_id')
-                .eq('profile_id', userId);
-            for (var row in hiddenData) {
-              currentHiddenIds.add(row['message_id'] as String);
-            }
-          } catch (_) {}
-
-          // Filter out silent_deleted, hidden, dan expired messages
+          // Filter out silent_deleted, hidden (dari cache in-memory), dan expired messages
           final now = DateTime.now().toUtc();
           msgs = msgs.where((m) {
-            if (m.isSilentDeleted || currentHiddenIds.contains(m.id)) return false;
+            if (m.isSilentDeleted || hiddenMsgIds.contains(m.id)) return false;
             if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) return false;
             return true;
           }).toList();
@@ -705,8 +699,9 @@ class ChatRepository {
           .eq('room_id', roomId)
           .neq('sender_id', userId)
           .gt('created_at', lastReadAt)
-          .eq('is_deleted', false);
-      return (response as List).length;
+          .eq('is_deleted', false)
+          .count(CountOption.exact);
+      return response.count;
     } catch (_) {
       return 0;
     }
@@ -763,7 +758,6 @@ class ChatRepository {
   }
 
   /// Clear Chat History for current user in a room
-  /// Clear Chat History for current user in a room
   Future<void> clearChatHistory(String roomId) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
@@ -778,21 +772,12 @@ class ChatRepository {
           .eq('profile_id', userId);
     } catch (_) {}
 
-    // Double-Lock Protection: Upsert all existing message IDs in room to hidden_messages
+    // Double-Lock Protection: Eksekusi batch hide di sisi server via RPC
     try {
-      final existingMsgs = await _supabaseService.client
-          .from('messages')
-          .select('id')
-          .eq('room_id', roomId);
-
-      if (existingMsgs.isNotEmpty) {
-        final rows = existingMsgs
-            .map((m) => {'profile_id': userId, 'message_id': m['id'] as String})
-            .toList();
-        await _supabaseService.client
-            .from('hidden_messages')
-            .upsert(rows, onConflict: 'profile_id,message_id');
-      }
+      await _supabaseService.client.rpc(
+        'hide_all_room_messages',
+        params: {'p_room_id': roomId},
+      );
     } catch (_) {}
   }
 
@@ -814,21 +799,12 @@ class ChatRepository {
           .eq('profile_id', userId);
     } catch (_) {}
 
-    // Double-Lock Protection: Upsert all existing message IDs in room to hidden_messages
+    // Double-Lock Protection: Eksekusi batch hide di sisi server via RPC
     try {
-      final existingMsgs = await _supabaseService.client
-          .from('messages')
-          .select('id')
-          .eq('room_id', roomId);
-
-      if (existingMsgs.isNotEmpty) {
-        final rows = existingMsgs
-            .map((m) => {'profile_id': userId, 'message_id': m['id'] as String})
-            .toList();
-        await _supabaseService.client
-            .from('hidden_messages')
-            .upsert(rows, onConflict: 'profile_id,message_id');
-      }
+      await _supabaseService.client.rpc(
+        'hide_all_room_messages',
+        params: {'p_room_id': roomId},
+      );
     } catch (_) {}
   }
 
