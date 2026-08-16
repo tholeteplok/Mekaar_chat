@@ -331,6 +331,12 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => Navigator.pushNamed(context, AppRoutes.blockedList),
                 ),
               ],
+              SettingsNavTile(
+                icon: SolarIconsOutline.infoCircle,
+                title: 'Tentang MEKAAR',
+                subtitle: 'Versi aplikasi, pembaruan, filosofi & lisensi',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+              ),
             ],
           ),
         ),

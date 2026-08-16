@@ -12,6 +12,7 @@ import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../providers/chat_provider.dart';
+import '../providers/private_vault_provider.dart';
 
 class CreateGroupSelectMembersScreen extends ConsumerStatefulWidget {
   const CreateGroupSelectMembersScreen({super.key});
@@ -43,6 +44,18 @@ class _CreateGroupSelectMembersScreenState
   @override
   Widget build(BuildContext context) {
     final contactsAsync = ref.watch(contactsProvider);
+    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
+
+    final hiddenUserIds = <String>{};
+    if (!isVaultUnlocked) {
+      for (final r in chatRooms) {
+        if (hiddenRoomIds.contains(r['id']) && r['otherUserId'] != null) {
+          hiddenUserIds.add(r['otherUserId'] as String);
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: MekaarColors.backgroundOf(context),
@@ -159,7 +172,15 @@ class _CreateGroupSelectMembersScreenState
             child: contactsAsync.when(
               data: (contacts) {
                 final filtered = contacts.where((c) {
-                  final name = ((c['display_name'] ?? c['full_name'] ?? c['username'] ?? '') as String).toLowerCase();
+                  final userId = c['id'] as String?;
+                  if (userId != null && hiddenUserIds.contains(userId)) {
+                    return false;
+                  }
+                  final name = ((c['display_name'] ??
+                          c['full_name'] ??
+                          c['username'] ??
+                          '') as String)
+                      .toLowerCase();
                   return name.contains(_searchQuery);
                 }).toList();
 

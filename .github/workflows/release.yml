@@ -1,0 +1,81 @@
+name: MEKAAR Auto Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to release (e.g. v1.1.0)'
+        required: true
+        default: 'v1.0.1'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build APK & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Create Build Environment (.env)
+        run: |
+          cat <<EOF > .env
+          SUPABASE_URL=https://dummy.supabase.co
+          SUPABASE_ANON_KEY=dummy_anon_key_for_build
+          EOF
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Run Test Suite
+        run: flutter test
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Rename Release Asset
+        id: asset_info
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "main" ]; then
+            TAG_NAME="${{ github.event.inputs.version }}"
+          fi
+          OUTPUT_APK="build/app/outputs/flutter-apk/app-release.apk"
+          TARGET_APK="build/app/outputs/flutter-apk/Mekaar-${TAG_NAME}.apk"
+          cp "$OUTPUT_APK" "$TARGET_APK"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "target_apk=$TARGET_APK" >> $GITHUB_OUTPUT
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.asset_info.outputs.tag_name }}
+          name: MEKAAR ${{ steps.asset_info.outputs.tag_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ${{ steps.asset_info.outputs.target_apk }}
+            build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

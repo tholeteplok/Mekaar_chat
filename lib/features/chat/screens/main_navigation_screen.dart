@@ -10,6 +10,7 @@ import '../../guardian/providers/trip_permission_provider.dart';
 import 'chat_list_screen.dart';
 import 'contact_list_screen.dart';
 import '../providers/chat_provider.dart';
+import '../providers/private_vault_provider.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -69,11 +70,19 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
     // Hitung total unread di semua room untuk badge ikon Pesan
+    // (Abaikan room tersembunyi saat vault terkunci agar indikator tidak bocor)
+    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final chatRoomsState = ref.watch(chatRoomsProvider);
     final totalUnread = chatRoomsState.maybeWhen(
       data: (rooms) => rooms.fold<int>(
         0,
-        (sum, r) => sum + ((r['unreadCount'] as int?) ?? 0),
+        (sum, r) {
+          if (!isVaultUnlocked && hiddenRoomIds.contains(r['id'])) {
+            return sum;
+          }
+          return sum + ((r['unreadCount'] as int?) ?? 0);
+        },
       ),
       orElse: () => 0,
     );

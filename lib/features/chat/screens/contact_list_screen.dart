@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -5,15 +6,19 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/repositories/private_contact_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/private_vault_provider.dart';
 
 class ContactListScreen extends ConsumerStatefulWidget {
   const ContactListScreen({super.key});
@@ -23,11 +28,58 @@ class ContactListScreen extends ConsumerStatefulWidget {
 }
 
 class _ContactListScreenState extends ConsumerState<ContactListScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+  late final TextEditingController _searchController;
+  Timer? _vaultDebounceTimer;
   String _searchQuery = '';
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _vaultDebounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // Auto-relock vault seketika saat aplikasi diminimize atau background
+      if (ref.read(privateVaultUnlockedProvider)) {
+        ref.read(privateVaultUnlockedProvider.notifier).state = false;
+      }
+    }
+  }
+
+  Future<void> _checkVaultPasscode(String query) async {
+    if (query.trim().isEmpty) return;
+    final repo = ref.read(privateContactRepositoryProvider);
+    final isMatch = await repo.verifyPasscode(query.trim());
+    if (isMatch && mounted) {
+      _searchController.clear();
+      setState(() {
+        _searchQuery = '';
+      });
+      FocusScope.of(context).unfocus();
+      HapticService.trigger(MekaarHapticIntent.success);
+      ref.read(privateVaultUnlockedProvider.notifier).state = true;
+      MekaarSnackbar.success(
+        context,
+        'Koleksi Kontak & Obrolan Tersembunyi Dibuka',
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +88,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final wasDuress = authState.lastUnlockWasDuress;
     final roomsAsync = ref.watch(chatRoomsProvider);
     final currentUserId = ref.watch(supabaseServiceProvider).currentUserId;
+    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
 
     return roomsAsync.when(
       loading: () => const MekaarStateView(
@@ -53,21 +107,30 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       data: (rooms) {
         // Saring data room:
         // 1. Bukan room perangkat sendiri (otherUserId == currentUserId)
-        final contactRooms = rooms.where((r) => r['otherUserId'] != currentUserId).toList();
+        // 2. Jika vault terkunci, jangan sertakan room yang terdaftar di hiddenRoomIds
+        final contactRooms = rooms.where((r) {
+          if (r['otherUserId'] == currentUserId) return false;
+          if (!isVaultUnlocked && hiddenRoomIds.contains(r['id'])) {
+            return false;
+          }
+          return true;
+        }).toList();
 
-        // 2. Deduplikasi kontak unik berdasarkan otherUserId (utamakan room non-guardian/normal)
+        // 3. Deduplikasi kontak unik berdasarkan otherUserId (utamakan room non-guardian/normal)
         final Map<String, Map<String, dynamic>> uniqueContacts = {};
         for (final room in contactRooms) {
           final otherUserId = room['otherUserId'] as String;
           final existing = uniqueContacts[otherUserId];
-          if (existing == null || (existing['isGuardian'] == true && room['isGuardian'] == false)) {
+          if (existing == null ||
+              (existing['isGuardian'] == true && room['isGuardian'] == false)) {
             uniqueContacts[otherUserId] = room;
           }
         }
 
-        final allContacts = wasDuress ? <Map<String, dynamic>>[] : uniqueContacts.values.toList();
+        final allContacts =
+            wasDuress ? <Map<String, dynamic>>[] : uniqueContacts.values.toList();
 
-        // 3. Filter berdasarkan pencarian
+        // 4. Filter berdasarkan pencarian
         final filteredContacts = allContacts.where((contact) {
           final name = (contact['name'] as String).toLowerCase();
           final username = (contact['otherUsername'] as String).toLowerCase();
@@ -76,7 +139,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           return name.contains(q) || username.contains(q) || email.contains(q);
         }).toList();
 
-        // 4. Urutkan secara alfabetis berdasarkan nama
+        // 5. Urutkan secara alfabetis berdasarkan nama
         filteredContacts.sort((a, b) => (a['name'] as String)
             .toLowerCase()
             .compareTo((b['name'] as String).toLowerCase()));
@@ -89,14 +152,97 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const MekaarTabHeader(title: 'Kontak'),
+                // Banner Private Vault Aktif (jika vault sedang terbuka)
+                if (isVaultUnlocked)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.cyan.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: MekaarColors.cyan.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            SolarIconsOutline.lockUnlocked,
+                            color: MekaarColors.cyan,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Private Vault Terbuka',
+                              style: MekaarTypography.bodySM.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: MekaarColors.cyan,
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              HapticService.trigger(
+                                  MekaarHapticIntent.selection);
+                              ref
+                                  .read(privateVaultUnlockedProvider.notifier)
+                                  .state = false;
+                              MekaarSnackbar.info(
+                                context,
+                                'Private Vault Dikunci',
+                              );
+                            },
+                            icon: const Icon(
+                              SolarIconsOutline.lock,
+                              size: 16,
+                              color: MekaarColors.cyan,
+                            ),
+                            label: const Text(
+                              'Kunci',
+                              style: TextStyle(
+                                color: MekaarColors.cyan,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: MekaarSearchField(
+                    controller: _searchController,
                     hintText: 'Cari nama, username, atau email...',
                     onChanged: (val) {
                       setState(() {
                         _searchQuery = val.trim();
                       });
+                      _vaultDebounceTimer?.cancel();
+                      if (val.trim().length >= 4) {
+                        _vaultDebounceTimer =
+                            Timer(const Duration(milliseconds: 400), () {
+                          _checkVaultPasscode(val);
+                        });
+                      }
                     },
                   ),
                 ),
@@ -104,7 +250,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 Expanded(
                   child: filteredContacts.isEmpty
                       ? _buildEmptyState()
-                      : _buildContactsList(filteredContacts),
+                      : _buildContactsList(filteredContacts, hiddenRoomIds, isVaultUnlocked),
                 ),
               ],
             ),
@@ -154,19 +300,29 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     );
   }
 
-  Widget _buildContactsList(List<Map<String, dynamic>> contacts) {
+  Widget _buildContactsList(
+    List<Map<String, dynamic>> contacts,
+    Set<String> hiddenRoomIds,
+    bool isVaultUnlocked,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? MekaarColors.textPrimary : const Color(0xFF1B2145);
-    final mutedColor = isDark ? MekaarColors.textMuted : const Color(0xFF56617F);
+    final primaryColor =
+        isDark ? MekaarColors.textPrimary : const Color(0xFF1B2145);
+    final mutedColor =
+        isDark ? MekaarColors.textMuted : const Color(0xFF56617F);
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.md, vertical: MekaarSpacing.xs).copyWith(bottom: 110),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MekaarSpacing.md,
+        vertical: MekaarSpacing.xs,
+      ).copyWith(bottom: 110),
       itemCount: contacts.length,
       itemBuilder: (context, index) {
         final contact = contacts[index];
         final name = contact['name'] as String;
         final avatar = contact['avatar'] as String;
         final isGuardian = contact['isGuardian'] as bool? ?? false;
+        final isHidden = hiddenRoomIds.contains(contact['id']);
         final username = contact['otherUsername'] as String;
         final email = contact['otherEmail'] as String;
 
@@ -174,7 +330,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
           child: CustomCard(
             margin: const EdgeInsets.only(bottom: MekaarSpacing.sm),
-            padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.sm, vertical: MekaarSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+              horizontal: MekaarSpacing.sm,
+              vertical: MekaarSpacing.xs,
+            ),
             onTap: () {
               Navigator.pushNamed(
                 context,
@@ -211,10 +370,45 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (isHidden && isVaultUnlocked) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.cyan.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            SolarIconsOutline.lockKeyhole,
+                            size: 11,
+                            color: MekaarColors.cyan,
+                          ),
+                          SizedBox(width: 3),
+                          Text(
+                            'Vault',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: MekaarColors.cyan,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (isGuardian) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: MekaarColors.guardianLight,
                         borderRadius: BorderRadius.circular(4),
