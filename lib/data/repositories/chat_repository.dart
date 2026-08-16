@@ -864,6 +864,90 @@ class ChatRepository {
     }
   }
 
+  /// Set pembersihan terjadwal level ruangan (One-Shot atau Daily).
+  /// Memanggil RPC `set_room_scheduled_wipe`.
+  Future<void> setRoomScheduledWipe({
+    required String roomId,
+    required String mode, // 'off' | 'one_shot' | 'daily'
+    String? timeString, // e.g. '14:00:00'
+    DateTime? targetAtUtc,
+  }) async {
+    await _supabaseService.client.rpc(
+      'set_room_scheduled_wipe',
+      params: {
+        'p_room_id': roomId,
+        'p_time': timeString,
+        'p_mode': mode,
+        'p_target_at': targetAtUtc?.toIso8601String(),
+      },
+    );
+  }
+
+  /// Ambil setelan pembersihan terjadwal level ruangan.
+  Future<Map<String, dynamic>?> getRoomScheduledWipe(String roomId) async {
+    try {
+      final room = await _supabaseService.client
+          .from('chat_rooms')
+          .select(
+            'scheduled_wipe_time, scheduled_wipe_mode, scheduled_wipe_target_at, disappearing_hours',
+          )
+          .eq('id', roomId)
+          .maybeSingle();
+      return room;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Eksekusi pembersihan riwayat chat sekarang (manual / timer terpicu).
+  /// Memanggil RPC `execute_room_scheduled_wipe`.
+  Future<int> executeRoomScheduledWipe(String roomId) async {
+    try {
+      final result = await _supabaseService.client.rpc(
+        'execute_room_scheduled_wipe',
+        params: {'p_room_id': roomId},
+      );
+      return (result as int?) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Set status Burn on Exit (Hapus pesan saat keluar layar obrolan).
+  Future<void> setRoomBurnOnExit(String roomId, bool enabled) async {
+    await _supabaseService.client.rpc(
+      'set_room_burn_on_exit',
+      params: {
+        'p_room_id': roomId,
+        'p_enabled': enabled,
+      },
+    );
+  }
+
+  /// Dapatkan status Burn on Exit untuk sebuah room.
+  Future<bool> getRoomBurnOnExit(String roomId) async {
+    try {
+      final room = await _supabaseService.client
+          .from('chat_rooms')
+          .select('burn_on_exit')
+          .eq('id', roomId)
+          .maybeSingle();
+      return (room?['burn_on_exit'] as bool?) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Eksekusi penghapusan pesan saat keluar room (Burn on Exit).
+  Future<void> executeRoomBurnOnExit(String roomId) async {
+    try {
+      await _supabaseService.client.rpc(
+        'execute_room_burn_on_exit',
+        params: {'p_room_id': roomId},
+      );
+    } catch (_) {}
+  }
+
   /// Set pesan menghilang override untuk satu room (backward compatibility).
   Future<void> updateRoomDisappearingOverride(String roomId, int? hours) async {
     await updateRoomDisappearingHours(roomId, hours ?? 0);

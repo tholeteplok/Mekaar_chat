@@ -5,7 +5,8 @@ import '../constants/icons.dart';
 class MekaarDialog extends StatelessWidget {
   final Widget? icon;
   final String title;
-  final String message;
+  final String? message;
+  final Widget? customContent;
   final List<Widget> actions;
   final bool isDestructive;
 
@@ -13,7 +14,8 @@ class MekaarDialog extends StatelessWidget {
     super.key,
     this.icon,
     required this.title,
-    required this.message,
+    this.message,
+    this.customContent,
     required this.actions,
     this.isDestructive = false,
   });
@@ -157,14 +159,17 @@ class MekaarDialog extends StatelessWidget {
           ),
         ],
       ),
-      content: Text(
-        message,
-        style: TextStyle(
-          fontSize: 14,
-          height: 1.45,
-          color: colorScheme.onSurfaceVariant,
-        ),
-      ),
+      content: customContent ??
+          (message != null
+              ? Text(
+                  message!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.45,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                )
+              : null),
       actions: actions,
     );
   }

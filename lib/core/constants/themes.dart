@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
+import 'dimensions.dart';
 import 'typography.dart';
 
 class MekaarTheme {
@@ -122,6 +123,23 @@ class MekaarTheme {
           shape: const StadiumBorder(), // Pill shape
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: const Color(0xF6FFFFFF),
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MekaarRadius.md),
+          side: BorderSide(
+            color: Colors.black.withValues(alpha: 0.10),
+            width: 1,
+          ),
+        ),
+        textStyle: const TextStyle(
+          color: Color(0xFF1B2145),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -288,6 +306,23 @@ class MekaarTheme {
               const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: const Color(0xF6FFFFFF),
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MekaarRadius.md),
+          side: BorderSide(
+            color: Colors.black.withValues(alpha: 0.10),
+            width: 1,
+          ),
+        ),
+        textStyle: TextStyle(
+          color: onSurface,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 
@@ -407,6 +442,23 @@ class MekaarTheme {
           shape: const StadiumBorder(), // Pill shape
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: const Color(0xF2181D2E),
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MekaarRadius.md),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.16),
+            width: 1,
+          ),
+        ),
+        textStyle: const TextStyle(
+          color: MekaarColors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

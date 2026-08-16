@@ -191,7 +191,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
   Widget _buildLogItem(SecurityLog log) {
     final iconData = _getIconForEvent(log.eventType);
     final color = _getColorForEvent(log.eventType);
-    final timeStr = DateFormat('dd MMM, HH:mm').format(log.createdAt);
+    final timeStr = DateFormat('dd MMM, HH:mm').format(log.createdAt.toLocal());
 
     return CustomCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

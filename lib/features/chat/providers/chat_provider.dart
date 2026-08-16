@@ -152,13 +152,16 @@ class TypingNotifier extends StateNotifier<bool> {
             );
           }
         } else {
-          _channel?.sendBroadcastMessage(
-            event: 'typing',
-            payload: {
-              'sender_id': currentUserId,
-              'is_typing': false,
-            },
-          );
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+            _channel?.sendBroadcastMessage(
+              event: 'typing',
+              payload: {
+                'sender_id': currentUserId,
+                'is_typing': false,
+              },
+            );
+          });
         }
       }
     } catch (_) {}
@@ -169,7 +172,6 @@ class TypingNotifier extends StateNotifier<bool> {
     _debounceTimer?.cancel();
     _hideTimer?.cancel();
     _channel?.unsubscribe();
-    _channel = null;
     super.dispose();
   }
 }
@@ -196,9 +198,12 @@ class ChatActionsNotifier {
     bool isViewOnce = false,
     String? replyToId,
     int? autoDeleteHours,
+    DateTime? scheduledWipeTargetAt,
   }) async {
     DateTime? autoDeleteAt;
-    if (autoDeleteHours != null && autoDeleteHours > 0) {
+    if (scheduledWipeTargetAt != null && scheduledWipeTargetAt.isAfter(DateTime.now())) {
+      autoDeleteAt = scheduledWipeTargetAt;
+    } else if (autoDeleteHours != null && autoDeleteHours > 0) {
       autoDeleteAt = DateTime.now().add(Duration(hours: autoDeleteHours));
     }
 
@@ -238,11 +243,11 @@ class ChatActionsNotifier {
     await _chatRepository.deleteMessageForEveryone(messageId);
   }
 
-  Future<void> hideMessageForMe(String messageId) async {
+  Future<void> hideMessageForMe(String messageId, {String? roomId}) async {
     await _chatRepository.hideMessageForMe(messageId);
-    // Kita tidak merefresh rooms di sini karena hideMessageForMe hanya menyembunyikan lokal
-    // dan stream akan memperbaruinya di chat screen secara otomatis saat listener baru (jika direstart).
-    // Tapi untuk memastikan screen update seketika, caller di UI harus menggunakan provider atau refresh lokal.
+    if (roomId != null) {
+      _ref.invalidate(chatMessagesProvider(roomId));
+    }
   }
 
   Future<void> forwardMessage(Message message, String roomId) async {
@@ -327,7 +332,6 @@ class ChatActionsNotifier {
 
   Future<void> markRoomRead(String roomId) async {
     await _chatRepository.markRoomRead(roomId);
-    _ref.read(chatRoomsProvider.notifier).refreshRooms();
     _ref.invalidate(otherParticipantLastReadProvider(roomId));
   }
 

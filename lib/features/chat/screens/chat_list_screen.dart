@@ -6,6 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -23,6 +24,9 @@ import '../../guardian/providers/guardian_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
+import '../providers/private_vault_provider.dart';
+import '../widgets/private_vault_dialogs.dart';
+import '../../../data/repositories/private_contact_repository.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
 import '../widgets/chat_list_tile.dart';
@@ -35,7 +39,7 @@ class ChatListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   String _searchQuery = '';
   bool _isSearchActive = false;
   late final TextEditingController _searchController;
@@ -49,6 +53,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   String? _lastSearchQuery;
   int? _lastTabIndex;
   Set<String>? _lastBlockedIds;
+  Set<String>? _lastHiddenIds;
+  bool? _lastVaultUnlocked;
 
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
@@ -59,6 +65,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _searchController = TextEditingController();
     Future.microtask(() {
       ref.read(chatRoomsProvider.notifier).refreshRooms();
@@ -68,8 +75,40 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // Auto-relock vault seketika saat aplikasi diminimize atau background
+      if (ref.read(privateVaultUnlockedProvider)) {
+        ref.read(privateVaultUnlockedProvider.notifier).state = false;
+      }
+    }
+  }
+
+  Future<void> _checkVaultPasscode(String query) async {
+    if (query.trim().isEmpty) return;
+    final repo = ref.read(privateContactRepositoryProvider);
+    final isMatch = await repo.verifyPasscode(query.trim());
+    if (isMatch && mounted) {
+      _searchController.clear();
+      setState(() {
+        _searchQuery = '';
+        _isSearchActive = false;
+      });
+      FocusScope.of(context).unfocus();
+      HapticService.trigger(MekaarHapticIntent.success);
+      ref.read(privateVaultUnlockedProvider.notifier).state = true;
+      MekaarSnackbar.success(
+        context,
+        'Koleksi Obrolan Tersembunyi Dibuka',
+      );
+    }
   }
 
   Future<void> _checkAndRequestPermissions() async {
@@ -470,7 +509,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     ),
               isSearchActive: _isSearchActive,
               searchController: _searchController,
-              onSearchChanged: (value) => setState(() => _searchQuery = value),
+              onSearchChanged: (value) {
+                setState(() => _searchQuery = value);
+                _checkVaultPasscode(value);
+              },
               onSearchClosed: () {
                 setState(() {
                   _isSearchActive = false;
@@ -512,6 +554,77 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         ),
                       ],
                     ),
+            ),
+            // Banner Private Vault Aktif (jika vault sedang terbuka)
+            Consumer(
+              builder: (context, ref, _) {
+                final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+                if (!isVaultUnlocked) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.guardianTeal.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                      border: Border.all(
+                        color: MekaarColors.guardianTeal.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          SolarIconsBold.shieldKeyhole,
+                          color: MekaarColors.guardianTeal,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Vault Obrolan Terbuka (Sesi Aktif)',
+                            style: TextStyle(
+                              color: MekaarColors.textPrimaryOf(context),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            ref.read(privateVaultUnlockedProvider.notifier).state = false;
+                            MekaarSnackbar.info(context, 'Vault Obrolan Terkunci');
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.guardianTeal,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(SolarIconsOutline.lock, color: Colors.white, size: 12),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Kunci',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
             // Chat Requests Banner (jika ada permintaan pending)
             StreamBuilder<int>(
@@ -618,25 +731,36 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           orElse: () => <String>{},
         );
 
-    // Memoized filter rooms by query and selected tab
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+
+    // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
     final bool isCacheValid = _cachedFiltered != null &&
         identical(_cachedRooms, rooms) &&
         _lastSearchQuery == _searchQuery &&
         _lastTabIndex == _selectedTabIndex &&
-        _lastBlockedIds == blockedIds;
+        _lastBlockedIds == blockedIds &&
+        _lastHiddenIds == hiddenRoomIds &&
+        _lastVaultUnlocked == isVaultUnlocked;
 
     final List<Map<String, dynamic>> filtered;
     if (isCacheValid) {
       filtered = _cachedFiltered!;
     } else {
       filtered = rooms.where((room) {
+        final roomId = room['id'] as String;
         final name = room['name'] as String;
         final username = room['otherUsername'] as String? ?? '';
         final email = room['otherEmail'] as String? ?? '';
         final otherUserId = room['otherUserId'] as String?;
 
-        // Jangan tampilkan chat dengan pengguna yang diblokir.
+        // 1. Jangan tampilkan chat dengan pengguna yang diblokir.
         if (otherUserId != null && blockedIds.contains(otherUserId)) {
+          return false;
+        }
+
+        // 2. Cloaking Private Vault: Sembunyikan obrolan jika vault terkunci
+        if (!isVaultUnlocked && hiddenRoomIds.contains(roomId)) {
           return false;
         }
 
@@ -664,6 +788,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       _lastSearchQuery = _searchQuery;
       _lastTabIndex = _selectedTabIndex;
       _lastBlockedIds = blockedIds;
+      _lastHiddenIds = hiddenRoomIds;
+      _lastVaultUnlocked = isVaultUnlocked;
     }
 
     if (filtered.isEmpty) {
@@ -698,6 +824,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final room = filtered[index];
+        final roomId = room['id'] as String;
+        final isHidden = hiddenRoomIds.contains(roomId);
 
         return AnimatedAppear(
           delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
@@ -717,6 +845,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             },
             child: ChatListTile(
               room: room,
+              isHidden: isHidden,
               onTap: () {
                 Navigator.pushNamed(
                   context,
@@ -734,6 +863,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               onMute: () => _handleMuteRoom(room),
               onDelete: () => _confirmDeleteRoom(room),
               onArchive: () => _handleArchiveRoom(room),
+              onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                context,
+                ref,
+                roomId: roomId,
+                chatName: room['name'] as String? ?? 'Obrolan',
+              ),
             ),
           ),
         );

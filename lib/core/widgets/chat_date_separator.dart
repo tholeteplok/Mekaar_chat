@@ -18,9 +18,10 @@ class ChatDateSeparator extends StatelessWidget {
   });
 
   String _formatLabel(BuildContext context) {
+    final localDate = date.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final msgDate = DateTime(date.year, date.month, date.day);
+    final msgDate = DateTime(localDate.year, localDate.month, localDate.day);
 
     if (msgDate == today) return 'Hari ini';
     if (msgDate == today.subtract(const Duration(days: 1))) return 'Kemarin';
@@ -31,7 +32,7 @@ class ChatDateSeparator extends StatelessWidget {
       return '${days[msgDate.weekday - 1]}, ${msgDate.day} ${_monthAbbr(msgDate.month)}';
     }
 
-    if (date.year == now.year) {
+    if (localDate.year == now.year) {
       return '${msgDate.day} ${_monthAbbr(msgDate.month)}';
     }
     return '${msgDate.day} ${_monthAbbr(msgDate.month)} ${msgDate.year}';

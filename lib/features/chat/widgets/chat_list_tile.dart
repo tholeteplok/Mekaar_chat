@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
@@ -16,6 +17,8 @@ class ChatListTile extends StatelessWidget {
   final VoidCallback? onMute;
   final VoidCallback? onDelete;
   final VoidCallback? onArchive;
+  final VoidCallback? onToggleHide;
+  final bool isHidden;
 
   const ChatListTile({
     super.key,
@@ -24,6 +27,8 @@ class ChatListTile extends StatelessWidget {
     this.onMute,
     this.onDelete,
     this.onArchive,
+    this.onToggleHide,
+    this.isHidden = false,
   });
 
   @override
@@ -161,6 +166,14 @@ class ChatListTile extends StatelessWidget {
       endActionPane: ActionPane(
         motion: const BehindMotion(),
         children: [
+          if (onToggleHide != null)
+            SlidableAction(
+              onPressed: (_) => onToggleHide!(),
+              backgroundColor: MekaarColors.guardianTeal,
+              foregroundColor: Colors.white,
+              icon: isHidden ? SolarIconsOutline.eye : SolarIconsOutline.eyeClosed,
+              label: isHidden ? 'Tampilkan' : 'Sembunyikan',
+            ),
           if (onMute != null)
             SlidableAction(
               onPressed: (_) => onMute!(),
@@ -225,11 +238,12 @@ class _UnreadBadge extends StatelessWidget {
 }
 
 String _formatTimestamp(DateTime dt) {
+  final localDt = dt.toLocal();
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final msgDate = DateTime(dt.year, dt.month, dt.day);
+  final msgDate = DateTime(localDt.year, localDt.month, localDt.day);
 
-  if (msgDate == today) return DateFormat('HH:mm').format(dt);
+  if (msgDate == today) return DateFormat('HH:mm').format(localDt);
   if (msgDate == today.subtract(const Duration(days: 1))) return 'Kemarin';
 
   final diff = today.difference(msgDate).inDays;
@@ -238,6 +252,6 @@ String _formatTimestamp(DateTime dt) {
     return days[msgDate.weekday % 7];
   }
 
-  if (dt.year == now.year) return DateFormat('d MMM', 'id_ID').format(dt);
-  return DateFormat('d MMM yy', 'id_ID').format(dt);
+  if (localDt.year == now.year) return DateFormat('d MMM', 'id_ID').format(localDt);
+  return DateFormat('d MMM yy', 'id_ID').format(localDt);
 }

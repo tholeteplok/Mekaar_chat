@@ -240,9 +240,10 @@ class _GuardianTrackingScreenState
   }
 
   String _formatDateTime(DateTime dateTime) {
+    final dt = dateTime.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(dateTime.day)}/${two(dateTime.month)}/${dateTime.year} '
-        '${two(dateTime.hour)}:${two(dateTime.minute)}';
+    return '${two(dt.day)}/${two(dt.month)}/${dt.year} '
+        '${two(dt.hour)}:${two(dt.minute)}';
   }
 
   Widget _buildSessionCard(

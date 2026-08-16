@@ -14,6 +14,8 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
+import '../../chat/providers/private_vault_provider.dart';
+import '../../chat/widgets/private_vault_dialogs.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/repositories/report_repository.dart';
@@ -292,6 +294,38 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           );
                         }
                       : null,
+                ),
+
+                // Sembunyikan Kontak (Private Vault)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
+                    final isHidden = hiddenRooms.contains(widget.roomId);
+
+                    return ListTile(
+                      leading: Icon(
+                        isHidden ? SolarIconsBold.shieldKeyhole : SolarIconsOutline.shieldKeyhole,
+                        color: isHidden ? MekaarColors.guardianTeal : MekaarColors.textSecondaryOf(context),
+                      ),
+                      title: const Text('Sembunyikan Obrolan (Private Vault)'),
+                      subtitle: Text(
+                        isHidden
+                            ? 'Obrolan disembunyikan. Masukkan kode rahasia di search bar untuk membuka.'
+                            : 'Sembunyikan obrolan ini dari daftar utama.',
+                        style: MekaarTypography.bodySM,
+                      ),
+                      trailing: Switch.adaptive(
+                        value: isHidden,
+                        activeTrackColor: MekaarColors.guardianTeal,
+                        onChanged: (_) => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                          context,
+                          ref,
+                          roomId: widget.roomId,
+                          chatName: widget.chatName,
+                        ),
+                      ),
+                    );
+                  },
                 ),
 
                 const Padding(

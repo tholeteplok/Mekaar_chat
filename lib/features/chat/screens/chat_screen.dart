@@ -8,6 +8,7 @@ import 'package:location/location.dart' as loc;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
@@ -28,6 +29,7 @@ import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
+import '../widgets/scheduled_wipe_bottom_sheet.dart';
 import '../widgets/typing_indicator.dart';
 import '../widgets/e2ee_preparation_banner.dart';
 import '../providers/e2ee_room_status_provider.dart';
@@ -79,19 +81,24 @@ class _ChatItemEntry {
         message = null;
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObserver {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isViewOnce = false;
+  bool _burnOnExit = false;
   Message? _replyMessage;
   Message? _editingMessage;
   DateTime? _otherLastRead;
   DateTime? _otherLastSeen;
   int _autoDeleteHours = 0;
+  String _scheduledWipeMode = 'off';
+  TimeOfDay? _scheduledWipeTime;
+  DateTime? _scheduledWipeTargetAt;
   final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
-  int _newMessageCount = 0;
+  final ValueNotifier<int> _newMessageCount = ValueNotifier<int>(0);
   Map<String, String> _participantNames = {};
   Timer? _purgeTimer;
+  Timer? _scheduledWipeTimer;
 
   Future<void> _loadGroupParticipants() async {
     try {
@@ -120,11 +127,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _onScrollChanged() {
     final atBottom = _scrollController.hasClients &&
         _scrollController.position.pixels >=
-            _scrollController.position.minScrollExtent + 200;
+             _scrollController.position.minScrollExtent + 200;
     if (_showScrollButton.value != atBottom) {
       _showScrollButton.value = atBottom;
-      if (!atBottom && _newMessageCount > 0) {
-        setState(() => _newMessageCount = 0);
+      if (!atBottom && _newMessageCount.value > 0) {
+        _newMessageCount.value = 0;
       }
     }
   }
@@ -151,6 +158,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScrollChanged);
     // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
@@ -172,6 +180,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Muat preferensi pesan menghilang level room (tersinkronisasi untuk kedua pihak)
       final roomAutoDelete = await repo.getRoomDisappearingHours(widget.chatId);
       
+      // Muat preferensi Burn on Exit level room
+      final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.chatId);
+      
+      // Muat preferensi Pembersihan Terjadwal level room
+      String loadedWipeMode = 'off';
+      TimeOfDay? loadedWipeTime;
+      DateTime? loadedWipeTarget;
+      try {
+        final wipeData = await repo.getRoomScheduledWipe(widget.chatId);
+        if (wipeData != null) {
+          loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
+          final timeStr = wipeData['scheduled_wipe_time'] as String?;
+          final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
+          if (timeStr != null && timeStr.contains(':')) {
+            final parts = timeStr.split(':');
+            if (parts.length >= 2) {
+              loadedWipeTime = TimeOfDay(
+                hour: int.tryParse(parts[0]) ?? 14,
+                minute: int.tryParse(parts[1]) ?? 0,
+              );
+            }
+          }
+          loadedWipeTarget = targetStr != null ? DateTime.tryParse(targetStr) : null;
+        }
+      } catch (_) {}
+
       // Muat preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
       bool savedViewOnce = false;
       try {
@@ -182,7 +216,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _autoDeleteHours = roomAutoDelete;
+        _burnOnExit = roomBurnOnExit;
+        _scheduledWipeMode = loadedWipeMode;
+        _scheduledWipeTime = loadedWipeTime;
+        _scheduledWipeTargetAt = loadedWipeTarget;
         _isViewOnce = savedViewOnce;
+      });
+
+      // Timer periodik pembersihan terjadwal (cek setiap 5 detik)
+      _scheduledWipeTimer?.cancel();
+      _scheduledWipeTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        _checkScheduledWipeTrigger();
       });
 
       // Best-effort purge pesan kedaluwarsa saat pertama buka chat
@@ -211,7 +255,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_otherLastSeen == null) return 'Terakhir dilihat baru-baru ini';
 
     final now = DateTime.now();
-    final lastSeen = _otherLastSeen!;
+    final lastSeen = _otherLastSeen!.toLocal();
     final diff = now.difference(lastSeen);
 
     if (diff.inMinutes < 2) {
@@ -266,8 +310,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _presenceHeartbeatTimer?.cancel();
     _purgeTimer?.cancel();
+    _scheduledWipeTimer?.cancel();
+    if (_burnOnExit) {
+      _triggerBurnOnExit();
+    }
     // Hentikan live location sharing jika masih aktif saat meninggalkan room
     ref.read(chatActionsProvider).stopLiveLocationShare();
     // Bersihkan penanda room aktif agar notif pesan kembali aktif
@@ -278,7 +327,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _textController.dispose();
     _scrollController.dispose();
     _showScrollButton.dispose();
+    _newMessageCount.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if ((state == AppLifecycleState.paused || state == AppLifecycleState.inactive) && _burnOnExit) {
+      _triggerBurnOnExit();
+    }
+  }
+
+  Future<void> _triggerBurnOnExit() async {
+    try {
+      await ref.read(chatRepositoryProvider).executeRoomBurnOnExit(widget.chatId);
+      if (mounted) {
+        ref.invalidate(chatMessagesProvider(widget.chatId));
+      }
+    } catch (_) {}
   }
 
   void _handleSend() async {
@@ -345,6 +411,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         isViewOnce: isViewOnceToSend,
         replyToId: replyToMessage?.id,
         autoDeleteHours: _autoDeleteHours,
+        scheduledWipeTargetAt: _scheduledWipeTargetAt,
       );
     } catch (e) {
       // Fail-Safe Restoration: Kembalikan teks dan state bila pengiriman jaringan gagal
@@ -393,6 +460,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             type: type,
             isViewOnce: isViewOnceToSend,
             autoDeleteHours: _autoDeleteHours,
+            scheduledWipeTargetAt: _scheduledWipeTargetAt,
           );
       _scrollToBottom();
     } catch (e) {
@@ -435,6 +503,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             '$lat, $lng',
             type: MessageType.location,
             autoDeleteHours: _autoDeleteHours,
+            scheduledWipeTargetAt: _scheduledWipeTargetAt,
           );
       _scrollToBottom();
     } catch (e) {
@@ -472,7 +541,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         TextButton(
           onPressed: () async {
-            await ref.read(chatActionsProvider).hideMessageForMe(msg.id);
+            await ref.read(chatActionsProvider).hideMessageForMe(msg.id, roomId: widget.chatId);
             if (!mounted) return;
             Navigator.pop(context);
           },
@@ -663,6 +732,122 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  String _scheduledWipeLabel() {
+    if (_scheduledWipeMode == 'off' || _scheduledWipeTime == null) return 'Mati';
+    final hour = _scheduledWipeTime!.hour.toString().padLeft(2, '0');
+    final minute = _scheduledWipeTime!.minute.toString().padLeft(2, '0');
+    final timeStr = '$hour:$minute';
+    if (_scheduledWipeMode == 'daily') return '$timeStr (Harian)';
+    return '$timeStr (1x)';
+  }
+
+  void _checkScheduledWipeTrigger() {
+    if (_scheduledWipeMode == 'off' || _scheduledWipeTargetAt == null) return;
+    if (DateTime.now().toUtc().isAfter(_scheduledWipeTargetAt!)) {
+      _triggerLocalScheduledWipe();
+    }
+  }
+
+  Future<void> _triggerLocalScheduledWipe() async {
+    try {
+      await ref.read(chatRepositoryProvider).executeRoomScheduledWipe(widget.chatId);
+      if (mounted) {
+        ref.invalidate(chatMessagesProvider(widget.chatId));
+        if (_scheduledWipeMode == 'one_shot') {
+          setState(() {
+            _scheduledWipeMode = 'off';
+            _scheduledWipeTime = null;
+            _scheduledWipeTargetAt = null;
+          });
+        } else if (_scheduledWipeMode == 'daily' && _scheduledWipeTargetAt != null) {
+          setState(() {
+            _scheduledWipeTargetAt = _scheduledWipeTargetAt!.add(const Duration(days: 1));
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _showScheduledWipeMenu() async {
+    final result = await ScheduledWipeBottomSheet.show(
+      context: context,
+      initialMode: _scheduledWipeMode,
+      initialTime: _scheduledWipeTime,
+      initialTargetAt: _scheduledWipeTargetAt,
+    );
+
+    if (result != null) {
+      final prevMode = _scheduledWipeMode;
+      final prevTime = _scheduledWipeTime;
+      final prevTarget = _scheduledWipeTargetAt;
+
+      String? timeStr;
+      if (result.time != null) {
+        final h = result.time!.hour.toString().padLeft(2, '0');
+        final m = result.time!.minute.toString().padLeft(2, '0');
+        timeStr = '$h:$m:00';
+      }
+
+      setState(() {
+        _scheduledWipeMode = result.mode;
+        _scheduledWipeTime = result.time;
+        _scheduledWipeTargetAt = result.targetAtUtc;
+      });
+
+      try {
+        await ref.read(chatRepositoryProvider).setRoomScheduledWipe(
+          roomId: widget.chatId,
+          mode: result.mode,
+          timeString: timeStr,
+          targetAtUtc: result.targetAtUtc,
+        );
+        if (mounted) {
+          MekaarSnackbar.success(
+            context,
+            result.mode == 'off'
+                ? 'Pembersihan terjadwal dinonaktifkan'
+                : 'Pembersihan terjadwal aktif pada pukul ${_scheduledWipeLabel()}',
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _scheduledWipeMode = prevMode;
+            _scheduledWipeTime = prevTime;
+            _scheduledWipeTargetAt = prevTarget;
+          });
+          MekaarSnackbar.error(
+            context,
+            'Gagal menyimpan pembersihan terjadwal: $e',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _toggleBurnOnExit() async {
+    final newValue = !_burnOnExit;
+    final prevValue = _burnOnExit;
+    setState(() => _burnOnExit = newValue);
+
+    try {
+      await ref.read(chatRepositoryProvider).setRoomBurnOnExit(widget.chatId, newValue);
+      if (mounted) {
+        MekaarSnackbar.success(
+          context,
+          newValue
+              ? 'Hapus Saat Keluar Aktif: Pesan akan otomatis terhapus saat Anda meninggalkan layar chat ini.'
+              : 'Hapus Saat Keluar Dinonaktifkan.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _burnOnExit = prevValue);
+        MekaarSnackbar.error(context, 'Gagal menyimpan setelan Hapus Saat Keluar: $e');
+      }
+    }
+  }
+
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
     if (currentUserId == null || widget.otherUserId == null) {
@@ -794,324 +979,595 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
-    final isE2eeReady = e2eeStatus == E2eeRoomStatus.ready;
-
-    final messagesStream = ref.watch(chatMessagesProvider(widget.chatId));
-    final protectionAsync = ref.watch(
-      roomScreenProtectionProvider(widget.chatId),
-    );
-    final protection = protectionAsync.valueOrNull;
-
-    final forwardingProtectionAsync = ref.watch(
-      roomForwardingProtectionProvider(widget.chatId),
-    );
-    final forwardingProtection = forwardingProtectionAsync.valueOrNull;
+    final readReceiptsEnabled = ref.watch(
+      authProvider.select((a) => a.profile?.readReceiptsEnabled),
+    ) ?? true;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
-    final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
-    final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
 
     final topAreaHeight = MediaQuery.of(context).padding.top + kToolbarHeight + 16.0;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
-    return MekaarScaffold(
-      flat: false,
-      extendBodyBehindAppBar: true,
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          // ── Layer 0: Wallpaper/Background ──
-          _buildWallpaperBackground(chatPref),
-
-          // ── Layer 1: Daftar Pesan (full screen, padding atas & bawah) ──
-          Positioned.fill(
-            child: Column(
-              children: [
-                // Banner E2EE & proteksi harus di bawah header floating agar
-                // tidak tertimpa atau terlalu ke atas
-                SizedBox(height: topAreaHeight),
-                E2eePreparationBanner(status: e2eeStatus),
-                if (protection?.effective ?? true)
-                  ScreenProtectionStatusBadge(
-                    label: protection?.statusLabel ?? 'Proteksi ruang aktif',
-                  ),
-                Expanded(
-                  child: messagesStream.when(
-                    data: (messages) {
-                      if (messages.isEmpty) {
-                        return const MekaarStateView(
-                          pose: MikaPose.sleep,
-                          title: 'Belum Ada Pesan',
-                          message: 'Belum ada pesan. Kirim pesan pertama!',
-                        );
-                      }
-
-                      final reversed = messages.reversed.toList();
-                      final itemEntries = _buildItemEntries(reversed);
-                      final messageMap = {for (var m in messages) m.id: m};
-
-                      return ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        // Padding bawah memberi ruang untuk composer floating + inset keyboard
-                        padding: EdgeInsets.only(top: 8, bottom: 130 + keyboardHeight),
-                        itemCount: itemEntries.length,
-                        itemBuilder: (context, index) {
-                          return _buildLazyMessageItem(
-                            itemEntries[index],
-                            currentUserId,
-                            actions,
-                            messageMap,
-                            forwardingProtection: forwardingProtection,
-                            roomThemeSpec: roomThemeSpec,
-                          );
-                        },
-                      );
-                    },
-                    loading: () => const MekaarStateView(
-                      pose: MikaPose.neutral,
-                      title: 'Memuat',
-                      message: 'Memuat pesan...',
-                    ),
-                    error: (err, stack) => MekaarStateView(
-                      pose: MikaPose.huft,
-                      title: 'Gagal Memuat',
-                      message: 'Gagal memuat pesan: $err',
-                      actionLabel: 'Coba Lagi',
-                      onAction: () => ref.invalidate(
-                        chatMessagesProvider(widget.chatId),
-                      ),
-                      icon: SolarIconsOutline.refresh,
-                    ),
-                  ),
-                ),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final isTyping = ref.watch(typingStateProvider(widget.chatId));
-                    if (!isTyping) return const SizedBox.shrink();
-                    return TypingIndicator(dotColor: roomThemeSpec.primaryAccentColor);
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          // ── Layer 2: Composer Floating (bawah) ──
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            child: ChatComposer(
-              controller: _textController,
-              replyMessage: _replyMessage,
-              editingMessage: _editingMessage,
-              enabled: isE2eeReady,
-              roomThemeSpec: roomThemeSpec,
-              onSend: _handleSend,
-              onCancelReply: () => setState(() => _replyMessage = null),
-              onCancelEdit: () {
-                setState(() => _editingMessage = null);
-                _textController.clear();
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && _burnOnExit) {
+          _toggleBurnOnExit();
+        }
+      },
+      child: MekaarScaffold(
+        flat: false,
+        extendBodyBehindAppBar: true,
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            // ── Layer 0: Wallpaper/Background (Scoped Consumer) ──
+            Consumer(
+              builder: (context, ref, _) {
+                final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+                return _buildWallpaperBackground(chatPref);
               },
-              onSendMedia: _handleSendMedia,
-              onSendLocation: _handleSendLocation,
-              onShareLiveLocation: _handleShareLiveLocation,
             ),
-          ),
 
-          // ── Layer 5: Scroll-to-bottom button ──
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 120,
-            child: Center(
-              child: ValueListenableBuilder<bool>(
-                valueListenable: _showScrollButton,
-                builder: (context, showButton, _) {
-                  return ScrollToBottomButton(
-                    visible: showButton,
-                    newMessageCount: _newMessageCount,
-                    accentColor: roomThemeSpec.primaryAccentColor,
-                    iconColor: roomThemeSpec.iconColor,
-                    onTap: () {
-                      _scrollToBottom();
-                      setState(() => _newMessageCount = 0);
-                    },
+            // ── Layer 1: Daftar Pesan (Scoped Consumer) ──
+            Positioned.fill(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+                  final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
+                  final messagesStream = ref.watch(chatMessagesProvider(widget.chatId));
+                  final protectionAsync = ref.watch(roomScreenProtectionProvider(widget.chatId));
+                  final protection = protectionAsync.valueOrNull;
+                  final forwardingProtectionAsync = ref.watch(roomForwardingProtectionProvider(widget.chatId));
+                  final forwardingProtection = forwardingProtectionAsync.valueOrNull;
+
+                  return Column(
+                    children: [
+                      // Banner E2EE & proteksi harus di bawah header floating agar
+                      // tidak tertimpa atau terlalu ke atas
+                      SizedBox(height: topAreaHeight),
+                      E2eePreparationBanner(status: e2eeStatus),
+                      if (protection?.effective ?? true)
+                        ScreenProtectionStatusBadge(
+                          label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                        ),
+                      Expanded(
+                        child: messagesStream.when(
+                          data: (messages) {
+                            if (messages.isEmpty) {
+                              return const MekaarStateView(
+                                pose: MikaPose.sleep,
+                                title: 'Belum Ada Pesan',
+                                message: 'Belum ada pesan. Kirim pesan pertama!',
+                              );
+                            }
+
+                            final reversed = messages.reversed.toList();
+                            final itemEntries = _buildItemEntries(reversed);
+                            final messageMap = {for (var m in messages) m.id: m};
+
+                            return ListView.builder(
+                              controller: _scrollController,
+                              reverse: true,
+                              // Padding bawah memberi ruang untuk composer floating + inset keyboard
+                              padding: EdgeInsets.only(top: 8, bottom: 130 + keyboardHeight),
+                              itemCount: itemEntries.length,
+                              itemBuilder: (context, index) {
+                                return _buildLazyMessageItem(
+                                  itemEntries[index],
+                                  currentUserId,
+                                  actions,
+                                  messageMap,
+                                  forwardingProtection: forwardingProtection,
+                                  roomThemeSpec: roomThemeSpec,
+                                  showReadReceipts: readReceiptsEnabled,
+                                );
+                              },
+                            );
+                          },
+                          loading: () => const MekaarStateView(
+                            pose: MikaPose.neutral,
+                            title: 'Memuat',
+                            message: 'Memuat pesan...',
+                          ),
+                          error: (err, stack) => MekaarStateView(
+                            pose: MikaPose.huft,
+                            title: 'Gagal Memuat',
+                            message: 'Gagal memuat pesan: $err',
+                            actionLabel: 'Coba Lagi',
+                            onAction: () => ref.invalidate(
+                              chatMessagesProvider(widget.chatId),
+                            ),
+                            icon: SolarIconsOutline.refresh,
+                          ),
+                        ),
+                      ),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final isTyping = ref.watch(typingStateProvider(widget.chatId));
+                          if (!isTyping) return const SizedBox.shrink();
+                          return TypingIndicator(dotColor: roomThemeSpec.primaryAccentColor);
+                        },
+                      ),
+                    ],
                   );
                 },
               ),
             ),
-          ),
 
-          // ── Layer 4: Header Floating (atas) ──
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Consumer(
+            // ── Layer 2: Composer Floating (Scoped Consumer) ──
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+                  final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
+                  final isE2eeReady = e2eeStatus == E2eeRoomStatus.ready;
+
+                  return ChatComposer(
+                    controller: _textController,
+                    replyMessage: _replyMessage,
+                    editingMessage: _editingMessage,
+                    enabled: isE2eeReady,
+                    roomThemeSpec: roomThemeSpec,
+                    onSend: _handleSend,
+                    onCancelReply: () => setState(() => _replyMessage = null),
+                    onCancelEdit: () {
+                      setState(() => _editingMessage = null);
+                      _textController.clear();
+                    },
+                    onSendMedia: _handleSendMedia,
+                    onSendLocation: _handleSendLocation,
+                    onShareLiveLocation: _handleShareLiveLocation,
+                  );
+                },
+              ),
+            ),
+
+            // ── Layer 5: Scroll-to-bottom button (ValueListenableBuilder) ──
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 120,
+              child: Center(
+                child: Consumer(
                   builder: (context, ref, _) {
-                    final isTyping = ref.watch(typingStateProvider(widget.chatId));
-                    return CustomAppBar(
-                      isFloating: true,
-                      title: widget.chatName,
-                      avatarInitial: widget.chatAvatar,
-                      avatarUrl: widget.chatAvatarUrl,
-                      isGuardian: widget.isGuardian,
-                      showOnlineIndicator: true,
-                      isOnline: _isCurrentlyOnline || isTyping,
-                      subtitle: isTyping ? 'sedang mengetik...' : _formatPresenceSubtitle(),
-                      glassBorder: roomThemeSpec.glassBorder,
-                      glassBackgroundColor: roomThemeSpec.glassBackgroundColor,
-                      iconColor: roomThemeSpec.iconColor,
-                      textColor: roomThemeSpec.textColor,
-                      subtitleColor: roomThemeSpec.subtitleColor,
-                      onAvatarTap: widget.isGroup
-                          ? () => Navigator.pushNamed(
-                                context,
-                                AppRoutes.groupDetails,
-                                arguments: {
-                                  'roomId': widget.chatId,
-                                  'groupName': widget.chatName,
-                                  'groupAvatarUrl': widget.chatAvatarUrl,
-                                },
-                              )
-                          : (widget.otherUserId != null
-                              ? () => Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.contactSettings,
-                                    arguments: {
-                                      'roomId': widget.chatId,
-                                      'chatName': widget.chatName,
-                                      'chatAvatar': widget.chatAvatar,
-                                      'otherUserId': widget.otherUserId!,
-                                      'isGuardian': widget.isGuardian,
-                                    },
-                                  )
-                              : null),
-                      actions: [
-                        // Voice Call icon
-                        IconButton(
-                          icon: Icon(
-                            SolarIconsOutline.phone,
-                            color: roomThemeSpec.primaryAccentColor,
-                          ),
-                          onPressed: () => _initiateCall('voice'),
-                          tooltip: 'Panggilan Suara',
-                        ),
-                        // Actions Popup Menu
-                        PopupMenuButton<String>(
-                          icon: Icon(
-                            SolarIconsOutline.menuDots,
-                            color: roomThemeSpec.primaryAccentColor,
-                          ),
-                          onSelected: (value) async {
-                            if (value == 'video') {
-                              _initiateCall('video');
-                            } else if (value == 'theme') {
-                              Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
-                            } else if (value == 'clear') {
-                              _confirmClearHistory();
-                            } else if (value == 'e2ee_info') {
-                              _showE2eeInfoDialog();
-                            } else if (value == 'delete') {
-                              _confirmDeleteChat();
-                            }
+                    final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+                    final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _showScrollButton,
+                      builder: (context, showButton, _) {
+                        return ValueListenableBuilder<int>(
+                          valueListenable: _newMessageCount,
+                          builder: (context, newCount, _) {
+                            return ScrollToBottomButton(
+                              visible: showButton,
+                              newMessageCount: newCount,
+                              accentColor: roomThemeSpec.primaryAccentColor,
+                              iconColor: roomThemeSpec.iconColor,
+                              onTap: () {
+                                _scrollToBottom();
+                                _newMessageCount.value = 0;
+                              },
+                            );
                           },
-                          itemBuilder: (BuildContext context) => [
-                            PopupMenuItem<String>(
-                              value: 'e2ee_info',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    SolarIconsOutline.shieldKeyhole,
-                                    size: 20,
-                                    color: MekaarColors.guardianTeal,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text('Informasi Enkripsi E2EE'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'video',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    SolarIconsOutline.videocamera,
-                                    size: 20,
-                                    color: MekaarColors.textPrimaryOf(context),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text('Panggilan Video'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'theme',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    SolarIconsOutline.palette,
-                                    size: 20,
-                                    color: MekaarColors.textPrimaryOf(context),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text('Tema & Wallpaper Chat'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuDivider(),
-                            PopupMenuItem<String>(
-                              value: 'clear',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    SolarIconsOutline.eraser,
-                                    size: 20,
-                                    color: MekaarColors.warning,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text('Bersihkan Obrolan'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    SolarIconsOutline.trashBinTrash,
-                                    size: 20,
-                                    color: MekaarColors.sosRed,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Hapus Chat',
-                                    style: TextStyle(color: MekaarColors.sosRed),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        );
+                      },
                     );
                   },
                 ),
-                _buildQuickPrivacyBar(
-                  isScreenProtectionOn: protection?.callerEnabled ?? true,
-                  isForwardingProtectionOn: forwardingProtection?.callerEnabled ?? false,
-                  isAutoDeleteOn: _autoDeleteHours > 0,
-                  isViewOnceOn: _isViewOnce,
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+
+            // ── Layer 4: Custom App Bar Floating Frosted Glass ──
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+                  final isTyping = ref.watch(typingStateProvider(widget.chatId));
+                  final protection = ref.watch(roomScreenProtectionProvider(widget.chatId)).valueOrNull;
+                  final forwardingProtection = ref.watch(roomForwardingProtectionProvider(widget.chatId)).valueOrNull;
+
+                  final isScreenProtOn = protection?.callerEnabled ?? true;
+                  final isFwdProtOn = forwardingProtection?.callerEnabled ?? false;
+                  final isAutoDelOn = _autoDeleteHours > 0;
+                  final isViewOnceOn = _isViewOnce;
+
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  final frostedBg = isDark
+                      ? const Color(0xF2181D2E)
+                      : const Color(0xF6FFFFFF);
+                  final frostedBorder = isDark
+                      ? Colors.white.withValues(alpha: 0.16)
+                      : Colors.black.withValues(alpha: 0.10);
+                  final textPrimary = MekaarColors.textPrimaryOf(context);
+
+                  return CustomAppBar(
+                    isFloating: true,
+                    title: widget.chatName,
+                    avatarInitial: widget.chatAvatar,
+                    avatarUrl: widget.chatAvatarUrl,
+                    isGuardian: widget.isGuardian,
+                    showOnlineIndicator: true,
+                    isOnline: _isCurrentlyOnline || isTyping,
+                    subtitle: isTyping ? 'sedang mengetik...' : _formatPresenceSubtitle(),
+                    glassBorder: roomThemeSpec.glassBorder,
+                    glassBackgroundColor: roomThemeSpec.glassBackgroundColor,
+                    iconColor: roomThemeSpec.iconColor,
+                    textColor: roomThemeSpec.textColor,
+                    subtitleColor: roomThemeSpec.subtitleColor,
+                    onAvatarTap: widget.isGroup
+                        ? () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.groupDetails,
+                              arguments: {
+                                'roomId': widget.chatId,
+                                'groupName': widget.chatName,
+                                'groupAvatarUrl': widget.chatAvatarUrl,
+                              },
+                            )
+                        : (widget.otherUserId != null
+                            ? () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.contactSettings,
+                                  arguments: {
+                                    'roomId': widget.chatId,
+                                    'chatName': widget.chatName,
+                                    'chatAvatar': widget.chatAvatar,
+                                    'otherUserId': widget.otherUserId!,
+                                    'isGuardian': widget.isGuardian,
+                                  },
+                                )
+                            : null),
+                    actions: [
+                      // Voice Call icon
+                      IconButton(
+                        icon: Icon(
+                          SolarIconsOutline.phone,
+                          color: roomThemeSpec.primaryAccentColor,
+                        ),
+                        onPressed: () => _initiateCall('voice'),
+                        tooltip: 'Panggilan Suara',
+                      ),
+                      // Actions Popup Menu (High-Contrast Frosted Glass)
+                      PopupMenuButton<String>(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(MekaarRadius.md),
+                          side: BorderSide(
+                            color: frostedBorder,
+                            width: 1,
+                          ),
+                        ),
+                        color: frostedBg,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 10,
+                        shadowColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
+                        icon: Icon(
+                          SolarIconsOutline.menuDots,
+                          color: roomThemeSpec.primaryAccentColor,
+                        ),
+                        onSelected: (value) async {
+                          if (value == 'video') {
+                            _initiateCall('video');
+                          } else if (value == 'screen_protection') {
+                            try {
+                              await ref
+                                  .read(screenProtectionControllerProvider)
+                                  .setRoomPreference(widget.chatId, !isScreenProtOn);
+                            } catch (_) {}
+                          } else if (value == 'forwarding_protection') {
+                            try {
+                              await ref
+                                  .read(forwardingProtectionControllerProvider)
+                                  .setRoomPreference(widget.chatId, !isFwdProtOn);
+                            } catch (_) {}
+                          } else if (value == 'auto_delete') {
+                            _showAutoDeleteMenu();
+                          } else if (value == 'scheduled_wipe') {
+                            _showScheduledWipeMenu();
+                          } else if (value == 'burn_on_exit') {
+                            _toggleBurnOnExit();
+                          } else if (value == 'view_once') {
+                            _toggleViewOnce();
+                          } else if (value == 'theme') {
+                            Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
+                          } else if (value == 'clear') {
+                            _confirmClearHistory();
+                          } else if (value == 'e2ee_info') {
+                            _showE2eeInfoDialog();
+                          } else if (value == 'delete') {
+                            _confirmDeleteChat();
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => [
+                          PopupMenuItem<String>(
+                            value: 'e2ee_info',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  SolarIconsOutline.shieldKeyhole,
+                                  size: 20,
+                                  color: MekaarColors.guardianTeal,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Informasi Enkripsi E2EE',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'video',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  SolarIconsOutline.videocamera,
+                                  size: 20,
+                                  color: textPrimary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Panggilan Video',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'theme',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  SolarIconsOutline.palette,
+                                  size: 20,
+                                  color: textPrimary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Tema & Wallpaper Chat',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          // ── Kontrol Privasi Room ──
+                          PopupMenuItem<String>(
+                            value: 'screen_protection',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isScreenProtOn
+                                      ? SolarIconsBold.shieldCheck
+                                      : SolarIconsOutline.shieldCross,
+                                  size: 20,
+                                  color: isScreenProtOn
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textSecondaryOf(context),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Proteksi Layar: ${isScreenProtOn ? "Aktif" : "Mati"}',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'forwarding_protection',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isFwdProtOn
+                                      ? SolarIconsBold.forbiddenCircle
+                                      : SolarIconsOutline.forward,
+                                  size: 20,
+                                  color: isFwdProtOn
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textSecondaryOf(context),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Larang Teruskan: ${isFwdProtOn ? "Aktif" : "Mati"}',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'auto_delete',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isAutoDelOn
+                                      ? SolarIconsBold.history
+                                      : SolarIconsOutline.history,
+                                  size: 20,
+                                  color: isAutoDelOn
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textSecondaryOf(context),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Pesan Menghilang: ${_autoDeleteLabel()}',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'scheduled_wipe',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _scheduledWipeMode != 'off'
+                                      ? SolarIconsBold.clockCircle
+                                      : SolarIconsOutline.clockCircle,
+                                  size: 20,
+                                  color: _scheduledWipeMode != 'off'
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textSecondaryOf(context),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Pembersihan Terjadwal: ${_scheduledWipeLabel()}',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'burn_on_exit',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _burnOnExit
+                                      ? SolarIconsBold.fire
+                                      : SolarIconsOutline.fire,
+                                  size: 20,
+                                  color: _burnOnExit
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textSecondaryOf(context),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Hapus Saat Keluar: ${_burnOnExit ? "Aktif" : "Mati"}',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'view_once',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isViewOnceOn
+                                      ? SolarIconsBold.eyeClosed
+                                      : SolarIconsOutline.eyeClosed,
+                                  size: 20,
+                                  color: isViewOnceOn
+                                      ? MekaarColors.softCoral
+                                      : MekaarColors.textSecondaryOf(context),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Mode Sekali Lihat: ${isViewOnceOn ? "Aktif" : "Mati"}',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem<String>(
+                            value: 'clear',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  SolarIconsOutline.eraser,
+                                  size: 20,
+                                  color: MekaarColors.warning,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Bersihkan Obrolan',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  SolarIconsOutline.trashBinTrash,
+                                  size: 20,
+                                  color: MekaarColors.sosRed,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Hapus Chat',
+                                  style: TextStyle(
+                                    color: MekaarColors.sosRed,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1124,15 +1580,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     for (var i = 0; i < reversedMessages.length; i++) {
       final msg = reversedMessages[i];
+      final localCreatedAt = msg.createdAt.toLocal();
       final msgDate = DateTime(
-        msg.createdAt.year,
-        msg.createdAt.month,
-        msg.createdAt.day,
+        localCreatedAt.year,
+        localCreatedAt.month,
+        localCreatedAt.day,
       );
 
       // Sisipkan pemisah tanggal jika hari berubah
       if (lastDate == null || msgDate != lastDate) {
-        entries.add(_ChatItemEntry.dateSeparator(msg.createdAt));
+        entries.add(_ChatItemEntry.dateSeparator(localCreatedAt));
         lastDate = msgDate;
       }
 
@@ -1149,6 +1606,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     Map<String, Message> messageMap, {
     RoomForwardingProtection? forwardingProtection,
     ChatRoomThemeSpec? roomThemeSpec,
+    bool showReadReceipts = true,
   }) {
     if (entry.kind == _ChatItemKind.dateSeparator) {
       return ChatDateSeparator(
@@ -1190,8 +1648,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             forwardingProtection?.effective ?? false,
       ),
       otherLastReadAt: _otherLastRead,
-      showReadReceipts:
-          ref.watch(authProvider).profile?.readReceiptsEnabled ?? true,
+      showReadReceipts: showReadReceipts,
       senderName: widget.isGroup ? _participantNames[msg.senderId] : null,
       replyToMessage: replyToMsg,
       replyToSenderName: replyToSender,
@@ -1236,180 +1693,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           key: ValueKey('bubble_${msg.id}'),
           child: bubble,
         ),
-      ),
-    );
-  }
-
-  Widget _buildQuickPrivacyBar({
-    required bool isScreenProtectionOn,
-    required bool isForwardingProtectionOn,
-    required bool isAutoDeleteOn,
-    required bool isViewOnceOn,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(top: 4, left: 16, right: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: MekaarColors.cardDark.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          // 1. Proteksi Layar
-          InkWell(
-            onTap: () async {
-              final nextValue = !isScreenProtectionOn;
-              try {
-                await ref
-                    .read(screenProtectionControllerProvider)
-                    .setRoomPreference(widget.chatId, nextValue);
-              } catch (_) {}
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isScreenProtectionOn
-                        ? SolarIconsBold.shieldCheck
-                        : SolarIconsOutline.shieldCross,
-                    size: 15,
-                    color: isScreenProtectionOn
-                        ? MekaarColors.softCoral
-                        : Colors.white70,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Proteksi',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isScreenProtectionOn ? FontWeight.bold : FontWeight.normal,
-                      color: isScreenProtectionOn
-                          ? MekaarColors.softCoral
-                          : Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 2. Larang Teruskan
-          InkWell(
-            onTap: () async {
-              final nextValue = !isForwardingProtectionOn;
-              try {
-                await ref
-                    .read(forwardingProtectionControllerProvider)
-                    .setRoomPreference(widget.chatId, nextValue);
-              } catch (_) {}
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isForwardingProtectionOn
-                        ? SolarIconsBold.forbiddenCircle
-                        : SolarIconsOutline.forward,
-                    size: 15,
-                    color: isForwardingProtectionOn
-                        ? MekaarColors.softCoral
-                        : Colors.white70,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Larang Teruskan',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isForwardingProtectionOn ? FontWeight.bold : FontWeight.normal,
-                      color: isForwardingProtectionOn
-                          ? MekaarColors.softCoral
-                          : Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 3. Pesan Menghilang
-          InkWell(
-            onTap: _showAutoDeleteMenu,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isAutoDeleteOn
-                        ? SolarIconsBold.history
-                        : SolarIconsOutline.history,
-                    size: 15,
-                    color: isAutoDeleteOn
-                        ? MekaarColors.softCoral
-                        : Colors.white70,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isAutoDeleteOn ? _autoDeleteLabel() : 'Menghilang',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isAutoDeleteOn ? FontWeight.bold : FontWeight.normal,
-                      color: isAutoDeleteOn
-                          ? MekaarColors.softCoral
-                          : Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 4. Sekali Lihat
-          InkWell(
-            onTap: _toggleViewOnce,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isViewOnceOn
-                        ? SolarIconsBold.eyeClosed
-                        : SolarIconsOutline.eyeClosed,
-                    size: 15,
-                    color: isViewOnceOn
-                        ? MekaarColors.softCoral
-                        : Colors.white70,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Sekali Lihat',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isViewOnceOn ? FontWeight.bold : FontWeight.normal,
-                      color: isViewOnceOn
-                          ? MekaarColors.softCoral
-                          : Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

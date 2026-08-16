@@ -370,7 +370,7 @@ class ChatBubble extends ConsumerWidget {
                             const SizedBox(width: 3),
                           ],
                           Text(
-                            DateFormat('HH:mm').format(message.createdAt),
+                            DateFormat('HH:mm').format(message.createdAt.toLocal()),
                             style: TextStyle(
                               fontSize: 10,
                               color: metaColor,

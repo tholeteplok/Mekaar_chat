@@ -7,6 +7,7 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
+import 'private_vault_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'call_invitation_listener.dart';
 import 'sos_alert_listener.dart';
@@ -141,12 +142,25 @@ class MessageNotificationListener {
       }
     }
 
-    // Untuk pesan terenkripsi, gunakan label aman tanpa membebani isolate utama
-    final String displayContent = isEncrypted ? '🔒 Pesan terenkripsi' : content;
+    // Cek apakah room disembunyikan dalam Private Contact Vault
+    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId);
+    final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
+
+    final String finalTitle;
+    final String finalBody;
+
+    if (isHidden && !isVaultUnlocked) {
+      // Masking total: Jangan bocorkan nama pengirim maupun isi pesan
+      finalTitle = 'Pemberitahuan Sistem';
+      finalBody = 'Anda menerima pesan baru';
+    } else {
+      finalTitle = senderName;
+      finalBody = isEncrypted ? '🔒 Pesan terenkripsi' : content;
+    }
 
     await NotificationService.showMessageNotification(
-      title: senderName,
-      body: displayContent,
+      title: finalTitle,
+      body: finalBody,
       roomId: roomId,
     );
   }
