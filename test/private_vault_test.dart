@@ -72,5 +72,16 @@ void main() {
       expect(notifier.state.contains(roomId), isFalse);
       expect(notifier.isHidden(roomId), isFalse);
     });
+
+    test('PreloadCache memuat hash ke memori dan verifikasi cepat', () async {
+      final repo = PrivateContactRepository();
+      await repo.setPasscode('vault1234');
+
+      final freshRepo = PrivateContactRepository();
+      await freshRepo.preloadCache();
+
+      expect(await freshRepo.verifyPasscode('vault1234'), isTrue);
+      expect(await freshRepo.verifyPasscode('vault9999'), isFalse);
+    });
   });
 }

@@ -86,6 +86,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   final ScrollController _scrollController = ScrollController();
   bool _isViewOnce = false;
   bool _burnOnExit = false;
+  bool _burnTriggered = false;
   Message? _replyMessage;
   Message? _editingMessage;
   DateTime? _otherLastRead;
@@ -223,11 +224,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         _isViewOnce = savedViewOnce;
       });
 
-      // Timer periodik pembersihan terjadwal (cek setiap 5 detik)
-      _scheduledWipeTimer?.cancel();
-      _scheduledWipeTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-        _checkScheduledWipeTrigger();
-      });
+      // Jadwalkan pembersihan terjadwal secara presisi (tanpa polling baterai)
+      _scheduleWipeTimer();
 
       // Best-effort purge pesan kedaluwarsa saat pertama buka chat
       try {
@@ -339,6 +337,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   }
 
   Future<void> _triggerBurnOnExit() async {
+    if (_burnTriggered || !_burnOnExit) return;
+    _burnTriggered = true;
     try {
       await ref.read(chatRepositoryProvider).executeRoomBurnOnExit(widget.chatId);
       if (mounted) {
@@ -741,11 +741,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     return '$timeStr (1x)';
   }
 
-  void _checkScheduledWipeTrigger() {
+  void _scheduleWipeTimer() {
+    _scheduledWipeTimer?.cancel();
     if (_scheduledWipeMode == 'off' || _scheduledWipeTargetAt == null) return;
-    if (DateTime.now().toUtc().isAfter(_scheduledWipeTargetAt!)) {
+
+    final now = DateTime.now().toUtc();
+    final diff = _scheduledWipeTargetAt!.difference(now);
+
+    if (diff.isNegative || diff.inSeconds <= 0) {
       _triggerLocalScheduledWipe();
+      return;
     }
+
+    _scheduledWipeTimer = Timer(diff, () {
+      _triggerLocalScheduledWipe();
+      if (_scheduledWipeMode == 'daily' && mounted) {
+        setState(() {
+          _scheduledWipeTargetAt =
+              _scheduledWipeTargetAt!.add(const Duration(days: 1));
+        });
+        _scheduleWipeTimer();
+      }
+    });
   }
 
   Future<void> _triggerLocalScheduledWipe() async {
@@ -758,10 +775,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             _scheduledWipeMode = 'off';
             _scheduledWipeTime = null;
             _scheduledWipeTargetAt = null;
-          });
-        } else if (_scheduledWipeMode == 'daily' && _scheduledWipeTargetAt != null) {
-          setState(() {
-            _scheduledWipeTargetAt = _scheduledWipeTargetAt!.add(const Duration(days: 1));
           });
         }
       }
@@ -794,6 +807,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         _scheduledWipeTargetAt = result.targetAtUtc;
       });
 
+      _scheduleWipeTimer();
+
       try {
         await ref.read(chatRepositoryProvider).setRoomScheduledWipe(
           roomId: widget.chatId,
@@ -816,6 +831,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             _scheduledWipeTime = prevTime;
             _scheduledWipeTargetAt = prevTarget;
           });
+          _scheduleWipeTimer();
           MekaarSnackbar.error(
             context,
             'Gagal menyimpan pembersihan terjadwal: $e',
@@ -826,6 +842,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   }
 
   Future<void> _toggleBurnOnExit() async {
+    if (!_burnOnExit) {
+      // Konfirmasi eksplisit sebelum aktivasi untuk mencegah penghapusan yang tidak disengaja
+      final confirmed = await MekaarDialog.showConfirmation<bool>(
+        context: context,
+        title: 'Aktifkan Hapus Saat Keluar?',
+        message:
+            'Seluruh riwayat pesan (kirim & terima) dalam ruangan ini akan otomatis terhapus seketika saat Anda meninggalkan layar obrolan.\n\nApakah Anda yakin ingin mengaktifkannya?',
+        isDestructive: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MekaarColors.sosRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Aktifkan'),
+          ),
+        ],
+      );
+      if (confirmed != true) return;
+    }
+
     final newValue = !_burnOnExit;
     final prevValue = _burnOnExit;
     setState(() => _burnOnExit = newValue);
@@ -836,7 +878,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         MekaarSnackbar.success(
           context,
           newValue
-              ? 'Hapus Saat Keluar Aktif: Pesan akan otomatis terhapus saat Anda meninggalkan layar chat ini.'
+              ? 'Hapus Saat Keluar Aktif: Pesan otomatis terhapus saat Anda keluar.'
               : 'Hapus Saat Keluar Dinonaktifkan.',
         );
       }
@@ -992,7 +1034,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop && _burnOnExit) {
-          _toggleBurnOnExit();
+          _triggerBurnOnExit();
         }
       },
       child: MekaarScaffold(

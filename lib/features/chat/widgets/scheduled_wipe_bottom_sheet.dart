@@ -75,8 +75,8 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
       time.minute,
     );
 
-    // Jika waktu hari ini sudah lewat, jadwalkan ke hari esok
-    if (target.isBefore(now)) {
+    // Jika waktu target sama persis atau sudah lewat saat ini, jadwalkan ke hari esok
+    if (!target.isAfter(now)) {
       target = target.add(const Duration(days: 1));
     }
     return target;

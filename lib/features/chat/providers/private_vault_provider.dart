@@ -22,7 +22,12 @@ class HiddenRoomIdsNotifier extends StateNotifier<Set<String>> {
   final PrivateContactRepository _repo;
 
   HiddenRoomIdsNotifier(this._repo) : super(<String>{}) {
-    loadHiddenRooms();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _repo.preloadCache();
+    await loadHiddenRooms();
   }
 
   Future<void> loadHiddenRooms() async {

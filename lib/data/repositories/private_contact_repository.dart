@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-final privateContactRepositoryProvider = Provider<PrivateContactRepository>((ref) {
+final privateContactRepositoryProvider =
+    Provider<PrivateContactRepository>((ref) {
   return PrivateContactRepository();
 });
 
@@ -11,7 +13,11 @@ class PrivateContactRepository {
   final FlutterSecureStorage _secureStorage;
 
   static const String _passcodeKey = 'mekaar_private_vault_passcode_hash';
+  static const String _saltKey = 'mekaar_private_vault_salt';
   static const String _hiddenRoomsKey = 'mekaar_private_vault_hidden_rooms';
+
+  String? _cachedSalt;
+  String? _cachedHash;
 
   PrivateContactRepository({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ??
@@ -19,33 +25,84 @@ class PrivateContactRepository {
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
             );
 
-  String _hashPasscode(String code) {
-    return sha256.convert(utf8.encode(code.trim())).toString();
+  String _generateSalt() {
+    final random = Random.secure();
+    final values = List<int>.generate(32, (i) => random.nextInt(256));
+    return base64Url.encode(values);
+  }
+
+  Future<String> _getOrCreateSalt() async {
+    if (_cachedSalt != null && _cachedSalt!.isNotEmpty) {
+      return _cachedSalt!;
+    }
+    try {
+      var salt = await _secureStorage.read(key: _saltKey);
+      if (salt == null || salt.isEmpty) {
+        salt = _generateSalt();
+        await _secureStorage.write(key: _saltKey, value: salt);
+      }
+      _cachedSalt = salt;
+      return salt;
+    } catch (_) {
+      return 'fallback_device_vault_salt';
+    }
+  }
+
+  String _hashWithSalt(String code, String salt) {
+    return sha256.convert(utf8.encode('$salt:${code.trim()}')).toString();
+  }
+
+  /// Memuat cache hash & salt ke memori untuk verifikasi instan O(1)
+  Future<void> preloadCache() async {
+    try {
+      final salt = await _getOrCreateSalt();
+      final hash = await _secureStorage.read(key: _passcodeKey);
+      _cachedSalt = salt;
+      _cachedHash = hash;
+    } catch (_) {}
   }
 
   /// Periksa apakah pengguna sudah mengatur kode rahasia vault
   Future<bool> hasPasscode() async {
+    if (_cachedHash != null && _cachedHash!.isNotEmpty) {
+      return true;
+    }
     try {
       final hash = await _secureStorage.read(key: _passcodeKey);
+      _cachedHash = hash;
       return hash != null && hash.isNotEmpty;
     } catch (_) {
       return false;
     }
   }
 
-  /// Atur kode rahasia vault baru (disimpan dalam bentuk hash SHA-256)
+  /// Atur kode rahasia vault baru dengan salt kriptografi unik per perangkat
   Future<void> setPasscode(String code) async {
-    final hash = _hashPasscode(code);
+    final salt = await _getOrCreateSalt();
+    final hash = _hashWithSalt(code, salt);
+    _cachedHash = hash;
     await _secureStorage.write(key: _passcodeKey, value: hash);
   }
 
-  /// Verifikasi kecocokan kode rahasia input dengan yang tersimpan
+  /// Verifikasi kecocokan kode rahasia input secara aman dan cepat
   Future<bool> verifyPasscode(String code) async {
-    if (code.trim().isEmpty) return false;
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return false;
+
+    // Gunakan in-memory cache jika tersedia untuk menghindari disk I/O blocking
+    if (_cachedHash != null && _cachedSalt != null) {
+      if (_cachedHash!.isEmpty) return false;
+      return _cachedHash == _hashWithSalt(trimmed, _cachedSalt!);
+    }
+
     try {
+      final salt = await _getOrCreateSalt();
       final savedHash = await _secureStorage.read(key: _passcodeKey);
+      _cachedSalt = salt;
+      _cachedHash = savedHash;
+
       if (savedHash == null || savedHash.isEmpty) return false;
-      return savedHash == _hashPasscode(code);
+      return savedHash == _hashWithSalt(trimmed, salt);
     } catch (_) {
       return false;
     }

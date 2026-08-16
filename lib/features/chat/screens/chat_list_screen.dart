@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -58,6 +59,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
+  Timer? _vaultDebounceTimer;
 
   @override
   bool get wantKeepAlive => true;
@@ -76,6 +78,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _vaultDebounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -511,9 +514,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               searchController: _searchController,
               onSearchChanged: (value) {
                 setState(() => _searchQuery = value);
-                _checkVaultPasscode(value);
+                _vaultDebounceTimer?.cancel();
+                if (value.trim().length >= 4) {
+                  _vaultDebounceTimer =
+                      Timer(const Duration(milliseconds: 400), () {
+                    _checkVaultPasscode(value);
+                  });
+                }
               },
               onSearchClosed: () {
+                _vaultDebounceTimer?.cancel();
                 setState(() {
                   _isSearchActive = false;
                   _searchQuery = '';
