@@ -67,7 +67,9 @@ git add pubspec.yaml
 git commit -m "chore(release): bump version to $TAG_NAME ($NEW_FULL)" || echo "Tidak ada perubahan untuk di-commit."
 
 echo -e "\n\033[0;33m[4/5] Membuat Git Tag $TAG_NAME...\033[0m"
-git tag -d "$TAG_NAME" 2>/dev/null || true
+if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+  git tag -d "$TAG_NAME" >/dev/null 2>&1 || true
+fi
 git tag -a "$TAG_NAME" -m "Release $TAG_NAME (Build $NEW_BUILD)"
 echo -e "\033[0;32m[BERHASIL] Tag $TAG_NAME berhasil dibuat.\033[0m"
 

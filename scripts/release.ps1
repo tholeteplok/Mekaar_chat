@@ -113,8 +113,10 @@ if ($LASTEXITCODE -ne 0) {
 
 # 7. Git Tag
 Write-Host "`n[4/5] Membuat Git Tag $tagName..." -ForegroundColor Yellow
-# Hapus tag lokal lama jika ada
-git tag -d $tagName 2>$null
+$existingTag = git tag -l $tagName
+if ($existingTag) {
+    git tag -d $tagName | Out-Null
+}
 git tag -a $tagName -m "Release $tagName (Build $newBuild)"
 Write-Host "[BERHASIL] Tag $tagName berhasil dibuat." -ForegroundColor Green
 
