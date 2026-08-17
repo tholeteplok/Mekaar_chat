@@ -45,62 +45,68 @@ jobs:
           EOF
 
       - name: Configure Android Credentials (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           mkdir -p android/app
-          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
-            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
           else
-            cat << 'EOF' > android/app/google-services.json
-          {
-            "project_info": {
-              "project_number": "100000000000",
-              "project_id": "mekaar-chat-app",
-              "storage_bucket": "mekaar-chat-app.appspot.com"
+            python3 -c "
+import json
+data = {
+    'project_info': {
+        'project_number': '100000000000',
+        'project_id': 'mekaar-chat-app',
+        'storage_bucket': 'mekaar-chat-app.appspot.com'
+    },
+    'client': [
+        {
+            'client_info': {
+                'mobilesdk_app_id': '1:100000000000:android:0123456789abcdef012345',
+                'android_client_info': {
+                    'package_name': 'com.mekaar.app'
+                }
             },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:100000000000:android:0123456789abcdef012345",
-                  "android_client_info": {
-                    "package_name": "com.mekaar.app"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyDummyReleaseApiKeyForBuildOnly123"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
+            'oauth_client': [],
+            'api_key': [
+                {
+                    'current_key': 'AIzaSyDummyReleaseApiKeyForBuildOnly123'
                 }
-              },
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:100000000000:android:0123456789abcdef012345",
-                  "android_client_info": {
-                    "package_name": "com.mekaar.mekaar_chat"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyDummyReleaseApiKeyForBuildOnly123"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
-              }
             ],
-            "configuration_version": "1"
-          }
-          EOF
+            'services': {
+                'appinvite_service': {
+                    'other_platform_oauth_client': []
+                }
+            }
+        },
+        {
+            'client_info': {
+                'mobilesdk_app_id': '1:100000000000:android:0123456789abcdef012345',
+                'android_client_info': {
+                    'package_name': 'com.mekaar.mekaar_chat'
+                }
+            },
+            'oauth_client': [],
+            'api_key': [
+                {
+                    'current_key': 'AIzaSyDummyReleaseApiKeyForBuildOnly123'
+                }
+            ],
+            'services': {
+                'appinvite_service': {
+                    'other_platform_oauth_client': []
+                }
+            }
+        }
+    ],
+    'configuration_version': '1'
+}
+with open('android/app/google-services.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
           fi
+          python3 -m json.tool android/app/google-services.json > /dev/null
 
       - name: Install Dependencies
         run: flutter pub get
