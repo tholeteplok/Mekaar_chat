@@ -700,11 +700,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           ],
         ),
       ),
-      Positioned(
-        right: 24,
-        bottom: 180,
-        child: const _FloatingMika(),
-      ),
       ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
@@ -942,50 +937,6 @@ class _EmptyChats extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FloatingMika extends StatefulWidget {
-  const _FloatingMika();
-
-  @override
-  State<_FloatingMika> createState() => _FloatingMikaState();
-}
-
-class _FloatingMikaState extends State<_FloatingMika> {
-  final _mikaKey = GlobalKey<MikaAnimatedState>();
-  DateTime? _lastTap;
-
-  static final _randomReactions = [
-    MikaReaction.happy,
-    MikaReaction.love,
-    MikaReaction.hi,
-    MikaReaction.ok,
-    MikaReaction.huft,
-  ];
-
-  void _onTap() {
-    final now = DateTime.now();
-    if (_lastTap != null && now.difference(_lastTap!).inSeconds < 5) return;
-    _lastTap = now;
-    final reaction = _randomReactions[
-        DateTime.now().millisecondsSinceEpoch % _randomReactions.length];
-    _mikaKey.currentState?.react(reaction);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _onTap,
-      child: Opacity(
-        opacity: 0.7,
-        child: MikaAnimated(
-          key: _mikaKey,
-          pose: MikaPose.happy,
-          size: 40,
-        ),
       ),
     );
   }

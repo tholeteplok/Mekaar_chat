@@ -14,7 +14,6 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/update_service.dart';
 
 class AboutMekaarScreen extends ConsumerStatefulWidget {
@@ -187,12 +186,33 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       ),
       child: Column(
         children: [
-          const MikaIllustration(
-            pose: MikaPose.neutral,
-            size: 110,
-            animate: true,
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: MekaarColors.cyan.withValues(alpha: 0.15),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Image.asset(
+                'assets/logo/app_icon.webp',
+                width: 88,
+                height: 88,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  SolarIconsBold.shieldCheck,
+                  size: 72,
+                  color: MekaarColors.cyan,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           const MekaarWordmark(fontSize: 26),
           const SizedBox(height: 4),
           Text(
