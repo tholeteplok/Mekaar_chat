@@ -519,15 +519,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           children: [
             MekaarTabHeader(
               title: 'Pesan',
-              subtitle: wasDuress
-                  ? null
-                  : MekaarLiveSafetyPill(
-                      activeGuardiansCount:
-                          activeGuardiansOf(ref.watch(guardianProvider)).length,
-                      isE2eeActive: true,
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.guardian),
-                    ),
               isSearchActive: _isSearchActive,
               searchController: _searchController,
               onSearchChanged: (value) {
@@ -553,24 +544,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: const Icon(
-                            SolarIconsOutline.magnifier,
-                            color: MekaarColors.cyan,
-                          ),
-                          tooltip: 'Cari Chat',
-                          onPressed: () =>
-                              setState(() => _isSearchActive = true),
+                        MekaarLiveSafetyPill(
+                          activeGuardiansCount:
+                              activeGuardiansOf(ref.watch(guardianProvider))
+                                  .length,
+                          isE2eeActive: true,
+                          onTap: () =>
+                              Navigator.pushNamed(context, AppRoutes.guardian),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            SolarIconsOutline.qrCode,
-                            color: MekaarColors.primary,
-                          ),
-                          tooltip: 'Kode QR & Pindai',
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.myQr),
-                        ),
+                        const SizedBox(width: 4),
                         IconButton(
                           icon: const Icon(
                             SolarIconsOutline.shieldUser,
@@ -579,6 +561,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           tooltip: 'Guardian Saya',
                           onPressed: () =>
                               Navigator.pushNamed(context, AppRoutes.guardian),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.magnifier,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: 'Cari Chat',
+                          onPressed: () =>
+                              setState(() => _isSearchActive = true),
                         ),
                       ],
                     ),

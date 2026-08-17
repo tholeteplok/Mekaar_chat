@@ -142,6 +142,20 @@ class MekaarTheme {
           fontWeight: FontWeight.w500,
         ),
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return MekaarColors.softCoral;
+          }
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return MekaarColors.softCoral.withValues(alpha: 0.35);
+          }
+          return null;
+        }),
+      ),
     );
   }
 
@@ -323,6 +337,20 @@ class MekaarTheme {
           fontWeight: FontWeight.w500,
         ),
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primary;
+          }
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primary.withValues(alpha: 0.35);
+          }
+          return null;
+        }),
+      ),
     );
   }
 
@@ -460,6 +488,20 @@ class MekaarTheme {
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return MekaarColors.purple;
+          }
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return MekaarColors.purple.withValues(alpha: 0.35);
+          }
+          return null;
+        }),
       ),
     );
   }

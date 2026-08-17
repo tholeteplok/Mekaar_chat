@@ -80,6 +80,9 @@ class MekaarColors {
   static const Color border = Color(0xFFE2E8F0);
   static const Color borderLight = Color(0xFFF1F5F9);
 
+  static Color primaryOf(BuildContext c) =>
+      Theme.of(c).colorScheme.primary;
+
   static Color surfaceOf(BuildContext c) =>
       Theme.of(c).colorScheme.surface;
 

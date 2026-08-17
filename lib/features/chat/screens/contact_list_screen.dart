@@ -10,7 +10,6 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -32,6 +31,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   late final TextEditingController _searchController;
   Timer? _vaultDebounceTimer;
   String _searchQuery = '';
+  bool _isSearchActive = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -151,7 +151,57 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const MekaarTabHeader(title: 'Kontak'),
+                MekaarTabHeader(
+                  title: 'Kontak',
+                  isSearchActive: _isSearchActive,
+                  searchController: _searchController,
+                  searchHint: 'Cari nama, username, atau email...',
+                  onSearchChanged: (val) {
+                    setState(() {
+                      _searchQuery = val.trim();
+                    });
+                    _vaultDebounceTimer?.cancel();
+                    if (val.trim().length >= 4) {
+                      _vaultDebounceTimer =
+                          Timer(const Duration(milliseconds: 400), () {
+                        _checkVaultPasscode(val);
+                      });
+                    }
+                  },
+                  onSearchClosed: () {
+                    _vaultDebounceTimer?.cancel();
+                    setState(() {
+                      _isSearchActive = false;
+                      _searchQuery = '';
+                      _searchController.clear();
+                    });
+                  },
+                  action: wasDuress
+                      ? null
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.qrCode,
+                                color: MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: 'Kode QR & Pindai',
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, AppRoutes.myQr),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.magnifier,
+                                color: MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: 'Cari Kontak',
+                              onPressed: () =>
+                                  setState(() => _isSearchActive = true),
+                            ),
+                          ],
+                        ),
+                ),
                 // Banner Private Vault Aktif (jika vault sedang terbuka)
                 if (isVaultUnlocked)
                   Padding(
@@ -227,30 +277,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       ),
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: MekaarSearchField(
-                    controller: _searchController,
-                    hintText: 'Cari nama, username, atau email...',
-                    onChanged: (val) {
-                      setState(() {
-                        _searchQuery = val.trim();
-                      });
-                      _vaultDebounceTimer?.cancel();
-                      if (val.trim().length >= 4) {
-                        _vaultDebounceTimer =
-                            Timer(const Duration(milliseconds: 400), () {
-                          _checkVaultPasscode(val);
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Expanded(
                   child: filteredContacts.isEmpty
                       ? _buildEmptyState()
-                      : _buildContactsList(filteredContacts, hiddenRoomIds, isVaultUnlocked),
+                      : _buildContactsList(
+                          filteredContacts, hiddenRoomIds, isVaultUnlocked),
                 ),
               ],
             ),

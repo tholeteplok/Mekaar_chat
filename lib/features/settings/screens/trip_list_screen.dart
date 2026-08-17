@@ -242,7 +242,11 @@ class _TripTile extends StatelessWidget {
               ),
               Switch.adaptive(
                 value: trip.isActive,
-                activeTrackColor: MekaarColors.cyan,
+                activeThumbColor: MekaarColors.primaryOf(context),
+                activeTrackColor:
+                    MekaarColors.primaryOf(context).withValues(alpha: 0.35),
+                inactiveThumbColor: MekaarColors.textMutedOf(context),
+                inactiveTrackColor: MekaarColors.surface2Of(context),
                 onChanged: onToggle,
               ),
               IconButton(

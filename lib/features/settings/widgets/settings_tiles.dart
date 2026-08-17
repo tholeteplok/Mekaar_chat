@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/custom_card.dart';
 
 /// Header sub-settings terpusat dengan tombol kembali (<) squircle dan judul besar konsisten
 class SettingsTopBar extends StatelessWidget {
@@ -90,6 +91,135 @@ class SettingsTopBar extends StatelessWidget {
   }
 }
 
+/// Kartu accordion dropdown terpusat untuk bagian pengaturan/informasi
+/// yang dapat diperluas/diciutkan secara halus dengan animasi dan haptic feedback.
+class SettingsExpandableCard extends StatefulWidget {
+  const SettingsExpandableCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.iconColor,
+    required this.children,
+    this.initiallyExpanded = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color? iconColor;
+  final List<Widget> children;
+  final bool initiallyExpanded;
+
+  @override
+  State<SettingsExpandableCard> createState() => _SettingsExpandableCardState();
+}
+
+class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = widget.iconColor ?? MekaarColors.cyan;
+
+    return CustomCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              setState(() => _isExpanded = !_isExpanded);
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: effectiveColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      color: effectiveColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: MekaarTypography.bodyMD.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15.5,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.subtitle ??
+                              (_isExpanded
+                                  ? 'Ketuk untuk menutup'
+                                  : 'Ketuk untuk melihat detail'),
+                          style: MekaarTypography.caption.copyWith(
+                            fontSize: 12,
+                            color: MekaarColors.textSecondaryOf(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      SolarIconsOutline.altArrowDown,
+                      color: MekaarColors.textSecondaryOf(context),
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  height: 1,
+                  color: MekaarColors.border.withValues(alpha: 0.15),
+                ),
+                const SizedBox(height: 12),
+                ...widget.children,
+              ],
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 220),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Header seksi terpusat dengan tipografi bersih dan proporsional
 class SettingsSectionHeader extends StatelessWidget {
   const SettingsSectionHeader({
@@ -144,9 +274,13 @@ class SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themePrimary = isDestructive
+        ? MekaarColors.sosRed
+        : MekaarColors.primaryOf(context);
+
     final effectiveIconColor = isDestructive
         ? MekaarColors.sosRed
-        : (iconColor ?? MekaarColors.cyan);
+        : (iconColor ?? themePrimary);
 
     final effectiveIconBgColor = isDestructive
         ? MekaarColors.sosRed.withValues(alpha: 0.12)
@@ -218,7 +352,7 @@ class SettingsSwitchTile extends StatelessWidget {
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
                 color: value
-                    ? MekaarColors.cyan
+                    ? themePrimary
                     : MekaarColors.textMutedOf(context),
               ),
             ),
@@ -231,8 +365,8 @@ class SettingsSwitchTile extends StatelessWidget {
                       HapticService.trigger(MekaarHapticIntent.selection);
                       onChanged!(val);
                     },
-              activeThumbColor: MekaarColors.cyan,
-              activeTrackColor: MekaarColors.cyan.withValues(alpha: 0.35),
+              activeThumbColor: themePrimary,
+              activeTrackColor: themePrimary.withValues(alpha: 0.35),
               inactiveThumbColor: MekaarColors.textMutedOf(context),
               inactiveTrackColor: MekaarColors.surface2Of(context),
             ),

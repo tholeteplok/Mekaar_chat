@@ -10,10 +10,9 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../widgets/settings_tiles.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -204,27 +203,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final username = profile?.username ?? '';
     final pinSet = authState.isPinSet;
 
-    return MekaarScaffold(
-      flat: true,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
-            SettingsTopBar(
-              title: 'Akun',
-              trailing: IconButton(
-                onPressed: _saveAllChanges,
-                icon: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.black,
-                  size: 22,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: MekaarColors.cyan,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+            MekaarTabHeader(
+              title: 'Profil',
+              action: (_isEditingDisplayName || _isEditingUsername)
+                  ? IconButton(
+                      onPressed: _saveAllChanges,
+                      icon: Icon(
+                        SolarIconsBold.checkCircle,
+                        color: MekaarColors.primaryOf(context),
+                        size: 24,
+                      ),
+                      tooltip: 'Simpan Perubahan',
+                    )
+                  : null,
             ),
 
             Expanded(
