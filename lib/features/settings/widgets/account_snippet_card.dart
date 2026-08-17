@@ -63,57 +63,70 @@ class AccountSnippetCard extends ConsumerWidget {
     final profile = authState.profile;
     final user = authState.user;
 
-    final displayName = profile?.displayName ?? profile?.fullName ?? profile?.username ?? 'Pengguna';
-    final email = user?.email ?? '';
+    final displayName = profile?.displayName ??
+        profile?.fullName ??
+        profile?.username ??
+        'Pengguna';
+    final email = user?.email ?? profile?.username ?? '';
 
     return CustomCard(
+      margin: EdgeInsets.zero,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+      onTap: () {
+        Navigator.pushNamed(context, AppRoutes.profile);
+      },
       child: Row(
         children: [
           // Avatar
           Avatar(
             initial: displayName,
             imageUrl: profile?.avatarUrl,
-            size: 48,
+            size: 46,
           ),
           const SizedBox(width: 14),
           // Nama & email
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   displayName,
                   style: MekaarTypography.bodyMD.copyWith(
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w700,
                     color: MekaarColors.textPrimaryOf(context),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (email.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    email,
-                    style: MekaarTypography.bodySM.copyWith(
-                      fontSize: 13.5,
-                      color: MekaarColors.textMutedOf(context),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 2),
+                Text(
+                  email.isNotEmpty ? email : 'Info Pribadi & Keamanan Akun',
+                  style: MekaarTypography.caption.copyWith(
+                    fontSize: 12.5,
+                    color: MekaarColors.textSecondaryOf(context),
                   ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          // Chevron — tap ke profil
-          Icon(
-            SolarIconsOutline.altArrowRight,
-            size: 18,
-            color: MekaarColors.textMutedOf(context),
+          // Chevron squircle container
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              SolarIconsOutline.altArrowRight,
+              size: 14,
+              color: MekaarColors.textMutedOf(context),
+            ),
           ),
         ],
       ),

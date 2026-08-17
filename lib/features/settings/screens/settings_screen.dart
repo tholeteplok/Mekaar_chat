@@ -23,21 +23,6 @@ import '../widgets/account_snippet_card.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-
-
-  // ─────────────────────────────────────────────────
-  // Helper: header section (label uppercase)
-  // ─────────────────────────────────────────────────
-  Widget _sectionHeader(String label) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Text(label.toUpperCase(), style: MekaarTypography.overline),
-      ),
-    );
-  }
-
   // ─────────────────────────────────────────────────
   // SECTION 1: Tampilan — selector tema & font
   // ─────────────────────────────────────────────────
@@ -48,7 +33,7 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Tampilan'),
+        const SettingsSectionHeader(title: 'Tampilan'),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -56,6 +41,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               SettingsNavTile(
                 icon: SolarIconsOutline.palette,
+                iconColor: MekaarColors.purple,
                 title: 'Tampilan & Font',
                 subtitle: 'Mode terang/gelap & font ${activeFont.displayName}',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.themeSettings),
@@ -63,6 +49,7 @@ class SettingsScreen extends ConsumerWidget {
               const MekaarCardDivider(),
               SettingsNavTile(
                 icon: SolarIconsOutline.chatRoundDots,
+                iconColor: MekaarColors.cyan,
                 title: 'Tema & Wallpaper Chat',
                 subtitle: 'Preset obrolan, wallpaper canvas & gaya gelembung',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
@@ -75,16 +62,15 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildAccountSection(BuildContext context, WidgetRef ref) {
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Akun'),
-        const AccountSnippetCard(),
+        SettingsSectionHeader(title: 'Akun'),
+        AccountSnippetCard(),
       ],
     );
   }
 
-  // ─────────────────────────────────────────────────
   // ─────────────────────────────────────────────────
   // SECTION 3: Privasi
   // ─────────────────────────────────────────────────
@@ -92,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Privasi'),
+        const SettingsSectionHeader(title: 'Privasi'),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -100,6 +86,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               SettingsSwitchTile(
                 icon: SolarIconsOutline.screenShare,
+                iconColor: MekaarColors.guardianTeal,
                 title: 'Proteksi Layar',
                 subtitle: 'Cegah screenshot & perekaman layar',
                 value: ref.watch(screenshotBlockProvider),
@@ -108,6 +95,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsSwitchTile(
                 icon: SolarIconsOutline.eye,
+                iconColor: MekaarColors.warning,
                 title: 'Sembunyikan Notifikasi Darurat',
                 subtitle: 'Samarkan teks alarm di layar kunci',
                 value: ref.watch(notificationMaskingProvider),
@@ -116,12 +104,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.user,
+                iconColor: MekaarColors.info,
                 title: 'Terakhir Dilihat & Online',
                 subtitle: ref.watch(lastSeenPrivacyProvider).label,
                 onTap: () => _showLastSeenSheet(context, ref),
               ),
               SettingsSwitchTile(
                 icon: SolarIconsOutline.checkCircle,
+                iconColor: MekaarColors.lime,
                 title: 'Bukti Baca (Read Receipt)',
                 subtitle: 'Tanda centang biru saat pesan dibaca',
                 value: ref.watch(readReceiptsProvider),
@@ -130,6 +120,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.shieldUser,
+                iconColor: MekaarColors.cyan,
                 title: 'Proteksi Undangan Chat',
                 subtitle: ref.watch(chatInvitationModeProvider) == 'approved_only'
                     ? 'Hanya yang disetujui'
@@ -138,8 +129,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.mapPoint,
-                title: 'Mekaar Beacon (Auto Check-In Rute)',
-                subtitle: 'Otomatisasi pengiriman sinyal aman ke Guardian saat perjalanan',
+                iconColor: MekaarColors.guardianTeal,
+                title: 'Mekaar Beacon (Auto Check-In)',
+                subtitle: 'Otomatisasi pengiriman sinyal aman ke Guardian saat rute',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
               ),
             ],
@@ -158,7 +150,7 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Keamanan'),
+        const SettingsSectionHeader(title: 'Keamanan'),
         Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -210,6 +202,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               SettingsSwitchTile(
                 icon: SolarIconsOutline.lock,
+                iconColor: MekaarColors.yellow,
                 title: 'Kunci PIN Aplikasi',
                 subtitle: 'Kunci aplikasi dengan 6-digit PIN',
                 value: ref.watch(pinLockEnabledProvider),
@@ -229,12 +222,14 @@ class SettingsScreen extends ConsumerWidget {
               if (!wasDuress) ...[
                 SettingsNavTile(
                   icon: SolarIconsOutline.lockKeyhole,
+                  iconColor: MekaarColors.sosCoral,
                   title: 'PIN Paksaan (Duress)',
                   subtitle: 'PIN rahasia pemicu alarm SOS',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.duressPin),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.shieldKeyhole,
+                  iconColor: MekaarColors.guardianTeal,
                   title: 'Verifikasi 2 Langkah',
                   subtitle: ref.watch(twoFaProvider)
                       ? 'Aktif · kode authenticator'
@@ -243,6 +238,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.billList,
+                  iconColor: MekaarColors.sosRed,
                   title: 'Riwayat SOS',
                   subtitle: 'Catatan insiden darurat SOS',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
@@ -262,12 +258,13 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Notifikasi'),
+        const SettingsSectionHeader(title: 'Notifikasi'),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SettingsNavTile(
             icon: SolarIconsOutline.bell,
+            iconColor: MekaarColors.cyan,
             title: 'Nada & Suara',
             subtitle: 'Nada notifikasi pesan & alarm SOS',
             onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
@@ -283,14 +280,13 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildSystemSection(BuildContext context, WidgetRef ref) {
     final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
 
-    // Baca preferensi haptics dari notificationPreferencesProvider
     final prefsAsync = ref.watch(notificationPreferencesProvider);
     final hapticsEnabled = prefsAsync.value?.hapticsEnabled ?? true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Sistem'),
+        const SettingsSectionHeader(title: 'Sistem'),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -298,9 +294,10 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               SettingsSwitchTile(
                 icon: SolarIconsOutline.smartphoneVibration,
+                iconColor: MekaarColors.purpleLight,
                 title: 'Getaran',
                 subtitle:
-                    'Aktifkan respons getar untuk ketukan, konfirmasi, dan peringatan di seluruh aplikasi',
+                    'Respons getar untuk ketukan, konfirmasi & peringatan',
                 value: hapticsEnabled,
                 onChanged: prefsAsync.hasValue
                     ? (value) => ref
@@ -311,21 +308,24 @@ class SettingsScreen extends ConsumerWidget {
               if (!wasDuress) ...[
                 SettingsSwitchTile(
                   icon: SolarIconsOutline.volumeLoud,
+                  iconColor: MekaarColors.guardianTeal,
                   title: 'Izin Guardian Alarm',
                   subtitle:
-                      'Izinkan Guardian membunyikan sirine keras pada perangkat Anda (berlaku untuk SOS & non-SOS)',
+                      'Izinkan Guardian membunyikan sirine keras pada perangkat Anda',
                   value: ref.watch(allowGuardianAlarmProvider),
                   onChanged: (value) =>
                       ref.read(allowGuardianAlarmProvider.notifier).setEnabled(value),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.gps,
+                  iconColor: MekaarColors.cyan,
                   title: 'Temukan Ponsel Saya',
                   subtitle: 'Mode perangkat hilang (self-guardian)',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.userBlock,
+                  iconColor: MekaarColors.sosCoral,
                   title: 'Daftar Blokir',
                   subtitle: 'Kelola pengguna yang diblokir',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.blockedList),
@@ -333,6 +333,7 @@ class SettingsScreen extends ConsumerWidget {
               ],
               SettingsNavTile(
                 icon: SolarIconsOutline.infoCircle,
+                iconColor: MekaarColors.cyan,
                 title: 'Tentang MEKAAR',
                 subtitle: 'Versi aplikasi, pembaruan, filosofi & lisensi',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.about),
