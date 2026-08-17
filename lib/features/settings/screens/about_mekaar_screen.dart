@@ -96,16 +96,15 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          onPressed: () async {
+          onPressed: () {
             Navigator.pop(context);
-            final url = Uri.parse(info.downloadUrl);
-            if (await canLaunchUrl(url)) {
-              await launchUrl(url, mode: LaunchMode.externalApplication);
-            } else {
-              if (mounted) {
-                MekaarSnackbar.error(context, 'Tidak dapat membuka tautan rilis.');
-              }
-            }
+            _openUrl(
+              info.downloadUrl.isNotEmpty
+                  ? info.downloadUrl
+                  : (info.htmlUrl.isNotEmpty
+                      ? info.htmlUrl
+                      : 'https://github.com/tholeteplok/Mekaar_chat/releases'),
+            );
           },
           icon: const Icon(SolarIconsOutline.download, size: 16),
           label: const Text('Unduh Sekarang'),
@@ -116,12 +115,27 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
 
   Future<void> _openUrl(String urlString) async {
     HapticService.trigger(MekaarHapticIntent.selection);
-    final url = Uri.parse(urlString);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        MekaarSnackbar.error(context, 'Tidak dapat membuka tautan.');
+    final target = urlString.trim().isNotEmpty
+        ? urlString.trim()
+        : 'https://github.com/tholeteplok/Mekaar_chat/releases';
+    try {
+      final uri = Uri.parse(target);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        final fallbackLaunched =
+            await launchUrl(uri, mode: LaunchMode.platformDefault);
+        if (!fallbackLaunched) {
+          await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        }
+      }
+    } catch (_) {
+      try {
+        final uri = Uri.parse(target);
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      } catch (_) {
+        if (mounted) {
+          MekaarSnackbar.error(context, 'Tidak dapat membuka tautan.');
+        }
       }
     }
   }
