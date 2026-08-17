@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 final updateServiceProvider = Provider<UpdateService>((ref) {
   return UpdateService();
@@ -69,6 +71,8 @@ class UpdateService {
   static const String _repoName = 'Mekaar_chat';
   static const String _githubApiUrl =
       'https://api.github.com/repos/$_repoOwner/$_repoName/releases/latest';
+  static const MethodChannel _installerChannel =
+      MethodChannel('com.mekaar.mekaar_chat/installer');
 
   /// Mendapatkan versi aplikasi saat ini dari metadata package info
   Future<String> getCurrentVersion() async {
@@ -241,6 +245,97 @@ class UpdateService {
       );
     } finally {
       client.close();
+    }
+  }
+
+  /// Mengunduh file APK langsung ke cache aplikasi dengan kalkulasi byte dan stream progress
+  Future<File> downloadApk({
+    required String downloadUrl,
+    required String version,
+    required void Function(double progress, int receivedBytes, int totalBytes) onProgress,
+    int? expectedTotalBytes,
+  }) async {
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 15);
+    client.autoUncompress = true;
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final sanitizedVer = _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final saveFile = File('${tempDir.path}/Mekaar-$sanitizedVer.apk');
+      if (await saveFile.exists()) {
+        await saveFile.delete();
+      }
+
+      var currentUrl = downloadUrl;
+      HttpClientResponse? response;
+
+      // Handle redirect chain (301, 302, 307, 308) seperti GitHub S3 AWS CDN
+      for (int i = 0; i < 6; i++) {
+        final request = await client.getUrl(Uri.parse(currentUrl));
+        request.headers.set(HttpHeaders.userAgentHeader, 'Mekaar-Chat-App');
+        request.headers.set(HttpHeaders.acceptHeader, '*/*');
+        request.followRedirects = false;
+
+        final res = await request.close();
+        if (res.isRedirect ||
+            res.statusCode == HttpStatus.movedPermanently ||
+            res.statusCode == HttpStatus.found ||
+            res.statusCode == HttpStatus.seeOther ||
+            res.statusCode == HttpStatus.temporaryRedirect) {
+          final location = res.headers.value(HttpHeaders.locationHeader);
+          if (location != null && location.isNotEmpty) {
+            currentUrl = location;
+            continue;
+          }
+        }
+        response = res;
+        break;
+      }
+
+      if (response == null || response.statusCode != 200) {
+        throw Exception('Gagal mengunduh file APK (HTTP ${response?.statusCode ?? 0})');
+      }
+
+      final headerContentLength = response.contentLength;
+      final effectiveTotalBytes = headerContentLength > 0
+          ? headerContentLength
+          : (expectedTotalBytes ?? 0);
+
+      int receivedBytes = 0;
+      final sink = saveFile.openWrite();
+
+      await for (final chunk in response) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (effectiveTotalBytes > 0) {
+          final progress = (receivedBytes / effectiveTotalBytes).clamp(0.0, 1.0);
+          onProgress(progress, receivedBytes, effectiveTotalBytes);
+        } else {
+          onProgress(-1.0, receivedBytes, 0);
+        }
+      }
+
+      await sink.flush();
+      await sink.close();
+
+      return saveFile;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Membuka file APK untuk instalasi melalui Android Package Installer
+  Future<bool> installApk(String filePath) async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _installerChannel.invokeMethod<bool>(
+        'installApk',
+        {'filePath': filePath},
+      );
+      return result ?? false;
+    } catch (_) {
+      return false;
     }
   }
 

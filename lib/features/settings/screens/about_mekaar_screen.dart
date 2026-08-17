@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -86,7 +87,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       context: context,
       title: 'Pembaruan Tersedia 🚀',
       message:
-          'Versi baru ${info.latestVersion}$abiText telah tersedia di GitHub Releases!$sizeText\n\n${info.releaseName}\n\nCatatan Rilis:\n${info.releaseNotes}',
+          'Versi baru ${info.latestVersion}$abiText telah tersedia!$sizeText\n\n${info.releaseName}\n\nCatatan Rilis:\n${info.releaseNotes}',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -102,13 +103,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
           ),
           onPressed: () {
             Navigator.pop(context);
-            _openUrl(
-              info.downloadUrl.isNotEmpty
-                  ? info.downloadUrl
-                  : (info.htmlUrl.isNotEmpty
-                      ? info.htmlUrl
-                      : 'https://github.com/tholeteplok/Mekaar_chat/releases'),
-            );
+            _startInAppUpdate(info);
           },
           icon: const Icon(SolarIconsOutline.download, size: 16),
           label: Text(
@@ -118,6 +113,254 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _startInAppUpdate(AppUpdateInfo info) async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    // Fallback jika non-Android atau link download kosong
+    if (!Platform.isAndroid || info.downloadUrl.isEmpty) {
+      _openUrl(info.downloadUrl.isNotEmpty ? info.downloadUrl : info.htmlUrl);
+      return;
+    }
+
+    double downloadProgress = 0.0;
+    int receivedBytes = 0;
+    int totalBytes = info.downloadSizeBytes;
+    String statusMessage = 'Menghubungi server rilis...';
+    bool isDownloading = true;
+    bool isCompleted = false;
+    String? downloadError;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            if (isDownloading && downloadProgress == 0.0 && downloadError == null) {
+              Future.microtask(() async {
+                try {
+                  final updateService = ref.read(updateServiceProvider);
+                  setDialogState(() {
+                    statusMessage = 'Mengunduh paket instalasi...';
+                  });
+
+                  final file = await updateService.downloadApk(
+                    downloadUrl: info.downloadUrl,
+                    version: info.latestVersion,
+                    expectedTotalBytes: info.downloadSizeBytes,
+                    onProgress: (progress, received, total) {
+                      setDialogState(() {
+                        downloadProgress = progress;
+                        receivedBytes = received;
+                        totalBytes = total;
+                        if (progress >= 1.0) {
+                          statusMessage = 'Memverifikasi paket...';
+                        } else if (progress > 0) {
+                          statusMessage = 'Mengunduh ${(progress * 100).toInt()}%...';
+                        }
+                      });
+                    },
+                  );
+
+                  setDialogState(() {
+                    isDownloading = false;
+                    isCompleted = true;
+                    statusMessage = 'Membuka Penginstal Paket Android...';
+                  });
+
+                  final installed = await updateService.installApk(file.path);
+                  if (!installed && dialogContext.mounted) {
+                    setDialogState(() {
+                      downloadError =
+                          'Tidak dapat membuka penginstal secara otomatis. Silakan pasang dari folder unduhan atau buka melalui browser.';
+                    });
+                  } else if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
+                } catch (e) {
+                  if (dialogContext.mounted) {
+                    setDialogState(() {
+                      isDownloading = false;
+                      downloadError = 'Gagal mengunduh berkas: $e';
+                    });
+                  }
+                }
+              });
+            }
+
+            final receivedMb = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+            final totalMb = totalBytes > 0
+                ? (totalBytes / (1024 * 1024)).toStringAsFixed(1)
+                : (info.downloadSizeBytes > 0
+                    ? (info.downloadSizeBytes / (1024 * 1024)).toStringAsFixed(1)
+                    : '?');
+
+            return Dialog(
+              backgroundColor: MekaarColors.surfaceOf(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: MekaarColors.border.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: MekaarColors.cyan.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            SolarIconsBold.cloudDownload,
+                            color: MekaarColors.cyan,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pembaruan MEKAAR',
+                                style: MekaarTypography.bodyMD.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: MekaarColors.textPrimaryOf(context),
+                                ),
+                              ),
+                              Text(
+                                'Versi ${info.latestVersion}',
+                                style: MekaarTypography.caption.copyWith(
+                                  color: MekaarColors.textSecondaryOf(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    if (downloadError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: MekaarColors.sosRed.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              SolarIconsBold.dangerCircle,
+                              color: MekaarColors.sosRed,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                downloadError!,
+                                style: MekaarTypography.caption.copyWith(
+                                  color: MekaarColors.sosRed,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text('Tutup'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: MekaarColors.cyan,
+                                foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(dialogContext);
+                                _openUrl(info.htmlUrl);
+                              },
+                              icon: const Icon(
+                                SolarIconsOutline.global,
+                                size: 16,
+                              ),
+                              label: const Text('Buka Browser'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: downloadProgress > 0 ? downloadProgress : null,
+                          backgroundColor: MekaarColors.surface2Of(context),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            MekaarColors.cyan,
+                          ),
+                          minHeight: 8,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            statusMessage,
+                            style: MekaarTypography.caption.copyWith(
+                              color: MekaarColors.textSecondaryOf(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '$receivedMb / $totalMb MB',
+                            style: MekaarTypography.caption.copyWith(
+                              color: MekaarColors.cyan,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: isCompleted
+                                ? null
+                                : () => Navigator.pop(dialogContext),
+                            child: const Text('Batal'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -419,12 +662,12 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () => _openUrl(_updateInfo!.downloadUrl),
+                    onPressed: () => _startInAppUpdate(_updateInfo!),
                     icon: const Icon(SolarIconsOutline.download, size: 18),
                     label: Text(
                       _updateInfo!.formattedSize.isNotEmpty
-                          ? 'Unduh APK (${_updateInfo!.formattedSize.split('·').first.trim()})'
-                          : 'Unduh APK Rilis',
+                          ? 'Unduh & Pasang (${_updateInfo!.formattedSize.split('·').first.trim()})'
+                          : 'Unduh & Pasang Pembaruan',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
