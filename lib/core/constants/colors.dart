@@ -8,7 +8,19 @@ class MekaarColors {
   static const Color canvasMid = Color(0xFF1E2A63);
   static const Color canvasBottom = Color(0xFF2E63B8);
 
-  // Playful accents & Primary Brand Token
+  // ── Brand Identity (HANYA untuk wordmark, splash, onboarding, about branding)
+  static const Color brandPrimary = Color(0xFFFFD84D); // "Mek" — wordmark yellow
+  static const Color brandSecondary = Color(0xFF38BDF8); // "aar" — wordmark cyan
+
+  // ── Functional Accent (untuk UI interactive elements: link, badge, indicator)
+  static const Color accent = Color(0xFF3B4875); // Light mode: muted navy
+  static const Color accentDark = Color(0xFFB8C4E0); // Dark mode: soft silver-blue
+
+  /// Context-aware functional accent
+  static Color accentOf(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark ? accentDark : accent;
+
+  // Playful accents (tetap tersedia untuk chatroom, settings icon, SOS)
   static const Color primary = Color(0xFF38BDF8);
   static const Color cyan = Color(0xFF38BDF8);
   static const Color yellow = Color(0xFFFFD84D);

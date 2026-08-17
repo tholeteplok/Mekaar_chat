@@ -51,7 +51,7 @@ class _SendChatInviteDialogState extends ConsumerState<SendChatInviteDialog> {
   @override
   Widget build(BuildContext context) {
     return MekaarDialog(
-      icon: const Icon(SolarIconsOutline.shieldUser, color: MekaarColors.primary, size: 28),
+      icon: Icon(SolarIconsOutline.shieldUser, color: MekaarColors.accentOf(context), size: 28),
       title: 'Kirim Permintaan Chat',
       message:
           'Pengguna @${widget.receiverUsername} mengaktifkan proteksi undangan. Harap isi keterangan perkenalan agar pengundang mengenali Anda.',
@@ -84,7 +84,7 @@ class _SendChatInviteDialogState extends ConsumerState<SendChatInviteDialog> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _isSending ? null : _handleSend,
-                  style: ElevatedButton.styleFrom(backgroundColor: MekaarColors.primary),
+                  style: ElevatedButton.styleFrom(backgroundColor: MekaarColors.accentOf(context)),
                   child: Text(_isSending ? 'Kirim...' : 'Kirim Undangan'),
                 ),
               ],

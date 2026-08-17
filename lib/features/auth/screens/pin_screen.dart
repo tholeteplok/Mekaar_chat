@@ -317,14 +317,14 @@ class _PinScreenState extends ConsumerState<PinScreen>
                               color: _hasError
                                   ? MekaarColors.sosCoral
                                   : (_pin.length > index
-                                        ? MekaarColors.yellow
+                                        ? MekaarColors.accentOf(context)
                                         : Colors.white38),
                               width: 2,
                             ),
                             color: _pin.length > index
                                 ? (_hasError
                                       ? MekaarColors.sosCoral
-                                      : MekaarColors.yellow)
+                                      : MekaarColors.accentOf(context))
                                 : Colors.transparent,
                           ),
                         ),
@@ -579,9 +579,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
         _statusMessage = 'Buat PIN 6 digit baru untuk mengamankan aplikasi.';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PIN lama berhasil direset. Silakan buat PIN 6 digit baru.'),
-          backgroundColor: MekaarColors.cyan,
+        SnackBar(
+          content: const Text('PIN lama berhasil direset. Silakan buat PIN 6 digit baru.'),
+          backgroundColor: MekaarColors.accentOf(context),
         ),
       );
     }

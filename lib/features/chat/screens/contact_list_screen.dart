@@ -215,18 +215,18 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: MekaarColors.cyan.withValues(alpha: 0.12),
+                        color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: MekaarColors.cyan.withValues(alpha: 0.35),
+                          color: MekaarColors.accentOf(context).withValues(alpha: 0.35),
                           width: 1,
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             SolarIconsOutline.lockUnlocked,
-                            color: MekaarColors.cyan,
+                            color: MekaarColors.accentOf(context),
                             size: 20,
                           ),
                           const SizedBox(width: 10),
@@ -235,7 +235,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                               'Private Vault Terbuka',
                               style: MekaarTypography.bodySM.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentOf(context),
                               ),
                             ),
                           ),
@@ -251,15 +251,15 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                 'Private Vault Dikunci',
                               );
                             },
-                            icon: const Icon(
+                            icon: Icon(
                               SolarIconsOutline.lock,
                               size: 16,
-                              color: MekaarColors.cyan,
+                              color: MekaarColors.accentOf(context),
                             ),
-                            label: const Text(
+                            label: Text(
                               'Kunci',
                               style: TextStyle(
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentOf(context),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -410,24 +410,24 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: MekaarColors.cyan.withValues(alpha: 0.15),
+                        color: MekaarColors.accentOf(context).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             SolarIconsOutline.lockKeyhole,
                             size: 11,
-                            color: MekaarColors.cyan,
+                            color: MekaarColors.accentOf(context),
                           ),
-                          SizedBox(width: 3),
+                          const SizedBox(width: 3),
                           Text(
                             'Vault',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: MekaarColors.cyan,
+                              color: MekaarColors.accentOf(context),
                             ),
                           ),
                         ],

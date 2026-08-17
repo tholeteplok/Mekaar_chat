@@ -86,9 +86,9 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                  const Icon(
+                  Icon(
                     SolarIconsBold.keyMinimalistic,
-                    color: MekaarColors.yellow,
+                    color: MekaarColors.accentOf(context),
                     size: 44,
                   ),
                   const SizedBox(height: 20),

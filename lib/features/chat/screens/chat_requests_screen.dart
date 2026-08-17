@@ -155,12 +155,12 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'KETERANGAN UNDANGAN:',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: MekaarColors.primary,
+                    color: MekaarColors.accentOf(context),
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -192,7 +192,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                         icon: const Icon(SolarIconsOutline.checkCircle, size: 18),
                         label: const Text('Terima Undangan'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: MekaarColors.primary,
+                          backgroundColor: MekaarColors.accentOf(context),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),

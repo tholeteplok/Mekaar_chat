@@ -53,9 +53,9 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Icon(
+              Icon(
                 SolarIconsBold.shieldKeyhole,
-                color: MekaarColors.yellow,
+                color: MekaarColors.accentOf(context),
                 size: 40,
               ),
               const SizedBox(height: 24),

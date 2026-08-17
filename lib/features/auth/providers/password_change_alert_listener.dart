@@ -112,7 +112,7 @@ class PasswordChangeAlertListener {
               arguments: false,
             );
           },
-          style: ElevatedButton.styleFrom(backgroundColor: MekaarColors.primary),
+          style: ElevatedButton.styleFrom(backgroundColor: MekaarColors.accentOf(context)),
           child: const Text('Verifikasi PIN'),
         ),
       ],

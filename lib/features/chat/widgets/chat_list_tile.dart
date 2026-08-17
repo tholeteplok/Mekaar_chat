@@ -221,7 +221,7 @@ class _UnreadBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 20),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: MekaarColors.yellow,
+        color: MekaarColors.accentOf(context),
         borderRadius: BorderRadius.circular(MekaarRadius.pill),
       ),
       child: Text(

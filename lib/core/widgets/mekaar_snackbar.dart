@@ -39,7 +39,7 @@ class MekaarSnackbar {
     Duration duration = _durationShort,
   }) {
     HapticService.trigger(MekaarHapticIntent.selection);
-    _show(context, message, MekaarColors.cyan, SolarIconsOutline.infoCircle,
+    _show(context, message, MekaarColors.info, SolarIconsOutline.infoCircle,
         duration);
   }
 

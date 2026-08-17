@@ -258,10 +258,10 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                     HapticService.trigger(MekaarHapticIntent.selection);
                     Navigator.pushNamed(context, AppRoutes.contactQrScan);
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     SolarIconsOutline.scanner,
                     size: 20,
-                    color: MekaarColors.cyan,
+                    color: MekaarColors.accentOf(context),
                   ),
                   label: Text(
                     'Pindai Kode QR Teman',

@@ -319,10 +319,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 AppRoutes.forgotPassword,
                               );
                             },
-                            child: const Text(
+                            child: Text(
                               'Lupa Password?',
                               style: TextStyle(
-                                color: MekaarColors.yellow,
+                                color: MekaarColors.accentOf(context),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                               ),
@@ -372,9 +372,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: const Icon(MekaarIcons.gMobiledata, size: 28),
                           label: const Text('Lanjut dengan Google'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: MekaarColors.cyan,
-                            side: const BorderSide(
-                              color: MekaarColors.cyan,
+                            foregroundColor: MekaarColors.accentOf(context),
+                            side: BorderSide(
+                              color: MekaarColors.accentOf(context),
                               width: 2,
                             ),
                             shape: const StadiumBorder(),
@@ -405,8 +405,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onTap: () => setState(() => _isLogin = !_isLogin),
                     child: Text(
                       _isLogin ? 'Daftar' : 'Masuk',
-                      style: const TextStyle(
-                        color: MekaarColors.yellow,
+                      style: TextStyle(
+                        color: MekaarColors.accentOf(context),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),

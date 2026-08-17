@@ -110,8 +110,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     point: _selectedLocation,
                     radius: widget.radiusMeters.toDouble(),
                     useRadiusInMeter: true,
-                    color: MekaarColors.cyan.withValues(alpha: 0.22),
-                    borderColor: MekaarColors.cyan,
+                    color: MekaarColors.accentOf(context).withValues(alpha: 0.22),
+                    borderColor: MekaarColors.accentOf(context),
                     borderStrokeWidth: 2,
                   ),
                 ],
@@ -142,16 +142,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             child: FloatingActionButton.small(
               heroTag: 'my_location_btn',
               backgroundColor: surfaceColor,
-              foregroundColor: MekaarColors.cyan,
+              foregroundColor: MekaarColors.accentOf(context),
               onPressed: () {
                 HapticFeedback.selectionClick();
                 _fetchCurrentGpsLocation();
               },
               child: _isLoadingGps
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: MekaarColors.cyan),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: MekaarColors.accentOf(context)),
                     )
                   : const Icon(SolarIconsBold.gps, size: 20),
             ),
@@ -174,12 +174,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: MekaarColors.cyan.withValues(alpha: 0.15),
+                          color: MekaarColors.accentOf(context).withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           SolarIconsBold.mapPointSearch,
-                          color: MekaarColors.cyan,
+                          color: MekaarColors.accentOf(context),
                           size: 20,
                         ),
                       ),

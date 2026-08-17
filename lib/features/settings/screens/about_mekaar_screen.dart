@@ -96,7 +96,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         ),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: MekaarColors.cyan,
+            backgroundColor: MekaarColors.accentOf(context),
             foregroundColor: Colors.black,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -218,12 +218,12 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: MekaarColors.cyan.withValues(alpha: 0.12),
+                            color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             SolarIconsBold.cloudDownload,
-                            color: MekaarColors.cyan,
+                            color: MekaarColors.accentOf(context),
                             size: 22,
                           ),
                         ),
@@ -291,7 +291,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: MekaarColors.cyan,
+                                backgroundColor: MekaarColors.accentOf(context),
                                 foregroundColor: Colors.black,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -316,8 +316,8 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         child: LinearProgressIndicator(
                           value: downloadProgress > 0 ? downloadProgress : null,
                           backgroundColor: MekaarColors.surface2Of(context),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            MekaarColors.cyan,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            MekaarColors.accentOf(context),
                           ),
                           minHeight: 8,
                         ),
@@ -336,7 +336,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                           Text(
                             '$receivedMb / $totalMb MB',
                             style: MekaarTypography.caption.copyWith(
-                              color: MekaarColors.cyan,
+                              color: MekaarColors.accentOf(context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -535,7 +535,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (hasNewUpdate ? MekaarColors.sosRed : MekaarColors.cyan)
+                  color: (hasNewUpdate ? MekaarColors.sosRed : MekaarColors.accentOf(context))
                       .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -543,7 +543,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                   hasNewUpdate
                       ? SolarIconsBold.cloudUpload
                       : SolarIconsBold.checkCircle,
-                  color: hasNewUpdate ? MekaarColors.sosRed : MekaarColors.cyan,
+                  color: hasNewUpdate ? MekaarColors.sosRed : MekaarColors.accentOf(context),
                   size: 20,
                 ),
               ),
@@ -596,16 +596,16 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: MekaarColors.cyan.withValues(alpha: 0.12),
+                      color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: MekaarColors.cyan.withValues(alpha: 0.3),
+                        color: MekaarColors.accentOf(context).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Text(
                       _updateInfo!.formattedSize,
                       style: MekaarTypography.caption.copyWith(
-                        color: MekaarColors.cyan,
+                        color: MekaarColors.accentOf(context),
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -630,7 +630,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: MekaarColors.cyan,
+                      backgroundColor: MekaarColors.accentOf(context),
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -661,41 +661,41 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         color: MekaarColors.surface2Of(context),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: MekaarColors.cyan.withValues(alpha: 0.3),
+                          color: MekaarColors.accentOf(context).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (_isCheckingUpdate) ...[
-                            const SizedBox(
+                            SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentOf(context),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Menghubungi GitHub...',
                               style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentOf(context),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13.5,
                               ),
                             ),
                           ] else ...[
-                            const Icon(
+                            Icon(
                               SolarIconsOutline.refreshCircle,
-                              color: MekaarColors.cyan,
+                              color: MekaarColors.accentOf(context),
                               size: 18,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Periksa Pembaruan',
                               style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentOf(context),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13.5,
                               ),
@@ -728,7 +728,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         title: 'Zero-Knowledge & Privacy-First',
         desc:
             'Data adalah milik Anda seutuhnya. Tanpa pelacakan analytics komersial, bebas data mining, dan bebas iklan.',
-        color: MekaarColors.cyan,
+        color: MekaarColors.accentOf(context),
       ),
       (
         icon: SolarIconsOutline.flame,
@@ -919,12 +919,12 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: MekaarColors.cyan.withValues(alpha: 0.12),
+                  color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   SolarIconsOutline.code2,
-                  color: MekaarColors.cyan,
+                  color: MekaarColors.accentOf(context),
                   size: 20,
                 ),
               ),
@@ -957,9 +957,9 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                 color: MekaarColors.surface2Of(context),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 SolarIconsOutline.linkCircle,
-                color: MekaarColors.cyan,
+                color: MekaarColors.accentOf(context),
                 size: 20,
               ),
             ),
@@ -974,13 +974,13 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
             subtitle: Text(
               'github.com/tholeteplok/Mekaar_chat',
               style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.cyan,
+                color: MekaarColors.accentOf(context),
                 fontSize: 13,
               ),
             ),
-            trailing: const Icon(
+            trailing: Icon(
               SolarIconsOutline.arrowRightUp,
-              color: MekaarColors.cyan,
+              color: MekaarColors.accentOf(context),
               size: 18,
             ),
             onTap: () => _openUrl('https://github.com/tholeteplok/Mekaar_chat'),

@@ -11,11 +11,11 @@ class MekaarTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: MekaarColors.softCoral,
+      primaryColor: MekaarColors.accent,
       scaffoldBackgroundColor:
           Colors.transparent, // Let gradient canvas handle background
       colorScheme: const ColorScheme.light(
-        primary: MekaarColors.softCoral,
+        primary: MekaarColors.accent,
         secondary: MekaarColors.safeTeal,
         error: MekaarColors.sosRed,
         surface: MekaarColors.card,
@@ -78,7 +78,7 @@ class MekaarTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.transparent,
-        selectedItemColor: MekaarColors.softCoral,
+        selectedItemColor: MekaarColors.brandSecondary,
         unselectedItemColor: MekaarColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -100,7 +100,7 @@ class MekaarTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(999),
-          borderSide: const BorderSide(color: MekaarColors.softCoral, width: 2),
+          borderSide: const BorderSide(color: MekaarColors.accent, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
@@ -145,13 +145,13 @@ class MekaarTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.softCoral;
+            return MekaarColors.accent;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.softCoral.withValues(alpha: 0.35);
+            return MekaarColors.accent.withValues(alpha: 0.35);
           }
           return null;
         }),
@@ -169,8 +169,8 @@ class MekaarTheme {
     return _buildLight(
       fontFamily,
       brightness: Brightness.light,
-      primary: MekaarColors.yellow,
-      onPrimary: MekaarColors.textOnYellow,
+      primary: MekaarColors.accent,
+      onPrimary: Colors.white,
       surface: MekaarColors.morningSurface,
       onSurface: MekaarColors.morningOnSurface,
       statusBarIconBrightness: Brightness.dark,
@@ -182,8 +182,8 @@ class MekaarTheme {
     return _buildLight(
       fontFamily,
       brightness: Brightness.light,
-      primary: MekaarColors.cyan,
-      onPrimary: MekaarColors.surfaceDark,
+      primary: MekaarColors.accent,
+      onPrimary: Colors.white,
       surface: MekaarColors.card,
       onSurface: const Color(0xFF1B2145),
       statusBarIconBrightness: Brightness.dark,
@@ -195,7 +195,7 @@ class MekaarTheme {
     return _buildLight(
       fontFamily,
       brightness: Brightness.light,
-      primary: MekaarColors.softCoral,
+      primary: MekaarColors.accent,
       onPrimary: Colors.white,
       surface: MekaarColors.eveningSurface,
       onSurface: MekaarColors.eveningOnSurface,
@@ -275,7 +275,7 @@ class MekaarTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: Colors.transparent,
-        selectedItemColor: primary,
+        selectedItemColor: MekaarColors.brandSecondary,
         unselectedItemColor: MekaarColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -302,14 +302,14 @@ class MekaarTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: onPrimary,
+          backgroundColor: MekaarColors.brandPrimary,
+          foregroundColor: MekaarColors.textOnYellow,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle:
               const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           elevation: 4,
-          shadowColor: primary.withValues(alpha: 0.3),
+          shadowColor: MekaarColors.brandPrimary.withValues(alpha: 0.3),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -359,15 +359,15 @@ class MekaarTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: MekaarColors.purple,
+      primaryColor: MekaarColors.accentDark,
       scaffoldBackgroundColor:
           Colors.transparent, // Let gradient canvas handle background
       colorScheme: const ColorScheme.dark(
-        primary: MekaarColors.purple,
+        primary: MekaarColors.accentDark,
         secondary: MekaarColors.safeTeal,
         error: MekaarColors.sosRed,
         surface: MekaarColors.cardDark,
-        onPrimary: Colors.white,
+        onPrimary: Color(0xFF1B2145),
         onSurface: MekaarColors.textPrimary,
       ),
       textTheme: GoogleFonts.getTextTheme(
@@ -425,7 +425,7 @@ class MekaarTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.transparent,
-        selectedItemColor: MekaarColors.purple,
+        selectedItemColor: MekaarColors.brandSecondary,
         unselectedItemColor: MekaarColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -447,7 +447,7 @@ class MekaarTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(999),
-          borderSide: const BorderSide(color: MekaarColors.purple, width: 2),
+          borderSide: const BorderSide(color: MekaarColors.accentDark, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
@@ -456,13 +456,13 @@ class MekaarTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: MekaarColors.purple,
-          foregroundColor: Colors.white,
+          backgroundColor: MekaarColors.brandPrimary,
+          foregroundColor: MekaarColors.textOnYellow,
           shape: const StadiumBorder(), // Pill shape
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           elevation: 4,
-          shadowColor: MekaarColors.purple.withValues(alpha: 0.3),
+          shadowColor: MekaarColors.brandPrimary.withValues(alpha: 0.3),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -492,13 +492,13 @@ class MekaarTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.purple;
+            return MekaarColors.accentDark;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.purple.withValues(alpha: 0.35);
+            return MekaarColors.accentDark.withValues(alpha: 0.35);
           }
           return null;
         }),

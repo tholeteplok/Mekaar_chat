@@ -291,10 +291,10 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
                           const SizedBox(height: 4),
                           Text(
                             contact,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: MekaarColors.primary,
+                              color: MekaarColors.accentOf(context),
                             ),
                           ),
                         ],

@@ -123,9 +123,9 @@ class _ForgotPasswordScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                const Icon(
+                Icon(
                   SolarIconsBold.lockPassword,
-                  color: MekaarColors.yellow,
+                  color: MekaarColors.accentOf(context),
                   size: 44,
                 ),
                 const SizedBox(height: 20),
@@ -203,10 +203,10 @@ class _ForgotPasswordScreenState
                       onPressed: () {
                         setState(() => _showOtpFallback = true);
                       },
-                      child: const Text(
+                      child: Text(
                         'Punya Kode OTP 6-Digit? Masukkan manual',
                         style: TextStyle(
-                          color: MekaarColors.yellow,
+                          color: MekaarColors.accentOf(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -344,10 +344,10 @@ class _ForgotPasswordScreenState
                       onPressed: () {
                         setState(() => _showOtpFallback = false);
                       },
-                      child: const Text(
+                      child: Text(
                         'Kembali ke Kirim Link Reset',
                         style: TextStyle(
-                          color: MekaarColors.yellow,
+                          color: MekaarColors.accentOf(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
