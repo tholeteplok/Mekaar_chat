@@ -7,18 +7,16 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/routes/app_routes.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/saved_place_model.dart';
 import '../../../data/models/trip_model.dart';
-import '../../../data/repositories/saved_places_repository.dart';
 import '../../../data/repositories/trip_repository.dart';
 import '../../../data/services/location_service.dart';
 import '../../map/screens/location_picker_screen.dart';
 import '../providers/trip_provider.dart';
+import '../widgets/settings_tiles.dart';
 
 class AddTripScreen extends ConsumerStatefulWidget {
   const AddTripScreen({super.key});
@@ -105,47 +103,31 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     }
   }
 
-  Future<void> _openMapPicker({String? autoSaveId, String? autoSaveName}) async {
+  Future<void> _openMapPicker() async {
     HapticFeedback.selectionClick();
-    final result = await Navigator.pushNamed(
+    final LatLng initialCenter = _destinationLocation ??
+        const LatLng(-6.2088, 106.8456); // Default Jakarta jika null
+
+    final result = await Navigator.push<LocationPickerResult>(
       context,
-      AppRoutes.mapPicker,
-      arguments: _radiusMeters,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          initialLocation: initialCenter,
+          radiusMeters: _radiusMeters,
+          title: _destLabelController.text.trim().isNotEmpty
+              ? 'Pilih Titik ${_destLabelController.text.trim()}'
+              : 'Pilih Lokasi Tujuan di Peta',
+        ),
+      ),
     );
 
-    if (result is LocationPickerResult) {
+    if (result != null && mounted) {
       setState(() {
         _destinationLocation = result.location;
         if (result.labelHint != null && result.labelHint!.isNotEmpty) {
           _destLabelController.text = result.labelHint!;
         }
       });
-
-      if (autoSaveId != null && autoSaveName != null) {
-        final savedPlace = SavedPlace(
-          id: autoSaveId,
-          name: autoSaveName,
-          iconName: autoSaveId,
-          latitude: result.location.latitude,
-          longitude: result.location.longitude,
-          updatedAt: DateTime.now(),
-        );
-        await ref.read(savedPlacesRepositoryProvider).savePlace(savedPlace);
-        ref.invalidate(savedPlacesProvider);
-        if (mounted) {
-          MekaarSnackbar.success(
-            context,
-            'Lokasi "$autoSaveName" berhasil disimpan secara permanen!',
-          );
-        }
-      } else {
-        if (mounted) {
-          MekaarSnackbar.info(
-            context,
-            'Lokasi tujuan diperbarui dari peta: ${result.location.latitude.toStringAsFixed(4)}, ${result.location.longitude.toStringAsFixed(4)}',
-          );
-        }
-      }
     }
   }
 
@@ -162,38 +144,40 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
       setState(() {
         _destinationLocation = LatLng(existingPlace.latitude, existingPlace.longitude);
       });
-      MekaarSnackbar.success(
-        context,
-        'Koordinat tersimpan "$name" diterapkan (${existingPlace.latitude.toStringAsFixed(4)}, ${existingPlace.longitude.toStringAsFixed(4)})',
-      );
+      if (mounted) {
+        MekaarSnackbar.success(
+          context,
+          'Titik koordinat "$name" dimuat dari Lokasi Tersimpan!',
+        );
+      }
     } else {
-      MekaarSnackbar.info(
-        context,
-        'Lokasi "$name" belum memiliki titik koordinat tersimpan. Tentukan di peta.',
-      );
-      await _openMapPicker(autoSaveId: id, autoSaveName: name);
+      if (mounted) {
+        MekaarSnackbar.info(
+          context,
+          'Preset "$name" belum memiliki koordinat tersimpan. Silakan tentukan via tombol Pilih di Peta.',
+        );
+      }
+      await _openMapPicker();
     }
   }
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (_destinationLocation == null) {
-      MekaarSnackbar.error(context, 'Silakan pilih lokasi tujuan di peta terlebih dahulu');
+      MekaarSnackbar.error(context, 'Silakan tentukan titik lokasi tujuan terlebih dahulu via peta!');
       return;
     }
-    if (_selectedActiveDays.isEmpty) {
-      MekaarSnackbar.error(context, 'Pilih minimal 1 hari aktif rute perjalanan');
-      return;
-    }
+
     if (_selectedGuardianIds.isEmpty) {
-      MekaarSnackbar.error(context, 'Pilih minimal 1 Guardian penerima Auto Check-In');
+      MekaarSnackbar.error(context, 'Pilih minimal satu Guardian penerima notifikasi!');
       return;
     }
 
     setState(() => _isSaving = true);
     try {
       final destZone = TripZone(
-        label: _destLabelController.text.trim(),
+        label: _destLabelController.text.trim().isNotEmpty ? _destLabelController.text.trim() : 'Tujuan',
         latitude: _destinationLocation!.latitude,
         longitude: _destinationLocation!.longitude,
         radiusMeters: _radiusMeters,
@@ -213,14 +197,15 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
             guardians: guardians,
           );
 
+      ref.invalidate(userTripsProvider);
+
       if (mounted) {
-        ref.invalidate(userTripsProvider);
-        MekaarSnackbar.success(context, 'Rute perjalanan berhasil disimpan!');
+        MekaarSnackbar.success(context, 'Rute Perjalanan "${_titleController.text.trim()}" berhasil diaktifkan!');
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        MekaarSnackbar.error(context, 'Gagal menyimpan rute: $e');
+        MekaarSnackbar.error(context, 'Gagal menyimpan rute perjalanan: $e');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -247,27 +232,30 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(
-        title: 'Tambah Rute Beacon',
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(MekaarSpacing.md),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Nama Perjalanan
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Nama Perjalanan',
-                  hintText: 'Contoh: Pulang Kerja, Ke Kampus',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(SolarIconsOutline.routing, color: MekaarColors.cyan),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Nama perjalanan wajib diisi' : null,
-              ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsTopBar(title: 'Tambah Rute Perjalanan'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Nama Perjalanan
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama Perjalanan',
+                          hintText: 'Contoh: Pulang Kerja, Ke Kampus',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(SolarIconsOutline.routing, color: MekaarColors.cyan),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Nama perjalanan wajib diisi' : null,
+                      ),
               const SizedBox(height: MekaarSpacing.md),
 
               // 2. Lokasi Asal (Preset Chips Real-Time GPS)
@@ -583,8 +571,12 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                       : const Text('Simpan Rute Perjalanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
-            ],
-          ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

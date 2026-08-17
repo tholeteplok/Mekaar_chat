@@ -5,7 +5,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -15,6 +14,7 @@ import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/trip_model.dart';
 import '../../../data/repositories/trip_repository.dart';
 import '../providers/trip_provider.dart';
+import '../widgets/settings_tiles.dart';
 
 class TripListScreen extends ConsumerWidget {
   const TripListScreen({super.key});
@@ -25,19 +25,32 @@ class TripListScreen extends ConsumerWidget {
 
     return MekaarScaffold(
       flat: true,
-      appBar: CustomAppBar(
-        title: 'Auto Check-In Rute',
-        actions: [
-          IconButton(
-            icon: const Icon(SolarIconsBold.addCircle, color: MekaarColors.cyan),
-            onPressed: () async {
-              await Navigator.pushNamed(context, AppRoutes.addTrip);
-              ref.invalidate(userTripsProvider);
-            },
-          ),
-        ],
-      ),
-      body: tripsAsync.when(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SettingsTopBar(
+              title: 'Auto Check-In Rute',
+              trailing: IconButton(
+                icon: const Icon(
+                  SolarIconsOutline.addCircle,
+                  color: MekaarColors.cyan,
+                  size: 22,
+                ),
+                style: IconButton.styleFrom(
+                  backgroundColor: MekaarColors.surface2Of(context),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  await Navigator.pushNamed(context, AppRoutes.addTrip);
+                  ref.invalidate(userTripsProvider);
+                },
+              ),
+            ),
+            Expanded(
+              child: tripsAsync.when(
         data: (trips) {
           if (trips.isEmpty) {
             return MekaarStateView(
@@ -141,6 +154,10 @@ class TripListScreen extends ConsumerWidget {
           actionLabel: 'Coba Lagi',
           onAction: () => ref.invalidate(userTripsProvider),
         ),
+      ),
+    ),
+  ],
+),
       ),
     );
   }

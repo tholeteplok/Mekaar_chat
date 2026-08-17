@@ -12,12 +12,13 @@ import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/time_tick_provider.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+
+import '../widgets/settings_tiles.dart';
 
 /// Layar Terpisah untuk Pengaturan Tampilan, Tema, dan Tipografi MEKAAR.
 class ThemeSettingsScreen extends ConsumerStatefulWidget {
@@ -38,16 +39,19 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(
-        title: 'Tampilan & Tema',
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(MekaarSpacing.md),
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── 1. Live Preview Card ──
-            _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref),
+            const SettingsTopBar(title: 'Tampilan & Tema'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── 1. Live Preview Card ──
+                    _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref),
 
             const SizedBox(height: MekaarSpacing.xl),
 
@@ -173,7 +177,11 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: MekaarSpacing.xxl),
+                    const SizedBox(height: MekaarSpacing.xxl),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

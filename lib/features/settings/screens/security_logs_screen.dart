@@ -5,11 +5,11 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../providers/log_provider.dart';
 import '../../../data/models/security_log_model.dart';
+import '../widgets/settings_tiles.dart';
 
 class SecurityLogsScreen extends ConsumerStatefulWidget {
   const SecurityLogsScreen({super.key});
@@ -99,8 +99,11 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
               ] else ...[
                 const SizedBox(height: 8),
                 const Text(
-                  'Catatan: tanda tangan kriptografis belum aktif (Edge Function sign-logs belum di-deploy).',
-                  style: TextStyle(fontSize: 11, color: MekaarColors.textMuted),
+                  'Catatan: Ekspor offline lokal (belum ditandatangani oleh server).',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: MekaarColors.textMuted,
+                  ),
                 ),
               ],
             ],
@@ -122,69 +125,90 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: CustomAppBar(
-        title: 'Riwayat SOS',
-        subtitle: 'Catatan insiden darurat selama 90 hari',
-        actions: [
-          IconButton(
-            icon: const Icon(
-              SolarIconsOutline.download,
-              color: MekaarColors.textSecondary,
-            ),
-            onPressed: _exportCSV,
-          ),
-        ],
-      ),
-      body: logs.isEmpty
-          ? AnimatedAppear(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: MekaarColors.surface2Of(context),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        SolarIconsOutline.history,
-                        size: 40,
-                        color: MekaarColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Belum ada riwayat SOS',
-                      style: MekaarTypography.headingSM,
-                    ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        'Chat biasa tetap privat. Catatan hanya dibuat ketika sesi SOS aktif.',
-                        style: MekaarTypography.bodyMD.copyWith(
-                          color: MekaarColors.textMuted,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SettingsTopBar(
+              title: 'Riwayat SOS',
+              subtitle: 'Catatan insiden darurat selama 90 hari',
+              trailing: IconButton(
+                icon: Icon(
+                  SolarIconsOutline.download,
+                  color: MekaarColors.textPrimaryOf(context),
+                  size: 20,
                 ),
+                style: IconButton.styleFrom(
+                  backgroundColor: MekaarColors.surface2Of(context),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _exportCSV,
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(20.0),
-              itemCount: logs.length,
-              itemBuilder: (context, index) {
-                final log = logs[index];
-                return AnimatedAppear(
-                  delay: Duration(milliseconds: (index * 30).clamp(0, 240)),
-                  child: _buildLogItem(log),
-                );
-              },
             ),
+            Expanded(
+              child: logs.isEmpty
+                  ? AnimatedAppear(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: MekaarColors.surface2Of(context),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                SolarIconsOutline.history,
+                                size: 40,
+                                color: MekaarColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Belum ada riwayat SOS',
+                              style: MekaarTypography.headingSM.copyWith(
+                                color: MekaarColors.textPrimaryOf(context),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                'Aktivitas pengaktifan SOS atau penonaktifan darurat akan dicatat di sini secara permanen.',
+                                textAlign: TextAlign.center,
+                                style: MekaarTypography.bodySM.copyWith(
+                                  color: MekaarColors.textSecondaryOf(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      itemCount: logs.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final log = logs[index];
+                        return AnimatedAppear(
+                          delay: Duration(milliseconds: (index * 30).clamp(0, 240)),
+                          child: _buildLogItem(log),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

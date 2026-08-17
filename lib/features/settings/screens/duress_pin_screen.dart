@@ -6,10 +6,11 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../widgets/settings_tiles.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class DuressPinScreen extends ConsumerStatefulWidget {
@@ -98,17 +99,23 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
 
   Future<void> _disable() async {
     // Re-authentication prior to disabling Duress PIN
-    final verified = await Navigator.pushNamed(
+    final reauthed = await Navigator.pushNamed(
       context,
       AppRoutes.pin,
-      arguments: false, // validate primary PIN
+      arguments: {'mode': 'verify'},
     );
-    if (verified != true) return;
-
-    await ref.read(authProvider.notifier).disableDuressPIN();
-    if (mounted) {
-      setState(() => _enabled = false);
-      MekaarSnackbar.info(context, 'PIN Paksaan dinonaktifkan.');
+    if (reauthed == true) {
+      await ref.read(authProvider.notifier).disableDuressPIN();
+      if (mounted) {
+        setState(() {
+          _enabled = false;
+          _pin = '';
+          _confirmPin = '';
+          _isConfirming = false;
+          _status = 'PIN Paksaan dinonaktifkan.';
+        });
+        MekaarSnackbar.success(context, 'PIN Paksaan dinonaktifkan.');
+      }
     }
   }
 
@@ -150,34 +157,43 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const CustomAppBar(title: 'PIN Paksaan'),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+    return MekaarScaffold(
+      flat: true,
+      body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: MekaarColors.sosLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Jika Anda dipaksa memasukkan PIN, gunakan PIN Paksaan ini. '
-                'Aplikasi akan terbuka seperti biasa, namun diam-diam memicu SOS ke Guardian.',
-                style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.sosRed,
-                ),
-                textAlign: TextAlign.center,
+            const SettingsTopBar(title: 'PIN Paksaan (Duress)'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.sosRed.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      'Jika Anda dipaksa memasukkan PIN, gunakan PIN Paksaan ini. '
+                      'Aplikasi akan terbuka seperti biasa, namun diam-diam memicu SOS ke Guardian.',
+                      style: MekaarTypography.bodySM.copyWith(
+                        color: MekaarColors.sosRed,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    _status,
+                    textAlign: TextAlign.center,
+                    style: MekaarTypography.labelLG.copyWith(
+                      color: MekaarColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            Text(_status,
-                textAlign: TextAlign.center,
-                style: MekaarTypography.labelLG
-                    .copyWith(color: MekaarColors.textSecondary)),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -190,7 +206,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: MekaarColors.border, width: 2),
-                    color: _pin.length > i ? MekaarColors.textPrimary : Colors.transparent,
+                    color: _pin.length > i ? MekaarColors.textPrimaryOf(context) : Colors.transparent,
                   ),
                 ),
               ),

@@ -5,6 +5,91 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 
+/// Header sub-settings terpusat dengan tombol kembali (<) squircle dan judul besar konsisten
+class SettingsTopBar extends StatelessWidget {
+  const SettingsTopBar({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.onBack,
+    this.trailing,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  });
+
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onBack;
+  final Widget? trailing;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                onPressed: () {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  if (onBack != null) {
+                    onBack!();
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                },
+                icon: Icon(
+                  SolarIconsOutline.altArrowLeft,
+                  color: MekaarColors.textPrimaryOf(context),
+                  size: 22,
+                ),
+                style: IconButton.styleFrom(
+                  backgroundColor: MekaarColors.surface2Of(context),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: MekaarTypography.headingLG.copyWith(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: MekaarColors.textPrimaryOf(context),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle!,
+                    style: MekaarTypography.caption.copyWith(
+                      color: MekaarColors.textSecondaryOf(context),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Header seksi terpusat dengan tipografi bersih dan proporsional
 class SettingsSectionHeader extends StatelessWidget {
   const SettingsSectionHeader({

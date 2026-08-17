@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -11,6 +10,8 @@ import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/repositories/trip_repository.dart';
 import '../../../data/services/notification_service.dart';
+
+import '../widgets/settings_tiles.dart';
 
 /// Layar yang terbuka saat pengguna men-tap body notifikasi konfirmasi
 /// kedatangan Auto Check-In.
@@ -91,23 +92,27 @@ class _TripArrivalConfirmScreenState
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
-      appBar: const CustomAppBar(title: 'Konfirmasi Kedatangan'),
+      flat: true,
       body: SafeArea(
-        child: _isLoadingTrip
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MekaarSpacing.lg,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: MekaarStateView(
-                          pose: MikaPose.ask,
-                          reaction: MikaReaction.ask,
-                          title: 'Apakah Anda sudah sampai?',
+        child: Column(
+          children: [
+            const SettingsTopBar(title: 'Konfirmasi Tiba'),
+            Expanded(
+              child: _isLoadingTrip
+                  ? const Center(child: CircularProgressIndicator())
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MekaarSpacing.lg,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Center(
+                              child: MekaarStateView(
+                                pose: MikaPose.ask,
+                                reaction: MikaReaction.ask,
+                                title: 'Apakah Anda sudah sampai?',
                           message: 'Waktu perkiraan tiba Anda di '
                               '$_destinationLabel telah lewat. Konfirmasi '
                               'supaya Guardian Anda tidak menerima '
@@ -158,6 +163,9 @@ class _TripArrivalConfirmScreenState
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

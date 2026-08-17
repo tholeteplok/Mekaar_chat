@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -109,28 +108,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Minimalist Top Bar ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      SolarIconsOutline.altArrowLeft,
-                      color: MekaarColors.textPrimaryOf(context),
-                      size: 22,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: MekaarColors.surface2Of(context),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SettingsTopBar(title: 'Nada & Suara'),
 
             Expanded(
               child: prefsState.when(
@@ -139,18 +117,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
-                      // Large Bold Title
-                      Text(
-                        'Nada & Suara',
-                        style: MekaarTypography.headingLG.copyWith(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: MekaarColors.textPrimaryOf(context),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
 
                       SoundPreferenceSection(
                         title: 'NADA NOTIFIKASI PESAN',

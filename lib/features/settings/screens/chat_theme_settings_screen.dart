@@ -7,7 +7,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -16,6 +15,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/chat_theme_model.dart';
 import '../providers/chat_theme_provider.dart';
+import '../widgets/settings_tiles.dart';
 
 /// Layar Kustomisasi Tema Chat: Live Preview, Selector Dropdown, Wallpaper & Ukuran Teks.
 class ChatThemeSettingsScreen extends ConsumerStatefulWidget {
@@ -52,23 +52,30 @@ class _ChatThemeSettingsScreenState
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(
-        title: 'Tema & Wallpaper Chat',
-      ),
-      body: themeState.when(
-        loading: () => const MekaarStateView(
-          pose: MikaPose.pin,
-          title: 'Memuat Tema Chat',
-          message: 'Sedang mengambil pengaturan tema & wallpaper Anda...',
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsTopBar(title: 'Tema & Wallpaper Chat'),
+            Expanded(
+              child: themeState.when(
+                loading: () => const MekaarStateView(
+                  pose: MikaPose.pin,
+                  title: 'Memuat Tema Chat',
+                  message: 'Sedang mengambil pengaturan tema & wallpaper Anda...',
+                ),
+                error: (err, _) => MekaarStateView(
+                  pose: MikaPose.neutral,
+                  title: 'Gagal Memuat Tema Chat',
+                  message: err.toString(),
+                  actionLabel: 'Coba Lagi',
+                  onAction: () => ref.invalidate(chatThemeProvider),
+                ),
+                data: (chatPref) => _buildContent(context, chatPref),
+              ),
+            ),
+          ],
         ),
-        error: (err, _) => MekaarStateView(
-          pose: MikaPose.neutral,
-          title: 'Gagal Memuat Tema Chat',
-          message: err.toString(),
-          actionLabel: 'Coba Lagi',
-          onAction: () => ref.invalidate(chatThemeProvider),
-        ),
-        data: (chatPref) => _buildContent(context, chatPref),
       ),
     );
   }

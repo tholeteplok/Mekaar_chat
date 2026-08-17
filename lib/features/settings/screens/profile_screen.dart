@@ -13,6 +13,7 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../widgets/settings_tiles.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -208,42 +209,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // ── Minimalist Top Bar ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      SolarIconsOutline.altArrowLeft,
-                      color: MekaarColors.textPrimaryOf(context),
-                      size: 22,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: MekaarColors.surface2Of(context),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+            SettingsTopBar(
+              title: 'Akun',
+              trailing: IconButton(
+                onPressed: _saveAllChanges,
+                icon: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.black,
+                  size: 22,
+                ),
+                style: IconButton.styleFrom(
+                  backgroundColor: MekaarColors.cyan,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  // Cyan Accent Save Button
-                  IconButton(
-                    onPressed: _saveAllChanges,
-                    icon: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.black,
-                      size: 22,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: MekaarColors.cyan,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
@@ -253,18 +233,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-                    // Large Bold Title
-                    Text(
-                      'Akun',
-                      style: MekaarTypography.headingLG.copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: MekaarColors.textPrimaryOf(context),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
 
                     // ── Centered Avatar Section ──
                     Center(

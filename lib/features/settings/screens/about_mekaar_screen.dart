@@ -14,6 +14,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../data/services/update_service.dart';
+import '../widgets/settings_tiles.dart';
 
 class AboutMekaarScreen extends ConsumerStatefulWidget {
   const AboutMekaarScreen({super.key});
@@ -401,28 +402,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Minimalist Top Bar ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      SolarIconsOutline.altArrowLeft,
-                      color: MekaarColors.textPrimaryOf(context),
-                      size: 22,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: MekaarColors.surface2Of(context),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SettingsTopBar(title: 'Tentang MEKAAR'),
 
             Expanded(
               child: ListView(
@@ -431,18 +411,6 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                   vertical: 8,
                 ).copyWith(bottom: 40),
                 children: [
-                  // Large Bold Title
-                  Text(
-                    'Tentang MEKAAR',
-                    style: MekaarTypography.headingLG.copyWith(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: MekaarColors.textPrimaryOf(context),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
                   // ── 1. Hero Brand Header ──
                   _buildBrandHero(),
                   const SizedBox(height: 16),

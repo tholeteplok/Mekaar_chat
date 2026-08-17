@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/utils/totp.dart';
 import '../providers/two_fa_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+
+import '../widgets/settings_tiles.dart';
 
 class TwoFactorSetupScreen extends ConsumerStatefulWidget {
   const TwoFactorSetupScreen({super.key});
@@ -74,95 +74,103 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(title: 'Verifikasi 2 Langkah'),
-      body: _isEnabled
-          ? _buildEnabledView()
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Amankan akun dengan kode dari aplikasi authenticator.',
-                    style: MekaarTypography.bodyMD,
-                  ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? MekaarColors.cardDark
-                    : MekaarColors.surface2,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Kunci Rahasia (masukkan manual):',
-                    style: MekaarTypography.labelLG,
-                  ),
-                  const SizedBox(height: 8),
-                  SelectableText(
-                    _secret,
-                    style: MekaarTypography.bodyMD.copyWith(
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.bold,
-                      color: MekaarColors.softCoral,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsTopBar(title: 'Verifikasi 2 Langkah'),
+            Expanded(
+              child: _isEnabled
+                  ? _buildEnabledView()
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Amankan akun dengan kode dari aplikasi authenticator.',
+                            style: MekaarTypography.bodyMD.copyWith(
+                              color: MekaarColors.textSecondaryOf(context),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? MekaarColors.cardDark
+                                  : MekaarColors.surface2,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Kunci Rahasia (masukkan manual):',
+                                  style: MekaarTypography.labelLG,
+                                ),
+                                const SizedBox(height: 8),
+                                SelectableText(
+                                  _secret,
+                                  style: MekaarTypography.bodyMD.copyWith(
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.bold,
+                                    color: MekaarColors.softCoral,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SelectableText(
+                                  uri,
+                                  style: MekaarTypography.bodySM.copyWith(
+                                    color: MekaarColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Masukkan kode 6 digit dari authenticator untuk konfirmasi:',
+                            style: MekaarTypography.labelLG,
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _codeController,
+                            keyboardType: TextInputType.number,
+                            maxLength: 6,
+                            textAlign: TextAlign.center,
+                            style: MekaarTypography.headingMD.copyWith(letterSpacing: 8),
+                            decoration: const InputDecoration(
+                              hintText: '••••••',
+                              counterText: '',
+                              prefixIcon: Icon(SolarIconsOutline.shieldKeyhole),
+                            ),
+                            onSubmitted: (_) {
+                              if (!_isSaving) _confirm();
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _isSaving ? null : _confirm,
+                              child: _isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('Aktifkan 2 Langkah'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SelectableText(
-                    uri,
-                    style: MekaarTypography.bodySM.copyWith(
-                      color: MekaarColors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Masukkan kode 6 digit dari authenticator untuk konfirmasi:',
-              style: MekaarTypography.bodySM,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _codeController,
-              keyboardType: TextInputType.number,
-              autofillHints: const [AutofillHints.oneTimeCode],
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ],
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: MekaarTypography.headingMD.copyWith(letterSpacing: 8),
-              decoration: InputDecoration(
-                hintText: '••••••',
-                counterText: '',
-                prefixIcon: const Icon(SolarIconsOutline.shieldKeyhole),
-              ),
-              onSubmitted: (_) {
-                if (!_isSaving) _confirm();
-              },
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _confirm,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Aktifkan 2 Langkah'),
-              ),
             ),
           ],
         ),
