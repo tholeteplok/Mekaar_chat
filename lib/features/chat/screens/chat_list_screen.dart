@@ -33,6 +33,10 @@ import '../../settings/providers/block_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
 import '../widgets/chat_list_tile.dart';
 import '../widgets/send_chat_invite_dialog.dart';
+import '../../../core/widgets/mekaar_update_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_update_dialog.dart';
+import '../../../data/services/update_service.dart';
+
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -77,6 +81,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
+  static bool _updatePromptShownThisSession = false;
   Timer? _vaultDebounceTimer;
 
   @override
@@ -90,7 +95,40 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     Future.microtask(() {
       ref.read(chatRoomsProvider.notifier).refreshRooms();
       _checkAndRequestPermissions();
+      _checkForAppUpdate();
     });
+  }
+
+  Future<void> _checkForAppUpdate() async {
+    if (_updatePromptShownThisSession) return;
+
+    // Jeda 1.5 detik agar render awal percakapan selesai terlebih dahulu
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted || _updatePromptShownThisSession) return;
+
+    try {
+      final updateService = ref.read(updateServiceProvider);
+      final info = await updateService.checkForUpdate();
+
+      if (!mounted || _updatePromptShownThisSession) return;
+      if (info.hasUpdate) {
+        _updatePromptShownThisSession = true;
+        if (mounted) {
+          MekaarUpdateBottomSheet.show(
+            context: context,
+            info: info,
+            onUpdate: () {
+              showInAppUpdateDialog(
+                context: context,
+                info: info,
+              );
+            },
+          );
+        }
+      }
+    } catch (_) {
+      // Abaikan jika offline / koneksi timeout pada silent auto-check
+    }
   }
 
   @override

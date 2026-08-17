@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -12,6 +11,7 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_update_dialog.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../data/services/update_service.dart';
 import '../widgets/settings_tiles.dart';
@@ -24,7 +24,7 @@ class AboutMekaarScreen extends ConsumerStatefulWidget {
 }
 
 class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
-  String _currentVersion = '1.0.0+1';
+  String _currentVersion = 'Memuat...';
   bool _isCheckingUpdate = false;
   AppUpdateInfo? _updateInfo;
 
@@ -38,7 +38,9 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
     final updateService = ref.read(updateServiceProvider);
     final version = await updateService.getCurrentVersion();
     if (mounted) {
-      setState(() => _currentVersion = version);
+      setState(() {
+        _currentVersion = version;
+      });
     }
   }
 
@@ -53,27 +55,28 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
 
     final updateService = ref.read(updateServiceProvider);
     final info = await updateService.checkForUpdate(
-      currentVersionOverride: _currentVersion,
+      currentVersionOverride:
+          _currentVersion != 'Memuat...' ? _currentVersion : null,
     );
 
-    if (mounted) {
-      setState(() {
-        _isCheckingUpdate = false;
-        _updateInfo = info;
-      });
+    if (!mounted) return;
 
-      if (info.hasUpdate) {
-        HapticService.trigger(MekaarHapticIntent.success);
-        _showUpdateDialog(info);
-      } else if (info.errorMessage != null) {
-        MekaarSnackbar.error(context, info.errorMessage!);
-      } else {
-        HapticService.trigger(MekaarHapticIntent.success);
-        MekaarSnackbar.success(
-          context,
-          'Aplikasi MEKAAR Anda sudah versi paling mutakhir (v$_currentVersion).',
-        );
-      }
+    setState(() {
+      _isCheckingUpdate = false;
+      _updateInfo = info;
+    });
+
+    if (info.errorMessage != null) {
+      MekaarSnackbar.error(context, info.errorMessage!);
+    } else if (info.hasUpdate) {
+      HapticService.trigger(MekaarHapticIntent.success);
+      _showUpdateDialog(info);
+    } else {
+      HapticService.trigger(MekaarHapticIntent.success);
+      MekaarSnackbar.success(
+        context,
+        'Aplikasi MEKAAR Anda sudah versi paling mutakhir (v$_currentVersion).',
+      );
     }
   }
 
@@ -118,250 +121,10 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
   }
 
   Future<void> _startInAppUpdate(AppUpdateInfo info) async {
-    HapticService.trigger(MekaarHapticIntent.selection);
-
-    // Fallback jika non-Android atau link download kosong
-    if (!Platform.isAndroid || info.downloadUrl.isEmpty) {
-      _openUrl(info.downloadUrl.isNotEmpty ? info.downloadUrl : info.htmlUrl);
-      return;
-    }
-
-    double downloadProgress = 0.0;
-    int receivedBytes = 0;
-    int totalBytes = info.downloadSizeBytes;
-    String statusMessage = 'Menghubungi server rilis...';
-    bool isDownloading = true;
-    bool isCompleted = false;
-    String? downloadError;
-
-    await showDialog<void>(
+    await showInAppUpdateDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            if (isDownloading && downloadProgress == 0.0 && downloadError == null) {
-              Future.microtask(() async {
-                try {
-                  final updateService = ref.read(updateServiceProvider);
-                  setDialogState(() {
-                    statusMessage = 'Mengunduh paket instalasi...';
-                  });
-
-                  final file = await updateService.downloadApk(
-                    downloadUrl: info.downloadUrl,
-                    version: info.latestVersion,
-                    expectedTotalBytes: info.downloadSizeBytes,
-                    onProgress: (progress, received, total) {
-                      setDialogState(() {
-                        downloadProgress = progress;
-                        receivedBytes = received;
-                        totalBytes = total;
-                        if (progress >= 1.0) {
-                          statusMessage = 'Memverifikasi paket...';
-                        } else if (progress > 0) {
-                          statusMessage = 'Mengunduh ${(progress * 100).toInt()}%...';
-                        }
-                      });
-                    },
-                  );
-
-                  setDialogState(() {
-                    isDownloading = false;
-                    isCompleted = true;
-                    statusMessage = 'Membuka Penginstal Paket Android...';
-                  });
-
-                  final installed = await updateService.installApk(file.path);
-                  if (!installed && dialogContext.mounted) {
-                    setDialogState(() {
-                      downloadError =
-                          'Tidak dapat membuka penginstal secara otomatis. Silakan pasang dari folder unduhan atau buka melalui browser.';
-                    });
-                  } else if (dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                  }
-                } catch (e) {
-                  if (dialogContext.mounted) {
-                    setDialogState(() {
-                      isDownloading = false;
-                      downloadError = 'Gagal mengunduh berkas: $e';
-                    });
-                  }
-                }
-              });
-            }
-
-            final receivedMb = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
-            final totalMb = totalBytes > 0
-                ? (totalBytes / (1024 * 1024)).toStringAsFixed(1)
-                : (info.downloadSizeBytes > 0
-                    ? (info.downloadSizeBytes / (1024 * 1024)).toStringAsFixed(1)
-                    : '?');
-
-            return Dialog(
-              backgroundColor: MekaarColors.surfaceOf(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: MekaarColors.border.withValues(alpha: 0.15),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            SolarIconsBold.cloudDownload,
-                            color: MekaarColors.accentOf(context),
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Pembaruan MEKAAR',
-                                style: MekaarTypography.bodyMD.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: MekaarColors.textPrimaryOf(context),
-                                ),
-                              ),
-                              Text(
-                                'Versi ${info.latestVersion}',
-                                style: MekaarTypography.caption.copyWith(
-                                  color: MekaarColors.textSecondaryOf(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    if (downloadError != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: MekaarColors.sosRed.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              SolarIconsBold.dangerCircle,
-                              color: MekaarColors.sosRed,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                downloadError!,
-                                style: MekaarTypography.caption.copyWith(
-                                  color: MekaarColors.sosRed,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.pop(dialogContext),
-                              child: const Text('Tutup'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: MekaarColors.accentOf(context),
-                                foregroundColor: Colors.black,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.pop(dialogContext);
-                                _openUrl(info.htmlUrl);
-                              },
-                              icon: const Icon(
-                                SolarIconsOutline.global,
-                                size: 16,
-                              ),
-                              label: const Text('Buka Browser'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: downloadProgress > 0 ? downloadProgress : null,
-                          backgroundColor: MekaarColors.surface2Of(context),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            MekaarColors.accentOf(context),
-                          ),
-                          minHeight: 8,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            statusMessage,
-                            style: MekaarTypography.caption.copyWith(
-                              color: MekaarColors.textSecondaryOf(context),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '$receivedMb / $totalMb MB',
-                            style: MekaarTypography.caption.copyWith(
-                              color: MekaarColors.accentOf(context),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: isCompleted
-                                ? null
-                                : () => Navigator.pop(dialogContext),
-                            child: const Text('Batal'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      info: info,
+      onOpenUrl: _openUrl,
     );
   }
 
@@ -990,3 +753,4 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
     );
   }
 }
+

@@ -257,7 +257,8 @@ class UpdateService {
   }) async {
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 15);
-    client.autoUncompress = true;
+    client.idleTimeout = const Duration(seconds: 30);
+    client.autoUncompress = false;
 
     try {
       final tempDir = await getTemporaryDirectory();
