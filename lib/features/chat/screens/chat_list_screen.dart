@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -49,13 +50,30 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   String get _selectedTab => _tabs[_selectedTabIndex];
 
   // Cache memoization untuk filter room
-  List<Map<String, dynamic>>? _cachedRooms;
+  int? _lastRoomsSignature;
   List<Map<String, dynamic>>? _cachedFiltered;
   String? _lastSearchQuery;
   int? _lastTabIndex;
   Set<String>? _lastBlockedIds;
   Set<String>? _lastHiddenIds;
   bool? _lastVaultUnlocked;
+
+  int _computeRoomsSignature(List<Map<String, dynamic>> rooms) {
+    if (rooms.isEmpty) return 0;
+    int hash = rooms.length;
+    for (final r in rooms) {
+      hash = Object.hash(
+        hash,
+        r['id'],
+        r['name'],
+        r['last_message_at'],
+        r['unread_count'],
+        r['isArchived'],
+        r['isGuardian'],
+      );
+    }
+    return hash;
+  }
 
   bool _isCheckingSOSGuardians = false;
   static bool _permissionPromptShownThisSession = false;
@@ -740,12 +758,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
 
     // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
+    final roomsSignature = _computeRoomsSignature(rooms);
     final bool isCacheValid = _cachedFiltered != null &&
-        identical(_cachedRooms, rooms) &&
+        _lastRoomsSignature == roomsSignature &&
         _lastSearchQuery == _searchQuery &&
         _lastTabIndex == _selectedTabIndex &&
-        _lastBlockedIds == blockedIds &&
-        _lastHiddenIds == hiddenRoomIds &&
+        setEquals(_lastBlockedIds, blockedIds) &&
+        setEquals(_lastHiddenIds, hiddenRoomIds) &&
         _lastVaultUnlocked == isVaultUnlocked;
 
     final List<Map<String, dynamic>> filtered;
@@ -788,12 +807,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         return !isArchived;
       }).toList();
 
-      _cachedRooms = rooms;
+      _lastRoomsSignature = roomsSignature;
       _cachedFiltered = filtered;
       _lastSearchQuery = _searchQuery;
       _lastTabIndex = _selectedTabIndex;
-      _lastBlockedIds = blockedIds;
-      _lastHiddenIds = hiddenRoomIds;
+      _lastBlockedIds = Set<String>.from(blockedIds);
+      _lastHiddenIds = Set<String>.from(hiddenRoomIds);
       _lastVaultUnlocked = isVaultUnlocked;
     }
 

@@ -44,7 +44,9 @@ class PrivateContactRepository {
       _cachedSalt = salt;
       return salt;
     } catch (_) {
-      return 'fallback_device_vault_salt';
+      final fallbackSalt = _generateSalt();
+      _cachedSalt = fallbackSalt;
+      return fallbackSalt;
     }
   }
 

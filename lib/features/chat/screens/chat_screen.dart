@@ -90,7 +90,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   Message? _replyMessage;
   Message? _editingMessage;
   DateTime? _otherLastRead;
-  DateTime? _otherLastSeen;
+  final ValueNotifier<DateTime?> _otherLastSeenNotifier = ValueNotifier<DateTime?>(null);
   int _autoDeleteHours = 0;
   String _scheduledWipeMode = 'off';
   TimeOfDay? _scheduledWipeTime;
@@ -148,9 +148,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       if (widget.otherUserId != null) {
         final lastSeen = await repo.getLastSeen(widget.otherUserId!);
         if (mounted) {
-          setState(() {
-            _otherLastSeen = lastSeen;
-          });
+          _otherLastSeenNotifier.value = lastSeen;
         }
       }
     });
@@ -233,7 +231,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
       if (widget.otherUserId != null) {
-        _otherLastSeen = await repo.getLastSeen(widget.otherUserId!);
+        _otherLastSeenNotifier.value = await repo.getLastSeen(widget.otherUserId!);
       }
       if (widget.isGroup) {
         _loadGroupParticipants();
@@ -248,12 +246,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   }
 
   /// Format presence subtitle: online (< 2 min) > last seen (formatted) > hidden privacy
-  String _formatPresenceSubtitle() {
+  String _formatPresenceSubtitle(DateTime? otherLastSeen) {
     // Jika null: pengguna menyembunyikan "terakhir dilihat" (enforce di server via RPC get_last_seen_for)
-    if (_otherLastSeen == null) return 'Terakhir dilihat baru-baru ini';
+    if (otherLastSeen == null) return 'Terakhir dilihat baru-baru ini';
 
     final now = DateTime.now();
-    final lastSeen = _otherLastSeen!.toLocal();
+    final lastSeen = otherLastSeen.toLocal();
     final diff = now.difference(lastSeen);
 
     if (diff.inMinutes < 2) {
@@ -301,9 +299,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     }
   }
 
-  bool get _isCurrentlyOnline {
-    if (_otherLastSeen == null) return false;
-    return DateTime.now().difference(_otherLastSeen!).inMinutes < 2;
+  bool _isCurrentlyOnline(DateTime? otherLastSeen) {
+    if (otherLastSeen == null) return false;
+    return DateTime.now().difference(otherLastSeen).inMinutes < 2;
   }
 
   @override
@@ -322,6 +320,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     if (ref.read(activeRoomIdProvider) == widget.chatId) {
       ref.read(activeRoomIdProvider.notifier).state = null;
     }
+    _otherLastSeenNotifier.dispose();
     _textController.dispose();
     _scrollController.dispose();
     _showScrollButton.dispose();
@@ -1233,62 +1232,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                       : Colors.black.withValues(alpha: 0.10);
                   final textPrimary = MekaarColors.textPrimaryOf(context);
 
-                  return CustomAppBar(
-                    isFloating: true,
-                    title: widget.chatName,
-                    avatarInitial: widget.chatAvatar,
-                    avatarUrl: widget.chatAvatarUrl,
-                    isGuardian: widget.isGuardian,
-                    showOnlineIndicator: true,
-                    isOnline: _isCurrentlyOnline || isTyping,
-                    subtitle: isTyping ? 'sedang mengetik...' : _formatPresenceSubtitle(),
-                    glassBorder: roomThemeSpec.glassBorder,
-                    glassBackgroundColor: roomThemeSpec.glassBackgroundColor,
-                    iconColor: roomThemeSpec.iconColor,
-                    textColor: roomThemeSpec.textColor,
-                    subtitleColor: roomThemeSpec.subtitleColor,
-                    onAvatarTap: widget.isGroup
-                        ? () => Navigator.pushNamed(
-                              context,
-                              AppRoutes.groupDetails,
-                              arguments: {
-                                'roomId': widget.chatId,
-                                'groupName': widget.chatName,
-                                'groupAvatarUrl': widget.chatAvatarUrl,
-                              },
-                            )
-                        : (widget.otherUserId != null
+                  return ValueListenableBuilder<DateTime?>(
+                    valueListenable: _otherLastSeenNotifier,
+                    builder: (context, lastSeen, _) {
+                      final isOnline = _isCurrentlyOnline(lastSeen);
+                      return CustomAppBar(
+                        isFloating: true,
+                        title: widget.chatName,
+                        avatarInitial: widget.chatAvatar,
+                        avatarUrl: widget.chatAvatarUrl,
+                        isGuardian: widget.isGuardian,
+                        showOnlineIndicator: true,
+                        isOnline: isOnline || isTyping,
+                        subtitle: isTyping
+                            ? 'sedang mengetik...'
+                            : _formatPresenceSubtitle(lastSeen),
+                        glassBorder: roomThemeSpec.glassBorder,
+                        glassBackgroundColor:
+                            roomThemeSpec.glassBackgroundColor,
+                        iconColor: roomThemeSpec.iconColor,
+                        textColor: roomThemeSpec.textColor,
+                        subtitleColor: roomThemeSpec.subtitleColor,
+                        onAvatarTap: widget.isGroup
                             ? () => Navigator.pushNamed(
                                   context,
-                                  AppRoutes.contactSettings,
+                                  AppRoutes.groupDetails,
                                   arguments: {
                                     'roomId': widget.chatId,
-                                    'chatName': widget.chatName,
-                                    'chatAvatar': widget.chatAvatar,
-                                    'otherUserId': widget.otherUserId!,
-                                    'isGuardian': widget.isGuardian,
+                                    'groupName': widget.chatName,
+                                    'groupAvatarUrl': widget.chatAvatarUrl,
                                   },
                                 )
-                            : null),
-                    actions: [
-                      // Voice Call icon
-                      IconButton(
-                        icon: Icon(
-                          SolarIconsOutline.phone,
-                          color: roomThemeSpec.primaryAccentColor,
-                        ),
-                        onPressed: () => _initiateCall('voice'),
-                        tooltip: 'Panggilan Suara',
-                      ),
-                      // Actions Popup Menu (High-Contrast Frosted Glass)
-                      PopupMenuButton<String>(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(MekaarRadius.md),
-                          side: BorderSide(
-                            color: frostedBorder,
-                            width: 1,
+                            : (widget.otherUserId != null
+                                ? () => Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.contactSettings,
+                                      arguments: {
+                                        'roomId': widget.chatId,
+                                        'chatName': widget.chatName,
+                                        'chatAvatar': widget.chatAvatar,
+                                        'otherUserId': widget.otherUserId!,
+                                        'isGuardian': widget.isGuardian,
+                                      },
+                                    )
+                                : null),
+                        actions: [
+                          // Voice Call icon
+                          IconButton(
+                            icon: Icon(
+                              SolarIconsOutline.phone,
+                              color: roomThemeSpec.primaryAccentColor,
+                            ),
+                            onPressed: () => _initiateCall('voice'),
+                            tooltip: 'Panggilan Suara',
                           ),
-                        ),
+                          // Actions Popup Menu (High-Contrast Frosted Glass)
+                          PopupMenuButton<String>(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(MekaarRadius.md),
+                              side: BorderSide(
+                                color: frostedBorder,
+                                width: 1,
+                              ),
+                            ),
                         color: frostedBg,
                         surfaceTintColor: Colors.transparent,
                         elevation: 10,
@@ -1606,13 +1612,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                     ],
                   );
                 },
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  ),
+);
+}
 
 
   /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).

@@ -44,6 +44,64 @@ jobs:
           SUPABASE_ANON_KEY=dummy_anon_key_for_build
           EOF
 
+      - name: Configure Android Credentials (google-services.json)
+        run: |
+          mkdir -p android/app
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
+          else
+            cat << 'EOF' > android/app/google-services.json
+          {
+            "project_info": {
+              "project_number": "100000000000",
+              "project_id": "mekaar-chat-app",
+              "storage_bucket": "mekaar-chat-app.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:100000000000:android:0123456789abcdef012345",
+                  "android_client_info": {
+                    "package_name": "com.mekaar.app"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyReleaseApiKeyForBuildOnly123"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:100000000000:android:0123456789abcdef012345",
+                  "android_client_info": {
+                    "package_name": "com.mekaar.mekaar_chat"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyReleaseApiKeyForBuildOnly123"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+
       - name: Install Dependencies
         run: flutter pub get
 
