@@ -2,14 +2,17 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/constants/typography.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/notification_preferences.dart';
 import '../providers/notification_preferences_provider.dart';
+import '../widgets/settings_tiles.dart';
 import '../widgets/sound_preference_section.dart';
 
 class SoundPickerScreen extends ConsumerStatefulWidget {
@@ -102,77 +105,156 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(title: 'Nada & Suara'),
-      body: prefsState.when(
-        data: (prefs) => SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SoundPreferenceSection(
-                title: 'NADA NOTIFIKASI PESAN',
-                options: _messageSounds,
-                selectedPath: prefs.messageSound,
-                previewingPath: _previewingPath,
-                previewIsPlaying: _isPlayingPreview,
-                accentColor: MekaarColors.softCoral,
-                enabled: prefs.messageSoundEnabled,
-                canDisable: true,
-                onSelected: (path) => ref.read(notificationPreferencesProvider.notifier).updateMessageSound(path),
-                onPreview: _togglePreview,
-                onPickCustom: () => _pickCustomFile((path) => ref.read(notificationPreferencesProvider.notifier).updateMessageSound(path)),
-                onEnabledChanged: (value) => ref.read(notificationPreferencesProvider.notifier).toggleMessageSound(value),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Minimalist Top Bar ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      SolarIconsOutline.altArrowLeft,
+                      color: MekaarColors.textPrimaryOf(context),
+                      size: 22,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: MekaarColors.surface2Of(context),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 28),
-              SoundPreferenceSection(
-                title: 'NADA PANGGILAN',
-                options: _callSounds,
-                selectedPath: prefs.callSound,
-                previewingPath: _previewingPath,
-                previewIsPlaying: _isPlayingPreview,
-                accentColor: MekaarColors.safeTeal,
-                enabled: prefs.callSoundEnabled,
-                canDisable: true,
-                onSelected: (path) => ref.read(notificationPreferencesProvider.notifier).updateCallSound(path),
-                onPreview: _togglePreview,
-                onPickCustom: () => _pickCustomFile((path) => ref.read(notificationPreferencesProvider.notifier).updateCallSound(path)),
-                onEnabledChanged: (value) => ref.read(notificationPreferencesProvider.notifier).toggleCallSound(value),
+            ),
+
+            Expanded(
+              child: prefsState.when(
+                data: (prefs) => SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      // Large Bold Title
+                      Text(
+                        'Nada & Suara',
+                        style: MekaarTypography.headingLG.copyWith(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: MekaarColors.textPrimaryOf(context),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      SoundPreferenceSection(
+                        title: 'NADA NOTIFIKASI PESAN',
+                        options: _messageSounds,
+                        selectedPath: prefs.messageSound,
+                        previewingPath: _previewingPath,
+                        previewIsPlaying: _isPlayingPreview,
+                        accentColor: MekaarColors.cyan,
+                        enabled: prefs.messageSoundEnabled,
+                        canDisable: true,
+                        onSelected: (path) => ref
+                            .read(notificationPreferencesProvider.notifier)
+                            .updateMessageSound(path),
+                        onPreview: _togglePreview,
+                        onPickCustom: () => _pickCustomFile(
+                          (path) => ref
+                              .read(notificationPreferencesProvider.notifier)
+                              .updateMessageSound(path),
+                        ),
+                        onEnabledChanged: (value) => ref
+                            .read(notificationPreferencesProvider.notifier)
+                            .toggleMessageSound(value),
+                      ),
+                      const SizedBox(height: 24),
+                      SoundPreferenceSection(
+                        title: 'NADA PANGGILAN',
+                        options: _callSounds,
+                        selectedPath: prefs.callSound,
+                        previewingPath: _previewingPath,
+                        previewIsPlaying: _isPlayingPreview,
+                        accentColor: MekaarColors.guardianTeal,
+                        enabled: prefs.callSoundEnabled,
+                        canDisable: true,
+                        onSelected: (path) => ref
+                            .read(notificationPreferencesProvider.notifier)
+                            .updateCallSound(path),
+                        onPreview: _togglePreview,
+                        onPickCustom: () => _pickCustomFile(
+                          (path) => ref
+                              .read(notificationPreferencesProvider.notifier)
+                              .updateCallSound(path),
+                        ),
+                        onEnabledChanged: (value) => ref
+                            .read(notificationPreferencesProvider.notifier)
+                            .toggleCallSound(value),
+                      ),
+                      const SizedBox(height: 24),
+                      SoundPreferenceSection(
+                        title: 'NADA ALARM DARURAT (SOS)',
+                        options: _sosSounds,
+                        selectedPath: prefs.sosSound,
+                        previewingPath: _previewingPath,
+                        previewIsPlaying: _isPlayingPreview,
+                        accentColor: MekaarColors.sosRed,
+                        enabled: true,
+                        canDisable: false,
+                        onSelected: (path) => ref
+                            .read(notificationPreferencesProvider.notifier)
+                            .updateSosSound(path),
+                        onPreview: _togglePreview,
+                        onPickCustom: () => _pickCustomFile(
+                          (path) => ref
+                              .read(notificationPreferencesProvider.notifier)
+                              .updateSosSound(path),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const SettingsSectionHeader(
+                        title: 'RESPONS GETAR',
+                        padding: EdgeInsets.only(left: 4, bottom: 8),
+                      ),
+                      CustomCard(
+                        margin: EdgeInsets.zero,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: SettingsSwitchTile(
+                          icon: SolarIconsOutline.smartphoneVibration,
+                          iconColor: MekaarColors.purpleLight,
+                          title: 'Getaran (Haptics)',
+                          value: prefs.hapticsEnabled,
+                          onChanged: (value) => ref
+                              .read(notificationPreferencesProvider.notifier)
+                              .toggleHaptics(value),
+                        ),
+                      ),
+                      const SizedBox(height: 48),
+                    ],
+                  ),
+                ),
+                loading: () => const MekaarStateView(
+                  pose: MikaPose.phone,
+                  title: 'Memuat Preferensi Suara',
+                  message: 'Sedang mengambil pengaturan nada & suara Anda...',
+                ),
+                error: (err, _) => MekaarStateView(
+                  pose: MikaPose.neutral,
+                  title: 'Gagal Memuat Pengaturan',
+                  message: err.toString(),
+                  actionLabel: 'Coba Lagi',
+                  onAction: () =>
+                      ref.invalidate(notificationPreferencesProvider),
+                ),
               ),
-              const SizedBox(height: 28),
-              SoundPreferenceSection(
-                title: 'NADA ALARM DARURAT (SOS)',
-                options: _sosSounds,
-                selectedPath: prefs.sosSound,
-                previewingPath: _previewingPath,
-                previewIsPlaying: _isPlayingPreview,
-                accentColor: MekaarColors.sosRed,
-                enabled: true,
-                canDisable: false,
-                onSelected: (path) => ref.read(notificationPreferencesProvider.notifier).updateSosSound(path),
-                onPreview: _togglePreview,
-                onPickCustom: () => _pickCustomFile((path) => ref.read(notificationPreferencesProvider.notifier).updateSosSound(path)),
-              ),
-              const SizedBox(height: 20),
-              SwitchListTile.adaptive(
-                title: const Text('Haptic feedback'),
-                subtitle: const Text('Getaran untuk aksi penting dan status panggilan'),
-                value: prefs.hapticsEnabled,
-                onChanged: (value) => ref.read(notificationPreferencesProvider.notifier).toggleHaptics(value),
-              ),
-            ],
-          ),
-        ),
-        loading: () => const MekaarStateView(
-          pose: MikaPose.phone,
-          title: 'Memuat Preferensi Suara',
-          message: 'Sedang mengambil pengaturan nada & suara Anda...',
-        ),
-        error: (err, _) => MekaarStateView(
-          pose: MikaPose.neutral,
-          title: 'Gagal Memuat Pengaturan',
-          message: err.toString(),
-          actionLabel: 'Coba Lagi',
-          onAction: () => ref.invalidate(notificationPreferencesProvider),
+            ),
+          ],
         ),
       ),
     );

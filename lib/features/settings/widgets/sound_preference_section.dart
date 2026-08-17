@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
+import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 
 class SoundOption {
   final String name;
@@ -52,17 +53,35 @@ class SoundPreferenceSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(title, style: MekaarTypography.overline)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: MekaarTypography.bodyMD.copyWith(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: MekaarColors.textPrimaryOf(context),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
               if (canDisable)
                 Switch.adaptive(
                   value: enabled,
-                  onChanged: onEnabledChanged,
+                  onChanged: (val) {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    onEnabledChanged?.call(val);
+                  },
+                  activeThumbColor: accentColor,
+                  activeTrackColor: accentColor.withValues(alpha: 0.35),
+                  inactiveThumbColor: MekaarColors.textMutedOf(context),
+                  inactiveTrackColor: MekaarColors.surface2Of(context),
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           CustomCard(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            margin: EdgeInsets.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: AnimatedOpacity(
               opacity: enabled ? 1 : 0.45,
               duration: const Duration(milliseconds: 180),
@@ -79,20 +98,62 @@ class SoundPreferenceSection extends StatelessWidget {
                       onSelected: onSelected,
                       onPreview: onPreview,
                     ),
-                  const MekaarCardDivider(),
-                  ListTile(
-                    enabled: enabled,
-                    leading: Icon(
-                      SolarIconsOutline.musicLibrary2,
-                      color: accentColor,
-                    ),
-                    title: Text(
-                      'Pilih file kustom dari HP',
-                      style: MekaarTypography.labelLG.copyWith(
-                        color: accentColor,
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: enabled
+                        ? () {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            onPickCustom();
+                          }
+                        : null,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: accentColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              SolarIconsOutline.musicLibrary2,
+                              color: accentColor,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Pilih file kustom dari HP',
+                              style: MekaarTypography.bodyMD.copyWith(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: accentColor,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: MekaarColors.surface2Of(context),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              SolarIconsOutline.altArrowRight,
+                              color: MekaarColors.textMutedOf(context),
+                              size: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    onTap: enabled ? onPickCustom : null,
                   ),
                 ],
               ),
@@ -125,28 +186,64 @@ class _SoundTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      enabled: enabled,
-      leading: IconButton(
-        tooltip: previewing ? 'Hentikan pratinjau' : 'Putar pratinjau',
-        onPressed: enabled ? () => onPreview(option.path) : null,
-        icon: Icon(
-          previewing
-              ? SolarIconsBold.stopCircle
-              : SolarIconsOutline.playCircle,
-          color: accentColor,
-        ),
-      ),
-      title: Text(
-        option.name,
-        style: MekaarTypography.labelLG.copyWith(
-          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      trailing: selected
-          ? Icon(SolarIconsBold.checkCircle, color: accentColor)
+    return InkWell(
+      onTap: enabled
+          ? () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              onSelected(option.path);
+            }
           : null,
-      onTap: enabled ? () => onSelected(option.path) : null,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            // Play / Stop Icon Button Badge
+            GestureDetector(
+              onTap: enabled
+                  ? () {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      onPreview(option.path);
+                    }
+                  : null,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(
+                    alpha: previewing ? 0.25 : 0.12,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  previewing
+                      ? SolarIconsBold.stopCircle
+                      : SolarIconsOutline.playCircle,
+                  color: accentColor,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                option.name,
+                style: MekaarTypography.bodyMD.copyWith(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                  color: MekaarColors.textPrimaryOf(context),
+                ),
+              ),
+            ),
+            if (selected)
+              Icon(
+                SolarIconsBold.checkCircle,
+                color: accentColor,
+                size: 22,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

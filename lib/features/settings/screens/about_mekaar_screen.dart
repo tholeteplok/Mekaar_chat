@@ -7,9 +7,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/bounce_interactive.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -155,49 +153,90 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return MekaarScaffold(
-      appBar: const CustomAppBar(
-        title: 'Tentang MEKAAR',
-        subtitle: 'Informasi Versi & Filosofi Keamanan',
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: MekaarSpacing.md,
-          vertical: MekaarSpacing.sm,
-        ).copyWith(bottom: 40),
-        children: [
-          // ── 1. Hero Brand Header ──
-          _buildBrandHero(),
-          const SizedBox(height: MekaarSpacing.md),
-
-          // ── 2. Card Status Pembaruan ──
-          _buildUpdateCard(),
-          const SizedBox(height: MekaarSpacing.md),
-
-          // ── 3. Card Filosofi & Prinsip Desain ──
-          _buildPhilosophyCard(),
-          const SizedBox(height: MekaarSpacing.md),
-
-          // ── 4. Card Riwayat Pembaruan & Fitur Unggulan ──
-          _buildChangelogCard(),
-          const SizedBox(height: MekaarSpacing.md),
-
-          // ── 5. Card Transparansi & Komunitas ──
-          _buildCommunityCard(),
-          const SizedBox(height: MekaarSpacing.lg),
-
-          // ── Footer Copyright ──
-          Center(
-            child: Text(
-              'MEKAAR Personal Safety System · Open Source\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
-              style: MekaarTypography.caption.copyWith(
-                color: isDark ? MekaarColors.textMuted : const Color(0xFF8C95AA),
-                fontSize: 11,
-                height: 1.5,
+      flat: true,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Minimalist Top Bar ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      SolarIconsOutline.altArrowLeft,
+                      color: MekaarColors.textPrimaryOf(context),
+                      size: 22,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: MekaarColors.surface2Of(context),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ).copyWith(bottom: 40),
+                children: [
+                  // Large Bold Title
+                  Text(
+                    'Tentang MEKAAR',
+                    style: MekaarTypography.headingLG.copyWith(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: MekaarColors.textPrimaryOf(context),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── 1. Hero Brand Header ──
+                  _buildBrandHero(),
+                  const SizedBox(height: 16),
+
+                  // ── 2. Card Status Pembaruan ──
+                  _buildUpdateCard(),
+                  const SizedBox(height: 16),
+
+                  // ── 3. Card Filosofi & Prinsip Desain ──
+                  _buildPhilosophyCard(),
+                  const SizedBox(height: 16),
+
+                  // ── 4. Card Riwayat Pembaruan & Fitur Unggulan ──
+                  _buildChangelogCard(),
+                  const SizedBox(height: 16),
+
+                  // ── 5. Card Transparansi & Komunitas ──
+                  _buildCommunityCard(),
+                  const SizedBox(height: 24),
+
+                  // ── Footer Copyright ──
+                  Center(
+                    child: Text(
+                      'MEKAAR Personal Safety System · Open Source\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
+                      style: MekaarTypography.caption.copyWith(
+                        color: isDark ? MekaarColors.textMuted : const Color(0xFF8C95AA),
+                        fontSize: 11,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -323,8 +362,6 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          const MekaarCardDivider(),
-          const SizedBox(height: 12),
           if (hasNewUpdate) ...[
             Row(
               children: [
@@ -519,11 +556,9 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          const MekaarCardDivider(),
-          const SizedBox(height: 8),
           for (int i = 0; i < pillars.length; i++) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -566,7 +601,6 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                 ],
               ),
             ),
-            if (i < pillars.length - 1) const MekaarCardDivider(),
           ],
         ],
       ),
@@ -606,9 +640,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const MekaarCardDivider(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           for (final item in highlights) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -675,8 +707,6 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const MekaarCardDivider(),
-          const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Container(
