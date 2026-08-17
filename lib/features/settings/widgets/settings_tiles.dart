@@ -10,7 +10,7 @@ class SettingsSectionHeader extends StatelessWidget {
   const SettingsSectionHeader({
     super.key,
     required this.title,
-    this.padding = const EdgeInsets.only(left: 4, top: 16, bottom: 8),
+    this.padding = const EdgeInsets.only(left: 4, top: 18, bottom: 8),
   });
 
   final String title;
@@ -23,7 +23,7 @@ class SettingsSectionHeader extends StatelessWidget {
       child: Text(
         title,
         style: MekaarTypography.bodyMD.copyWith(
-          fontSize: 14.5,
+          fontSize: 15.5,
           fontWeight: FontWeight.w700,
           color: MekaarColors.textPrimaryOf(context),
           letterSpacing: -0.2,

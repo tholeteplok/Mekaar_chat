@@ -138,10 +138,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                       child: Text('Auto', style: MekaarTypography.bodySM.copyWith(fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6),
-                    child: MekaarCardDivider(),
-                  ),
+                  const SizedBox(height: 8),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Container(
@@ -322,45 +319,44 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     ];
 
     return CustomCard(
-      padding: const EdgeInsets.all(MekaarSpacing.xs),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Column(
         children: List.generate(options.length, (index) {
           final opt = options[index];
           final selected = currentPref == opt.$1;
-          final isLast = index == options.length - 1;
 
-          return Column(
-            children: [
-              ListTile(
-                leading: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: opt.$5.withValues(alpha: selected ? 0.25 : 0.12),
-                    shape: BoxShape.circle,
+          return InkWell(
+            onTap: () => notifier.setPreference(opt.$1),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: opt.$5.withValues(alpha: selected ? 0.25 : 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(opt.$4, color: opt.$5, size: 20),
                   ),
-                  child: Icon(opt.$4, color: opt.$5, size: 20),
-                ),
-                title: Text(
-                  opt.$2,
-                  style: MekaarTypography.bodyMD.copyWith(
-                    fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                    color: MekaarColors.textPrimaryOf(context),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      opt.$2,
+                      style: MekaarTypography.bodyMD.copyWith(
+                        fontSize: 15,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
+                    ),
                   ),
-                ),
-                subtitle: Text(
-                  opt.$3,
-                  style: MekaarTypography.bodySM.copyWith(
-                    color: MekaarColors.textMutedOf(context),
-                  ),
-                ),
-                trailing: selected
-                    ? Icon(SolarIconsBold.checkCircle, color: opt.$5, size: 22)
-                    : null,
-                onTap: () => notifier.setPreference(opt.$1),
+                  if (selected)
+                    Icon(SolarIconsBold.checkCircle, color: opt.$5, size: 22),
+                ],
               ),
-              if (!isLast) const MekaarCardDivider(),
-            ],
+            ),
           );
         }),
       ),

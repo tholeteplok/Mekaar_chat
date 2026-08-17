@@ -7,7 +7,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -351,10 +350,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             ),
                             onSave: _saveDisplayName,
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                            child: MekaarCardDivider(),
-                          ),
+                          const SizedBox(height: 6),
 
                           // 2. Username
                           _buildCleanRow(
@@ -369,14 +365,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             ),
                             onSave: _saveUsername,
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                            child: MekaarCardDivider(),
-                          ),
+                          const SizedBox(height: 6),
 
                           // 3. Email
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: [
                                 SizedBox(
