@@ -38,11 +38,25 @@ jobs:
           cache: true
 
       - name: Create Build Environment (.env)
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          cat << 'EOF' > .env
+          if [ -n "$ENV_FILE_CONTENT" ]; then
+            printf '%s\n' "$ENV_FILE_CONTENT" > .env
+          elif [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            cat << EOF > .env
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          EOF
+          else
+            echo "::warning ::SUPABASE_URL / SUPABASE_ANON_KEY secret not set. Using dummy fallback values."
+            cat << 'EOF' > .env
           SUPABASE_URL=https://dummy.supabase.co
           SUPABASE_ANON_KEY=dummy_anon_key_for_build
           EOF
+          fi
 
       - name: Configure Android Credentials (google-services.json)
         env:
@@ -63,7 +77,7 @@ jobs:
         run: flutter test
 
       - name: Build Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define-from-file=.env
 
       - name: Rename Release Asset
         id: asset_info
