@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -16,6 +17,9 @@ class AppUpdateInfo {
   final String releaseNotes;
   final String downloadUrl;
   final String htmlUrl;
+  final String matchedAbi;
+  final int downloadSizeBytes;
+  final String formattedSize;
   final DateTime? publishedAt;
   final String? errorMessage;
 
@@ -27,6 +31,9 @@ class AppUpdateInfo {
     required this.releaseNotes,
     required this.downloadUrl,
     required this.htmlUrl,
+    this.matchedAbi = 'universal',
+    this.downloadSizeBytes = 0,
+    this.formattedSize = '',
     this.publishedAt,
     this.errorMessage,
   });
@@ -73,9 +80,81 @@ class UpdateService {
     }
   }
 
-  /// Memeriksa rilis terbaru dari GitHub Releases API
-  Future<AppUpdateInfo> checkForUpdate({String? currentVersionOverride}) async {
+  /// Mendapatkan daftar ABI arsitektur CPU yang didukung perangkat Android
+  Future<List<String>> getSupportedAbis() async {
+    if (!Platform.isAndroid) return const ['universal'];
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.supportedAbis;
+    } catch (_) {
+      return const ['arm64-v8a', 'armeabi-v7a'];
+    }
+  }
+
+  /// Format estimasi ukuran APK
+  String formatApkSize(int bytes, {bool isSplitAbi = false}) {
+    if (bytes <= 0) return isSplitAbi ? '~18 MB' : '~55 MB';
+    final mb = bytes / (1024 * 1024);
+    if (mb < 30) {
+      return '${mb.toStringAsFixed(1)} MB · Hemat ~65%';
+    }
+    return '${mb.toStringAsFixed(1)} MB';
+  }
+
+  /// Mencocokkan asset APK rilis terbaik berdasarkan arsitektur CPU perangkat (ABI)
+  Map<String, dynamic>? matchBestApkAsset({
+    required List<dynamic> assets,
+    required List<String> supportedAbis,
+  }) {
+    if (assets.isEmpty) return null;
+
+    final apkAssets = assets.where((a) {
+      final name = (a['name'] as String? ?? '').toLowerCase();
+      return name.endsWith('.apk');
+    }).toList();
+
+    if (apkAssets.isEmpty) return null;
+
+    // 1. Cek kecocokan prioritas ABI perangkat (dimulai dari ABI utama misal arm64-v8a)
+    for (final abi in supportedAbis) {
+      final normalizedAbi = abi.toLowerCase().trim();
+      for (final asset in apkAssets) {
+        final name = (asset['name'] as String? ?? '').toLowerCase();
+        if (name.contains(normalizedAbi)) {
+          return {
+            'asset': asset,
+            'matchedAbi': normalizedAbi,
+          };
+        }
+      }
+    }
+
+    // 2. Cek universal APK jika ada
+    for (final asset in apkAssets) {
+      final name = (asset['name'] as String? ?? '').toLowerCase();
+      if (name.contains('universal')) {
+        return {
+          'asset': asset,
+          'matchedAbi': 'universal',
+        };
+      }
+    }
+
+    // 3. Fallback ke APK pertama yang ditemukan
+    return {
+      'asset': apkAssets.first,
+      'matchedAbi': 'universal',
+    };
+  }
+
+  /// Memeriksa rilis terbaru dari GitHub Releases API dengan Smart ABI Matching
+  Future<AppUpdateInfo> checkForUpdate({
+    String? currentVersionOverride,
+    List<String>? supportedAbisOverride,
+  }) async {
     final currentVersion = currentVersionOverride ?? await getCurrentVersion();
+    final supportedAbis = supportedAbisOverride ?? await getSupportedAbis();
 
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 10);
@@ -103,16 +182,28 @@ class UpdateService {
             ? DateTime.tryParse(publishedAtStr)
             : null;
 
-        // Cari URL unduhan APK dari daftar assets rilis
+        // Cari URL unduhan APK terbaik sesuai arsitektur CPU (Smart ABI Match)
         String downloadUrl = htmlUrl;
+        String matchedAbi = 'universal';
+        int downloadSizeBytes = 0;
+        String formattedSize = '';
+
         final assets = json['assets'] as List<dynamic>?;
         if (assets != null && assets.isNotEmpty) {
-          for (final asset in assets) {
-            final name = (asset['name'] as String? ?? '').toLowerCase();
-            if (name.endsWith('.apk')) {
-              downloadUrl = asset['browser_download_url'] as String? ?? downloadUrl;
-              break;
-            }
+          final matched = matchBestApkAsset(
+            assets: assets,
+            supportedAbis: supportedAbis,
+          );
+
+          if (matched != null) {
+            final asset = matched['asset'] as Map<String, dynamic>;
+            downloadUrl = asset['browser_download_url'] as String? ?? htmlUrl;
+            matchedAbi = matched['matchedAbi'] as String? ?? 'universal';
+            downloadSizeBytes = asset['size'] as int? ?? 0;
+            formattedSize = formatApkSize(
+              downloadSizeBytes,
+              isSplitAbi: matchedAbi != 'universal',
+            );
           }
         }
 
@@ -129,6 +220,9 @@ class UpdateService {
               : 'Pembaruan stabilitas, performa, dan penguatan keamanan aplikasi MEKAAR.',
           downloadUrl: downloadUrl,
           htmlUrl: htmlUrl,
+          matchedAbi: matchedAbi,
+          downloadSizeBytes: downloadSizeBytes,
+          formattedSize: formattedSize,
           publishedAt: publishedAt,
         );
       } else if (response.statusCode == 404) {

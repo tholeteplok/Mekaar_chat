@@ -78,11 +78,17 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
   }
 
   void _showUpdateDialog(AppUpdateInfo info) {
+    final sizeText = info.formattedSize.isNotEmpty
+        ? '\nUkuran Paket: ${info.formattedSize}'
+        : '';
+    final abiText =
+        info.matchedAbi != 'universal' ? ' (${info.matchedAbi})' : '';
+
     MekaarDialog.showConfirmation<void>(
       context: context,
       title: 'Pembaruan Tersedia 🚀',
       message:
-          'Versi baru ${info.latestVersion} telah tersedia di GitHub Releases!\n\n${info.releaseName}\n\nCatatan Rilis:\n${info.releaseNotes}',
+          'Versi baru ${info.latestVersion}$abiText telah tersedia di GitHub Releases!$sizeText\n\n${info.releaseName}\n\nCatatan Rilis:\n${info.releaseNotes}',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -107,7 +113,11 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
             );
           },
           icon: const Icon(SolarIconsOutline.download, size: 16),
-          label: const Text('Unduh Sekarang'),
+          label: Text(
+            info.formattedSize.isNotEmpty
+                ? 'Unduh (${info.formattedSize.split('·').first.trim()})'
+                : 'Unduh Sekarang',
+          ),
         ),
       ],
     );
@@ -316,14 +326,40 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
           const MekaarCardDivider(),
           const SizedBox(height: 12),
           if (hasNewUpdate) ...[
-            Text(
-              'Catatan Rilis ${_updateInfo!.latestVersion}:',
-              style: MekaarTypography.bodySM.copyWith(
-                fontWeight: FontWeight.bold,
-                color: MekaarColors.textPrimaryOf(context),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Catatan Rilis ${_updateInfo!.latestVersion}:',
+                    style: MekaarTypography.bodySM.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: MekaarColors.textPrimaryOf(context),
+                    ),
+                  ),
+                ),
+                if (_updateInfo!.formattedSize.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.cyan.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: MekaarColors.cyan.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      _updateInfo!.formattedSize,
+                      style: MekaarTypography.caption.copyWith(
+                        color: MekaarColors.cyan,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               _updateInfo!.releaseNotes,
               style: MekaarTypography.bodySM.copyWith(
@@ -348,9 +384,11 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                     ),
                     onPressed: () => _openUrl(_updateInfo!.downloadUrl),
                     icon: const Icon(SolarIconsOutline.download, size: 18),
-                    label: const Text(
-                      'Unduh APK Rilis',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    label: Text(
+                      _updateInfo!.formattedSize.isNotEmpty
+                          ? 'Unduh APK (${_updateInfo!.formattedSize.split('·').first.trim()})'
+                          : 'Unduh APK Rilis',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
