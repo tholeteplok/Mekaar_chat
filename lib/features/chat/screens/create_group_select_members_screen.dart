@@ -104,7 +104,7 @@ class _CreateGroupSelectMembersScreenState
                         children: [
                           CircleAvatar(
                             radius: 22,
-                            backgroundColor: MekaarColors.softCoral.withValues(alpha: 0.2),
+                            backgroundColor: AppColors.blue.withValues(alpha: 0.2),
                             backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
                                 ? NetworkImage(avatarUrl)
                                 : null,
@@ -112,7 +112,7 @@ class _CreateGroupSelectMembersScreenState
                                 ? Text(
                                     name.isNotEmpty ? name[0].toUpperCase() : 'U',
                                     style: const TextStyle(
-                                      color: MekaarColors.softCoral,
+                                      color: AppColors.blue,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   )
@@ -214,7 +214,7 @@ class _CreateGroupSelectMembersScreenState
                       leading: CircleAvatar(
                         radius: 20,
                         backgroundColor: isSelected
-                            ? MekaarColors.softCoral
+                            ? AppColors.blue
                             : MekaarColors.surface2Of(context),
                         backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
                             ? NetworkImage(avatarUrl)
@@ -252,7 +252,7 @@ class _CreateGroupSelectMembersScreenState
                             ? SolarIconsBold.checkCircle
                             : SolarIconsOutline.checkCircle,
                         color: isSelected
-                            ? MekaarColors.softCoral
+                            ? AppColors.blue
                             : MekaarColors.textMutedOf(context),
                         size: 22,
                       ),

@@ -161,11 +161,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: MekaarColors.softCoral,
+                      color: MekaarColors.guardianTeal,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: MekaarColors.softCoral.withValues(alpha: 0.3),
+                          color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),

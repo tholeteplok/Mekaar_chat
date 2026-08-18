@@ -132,7 +132,7 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? Colors.white.withValues(alpha: 0.28)
-                                        : MekaarColors.softCoral,
+                                        : AppColors.blue,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(

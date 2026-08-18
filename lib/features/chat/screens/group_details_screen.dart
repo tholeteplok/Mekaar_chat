@@ -127,7 +127,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                           size: 84,
                           imageUrl: avatarUrl,
                           initial: name.isNotEmpty ? name[0] : 'G',
-                          backgroundColor: MekaarColors.softCoral,
+                          backgroundColor: AppColors.blue,
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -219,7 +219,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: MekaarColors.softCoral.withValues(alpha: 0.15),
+                                    color: AppColors.blue.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -227,7 +227,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: MekaarColors.softCoral,
+                                      color: AppColors.blue,
                                     ),
                                   ),
                                 )

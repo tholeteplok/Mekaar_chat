@@ -4,7 +4,6 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../providers/auth_provider.dart';
@@ -160,14 +159,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Mascot with gentle floating entrance
+              // Logo aplikasi resmi Mekaar
               AnimatedAppear(
                 duration: const Duration(milliseconds: 500),
                 offsetY: 24,
-                child: const MikaIllustration(
-                  pose: MikaPose.welcome,
-                  size: 150,
-                  semanticLabel: 'Mika menyambut Anda',
+                child: Image.asset(
+                  'assets/logo/app_icon.webp',
+                  width: 110,
+                  height: 110,
+                  semanticLabel: 'Logo MEKAAR',
                 ),
               ),
               const SizedBox(height: 32),

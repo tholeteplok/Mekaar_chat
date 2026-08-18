@@ -327,7 +327,7 @@ class ChatBubble extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: MekaarColors.softCoral,
+                          color: AppColors.blue,
                         ),
                       ),
                     ),
@@ -703,7 +703,7 @@ class ChatBubble extends ConsumerWidget {
     }
 
     final accentColor = isMe
-        ? MekaarColors.softCoral
+        ? AppColors.blue
         : (Theme.of(context).brightness == Brightness.dark
             ? MekaarColors.cyan
             : MekaarColors.guardianTeal);
@@ -981,7 +981,7 @@ class _MessageContextMenu extends StatelessWidget {
               Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.softCoral,
+              backgroundColor: AppColors.blue,
               foregroundColor: Colors.white,
             ),
             child: const Text('Simpan'),
@@ -1148,8 +1148,8 @@ class _VoiceBubblePlayerState extends ConsumerState<_VoiceBubblePlayer> {
   }
 
   Widget _buildPlayerRow(BuildContext context) {
-    final mainColor = widget.isMe ? widget.textColor : MekaarColors.softCoral;
-    final activeWave = widget.isMe ? widget.textColor : MekaarColors.softCoral;
+    final mainColor = widget.isMe ? widget.textColor : AppColors.blue;
+    final activeWave = widget.isMe ? widget.textColor : AppColors.blue;
     final inactiveWave = widget.isMe
         ? widget.textColor.withValues(alpha: 0.35)
         : MekaarColors.textMutedOf(context).withValues(alpha: 0.35);

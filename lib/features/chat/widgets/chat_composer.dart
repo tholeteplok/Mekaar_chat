@@ -272,7 +272,7 @@ class _ChatComposerState extends State<ChatComposer> {
             ctx,
             icon: SolarIconsOutline.mapPoint,
             label: 'Bagikan Lokasi',
-            color: MekaarColors.softCoral,
+            color: AppColors.blue,
             onTap: () {
               Navigator.pop(ctx);
               widget.onSendLocation?.call();

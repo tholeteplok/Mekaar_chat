@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -36,6 +35,7 @@ import '../widgets/chat_list_tile.dart';
 import '../widgets/send_chat_invite_dialog.dart';
 import '../../../core/widgets/mekaar_update_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_update_dialog.dart';
+import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
 import '../../../data/services/update_service.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -189,43 +189,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       if (!hasAll) {
         if (!mounted) return;
 
-        MekaarDialog.showConfirmation<void>(
+        await MekaarPermissionsBottomSheet.show(
           context: context,
-          barrierDismissible: false,
-          icon: const Icon(MekaarIcons.security, color: MekaarColors.softCoral),
-          title: 'Izin Sensor Darurat',
-          message:
-              'Untuk perlindungan maksimal, MEKAAR memerlukan izin akses:\n\n'
-              '• Lokasi: Mengirim koordinat GPS saat SOS aktif.\n'
-              '• Kamera: Merekam bukti video kondisi darurat.\n'
-              '• Mikrofon: Mengirim suara sekitar ke Guardian.\n\n'
-              'Ponsel Anda akan memicu pop-up sistem setelah ini.',
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-              },
-              child: const Text(
-                'Batal',
-                style: TextStyle(color: MekaarColors.textMuted),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await PermissionsHelper.requestSOSPermissions();
-                final granted = await PermissionsHelper.hasAllSOSPermissions();
-                if (granted) {
-                  await prefs.setBool('has_shown_sos_permissions_dialog', true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MekaarColors.softCoral,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Berikan Izin'),
-            ),
-          ],
+          onGrant: () async {
+            await PermissionsHelper.requestSOSPermissions();
+            final granted = await PermissionsHelper.hasAllSOSPermissions();
+            if (granted) {
+              await prefs.setBool('has_shown_sos_permissions_dialog', true);
+            }
+          },
         );
       }
     } catch (_) {}
@@ -325,12 +297,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   leading: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: MekaarColors.softCoral.withValues(alpha: 0.15),
+                      color: AppColors.blue.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       SolarIconsOutline.usersGroupTwoRounded,
-                      color: MekaarColors.softCoral,
+                      color: AppColors.blue,
                       size: 22,
                     ),
                   ),
@@ -338,7 +310,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     'Buat Grup Baru',
                     style: MekaarTypography.bodyMD.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: MekaarColors.softCoral,
+                      color: AppColors.blue,
                     ),
                   ),
                   subtitle: Text(
@@ -518,7 +490,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: MekaarColors.softCoral,
+                          backgroundColor: AppColors.blue,
                           foregroundColor: Colors.white,
                         ),
                         child: isSearching
@@ -698,21 +670,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: MekaarColors.softCoral.withValues(alpha: 0.12),
+                        color: AppColors.blue.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: MekaarColors.softCoral.withValues(alpha: 0.3)),
+                        border: Border.all(color: AppColors.blue.withValues(alpha: 0.25)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(SolarIconsOutline.shieldUser, color: MekaarColors.softCoral, size: 20),
+                          const Icon(SolarIconsOutline.shieldUser, color: AppColors.blue, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               '$count Permintaan Chat Masuk Baru',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: MekaarColors.softCoral),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.blue),
                             ),
                           ),
-                          const Icon(SolarIconsOutline.altArrowRight, size: 16, color: MekaarColors.softCoral),
+                          const Icon(SolarIconsOutline.altArrowRight, size: 16, color: AppColors.blue),
                         ],
                       ),
                     ),

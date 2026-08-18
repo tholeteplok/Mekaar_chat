@@ -173,8 +173,7 @@ class MekaarBottomNav extends StatelessWidget {
                                                 vertical: 1,
                                               ),
                                               decoration: BoxDecoration(
-                                                color:
-                                                    MekaarColors.softCoral,
+                                                color: AppColors.blue,
                                                 borderRadius:
                                                     BorderRadius.circular(
                                                         MekaarRadius.pill),

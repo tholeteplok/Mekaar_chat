@@ -76,9 +76,9 @@ class Avatar extends StatelessWidget {
   }
 
   Color _getAvatarColor(String? text) {
-    if (text == null || text.isEmpty) return MekaarColors.softCoral;
+    if (text == null || text.isEmpty) return AppColors.blue;
     final colors = [
-      MekaarColors.softCoral,
+      AppColors.blue,
       MekaarColors.guardianTeal,
       MekaarColors.info,
       MekaarColors.success,

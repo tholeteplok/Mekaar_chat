@@ -122,14 +122,14 @@ class _CreateGroupDetailsScreenState
                 children: [
                   CircleAvatar(
                     radius: 46,
-                    backgroundColor: MekaarColors.softCoral.withValues(alpha: 0.15),
+                    backgroundColor: AppColors.blue.withValues(alpha: 0.15),
                     backgroundImage:
                         _avatarFile != null ? FileImage(_avatarFile!) : null,
                     child: _avatarFile == null
                         ? const Icon(
                             SolarIconsOutline.usersGroupTwoRounded,
                             size: 42,
-                            color: MekaarColors.softCoral,
+                            color: AppColors.blue,
                           )
                         : null,
                   ),
@@ -139,7 +139,7 @@ class _CreateGroupDetailsScreenState
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
-                        color: MekaarColors.softCoral,
+                        color: AppColors.blue,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(

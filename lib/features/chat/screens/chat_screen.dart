@@ -691,12 +691,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                 return ListTile(
                   leading: Icon(
                     selected ? SolarIconsBold.history : SolarIconsOutline.history,
-                    color: selected ? MekaarColors.softCoral : null,
+                    color: selected ? AppColors.blue : null,
                   ),
                   title: Text(opt.$2),
                   subtitle: Text(opt.$3),
                   trailing: selected
-                      ? const Icon(MekaarIcons.check, color: MekaarColors.softCoral)
+                      ? const Icon(MekaarIcons.check, color: AppColors.blue)
                       : null,
                   onTap: () => Navigator.pop(ctx, opt.$1),
                 );

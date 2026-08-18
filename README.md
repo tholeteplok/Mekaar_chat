@@ -1,133 +1,153 @@
-# MEKAAR 3.0: Aplikasi Chat & Keamanan Personal Modern
+# MEKAAR: Personal-Safety & Privacy-First Messenger
 
-MEKAAR 3.0 adalah aplikasi obrolan modern yang dirancang khusus untuk segmen remaja/youth dengan mengutamakan aspek estetika breathable, interaksi dinamis, serta sistem perlindungan keamanan berlapis yang sepenuhnya dikendalikan oleh pengguna.
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![E2EE Security](https://img.shields.io/badge/Security-Aegis%20E2EE%20(X25519%20%2B%20ChaCha20)-136CFC)](https://github.com/tholeteplok/Mekaar_chat)
+[![Design System](https://img.shields.io/badge/Design-Clean%20Core%20%7C%20Colorful%20Room%20%7C%20Focused%20SOS-152641)](.docs/Mekaar_new_design.md)
 
-Aplikasi ini memadukan obrolan pribadi sehari-hari yang seru dengan protokol darurat terpadu (SOS) bersama lingkaran tepercaya (Guardian).
+**MEKAAR** adalah aplikasi perpesanan instan modern berbasis privasi (*privacy-first*) dan perlindungan keselamatan personal (*personal-safety*). Dirancang dengan arsitektur **Tri-Register** yang menggabungkan estetika antarmuka bersih dan bernapas (*breathable*), kebebasan ekspresi obrolan yang kaya, serta protokol darurat berkecepatan tinggi bersama lingkaran tepercaya (**Guardian**).
+
+---
+
+## 🎨 Sistem Desain Baru MEKAAR (Tri-Register Architecture)
+
+MEKAAR mengadopsi pemisahan visual tiga register untuk menjamin kejelasan fungsi dan fokus pengguna:
+
+```mermaid
+graph TD
+    A[MEKAAR Design System] --> B[1. Clean Core 🤍]
+    A --> C[2. Colorful Room 🎨]
+    A --> D[3. Focused SOS 🚨]
+    
+    B --> B1[Kanvas Flat Solid: Light #E8F4FC / Dark #152641]
+    B --> B2[Aksen Primer Tunggal: brand.blue #136CFC]
+    B --> B3[Sistem Tema 3-Mode: Terang, Gelap, Otomatis]
+    
+    C --> C1[Preset Default: MEKAAR Clean Theme]
+    C --> C2[11 Preset Ekspresif: Neon, Retro, Cyber, Diary, dll.]
+    
+    D --> D1[Override Kanvas Solid sos.coral #FF5D5D]
+    D --> D2[Bebas Elemen Playful & Bebas Maskot]
+```
+
+1. **Clean Core 🤍 (Chrome, Home, Settings, Guardian, Auth, Navigation):**
+   * **Warna Utama:** `brand.blue` (`#136CFC`), `brand.darkBlue` (`#152641`), `brand.green` (`#C3F84A`), `brand.lightBlue` (`#E8F4FC`).
+   * **Kanvas Flat:** Menghilangkan gradien visual berat pada navigasi utama untuk menghadirkan ruang baca yang luas dan tenang.
+   * **Tipografi:** Plus Jakarta Sans ExtraBold pada Wordmark (tracking -2%) dan Plus Jakarta Sans untuk seluruh teks hierarki.
+   * **Sistem 3-Mode:** Mode Terang, Mode Gelap, dan Otomatis (cutoff jam 06.00–17.59 Terang, 18.00–05.59 Gelap).
+2. **Colorful Room 🎨 (Chat Room & Media):**
+   * **MEKAAR Clean Theme (`mekaar`):** Menjadi tema bawaan default dengan gelembung keluar biru `brand.blue` dan gelembung masuk netral bertepi halus.
+   * **11 Presets Ekspresif:** *Neon Dreams, Comic Pop Art, Neumorphism, Glassmorphism, Pixel Garden 8-Bit, Candy Pop, Retro Wave, Mono Vibe, Solarpunk, Kunang-kunang, dan Buku Harian*.
+3. **Focused SOS 🚨 (Protokol Darurat & Respon Krisis):**
+   * **Total Layer Override:** Kanvas berubah solid `sos.coral` (`#FF5D5D`) / `sos.deep` (`#D92632`) seketika tombol SOS ditekan.
+   * **Kejelasan & Urgensi:** Menghilangkan seluruh maskot, konfeti, dan animasi bermain demi prioritas penyelamatan.
 
 ---
 
 ## 🌟 Fitur Utama
 
-### 💬 1. Obrolan Sehari-hari (Standard Chat Layer)
-* **Visual Premium & Breathable**: Antarmuka responsif dengan skema warna kurasi (Coral, Teal, Dark Mode).
-* **View-Once Media**: Kirim media gambar sekali lihat yang langsung dikaburkan (*blurry*) setelah dibuka untuk melindungi privasi.
-* **Hapus Pesan Penuh**: Kebebasan menghapus pesan obrolan biasa secara permanen dari basis data lokal maupun remote.
+### 💬 1. Obrolan Aman & Bebas Jejak (Private Messaging)
+* **Aegis Protocol E2EE:** Enkripsi ujung-ke-ujung penuh berbasis kurva asimetris **X25519** dan cipher **ChaCha20-Poly1305**. Kunci enkripsi dibuat dan disimpan secara lokal di perangkat.
+* **View-Once Media:** Kirim foto, video, dan pesan suara sekali lihat yang otomatis kabur (*blurred*) dan terhapus dari memori setelah dibuka.
+* **Pesan Menghilang (*Disappearing Messages*):** Atur timer otomatis hapus pesan (1 Jam, 1 Hari, 7 Hari, atau Selamanya).
+* **Private Vault Cloaking:** Sembunyikan obrolan sensitif di balik passcode sekunder tanpa meninggalkan petunjuk visual.
+* **Anti-Screenshot & Screen Recording Guard:** Proteksi penangkapan layar bidirectional pada area sensitif.
 
-### 🛡️ 2. Sistem Saling Menjaga (Guardian & Swap System)
-* **Izin Terkontrol**: Guardian tidak bisa melacak atau mendengar audio Anda saat mode normal. Akses pelacakan GPS dan mikrofon hanya terbuka **jika dan hanya jika** Anda menekan tombol SOS dalam bahaya.
-* **Durasi Otorisasi Terbatas**: Hubungan Guardian aktif maksimal selama 30 hari demi menjaga relevansi lingkaran kepercayaan.
-* **Dynamic Role Swapping**: Tukar peran instan (misal, Saling Menjaga dua arah) secara fleksibel dengan persetujuan dua arah.
-* **Mekaar Beacon (Live Signal & Auto Check-In)**: Siarkan sinyal lokasi sementara dan estimasi tiba ke Guardian terpilih saat sesi Hangout atau perjalanan rutin secara transparan.
+### 🛡️ 2. Jaringan Saling Menjaga (Guardian Network)
+* **Izin Berbasis Kebutuhan:** Guardian **tidak dapat** memantau lokasi atau mendengar audio Anda pada kondisi normal. Akses hanya dibuka saat Anda memicu mode darurat SOS.
+* **Hangout Sharing & Safety Route:** Siarkan lokasi sementara secara terencana saat bepergian atau nongkrong dengan estimasi waktu kepulangan otomatis.
+* **Dynamic Role Swapping:** Persetujuan dua arah untuk saling memantau keselamatan secara simetris antar teman atau keluarga.
 
-### 🚨 3. Protokol Darurat Terpadu (SOS Mode)
-* **Breathing Panic Button**: Tombol darurat dengan efek pulsasi visual agresif dan getaran (*haptic feedback*) berat.
-* **Real-time GPS Pings**: Pembaruan koordinat posisi Anda setiap saat ke Supabase dan dipetakan di OpenStreetMap (OSM) interaktif.
-* **Audio & Video WebRTC Streaming**: Kirim streaming umpan kamera dan mikrofon langsung ke layar Guardian Anda secara real-time.
-* **Inactivity Watchdog**: Streaming video akan otomatis ditutup setelah 2 menit jika sensor mendeteksi perangkat tidak bergerak/tidak aktif untuk menjaga privasi pengguna.
-* **Device Lost Mode**: Cari ponsel hilang via map, bunyikan alarm keras jarak jauh, dan kirim pesan kustom pada layar kunci hp.
-
-### 🔒 4. Mekaar Aegis Shield (Keamanan Kriptografis & Logs)
-* **Mekaar Aegis Protocol**: Enkripsi ujung-ke-ujung (E2EE) berbasis kurva asimetris X25519 & ChaCha20-Poly1305 untuk menjamin kerahasiaan pesan obrolan.
-* **Persistent Security Logs**: Setiap penghapusan pesan guardian, pemicuan/pengakhiran SOS, akses GPS/mic, akan dicatat secara permanen di database. Penghapusan log keamanan ini tetap akan meninggalkan jejak log baru.
-* **Secure Storage PIN**: Enkripsi lokal menggunakan `flutter_secure_storage` untuk verifikasi PIN 6-digit dengan auto-lockout (5 kali salah = kunci 30 menit).
+### 🚨 3. Respon Darurat Terpadu (SOS Panic System)
+* **72px Pulsing Panic Button:** Tombol panik haptic instan di pojok layar utama.
+* **Real-time WebRTC Video & Audio Stream:** Siaran langsung umpan kamera dan mikrofon ke layar Guardian terhubung secara instan.
+* **GPS Live Tracking:** Pembaruan titik koordinat presisi yang dipetakan di OpenStreetMap (OSM).
+* **Device Lost Mode:** Kunci perangkat jarak jauh, nyalakan alarm desibel tinggi, dan tampilkan pesan kontak pemulihan.
 
 ---
 
-## 🛠️ Arsitektur & Teknologi
-* **Core**: Flutter (Dart)
-* **State Management**: Riverpod (`StateNotifierProvider`, `StreamProvider`, dll.)
-* **Database & Auth**: Supabase (PostgreSQL, Row Level Security, Real-time Subscription)
-* **Live Streaming**: WebRTC (`flutter_webrtc`)
-* **Mapping**: OpenStreetMap (`flutter_map`)
-* **Security & Crypto**: Mekaar Aegis Protocol (X25519, AES PIN Hashing SHA-256 & `flutter_secure_storage`)
+## 🛠️ Arsitektur Teknologi
+
+* **Frontend Framework:** Flutter (Dart 3.x)
+* **State Management:** Riverpod (`StateNotifierProvider`, `StreamProvider`, `FutureProvider`)
+* **Backend & Realtime:** Supabase (PostgreSQL, Row Level Security / RLS, Edge Functions, Realtime Channels)
+* **Streaming & Komunikasi Realtime:** WebRTC (`flutter_webrtc`)
+* **Pemetaan & Geospasial:** OpenStreetMap via `flutter_map` & `latlong2`
+* **Penyimpanan Kunci Kriptografi:** `flutter_secure_storage` & SHA-256 Hashing dengan proteksi Brute-force Lockout
 
 ---
 
-## 📂 Struktur Direktori Proyek
+## 📂 Struktur Direktori
+
 ```text
 lib/
 ├── core/
-│   ├── constants/       # Tema, warna (Colors), rute aplikasi
-│   ├── routes/          # Navigasi AppRoutes terpusat
-│   └── widgets/         # Komponen UI tersentralisasi (CustomAppBar, SOSButton, Avatar, ChatBubble, CustomCard)
+│   ├── constants/       # Token warna (colors.dart), tema (themes.dart), shadows, tipografi
+│   ├── routes/          # Navigasi terpusat (app_routes.dart)
+│   ├── theme/           # Chat preset resolver & spesifikasi tema 12 preset
+│   ├── utils/           # Time theme helper, permission helpers, media compressor
+│   └── widgets/         # Komponen UI sentral (Wordmark, BottomNav, PermissionsBottomSheet, CryptoDonation)
 ├── data/
-│   ├── models/          # Model data Supabase (User, Message, Guardian, SOSSession, SecurityLog)
-│   ├── repositories/    # Repositori logika bisnis Supabase
-│   └── services/        # Layanan pendukung (Location, WebRTC, Notification, Secure Storage)
+│   ├── models/          # Model data (Profile, Message, Guardian, ChatTheme, SOSSession)
+│   ├── repositories/    # Logika interaksi database Supabase & SQLite
+│   └── services/        # Layanan enkripsi E2EE, WebRTC, Location, Haptic, Update
 └── features/
-    ├── auth/            # Halaman Login/Register, PIN Setup, Lockout, Splash, Onboarding
-    ├── chat/            # Obrolan rooms, streaming pesan masuk, pengiriman media sekali lihat
-    ├── guardian/        # Manajemen Guardian, tukar posisi peran, persetujuan undangan
-    ├── map/             # Peta pelacakan lokasi OSM
-    └── sos/             # Papan darurat SOS aktif, camera WebRTC, HP hilang
+    ├── auth/            # Login, Register, PIN Lock, Duress PIN, 2FA, Splash Screen
+    ├── chat/            # Chat room, composer, group management, attachment sheets
+    ├── guardian/        # Guardian list, QR scanning, Hangout session
+    ├── map/             # Pelacakan peta darurat OSM
+    ├── settings/        # Pengaturan tampilan/tema, privasi, Tentang Mekaar
+    └── sos/             # Papan darurat SOS aktif, camera live streaming, HP hilang
 ```
 
 ---
 
-## 🚀 Panduan Memulai
+## 🚀 Panduan Memulai (*Quick Start*)
 
-### 1. Konfigurasi Backend Supabase
-Jalankan **SELURUH** skrip migrasi di `supabase/migrations/` secara berurutan (01 → 26) di **SQL Editor** Supabase Anda — jangan berhenti di beberapa file awal saja.
+### 1. Prasyarat Lingkungan
+Pastikan Flutter SDK terpasang di sistem Anda (`flutter --version` >= 3.x).
 
-> ⚠️ **Wajib, bukan opsional:** migrasi 01–03 saja *tidak cukup* untuk keamanan dasar. Migrasi-migrasi berikutnya (khususnya `05_security_hardening.sql`) mengunci akses ke kolom sangat sensitif di tabel `profiles` (`pin_hash`, `duress_pin_hash`, `two_fa_secret`, `e2ee_key_backup`) sekaligus mempersempit akses tabel `messages`. Menjalankan aplikasi tanpa migrasi lengkap akan membuat data ini berpotensi terbaca oleh pengguna lain.
+### 2. Konfigurasi Backend Supabase
+Jalankan seluruh skrip migrasi SQL di `supabase/migrations/` secara berurutan (dari `01_initial_schema.sql` hingga migrasi terbaru) melalui **SQL Editor** pada project Supabase Anda.
 
-Di panel Supabase, pastikan Email Auth aktif. Matikan **"Confirm email"** di tab Authentication Settings jika ingin proses registrasi instan untuk keperluan pengujian.
-
-### 2. Pengaturan Variabel Lingkungan
-Buat file `.env` di direktori utama proyek Anda:
+### 3. Setup File Konfigurasi `.env`
+Buat file `.env` pada direktori root proyek (file ini diabaikan oleh Git demi keamanan):
 ```env
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 3. Konfigurasi Tambahan Sebelum Produksi
-
-Dua hal ini **wajib** dikonfigurasi sebelum aplikasi dipakai dengan data pengguna sungguhan (lihat `AUDIT_MEKAAR_MVP_ke_Produksi.md` untuk detail risikonya):
-
-**a) TURN server privat untuk WebRTC (video/audio darurat)**
-Secara default aplikasi jatuh ke relay TURN publik gratis (`openrelay.metered.ca`) yang tidak punya SLA — tidak layak untuk fitur SOS. Set server TURN privat Anda sendiri saat build:
+### 4. Instalasi & Menjalankan Aplikasi
 ```bash
-flutter build apk \
-  --dart-define=SUPABASE_URL=https://your-project-id.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=eyJ... \
-  --dart-define=TURN_URL=turn:turn.domain-anda.com:3478 \
-  --dart-define=TURN_USERNAME=xxxx \
-  --dart-define=TURN_CREDENTIAL=yyyy
-```
-Bisa pakai `coturn` self-hosted atau layanan terkelola (Twilio, Cloudflare Calls, dsb). Selama `TURN_URL` kosong, aplikasi memakai fallback publik dan akan mencetak peringatan di log debug.
-
-**b) Kunci penandatanganan log bukti hukum (Edge Function `sign-logs`)**
-```bash
-# 1. Generate keypair Ed25519 sekali (lihat komentar lengkap di
-#    supabase/functions/sign-logs/index.ts):
-deno run -A -e '
-  import * as ed from "https://esm.sh/@noble/ed25519@2.1.0";
-  const priv = ed.utils.randomPrivateKey();
-  const pub = await ed.getPublicKeyAsync(priv);
-  console.log("PRIVATE:", Array.from(priv).map(b=>b.toString(16).padStart(2,"0")).join(""));
-  console.log("PUBLIC :", Array.from(pub).map(b=>b.toString(16).padStart(2,"0")).join(""));
-'
-
-# 2. Simpan private key sebagai secret (JANGAN commit ke repo):
-supabase secrets set LOG_SIGNING_ED25519_PRIVATE_KEY=<hex_private_key>
-
-# 3. Deploy function:
-supabase functions deploy sign-logs
-
-# 4. Publikasikan PUBLIC key di halaman "Tentang"/dokumen resmi aplikasi
-#    agar pihak ketiga (mis. kepolisian/pengadilan) bisa memverifikasi
-#    ekspor log secara independen.
-```
-Tanpa langkah ini, fungsi `sign-logs` akan menolak menandatangani (fail-closed) dan aplikasi otomatis fallback ke ekspor CSV lokal tanpa tanda tangan.
-
-### 4. Instalasi dan Menjalankan Aplikasi
-```bash
-# Unduh paket dependensi
+# Unduh seluruh dependensi
 flutter pub get
 
-# Jalankan pengujian unit & widget
+# Jalankan pengujian otomatis (Unit & Widget Tests)
 flutter test
 
-# Jalankan aplikasi
+# Jalankan aplikasi ke emulator atau perangkat fisik
 flutter run
 ```
+
+---
+
+## 💙 Dukung Pengembangan MEKAAR (*Crypto Donation*)
+
+MEKAAR dikembangkan sebagai sistem keselamatan personal independen **tanpa iklan** dan **tanpa monetisasi/penjualan data pengguna**.
+
+Bila Anda ingin mendukung biaya pemeliharaan server *relay*, infrastruktur WebRTC, dan riset kriptografi, Anda dapat memberikan kontribusi sukarela melalui alamat dompet berikut:
+
+| Jaringan / Koin | Alamat Dompet (*Wallet Address*) |
+|---|---|
+| **Solana (SOL & SPL)** | `8NygxsjfWmcDMMTVuBS2VSAq7b6MnfGTqsPutCfLobyk` |
+| **EVM Multi-Chain (ETH, Base, Arbitrum, Polygon, BNB)** | `0x49a2013dcbb322079e18136e25e39ab940a74c5e` |
+| **TRON (TRX & USDT-TRC20)** | `TBQf6zEfjhsBbcAAyam626JED3ordfX6Y1` |
+| **Bitcoin (BTC Native)** | `bc1pywldcavnzq7ztmsqvm8unq3rkrlzafvenzhgmsvz7t32ysq0lcvqmcwfvw` |
+
+*Alamat di atas juga dapat disalin langsung dengan 1-klik melalui menu **Pengaturan** ➔ **Tentang MEKAAR** di dalam aplikasi.*
+
+---
+
+## 📜 Lisensi
+Proyek ini didistribusikan di bawah lisensi terbuka [MIT License](LICENSE).
+Semua hak atas perlindungan keselamatan dan kebebasan privasi pengguna dijamin penuh.

@@ -13,6 +13,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_update_dialog.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
+import '../../../core/widgets/mekaar_crypto_donation_bottom_sheet.dart';
 import '../../../data/services/update_service.dart';
 import '../widgets/settings_tiles.dart';
 
@@ -192,6 +193,10 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
 
                   // ── 5. Card Transparansi & Komunitas ──
                   _buildCommunityCard(),
+                  const SizedBox(height: 16),
+
+                  // ── 6. Card Donasi Crypto ──
+                  _buildDonationCard(),
                   const SizedBox(height: 24),
 
                   // ── Footer Copyright ──
@@ -747,6 +752,90 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
               size: 18,
             ),
             onTap: () => _openUrl('https://github.com/tholeteplok/Mekaar_chat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDonationCard() {
+    return CustomCard(
+      padding: const EdgeInsets.all(MekaarSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  SolarIconsBold.heart,
+                  color: AppColors.blue,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Dukung Pengembangan MEKAAR',
+                  style: MekaarTypography.bodyMD.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15.5,
+                    color: MekaarColors.textPrimaryOf(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'MEKAAR dikembangkan tanpa iklan & tanpa komersialisasi data. Kontribusi kripto sukarela Anda membantu operasional server & riset keamanan.',
+            style: MekaarTypography.bodySM.copyWith(
+              color: MekaarColors.textSecondaryOf(context),
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: BounceInteractive(
+              onTap: () => MekaarCryptoDonationBottomSheet.show(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  border: Border.all(
+                    color: AppColors.blue.withValues(alpha: 0.25),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      SolarIconsBold.wallet2,
+                      size: 18,
+                      color: AppColors.blue,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Lihat Alamat Donasi Crypto',
+                      style: MekaarTypography.bodyMD.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),

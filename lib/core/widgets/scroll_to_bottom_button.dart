@@ -65,7 +65,7 @@ class ScrollToBottomButton extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: accentColor ?? MekaarColors.softCoral,
+                        color: accentColor ?? AppColors.blue,
                         borderRadius: BorderRadius.circular(MekaarRadius.pill),
                       ),
                       child: Text(
