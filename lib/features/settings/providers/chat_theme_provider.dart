@@ -33,8 +33,9 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
 
   Future<void> applyPreset(ChatThemePreset preset) async {
     switch (preset) {
+      case ChatThemePreset.mekaar:
       case ChatThemePreset.dynamicTime:
-        await _save(ChatThemePreference.dynamicTime);
+        await _save(ChatThemePreference.mekaar);
         break;
       case ChatThemePreset.neonDreams:
       case ChatThemePreset.neonCyberpunk:

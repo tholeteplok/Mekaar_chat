@@ -197,28 +197,22 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
   ) {
     final now = DateTime.now();
     final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final phase = ThemeResolver.resolvePalette(currentPref);
+    final isDark = ThemeResolver.isCurrentlyDark(currentPref);
 
-    String phaseBadge;
-    Color phaseColor;
-    switch (phase) {
-      case TimePalette.morning:
-        phaseBadge = '🌅 Pagi (04.00–10.00)';
-        phaseColor = const Color(0xFFF59E0B);
+    String modeBadge;
+    switch (currentPref) {
+      case ThemePreference.light:
+        modeBadge = '☀️ Mode Terang';
         break;
-      case TimePalette.afternoon:
-        phaseBadge = '☀️ Siang (10.00–15.00)';
-        phaseColor = MekaarColors.cyan;
+      case ThemePreference.dark:
+        modeBadge = '🌙 Mode Gelap';
         break;
-      case TimePalette.evening:
-        phaseBadge = '🌇 Sore (15.00–18.00)';
-        phaseColor = const Color(0xFFFF5D5D);
-        break;
-      case TimePalette.night:
-        phaseBadge = '🌙 Malam (18.00–04.00)';
-        phaseColor = const Color(0xFF8B5CF6);
+      case ThemePreference.auto:
+        modeBadge = isDark ? '🌙 Otomatis (Gelap)' : '🌤 Otomatis (Terang)';
         break;
     }
+
+    const brandColor = AppColors.blue;
 
     return CustomCard(
       padding: const EdgeInsets.all(MekaarSpacing.lg),
@@ -231,14 +225,14 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: phaseColor.withValues(alpha: 0.18),
+                  color: brandColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: phaseColor.withValues(alpha: 0.4)),
+                  border: Border.all(color: brandColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  phaseBadge,
+                  modeBadge,
                   style: MekaarTypography.bodySM.copyWith(
-                    color: phaseColor,
+                    color: brandColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -266,7 +260,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Ini adalah pratinjau langsung font "${activeFont.displayName}" dan warna suasana yang sedang Anda gunakan.',
+            'Pratinjau antarmuka Clean Core dengan font "${activeFont.displayName}".',
             style: GoogleFonts.getFont(
               activeFont.key,
               textStyle: TextStyle(
@@ -280,7 +274,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     );
   }
 
-  /// Pilihan Mode Tema Utama (Auto/System, Siang/Light, Malam/Dark, Pagi, Sore)
+  /// Pilihan Mode Tema Utama (3 Pilihan: Otomatis, Terang, Gelap)
   Widget _buildThemePreferenceSelector(
     BuildContext context,
     WidgetRef ref,
@@ -292,37 +286,23 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
       (
         ThemePreference.auto,
         'Otomatis (Ikuti Jam Device)',
-        'Beralih Pagi, Siang, Sore, dan Malam secara real-time.',
+        '06.00–18.00 Terang, 18.00–06.00 Gelap.',
         SolarIconsOutline.clockCircle,
-        MekaarColors.cyan,
+        AppColors.blue,
       ),
       (
-        ThemePreference.afternoon,
-        'Mode Terang (Siang)',
-        'Tampilan bersih dan terang.',
+        ThemePreference.light,
+        'Mode Terang (Light)',
+        'Tampilan bersih dan minimalis sepanjang hari.',
         SolarIconsOutline.sun2,
-        const Color(0xFFF59E0B),
+        AppColors.blue,
       ),
       (
-        ThemePreference.night,
-        'Mode Gelap (Malam)',
-        'Tampilan gelap yang nyaman di mata.',
+        ThemePreference.dark,
+        'Mode Gelap (Dark)',
+        'Tampilan gelap yang nyaman di mata sepanjang hari.',
         SolarIconsOutline.moon,
-        const Color(0xFF8B5CF6),
-      ),
-      (
-        ThemePreference.morning,
-        'Suasana Pagi (Soft Golden)',
-        'Warna lembut hangat khas pagi hari.',
-        SolarIconsOutline.sunrise,
-        const Color(0xFFEAB308),
-      ),
-      (
-        ThemePreference.evening,
-        'Suasana Sore (Warm Sunset)',
-        'Warna pastel kemerahan khas senja.',
-        SolarIconsOutline.sunset,
-        const Color(0xFFFF5D5D),
+        AppColors.blue,
       ),
     ];
 
@@ -337,27 +317,40 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             onTap: () => notifier.setPreference(opt.$1),
             borderRadius: BorderRadius.circular(14),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
                   Container(
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: opt.$5.withValues(alpha: selected ? 0.25 : 0.12),
+                      color: opt.$5.withValues(alpha: selected ? 0.20 : 0.10),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(opt.$4, color: opt.$5, size: 20),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Text(
-                      opt.$2,
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontSize: 15,
-                        fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          opt.$2,
+                          style: MekaarTypography.bodyMD.copyWith(
+                            fontSize: 15,
+                            fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          opt.$3,
+                          style: MekaarTypography.bodySM.copyWith(
+                            fontSize: 12,
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (selected)

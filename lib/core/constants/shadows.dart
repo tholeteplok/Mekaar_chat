@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// MekaarShadows — Elevation/shadow terpusat.
-/// Gantikan BoxShadow inline agar konsisten lintas komponen.
+/// MekaarShadows — Elevation/shadow terpusat sesuai spesifikasi Core UI.
+/// Shadow lembut & tipis (0 4px 16px rgba(21, 38, 65, 0.06)) di atas kanvas flat.
 class MekaarShadows {
   MekaarShadows._();
 
@@ -11,45 +11,46 @@ class MekaarShadows {
     if (isDark) {
       return const [
         BoxShadow(
-          color: Color(0x590A0C28), // rgba(10, 12, 40, 0.35)
-          blurRadius: 32,
-          offset: Offset(0, 12),
+          color: Color(0x330A0E1A), // Tipis di dark mode
+          blurRadius: 16,
+          offset: Offset(0, 4),
         ),
       ];
     }
-    return [
+    return const [
       BoxShadow(
-        color: Colors.black.withValues(alpha: 0.04),
-        blurRadius: 12,
-        offset: const Offset(0, 4),
+        color: Color(0x0F152641), // rgba(21, 38, 65, 0.06)
+        blurRadius: 16,
+        offset: Offset(0, 4),
       ),
     ];
   }
 
   /// Bayangan halus untuk kartu & tile (legacy / fallback)
-  static List<BoxShadow> get card => [
+  static List<BoxShadow> get card => const [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+          color: Color(0x0F152641), // rgba(21, 38, 65, 0.06)
+          blurRadius: 16,
+          offset: Offset(0, 4),
         ),
       ];
 
   /// Bayangan sangat halus untuk chat bubble.
-  static List<BoxShadow> get bubble => [
+  static List<BoxShadow> get bubble => const [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
+          color: Color(0x08152641),
           blurRadius: 8,
-          offset: const Offset(0, 2),
+          offset: Offset(0, 2),
         ),
       ];
 
   /// Bayangan mengambang untuk FAB, bottom sheet, dialog.
-  static List<BoxShadow> get floating => [
+  static List<BoxShadow> get floating => const [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.10),
+          color: Color(0x14152641),
           blurRadius: 20,
-          offset: const Offset(0, 8),
+          offset: Offset(0, 8),
         ),
       ];
 }
+

@@ -11,63 +11,72 @@ class MekaarTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: MekaarColors.accent,
-      scaffoldBackgroundColor:
-          Colors.transparent, // Let gradient canvas handle background
+      primaryColor: AppColors.blue,
+      scaffoldBackgroundColor: AppColors.lightBlue,
+      cardColor: AppColors.cardLight,
       colorScheme: const ColorScheme.light(
-        primary: MekaarColors.accent,
-        secondary: MekaarColors.safeTeal,
-        error: MekaarColors.sosRed,
-        surface: MekaarColors.card,
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF1B2145), // Dark text on light card
-        onSurfaceVariant: Color(0xFF56617F),
+        primary: AppColors.blue,
+        secondary: AppColors.safeTeal,
+        error: AppColors.sosCoral,
+        surface: AppColors.cardLight,
+        onPrimary: AppColors.textOnBlue,
+        onSurface: AppColors.darkBlue,
+        onSurfaceVariant: Color(0xFF5C6B85),
+        outline: AppColors.borderLight,
       ),
       textTheme: GoogleFonts.getTextTheme(
         fontFamily,
         const TextTheme(
           displayLarge: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1B2145),
-          ),
-          displayMedium: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF1B2145),
+            color: AppColors.darkBlue,
+          ),
+          displayMedium: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: AppColors.darkBlue,
           ),
           displaySmall: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1B2145),
-          ),
-          headlineMedium: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1B2145),
+            color: AppColors.darkBlue,
           ),
-          headlineSmall: TextStyle(
+          headlineMedium: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1B2145),
+            color: AppColors.darkBlue,
+          ),
+          headlineSmall: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.darkBlue,
           ),
           bodyLarge: TextStyle(
-            fontSize: 18,
-            height: 1.6,
-            color: Color(0xFF1B2145),
-          ),
-          bodyMedium: TextStyle(
             fontSize: 16,
             height: 1.5,
-            color: Color(0xFF56617F),
+            color: AppColors.darkBlue,
           ),
-          bodySmall: TextStyle(fontSize: 14, color: Color(0xFF56617F)),
+          bodyMedium: TextStyle(
+            fontSize: 15,
+            height: 1.45,
+            color: Color(0xFF5C6B85),
+          ),
+          bodySmall: TextStyle(
+            fontSize: 13,
+            color: Color(0xFF5C6B85),
+          ),
+          labelSmall: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF5C6B85),
+          ),
         ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: Color(0xFF1B2145),
+        foregroundColor: AppColors.darkBlue,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
@@ -78,8 +87,8 @@ class MekaarTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.transparent,
-        selectedItemColor: MekaarColors.brandSecondary,
-        unselectedItemColor: MekaarColors.textMuted,
+        selectedItemColor: AppColors.blue,
+        unselectedItemColor: Color(0xFF5C6B85),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         showSelectedLabels: true,
@@ -87,20 +96,18 @@ class MekaarTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.cardLight,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            999,
-          ), // Pill shape for search/input
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(999),
+          borderSide: const BorderSide(color: AppColors.borderLight, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(999),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: AppColors.borderLight, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(999),
-          borderSide: const BorderSide(color: MekaarColors.accent, width: 2),
+          borderSide: const BorderSide(color: AppColors.blue, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
@@ -109,35 +116,36 @@ class MekaarTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: MekaarColors.yellow,
-          foregroundColor: MekaarColors.textOnYellow,
-          shape: const StadiumBorder(), // Pill shape
+          backgroundColor: AppColors.blue,
+          foregroundColor: AppColors.textOnBlue,
+          shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          elevation: 4,
-          shadowColor: MekaarColors.yellow.withValues(alpha: 0.3),
+          elevation: 0,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: const StadiumBorder(), // Pill shape
+          shape: const StadiumBorder(),
+          side: const BorderSide(color: AppColors.blue, width: 1.5),
+          foregroundColor: AppColors.blue,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: const Color(0xF6FFFFFF),
+        color: AppColors.cardLight,
         surfaceTintColor: Colors.transparent,
-        elevation: 10,
+        elevation: 8,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MekaarRadius.md),
-          side: BorderSide(
-            color: Colors.black.withValues(alpha: 0.10),
+          side: const BorderSide(
+            color: AppColors.borderLight,
             width: 1,
           ),
         ),
         textStyle: const TextStyle(
-          color: Color(0xFF1B2145),
+          color: AppColors.darkBlue,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -145,208 +153,13 @@ class MekaarTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.accent;
+            return AppColors.blue;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.accent.withValues(alpha: 0.35);
-          }
-          return null;
-        }),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────
-  // Time-based themes (auto theme: Pagi / Siang / Sore).
-  // Malam reuse [darkTheme] untuk konsistensi dengan mode gelap aplikasi.
-  // ─────────────────────────────────────────────────
-
-  static ThemeData morningTheme([String fontFamily = 'Plus Jakarta Sans']) {
-    MekaarTypography.fontFamily = fontFamily;
-    return _buildLight(
-      fontFamily,
-      brightness: Brightness.light,
-      primary: MekaarColors.accent,
-      onPrimary: Colors.white,
-      surface: MekaarColors.morningSurface,
-      onSurface: MekaarColors.morningOnSurface,
-      statusBarIconBrightness: Brightness.dark,
-    );
-  }
-
-  static ThemeData afternoonTheme([String fontFamily = 'Plus Jakarta Sans']) {
-    MekaarTypography.fontFamily = fontFamily;
-    return _buildLight(
-      fontFamily,
-      brightness: Brightness.light,
-      primary: MekaarColors.accent,
-      onPrimary: Colors.white,
-      surface: MekaarColors.card,
-      onSurface: const Color(0xFF1B2145),
-      statusBarIconBrightness: Brightness.dark,
-    );
-  }
-
-  static ThemeData eveningTheme([String fontFamily = 'Plus Jakarta Sans']) {
-    MekaarTypography.fontFamily = fontFamily;
-    return _buildLight(
-      fontFamily,
-      brightness: Brightness.light,
-      primary: MekaarColors.accent,
-      onPrimary: Colors.white,
-      surface: MekaarColors.eveningSurface,
-      onSurface: MekaarColors.eveningOnSurface,
-      statusBarIconBrightness: Brightness.dark,
-    );
-  }
-
-  /// Builder bersama untuk 3 tema light di atas. Menghindari duplikasi
-  /// TextTheme / AppBarTheme / ButtonTheme — yang berbeda hanya palet.
-  static ThemeData _buildLight(
-    String fontFamily, {
-    required Brightness brightness,
-    required Color primary,
-    required Color onPrimary,
-    required Color surface,
-    required Color onSurface,
-    required Brightness statusBarIconBrightness,
-  }) {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: brightness,
-      primaryColor: primary,
-      scaffoldBackgroundColor: Colors.transparent,
-      colorScheme: ColorScheme.light(
-        primary: primary,
-        secondary: MekaarColors.safeTeal,
-        error: MekaarColors.sosRed,
-        surface: surface,
-        onPrimary: onPrimary,
-        onSurface: onSurface,
-        onSurfaceVariant: const Color(0xFF56617F),
-      ),
-      textTheme: GoogleFonts.getTextTheme(
-        fontFamily,
-        TextTheme(
-          displayLarge: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: onSurface),
-          displayMedium: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: onSurface),
-          displaySmall: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: onSurface),
-          headlineMedium: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: onSurface),
-          headlineSmall: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: onSurface),
-          bodyLarge: TextStyle(
-              fontSize: 18, height: 1.6, color: onSurface),
-          bodyMedium: TextStyle(
-              fontSize: 16,
-              height: 1.5,
-              color: onSurface.withValues(alpha: 0.78)),
-          bodySmall:
-              TextStyle(fontSize: 14, color: onSurface.withValues(alpha: 0.7)),
-        ),
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: onSurface,
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: statusBarIconBrightness,
-          statusBarBrightness: Brightness.light,
-        ),
-        elevation: 0,
-        centerTitle: false,
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
-        selectedItemColor: MekaarColors.brandSecondary,
-        unselectedItemColor: MekaarColors.textMuted,
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(999),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(999),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(999),
-          borderSide: BorderSide(color: primary, width: 2),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: MekaarColors.brandPrimary,
-          foregroundColor: MekaarColors.textOnYellow,
-          shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          textStyle:
-              const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          elevation: 4,
-          shadowColor: MekaarColors.brandPrimary.withValues(alpha: 0.3),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          textStyle:
-              const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-        ),
-      ),
-      popupMenuTheme: PopupMenuThemeData(
-        color: const Color(0xF6FFFFFF),
-        surfaceTintColor: Colors.transparent,
-        elevation: 10,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(MekaarRadius.md),
-          side: BorderSide(
-            color: Colors.black.withValues(alpha: 0.10),
-            width: 1,
-          ),
-        ),
-        textStyle: TextStyle(
-          color: onSurface,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return primary;
-          }
-          return null;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return primary.withValues(alpha: 0.35);
+            return AppColors.blue.withValues(alpha: 0.35);
           }
           return null;
         }),
@@ -359,62 +172,72 @@ class MekaarTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: MekaarColors.accentDark,
-      scaffoldBackgroundColor:
-          Colors.transparent, // Let gradient canvas handle background
+      primaryColor: AppColors.blue,
+      scaffoldBackgroundColor: AppColors.darkBlue,
+      cardColor: AppColors.cardDark,
       colorScheme: const ColorScheme.dark(
-        primary: MekaarColors.accentDark,
-        secondary: MekaarColors.safeTeal,
-        error: MekaarColors.sosRed,
-        surface: MekaarColors.cardDark,
-        onPrimary: Color(0xFF1B2145),
-        onSurface: MekaarColors.textPrimary,
+        primary: AppColors.blue,
+        secondary: AppColors.safeTeal,
+        error: AppColors.sosCoral,
+        surface: AppColors.cardDark,
+        onPrimary: AppColors.textOnBlue,
+        onSurface: Color(0xFFF4F9FF),
+        onSurfaceVariant: Color(0xFF9FB0C9),
+        outline: AppColors.borderDark,
       ),
       textTheme: GoogleFonts.getTextTheme(
         fontFamily,
         const TextTheme(
           displayLarge: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w800,
-            color: MekaarColors.textPrimary,
-          ),
-          displayMedium: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w800,
-            color: MekaarColors.textPrimary,
+            color: Color(0xFFF4F9FF),
+          ),
+          displayMedium: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFFF4F9FF),
           ),
           displaySmall: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: MekaarColors.textPrimary,
-          ),
-          headlineMedium: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: MekaarColors.textPrimary,
+            color: Color(0xFFF4F9FF),
           ),
-          headlineSmall: TextStyle(
+          headlineMedium: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: MekaarColors.textPrimary,
+            color: Color(0xFFF4F9FF),
+          ),
+          headlineSmall: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFFF4F9FF),
           ),
           bodyLarge: TextStyle(
-            fontSize: 18,
-            height: 1.6,
-            color: MekaarColors.textPrimary,
-          ),
-          bodyMedium: TextStyle(
             fontSize: 16,
             height: 1.5,
-            color: MekaarColors.textSecondary,
+            color: Color(0xFFF4F9FF),
           ),
-          bodySmall: TextStyle(fontSize: 14, color: MekaarColors.textMuted),
+          bodyMedium: TextStyle(
+            fontSize: 15,
+            height: 1.45,
+            color: Color(0xFF9FB0C9),
+          ),
+          bodySmall: TextStyle(
+            fontSize: 13,
+            color: Color(0xFF9FB0C9),
+          ),
+          labelSmall: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF9FB0C9),
+          ),
         ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: MekaarColors.textPrimary,
+        foregroundColor: Color(0xFFF4F9FF),
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
@@ -425,8 +248,8 @@ class MekaarTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.transparent,
-        selectedItemColor: MekaarColors.brandSecondary,
-        unselectedItemColor: MekaarColors.textMuted,
+        selectedItemColor: AppColors.blue,
+        unselectedItemColor: Color(0xFF9FB0C9),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         showSelectedLabels: true,
@@ -434,20 +257,18 @@ class MekaarTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: MekaarColors.cardDark,
+        fillColor: AppColors.cardDark,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            999,
-          ), // Pill shape for search/input
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(999),
+          borderSide: const BorderSide(color: AppColors.borderDark, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(999),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: AppColors.borderDark, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(999),
-          borderSide: const BorderSide(color: MekaarColors.accentDark, width: 2),
+          borderSide: const BorderSide(color: AppColors.blue, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
@@ -456,35 +277,36 @@ class MekaarTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: MekaarColors.brandPrimary,
-          foregroundColor: MekaarColors.textOnYellow,
-          shape: const StadiumBorder(), // Pill shape
+          backgroundColor: AppColors.blue,
+          foregroundColor: AppColors.textOnBlue,
+          shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          elevation: 4,
-          shadowColor: MekaarColors.brandPrimary.withValues(alpha: 0.3),
+          elevation: 0,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: const StadiumBorder(), // Pill shape
+          shape: const StadiumBorder(),
+          side: const BorderSide(color: AppColors.blue, width: 1.5),
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: const Color(0xF2181D2E),
+        color: AppColors.cardDark,
         surfaceTintColor: Colors.transparent,
-        elevation: 10,
+        elevation: 8,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MekaarRadius.md),
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.16),
+          side: const BorderSide(
+            color: AppColors.borderDark,
             width: 1,
           ),
         ),
         textStyle: const TextStyle(
-          color: MekaarColors.textPrimary,
+          color: Color(0xFFF4F9FF),
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -492,13 +314,13 @@ class MekaarTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.accentDark;
+            return AppColors.blue;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return MekaarColors.accentDark.withValues(alpha: 0.35);
+            return AppColors.blue.withValues(alpha: 0.35);
           }
           return null;
         }),
@@ -506,3 +328,4 @@ class MekaarTheme {
     );
   }
 }
+

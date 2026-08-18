@@ -58,7 +58,7 @@ enum ChatBubbleColorPreset {
 /// Enum preset utama obrolan (Total 12 Presets).
 enum ChatThemePreset {
   custom,
-  dynamicTime,
+  mekaar, // Preset default baru: Clean Theme senada Core UI
   neonDreams,
   comicPopArt,
   neumorphism,
@@ -71,6 +71,7 @@ enum ChatThemePreset {
   fireflyNight,
   diary,
   // Alias untuk kompatibilitas riwayat preferensi lama
+  dynamicTime,
   neonCyberpunk,
   isometric3d,
   retroY2K,
@@ -94,8 +95,8 @@ class ChatThemePreference {
   final String? incomingColor2;
 
   const ChatThemePreference({
-    this.preset = ChatThemePreset.dynamicTime,
-    this.wallpaperType = WallpaperType.dynamicTime,
+    this.preset = ChatThemePreset.mekaar,
+    this.wallpaperType = WallpaperType.solidColor,
     this.wallpaperValue,
     this.bubbleStyle = ChatBubbleStyle.modernPill,
     this.bubbleColorPreset = ChatBubbleColorPreset.defaultTime,
@@ -155,7 +156,9 @@ class ChatThemePreference {
   factory ChatThemePreference.fromJson(Map<String, dynamic> json) {
     final rawPreset = json['preset'] as String?;
     ChatThemePreset p;
-    if (rawPreset == 'neonCyberpunk') {
+    if (rawPreset == 'dynamicTime') {
+      p = ChatThemePreset.mekaar;
+    } else if (rawPreset == 'neonCyberpunk') {
       p = ChatThemePreset.neonDreams;
     } else if (rawPreset == 'isometric3d') {
       p = ChatThemePreset.candyPop;
@@ -166,7 +169,7 @@ class ChatThemePreference {
     } else {
       p = ChatThemePreset.values.firstWhere(
         (e) => e.name == rawPreset,
-        orElse: () => ChatThemePreset.dynamicTime,
+        orElse: () => ChatThemePreset.mekaar,
       );
     }
 
@@ -174,7 +177,7 @@ class ChatThemePreference {
       preset: p,
       wallpaperType: WallpaperType.values.firstWhere(
         (e) => e.name == json['wallpaperType'],
-        orElse: () => WallpaperType.dynamicTime,
+        orElse: () => WallpaperType.solidColor,
       ),
       wallpaperValue: json['wallpaperValue'] as String?,
       bubbleStyle: ChatBubbleStyle.values.firstWhere(
@@ -194,14 +197,15 @@ class ChatThemePreference {
     );
   }
 
-  /// Preset 1: Dynamic Time (Default).
-  static const dynamicTime = ChatThemePreference(
-    preset: ChatThemePreset.dynamicTime,
-    wallpaperType: WallpaperType.dynamicTime,
+  /// Preset 1: MEKAAR Clean Theme (Default).
+  static const mekaar = ChatThemePreference(
+    preset: ChatThemePreset.mekaar,
+    wallpaperType: WallpaperType.solidColor,
     bubbleStyle: ChatBubbleStyle.modernPill,
     bubbleColorPreset: ChatBubbleColorPreset.defaultTime,
     textScale: 1.0,
   );
+  static const dynamicTime = mekaar;
 
   /// Preset 2: Neon Dreams (Night Youth).
   static const neonDreams = ChatThemePreference(

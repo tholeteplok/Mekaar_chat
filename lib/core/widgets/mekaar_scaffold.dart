@@ -42,20 +42,15 @@ class MekaarScaffold extends ConsumerWidget {
 
     final isSosActive = ref.watch(sosProvider).isSOSActive;
 
-    // Resolusi palet untuk status bar icons.
     final pref =
         ref.watch(themePreferenceProvider).valueOrNull ?? ThemePreference.auto;
-    final palette = forceDark
-        ? TimePalette.night
-        : ThemeResolver.resolvePalette(pref);
-    final paletteIsDark = ThemeResolver.brightnessOf(palette) == Brightness.dark;
-    final useLightIcons = forceDark || isSosActive || paletteIsDark;
+    final isDark = forceDark || isSosActive || ThemeResolver.isCurrentlyDark(pref);
 
     final overlayStyle = SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness:
-          useLightIcons ? Brightness.light : Brightness.dark,
-      statusBarBrightness: useLightIcons ? Brightness.dark : Brightness.light,
+          isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
     );
 
     Widget mainScaffold = Scaffold(

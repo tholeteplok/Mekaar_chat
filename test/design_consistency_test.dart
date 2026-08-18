@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mekaar_chat/core/constants/colors.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_tab_header.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_wordmark.dart';
 
@@ -15,19 +14,12 @@ Widget _host(Widget child, {ThemeMode themeMode = ThemeMode.light}) {
 
 void main() {
   group('MekaarWordmark', () {
-    testWidgets('memakai dua segmen warna brand dan satu label semantics', (
+    testWidgets('memakai teks Mekaar satu warna brand.blue dan label semantics', (
       tester,
     ) async {
       await tester.pumpWidget(_host(const MekaarWordmark()));
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
-      final root = richText.text as TextSpan;
-      final segments = root.children!.cast<TextSpan>();
-
-      expect(segments[0].text, 'Mek');
-      expect(segments[0].style?.color, MekaarColors.yellow);
-      expect(segments[1].text, 'aar');
-      expect(segments[1].style?.color, MekaarColors.cyan);
+      expect(find.text('Mekaar'), findsOneWidget);
       expect(find.bySemanticsLabel('Mekaar'), findsOneWidget);
     });
 
@@ -43,8 +35,8 @@ void main() {
       );
 
       final texts = tester
-          .widgetList<RichText>(find.byType(RichText))
-          .map((widget) => widget.text as TextSpan)
+          .widgetList<Text>(find.byType(Text))
+          .where((t) => t.data == 'Mekaar')
           .toList();
 
       expect(texts[0].style?.fontSize, 38);

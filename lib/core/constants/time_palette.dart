@@ -1,44 +1,17 @@
-/// Enum palet waktu untuk tema otomatis.
+/// Preferensi tema user (Clean Core).
 ///
-/// Merepresentasikan 4 slot waktu harian yang dipakai oleh fitur tema
-/// otomatis MEKAAR. [night] secara visual reuse [MekaarTheme.darkTheme]
-/// agar konsisten dengan mode gelap yang sudah ada.
-enum TimePalette {
-  morning,
-  afternoon,
-  evening,
-  night,
-}
-
-/// Preferensi tema user.
-///
-/// - [auto] → tema berubah otomatis mengikuti jam device lokal.
-/// - [morning] / [afternoon] / [evening] / [night] → tema dikunci manual.
+/// - [auto] → tema berubah otomatis: 06.00–17.59 Light, 18.00–05.59 Dark.
+/// - [light] → tema terang sepanjang hari.
+/// - [dark] → tema gelap sepanjang hari.
 enum ThemePreference {
   auto,
-  morning,
-  afternoon,
-  evening,
-  night,
+  light,
+  dark,
 }
 
 extension ThemePreferenceX on ThemePreference {
-  /// Konversi ke [TimePalette]. Untuk [ThemePreference.auto] gunakan
-  /// [ThemeResolver.resolvePalette] agar ikut jam.
-  TimePalette? toFixedPalette() {
-    switch (this) {
-      case ThemePreference.morning:
-        return TimePalette.morning;
-      case ThemePreference.afternoon:
-        return TimePalette.afternoon;
-      case ThemePreference.evening:
-        return TimePalette.evening;
-      case ThemePreference.night:
-        return TimePalette.night;
-      case ThemePreference.auto:
-        return null;
-    }
-  }
-
   bool get isAuto => this == ThemePreference.auto;
+  bool get isLight => this == ThemePreference.light;
+  bool get isDark => this == ThemePreference.dark;
 }
+

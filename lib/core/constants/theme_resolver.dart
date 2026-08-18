@@ -5,78 +5,53 @@ import 'themes.dart';
 import 'time_palette.dart';
 import '../utils/time_theme_helper.dart';
 
-/// Resolver terpusat untuk semua keputusan tema berbasis waktu.
-/// Memisahkan "apa yang dipilih" (ThemePreference) dari "apa yang dipakai"
-/// (ThemeData + gradient) sehingga widget tinggal panggil.
+/// Resolver terpusat untuk keputusan tema Core UI (3-mode: Light / Dark / Auto).
 class ThemeResolver {
   ThemeResolver._();
 
-  /// Resolusi palet final. Kalau user pilih Auto, hitung dari jam.
-  static TimePalette resolvePalette(ThemePreference pref) {
-    if (pref.isAuto) {
-      return paletteForTime(nowLocal());
-    }
-    return pref.toFixedPalette() ?? paletteForTime(nowLocal());
-  }
-
-  /// Brightness inherent tiap palet. Sore = light (hangat), Malam = dark.
-  static Brightness brightnessOf(TimePalette p) {
-    switch (p) {
-      case TimePalette.morning:
-      case TimePalette.afternoon:
-      case TimePalette.evening:
-        return Brightness.light;
-      case TimePalette.night:
-        return Brightness.dark;
+  /// Evaluasi apakah preferensi saat ini aktif sebagai Dark mode.
+  static bool isCurrentlyDark(ThemePreference pref, [TimeOfDay? time]) {
+    switch (pref) {
+      case ThemePreference.light:
+        return false;
+      case ThemePreference.dark:
+        return true;
+      case ThemePreference.auto:
+        return !isDayTime(time ?? nowLocal());
     }
   }
 
-  /// ThemeData final untuk [MaterialApp]. Memetakan preferensi ke factory
-  /// yang ada di [MekaarTheme]. Malam reuse [MekaarTheme.darkTheme].
+  /// Brightness aktif.
+  static Brightness brightnessOf(ThemePreference pref, [TimeOfDay? time]) {
+    return isCurrentlyDark(pref, time) ? Brightness.dark : Brightness.light;
+  }
+
+  /// ThemeData final untuk [MaterialApp].
   static ThemeData resolveThemeData(
     ThemePreference pref,
     String fontFamily,
   ) {
-    final palette = resolvePalette(pref);
-    return _themeForPalette(palette, fontFamily);
+    return isCurrentlyDark(pref)
+        ? MekaarTheme.darkTheme(fontFamily)
+        : MekaarTheme.lightTheme(fontFamily);
   }
 
-  static ThemeData _themeForPalette(TimePalette p, String fontFamily) {
-    switch (p) {
-      case TimePalette.morning:
-        return MekaarTheme.morningTheme(fontFamily);
-      case TimePalette.afternoon:
-        return MekaarTheme.afternoonTheme(fontFamily);
-      case TimePalette.evening:
-        return MekaarTheme.eveningTheme(fontFamily);
-      case TimePalette.night:
-        return MekaarTheme.darkTheme(fontFamily);
-    }
-  }
-
-  /// Canvas gradient. SOS override warna apapun.
+  /// Canvas gradient/color. SOS override warna apapun.
   static LinearGradient resolveCanvasGradient(
-    TimePalette p, {
+    ThemePreference pref, {
     bool sosActive = false,
+    bool forceDark = false,
   }) {
     if (sosActive) return MekaarGradients.canvasSos;
-    switch (p) {
-      case TimePalette.morning:
-        return MekaarGradients.canvasMorning;
-      case TimePalette.afternoon:
-        return MekaarGradients.canvasAfternoon;
-      case TimePalette.evening:
-        return MekaarGradients.canvasEvening;
-      case TimePalette.night:
-        return MekaarGradients.canvasDark;
+    if (forceDark || isCurrentlyDark(pref)) {
+      return MekaarGradients.canvasDark;
     }
+    return MekaarGradients.canvasLight;
   }
 
-  /// ThemeMode final untuk MaterialApp (light/dark). Auto-otomatis akan
-  /// jadi light atau dark tergantung palet aktif.
+  /// ThemeMode final untuk MaterialApp (light/dark).
   static ThemeMode resolveThemeMode(ThemePreference pref) {
-    return brightnessOf(resolvePalette(pref)) == Brightness.dark
-        ? ThemeMode.dark
-        : ThemeMode.light;
+    return isCurrentlyDark(pref) ? ThemeMode.dark : ThemeMode.light;
   }
 }
+

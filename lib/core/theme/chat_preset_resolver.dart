@@ -159,6 +159,7 @@ class ChatPresetResolver {
           curve: Curves.easeOut,
           type: EntranceType.diaryWritingSlideLeft,
         );
+      case ChatThemePreset.mekaar:
       case ChatThemePreset.dynamicTime:
       case ChatThemePreset.custom:
         return const BubbleEntranceSpec(
@@ -267,6 +268,7 @@ class ChatPresetResolver {
               height: 1.35,
               fontWeight: FontWeight.w700,
             );
+          case ChatThemePreset.mekaar:
           case ChatThemePreset.dynamicTime:
           case ChatThemePreset.custom:
             return GoogleFonts.plusJakartaSans(
@@ -719,26 +721,38 @@ class ChatPresetResolver {
       }
     }
 
-    // 12. Dynamic Time (Fallback / Default)
-    final bg = isMe
-        ? MekaarColors.outgoingBubbleOf(context)
-        : MekaarColors.surfaceOf(context);
-    final txt = isMe
-        ? MekaarColors.outgoingTextOf(context)
-        : MekaarColors.textPrimaryOf(context);
+    // 12. MEKAAR Clean Theme (Fallback / Default)
+    if (isMe) {
+      return ChatBubbleSpec(
+        backgroundColor: AppColors.blue,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(4),
+        ),
+        textColor: AppColors.textOnBlue,
+        textStyle: resolveTextStyle(AppColors.textOnBlue),
+      );
+    } else {
+      final bg = isDark ? const Color(0xFF1E304F) : Colors.white;
+      final txt = isDark ? const Color(0xFFF4F9FF) : AppColors.darkBlue;
+      final borderColor = isDark ? const Color(0xFF25395B) : const Color(0xFFDCE7F5);
 
-    return ChatBubbleSpec(
-      backgroundColor: bg,
-      borderRadius: BorderRadius.only(
-        topLeft: const Radius.circular(18),
-        topRight: const Radius.circular(18),
-        bottomLeft: Radius.circular(isMe ? 18 : 4),
-        bottomRight: Radius.circular(isMe ? 4 : 18),
-      ),
-      boxShadow: (isMe ? null : MekaarShadows.bubble),
-      textColor: txt,
-      textStyle: resolveTextStyle(txt),
-    );
+      return ChatBubbleSpec(
+        backgroundColor: bg,
+        border: Border.all(color: borderColor, width: 1.0),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+          bottomLeft: Radius.circular(4),
+          bottomRight: Radius.circular(20),
+        ),
+        boxShadow: MekaarShadows.bubble,
+        textColor: txt,
+        textStyle: resolveTextStyle(txt),
+      );
+    }
   }
 
   /// Mendapatkan spesifikasi tema tersentralisasi untuk komponen chat room (AppBar, Composer, Buttons, Badges).
@@ -1093,20 +1107,9 @@ class ChatPresetResolver {
   }
 
   static Widget _buildDynamicTimeWallpaper(BuildContext context) {
-    final hour = DateTime.now().hour;
-    LinearGradient timeGradient;
-    if (hour >= 5 && hour < 11) {
-      timeGradient = MekaarGradients.canvasMorning;
-    } else if (hour >= 11 && hour < 15) {
-      timeGradient = MekaarGradients.canvasAfternoon;
-    } else if (hour >= 15 && hour < 18) {
-      timeGradient = MekaarGradients.canvasEvening;
-    } else {
-      timeGradient = MekaarGradients.canvasDark;
-    }
     return Positioned.fill(
       child: Container(
-        decoration: BoxDecoration(gradient: timeGradient),
+        color: Theme.of(context).scaffoldBackgroundColor,
       ),
     );
   }

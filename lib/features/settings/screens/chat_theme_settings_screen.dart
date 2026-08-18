@@ -343,9 +343,9 @@ class _ChatThemeSettingsScreenState
 
     final presets = [
       (
-        title: '🌤 Dynamic Time (Otomatis Waktu)',
-        color: MekaarColors.cyan,
-        preset: ChatThemePreset.dynamicTime
+        title: '🤍 MEKAAR (Clean Theme)',
+        color: AppColors.blue,
+        preset: ChatThemePreset.mekaar
       ),
       (
         title: '🌌 Neon Dreams (Night Youth)',
@@ -404,7 +404,7 @@ class _ChatThemeSettingsScreenState
       ),
       (
         title: '🛠️ Kustomisasi Manual',
-        color: MekaarColors.yellow,
+        color: AppColors.blue,
         preset: ChatThemePreset.custom
       ),
     ];
@@ -413,7 +413,7 @@ class _ChatThemeSettingsScreenState
       context: context,
       label: 'PRESET UTAMA (1-KLIK)',
       icon: SolarIconsBold.stars,
-      iconColor: MekaarColors.cyan,
+      iconColor: AppColors.blue,
       value: pref.preset,
       items: presets.map((p) {
         return DropdownMenuItem<ChatThemePreset>(
@@ -447,10 +447,16 @@ class _ChatThemeSettingsScreenState
 
     final wallpapers = [
       (
+        WallpaperType.solidColor,
+        'MEKAAR Clean Canvas',
+        SolarIconsBold.palette2,
+        AppColors.blue
+      ),
+      (
         WallpaperType.dynamicTime,
-        'Dynamic Time (Waktu)',
+        'Flat Canvas (Ikuti Mode)',
         SolarIconsBold.clockCircle,
-        MekaarColors.cyan
+        AppColors.blue
       ),
       (
         WallpaperType.pixelGardenCanvas,

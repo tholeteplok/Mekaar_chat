@@ -60,34 +60,22 @@ class ThemePreferenceNotifier
   }
 
   Future<void> setAuto() => setPreference(ThemePreference.auto);
-
-  Future<void> setPalette(TimePalette p) {
-    switch (p) {
-      case TimePalette.morning:
-        return setPreference(ThemePreference.morning);
-      case TimePalette.afternoon:
-        return setPreference(ThemePreference.afternoon);
-      case TimePalette.evening:
-        return setPreference(ThemePreference.evening);
-      case TimePalette.night:
-        return setPreference(ThemePreference.night);
-    }
-  }
+  Future<void> setLight() => setPreference(ThemePreference.light);
+  Future<void> setDark() => setPreference(ThemePreference.dark);
 
   static ThemePreference _fromString(String value) {
     switch (value) {
-      case 'auto':
-        return ThemePreference.auto;
-      case 'morning':
-        return ThemePreference.morning;
+      case 'light':
       case 'afternoon':
-        return ThemePreference.afternoon;
-      case 'evening':
-        return ThemePreference.evening;
+      case 'morning':
+        return ThemePreference.light;
+      case 'dark':
       case 'night':
-        return ThemePreference.night;
+      case 'evening':
+        return ThemePreference.dark;
+      case 'auto':
       default:
-        return defaultPreference;
+        return ThemePreference.auto;
     }
   }
 
@@ -95,27 +83,20 @@ class ThemePreferenceNotifier
     switch (pref) {
       case ThemePreference.auto:
         return 'auto';
-      case ThemePreference.morning:
-        return 'morning';
-      case ThemePreference.afternoon:
-        return 'afternoon';
-      case ThemePreference.evening:
-        return 'evening';
-      case ThemePreference.night:
-        return 'night';
+      case ThemePreference.light:
+        return 'light';
+      case ThemePreference.dark:
+        return 'dark';
     }
   }
 
   /// Mapping dari key lama (system/light/dark) ke preferensi baru.
-  /// - system → auto (mengikuti "jam" tetap berguna)
-  /// - light  → afternoon (clean bright, palet siang)
-  /// - dark   → night
   static ThemePreference _migrateLegacy(String legacy) {
     switch (legacy) {
       case 'light':
-        return ThemePreference.afternoon;
+        return ThemePreference.light;
       case 'dark':
-        return ThemePreference.night;
+        return ThemePreference.dark;
       case 'system':
       default:
         return ThemePreference.auto;
@@ -138,10 +119,10 @@ final resolvedThemeDataProvider = Provider<ThemeData>((ref) {
   return ThemeResolver.resolveThemeData(pref, fontFamily);
 });
 
-/// ThemeMode final untuk MaterialApp (light/dark) — berdasarkan brightness
-/// palet aktif.
+/// ThemeMode final untuk MaterialApp (light/dark)
 final resolvedThemeModeProvider = Provider<ThemeMode>((ref) {
   ref.watch(timeTickProvider);
   final pref = ref.watch(themePreferenceProvider).valueOrNull ?? _kDefaultThemePref;
   return ThemeResolver.resolveThemeMode(pref);
 });
+

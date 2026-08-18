@@ -43,10 +43,11 @@ class MekaarTypography {
     height: 1.2,
   );
 
-  static TextStyle get wordmark => GoogleFonts.baloo2(
+  static TextStyle get wordmark => GoogleFonts.plusJakartaSans(
     fontSize: 38,
     fontWeight: FontWeight.w800,
-    letterSpacing: -0.5,
+    letterSpacing: -0.76,
+    color: AppColors.blue,
   );
 
   static TextStyle get tabHeader => displayLG.copyWith(color: Colors.white);
