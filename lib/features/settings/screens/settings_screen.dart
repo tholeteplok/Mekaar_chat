@@ -345,11 +345,11 @@ class SettingsScreen extends ConsumerWidget {
                   children: [
                     const SizedBox(height: 16),
 
-                    // ── 1. Tampilan ──
-                    _buildDisplaySection(context, ref),
-
-                    // ── 2. Akun ──
+                    // ── 1. Akun (Snippet Profil) ──
                     _buildAccountSection(context, ref),
+
+                    // ── 2. Tampilan ──
+                    _buildDisplaySection(context, ref),
 
                     // ── 3. Privasi (tersembunyi saat duress) ──
                     if (!wasDuress) ...[

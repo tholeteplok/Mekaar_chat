@@ -10,9 +10,11 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../widgets/settings_tiles.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -202,26 +204,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final userEmail = user?.email ?? '';
     final username = profile?.username ?? '';
     final pinSet = authState.isPinSet;
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
+    final saveActionButton = (_isEditingDisplayName || _isEditingUsername)
+        ? IconButton(
+            onPressed: _saveAllChanges,
+            icon: Icon(
+              SolarIconsBold.checkCircle,
+              color: MekaarColors.primaryOf(context),
+              size: 24,
+            ),
+            tooltip: 'Simpan Perubahan',
+          )
+        : null;
+
+    return MekaarScaffold(
+      flat: true,
       body: SafeArea(
         child: Column(
           children: [
-            MekaarTabHeader(
-              title: 'Profil',
-              action: (_isEditingDisplayName || _isEditingUsername)
-                  ? IconButton(
-                      onPressed: _saveAllChanges,
-                      icon: Icon(
-                        SolarIconsBold.checkCircle,
-                        color: MekaarColors.primaryOf(context),
-                        size: 24,
-                      ),
-                      tooltip: 'Simpan Perubahan',
-                    )
-                  : null,
-            ),
+            if (canPop)
+              SettingsTopBar(
+                title: 'Profil',
+                trailing: saveActionButton,
+              )
+            else
+              MekaarTabHeader(
+                title: 'Profil',
+                action: saveActionButton,
+              ),
 
             Expanded(
               child: SingleChildScrollView(

@@ -25,6 +25,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
+import '../../../core/widgets/mekaar_frosted_action_button.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
@@ -759,14 +760,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           children: [
             // SOS Button on the left
             SOSButton(onPressed: _triggerSOS, size: 72),
-            // Add Message FAB on the right
-            FloatingActionButton(
+            // Add Message Frosted Action Button on the right
+            MekaarFrostedActionButton(
+              size: 56,
               onPressed: _showNewChatDialog,
-              backgroundColor: MekaarColors.softCoral,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shape: const CircleBorder(),
-              child: const Icon(SolarIconsOutline.chatSquare, size: 24),
+              tooltip: 'Pesan Baru',
+              icon: Icon(
+                SolarIconsBold.chatSquare,
+                color: MekaarColors.accentOf(context),
+                size: 24,
+              ),
             ),
           ],
         ),
