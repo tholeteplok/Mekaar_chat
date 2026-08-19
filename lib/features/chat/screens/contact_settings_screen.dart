@@ -265,35 +265,108 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           },
                         )
                       : null,
-                  onTap: _e2eeFingerprint.isNotEmpty
-                      ? () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => MekaarDialog(
-                              icon: const Icon(
-                                SolarIconsBold.shieldCheck,
-                                color: MekaarColors.guardianTeal,
-                                size: 28,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: const Row(
+                          children: [
+                            Icon(
+                              SolarIconsBold.shieldCheck,
+                              color: MekaarColors.guardianTeal,
+                              size: 26,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Mekaar Aegis Shield (E2EE)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
-                              title: 'Sidik Jari Keamanan',
-                              message:
-                                  'Untuk memverifikasi bahwa chat ini aman dan dienkripsi ujung-ke-ujung (E2EE) secara sah, cocokkan nomor berikut dengan perangkat milik kontak Anda:\n\n$_e2eeFingerprint',
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text(
-                                    'Tutup',
-                                    style: TextStyle(
-                                      color: MekaarColors.guardianTeal,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            ),
+                          ],
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pesan dan panggilan dalam obrolan ini dilindungi oleh enkripsi ujung-ke-ujung (E2EE) protokol Aegis menggunakan pasangan kunci asimetris X25519 & ChaCha20-Poly1305.',
+                              style: TextStyle(
+                                color: MekaarColors.textPrimaryOf(context),
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            if (_e2eeFingerprint.isNotEmpty) ...[
+                              Text(
+                                'Sidik Jari Kunci Keamanan:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                  color: MekaarColors.textPrimaryOf(context),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: MekaarColors.surface2Of(context),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: SelectableText(
+                                  _e2eeFingerprint,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                    color: MekaarColors.textPrimaryOf(context),
+                                    letterSpacing: 1.0,
                                   ),
                                 ),
-                              ],
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                            const Text(
+                              '🔒 Komitmen Privasi Mutlak:',
+                              style: TextStyle(
+                                color: MekaarColors.guardianTeal,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
-                          );
-                        }
-                      : null,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Hanya Anda dan lawan bicara yang memegang kunci untuk membaca pesan ini. Server MEKAAR tidak memiliki akses ke konten percakapan Anda.',
+                              style: TextStyle(
+                                color: MekaarColors.textMutedOf(context),
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text(
+                              'Tutup',
+                              style: TextStyle(
+                                color: MekaarColors.guardianTeal,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
 
                 // Sembunyikan Kontak (Private Vault)

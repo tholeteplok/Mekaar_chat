@@ -115,10 +115,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final textMuted = MekaarColors.textMutedOf(context);
+    final surfaceColor = MekaarColors.surfaceOf(context);
+    final surface2Color = MekaarColors.surface2Of(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
 
     return MekaarScaffold(
       flat: true,
-      forceDark: true, // Login page is always dark navy gradient
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -136,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: MekaarColors.yellow.withValues(alpha: 0.25),
+                          color: AppColors.blue.withValues(alpha: 0.15),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -154,13 +159,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(width: 12),
                   RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.5,
+                        color: textPrimary,
                       ),
-                      children: [
+                      children: const [
                         TextSpan(
                           text: 'Mek',
                           style: TextStyle(color: MekaarColors.yellow),
@@ -179,7 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 _isLogin ? 'Selamat Datang\nKembali' : 'Buat Akun\nBaru Anda',
                 style: MekaarTypography.displayLG.copyWith(
                   height: 1.2,
-                  color: Colors.white,
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -187,8 +193,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 _isLogin
                     ? 'Masukkan email atau username dan password untuk melanjutkan.'
                     : 'Mulai dengan membuat profil chat terenkripsi Anda.',
-                style: const TextStyle(
-                  color: MekaarColors.textSecondary,
+                style: TextStyle(
+                  color: textSecondary,
                   fontSize: 14,
                   height: 1.5,
                 ),
@@ -204,16 +210,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           controller: _usernameController,
                           autofillHints: const [AutofillHints.newUsername],
                           textInputAction: TextInputAction.next,
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.1),
+                            fillColor: surface2Color,
                             hintText: 'Username unik',
-                            hintStyle: const TextStyle(color: MekaarColors.textMuted),
-                            prefixIcon: const Icon(
+                            hintStyle: TextStyle(color: textMuted),
+                            prefixIcon: Icon(
                               SolarIconsOutline.mentionSquare,
                               size: 20,
-                              color: MekaarColors.textSecondary,
+                              color: textSecondary,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: cardBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: cardBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: AppColors.blue,
+                                width: 1.5,
+                              ),
                             ),
                           ),
                           validator: (v) => v == null || v.isEmpty
@@ -232,18 +253,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             : TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autocorrect: false,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: textPrimary),
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.1),
+                          fillColor: surface2Color,
                           hintText: _isLogin ? 'Email atau Username' : 'Email',
-                          hintStyle: const TextStyle(
-                            color: MekaarColors.textMuted,
-                          ),
-                          prefixIcon: const Icon(
+                          hintStyle: TextStyle(color: textMuted),
+                          prefixIcon: Icon(
                             SolarIconsOutline.mentionSquare,
                             size: 20,
-                            color: MekaarColors.textSecondary,
+                            color: textSecondary,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: cardBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: cardBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.blue,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                         validator: (v) {
@@ -278,18 +312,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           if (!authState.isLoading) _submit();
                         },
                         obscureText: _obscurePassword,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: textPrimary),
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.1),
+                          fillColor: surface2Color,
                           hintText: 'Password',
-                          hintStyle: const TextStyle(
-                            color: MekaarColors.textMuted,
-                          ),
-                          prefixIcon: const Icon(
+                          hintStyle: TextStyle(color: textMuted),
+                          prefixIcon: Icon(
                             SolarIconsOutline.lock,
                             size: 20,
-                            color: MekaarColors.textSecondary,
+                            color: textSecondary,
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -297,10 +329,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ? SolarIconsOutline.eyeClosed
                                   : SolarIconsOutline.eye,
                               size: 20,
-                              color: MekaarColors.textSecondary,
+                              color: textSecondary,
                             ),
                             onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: cardBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: cardBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.blue,
+                              width: 1.5,
                             ),
                           ),
                         ),
@@ -319,10 +366,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 AppRoutes.forgotPassword,
                               );
                             },
-                            child: Text(
+                            child: const Text(
                               'Lupa Password?',
                               style: TextStyle(
-                                color: MekaarColors.accentOf(context),
+                                color: AppColors.blue,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                               ),
@@ -331,30 +378,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ] else ...[
                         const SizedBox(height: 8),
-                        const Align(
+                        Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Password minimal harus 6 karakter.',
                             style: TextStyle(
-                              color: MekaarColors.textSecondary,
+                              color: textSecondary,
                               fontSize: 12,
                             ),
                           ),
                         ),
                       ],
                       const SizedBox(height: 36),
-                      // Primary Button: Yellow background, dark text
+                      // Primary Button
                       SizedBox(
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
                           onPressed: authState.isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
                           child: authState.isLoading
                               ? const SizedBox(
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
-                                    color: MekaarColors.textOnYellow,
+                                    color: Colors.white,
                                     strokeWidth: 2.5,
                                   ),
                                 )
@@ -362,7 +416,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Secondary Button: outline brand.cyan, cyan text, pill shape
+                      // Secondary Button: Google Sign-In
                       SizedBox(
                         width: double.infinity,
                         height: 54,
@@ -372,14 +426,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: const Icon(MekaarIcons.gMobiledata, size: 28),
                           label: const Text('Lanjut dengan Google'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: MekaarColors.accentOf(context),
+                            foregroundColor: textPrimary,
+                            backgroundColor: surfaceColor,
                             side: BorderSide(
-                              color: MekaarColors.accentOf(context),
-                              width: 2,
+                              color: cardBorder,
+                              width: 1.5,
                             ),
-                            shape: const StadiumBorder(),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                             textStyle: const TextStyle(
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               fontSize: 15,
                             ),
                           ),
@@ -396,8 +453,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   Text(
                     _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
-                    style: const TextStyle(
-                      color: MekaarColors.textSecondary,
+                    style: TextStyle(
+                      color: textSecondary,
                       fontSize: 14,
                     ),
                   ),
@@ -405,8 +462,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onTap: () => setState(() => _isLogin = !_isLogin),
                     child: Text(
                       _isLogin ? 'Daftar' : 'Masuk',
-                      style: TextStyle(
-                        color: MekaarColors.accentOf(context),
+                      style: const TextStyle(
+                        color: AppColors.blue,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),

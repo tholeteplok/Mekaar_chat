@@ -55,9 +55,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
+
     return MekaarScaffold(
       flat: false,
-      forceDark: true, // Always dark-navy gradient for onboarding
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28.0),
@@ -69,10 +72,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: TextButton(
                   onPressed: () =>
                       Navigator.pushReplacementNamed(context, AppRoutes.login),
-                  child: const Text(
+                  child: Text(
                     'Lewati',
                     style: TextStyle(
-                      color: MekaarColors.textSecondary,
+                      color: textSecondary,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -104,19 +107,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           Text(
                             slide.title,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: textPrimary,
                             ),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             slide.desc,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: MekaarColors.textSecondary,
+                              color: textSecondary,
                               height: 1.6,
                             ),
                           ),
@@ -141,10 +144,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(4),
                           color: _currentPage == index
-                              ? MekaarColors.yellow
-                              : MekaarColors.textSecondary.withValues(
-                                  alpha: 0.3,
-                                ),
+                              ? AppColors.blue
+                              : cardBorder,
                         ),
                       ),
                     ),

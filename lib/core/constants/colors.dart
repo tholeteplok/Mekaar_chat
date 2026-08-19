@@ -135,6 +135,8 @@ class MekaarColors {
           ? borderDark
           : borderLight;
 
+  static Color cardBorderOf(BuildContext c) => borderOf(c);
+
   static Color textPrimaryOf(BuildContext c) {
     final isDark = Theme.of(c).brightness == Brightness.dark;
     return isDark ? textPrimaryDark : textPrimaryLight;

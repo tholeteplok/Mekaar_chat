@@ -43,9 +43,14 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final textMuted = MekaarColors.textMutedOf(context);
+    final surface2Color = MekaarColors.surface2Of(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
+
     return MekaarScaffold(
       flat: true,
-      forceDark: true,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -53,24 +58,24 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              Icon(
+              const Icon(
                 SolarIconsBold.shieldKeyhole,
-                color: MekaarColors.accentOf(context),
+                color: AppColors.blue,
                 size: 40,
               ),
               const SizedBox(height: 24),
               Text(
                 'Verifikasi 2 Langkah',
                 style: MekaarTypography.displayLG.copyWith(
-                  color: Colors.white,
+                  color: textPrimary,
                   height: 1.2,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Masukkan kode 6 digit dari aplikasi authenticator Anda.',
                 style: TextStyle(
-                  color: MekaarColors.textSecondary,
+                  color: textSecondary,
                   height: 1.5,
                 ),
               ),
@@ -88,20 +93,35 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                 autofocus: true,
                 textAlign: TextAlign.center,
                 style: MekaarTypography.headingMD.copyWith(
-                  color: Colors.white,
+                  color: textPrimary,
                   letterSpacing: 10,
                 ),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.1),
+                  fillColor: surface2Color,
                   hintText: '••••••',
-                  hintStyle: const TextStyle(
-                    color: MekaarColors.textMuted,
+                  hintStyle: TextStyle(
+                    color: textMuted,
                     letterSpacing: 10,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     SolarIconsOutline.shieldKeyhole,
-                    color: MekaarColors.textSecondary,
+                    color: textSecondary,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: cardBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: cardBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.blue,
+                      width: 1.5,
+                    ),
                   ),
                 ),
                 onSubmitted: (_) => _verify(),
@@ -112,12 +132,19 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                 height: 54,
                 child: ElevatedButton(
                   onPressed: _isVerifying ? null : _verify,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   child: _isVerifying
                       ? const SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                            color: MekaarColors.textOnYellow,
+                            color: Colors.white,
                             strokeWidth: 2.5,
                           ),
                         )

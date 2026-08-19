@@ -965,49 +965,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     );
   }
 
-  void _showE2eeInfoDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
-            SizedBox(width: 8),
-            Text('Mekaar Aegis Shield (E2EE)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pesan dan panggilan dalam chat ini dilindungi oleh Mekaar Aegis Shield dengan enkripsi ujung-ke-ujung (E2EE) menggunakan pasangan kunci asimetris X25519 & ChaCha20-Poly1305.',
-              style: TextStyle(color: MekaarColors.textPrimaryOf(context), fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '⚠️ Batasan Forward Secrecy:',
-              style: TextStyle(color: MekaarColors.warnAmber, fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'MEKAAR saat ini tidak menggunakan rotasi kunci otomatis (Forward Secrecy). Jika kunci privat salah satu pihak bocor di masa mendatang, pesan-pesan lama dalam ruang obrolan ini secara teoritis dapat didekripsi. Amankan PIN dan perangkat Anda.',
-              style: TextStyle(color: MekaarColors.textMutedOf(context), fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Mengerti', style: TextStyle(color: MekaarColors.guardianTeal)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -1128,7 +1085,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                         builder: (context, ref, _) {
                           final isTyping = ref.watch(typingStateProvider(widget.chatId));
                           if (!isTyping) return const SizedBox.shrink();
-                          return TypingIndicator(dotColor: roomThemeSpec.primaryAccentColor);
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 84 + keyboardHeight),
+                            child: const TypingIndicator(dotColor: AppColors.blue),
+                          );
                         },
                       ),
                     ],
@@ -1277,15 +1237,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                     )
                                 : null),
                         actions: [
-                          // Voice Call icon
-                          IconButton(
-                            icon: Icon(
-                              SolarIconsOutline.phone,
-                              color: roomThemeSpec.primaryAccentColor,
-                            ),
-                            onPressed: () => _initiateCall('voice'),
-                            tooltip: 'Panggilan Suara',
-                          ),
                           // Actions Popup Menu (High-Contrast Frosted Glass)
                           PopupMenuButton<String>(
                             shape: RoundedRectangleBorder(
@@ -1304,8 +1255,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                           color: roomThemeSpec.primaryAccentColor,
                         ),
                         onSelected: (value) async {
-                          if (value == 'video') {
+                          if (value == 'voice') {
+                            _initiateCall('voice');
+                          } else if (value == 'video') {
                             _initiateCall('video');
+                          } else if (value == 'sync_e2ee_keys') {
+                            E2eeService.instance.invalidateRoomKey(widget.chatId);
+                            ref.invalidate(chatMessagesProvider(widget.chatId));
+                            HapticService.trigger(MekaarHapticIntent.success);
+                            MekaarSnackbar.success(
+                              context,
+                              'Kunci enkripsi ruangan berhasil disinkronkan ulang.',
+                            );
                           } else if (value == 'screen_protection') {
                             try {
                               await ref
@@ -1330,54 +1291,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                             Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
                           } else if (value == 'clear') {
                             _confirmClearHistory();
-                          } else if (value == 'e2ee_info') {
-                            _showE2eeInfoDialog();
-                          } else if (value == 'sync_e2ee_keys') {
-                            E2eeService.instance.invalidateRoomKey(widget.chatId);
-                            ref.invalidate(chatMessagesProvider(widget.chatId));
-                            HapticService.trigger(MekaarHapticIntent.success);
-                            MekaarSnackbar.success(
-                              context,
-                              'Kunci enkripsi ruangan berhasil disinkronkan ulang.',
-                            );
                           } else if (value == 'delete') {
                             _confirmDeleteChat();
                           }
                         },
                         itemBuilder: (BuildContext context) => [
                           PopupMenuItem<String>(
-                            value: 'e2ee_info',
+                            value: 'voice',
                             child: Row(
                               children: [
                                 Icon(
-                                  SolarIconsOutline.shieldKeyhole,
+                                  SolarIconsOutline.phone,
                                   size: 20,
-                                  color: MekaarColors.guardianTeal,
+                                  color: textPrimary,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Informasi Enkripsi E2EE',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'sync_e2ee_keys',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  SolarIconsOutline.refreshSquare,
-                                  size: 20,
-                                  color: AppColors.blue,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Sinkronkan Kunci Enkripsi',
+                                  'Panggilan Suara',
                                   style: TextStyle(
                                     color: textPrimary,
                                     fontSize: 14,
@@ -1399,6 +1329,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                 const SizedBox(width: 8),
                                 Text(
                                   'Panggilan Video',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'sync_e2ee_keys',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  SolarIconsOutline.refreshSquare,
+                                  size: 20,
+                                  color: AppColors.blue,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Sinkronkan Kunci Enkripsi',
                                   style: TextStyle(
                                     color: textPrimary,
                                     fontSize: 14,

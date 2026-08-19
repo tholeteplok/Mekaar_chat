@@ -6,8 +6,6 @@ import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
-import '../../../core/widgets/mika_animated.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
@@ -28,7 +26,6 @@ class PinScreen extends ConsumerStatefulWidget {
 
 class _PinScreenState extends ConsumerState<PinScreen>
     with TickerProviderStateMixin {
-  final _mikaKey = GlobalKey<MikaAnimatedState>();
   late bool _isSetupMode;
   String _pin = '';
   String _confirmPin = '';
@@ -36,6 +33,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
   String _statusMessage = '';
   bool _hasError = false;
   bool _isCheckingSOSGuardians = false;
+  bool _isBottomSheetOpen = false;
 
   static const int pinLength = 6;
 
@@ -55,6 +53,13 @@ class _PinScreenState extends ConsumerState<PinScreen>
     _statusMessage = _isSetupMode
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
+
+    // Buka keypad bottom sheet secara otomatis saat pertama kali masuk jika tidak terkunci
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !ref.read(authProvider).isPinLocked) {
+        _openKeypadBottomSheet();
+      }
+    });
   }
 
   @override
@@ -74,7 +79,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
   void _handleKeyPress(String key) {
     if (ref.read(authProvider).isPinLocked) return;
-    setState(() => _hasError = false); // Reset error state on new key press
+    setState(() => _hasError = false);
     HapticService.trigger(MekaarHapticIntent.selection);
 
     if (key == '⌫') {
@@ -98,7 +103,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
     if (_isSetupMode) {
       if (!_isConfirming) {
-        // First step of PIN setup
+        // Step 1: Simpan PIN pertama, minta konfirmasi
         _confirmPin = _pin;
         setState(() {
           _pin = '';
@@ -106,7 +111,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
           _statusMessage = 'Konfirmasi PIN 6 digit Anda.';
         });
       } else {
-        // Second step of PIN setup (confirmation)
+        // Step 2: Konfirmasi PIN
         if (_pin == _confirmPin) {
           await notifier.setupPIN(_pin);
           if (mounted) {
@@ -119,7 +124,10 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 _statusMessage = authState.error!;
               });
             } else {
-              _mikaKey.currentState?.react(MikaReaction.ok);
+              HapticService.trigger(MekaarHapticIntent.success);
+              if (_isBottomSheetOpen && Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
               if (authState.needsUsername) {
                 Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
               } else {
@@ -132,7 +140,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
           if (!MediaQuery.disableAnimationsOf(context)) {
             _shakeController.forward(from: 0);
           }
-          _mikaKey.currentState?.react(MikaReaction.huft);
           setState(() {
             _pin = '';
             _hasError = true;
@@ -147,11 +154,14 @@ class _PinScreenState extends ConsumerState<PinScreen>
       final isValid = await notifier.validatePIN(_pin);
       if (isValid) {
         if (mounted) {
+          HapticService.trigger(MekaarHapticIntent.success);
+          if (_isBottomSheetOpen && Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+
           final authState = ref.read(authProvider);
           final wasDuress = authState.lastUnlockWasDuress;
 
-          // Cek apakah E2EE perlu di-restore (perangkat baru / reinstall)
-          // HANYA tampilkan jika BUKAN duress PIN agar tidak membocorkan rahasia duress PIN
           if (authState.e2eeNeedsRestore && !wasDuress) {
             await _showE2eeRestoreDialog();
           }
@@ -159,18 +169,15 @@ class _PinScreenState extends ConsumerState<PinScreen>
           if (!mounted) return;
 
           if (wasDuress) {
-            // Duress PIN: buka normal (tanpa indikasi) lalu picu SOS silent.
             ref
                 .read(sosProvider.notifier)
                 .activateSOS(gps: true, mic: false, video: false);
-            _mikaKey.currentState?.react(MikaReaction.ok);
             if (authState.needsUsername) {
               Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
             } else {
               Navigator.pushReplacementNamed(context, AppRoutes.home);
             }
           } else {
-            _mikaKey.currentState?.react(MikaReaction.ok);
             if (authState.needsUsername) {
               Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
             } else {
@@ -183,13 +190,15 @@ class _PinScreenState extends ConsumerState<PinScreen>
         if (!disableAnimations) {
           _shakeController.forward(from: 0);
         }
-        _mikaKey.currentState?.react(MikaReaction.huft);
         setState(() {
           _pin = '';
           _hasError = true;
           final state = ref.read(authProvider);
           if (state.isPinLocked) {
             _statusMessage = 'Aplikasi terkunci. Coba lagi dalam 30 menit.';
+            if (_isBottomSheetOpen && Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
           } else {
             _statusMessage =
                 'PIN salah. ${5 - state.pinAttempts} percobaan tersisa.';
@@ -225,36 +234,182 @@ class _PinScreenState extends ConsumerState<PinScreen>
     }
   }
 
+  void _openKeypadBottomSheet() {
+    if (_isBottomSheetOpen) return;
+    final isLocked = ref.read(authProvider).isPinLocked;
+    if (isLocked) return;
+
+    _isBottomSheetOpen = true;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black38,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final sheetBg = MekaarColors.surfaceOf(context);
+            final sheetBorder = MekaarColors.cardBorderOf(context);
+            final textPrimary = MekaarColors.textPrimaryOf(context);
+            final textSecondary = MekaarColors.textSecondaryOf(context);
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
+            return Container(
+              padding: const EdgeInsets.only(
+                top: 12,
+                left: 20,
+                right: 20,
+                bottom: 24,
+              ),
+              decoration: BoxDecoration(
+                color: sheetBg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border.all(
+                  color: sheetBorder,
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag Handle Bar
+                    Container(
+                      width: 44,
+                      height: 5,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: textSecondary.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    // Header sheet
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              SolarIconsBold.shieldKeyhole,
+                              size: 18,
+                              color: AppColors.blue,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Papan Tombol Keamanan',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.altArrowDown,
+                            color: textSecondary,
+                            size: 22,
+                          ),
+                          onPressed: () => Navigator.pop(sheetContext),
+                          tooltip: 'Tutup Papan Tombol',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Keypad Rows
+                    _buildKeypadRow(['1', '2', '3']),
+                    _buildKeypadRow(['4', '5', '6']),
+                    _buildKeypadRow(['7', '8', '9']),
+                    _buildKeypadRow([_isSetupMode ? '' : 'Lupa', '0', '⌫']),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      if (mounted) {
+        setState(() => _isBottomSheetOpen = false);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isLocked = authState.isPinLocked;
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final surfaceColor = MekaarColors.surfaceOf(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
 
     return MekaarScaffold(
       flat: true,
-      forceDark: true, // PIN Screen is always dark navy gradient background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             children: [
-              const Spacer(),
-              // Wordmark resmi sebagai jangkar identitas layar autentikasi.
-              const MekaarWordmark(fontSize: 30),
               const SizedBox(height: 20),
-              // Title instruksi PIN.
+              // Wordmark resmi sebagai jangkar identitas layar autentikasi
+              const MekaarWordmark(fontSize: 28),
+              const Spacer(flex: 2),
+
+              // Emblem Keamanan Minimalis
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.blue.withValues(alpha: 0.12),
+                  border: Border.all(
+                    color: AppColors.blue.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.blue.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    SolarIconsBold.shieldKeyhole,
+                    color: AppColors.blue,
+                    size: 36,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title instruksi PIN
               Text(
                 widget.isSetup
                     ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
                     : 'Buka Kunci Aplikasi',
-                style: const TextStyle(
-                  fontSize: 18,
+                style: TextStyle(
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textPrimary,
+                  letterSpacing: 0.3,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+
+              // Status message / Lockout message
               Semantics(
                 liveRegion: isLocked || _hasError,
                 child: AnimatedSwitcher(
@@ -268,28 +423,24 @@ class _PinScreenState extends ConsumerState<PinScreen>
                     key: ValueKey(_statusMessage),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       fontSize: 14,
                       color: (isLocked || _hasError)
                           ? MekaarColors.sosCoral
-                          : MekaarColors.textSecondary,
+                          : textSecondary,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              MikaAnimated(
-                key: _mikaKey,
-                pose: MikaPose.key,
-                size: 64,
-                idle: true,
-              ),
-              const SizedBox(height: 28),
-              // Dots indicators (shake saat salah, pop saat terisi)
+              const SizedBox(height: 32),
+
+              // 6 Lingkaran PIN Interaktif dengan Typing Behavior
               Semantics(
                 label: 'PIN',
                 value: '${_pin.length} dari $pinLength digit terisi',
-                child: ExcludeSemantics(
+                child: InkWell(
+                  onTap: isLocked ? null : _openKeypadBottomSheet,
+                  borderRadius: BorderRadius.circular(24),
                   child: AnimatedBuilder(
                     animation: _shakeAnimation,
                     builder: (context, child) => Transform.translate(
@@ -299,72 +450,83 @@ class _PinScreenState extends ConsumerState<PinScreen>
                       ),
                       child: child,
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        pinLength,
-                        (index) => AnimatedContainer(
-                          duration: animationsDisabled
-                              ? Duration.zero
-                              : MekaarMotion.fast,
-                          curve: MekaarMotion.bounce,
-                          width: 14,
-                          height: 14,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _hasError
-                                  ? MekaarColors.sosCoral
-                                  : (_pin.length > index
-                                        ? MekaarColors.accentOf(context)
-                                        : Colors.white38),
-                              width: 2,
-                            ),
-                            color: _pin.length > index
-                                ? (_hasError
-                                      ? MekaarColors.sosCoral
-                                      : MekaarColors.accentOf(context))
-                                : Colors.transparent,
-                          ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
+                      ),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: _hasError
+                              ? MekaarColors.sosCoral
+                              : (_pin.isNotEmpty
+                                  ? AppColors.blue.withValues(alpha: 0.5)
+                                  : cardBorder),
+                          width: 1.2,
                         ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              pinLength,
+                              (index) => _buildPinCircle(index, animationsDisabled),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                SolarIconsOutline.keyboard,
+                                size: 14,
+                                color: textSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Ketuk untuk membuka papan tombol',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-              const Spacer(),
-              // Custom Numeric Keypad
-              if (!isLocked) ...[
-                _buildKeypadRow(['1', '2', '3']),
-                _buildKeypadRow(['4', '5', '6']),
-                _buildKeypadRow(['7', '8', '9']),
-                _buildKeypadRow([_isSetupMode ? '' : 'Lupa', '0', '⌫']),
-              ] else ...[
-                const Column(
-                  children: [
-                    Icon(
-                      SolarIconsOutline.clockSquare,
-                      size: 64,
-                      color: MekaarColors.sosCoral,
+              const SizedBox(height: 16),
+
+              // Tombol Lupa PIN (Hanya tampil di mode unlock)
+              if (!_isSetupMode && !isLocked)
+                TextButton(
+                  onPressed: _showForgotPinDialog,
+                  child: const Text(
+                    'Lupa PIN?',
+                    style: TextStyle(
+                      color: AppColors.blue,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Silakan tunggu durasi kunci berakhir.',
-                      style: TextStyle(
-                        color: MekaarColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ],
-              const Spacer(),
-              // SOS Button is always accessible at the bottom, even when locked
+
+              const Spacer(flex: 3),
+
+              // Tombol SOS Darurat di bagian bawah
               Column(
                 children: [
-                  SOSButton(onPressed: _triggerSOS, size: 84),
-                  const SizedBox(height: 12),
+                  SOSButton(onPressed: _triggerSOS, size: 76),
+                  const SizedBox(height: 10),
                   const Text(
                     'Pencet SOS untuk keadaan darurat',
                     style: TextStyle(
@@ -384,6 +546,54 @@ class _PinScreenState extends ConsumerState<PinScreen>
     );
   }
 
+  Widget _buildPinCircle(int index, bool animationsDisabled) {
+    final isFilled = _pin.length > index;
+    final isCurrent = _pin.length == index;
+    final cardBorder = MekaarColors.cardBorderOf(context);
+    final surface2 = MekaarColors.surface2Of(context);
+
+    Color borderColor;
+    if (_hasError) {
+      borderColor = MekaarColors.sosCoral;
+    } else if (isFilled) {
+      borderColor = AppColors.blue;
+    } else if (isCurrent) {
+      borderColor = AppColors.blue.withValues(alpha: 0.6);
+    } else {
+      borderColor = cardBorder;
+    }
+
+    return AnimatedContainer(
+      duration: animationsDisabled ? Duration.zero : MekaarMotion.fast,
+      curve: MekaarMotion.bounce,
+      width: 18,
+      height: 18,
+      margin: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: borderColor,
+          width: isCurrent || isFilled ? 2.2 : 1.5,
+        ),
+        color: isFilled
+            ? (_hasError ? MekaarColors.sosCoral : AppColors.blue)
+            : (isCurrent
+                ? AppColors.blue.withValues(alpha: 0.18)
+                : surface2),
+        boxShadow: isFilled
+            ? [
+                BoxShadow(
+                  color: (_hasError ? MekaarColors.sosCoral : AppColors.blue)
+                      .withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+    );
+  }
+
   Widget _buildKeypadRow(List<String> keys) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -392,27 +602,35 @@ class _PinScreenState extends ConsumerState<PinScreen>
   }
 
   Widget _buildKeypadButton(String key) {
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final surface2 = MekaarColors.surface2Of(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
+
     if (key.isEmpty) {
-      return const SizedBox(width: 80, height: 70);
+      return const SizedBox(width: 76, height: 66);
     }
 
     if (key == 'Lupa') {
       return SizedBox(
-        width: 80,
-        height: 70,
+        width: 76,
+        height: 66,
         child: Center(
           child: TextButton(
-            onPressed: _showForgotPinDialog,
+            onPressed: () {
+              Navigator.pop(context);
+              _showForgotPinDialog();
+            },
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: const Size(60, 60),
             ),
-            child: const Text(
+            child: Text(
               'Lupa\nPIN?',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
+                color: textSecondary,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
               ),
@@ -434,24 +652,29 @@ class _PinScreenState extends ConsumerState<PinScreen>
           onTap: () => _handleKeyPress(key),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            width: 70,
-            height: 70,
+            width: 68,
+            height: 68,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isBackspace ? Colors.transparent : MekaarColors.cardDark,
+              color: isBackspace ? Colors.transparent : surface2,
+              border: Border.all(
+                color: isBackspace ? Colors.transparent : cardBorder,
+                width: 1,
+              ),
             ),
             child: Center(
               child: isBackspace
-                  ? const Icon(
+                  ? Icon(
                       SolarIconsOutline.backspace,
-                      color: Colors.white70,
+                      color: textPrimary,
+                      size: 24,
                     )
                   : Text(
                       key,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textPrimary,
                       ),
                     ),
             ),

@@ -69,11 +69,16 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final textMuted = MekaarColors.textMutedOf(context);
+    final surface2Color = MekaarColors.surface2Of(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
+
     return PopScope(
       canPop: false,
       child: MekaarScaffold(
         flat: true,
-        forceDark: true,
         appBar: const CustomAppBar(
           title: 'Password Baru',
         ),
@@ -86,24 +91,24 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                  Icon(
+                  const Icon(
                     SolarIconsBold.keyMinimalistic,
-                    color: MekaarColors.accentOf(context),
+                    color: AppColors.blue,
                     size: 44,
                   ),
                   const SizedBox(height: 20),
                   Text(
                     'Buat Password Baru',
                     style: MekaarTypography.displayLG.copyWith(
-                      color: Colors.white,
+                      color: textPrimary,
                       height: 1.2,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Masukkan password baru Anda untuk mengamankan akun MEKAAR.',
                     style: TextStyle(
-                      color: MekaarColors.textSecondary,
+                      color: textSecondary,
                       fontSize: 14,
                       height: 1.5,
                     ),
@@ -112,18 +117,16 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
+                      fillColor: surface2Color,
                       hintText: 'Password Baru',
-                      hintStyle: const TextStyle(
-                        color: MekaarColors.textMuted,
-                      ),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: textMuted),
+                      prefixIcon: Icon(
                         SolarIconsOutline.lock,
                         size: 20,
-                        color: MekaarColors.textSecondary,
+                        color: textSecondary,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -131,10 +134,25 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                               ? SolarIconsOutline.eyeClosed
                               : SolarIconsOutline.eye,
                           size: 20,
-                          color: MekaarColors.textSecondary,
+                          color: textSecondary,
                         ),
                         onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.5,
                         ),
                       ),
                     ),
@@ -150,18 +168,16 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                   TextFormField(
                     controller: _confirmController,
                     obscureText: _obscureConfirm,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
+                      fillColor: surface2Color,
                       hintText: 'Konfirmasi Password Baru',
-                      hintStyle: const TextStyle(
-                        color: MekaarColors.textMuted,
-                      ),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: textMuted),
+                      prefixIcon: Icon(
                         SolarIconsOutline.lockPassword,
                         size: 20,
-                        color: MekaarColors.textSecondary,
+                        color: textSecondary,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -169,10 +185,25 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                               ? SolarIconsOutline.eyeClosed
                               : SolarIconsOutline.eye,
                           size: 20,
-                          color: MekaarColors.textSecondary,
+                          color: textSecondary,
                         ),
                         onPressed: () => setState(
                           () => _obscureConfirm = !_obscureConfirm,
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.5,
                         ),
                       ),
                     ),
@@ -190,12 +221,19 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                     height: 54,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(
-                                color: MekaarColors.textOnYellow,
+                                color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )

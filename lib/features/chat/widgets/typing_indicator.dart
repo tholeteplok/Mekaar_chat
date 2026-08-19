@@ -62,6 +62,10 @@ class _TypingIndicatorState extends State<TypingIndicator>
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(16),
               ),
+              border: Border.all(
+                color: AppColors.blue.withValues(alpha: 0.12),
+                width: 0.8,
+              ),
               boxShadow: MekaarShadows.bubble,
             ),
             child: Row(
@@ -86,7 +90,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
           margin: const EdgeInsets.symmetric(horizontal: 2),
           transform: Matrix4.translationValues(0, -3 * bounce, 0),
           decoration: BoxDecoration(
-            color: (widget.dotColor ?? MekaarColors.textMutedOf(context))
+            color: (widget.dotColor ?? AppColors.blue)
                 .withValues(alpha: 0.5 + 0.5 * bounce),
             shape: BoxShape.circle,
           ),

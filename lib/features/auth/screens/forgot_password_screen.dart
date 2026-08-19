@@ -107,9 +107,14 @@ class _ForgotPasswordScreenState
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+    final textSecondary = MekaarColors.textSecondaryOf(context);
+    final textMuted = MekaarColors.textMutedOf(context);
+    final surface2Color = MekaarColors.surface2Of(context);
+    final cardBorder = MekaarColors.cardBorderOf(context);
+
     return MekaarScaffold(
       flat: true,
-      forceDark: true,
       appBar: CustomAppBar(
         title: 'Lupa Password',
         onBackPress: () => Navigator.pop(context),
@@ -123,16 +128,16 @@ class _ForgotPasswordScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                Icon(
+                const Icon(
                   SolarIconsBold.lockPassword,
-                  color: MekaarColors.accentOf(context),
+                  color: AppColors.blue,
                   size: 44,
                 ),
                 const SizedBox(height: 20),
                 Text(
                   _showOtpFallback ? 'Reset dengan OTP' : 'Lupa Password?',
                   style: MekaarTypography.displayLG.copyWith(
-                    color: Colors.white,
+                    color: textPrimary,
                     height: 1.2,
                   ),
                 ),
@@ -141,8 +146,8 @@ class _ForgotPasswordScreenState
                   _showOtpFallback
                       ? 'Masukkan kode 6-digit OTP dan password baru Anda.'
                       : 'Masukkan alamat email terdaftar Anda. Kami akan mengirimkan link pemulihan password.',
-                  style: const TextStyle(
-                    color: MekaarColors.textSecondary,
+                  style: TextStyle(
+                    color: textSecondary,
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -156,18 +161,31 @@ class _ForgotPasswordScreenState
                       AutofillHints.email,
                       AutofillHints.username,
                     ],
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
+                      fillColor: surface2Color,
                       hintText: 'Email atau Username',
-                      hintStyle: const TextStyle(
-                        color: MekaarColors.textMuted,
-                      ),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: textMuted),
+                      prefixIcon: Icon(
                         SolarIconsOutline.user,
                         size: 20,
-                        color: MekaarColors.textSecondary,
+                        color: textSecondary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     validator: (v) {
@@ -185,12 +203,19 @@ class _ForgotPasswordScreenState
                     height: 54,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submitRequest,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(
-                                color: MekaarColors.textOnYellow,
+                                color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )
@@ -203,10 +228,10 @@ class _ForgotPasswordScreenState
                       onPressed: () {
                         setState(() => _showOtpFallback = true);
                       },
-                      child: Text(
+                      child: const Text(
                         'Punya Kode OTP 6-Digit? Masukkan manual',
                         style: TextStyle(
-                          color: MekaarColors.accentOf(context),
+                          color: AppColors.blue,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -218,21 +243,36 @@ class _ForgotPasswordScreenState
                     keyboardType: TextInputType.text,
                     textAlign: TextAlign.center,
                     style: MekaarTypography.headingMD.copyWith(
-                      color: Colors.white,
+                      color: textPrimary,
                       letterSpacing: 4,
                     ),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
+                      fillColor: surface2Color,
                       hintText: 'Kode OTP 6-Digit',
-                      hintStyle: const TextStyle(
-                        color: MekaarColors.textMuted,
+                      hintStyle: TextStyle(
+                        color: textMuted,
                         letterSpacing: 2,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         SolarIconsOutline.shieldKeyhole,
                         size: 20,
-                        color: MekaarColors.textSecondary,
+                        color: textSecondary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     validator: (v) {
@@ -247,18 +287,16 @@ class _ForgotPasswordScreenState
                   TextFormField(
                     controller: _newPasswordController,
                     obscureText: _obscureNewPassword,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
+                      fillColor: surface2Color,
                       hintText: 'Password Baru',
-                      hintStyle: const TextStyle(
-                        color: MekaarColors.textMuted,
-                      ),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: textMuted),
+                      prefixIcon: Icon(
                         SolarIconsOutline.lock,
                         size: 20,
-                        color: MekaarColors.textSecondary,
+                        color: textSecondary,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -266,10 +304,25 @@ class _ForgotPasswordScreenState
                               ? SolarIconsOutline.eyeClosed
                               : SolarIconsOutline.eye,
                           size: 20,
-                          color: MekaarColors.textSecondary,
+                          color: textSecondary,
                         ),
                         onPressed: () => setState(
                           () => _obscureNewPassword = !_obscureNewPassword,
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.5,
                         ),
                       ),
                     ),
@@ -285,18 +338,16 @@ class _ForgotPasswordScreenState
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
+                      fillColor: surface2Color,
                       hintText: 'Konfirmasi Password Baru',
-                      hintStyle: const TextStyle(
-                        color: MekaarColors.textMuted,
-                      ),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: textMuted),
+                      prefixIcon: Icon(
                         SolarIconsOutline.lockPassword,
                         size: 20,
-                        color: MekaarColors.textSecondary,
+                        color: textSecondary,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -304,11 +355,26 @@ class _ForgotPasswordScreenState
                               ? SolarIconsOutline.eyeClosed
                               : SolarIconsOutline.eye,
                           size: 20,
-                          color: MekaarColors.textSecondary,
+                          color: textSecondary,
                         ),
                         onPressed: () => setState(
                           () =>
                               _obscureConfirmPassword = !_obscureConfirmPassword,
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.5,
                         ),
                       ),
                     ),
@@ -326,12 +392,19 @@ class _ForgotPasswordScreenState
                     height: 54,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submitOtpFallback,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(
-                                color: MekaarColors.textOnYellow,
+                                color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )
@@ -344,10 +417,10 @@ class _ForgotPasswordScreenState
                       onPressed: () {
                         setState(() => _showOtpFallback = false);
                       },
-                      child: Text(
+                      child: const Text(
                         'Kembali ke Kirim Link Reset',
                         style: TextStyle(
-                          color: MekaarColors.accentOf(context),
+                          color: AppColors.blue,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

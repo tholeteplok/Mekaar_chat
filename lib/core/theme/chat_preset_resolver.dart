@@ -761,7 +761,7 @@ class ChatPresetResolver {
     BuildContext context,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final defaultPrimary = MekaarColors.softCoral;
+    final defaultPrimary = AppColors.blue;
     final defaultSecondary = isDark ? const Color(0xFF38BDF8) : MekaarColors.cyan;
     final defaultText = MekaarColors.textPrimaryOf(context);
     final defaultSubtitle = MekaarColors.textMutedOf(context);
