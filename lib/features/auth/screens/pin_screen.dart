@@ -33,7 +33,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
   String _statusMessage = '';
   bool _hasError = false;
   bool _isCheckingSOSGuardians = false;
-  bool _isBottomSheetOpen = false;
   bool _obscurePin = true;
 
   static const int pinLength = 6;
@@ -54,13 +53,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
     _statusMessage = _isSetupMode
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
-
-    // Buka keypad bottom sheet secara otomatis saat pertama kali masuk jika tidak terkunci
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !ref.read(authProvider).isPinLocked) {
-        _openKeypadBottomSheet();
-      }
-    });
   }
 
   @override
@@ -80,39 +72,45 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
   void _handleKeyPress(String key) {
     if (ref.read(authProvider).isPinLocked) return;
-    setState(() => _hasError = false);
-    HapticService.trigger(MekaarHapticIntent.selection);
+    if (_pin.length >= pinLength && key != '⌫') return;
 
     if (key == '⌫') {
       if (_pin.isNotEmpty) {
-        setState(() => _pin = _pin.substring(0, _pin.length - 1));
+        HapticService.trigger(MekaarHapticIntent.selection);
+        setState(() {
+          _pin = _pin.substring(0, _pin.length - 1);
+          _hasError = false;
+        });
       }
       return;
     }
 
-    if (_pin.length < pinLength) {
-      setState(() => _pin += key);
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      _pin += key;
+      _hasError = false;
+    });
 
-      if (_pin.length == pinLength) {
-        _processPIN();
-      }
+    if (_pin.length == pinLength) {
+      _processPin();
     }
   }
 
-  Future<void> _processPIN() async {
+  Future<void> _processPin() async {
     final notifier = ref.read(authProvider.notifier);
 
     if (_isSetupMode) {
       if (!_isConfirming) {
-        // Step 1: Simpan PIN pertama, minta konfirmasi
-        _confirmPin = _pin;
+        // First PIN entry in setup
+        HapticService.trigger(MekaarHapticIntent.selection);
         setState(() {
+          _confirmPin = _pin;
           _pin = '';
           _isConfirming = true;
-          _statusMessage = 'Konfirmasi PIN 6 digit Anda.';
+          _statusMessage = 'Masukkan PIN sekali lagi untuk konfirmasi.';
         });
       } else {
-        // Step 2: Konfirmasi PIN
+        // Confirmation entry in setup
         if (_pin == _confirmPin) {
           await notifier.setupPIN(_pin);
           if (mounted) {
@@ -126,9 +124,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
               });
             } else {
               HapticService.trigger(MekaarHapticIntent.success);
-              if (_isBottomSheetOpen && Navigator.canPop(context)) {
-                Navigator.pop(context);
-              }
               if (authState.needsUsername) {
                 Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
               } else {
@@ -156,9 +151,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
       if (isValid) {
         if (mounted) {
           HapticService.trigger(MekaarHapticIntent.success);
-          if (_isBottomSheetOpen && Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
 
           final authState = ref.read(authProvider);
           final wasDuress = authState.lastUnlockWasDuress;
@@ -187,24 +179,23 @@ class _PinScreenState extends ConsumerState<PinScreen>
           }
         }
       } else {
-        HapticService.trigger(MekaarHapticIntent.destructive);
-        if (!disableAnimations) {
-          _shakeController.forward(from: 0);
-        }
-        setState(() {
-          _pin = '';
-          _hasError = true;
-          final state = ref.read(authProvider);
-          if (state.isPinLocked) {
-            _statusMessage = 'Aplikasi terkunci. Coba lagi dalam 30 menit.';
-            if (_isBottomSheetOpen && Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          } else {
-            _statusMessage =
-                'PIN salah. ${5 - state.pinAttempts} percobaan tersisa.';
+        if (mounted) {
+          HapticService.trigger(MekaarHapticIntent.destructive);
+          if (!disableAnimations) {
+            _shakeController.forward(from: 0);
           }
-        });
+          final state = ref.read(authProvider);
+          setState(() {
+            _pin = '';
+            _hasError = true;
+            if (state.isPinLocked) {
+              _statusMessage = 'Aplikasi terkunci. Coba lagi dalam 30 menit.';
+            } else {
+              _statusMessage =
+                  'PIN salah. ${5 - state.pinAttempts} percobaan tersisa.';
+            }
+          });
+        }
       }
     }
   }
@@ -212,137 +203,24 @@ class _PinScreenState extends ConsumerState<PinScreen>
   Future<void> _triggerSOS() async {
     if (_isCheckingSOSGuardians) return;
     _isCheckingSOSGuardians = true;
-
     try {
-      var loadStatus = ref.read(guardianLoadStatusProvider);
+      final loadStatus = ref.read(guardianLoadStatusProvider);
       if (loadStatus != GuardianLoadStatus.data) {
         await ref.read(guardianProvider.notifier).refreshGuardians();
-        loadStatus = ref.read(guardianLoadStatusProvider);
       }
       if (!mounted) return;
 
-      if (loadStatus == GuardianLoadStatus.data &&
-          activeGuardiansOf(ref.read(guardianProvider)).isEmpty) {
-        final shouldContinue = await MekaarDialog.showNoActiveGuardianWarning(
+      if (activeGuardiansOf(ref.read(guardianProvider)).isEmpty) {
+        final shouldProceed = await MekaarDialog.showNoActiveGuardianWarning(
           context: context,
         );
-        if (!mounted || !shouldContinue) return;
+        if (!mounted || !shouldProceed) return;
       }
 
       Navigator.pushNamed(context, AppRoutes.sosActive);
     } finally {
       _isCheckingSOSGuardians = false;
     }
-  }
-
-  void _openKeypadBottomSheet() {
-    if (_isBottomSheetOpen) return;
-    final isLocked = ref.read(authProvider).isPinLocked;
-    if (isLocked) return;
-
-    _isBottomSheetOpen = true;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black38,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final sheetBg = MekaarColors.surfaceOf(context);
-            final sheetBorder = MekaarColors.cardBorderOf(context);
-            final textPrimary = MekaarColors.textPrimaryOf(context);
-            final textSecondary = MekaarColors.textSecondaryOf(context);
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-
-            return Container(
-              padding: const EdgeInsets.only(
-                top: 12,
-                left: 20,
-                right: 20,
-                bottom: 24,
-              ),
-              decoration: BoxDecoration(
-                color: sheetBg,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border.all(
-                  color: sheetBorder,
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.08),
-                    blurRadius: 24,
-                    offset: const Offset(0, -6),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Drag Handle Bar
-                    Container(
-                      width: 44,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: textSecondary.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    // Header sheet
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              SolarIconsBold.shieldKeyhole,
-                              size: 18,
-                              color: AppColors.blue,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Papan Tombol Keamanan',
-                              style: TextStyle(
-                                color: textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            SolarIconsOutline.altArrowDown,
-                            color: textSecondary,
-                            size: 22,
-                          ),
-                          onPressed: () => Navigator.pop(sheetContext),
-                          tooltip: 'Tutup Papan Tombol',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Keypad Rows
-                    _buildKeypadRow(['1', '2', '3']),
-                    _buildKeypadRow(['4', '5', '6']),
-                    _buildKeypadRow(['7', '8', '9']),
-                    _buildKeypadRow([_isSetupMode ? '' : 'Lupa', '0', '⌫']),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() {
-      if (mounted) {
-        setState(() => _isBottomSheetOpen = false);
-      }
-    });
   }
 
   @override
@@ -359,238 +237,230 @@ class _PinScreenState extends ConsumerState<PinScreen>
     return MekaarScaffold(
       flat: true,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 16),
-              // Wordmark resmi sebagai jangkar identitas layar autentikasi
-              const Center(
-                child: MekaarWordmark(fontSize: 40),
-              ),
-              const Spacer(flex: 2),
-
-              // Emblem Keamanan Layered Halo
-              Center(
-                child: Container(
-                  width: 76,
-                  height: 76,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.blue.withValues(alpha: 0.12),
-                    border: Border.all(
-                      color: AppColors.blue.withValues(alpha: 0.3),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.blue.withValues(alpha: 0.2),
-                        blurRadius: 24,
-                        spreadRadius: 3,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      SolarIconsBold.shieldKeyhole,
-                      color: AppColors.blue,
-                      size: 38,
-                    ),
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 24,
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Title instruksi PIN
-              Center(
-                child: Text(
-                  widget.isSetup
-                      ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
-                      : 'Buka Kunci Aplikasi',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: textPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Status message / Lockout message
-              Center(
-                child: Semantics(
-                  liveRegion: isLocked || _hasError,
-                  child: AnimatedSwitcher(
-                    duration: animationsDisabled
-                        ? Duration.zero
-                        : MekaarMotion.fast,
-                    child: Text(
-                      isLocked
-                          ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
-                          : _statusMessage,
-                      key: ValueKey(_statusMessage),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 15,
-                        color: (isLocked || _hasError)
-                            ? MekaarColors.sosCoral
-                            : textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // 6 Lingkaran PIN Interaktif dengan Typing Behavior & Card
-              Semantics(
-                label: 'PIN',
-                value: '${_pin.length} dari $pinLength digit terisi',
-                child: InkWell(
-                  onTap: isLocked ? null : _openKeypadBottomSheet,
-                  borderRadius: BorderRadius.circular(24),
-                  child: AnimatedBuilder(
-                    animation: _shakeAnimation,
-                    builder: (context, child) => Transform.translate(
-                      offset: Offset(
-                        animationsDisabled ? 0 : _shakeAnimation.value,
-                        0,
-                      ),
-                      child: child,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 24,
-                      ),
-                      decoration: BoxDecoration(
-                        color: surfaceColor,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: _hasError
-                              ? MekaarColors.sosCoral
-                              : (_pin.isNotEmpty
-                                  ? AppColors.blue.withValues(alpha: 0.5)
-                                  : cardBorder),
-                          width: 1.2,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Section Atas: Brand & Judul
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 4),
+                        const Center(
+                          child: MekaarWordmark(fontSize: 32),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: isDark ? 0.35 : 0.04,
-                            ),
-                            blurRadius: 20,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // PIN Dots / Number Slots
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              pinLength,
-                              (index) => _buildPinCircle(index, animationsDisabled),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Card Footer: Keyboard Hint & Eye Toggle
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    SolarIconsOutline.keyboard,
-                                    size: 16,
-                                    color: textSecondary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Ketuk untuk buka papan tombol',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: textSecondary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                        const SizedBox(height: 12),
+                        // Emblem Keamanan Layered Halo
+                        Center(
+                          child: Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.blue.withValues(alpha: 0.12),
+                              border: Border.all(
+                                color: AppColors.blue.withValues(alpha: 0.3),
+                                width: 1.5,
                               ),
-                              // Eye icon toggle for Show/Hide digits
-                              IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(4),
-                                icon: Icon(
-                                  _obscurePin
-                                      ? SolarIconsOutline.eyeClosed
-                                      : SolarIconsOutline.eye,
-                                  size: 19,
-                                  color: textSecondary,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.blue.withValues(alpha: 0.2),
+                                  blurRadius: 18,
+                                  spreadRadius: 2,
                                 ),
-                                tooltip: _obscurePin
-                                    ? 'Tampilkan angka PIN'
-                                    : 'Sembunyikan angka PIN',
-                                onPressed: () {
-                                  setState(() => _obscurePin = !_obscurePin);
-                                },
+                              ],
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                SolarIconsBold.shieldKeyhole,
+                                color: AppColors.blue,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: Text(
+                            widget.isSetup
+                                ? (_isConfirming
+                                    ? 'Konfirmasi PIN'
+                                    : 'Buat PIN Keamanan')
+                                : 'Buka Kunci Aplikasi',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Center(
+                          child: Semantics(
+                            liveRegion: isLocked || _hasError,
+                            child: AnimatedSwitcher(
+                              duration: animationsDisabled
+                                  ? Duration.zero
+                                  : MekaarMotion.fast,
+                              child: Text(
+                                isLocked
+                                    ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
+                                    : _statusMessage,
+                                key: ValueKey(_statusMessage),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                  color: (isLocked || _hasError)
+                                      ? MekaarColors.sosCoral
+                                      : textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Section Kartu PIN (100% Simetris & Center Horizontal)
+                    Center(
+                      child: AnimatedBuilder(
+                        animation: _shakeAnimation,
+                        builder: (context, child) => Transform.translate(
+                          offset: Offset(
+                            animationsDisabled ? 0 : _shakeAnimation.value,
+                            0,
+                          ),
+                          child: child,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: surfaceColor,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _hasError
+                                  ? MekaarColors.sosCoral
+                                  : (_pin.isNotEmpty
+                                      ? AppColors.blue.withValues(alpha: 0.5)
+                                      : cardBorder),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(
+                                  alpha: isDark ? 0.35 : 0.04,
+                                ),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // 6 Bulatan / Slot PIN persis di tengah horizontal
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(
+                                  pinLength,
+                                  (index) => _buildPinCircle(
+                                    index,
+                                    animationsDisabled,
+                                  ),
+                                ),
+                              ),
+                              // Tombol Toggle Mata di sisi kanan kartu
+                              Positioned(
+                                right: 0,
+                                child: IconButton(
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.all(6),
+                                  icon: Icon(
+                                    _obscurePin
+                                        ? SolarIconsOutline.eyeClosed
+                                        : SolarIconsOutline.eye,
+                                    size: 20,
+                                    color: textSecondary,
+                                  ),
+                                  tooltip: _obscurePin
+                                      ? 'Tampilkan angka PIN'
+                                      : 'Sembunyikan angka PIN',
+                                  onPressed: () {
+                                    setState(() => _obscurePin = !_obscurePin);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Section Keypad: Inline on screen
+                    if (!isLocked) ...[
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildKeypadRow(['1', '2', '3']),
+                          _buildKeypadRow(['4', '5', '6']),
+                          _buildKeypadRow(['7', '8', '9']),
+                          _buildKeypadRow([
+                            _isSetupMode ? '' : 'Lupa',
+                            '0',
+                            '⌫',
+                          ]),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                    ] else ...[
+                      const SizedBox(height: 200),
+                    ],
 
-              // Tombol Lupa PIN (Hanya tampil di mode unlock)
-              if (!_isSetupMode && !isLocked)
-                Center(
-                  child: TextButton(
-                    onPressed: _showForgotPinDialog,
-                    child: const Text(
-                      'Lupa PIN?',
-                      style: TextStyle(
-                        color: AppColors.blue,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-
-              const Spacer(flex: 3),
-
-              // Tombol SOS Darurat di bagian bawah
-              Center(
-                child: Column(
-                  children: [
-                    SOSButton(onPressed: _triggerSOS, size: 76),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Pencet SOS untuk keadaan darurat',
-                      style: TextStyle(
-                        color: MekaarColors.sosCoral,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.2,
+
+                    // Section Bottom: SOS Button
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SOSButton(onPressed: _triggerSOS, size: 54),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Pencet SOS untuk keadaan darurat',
+                            style: TextStyle(
+                              color: MekaarColors.sosCoral,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -673,22 +543,19 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final cardBorder = MekaarColors.cardBorderOf(context);
 
     if (key.isEmpty) {
-      return const SizedBox(width: 76, height: 66);
+      return const SizedBox(width: 76, height: 60);
     }
 
     if (key == 'Lupa') {
       return SizedBox(
         width: 76,
-        height: 66,
+        height: 60,
         child: Center(
           child: TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showForgotPinDialog();
-            },
+            onPressed: _showForgotPinDialog,
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
-              minimumSize: const Size(60, 60),
+              minimumSize: const Size(60, 56),
             ),
             child: Text(
               'Lupa\nPIN?',
@@ -716,9 +583,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
           scale: 0.92,
           onTap: () => _handleKeyPress(key),
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            width: 68,
-            height: 68,
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            width: 64,
+            height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isBackspace ? Colors.transparent : surface2,
@@ -732,12 +599,12 @@ class _PinScreenState extends ConsumerState<PinScreen>
                   ? Icon(
                       SolarIconsOutline.backspace,
                       color: textPrimary,
-                      size: 24,
+                      size: 22,
                     )
                   : Text(
                       key,
                       style: TextStyle(
-                        fontSize: 26,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: textPrimary,
                       ),

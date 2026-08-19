@@ -10,6 +10,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -844,63 +845,84 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       );
     }
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 8,
       ).copyWith(bottom: 110),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final room = filtered[index];
-        final roomId = room['id'] as String;
-        final isHidden = hiddenRoomIds.contains(roomId);
+      children: [
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(MekaarRadius.lg),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: filtered.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                thickness: 1,
+                indent: 74,
+                endIndent: 16,
+                color: MekaarColors.cardBorderOf(context).withValues(alpha: 0.5),
+              ),
+              itemBuilder: (context, index) {
+                final room = filtered[index];
+                final roomId = room['id'] as String;
+                final isHidden = hiddenRoomIds.contains(roomId);
 
-        return AnimatedAppear(
-          delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
-          child: GestureDetector(
-            onLongPress: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.contactSettings,
-                arguments: {
-                  'roomId': room['id'],
-                  'chatName': room['name'],
-                  'chatAvatar': room['avatar'],
-                  'otherUserId': room['otherUserId'],
-                  'isGuardian': room['isGuardian'] as bool? ?? false,
-                },
-              );
-            },
-            child: ChatListTile(
-              room: room,
-              isHidden: isHidden,
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  AppRoutes.chat,
-                  arguments: {
-                    'chatId': room['id'],
-                    'chatName': room['name'],
-                    'chatAvatar': room['avatar'],
-                    'chatAvatarUrl': room['avatarUrl'] as String?,
-                    'isGuardian': room['isGuardian'] as bool? ?? false,
-                    'otherUserId': room['otherUserId'] as String?,
-                  },
+                return AnimatedAppear(
+                  delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
+                  child: GestureDetector(
+                    onLongPress: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.contactSettings,
+                        arguments: {
+                          'roomId': room['id'],
+                          'chatName': room['name'],
+                          'chatAvatar': room['avatar'],
+                          'otherUserId': room['otherUserId'],
+                          'isGuardian': room['isGuardian'] as bool? ?? false,
+                        },
+                      );
+                    },
+                    child: ChatListTile(
+                      room: room,
+                      isHidden: isHidden,
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.chat,
+                          arguments: {
+                            'chatId': room['id'],
+                            'chatName': room['name'],
+                            'chatAvatar': room['avatar'],
+                            'chatAvatarUrl': room['avatarUrl'] as String?,
+                            'isGuardian': room['isGuardian'] as bool? ?? false,
+                            'otherUserId': room['otherUserId'] as String?,
+                          },
+                        );
+                      },
+                      onMute: () => _handleMuteRoom(room),
+                      onDelete: () => _confirmDeleteRoom(room),
+                      onArchive: () => _handleArchiveRoom(room),
+                      onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                        context,
+                        ref,
+                        roomId: roomId,
+                        chatName: room['name'] as String? ?? 'Obrolan',
+                      ),
+                    ),
+                  ),
                 );
               },
-              onMute: () => _handleMuteRoom(room),
-              onDelete: () => _confirmDeleteRoom(room),
-              onArchive: () => _handleArchiveRoom(room),
-              onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
-                context,
-                ref,
-                roomId: roomId,
-                chatName: room['name'] as String? ?? 'Obrolan',
-              ),
             ),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

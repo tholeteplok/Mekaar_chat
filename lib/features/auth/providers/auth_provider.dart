@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -93,13 +94,63 @@ class AuthState {
 // State Notifier
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
+  StreamSubscription<dynamic>? _authSubscription;
 
-  AuthNotifier(this._authRepository) : super(AuthState()) {
+  /// Completer yang menandai inisialisasi awal selesai.
+  /// SplashScreen menunggu future ini secara deterministik
+  /// alih-alih polling isLoading yang rawan race condition.
+  final Completer<void> _initCompleter = Completer<void>();
+
+  /// Future yang di-await oleh SplashScreen untuk menunggu
+  /// _checkInitialAuth() selesai secara pasti.
+  Future<void> get initializationComplete => _initCompleter.future;
+
+  AuthNotifier(this._authRepository) : super(AuthState(isLoading: true)) {
+    if (SupabaseService.isInitialized) {
+      _listenAuthChanges();
+    }
     _checkInitialAuth();
   }
 
+  /// Dengarkan perubahan auth state dari Supabase SDK.
+  /// Menangani token refresh, sign-in, sign-out, dan user update
+  /// agar Riverpod state selalu sinkron dengan kondisi autentikasi.
+  void _listenAuthChanges() {
+    _authSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      switch (data.event) {
+        case AuthChangeEvent.signedIn:
+        case AuthChangeEvent.tokenRefreshed:
+        case AuthChangeEvent.userUpdated:
+          if (data.session?.user != null) {
+            state = state.copyWith(user: data.session!.user);
+          }
+        case AuthChangeEvent.signedOut:
+          state = AuthState(isLoading: false);
+        default:
+          break;
+      }
+    });
+  }
+
   Future<void> _checkInitialAuth() async {
+    if (!SupabaseService.isInitialized) {
+      state = state.copyWith(isLoading: false);
+      if (!_initCompleter.isCompleted) _initCompleter.complete();
+      return;
+    }
+
     try {
+      // 1. Baca sesi Supabase TERLEBIH DAHULU (sinkron, tanpa I/O disk).
+      //    Ini mencegah race condition di mana SplashScreen membaca
+      //    user == null karena I/O FlutterSecureStorage belum selesai.
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) {
+        state = state.copyWith(user: session.user);
+      }
+
+      // 2. Baru kemudian baca data lokal dari FlutterSecureStorage
+      //    (operasi ini bisa lambat 200-800ms di perangkat low-end).
       final lockout = await _authRepository.getPinLockout();
       final wasDuress = await _authRepository.getDuressUnlockStatus();
       state = state.copyWith(
@@ -108,15 +159,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
         lastUnlockWasDuress: wasDuress,
       );
 
-      final session = Supabase.instance.client.auth.currentSession;
+      // 3. Jika ada sesi, muat profil dari server.
       if (session != null) {
-        state = state.copyWith(user: session.user, isLoading: true);
         await loadProfile();
+      } else {
+        state = state.copyWith(isLoading: false);
       }
     } catch (e) {
-      // Jika startup gagal (mis. network error), set isLoading false
-      // agar Splash Screen tidak terjebak di loading loop.
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // Graceful offline handling: jika startup gagal (mis. network error),
+      // tetap pertahankan user dari sesi lokal agar tidak false-redirect
+      // ke onboarding padahal sesi Supabase masih tersimpan di disk.
+      final session = Supabase.instance.client.auth.currentSession;
+      final isPinSet = await _safeCheckPinSet();
+      state = state.copyWith(
+        isLoading: false,
+        user: session?.user ?? state.user,
+        isPinSet: isPinSet,
+        error: e.toString(),
+      );
+    } finally {
+      if (!_initCompleter.isCompleted) _initCompleter.complete();
+    }
+  }
+
+  /// Pengecekan PIN aman yang tidak melempar exception.
+  /// Digunakan sebagai fallback saat startup offline/gagal.
+  Future<bool> _safeCheckPinSet() async {
+    try {
+      return await _authRepository.isPINSet();
+    } catch (_) {
+      return false;
     }
   }
 
@@ -365,7 +437,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _authRepository.signOut();
-    state = AuthState();
+    state = AuthState(isLoading: false);
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   /// Bersihkan flag alert new-device setelah ditampilkan.

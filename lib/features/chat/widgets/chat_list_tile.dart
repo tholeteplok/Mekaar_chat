@@ -8,7 +8,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../providers/chat_provider.dart';
 
 class ChatListTile extends StatelessWidget {
@@ -41,23 +40,24 @@ class ChatListTile extends StatelessWidget {
     final isMuted = room['isMuted'] as bool? ?? false;
     final nameColor = MekaarColors.textPrimaryOf(context);
 
-    final tile = CustomCard(
-      padding: EdgeInsets.zero,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: MekaarSpacing.lg,
-          vertical: 14,
-        ),
-        child: Row(
-          children: [
-            Avatar(
-              initial: room['avatar'] as String? ?? name[0],
-              imageUrl: room['avatarUrl'] as String?,
-              size: MekaarSizes.avatarLg,
-              isGuardian: isGuardian,
-            ),
-            const SizedBox(width: 14),
+    final tile = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 13,
+          ),
+          child: Row(
+            children: [
+              Avatar(
+                initial: room['avatar'] as String? ?? name[0],
+                imageUrl: room['avatarUrl'] as String?,
+                size: MekaarSizes.avatarLg,
+                isGuardian: isGuardian,
+              ),
+              const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +158,8 @@ class ChatListTile extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
 
     // Bungkus dengan Slidable untuk swipe actions
     return Slidable(

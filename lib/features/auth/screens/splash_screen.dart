@@ -40,12 +40,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Wait 800ms for smooth splash presentation
     await Future.delayed(const Duration(milliseconds: 800));
 
-    // Wait until profile & session loading finishes to avoid race conditions
-    // Timeout setelah 15 detik untuk mencegah infinite loop
-    int waitAttempts = 0;
-    while (ref.read(authProvider).isLoading && waitAttempts < 300) {
-      await Future.delayed(const Duration(milliseconds: 50));
-      waitAttempts++;
+    // Tunggu inisialisasi AuthNotifier selesai secara deterministik.
+    // Menggunakan Completer alih-alih polling isLoading yang rawan
+    // race condition (isLoading bisa false sebelum _checkInitialAuth dimulai).
+    final authNotifier = ref.read(authProvider.notifier);
+    try {
+      await authNotifier.initializationComplete.timeout(
+        const Duration(seconds: 15),
+      );
+    } catch (_) {
+      // Timeout: lanjutkan dengan state yang ada (fail-forward)
     }
 
     if (!mounted) return;
