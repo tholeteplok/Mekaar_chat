@@ -8,17 +8,23 @@ class CallRepository {
   CallRepository(this._client);
 
   /// Catat baris panggilan baru dengan status 'ringing'
-  /// Memverifikasi chat sudah disetujui sebelum mengizinkan panggilan
+  /// Memverifikasi hubungan chat sebelum mengizinkan panggilan
   Future<Map<String, dynamic>> createCall({
     required String roomId,
     required String callerId,
     required String receiverId,
     required String callType,
   }) async {
-    // Verifikasi chat approval sebelum panggilan
-    final isApproved = await _isChatApprovedForCall(callerId, receiverId);
+    // Verifikasi izin chat & keanggotaan room sebelum panggilan
+    final isApproved = await _isChatApprovedForCall(
+      callerId,
+      receiverId,
+      roomId: roomId,
+    );
     if (!isApproved) {
-      throw Exception('Chat belum disetujui. Tidak dapat melakukan panggilan.');
+      throw Exception(
+        'Chat belum disetujui atau bukan partisipan room yang sah.',
+      );
     }
 
     final response = await _client
@@ -35,29 +41,68 @@ class CallRepository {
     return Map<String, dynamic>.from(response);
   }
 
-  /// Cek internal apakah relasi chat sudah disetujui untuk panggilan
-  Future<bool> _isChatApprovedForCall(String userId, String otherUserId) async {
+  /// Cek internal apakah relasi chat sah untuk melakukan panggilan
+  Future<bool> _isChatApprovedForCall(
+    String userId,
+    String otherUserId, {
+    String? roomId,
+  }) async {
     try {
-      // Cek mode proteksi target user
+      // 1. Jika roomId tersedia, cek apakah kedua pengguna adalah partisipan sah di room tersebut
+      if (roomId != null && roomId.isNotEmpty) {
+        final participants = await _client
+            .from('room_participants')
+            .select('profile_id')
+            .eq('room_id', roomId)
+            .inFilter('profile_id', [userId, otherUserId]);
+
+        final matchedIds = (participants as List)
+            .map((p) => p['profile_id'] as String?)
+            .whereType<String>()
+            .toSet();
+
+        if (matchedIds.contains(userId) && matchedIds.contains(otherUserId)) {
+          return true;
+        }
+      }
+
+      // 2. Cek relasi Guardian aktif (Guardian selalu berhak memanggil / dipanggil)
+      final guardianRow = await _client
+          .from('guardians')
+          .select('id')
+          .or(
+            'and(user_id.eq.$userId,guardian_id.eq.$otherUserId),and(user_id.eq.$otherUserId,guardian_id.eq.$userId)',
+          )
+          .eq('status', 'active')
+          .maybeSingle();
+      if (guardianRow != null) return true;
+
+      // 3. Cek mode proteksi target user
       final profileResponse = await _client
           .from('profiles')
           .select('chat_invitation_mode')
           .eq('id', otherUserId)
           .maybeSingle();
 
-      final mode = profileResponse?['chat_invitation_mode'] as String? ?? 'approved_only';
+      final mode =
+          profileResponse?['chat_invitation_mode'] as String? ??
+          'approved_only';
       if (mode == 'everyone') return true;
 
-      // Mode approved_only — cek chat_requests
+      // 4. Mode approved_only — cek chat_requests yang disetujui
       final response = await _client
           .from('chat_requests')
           .select('status')
-          .or('and(sender_id.eq.$userId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$userId)')
+          .or(
+            'and(sender_id.eq.$userId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$userId)',
+          )
           .eq('status', 'accepted')
           .maybeSingle();
 
       return response != null;
     } catch (_) {
+      // Fallback: Jika query pengecekan gagal tapi roomId valid, izinkan inisialisasi
+      if (roomId != null && roomId.isNotEmpty) return true;
       return false;
     }
   }

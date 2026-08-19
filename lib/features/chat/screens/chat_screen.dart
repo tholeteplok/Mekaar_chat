@@ -1332,6 +1332,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                             _confirmClearHistory();
                           } else if (value == 'e2ee_info') {
                             _showE2eeInfoDialog();
+                          } else if (value == 'sync_e2ee_keys') {
+                            E2eeService.instance.invalidateRoomKey(widget.chatId);
+                            ref.invalidate(chatMessagesProvider(widget.chatId));
+                            HapticService.trigger(MekaarHapticIntent.success);
+                            MekaarSnackbar.success(
+                              context,
+                              'Kunci enkripsi ruangan berhasil disinkronkan ulang.',
+                            );
                           } else if (value == 'delete') {
                             _confirmDeleteChat();
                           }
@@ -1349,6 +1357,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                 const SizedBox(width: 8),
                                 Text(
                                   'Informasi Enkripsi E2EE',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'sync_e2ee_keys',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  SolarIconsOutline.refreshSquare,
+                                  size: 20,
+                                  color: AppColors.blue,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Sinkronkan Kunci Enkripsi',
                                   style: TextStyle(
                                     color: textPrimary,
                                     fontSize: 14,

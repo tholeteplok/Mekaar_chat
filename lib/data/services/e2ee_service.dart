@@ -271,6 +271,17 @@ class E2eeService {
     }
   }
 
+  /// Invalidate cache kunci room tertentu (mis. saat sync kunci dipicu manual
+  /// atau saat re-keying otomatis).
+  void invalidateRoomKey(String roomId) {
+    _roomKeys.remove(roomId);
+  }
+
+  /// Invalidate semua cache kunci room.
+  void invalidateAllRoomKeys() {
+    _roomKeys.clear();
+  }
+
   /// Bersihkan cache sesi saat logout (identitas per-akun tetap di storage).
   void clearSession() {
     _identity = null;
@@ -285,9 +296,13 @@ class E2eeService {
   /// menganggap ini sama dengan "lawan belum punya kunci" dan diam-diam
   /// mengirim plaintext. Hanya return null bila status "belum ada kunci
   /// publik lawan" itu sendiri sudah dipastikan (bukan karena gagal query).
-  Future<SecretKey?> _roomKey(String roomId) async {
-    final cached = _roomKeys[roomId];
-    if (cached != null) return cached;
+  Future<SecretKey?> _roomKey(String roomId, {bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      final cached = _roomKeys[roomId];
+      if (cached != null) return cached;
+    } else {
+      _roomKeys.remove(roomId);
+    }
 
     await ensureIdentity();
     final userId = _supabase.currentUserId;
@@ -397,6 +412,7 @@ class E2eeService {
 
   /// Dekripsi envelope; passthrough bila konten bukan envelope;
   /// placeholder bila kunci tidak tersedia / MAC gagal.
+  /// Mendukung 2-Pass Decryption & Auto-Rekeying bila lawan baru mengganti kunci publik.
   Future<String> decryptForRoom(String roomId, String content) async {
     Map<dynamic, dynamic> map;
     try {
@@ -409,6 +425,9 @@ class E2eeService {
 
     if (map['a'] != algorithmName || map['ct'] is! String) return content;
 
+    final hadCachedKey = _roomKeys.containsKey(roomId);
+
+    // Pass 1: Coba dekripsi dengan kunci saat ini/cached
     try {
       final key = await _roomKey(roomId);
       if (key == null) {
@@ -417,7 +436,7 @@ class E2eeService {
       }
       final ctString = map['ct'] as String;
       final ctBytes = base64Decode(ctString);
-      
+
       final box = SecretBox.fromConcatenation(
         ctBytes,
         nonceLength: 24,
@@ -426,7 +445,40 @@ class E2eeService {
       final clear = await _cipher.decrypt(box, secretKey: key);
       return utf8.decode(clear, allowMalformed: true);
     } catch (e, st) {
-      _logger.e('decryptForRoom error in room $roomId', error: e, stackTrace: st);
+      // Jika Pass 1 gagal dan kunci sebelumnya berasal dari cache,
+      // lakukan Pass 2: Auto-rekeying dengan mengambil public key terbaru dari server.
+      if (hadCachedKey) {
+        try {
+          _logger.w(
+            'Pass 1 decrypt gagal di room $roomId. Mencoba Auto-Rekeying (Pass 2)...',
+          );
+          final freshKey = await _roomKey(roomId, forceRefresh: true);
+          if (freshKey != null) {
+            final ctString = map['ct'] as String;
+            final ctBytes = base64Decode(ctString);
+
+            final box = SecretBox.fromConcatenation(
+              ctBytes,
+              nonceLength: 24,
+              macLength: 16,
+            );
+            final clear = await _cipher.decrypt(box, secretKey: freshKey);
+            _logger.i('Auto-Rekeying Pass 2 berhasil untuk room $roomId!');
+            return utf8.decode(clear, allowMalformed: true);
+          }
+        } catch (e2) {
+          _logger.e(
+            'Pass 2 Auto-Rekeying juga gagal di room $roomId',
+            error: e2,
+          );
+        }
+      } else {
+        _logger.e(
+          'decryptForRoom error in room $roomId',
+          error: e,
+          stackTrace: st,
+        );
+      }
       return undecryptableText;
     }
   }
