@@ -332,10 +332,13 @@ class _ChatThemeSettingsScreenState
                       color: AppColors.blue,
                     ),
                     const SizedBox(width: 12),
-                    const Icon(
-                      SolarIconsOutline.menuDots,
-                      size: 16,
-                      color: AppColors.blue,
+                    const RotatedBox(
+                      quarterTurns: 1,
+                      child: Icon(
+                        SolarIconsOutline.menuDots,
+                        size: 16,
+                        color: AppColors.blue,
+                      ),
                     ),
                   ],
                 ),

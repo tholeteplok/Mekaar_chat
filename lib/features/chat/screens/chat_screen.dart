@@ -1246,14 +1246,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                 width: 1,
                               ),
                             ),
-                        color: frostedBg,
-                        surfaceTintColor: Colors.transparent,
-                        elevation: 10,
-                        shadowColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
-                        icon: Icon(
-                          SolarIconsOutline.menuDots,
-                          color: roomThemeSpec.primaryAccentColor,
-                        ),
+                            color: frostedBg,
+                            surfaceTintColor: Colors.transparent,
+                            elevation: 10,
+                            shadowColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
+                            padding: EdgeInsets.zero,
+                            icon: RotatedBox(
+                              quarterTurns: 1,
+                              child: Icon(
+                                SolarIconsOutline.menuDots,
+                                color: roomThemeSpec.primaryAccentColor,
+                              ),
+                            ),
                         onSelected: (value) async {
                           if (value == 'voice') {
                             _initiateCall('voice');

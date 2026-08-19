@@ -12,6 +12,7 @@ class MekaarGlassBlurContainer extends StatelessWidget {
   final double blurSigma;
   final double? width;
   final double? height;
+  final BoxConstraints? constraints;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final BorderRadius? borderRadius;
@@ -28,6 +29,7 @@ class MekaarGlassBlurContainer extends StatelessWidget {
     this.blurSigma = 16.0,
     this.width,
     this.height,
+    this.constraints,
     this.padding,
     this.margin,
     this.borderRadius,
@@ -106,6 +108,7 @@ class MekaarGlassBlurContainer extends StatelessWidget {
     Widget content = Container(
       width: width,
       height: height,
+      constraints: constraints,
       padding: padding,
       decoration: containerDecoration,
       child: child,

@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../services/haptic_service.dart';
-import 'bounce_interactive.dart';
 
 /// [MekaarFrostedActionButton] — Tombol aksi bulat mengambang (FAB) terpusat
 /// dengan estetika kaca buram (frosted glass) yang serasi dengan [MekaarBottomNav].
@@ -74,16 +73,19 @@ class MekaarFrostedActionButton extends StatelessWidget {
       ),
     );
 
-    final interactiveButton = BounceInteractive(
-      scaleFactor: 0.94,
-      duration: const Duration(milliseconds: 120),
-      onTap: () {
-        if (onPressed != null) {
-          HapticService.trigger(MekaarHapticIntent.selection);
-          onPressed!();
-        }
-      },
-      child: buttonWidget,
+    final interactiveButton = Material(
+      color: Colors.transparent,
+      child: InkResponse(
+        onTap: onPressed == null
+            ? null
+            : () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                onPressed!();
+              },
+        radius: size / 2,
+        customBorder: const CircleBorder(),
+        child: buttonWidget,
+      ),
     );
 
     Widget result = Semantics(

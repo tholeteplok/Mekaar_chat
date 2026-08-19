@@ -5,7 +5,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
@@ -378,6 +377,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                             children: [
                               // 6 Bulatan / Slot PIN persis di tengah horizontal
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: List.generate(
                                   pinLength,
@@ -487,9 +487,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
     return AnimatedContainer(
       duration: animationsDisabled ? Duration.zero : MekaarMotion.fast,
       curve: MekaarMotion.bounce,
-      width: 26,
-      height: 26,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      width: 24,
+      height: 24,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
@@ -519,7 +519,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
             ? Text(
                 _pin[index],
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: _hasError ? MekaarColors.sosCoral : textPrimary,
                 ),
@@ -579,36 +579,39 @@ class _PinScreenState extends ConsumerState<PinScreen>
       label: isBackspace ? 'Hapus digit terakhir' : 'Angka $key',
       onTap: () => _handleKeyPress(key),
       child: ExcludeSemantics(
-        child: PressableScale(
-          scale: 0.92,
-          onTap: () => _handleKeyPress(key),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            width: 64,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isBackspace ? Colors.transparent : surface2,
-              border: Border.all(
-                color: isBackspace ? Colors.transparent : cardBorder,
-                width: 1,
-              ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          width: 64,
+          height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isBackspace ? Colors.transparent : surface2,
+            border: Border.all(
+              color: isBackspace ? Colors.transparent : cardBorder,
+              width: 1,
             ),
-            child: Center(
-              child: isBackspace
-                  ? Icon(
-                      SolarIconsOutline.backspace,
-                      color: textPrimary,
-                      size: 22,
-                    )
-                  : Text(
-                      key,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkResponse(
+              customBorder: const CircleBorder(),
+              onTap: () => _handleKeyPress(key),
+              child: Center(
+                child: isBackspace
+                    ? Icon(
+                        SolarIconsOutline.backspace,
                         color: textPrimary,
+                        size: 22,
+                      )
+                    : Text(
+                        key,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
                       ),
-                    ),
+              ),
             ),
           ),
         ),

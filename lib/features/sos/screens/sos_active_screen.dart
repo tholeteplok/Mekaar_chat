@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -272,15 +271,37 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(MekaarIcons.videocam),
-                        label: const Text('Kirim Video ke Guardian'),
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/sos/video'),
-                      ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(SolarIconsOutline.videoLibrary),
+                            label: const Text('Rekam Bukti Darurat (Lokal)'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: MekaarColors.surface2Of(context),
+                              foregroundColor: MekaarColors.textPrimaryOf(context),
+                              elevation: 0,
+                              side: BorderSide(
+                                color: MekaarColors.cardBorderOf(context),
+                              ),
+                            ),
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/sos/video'),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Video tersimpan di perangkat Anda — belum dikirim ke Guardian',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                        ),
+                      ],
                     ).animate().fadeIn(duration: 200.ms, delay: 100.ms),
                   ],
                   if (canEnd)

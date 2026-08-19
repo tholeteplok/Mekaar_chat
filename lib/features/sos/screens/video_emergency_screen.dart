@@ -206,7 +206,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Streaming kamera terus berjalan.',
+                      'Perekaman kamera terus berjalan di latar belakang.',
                       style: TextStyle(color: Colors.white30, fontSize: 13),
                     ),
                     const SizedBox(height: 32),
@@ -254,7 +254,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Ketuk untuk melanjutkan rekam. Jika tidak ada respon, streaming dihentikan otomatis untuk menjaga privasi.',
+                        'Ketuk untuk melanjutkan rekam. Jika tidak ada respon, perekaman dihentikan otomatis untuk menjaga privasi.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12),
                       ),
@@ -274,98 +274,135 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
 
           // Status HUD controls (Hidden when screen is locked)
           if (!_isScreenLocked) ...[
-            // Status Indicator Dot (OS Green indicator)
+            // Status Indicator Dot & Local Banner
             Positioned(
               top: 40,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              left: 20,
+              right: 20,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Timer Indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _formatDuration(_recordingSeconds),
+                          style: MekaarTypography.monoMD.copyWith(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // Status Dot
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(MekaarIcons.circle, color: Colors.green, size: 8),
+                            SizedBox(width: 6),
+                            Text(
+                              'Kamera & Mic Aktif (Lokal)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // REC Indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: MekaarColors.sosRed,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'REC',
+                              style: TextStyle(
+                                color: MekaarColors.sosRed,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Banner Peringatan Lokal
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black45,
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: MekaarColors.accentOf(context).withValues(alpha: 0.5),
+                        width: 1,
+                      ),
                     ),
-                    child: const Row(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(MekaarIcons.circle, color: Colors.green, size: 8),
-                        SizedBox(width: 6),
-                        Text(
-                          'Kamera & Mic Aktif',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                        Icon(
+                          SolarIconsOutline.infoCircle,
+                          size: 14,
+                          color: MekaarColors.accentOf(context),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Perekaman ini disimpan lokal di perangkat. Bagikan ke Guardian setelah situasi aman.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: MekaarColors.accentOf(context),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-            ),
-            // Recording Flash Indicators
-            Positioned(
-              top: 40,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: MekaarColors.sosRed,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'REC',
-                      style: TextStyle(
-                        color: MekaarColors.sosRed,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Timer Indicator
-            Positioned(
-              top: 40,
-              left: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _formatDuration(_recordingSeconds),
-                  style: MekaarTypography.monoMD.copyWith(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ),
             ),
             // Bottom Action buttons

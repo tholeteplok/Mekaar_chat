@@ -661,6 +661,7 @@ class _ChatComposerState extends State<ChatComposer> {
                   ),
                 )
               : Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     // ── Container 1 (Kiri): Tombol Lampiran 📎 ──
                     if (!_isEditMode) ...[
@@ -689,31 +690,42 @@ class _ChatComposerState extends State<ChatComposer> {
                     Expanded(
                       child: MekaarGlassBlurContainer(
                         isFloating: true,
-                        height: 48,
+                        constraints: const BoxConstraints(
+                          minHeight: 48,
+                          maxHeight: 130,
+                        ),
                         borderRadius: BorderRadius.circular(24),
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         border: glassBorder,
                         customColor: glassBg,
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             if (!_isEditMode)
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-                                icon: Icon(
-                                  MekaarIcons.smile,
-                                  color: _showEmojiPicker
-                                      ? primaryAccent
-                                      : secondaryAccent,
-                                  size: 22,
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                                  icon: Icon(
+                                    MekaarIcons.smile,
+                                    color: _showEmojiPicker
+                                        ? primaryAccent
+                                        : secondaryAccent,
+                                    size: 22,
+                                  ),
+                                  onPressed: widget.enabled ? _toggleEmojiPicker : null,
+                                  tooltip: 'Emoji',
                                 ),
-                                onPressed: widget.enabled ? _toggleEmojiPicker : null,
-                                tooltip: 'Emoji',
                               ),
                             Expanded(
                               child: TextField(
                                 controller: widget.controller,
                                 enabled: widget.enabled,
+                                keyboardType: TextInputType.multiline,
+                                minLines: 1,
+                                maxLines: 5,
+                                textCapitalization: TextCapitalization.sentences,
                                 contentInsertionConfiguration: ContentInsertionConfiguration(
                                   allowedMimeTypes: const <String>[
                                     'image/gif',
@@ -735,14 +747,16 @@ class _ChatComposerState extends State<ChatComposer> {
                                   focusedBorder: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   fillColor: Colors.transparent,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 10,
+                                  ),
+                                  isDense: true,
                                 ),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
                                 ),
-                                minLines: 1,
-                                maxLines: 4,
                                 onSubmitted: (_) => widget.enabled ? widget.onSend() : null,
                                 onTap: () {
                                   if (_showEmojiPicker) {

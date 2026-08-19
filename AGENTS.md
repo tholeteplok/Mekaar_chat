@@ -19,6 +19,10 @@ No custom lint/typecheck/format beyond Flutter defaults (`flutter analyze`, `flu
 - On startup `lib/main.dart` validates config and surfaces Indonesian error messages via `SupabaseService`. A failed/missing `.env` leaves the app in a failed-init state rather than crashing.
 - `.env` changes require a **full restart** (hot reload does not reload dotenv).
 - For fast testing, disable Supabase "Confirm email" in Auth settings so registration is instant.
+- **WebRTC / TURN Configuration (Wajib untuk produksi):**
+  - Pada build produksi, set `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` via `--dart-define` agar panggilan voice/video dapat melewati Symmetric NAT & firewall seluler ketat.
+  - Contoh: `flutter build apk --dart-define=TURN_URL=turn:... --dart-define=TURN_USERNAME=... --dart-define=TURN_CREDENTIAL=...`
+  - Pada mode debug (`kDebugMode`), aplikasi fallback ke relay publik `openrelay.metered.ca` (DEV ONLY).
 
 ## Supabase Backend
 

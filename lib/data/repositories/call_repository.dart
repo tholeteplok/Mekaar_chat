@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/providers/auth_provider.dart';
@@ -100,9 +101,8 @@ class CallRepository {
           .maybeSingle();
 
       return response != null;
-    } catch (_) {
-      // Fallback: Jika query pengecekan gagal tapi roomId valid, izinkan inisialisasi
-      if (roomId != null && roomId.isNotEmpty) return true;
+    } catch (e, st) {
+      debugPrint('CallRepository._isChatApprovedForCall failed: $e\n$st');
       return false;
     }
   }

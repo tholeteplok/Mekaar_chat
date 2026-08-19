@@ -186,13 +186,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             const SizedBox(width: 8),
             MekaarGlassBlurContainer(
               isFloating: true,
+              shape: actions!.length == 1 ? BoxShape.circle : BoxShape.rectangle,
+              width: actions!.length == 1 ? 58 : null,
               height: 58,
-              borderRadius: BorderRadius.circular(29),
-              padding: const EdgeInsets.symmetric(horizontal: 6),
+              borderRadius: actions!.length == 1 ? null : BorderRadius.circular(29),
+              padding: EdgeInsets.symmetric(horizontal: actions!.length == 1 ? 0 : 6),
               border: glassBorder,
               customColor: glassBackgroundColor,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: actions!,
               ),
             ),

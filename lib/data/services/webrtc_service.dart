@@ -1,16 +1,12 @@
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import '../../core/constants/webrtc_config.dart';
 
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
 
-  // Configurations for WebRTC STUN/TURN servers
-  final Map<String, dynamic> _iceServers = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-    ]
-  };
+  // Configurations for WebRTC STUN/TURN servers (Centralized via WebRtcConfig)
+  final Map<String, dynamic> _iceServers = WebRtcConfig.buildIceConfiguration();
 
   // Get local media stream (camera & microphone)
   Future<MediaStream> getLocalStream({bool audio = true, bool video = true, bool isFrontCamera = true}) async {

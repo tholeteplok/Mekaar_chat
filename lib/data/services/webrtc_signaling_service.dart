@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/constants/webrtc_config.dart';
 
 class WebRtcSignalingService {
   final SupabaseClient _client;
@@ -31,69 +31,8 @@ class WebRtcSignalingService {
   Function()? onHangup;
   Function(Object error)? onError;
 
-  static const String _turnUrl = String.fromEnvironment('TURN_URL');
-  static const String _turnUsername = String.fromEnvironment('TURN_USERNAME');
-  static const String _turnCredential = String.fromEnvironment(
-    'TURN_CREDENTIAL',
-  );
-
-  static Map<String, dynamic> _buildDefaultConfiguration() {
-    final iceServers = <Map<String, dynamic>>[
-      {
-        'urls': [
-          'stun:stun.l.google.com:19302',
-          'stun:stun1.l.google.com:19302',
-          'stun:stun2.l.google.com:19302',
-          'stun:stun3.l.google.com:19302',
-          'stun:stun4.l.google.com:19302',
-        ],
-      },
-    ];
-
-    if (_turnUrl.isNotEmpty) {
-      iceServers.add({
-        'urls': _turnUrl,
-        'username': _turnUsername,
-        'credential': _turnCredential,
-      });
-    } else {
-      if (kDebugMode) {
-        debugPrint(
-          '⚠️ WebRtcSignalingService: TURN_URL tidak diset, memakai relay '
-          'publik openrelay.metered.ca (DEV ONLY). Set --dart-define=TURN_URL '
-          '(+ TURN_USERNAME/TURN_CREDENTIAL) sebelum build produksi.',
-        );
-        iceServers.addAll(const [
-          {
-            'urls': 'turn:openrelay.metered.ca:80',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject',
-          },
-          {
-            'urls': 'turn:openrelay.metered.ca:443',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject',
-          },
-          {
-            'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject',
-          },
-        ]);
-      }
-    }
-
-    return {
-      'iceServers': iceServers,
-      'sdpSemantics': 'unified-plan',
-    };
-  }
-
-  static final Map<String, dynamic> _defaultConfiguration =
-      _buildDefaultConfiguration();
-
   WebRtcSignalingService(this._client, {Map<String, dynamic>? configuration})
-    : _configuration = configuration ?? _defaultConfiguration;
+    : _configuration = configuration ?? WebRtcConfig.buildIceConfiguration();
 
   Future<void> initMedia(bool videoEnabled) async {
     final Map<String, dynamic> mediaConstraints = {
@@ -167,9 +106,12 @@ class WebRtcSignalingService {
         _handleIceConnectionState(state);
       };
 
-      // Topik dispesifikkan ke ID panggilan unik (room_call:$callId) sesuai RLS Supabase
+      // Topik dispesifikkan ke ID panggilan unik (room_call:$callId) dengan kanal private sesuai RLS Supabase
       final channelTopic = 'room_call:$callId';
-      _channel = _client.channel(channelTopic);
+      _channel = _client.channel(
+        channelTopic,
+        opts: const RealtimeChannelConfig(private: true),
+      );
 
       _channel!.onBroadcast(
         event: 'signal',
