@@ -9,6 +9,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_wordmark.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -158,26 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                        color: textPrimary,
-                      ),
-                      children: const [
-                        TextSpan(
-                          text: 'Mek',
-                          style: TextStyle(color: MekaarColors.yellow),
-                        ),
-                        TextSpan(
-                          text: 'aar',
-                          style: TextStyle(color: MekaarColors.cyan),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const MekaarWordmark(fontSize: 22),
                 ],
               ),
               const SizedBox(height: 40),

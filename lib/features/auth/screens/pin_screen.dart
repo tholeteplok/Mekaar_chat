@@ -34,6 +34,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
   bool _hasError = false;
   bool _isCheckingSOSGuardians = false;
   bool _isBottomSheetOpen = false;
+  bool _obscurePin = true;
 
   static const int pinLength = 6;
 
@@ -353,6 +354,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final textSecondary = MekaarColors.textSecondaryOf(context);
     final surfaceColor = MekaarColors.surfaceOf(context);
     final cardBorder = MekaarColors.cardBorderOf(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return MekaarScaffold(
       flat: true,
@@ -360,81 +362,91 @@ class _PinScreenState extends ConsumerState<PinScreen>
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               // Wordmark resmi sebagai jangkar identitas layar autentikasi
-              const MekaarWordmark(fontSize: 28),
+              const Center(
+                child: MekaarWordmark(fontSize: 40),
+              ),
               const Spacer(flex: 2),
 
-              // Emblem Keamanan Minimalis
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.blue.withValues(alpha: 0.12),
-                  border: Border.all(
-                    color: AppColors.blue.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.blue.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      spreadRadius: 2,
+              // Emblem Keamanan Layered Halo
+              Center(
+                child: Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.blue.withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: AppColors.blue.withValues(alpha: 0.3),
+                      width: 1.5,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    SolarIconsBold.shieldKeyhole,
-                    color: AppColors.blue,
-                    size: 36,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.blue.withValues(alpha: 0.2),
+                        blurRadius: 24,
+                        spreadRadius: 3,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      SolarIconsBold.shieldKeyhole,
+                      color: AppColors.blue,
+                      size: 38,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
               // Title instruksi PIN
-              Text(
-                widget.isSetup
-                    ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
-                    : 'Buka Kunci Aplikasi',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
-                  letterSpacing: 0.3,
+              Center(
+                child: Text(
+                  widget.isSetup
+                      ? (_isConfirming ? 'Konfirmasi PIN' : 'Buat PIN Keamanan')
+                      : 'Buka Kunci Aplikasi',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: textPrimary,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // Status message / Lockout message
-              Semantics(
-                liveRegion: isLocked || _hasError,
-                child: AnimatedSwitcher(
-                  duration: animationsDisabled
-                      ? Duration.zero
-                      : MekaarMotion.fast,
-                  child: Text(
-                    isLocked
-                        ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
-                        : _statusMessage,
-                    key: ValueKey(_statusMessage),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: (isLocked || _hasError)
-                          ? MekaarColors.sosCoral
-                          : textSecondary,
+              Center(
+                child: Semantics(
+                  liveRegion: isLocked || _hasError,
+                  child: AnimatedSwitcher(
+                    duration: animationsDisabled
+                        ? Duration.zero
+                        : MekaarMotion.fast,
+                    child: Text(
+                      isLocked
+                          ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
+                          : _statusMessage,
+                      key: ValueKey(_statusMessage),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                        color: (isLocked || _hasError)
+                            ? MekaarColors.sosCoral
+                            : textSecondary,
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
-              // 6 Lingkaran PIN Interaktif dengan Typing Behavior
+              // 6 Lingkaran PIN Interaktif dengan Typing Behavior & Card
               Semantics(
                 label: 'PIN',
                 value: '${_pin.length} dari $pinLength digit terisi',
@@ -451,9 +463,10 @@ class _PinScreenState extends ConsumerState<PinScreen>
                       child: child,
                     ),
                     child: Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
-                        vertical: 18,
+                        vertical: 24,
                       ),
                       decoration: BoxDecoration(
                         color: surfaceColor,
@@ -466,35 +479,68 @@ class _PinScreenState extends ConsumerState<PinScreen>
                                   : cardBorder),
                           width: 1.2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.35 : 0.04,
+                            ),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // PIN Dots / Number Slots
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
                             children: List.generate(
                               pinLength,
                               (index) => _buildPinCircle(index, animationsDisabled),
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 16),
+                          // Card Footer: Keyboard Hint & Eye Toggle
                           Row(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(
-                                SolarIconsOutline.keyboard,
-                                size: 14,
-                                color: textSecondary,
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    SolarIconsOutline.keyboard,
+                                    size: 16,
+                                    color: textSecondary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Ketuk untuk buka papan tombol',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Ketuk untuk membuka papan tombol',
-                                style: TextStyle(
-                                  fontSize: 12,
+                              // Eye icon toggle for Show/Hide digits
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(4),
+                                icon: Icon(
+                                  _obscurePin
+                                      ? SolarIconsOutline.eyeClosed
+                                      : SolarIconsOutline.eye,
+                                  size: 19,
                                   color: textSecondary,
-                                  fontWeight: FontWeight.w500,
                                 ),
+                                tooltip: _obscurePin
+                                    ? 'Tampilkan angka PIN'
+                                    : 'Sembunyikan angka PIN',
+                                onPressed: () {
+                                  setState(() => _obscurePin = !_obscurePin);
+                                },
                               ),
                             ],
                           ),
@@ -508,14 +554,16 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
               // Tombol Lupa PIN (Hanya tampil di mode unlock)
               if (!_isSetupMode && !isLocked)
-                TextButton(
-                  onPressed: _showForgotPinDialog,
-                  child: const Text(
-                    'Lupa PIN?',
-                    style: TextStyle(
-                      color: AppColors.blue,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                Center(
+                  child: TextButton(
+                    onPressed: _showForgotPinDialog,
+                    child: const Text(
+                      'Lupa PIN?',
+                      style: TextStyle(
+                        color: AppColors.blue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -523,20 +571,22 @@ class _PinScreenState extends ConsumerState<PinScreen>
               const Spacer(flex: 3),
 
               // Tombol SOS Darurat di bagian bawah
-              Column(
-                children: [
-                  SOSButton(onPressed: _triggerSOS, size: 76),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Pencet SOS untuk keadaan darurat',
-                    style: TextStyle(
-                      color: MekaarColors.sosCoral,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.2,
+              Center(
+                child: Column(
+                  children: [
+                    SOSButton(onPressed: _triggerSOS, size: 76),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Pencet SOS untuk keadaan darurat',
+                      style: TextStyle(
+                        color: MekaarColors.sosCoral,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -551,6 +601,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final isCurrent = _pin.length == index;
     final cardBorder = MekaarColors.cardBorderOf(context);
     final surface2 = MekaarColors.surface2Of(context);
+    final textPrimary = MekaarColors.textPrimaryOf(context);
 
     Color borderColor;
     if (_hasError) {
@@ -566,21 +617,23 @@ class _PinScreenState extends ConsumerState<PinScreen>
     return AnimatedContainer(
       duration: animationsDisabled ? Duration.zero : MekaarMotion.fast,
       curve: MekaarMotion.bounce,
-      width: 18,
-      height: 18,
-      margin: const EdgeInsets.symmetric(horizontal: 9),
+      width: 26,
+      height: 26,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
           color: borderColor,
-          width: isCurrent || isFilled ? 2.2 : 1.5,
+          width: isCurrent || isFilled ? 2.5 : 1.5,
         ),
         color: isFilled
-            ? (_hasError ? MekaarColors.sosCoral : AppColors.blue)
+            ? (_obscurePin
+                ? (_hasError ? MekaarColors.sosCoral : AppColors.blue)
+                : surface2)
             : (isCurrent
                 ? AppColors.blue.withValues(alpha: 0.18)
                 : surface2),
-        boxShadow: isFilled
+        boxShadow: (isFilled && _obscurePin)
             ? [
                 BoxShadow(
                   color: (_hasError ? MekaarColors.sosCoral : AppColors.blue)
@@ -589,6 +642,18 @@ class _PinScreenState extends ConsumerState<PinScreen>
                   spreadRadius: 1,
                 ),
               ]
+            : null,
+      ),
+      child: Center(
+        child: isFilled && !_obscurePin
+            ? Text(
+                _pin[index],
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _hasError ? MekaarColors.sosCoral : textPrimary,
+                ),
+              )
             : null,
       ),
     );
