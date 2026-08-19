@@ -8,7 +8,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
@@ -396,33 +395,31 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 final username = contact['otherUsername'] as String;
                 final email = contact['otherEmail'] as String;
 
-                return AnimatedAppear(
-                  delay: Duration(milliseconds: (index * 30).clamp(0, 300)),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.chat,
-                          arguments: {
-                            'chatId': contact['id'],
-                            'chatName': name,
-                            'chatAvatar': avatar,
-                            'chatAvatarUrl': contact['avatarUrl'] as String?,
-                            'isGuardian': isGuardian,
-                            'otherUserId': contact['otherUserId'] as String?,
-                          },
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 6,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.chat,
+                        arguments: {
+                          'chatId': contact['id'],
+                          'chatName': name,
+                          'chatAvatar': avatar,
+                          'chatAvatarUrl': contact['avatarUrl'] as String?,
+                          'isGuardian': isGuardian,
+                          'otherUserId': contact['otherUserId'] as String?,
+                        },
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 6,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Stack(
@@ -480,9 +477,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
             ),
           ),
         ),
@@ -573,31 +569,29 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 final username = contact['otherUsername'] as String;
                 final email = contact['otherEmail'] as String;
 
-                return AnimatedAppear(
-                  delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.chat,
-                          arguments: {
-                            'chatId': contact['id'],
-                            'chatName': name,
-                            'chatAvatar': avatar,
-                            'chatAvatarUrl': contact['avatarUrl'] as String?,
-                            'isGuardian': isGuardian,
-                            'otherUserId': contact['otherUserId'] as String?,
-                          },
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Row(
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.chat,
+                        arguments: {
+                          'chatId': contact['id'],
+                          'chatName': name,
+                          'chatAvatar': avatar,
+                          'chatAvatarUrl': contact['avatarUrl'] as String?,
+                          'isGuardian': isGuardian,
+                          'otherUserId': contact['otherUserId'] as String?,
+                        },
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
                           children: [
                             Avatar(
                               imageUrl: contact['avatarUrl'] as String?,
@@ -700,9 +694,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
             ),
           ),
         ),

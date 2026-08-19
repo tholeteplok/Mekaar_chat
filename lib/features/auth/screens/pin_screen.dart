@@ -239,6 +239,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: ConstrainedBox(
                 constraints: BoxConstraints(

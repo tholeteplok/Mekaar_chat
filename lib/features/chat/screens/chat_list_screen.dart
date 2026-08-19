@@ -9,7 +9,6 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/permissions.dart';
-import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -873,48 +872,45 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 final roomId = room['id'] as String;
                 final isHidden = hiddenRoomIds.contains(roomId);
 
-                return AnimatedAppear(
-                  delay: Duration(milliseconds: (index * 40).clamp(0, 300)),
-                  child: GestureDetector(
-                    onLongPress: () {
+                return GestureDetector(
+                  onLongPress: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.contactSettings,
+                      arguments: {
+                        'roomId': room['id'],
+                        'chatName': room['name'],
+                        'chatAvatar': room['avatar'],
+                        'otherUserId': room['otherUserId'],
+                        'isGuardian': room['isGuardian'] as bool? ?? false,
+                      },
+                    );
+                  },
+                  child: ChatListTile(
+                    room: room,
+                    isHidden: isHidden,
+                    onTap: () {
                       Navigator.pushNamed(
                         context,
-                        AppRoutes.contactSettings,
+                        AppRoutes.chat,
                         arguments: {
-                          'roomId': room['id'],
+                          'chatId': room['id'],
                           'chatName': room['name'],
                           'chatAvatar': room['avatar'],
-                          'otherUserId': room['otherUserId'],
+                          'chatAvatarUrl': room['avatarUrl'] as String?,
                           'isGuardian': room['isGuardian'] as bool? ?? false,
+                          'otherUserId': room['otherUserId'] as String?,
                         },
                       );
                     },
-                    child: ChatListTile(
-                      room: room,
-                      isHidden: isHidden,
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.chat,
-                          arguments: {
-                            'chatId': room['id'],
-                            'chatName': room['name'],
-                            'chatAvatar': room['avatar'],
-                            'chatAvatarUrl': room['avatarUrl'] as String?,
-                            'isGuardian': room['isGuardian'] as bool? ?? false,
-                            'otherUserId': room['otherUserId'] as String?,
-                          },
-                        );
-                      },
-                      onMute: () => _handleMuteRoom(room),
-                      onDelete: () => _confirmDeleteRoom(room),
-                      onArchive: () => _handleArchiveRoom(room),
-                      onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
-                        context,
-                        ref,
-                        roomId: roomId,
-                        chatName: room['name'] as String? ?? 'Obrolan',
-                      ),
+                    onMute: () => _handleMuteRoom(room),
+                    onDelete: () => _confirmDeleteRoom(room),
+                    onArchive: () => _handleArchiveRoom(room),
+                    onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                      context,
+                      ref,
+                      roomId: roomId,
+                      chatName: room['name'] as String? ?? 'Obrolan',
                     ),
                   ),
                 );
@@ -942,47 +938,45 @@ class _EmptyChats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedAppear(
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 110),
-        children: [
-          const SizedBox(height: 80),
-          Center(
-            child: Column(
-              children: [
-                MikaAnimated(
-                  pose: MikaPose.sleep,
-                  size: 120,
-                  semanticLabel: 'Mika menyapa dari layar kosong',
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 110),
+      children: [
+        const SizedBox(height: 80),
+        Center(
+          child: Column(
+            children: [
+              MikaAnimated(
+                pose: MikaPose.sleep,
+                size: 120,
+                semanticLabel: 'Mika menyapa dari layar kosong',
+              ),
+              const SizedBox(height: MekaarSpacing.xl),
+              Text(title, style: MekaarTypography.headingMD),
+              const SizedBox(height: MekaarSpacing.sm),
+              Padding(
+                padding: MekaarSpacing.screen,
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: MekaarTypography.bodyMD,
                 ),
+              ),
+              if (showStartButton) ...[
                 const SizedBox(height: MekaarSpacing.xl),
-                Text(title, style: MekaarTypography.headingMD),
-                const SizedBox(height: MekaarSpacing.sm),
-                Padding(
-                  padding: MekaarSpacing.screen,
-                  child: Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: MekaarTypography.bodyMD,
+                ElevatedButton.icon(
+                  onPressed: onStart,
+                  icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
+                  label: const Text('Mulai obrolan'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
-                if (showStartButton) ...[
-                  const SizedBox(height: MekaarSpacing.xl),
-                  ElevatedButton.icon(
-                    onPressed: onStart,
-                    icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
-                    label: const Text('Mulai obrolan'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
