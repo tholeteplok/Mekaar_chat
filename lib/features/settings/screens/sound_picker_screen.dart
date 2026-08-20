@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -212,9 +213,9 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                   message: 'Sedang mengambil pengaturan nada & suara Anda...',
                 ),
                 error: (err, _) => MekaarStateView(
-                  pose: MikaPose.neutral,
+                  pose: MikaPose.huft,
                   title: 'Gagal Memuat Pengaturan',
-                  message: err.toString(),
+                  message: ErrorResolver.resolve(err),
                   actionLabel: 'Coba Lagi',
                   onAction: () =>
                       ref.invalidate(notificationPreferencesProvider),

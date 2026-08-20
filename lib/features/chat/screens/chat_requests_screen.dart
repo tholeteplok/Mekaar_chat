@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -67,7 +68,7 @@ class ChatRequestsScreen extends ConsumerWidget {
               MekaarStateView(
                 pose: MikaPose.huft,
                 title: 'Gagal Memuat Permintaan',
-                message: 'Terjadi kesalahan: $err',
+                message: ErrorResolver.resolve(err),
                 actionLabel: 'Coba Lagi',
                 onAction: () => ref.invalidate(incomingRequestsProvider),
               ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -146,9 +147,9 @@ class BlockedListScreen extends ConsumerWidget {
                   message: 'Sedang mengambil daftar pengguna yang Anda blokir...',
                 ),
                 error: (err, _) => MekaarStateView(
-                  pose: MikaPose.neutral,
+                  pose: MikaPose.huft,
                   title: 'Gagal Memuat Daftar Blokir',
-                  message: err.toString(),
+                  message: ErrorResolver.resolve(err),
                   actionLabel: 'Coba Lagi',
                   onAction: () => ref.invalidate(blockProvider),
                 ),

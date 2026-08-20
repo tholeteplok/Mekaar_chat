@@ -7,6 +7,7 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -269,7 +270,7 @@ class _CreateGroupSelectMembersScreenState
               error: (err, stack) => MekaarStateView(
                 pose: MikaPose.huft,
                 title: 'Gagal Memuat Kontak',
-                message: 'Tidak dapat mengambil daftar kontak.',
+                message: ErrorResolver.resolve(err),
                 actionLabel: 'Coba Lagi',
                 onAction: () => ref.invalidate(contactsProvider),
               ),

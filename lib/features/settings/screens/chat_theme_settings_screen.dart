@@ -6,6 +6,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -58,9 +59,9 @@ class _ChatThemeSettingsScreenState
             message: 'Sedang mengambil pengaturan tema & wallpaper Anda...',
           ),
           error: (err, _) => MekaarStateView(
-            pose: MikaPose.neutral,
+            pose: MikaPose.huft,
             title: 'Gagal Memuat Tema Chat',
-            message: err.toString(),
+            message: ErrorResolver.resolve(err),
             actionLabel: 'Coba Lagi',
             onAction: () => ref.invalidate(chatThemeProvider),
           ),

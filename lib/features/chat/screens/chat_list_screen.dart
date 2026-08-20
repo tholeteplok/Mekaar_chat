@@ -8,11 +8,13 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_live_safety_pill.dart';
@@ -709,9 +711,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   data: (rooms) => _buildChatList(wasDuress ? [] : rooms),
                   loading: () => const ChatListSkeleton(),
                   error: (err, stack) => Center(
-                    child: Text(
-                      'Gagal memuat chat: $err',
-                      style: MekaarTypography.bodyMD,
+                    child: MekaarStateView(
+                      pose: MikaPose.huft,
+                      title: 'Gagal Memuat Chat',
+                      message: ErrorResolver.resolve(err),
+                      actionLabel: 'Coba Lagi',
+                      onAction: () =>
+                          ref.read(chatRoomsProvider.notifier).refreshRooms(),
+                      icon: SolarIconsOutline.refresh,
                     ),
                   ),
                 ),

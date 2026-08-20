@@ -1,6 +1,5 @@
--- 70_push_config_table.sql
--- Ganti sumber konfigurasi push dari GUC (`app.settings.*`) ke tabel
--- `public.app_config`.
+-- 70_update_notify_push_webhook.sql
+-- Ganti sumber konfigurasi push dari GUC (`app.settings.*`) ke tabel `public.app_config`.
 --
 -- Kenapa: di Supabase hosted, `ALTER DATABASE postgres SET app.settings.*`
 -- gagal dengan 42501 (postgres bukan superuser). GUC hanya bisa di-set per
@@ -13,7 +12,7 @@ CREATE OR REPLACE FUNCTION public.notify_push_webhook()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   webhook_url text;
@@ -65,12 +64,12 @@ BEGIN
     timeout_milliseconds := 5000
   ) INTO request_id;
 
-  -- Log untuk debugging (opsional, bisa dihapus di production)
+  -- Log untuk debugging
   RAISE NOTICE 'Push webhook sent: request_id=%, table=%', request_id, TG_TABLE_NAME;
 
   RETURN NEW;
 END;
 $$;
 
--- Trigger tetap terpasang pada fungsi yang sama (definisi fungsi diperbarui).
+-- Pastikan service_role memiliki hak eksekusi
 GRANT EXECUTE ON FUNCTION public.notify_push_webhook() TO service_role;

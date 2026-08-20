@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -148,9 +149,9 @@ class TripListScreen extends ConsumerWidget {
           layout: MekaarStateLayout.centered,
         ),
         error: (err, _) => MekaarStateView(
-          pose: MikaPose.neutral,
+          pose: MikaPose.huft,
           title: 'Gagal Memuat Rute',
-          message: err.toString(),
+          message: ErrorResolver.resolve(err),
           actionLabel: 'Coba Lagi',
           onAction: () => ref.invalidate(userTripsProvider),
         ),
