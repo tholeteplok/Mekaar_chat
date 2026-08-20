@@ -101,6 +101,35 @@ interface CallRecord {
   created_at: string;
 }
 
+// ── Helper: deteksi & bersihkan FCM token yang sudah tidak valid ──────────
+// Token invalid (app di-uninstall / token di-revoke) akan terus gagal terkirim
+// selamanya kalau tidak dibersihkan. Saat terdeteksi, kita kosongkan
+// profiles.fcm_token supaya kegagalan permanen tidak menutupi kegagalan baru
+// yang perlu diperhatikan.
+
+function isInvalidTokenError(e: unknown): boolean {
+  const code = (e as { code?: string })?.code;
+  return typeof code === "string" &&
+    (code === "messaging/registration-token-not-registered" ||
+      code === "messaging/invalid-registration-token" ||
+      code === "messaging/registration-token-not-found");
+}
+
+async function clearFcmToken(
+  supabaseClient: ReturnType<typeof createClient>,
+  profileId: string,
+): Promise<void> {
+  try {
+    await supabaseClient
+      .from("profiles")
+      .update({ fcm_token: null })
+      .eq("id", profileId);
+    console.warn(`FCM token untuk user ${profileId} dibersihkan (invalid).`);
+  } catch (e) {
+    console.warn(`Gagal membersihkan FCM token user ${profileId}:`, String(e));
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -239,12 +268,15 @@ Deno.serve(async (req: Request) => {
                 },
               },
             },
-          }).catch((e: unknown) => {
+          }).catch(async (e: unknown) => {
             // Token tidak valid, log tapi jangan crash
             console.warn(
               `FCM send failed for token (user ${p.profile_id}):`,
               String(e),
             );
+            if (isInvalidTokenError(e)) {
+              await clearFcmToken(supabaseClient, p.profile_id);
+            }
             return null;
           }),
         );
@@ -298,27 +330,39 @@ Deno.serve(async (req: Request) => {
         call.call_type === "video" ? "Panggilan video masuk" : "Panggilan masuk";
 
       const messaging = getMessaging(getFirebaseApp());
-      await messaging.send({
-        token: receiverProfile.fcm_token,
-        data: {
-          type: "call",
-          roomId: call.room_id,
-          title: callLabel,
-          body: callerName,
-          callerName,
-          callType: call.call_type,
-        },
-        android: {
-          priority: "high",
-        },
-        apns: {
-          payload: {
-            aps: {
-              "content-available": 1,
+      try {
+        await messaging.send({
+          token: receiverProfile.fcm_token,
+          data: {
+            type: "call",
+            roomId: call.room_id,
+            callId: call.id,
+            callerId: call.caller_id,
+            title: callLabel,
+            body: callerName,
+            callerName,
+            callType: call.call_type,
+          },
+          android: {
+            priority: "high",
+          },
+          apns: {
+            payload: {
+              aps: {
+                "content-available": 1,
+              },
             },
           },
-        },
-      });
+        });
+      } catch (e) {
+        console.warn(
+          `FCM call send failed (receiver ${call.receiver_id}):`,
+          String(e),
+        );
+        if (isInvalidTokenError(e)) {
+          await clearFcmToken(supabaseClient, call.receiver_id);
+        }
+      }
 
       return new Response(
         JSON.stringify({ ok: true, sent: 1, type: "call" }),
@@ -387,6 +431,7 @@ Deno.serve(async (req: Request) => {
             data: {
               type: "sos",
               sessionId: sessionId,
+              userId: userId,
               title: `🆘 DARURAT — ${victimName}`,
               body: message ?? "Butuh bantuan segera! Tap untuk melihat lokasi.",
               victimName: victimName,
@@ -402,8 +447,11 @@ Deno.serve(async (req: Request) => {
                 },
               },
             },
-          }).catch((e: unknown) => {
+          }).catch(async (e: unknown) => {
             console.warn(`FCM SOS send failed for guardian ${rel.guardian_id}:`, String(e));
+            if (isInvalidTokenError(e)) {
+              await clearFcmToken(supabaseClient, rel.guardian_id);
+            }
             return null;
           }),
         );

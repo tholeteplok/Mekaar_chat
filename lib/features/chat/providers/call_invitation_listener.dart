@@ -73,7 +73,10 @@ class CallInvitationListener {
     await NotificationService.showIncomingCallNotification(
       callerName: callerName,
       callType: callType,
-      payload: roomId,
+      roomId: roomId,
+      callId: callId,
+      callerId: callerId,
+      callerAvatarUrl: callerAvatarUrl,
     );
 
     // Buka layar panggilan masuk jika context tersedia

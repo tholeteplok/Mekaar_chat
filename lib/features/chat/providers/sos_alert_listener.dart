@@ -87,7 +87,12 @@ class SOSAlertListener {
     await NotificationService.showLocalSOSNotification(
       title: '🆘 DARURAT — $victimName',
       body: 'Butuh bantuan segera! Tap untuk melihat lokasi.',
-      data: {'role': 'guardian', 'sessionId': sessionId},
+      data: {
+        'role': 'guardian',
+        'sessionId': sessionId,
+        'userId': userId,
+        'victimName': victimName,
+      },
     );
   }
 

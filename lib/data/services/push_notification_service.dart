@@ -33,19 +33,36 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       await NotificationService.showIncomingCallNotification(
         callerName: callerName,
         callType: callType,
-        payload: roomId,
+        route: NotificationRoute(
+          type: NotificationRouteType.call,
+          roomId: data['roomId'] as String?,
+          callId: data['callId'] as String?,
+          callerId: data['callerId'] as String?,
+          callerName: callerName,
+          callType: callType,
+        ),
       );
     } else if (type == 'sos') {
       await NotificationService.showLocalSOSNotification(
         title: title,
         body: body,
         data: data,
+        route: NotificationRoute(
+          type: NotificationRouteType.sos,
+          sessionId: data['sessionId'] as String?,
+          userId: data['userId'] as String?,
+          userName: data['victimName'] as String?,
+        ),
       );
     } else {
       await NotificationService.showMessageNotification(
         title: title,
         body: body,
         roomId: roomId,
+        route: NotificationRoute(
+          type: NotificationRouteType.message,
+          roomId: roomId,
+        ),
       );
     }
   } catch (e) {
@@ -58,7 +75,7 @@ class PushNotificationService {
   static FirebaseMessaging? _messaging;
 
   static Future<void> initialize({
-    required Function(String roomId) onNotificationClick,
+    required Function(NotificationRoute route) onNotificationClick,
   }) async {
     // FCM Push notifications hanya didukung di Android & iOS secara native
     if (kIsWeb ||
@@ -136,37 +153,54 @@ class PushNotificationService {
           NotificationService.showIncomingCallNotification(
             callerName: callerName,
             callType: callType,
-            payload: roomId,
+            route: NotificationRoute(
+              type: NotificationRouteType.call,
+              roomId: data['roomId'] as String?,
+              callId: data['callId'] as String?,
+              callerId: data['callerId'] as String?,
+              callerName: callerName,
+              callType: callType,
+            ),
           );
         } else if (type == 'sos') {
           NotificationService.showLocalSOSNotification(
             title: title,
             body: body,
             data: data,
+            route: NotificationRoute(
+              type: NotificationRouteType.sos,
+              sessionId: data['sessionId'] as String?,
+              userId: data['userId'] as String?,
+              userName: data['victimName'] as String?,
+            ),
           );
         } else {
           NotificationService.showMessageNotification(
             title: title,
             body: body,
             roomId: roomId,
+            route: NotificationRoute(
+              type: NotificationRouteType.message,
+              roomId: roomId,
+            ),
           );
         }
       });
 
       // Penanganan saat notifikasi diketuk (aplikasi terbuka dari background)
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        final roomId = message.data['roomId'] as String?;
-        if (roomId != null && roomId.isNotEmpty) {
-          onNotificationClick(roomId);
+        final route = _routeFromMessage(message);
+        if (_routeHasTarget(route)) {
+          onNotificationClick(route);
         }
       });
 
       // Penanganan saat notifikasi diketuk (aplikasi terbuka dari mati/terminated)
       final initialMessage = await _messaging?.getInitialMessage();
       if (initialMessage != null) {
-        final roomId = initialMessage.data['roomId'] as String?;
-        if (roomId != null && roomId.isNotEmpty) {
-          onNotificationClick(roomId);
+        final route = _routeFromMessage(initialMessage);
+        if (_routeHasTarget(route)) {
+          onNotificationClick(route);
         }
       }
     } catch (e) {
@@ -183,6 +217,49 @@ class PushNotificationService {
       }
     } catch (e) {
       _logger.w('Gagal menyimpan token FCM ke Supabase: $e');
+    }
+  }
+
+  /// Bangun [NotificationRoute] dari data FCM untuk navigasi tap notifikasi.
+  static NotificationRoute _routeFromMessage(RemoteMessage message) {
+    final data = message.data;
+    final type = data['type'] as String? ?? 'message';
+    switch (type) {
+      case 'call':
+        return NotificationRoute(
+          type: NotificationRouteType.call,
+          roomId: data['roomId'] as String?,
+          callId: data['callId'] as String?,
+          callerId: data['callerId'] as String?,
+          callerName: data['callerName'] as String?,
+          callerAvatarUrl: data['callerAvatarUrl'] as String?,
+          callType: data['callType'] as String?,
+        );
+      case 'sos':
+        return NotificationRoute(
+          type: NotificationRouteType.sos,
+          sessionId: data['sessionId'] as String?,
+          userId: data['userId'] as String?,
+          userName: data['victimName'] as String?,
+        );
+      default:
+        return NotificationRoute(
+          type: NotificationRouteType.message,
+          roomId: data['roomId'] as String?,
+        );
+    }
+  }
+
+  static bool _routeHasTarget(NotificationRoute route) {
+    switch (route.type) {
+      case NotificationRouteType.message:
+        return route.roomId != null && route.roomId!.isNotEmpty;
+      case NotificationRouteType.call:
+        return route.callId != null &&
+            route.roomId != null &&
+            route.callerId != null;
+      case NotificationRouteType.sos:
+        return route.sessionId != null && route.sessionId!.isNotEmpty;
     }
   }
 

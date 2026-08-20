@@ -10,6 +10,7 @@ import 'package:mekaar_chat/data/services/supabase_service.dart';
 import 'package:mekaar_chat/data/services/notification_service.dart';
 import 'package:mekaar_chat/data/services/push_notification_service.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
+import 'package:mekaar_chat/features/chat/screens/incoming_call_screen.dart';
 import 'package:mekaar_chat/data/repositories/trip_repository.dart';
 import 'package:mekaar_chat/data/services/deep_link_service.dart';
 import 'app.dart';
@@ -83,16 +84,7 @@ Future<void> _initializeSecondaryServices() async {
     });
 
     await NotificationService.initialize(
-      onNotificationTap: (roomId) {
-        final context = AppNavigator.currentContext;
-        if (context != null && context.mounted) {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.chat,
-            arguments: {'chatId': roomId},
-          );
-        }
-      },
+      onNotificationTap: _handleNotificationRoute,
       onTripNotificationTap: (tripId) {
         final context = AppNavigator.currentContext;
         if (context != null && context.mounted) {
@@ -122,19 +114,65 @@ Future<void> _initializeSecondaryServices() async {
     await NotificationService.handleAppLaunchNotification();
 
     await PushNotificationService.initialize(
-      onNotificationClick: (roomId) {
-        final context = AppNavigator.currentContext;
-        if (context != null && context.mounted) {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.chat,
-            arguments: {'chatId': roomId},
-          );
-        }
-      },
+      onNotificationClick: _handleNotificationRoute,
     );
   } catch (e) {
     logger.w('Notifikasi initialization non-fatal error: $e');
+  }
+}
+
+/// Pusat navigasi untuk semua jenis tap notifikasi (local maupun FCM).
+///
+/// `message` → buka chat room; `call` → buka layar panggilan masuk;
+/// `sos` → buka viewer SOS guardian (bukan SOSActiveScreen sisi korban).
+void _handleNotificationRoute(NotificationRoute route) {
+  final context = AppNavigator.currentContext;
+  if (context == null || !context.mounted) return;
+
+  switch (route.type) {
+    case NotificationRouteType.message:
+      final roomId = route.roomId;
+      if (roomId == null || roomId.isEmpty) return;
+      Navigator.pushNamed(
+        context,
+        AppRoutes.chat,
+        arguments: {
+          'chatId': roomId,
+          'chatName': route.chatName,
+          'chatAvatarUrl': route.chatAvatarUrl,
+          'isGuardian': route.isGuardian,
+          'otherUserId': route.otherUserId,
+        },
+      );
+    case NotificationRouteType.call:
+      final callId = route.callId;
+      final roomId = route.roomId;
+      final callerId = route.callerId;
+      if (callId == null || roomId == null || callerId == null) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => IncomingCallScreen(
+            callId: callId,
+            roomId: roomId,
+            callerId: callerId,
+            callerName: route.callerName ?? 'Seseorang',
+            callerAvatarUrl: route.callerAvatarUrl,
+            callType: route.callType ?? 'voice',
+          ),
+        ),
+      );
+    case NotificationRouteType.sos:
+      final sessionId = route.sessionId;
+      if (sessionId == null || sessionId.isEmpty) return;
+      Navigator.pushNamed(
+        context,
+        AppRoutes.sosViewer,
+        arguments: {
+          'sessionId': sessionId,
+          'userId': route.userId,
+          'userName': route.userName ?? 'Korban',
+        },
+      );
   }
 }
 

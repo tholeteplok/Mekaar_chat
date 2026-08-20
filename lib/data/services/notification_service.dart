@@ -1,8 +1,111 @@
+import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import '../services/supabase_service.dart';
 import 'alarm_service.dart';
 import '../../core/services/haptic_service.dart';
+
+/// Jenis navigasi yang dihasilkan dari tap notifikasi.
+enum NotificationRouteType { message, call, sos }
+
+/// Payload terstruktur untuk navigasi saat notifikasi diketuk.
+///
+/// Dikodekan sebagai JSON di field `payload` local notification maupun data
+/// FCM sehingga tap selalu membuka layar yang tepat (chat, panggilan masuk,
+/// atau viewer SOS) — bukan hanya membaca roomId.
+class NotificationRoute {
+  final NotificationRouteType type;
+
+  // Message
+  final String? roomId;
+  final String? chatName;
+  final String? chatAvatarUrl;
+  final bool isGuardian;
+  final String? otherUserId;
+
+  // Call
+  final String? callId;
+  final String? callerId;
+  final String? callerName;
+  final String? callerAvatarUrl;
+  final String? callType;
+
+  // SOS
+  final String? sessionId;
+  final String? userId;
+  final String? userName;
+
+  const NotificationRoute({
+    required this.type,
+    this.roomId,
+    this.chatName,
+    this.chatAvatarUrl,
+    this.isGuardian = false,
+    this.otherUserId,
+    this.callId,
+    this.callerId,
+    this.callerName,
+    this.callerAvatarUrl,
+    this.callType,
+    this.sessionId,
+    this.userId,
+    this.userName,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'type': type.name,
+        'roomId': roomId,
+        'chatName': chatName,
+        'chatAvatarUrl': chatAvatarUrl,
+        'isGuardian': isGuardian,
+        'otherUserId': otherUserId,
+        'callId': callId,
+        'callerId': callerId,
+        'callerName': callerName,
+        'callerAvatarUrl': callerAvatarUrl,
+        'callType': callType,
+        'sessionId': sessionId,
+        'userId': userId,
+        'userName': userName,
+      };
+
+  String encodePayload() => jsonEncode(toJson());
+
+  static NotificationRoute? fromPayload(String? payload) {
+    if (payload == null || payload.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) return null;
+      final typeName = decoded['type'] as String?;
+      NotificationRouteType? type;
+      for (final t in NotificationRouteType.values) {
+        if (t.name == typeName) {
+          type = t;
+          break;
+        }
+      }
+      if (type == null) return null;
+      return NotificationRoute(
+        type: type,
+        roomId: decoded['roomId'] as String?,
+        chatName: decoded['chatName'] as String?,
+        chatAvatarUrl: decoded['chatAvatarUrl'] as String?,
+        isGuardian: decoded['isGuardian'] == true,
+        otherUserId: decoded['otherUserId'] as String?,
+        callId: decoded['callId'] as String?,
+        callerId: decoded['callerId'] as String?,
+        callerName: decoded['callerName'] as String?,
+        callerAvatarUrl: decoded['callerAvatarUrl'] as String?,
+        callType: decoded['callType'] as String?,
+        sessionId: decoded['sessionId'] as String?,
+        userId: decoded['userId'] as String?,
+        userName: decoded['userName'] as String?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
 
 class NotificationService {
   static const int incomingCallNotificationId = 7001;
@@ -14,8 +117,9 @@ class NotificationService {
   // disamarkan (teks benign) agar pelaku tidak curiga. Default aktif.
   static bool maskingEnabled = true;
 
-  /// Callback untuk navigasi saat user mengetuk local notification pesan chat.
-  static Function(String roomId)? _onNotificationTap;
+  /// Callback untuk navigasi saat user mengetuk local notification.
+  /// Menerima [NotificationRoute] terstruktur (message/call/sos).
+  static Function(NotificationRoute route)? _onNotificationTap;
 
   /// Callback navigasi khusus notifikasi konfirmasi kedatangan Auto
   /// Check-In (buka TripArrivalConfirmScreen).
@@ -30,7 +134,7 @@ class NotificationService {
   static const String _tripPayloadPrefix = 'trip:';
 
   static Future<void> initialize({
-    Function(String roomId)? onNotificationTap,
+    Function(NotificationRoute route)? onNotificationTap,
     Function(String tripId)? onTripNotificationTap,
     Function(String tripId, {required bool arrived, int? snoozeMinutes})?
         onTripAction,
@@ -81,13 +185,26 @@ class NotificationService {
     }
 
     _logger.i("Local notification tapped, roomId: $payload");
-    _onNotificationTap?.call(payload);
+
+    // Coba decode payload terstruktur terlebih dahulu.
+    final route = NotificationRoute.fromPayload(payload);
+    if (route != null) {
+      _logger.i("Local notification tapped → ${route.type}");
+      _onNotificationTap?.call(route);
+      return;
+    }
+
+    // Fallback legacy: payload adalah roomId pesan chat.
+    _onNotificationTap?.call(
+      NotificationRoute(type: NotificationRouteType.message, roomId: payload),
+    );
   }
 
   static Future<void> showMessageNotification({
     required String title,
     required String body,
     String? roomId,
+    NotificationRoute? route,
   }) async {
     AlarmService.playMessageSound();
     await HapticService.trigger(MekaarHapticIntent.success);
@@ -108,7 +225,12 @@ class NotificationService {
       title,
       body,
       details,
-      payload: roomId,
+      payload: (route ??
+              NotificationRoute(
+                type: NotificationRouteType.message,
+                roomId: roomId,
+              ))
+          .encodePayload(),
     );
   }
 
@@ -168,7 +290,11 @@ class NotificationService {
   static Future<void> showIncomingCallNotification({
     required String callerName,
     required String callType,
-    String? payload,
+    String? roomId,
+    String? callId,
+    String? callerId,
+    String? callerAvatarUrl,
+    NotificationRoute? route,
   }) async {
     await AlarmService.startCallRingtone();
     const details = NotificationDetails(
@@ -191,7 +317,17 @@ class NotificationService {
       callType == 'video' ? 'Panggilan video masuk' : 'Panggilan masuk',
       callerName,
       details,
-      payload: payload,
+      payload: (route ??
+              NotificationRoute(
+                type: NotificationRouteType.call,
+                roomId: roomId,
+                callId: callId,
+                callerId: callerId,
+                callerName: callerName,
+                callerAvatarUrl: callerAvatarUrl,
+                callType: callType,
+              ))
+          .encodePayload(),
     );
   }
 
@@ -204,6 +340,7 @@ class NotificationService {
     required String title,
     required String body,
     Map<String, dynamic>? data,
+    NotificationRoute? route,
   }) async {
     final isMasked = maskingEnabled;
     final isVictim = data != null && data['role'] == 'victim';
@@ -235,6 +372,14 @@ class NotificationService {
       title,
       body,
       details,
+      payload: (route ??
+              NotificationRoute(
+                type: NotificationRouteType.sos,
+                sessionId: data?['sessionId'] as String?,
+                userId: data?['userId'] as String?,
+                userName: (data?['victimName'] ?? data?['userName']) as String?,
+              ))
+          .encodePayload(),
     );
   }
 

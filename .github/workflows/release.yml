@@ -131,7 +131,8 @@ jobs:
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             printf '%s\n' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
           else
-            echo '{"project_info":{"project_number":"100000000000","project_id":"mekaar-chat-app","storage_bucket":"mekaar-chat-app.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:100000000000:android:0123456789abcdef012345","android_client_info":{"package_name":"com.mekaar.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyDummyReleaseApiKeyForBuildOnly123"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > android/app/google-services.json
+            echo "::error ::GOOGLE_SERVICES_JSON secret not set. Firebase Messaging tidak akan berfungsi tanpa google-services.json yang valid. Build release dihentikan — set secret GOOGLE_SERVICES_JSON di repository settings."
+            exit 1
           fi
           python3 -m json.tool android/app/google-services.json > /dev/null
 

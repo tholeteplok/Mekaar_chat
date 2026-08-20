@@ -15,6 +15,7 @@ import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/sos_viewer_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/qr_invite_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/qr_scan_screen.dart';
 import 'package:mekaar_chat/data/models/guardian_model.dart';
@@ -124,6 +125,7 @@ class AppRoutes {
   static const String forgotPassword = '/auth/forgot-password';
   static const String newPassword = '/auth/new-password';
   static const String sosActive = '/sos/active';
+  static const String sosViewer = '/sos/viewer';
   static const String sosVideo = '/sos/video';
   static const String deviceLost = '/sos/lost';
   static const String deviceLostLock = '/sos/lost/lock';
@@ -288,6 +290,16 @@ class AppRoutes {
 
       case AppRoutes.sosActive:
         return MekaarPageRoute(builder: (_) => const SOSActiveScreen());
+
+      case AppRoutes.sosViewer:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MekaarPageRoute(
+          builder: (_) => SOSViewerScreen(
+            sessionId: args['sessionId'] as String? ?? '',
+            userId: args['userId'] as String?,
+            userName: args['userName'] as String?,
+          ),
+        );
 
       case AppRoutes.sosVideo:
         return MekaarPageRoute(builder: (_) => const VideoEmergencyScreen());
