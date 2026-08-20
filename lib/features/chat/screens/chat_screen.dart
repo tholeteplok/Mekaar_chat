@@ -383,7 +383,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             _textController.text = originalText;
             _editingMessage = originalMsg;
           });
-          MekaarSnackbar.error(context, 'Gagal menyimpan pesan: $e');
+          MekaarSnackbar.error(
+            context,
+            'Gagal menyimpan pesan: ${ErrorResolver.resolve(e)}',
+          );
         }
       }
       return;
@@ -420,7 +423,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
           _replyMessage = replyToMessage;
           _isViewOnce = isViewOnceToSend;
         });
-        MekaarSnackbar.error(context, 'Gagal mengirim pesan: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal mengirim pesan: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }
@@ -470,7 +476,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         } catch (_) {}
       }
       if (mounted) {
-        MekaarSnackbar.error(context, 'Gagal mengirim media: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal mengirim media: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }
@@ -507,7 +516,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        MekaarSnackbar.error(context, 'Gagal mendapatkan lokasi: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal mendapatkan lokasi: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }
@@ -522,7 +534,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       }
     } catch (e) {
       if (mounted) {
-        MekaarSnackbar.error(context, 'Gagal membagikan lokasi live: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal membagikan lokasi live: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }
@@ -620,7 +635,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                           .forwardMessage(msg, room['id'] as String);
                     } catch (e) {
                       if (ctx.mounted) {
-                        MekaarSnackbar.error(ctx, 'Gagal meneruskan pesan: $e');
+                        MekaarSnackbar.error(
+                          ctx,
+                          'Gagal meneruskan pesan: ${ErrorResolver.resolve(e)}',
+                        );
                       }
                       return;
                     }
@@ -884,7 +902,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     } catch (e) {
       if (mounted) {
         setState(() => _burnOnExit = prevValue);
-        MekaarSnackbar.error(context, 'Gagal menyimpan setelan Hapus Saat Keluar: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal menyimpan setelan Hapus Saat Keluar: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }

@@ -49,6 +49,9 @@ class MikaAnimated extends StatefulWidget {
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.reaction,
+    this.isDarkOverride,
+    this.customOffset,
+    this.customScale,
   });
 
   final MikaPose pose;
@@ -58,6 +61,9 @@ class MikaAnimated extends StatefulWidget {
   final BoxFit fit;
   final Alignment alignment;
   final MikaReaction? reaction;
+  final bool? isDarkOverride;
+  final Offset? customOffset;
+  final double? customScale;
 
   @override
   State<MikaAnimated> createState() => MikaAnimatedState();
@@ -156,18 +162,35 @@ class MikaAnimatedState extends State<MikaAnimated>
 
   @override
   Widget build(BuildContext context) {
-    final image = SizedBox(
+    final spec = widget.pose.spec;
+    final finalOffset = widget.customOffset ?? spec.offset;
+    final finalScale = widget.customScale ?? spec.scale;
+
+    Widget image = SizedBox(
       width: widget.size,
       height: widget.size,
       child: Image.asset(
-        widget.pose.assetPath,
+        widget.pose.resolveAssetPath(
+          context,
+          isDarkOverride: widget.isDarkOverride,
+        ),
         fit: widget.fit,
         alignment: widget.alignment,
         excludeFromSemantics: widget.semanticLabel == null,
-        semanticLabel: widget.semanticLabel,
+        semanticLabel: widget.semanticLabel ?? spec.semanticDescription,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
+
+    if (finalOffset != Offset.zero || finalScale != 1.0) {
+      image = Transform.translate(
+        offset: finalOffset,
+        child: Transform.scale(
+          scale: finalScale,
+          child: image,
+        ),
+      );
+    }
 
     if (MediaQuery.disableAnimationsOf(context)) return image;
 

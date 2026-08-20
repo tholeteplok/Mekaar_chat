@@ -19,6 +19,7 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
+import '../../../core/utils/error_resolver.dart';
 
 class ChatComposer extends StatefulWidget {
   final TextEditingController controller;
@@ -498,7 +499,10 @@ class _ChatComposerState extends State<ChatComposer> {
       await widget.onSendMedia!(tempFile, MessageType.image);
     } catch (e) {
       if (mounted) {
-        MekaarSnackbar.error(context, 'Gagal mengirim stiker/GIF: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal mengirim stiker/GIF: ${ErrorResolver.resolve(e)}',
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);

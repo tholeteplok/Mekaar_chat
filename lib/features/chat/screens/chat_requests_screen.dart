@@ -252,7 +252,10 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
       MekaarSnackbar.success(context, 'Undangan chat disetujui!');
     } catch (e) {
       if (!mounted) return;
-      MekaarSnackbar.error(context, 'Gagal menyetujui: $e');
+      MekaarSnackbar.error(
+        context,
+        'Gagal menyetujui: ${ErrorResolver.resolve(e)}',
+      );
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -267,7 +270,10 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
       MekaarSnackbar.info(context, 'Undangan chat ditolak.');
     } catch (e) {
       if (!mounted) return;
-      MekaarSnackbar.error(context, 'Gagal menolak: $e');
+      MekaarSnackbar.error(
+        context,
+        'Gagal menolak: ${ErrorResolver.resolve(e)}',
+      );
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -285,7 +291,10 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
       MekaarSnackbar.warning(context, 'Undangan ditolak dan pengundang telah diblokir.');
     } catch (e) {
       if (!mounted) return;
-      MekaarSnackbar.error(context, 'Gagal memproses: $e');
+      MekaarSnackbar.error(
+        context,
+        'Gagal memproses: ${ErrorResolver.resolve(e)}',
+      );
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }

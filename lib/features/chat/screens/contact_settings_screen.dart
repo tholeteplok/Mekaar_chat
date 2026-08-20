@@ -9,6 +9,7 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/avatar.dart';
@@ -93,7 +94,10 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isMuted = previous);
-        MekaarSnackbar.error(context, 'Gagal menyimpan pengaturan mute: $e');
+        MekaarSnackbar.error(
+          context,
+          'Gagal menyimpan pengaturan mute: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }
@@ -114,7 +118,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
         setState(() => _disappearingOverrideHours = previous);
         MekaarSnackbar.error(
           context,
-          'Gagal menyimpan pengaturan pesan menghilang: $e',
+          'Gagal menyimpan pengaturan pesan menghilang: ${ErrorResolver.resolve(e)}',
         );
       }
     }
@@ -649,7 +653,10 @@ class _ReportUserDialogState extends ConsumerState<_ReportUserDialog> {
       );
     } catch (e) {
       if (!mounted) return;
-      MekaarSnackbar.error(context, 'Gagal mengirim laporan: $e');
+      MekaarSnackbar.error(
+        context,
+        'Gagal mengirim laporan: ${ErrorResolver.resolve(e)}',
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

@@ -20,6 +20,9 @@ class MekaarStateView extends StatelessWidget {
     this.semanticLabel,
     this.icon = SolarIconsOutline.refresh,
     this.reaction,
+    this.isDarkOverride,
+    this.customOffset,
+    this.customScale,
   });
 
   final MikaPose pose;
@@ -32,6 +35,9 @@ class MekaarStateView extends StatelessWidget {
   final String? semanticLabel;
   final IconData icon;
   final MikaReaction? reaction;
+  final bool? isDarkOverride;
+  final Offset? customOffset;
+  final double? customScale;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +75,9 @@ class MekaarStateView extends StatelessWidget {
       size: illustrationSize,
       semanticLabel: semanticLabel,
       reaction: reaction,
+      isDarkOverride: isDarkOverride,
+      customOffset: customOffset,
+      customScale: customScale,
     );
 
     if (isEdge) {

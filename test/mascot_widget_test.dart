@@ -23,7 +23,7 @@ void main() {
 
       final image = tester.widget<Image>(find.byType(Image));
       final provider = image.image as AssetImage;
-      expect(provider.assetName, 'assets/mascot/mika_hi.webp');
+      expect(provider.assetName, 'assets/mascot/mika_light/mika_0.png');
       expect(find.bySemanticsLabel('Mika menyapa'), findsOneWidget);
     });
 

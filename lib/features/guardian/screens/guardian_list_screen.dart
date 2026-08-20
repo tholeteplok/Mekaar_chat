@@ -12,6 +12,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -360,7 +361,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                             .accept(guardian.id);
                       } catch (e) {
                         if (mounted) {
-                          MekaarSnackbar.error(context, 'Gagal menerima undangan: $e');
+                          MekaarSnackbar.error(
+                            context,
+                            'Gagal menerima undangan: ${ErrorResolver.resolve(e)}',
+                          );
                         }
                       }
                     },
@@ -409,7 +413,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               }
             } catch (e) {
               if (mounted) {
-                MekaarSnackbar.error(context, 'Gagal memutus hubungan: $e');
+                MekaarSnackbar.error(
+                  context,
+                  'Gagal memutus hubungan: ${ErrorResolver.resolve(e)}',
+                );
               }
             }
           },

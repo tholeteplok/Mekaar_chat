@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../data/repositories/chat_request_repository.dart';
 
 class SendChatInviteDialog extends ConsumerStatefulWidget {
@@ -123,7 +124,10 @@ class _SendChatInviteDialogState extends ConsumerState<SendChatInviteDialog> {
       );
     } catch (e) {
       if (!mounted) return;
-      MekaarSnackbar.error(context, 'Gagal mengirim undangan: $e');
+      MekaarSnackbar.error(
+        context,
+        'Gagal mengirim undangan: ${ErrorResolver.resolve(e)}',
+      );
     } finally {
       if (mounted) setState(() => _isSending = false);
     }

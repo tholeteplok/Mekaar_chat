@@ -138,6 +138,8 @@ flutter:
 
   assets:
     - assets/mascot/
+    - assets/mascot/mika_light/
+    - assets/mascot/mika_dark/
     - assets/sounds/
     - assets/logo/
 

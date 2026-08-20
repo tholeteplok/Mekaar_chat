@@ -1,5 +1,6 @@
 -- 70_update_notify_push_webhook.sql
--- Ganti sumber konfigurasi push dari GUC (`app.settings.*`) ke tabel `public.app_config`.
+-- Ganti sumber konfigurasi push dari GUC (`app.settings.*`) ke tabel `public.app_config`
+-- dengan proteksi 100% fail-safe (tidak pernah membatalkan INSERT pesan/SOS jika webhook error).
 --
 -- Kenapa: di Supabase hosted, `ALTER DATABASE postgres SET app.settings.*`
 -- gagal dengan 42501 (postgres bukan superuser). GUC hanya bisa di-set per
@@ -33,15 +34,14 @@ BEGIN
     webhook_url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification';
   END IF;
 
-  -- Skip jika URL masih kosong (belum dikonfigurasi)
-  IF webhook_url IS NULL OR webhook_url = '' THEN
-    RAISE WARNING 'push_webhook_url belum dikonfigurasi, skip push notification';
+  -- Proteksi: Abaikan jika URL masih kosong atau masih berupa placeholder '<...>'
+  IF webhook_url IS NULL OR webhook_url = '' OR webhook_url LIKE '%<%>%' THEN
     RETURN NEW;
   END IF;
 
   -- anon_key untuk header apikey (opsional, Edge Function pakai service role).
   SELECT value INTO anon_key FROM public.app_config WHERE key = 'anon_key';
-  IF anon_key IS NULL OR anon_key = '' THEN
+  IF anon_key IS NULL OR anon_key = '' OR anon_key LIKE '%<%>%' THEN
     anon_key := current_setting('app.settings.anon_key', true);
   END IF;
 
@@ -53,19 +53,22 @@ BEGIN
     'record', row_to_json(NEW)::jsonb
   );
 
-  -- Kirim HTTP POST async via pg_net (non-blocking)
-  SELECT net.http_post(
-    url := webhook_url,
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'apikey', anon_key
-    ),
-    body := payload,
-    timeout_milliseconds := 5000
-  ) INTO request_id;
+  -- 4) Fail-Safe HTTP POST via pg_net (isolasi error agar tidak menggagalkan transaksi pesan/SOS)
+  BEGIN
+    SELECT net.http_post(
+      url := webhook_url,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'apikey', anon_key
+      ),
+      body := payload,
+      timeout_milliseconds := 5000
+    ) INTO request_id;
 
-  -- Log untuk debugging
-  RAISE NOTICE 'Push webhook sent: request_id=%, table=%', request_id, TG_TABLE_NAME;
+    RAISE NOTICE 'Push webhook sent: request_id=%, table=%', request_id, TG_TABLE_NAME;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Push webhook call failed (table: %, error: %)', TG_TABLE_NAME, SQLERRM;
+  END;
 
   RETURN NEW;
 END;
