@@ -8,12 +8,17 @@
 -- 1. Deploy Edge Function terlebih dahulu:
 --      supabase functions deploy send-push-notification
 --
--- 2. Set webhook URL di Supabase SQL Editor (ganti <project-ref>):
---      ALTER DATABASE postgres SET app.settings.push_webhook_url =
---        'https://<project-ref>.supabase.co/functions/v1/send-push-notification';
---      ALTER DATABASE postgres SET app.settings.anon_key = '<anon-key>';
+-- 2. Konfigurasi webhook di tabel public.app_config (migration 69-70).
+--    CATATAN: ALTER DATABASE SET app.settings.* TIDAK jalan di Supabase
+--    hosted (42501 permission denied — postgres bukan superuser).
+--    Simpan URL di app_config:
+--      INSERT INTO public.app_config (key, value) VALUES
+--        ('push_webhook_url', 'https://<project-ref>.supabase.co/functions/v1/send-push-notification'),
+--        ('anon_key', '<anon-key>')
+--        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 --
 -- 3. Jalankan migration ini di Supabase SQL Editor.
+--    (Definisi fungsi diperbarui oleh migration 70 agar membaca app_config.)
 
 BEGIN;
 
