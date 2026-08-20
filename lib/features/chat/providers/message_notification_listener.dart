@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/notification_service.dart';
@@ -9,14 +8,13 @@ import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
 import 'private_vault_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
-import 'call_invitation_listener.dart';
-import 'sos_alert_listener.dart';
-import '../../auth/providers/password_change_alert_listener.dart';
+import 'app_realtime_listener.dart';
 
 /// Listener terpusat untuk notifikasi pesan masuk (Opsi A dari Implementation Plan).
 ///
-/// Berlangganan ke Realtime `postgres_changes` pada tabel `messages` dengan
-/// `eventType: INSERT`. Untuk tiap baris:
+/// Handler untuk Realtime `postgres_changes` pada tabel `messages` dengan
+/// `eventType: INSERT` — channel dikelola bersama oleh [AppRealtimeListener]
+/// (satu channel global terpadu, bukan per-listener). Untuk tiap baris:
 ///   1. Abaikan jika pengirim adalah user sendiri (broadcast echo).
 ///   2. Abaikan jika user sedang membuka room tersebut (activeRoomIdProvider)
 ///      — UX: tidak perlu notif saat sedang melihat percakapan.
@@ -26,34 +24,13 @@ import '../../auth/providers/password_change_alert_listener.dart';
 /// (listener digerakkan oleh app lifecycle, bukan push server).
 class MessageNotificationListener {
   final Ref _ref;
-  final Logger _log = Logger();
-  RealtimeChannel? _channel;
   bool _disposed = false;
 
   MessageNotificationListener(this._ref);
 
-  void start() {
-    final supabaseService = _ref.read(supabaseServiceProvider);
-    final userId = supabaseService.currentUserId;
-    if (userId == null) {
-      _log.w('MessageNotificationListener: user belum login, skip.');
-      return;
-    }
-
-    _channel = supabaseService.client
-        .channel('public:messages:incoming')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'messages',
-          callback: _onInsert,
-        )
-        .subscribe();
-
-    _log.i('MessageNotificationListener: mulai berlangganan messages.');
-  }
-
-  void _onInsert(PostgresChangePayload payload) {
+  /// Dipanggil oleh [AppRealtimeListener] (channel global terpadu) saat ada
+  /// INSERT di tabel messages.
+  void handleInsert(PostgresChangePayload payload) {
     if (_disposed) return;
 
     final newRow = payload.newRecord;
@@ -209,8 +186,6 @@ class MessageNotificationListener {
 
   void dispose() {
     _disposed = true;
-    _channel?.unsubscribe();
-    _channel = null;
   }
 }
 
@@ -241,10 +216,9 @@ class _NotificationListenerHostState
     super.initState();
     // Pastikan tidak ada room "aktif" tersisa dari sesi sebelumnya.
     ref.read(activeRoomIdProvider.notifier).state = null;
-    ref.read(messageNotificationListenerProvider).start();
-    ref.read(callInvitationListenerProvider).start();
-    ref.read(sosAlertListenerProvider).start();
-    ref.read(passwordChangeAlertListenerProvider).start();
+    // Satu channel global terpadu untuk seluruh listener notifikasi DB
+    // (messages, calls, sos_sessions, profiles) — mengurangi kontensi subscribe.
+    ref.read(appRealtimeListenerProvider).start();
     ref.read(tripMonitorSchedulerProvider).start();
   }
 

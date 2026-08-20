@@ -12,6 +12,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/chat_date_separator.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -1014,6 +1015,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                   final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
                   final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
                   final messagesStream = ref.watch(chatMessagesProvider(widget.chatId));
+                  final reconnecting =
+                      ref.watch(chatReconnectingProvider(widget.chatId)).value ??
+                          false;
                   final protectionAsync = ref.watch(roomScreenProtectionProvider(widget.chatId));
                   final protection = protectionAsync.valueOrNull;
                   final forwardingProtectionAsync = ref.watch(roomForwardingProtectionProvider(widget.chatId));
@@ -1030,54 +1034,83 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                           label: protection?.statusLabel ?? 'Proteksi ruang aktif',
                         ),
                       Expanded(
-                        child: messagesStream.when(
-                          data: (messages) {
-                            if (messages.isEmpty) {
-                              return const MekaarStateView(
-                                pose: MikaPose.sleep,
-                                title: 'Belum Ada Pesan',
-                                message: 'Belum ada pesan. Kirim pesan pertama!',
-                              );
-                            }
+                        child: Column(
+                          children: [
+                            // Stale-while-revalidate: selama masih ada data
+                            // termuat, jangan collapse ke error view — tampilkan
+                            // badge tipis non-blocking saat menyambung ulang.
+                            if (messagesStream.hasValue && reconnecting)
+                              const ReconnectingBadge(),
+                            Expanded(
+                              child: Builder(
+                                builder: (context) {
+                                  switch (chatMessagesUiMode(messagesStream)) {
+                                    case ChatMessagesUiMode.data:
+                                      final messages = messagesStream.valueOrNull!;
+                                      if (messages.isEmpty) {
+                                        return const MekaarStateView(
+                                          pose: MikaPose.sleep,
+                                          title: 'Belum Ada Pesan',
+                                          message:
+                                              'Belum ada pesan. Kirim pesan pertama!',
+                                        );
+                                      }
 
-                            final reversed = messages.reversed.toList();
-                            final itemEntries = _buildItemEntries(reversed);
-                            final messageMap = {for (var m in messages) m.id: m};
+                                      final reversed = messages.reversed.toList();
+                                      final itemEntries = _buildItemEntries(
+                                        reversed,
+                                      );
+                                      final messageMap = {
+                                        for (var m in messages) m.id: m,
+                                      };
 
-                            return ListView.builder(
-                              controller: _scrollController,
-                              reverse: true,
-                              // Padding bawah memberi ruang untuk composer floating + inset keyboard
-                              padding: EdgeInsets.only(top: 8, bottom: 130 + keyboardHeight),
-                              itemCount: itemEntries.length,
-                              itemBuilder: (context, index) {
-                                return _buildLazyMessageItem(
-                                  itemEntries[index],
-                                  currentUserId,
-                                  actions,
-                                  messageMap,
-                                  forwardingProtection: forwardingProtection,
-                                  roomThemeSpec: roomThemeSpec,
-                                  showReadReceipts: readReceiptsEnabled,
-                                );
-                              },
-                            );
-                          },
-                          loading: () => const MekaarStateView(
-                            pose: MikaPose.neutral,
-                            title: 'Memuat',
-                            message: 'Memuat pesan...',
-                          ),
-                          error: (err, stack) => MekaarStateView(
-                            pose: MikaPose.huft,
-                            title: 'Gagal Memuat',
-                            message: 'Gagal memuat pesan: $err',
-                            actionLabel: 'Coba Lagi',
-                            onAction: () => ref.invalidate(
-                              chatMessagesProvider(widget.chatId),
+                                      return ListView.builder(
+                                        controller: _scrollController,
+                                        reverse: true,
+                                        // Padding bawah memberi ruang untuk composer floating + inset keyboard
+                                        padding: EdgeInsets.only(
+                                          top: 8,
+                                          bottom: 130 + keyboardHeight,
+                                        ),
+                                        itemCount: itemEntries.length,
+                                        itemBuilder: (context, index) {
+                                          return _buildLazyMessageItem(
+                                            itemEntries[index],
+                                            currentUserId,
+                                            actions,
+                                            messageMap,
+                                            forwardingProtection:
+                                                forwardingProtection,
+                                            roomThemeSpec: roomThemeSpec,
+                                            showReadReceipts:
+                                                readReceiptsEnabled,
+                                          );
+                                        },
+                                      );
+                                    case ChatMessagesUiMode.error:
+                                      return MekaarStateView(
+                                        pose: MikaPose.huft,
+                                        title: 'Gagal Memuat',
+                                        message: ErrorResolver.resolve(
+                                          messagesStream.error,
+                                        ),
+                                        actionLabel: 'Coba Lagi',
+                                        onAction: () => ref.invalidate(
+                                          chatMessagesProvider(widget.chatId),
+                                        ),
+                                        icon: SolarIconsOutline.refresh,
+                                      );
+                                    case ChatMessagesUiMode.loading:
+                                      return const MekaarStateView(
+                                        pose: MikaPose.neutral,
+                                        title: 'Memuat',
+                                        message: 'Memuat pesan...',
+                                      );
+                                  }
+                                },
+                              ),
                             ),
-                            icon: SolarIconsOutline.refresh,
-                          ),
+                          ],
                         ),
                       ),
                       Consumer(
@@ -1836,6 +1869,61 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
           Transform.translate(
             offset: Offset(_dragOffset, 0),
             child: widget.child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Mode tampilan daftar pesan (murni, bisa diuji unit).
+///
+/// Stale-while-revalidate: selama masih ada data termuat ([AsyncValue.hasValue]),
+/// tampilkan data lama meski stream sempat error — jangan collapse ke error
+/// view. `error` hanya dipakai kalau tidak ada data sama sekali (kegagalan
+/// pertama buka chat), `loading` untuk state awal.
+enum ChatMessagesUiMode { data, error, loading }
+
+@visibleForTesting
+ChatMessagesUiMode chatMessagesUiMode(AsyncValue<List<Message>> stream) {
+  if (stream.hasValue) return ChatMessagesUiMode.data;
+  if (stream.hasError) return ChatMessagesUiMode.error;
+  return ChatMessagesUiMode.loading;
+}
+
+/// Badge tipis non-blocking yang muncul saat stream pesan sedang mencoba
+/// menyambung ulang setelah gangguan Realtime sesaat (retry+backoff).
+class ReconnectingBadge extends StatelessWidget {
+  const ReconnectingBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = MekaarColors.surfaceOf(context);
+    final accent = MekaarColors.accentOf(context);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(left: 16, right: 16, top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: surface.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Menyambung ulang…',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: accent),
           ),
         ],
       ),

@@ -10,37 +10,26 @@ import 'chat_provider.dart';
 ///
 /// Layer redundansi kedua (selain FCM push via trigger DB).
 /// Hanya menampilkan notifikasi jika FCM belum menanganinya (dedup).
+///
+/// Channel dikelola bersama oleh `AppRealtimeListener` (satu channel global
+/// terpadu, bukan per-listener).
 class SOSAlertListener {
   final Ref _ref;
   final Logger _log = Logger();
-  RealtimeChannel? _channel;
   bool _disposed = false;
   List<String>? _cachedOwnerIds;
 
   SOSAlertListener(this._ref);
 
-  void start() {
-    final supabaseService = _ref.read(supabaseServiceProvider);
-    final userId = supabaseService.currentUserId;
+  /// Prefetch owner IDs (user yang menjadikan kita guardian).
+  /// Dipanggil oleh `AppRealtimeListener.start()`.
+  void startPrefetch() {
+    final userId = _ref.read(supabaseServiceProvider).currentUserId;
     if (userId == null) {
       _log.w('SOSAlertListener: user belum login, skip.');
       return;
     }
-
-    // Prefetch owner IDs (user yang menjadikan kita guardian)
     _loadOwnerIds(userId);
-
-    _channel = supabaseService.client
-        .channel('public:sos_sessions:guardian_alert')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'sos_sessions',
-          callback: _onInsertSOS,
-        )
-        .subscribe();
-
-    _log.i('SOSAlertListener: mulai berlangganan sos_sessions.');
   }
 
   Future<void> _loadOwnerIds(String guardianId) async {
@@ -60,7 +49,8 @@ class SOSAlertListener {
     }
   }
 
-  void _onInsertSOS(PostgresChangePayload payload) async {
+  /// Dipanggil oleh `AppRealtimeListener` saat ada INSERT di tabel sos_sessions.
+  void handleInsertSOS(PostgresChangePayload payload) async {
     if (_disposed) return;
 
     final newRow = payload.newRecord;
@@ -103,8 +93,6 @@ class SOSAlertListener {
 
   void dispose() {
     _disposed = true;
-    _channel?.unsubscribe();
-    _channel = null;
   }
 }
 

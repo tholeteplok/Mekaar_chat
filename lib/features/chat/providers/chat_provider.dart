@@ -72,12 +72,35 @@ final chatRoomsProvider =
 // ─────────────────────────────────────────
 // Stream of messages in a room
 // ─────────────────────────────────────────
+
+/// Controller broadcast per-room untuk sinyal "Menyambung ulang…" (reconnecting).
+/// Dipakai bersama oleh [chatMessagesProvider] (pengirim) dan
+/// [chatReconnectingProvider] (penerima) agar tidak ada subscribe kedua.
+final _chatReconnectControllerProvider =
+    Provider.family<StreamController<bool>, String>((ref, roomId) {
+  final controller = StreamController<bool>.broadcast();
+  ref.onDispose(controller.close);
+  return controller;
+});
+
 final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
   ref,
   roomId,
 ) {
   final repo = ref.watch(chatRepositoryProvider);
-  return repo.streamMessages(roomId);
+  final reconnectController = ref.watch(_chatReconnectControllerProvider(roomId));
+  return repo.streamMessages(roomId, onReconnectChange: (reconnecting) {
+    if (!reconnectController.isClosed) {
+      reconnectController.add(reconnecting);
+    }
+  });
+});
+
+/// Sinyal non-blocking bahwa stream pesan sedang mencoba menyambung ulang
+/// setelah gangguan Realtime sesaat (retry+backoff berjalan di repository).
+final chatReconnectingProvider = StreamProvider.family<bool, String>((ref, roomId) {
+  final controller = ref.watch(_chatReconnectControllerProvider(roomId));
+  return controller.stream;
 });
 
 // ─────────────────────────────────────────

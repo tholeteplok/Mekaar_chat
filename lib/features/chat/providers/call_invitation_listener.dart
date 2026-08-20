@@ -6,47 +6,24 @@ import '../../../core/navigation/app_navigator.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
-import '../../auth/providers/auth_provider.dart';
 import 'chat_provider.dart';
 import 'call_state_provider.dart';
 import '../screens/incoming_call_screen.dart';
 
 /// Listener terpusat untuk mendeteksi undangan panggilan masuk secara realtime.
+///
+/// Handler untuk Realtime `postgres_changes` pada tabel `calls` —
+/// channel dikelola bersama oleh `AppRealtimeListener` (satu channel global
+/// terpadu, bukan per-listener).
 class CallInvitationListener {
   final Ref _ref;
   final Logger _log = Logger();
-  RealtimeChannel? _channel;
   bool _disposed = false;
 
   CallInvitationListener(this._ref);
 
-  void start() {
-    final supabaseService = _ref.read(supabaseServiceProvider);
-    final userId = supabaseService.currentUserId;
-    if (userId == null) {
-      _log.w('CallInvitationListener: user belum login, skip.');
-      return;
-    }
-
-    _channel = supabaseService.client
-        .channel('public:calls:incoming')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'calls',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'receiver_id',
-            value: userId,
-          ),
-          callback: _onInsertCall,
-        )
-        .subscribe();
-
-    _log.i('CallInvitationListener: mulai berlangganan tabel calls.');
-  }
-
-  void _onInsertCall(PostgresChangePayload payload) async {
+  /// Dipanggil oleh `AppRealtimeListener` saat ada INSERT di tabel calls.
+  void handleInsertCall(PostgresChangePayload payload) async {
     if (_disposed) return;
 
     final newRow = payload.newRecord;
@@ -119,8 +96,6 @@ class CallInvitationListener {
 
   void dispose() {
     _disposed = true;
-    _channel?.unsubscribe();
-    _channel = null;
   }
 }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -38,6 +39,13 @@ void main() async {
         await Supabase.initialize(
           url: supabaseUrl,
           publishableKey: supabaseAnonKey,
+          // Timeout lebih panjang dari default SDK (10 detik) untuk
+          // mengurangi false-positive RealtimeSubscribeException(timedOut).
+          // Log debug hanya di build debug untuk observasi kontensi channel.
+          realtimeClientOptions: RealtimeClientOptions(
+            timeout: const Duration(seconds: 20),
+            logLevel: kDebugMode ? RealtimeLogLevel.debug : null,
+          ),
         );
         SupabaseService.markInitialized();
         logger.i("Supabase initialized successfully");

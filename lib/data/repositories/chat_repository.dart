@@ -4,6 +4,7 @@ import '../services/supabase_service.dart';
 import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
+import 'reconnect_policy.dart';
 
 class ChatRepository {
   final SupabaseService _supabaseService;
@@ -289,12 +290,19 @@ class ChatRepository {
   }
 
   // Stream messages in a specific room, respecting history_cleared_at
-  Stream<List<Message>> streamMessages(String roomId) {
+  Stream<List<Message>> streamMessages(
+    String roomId, {
+    void Function(bool reconnecting)? onReconnectChange,
+  }) {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return const Stream.empty();
 
     final controller = StreamController<List<Message>>();
     StreamSubscription? streamSubscription;
+    Timer? retryTimer;
+    var retryAttempt = 0;
+
+    const reconnectPolicy = ReconnectPolicy();
 
     Future<void> initStream() async {
       DateTime? historyClearedAt;
@@ -373,27 +381,59 @@ class ChatRepository {
         }
       }
 
-      // Start stream listening ONLY after historyClearedAt is retrieved (fixes race condition)
-      streamSubscription = _supabaseService.client
-          .from('messages')
-          .stream(primaryKey: ['id'])
-          .eq('room_id', roomId)
-          .order('created_at', ascending: true)
-          .listen((maps) {
-            if (isProcessing) {
-              pendingBatch = maps;
-              return;
-            }
-            isProcessing = true;
-            processBatch(maps);
-          }, onError: (err) {
-            if (!controller.isClosed) {
-              controller.addError(err);
-            }
-          });
+      Future<void> subscribe() async {
+        // Cancel subscription lama (kalau ada) sebelum subscribe ulang
+        await streamSubscription?.cancel();
+        streamSubscription = null;
+
+        // Start stream listening ONLY after historyClearedAt is retrieved (fixes race condition)
+        streamSubscription = _supabaseService.client
+            .from('messages')
+            .stream(primaryKey: ['id'])
+            .eq('room_id', roomId)
+            .order('created_at', ascending: true)
+            .listen(
+              (maps) {
+                // Data pertama dari re-subscribe = koneksi sudah pulih
+                if (retryAttempt > 0) {
+                  retryAttempt = 0;
+                  onReconnectChange?.call(false);
+                }
+                if (isProcessing) {
+                  pendingBatch = maps;
+                  return;
+                }
+                isProcessing = true;
+                processBatch(maps);
+              },
+              onError: (err) {
+                if (controller.isClosed) return;
+
+                // Jangan langsung menyerah: coba subscribe ulang dengan backoff.
+                // Data terakhir yang sukses tetap dipegang controller selama retry.
+                if (retryAttempt < reconnectPolicy.maxAttempts) {
+                  retryAttempt++;
+                  onReconnectChange?.call(true);
+                  final delay = reconnectPolicy.delayForAttempt(retryAttempt);
+                  retryTimer?.cancel();
+                  retryTimer = Timer(delay, () {
+                    if (!controller.isClosed) {
+                      subscribe();
+                    }
+                  });
+                } else {
+                  onReconnectChange?.call(false);
+                  controller.addError(err);
+                }
+              },
+            );
+      }
+
+      await subscribe();
     }
 
     controller.onCancel = () {
+      retryTimer?.cancel();
       streamSubscription?.cancel();
     };
 

@@ -11,16 +11,21 @@ import '../../../data/services/notification_service.dart';
 import 'auth_provider.dart';
 
 /// Listener Realtime untuk mendeteksi perubahan Kata Sandi (Password) dari perangkat/sesi lain.
+///
+/// Channel `postgres_changes` dikelola bersama oleh `AppRealtimeListener`
+/// (satu channel global terpadu, bukan per-listener). Listener `auth`
+/// state lokal tetap dipegang di sini.
 class PasswordChangeAlertListener {
   final Ref _ref;
   final Logger _log = Logger();
-  RealtimeChannel? _channel;
   bool _disposed = false;
   DateTime? _lastObservedPasswordUpdate;
 
   PasswordChangeAlertListener(this._ref);
 
-  void start() {
+  /// Berlangganan perubahan Auth State lokal (bukan Realtime DB).
+  /// Dipanggil oleh `AppRealtimeListener.start()`.
+  void startAuthListener() {
     final supabaseService = _ref.read(supabaseServiceProvider);
     final userId = supabaseService.currentUserId;
     if (userId == null) {
@@ -28,34 +33,18 @@ class PasswordChangeAlertListener {
       return;
     }
 
-    // 1. Berlangganan perubahan Auth State lokal
+    // Berlangganan perubahan Auth State lokal
     supabaseService.client.auth.onAuthStateChange.listen((data) {
       if (_disposed) return;
       if (data.event == AuthChangeEvent.userUpdated) {
         _log.i('PasswordChangeAlertListener: Auth event USER_UPDATED terdeteksi.');
       }
     });
-
-    // 2. Berlangganan Realtime postgres_changes pada public.profiles
-    _channel = supabaseService.client
-        .channel('public:profiles:password_alert_$userId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'profiles',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: userId,
-          ),
-          callback: _onProfileUpdated,
-        )
-        .subscribe();
-
-    _log.i('PasswordChangeAlertListener: aktif memantau event keamanan akun.');
   }
 
-  void _onProfileUpdated(PostgresChangePayload payload) async {
+  /// Dipanggil oleh `AppRealtimeListener` saat ada UPDATE di tabel profiles
+  /// milik user yang sedang login.
+  void handleProfileUpdated(PostgresChangePayload payload) async {
     if (_disposed) return;
 
     final newRow = payload.newRecord;
@@ -121,8 +110,6 @@ class PasswordChangeAlertListener {
 
   void dispose() {
     _disposed = true;
-    _channel?.unsubscribe();
-    _channel = null;
   }
 }
 
