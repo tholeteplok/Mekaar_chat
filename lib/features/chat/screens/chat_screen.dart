@@ -12,7 +12,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/chat_date_separator.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -1718,15 +1717,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
     // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeToReply
     return RepaintBoundary(
+      key: ValueKey('bubble_${msg.id}'),
       child: _SwipeToReplyWrapper(
         onReply: () => setState(() {
           _replyMessage = msg;
           _editingMessage = null;
         }),
-        child: AnimatedAppear(
-          key: ValueKey('bubble_${msg.id}'),
-          child: bubble,
-        ),
+        child: bubble,
       ),
     );
   }
@@ -1736,9 +1733,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   }
 }
 
-/// Gesture wrapper untuk swipe-to-reply pada bubble chat.
-/// Swipe dari kanan ke kiri: reply.
-class _SwipeToReplyWrapper extends StatelessWidget {
+/// Gesture wrapper untuk swipe-to-reply pada bubble chat berbasis GestureDetector + Transform.
+/// Geser bubble ke kanan untuk memicu balasan dengan pegas kembali halus dan getaran haptic.
+class _SwipeToReplyWrapper extends StatefulWidget {
   final Widget child;
   final VoidCallback onReply;
 
@@ -1748,25 +1745,100 @@ class _SwipeToReplyWrapper extends StatelessWidget {
   });
 
   @override
+  State<_SwipeToReplyWrapper> createState() => _SwipeToReplyWrapperState();
+}
+
+class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _recoilController;
+  double _dragOffset = 0.0;
+  bool _thresholdReached = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _recoilController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+  }
+
+  @override
+  void dispose() {
+    _recoilController.dispose();
+    super.dispose();
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    final delta = details.primaryDelta ?? 0.0;
+    if (delta > 0 || _dragOffset > 0) {
+      setState(() {
+        _dragOffset = (_dragOffset + delta).clamp(0.0, 72.0);
+        if (_dragOffset >= 48.0 && !_thresholdReached) {
+          _thresholdReached = true;
+          HapticService.trigger(MekaarHapticIntent.selection);
+        }
+      });
+    }
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_thresholdReached) {
+      widget.onReply();
+    }
+    _thresholdReached = false;
+
+    if (_dragOffset > 0) {
+      final startOffset = _dragOffset;
+      final anim = Tween<double>(begin: startOffset, end: 0.0).animate(
+        CurvedAnimation(parent: _recoilController, curve: Curves.easeOutCubic),
+      );
+      anim.addListener(() {
+        setState(() {
+          _dragOffset = anim.value;
+        });
+      });
+      _recoilController.forward(from: 0.0);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey(child.key),
-      direction: DismissDirection.startToEnd,
-      confirmDismiss: (direction) async {
-        onReply();
-        return false; // Never actually dismiss — just trigger reply
-      },
-      background: Container(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragUpdate: _onHorizontalDragUpdate,
+      onHorizontalDragEnd: _onHorizontalDragEnd,
+      child: Stack(
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 32),
-        color: MekaarColors.guardianTeal.withValues(alpha: 0.15),
-        child: const Icon(
-          SolarIconsOutline.reply,
-          color: MekaarColors.guardianTeal,
-          size: 24,
-        ),
+        children: [
+          if (_dragOffset > 6)
+            Padding(
+              padding: const EdgeInsets.only(left: 14),
+              child: Opacity(
+                opacity: (_dragOffset / 48.0).clamp(0.0, 1.0),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: MekaarColors.guardianTeal.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      SolarIconsOutline.reply,
+                      color: MekaarColors.guardianTeal,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Transform.translate(
+            offset: Offset(_dragOffset, 0),
+            child: widget.child,
+          ),
+        ],
       ),
-      child: child,
     );
   }
 }

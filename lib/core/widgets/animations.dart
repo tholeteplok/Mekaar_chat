@@ -125,7 +125,7 @@ class _AnimatedAppearState extends State<AnimatedAppear>
       animation: curved,
       builder: (context, child) {
         return Opacity(
-          opacity: curved.value,
+          opacity: curved.value.clamp(0.0, 1.0),
           child: Transform.translate(
             offset: Offset(0, widget.offsetY * (1 - curved.value)),
             child: child,

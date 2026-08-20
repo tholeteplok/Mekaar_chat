@@ -7,8 +7,8 @@ import '../services/haptic_service.dart';
 /// MekaarLiveSafetyPill — Kapsul status keselamatan interaktif.
 ///
 /// Menampilkan indikator status perlindungan (E2EE, Guardian Siaga, GPS)
-/// dengan animasi pernapasan (breathing) yang menenangkan tanpa alarmisme.
-class MekaarLiveSafetyPill extends StatefulWidget {
+/// secara solid, bersih, dan elegan tanpa pemicu render loop terus-menerus.
+class MekaarLiveSafetyPill extends StatelessWidget {
   final String? label;
   final int? activeGuardiansCount;
   final bool isE2eeActive;
@@ -22,43 +22,15 @@ class MekaarLiveSafetyPill extends StatefulWidget {
     this.onTap,
   });
 
-  @override
-  State<MekaarLiveSafetyPill> createState() => _MekaarLiveSafetyPillState();
-}
-
-class _MekaarLiveSafetyPillState extends State<MekaarLiveSafetyPill>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseScale;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-
-    _pulseScale = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
   String _buildDisplayText() {
-    if (widget.label != null && widget.label!.isNotEmpty) {
-      return widget.label!;
+    if (label != null && label!.isNotEmpty) {
+      return label!;
     }
     final parts = <String>[];
-    if (widget.activeGuardiansCount != null && widget.activeGuardiansCount! > 0) {
-      parts.add('${widget.activeGuardiansCount} Guardian Siaga');
+    if (activeGuardiansCount != null && activeGuardiansCount! > 0) {
+      parts.add('$activeGuardiansCount Guardian Siaga');
     }
-    if (widget.isE2eeActive) {
+    if (isE2eeActive) {
       parts.add('Aegis E2EE');
     }
     if (parts.isEmpty) {
@@ -70,7 +42,6 @@ class _MekaarLiveSafetyPillState extends State<MekaarLiveSafetyPill>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isAnimationsDisabled = MediaQuery.disableAnimationsOf(context);
 
     final bgColor = isDark
         ? MekaarColors.guardianTeal.withValues(alpha: 0.12)
@@ -81,16 +52,16 @@ class _MekaarLiveSafetyPillState extends State<MekaarLiveSafetyPill>
         : MekaarColors.guardianTeal.withValues(alpha: 0.20);
 
     return Semantics(
-      button: widget.onTap != null,
+      button: onTap != null,
       label: 'Status keselamatan: ${_buildDisplayText()}',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(100),
-          onTap: widget.onTap != null
+          onTap: onTap != null
               ? () {
                   HapticService.trigger(MekaarHapticIntent.selection);
-                  widget.onTap!();
+                  onTap!();
                 }
               : null,
           child: Container(
@@ -103,20 +74,11 @@ class _MekaarLiveSafetyPillState extends State<MekaarLiveSafetyPill>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                isAnimationsDisabled
-                    ? const Icon(
-                        SolarIconsBold.shieldCheck,
-                        size: 14,
-                        color: MekaarColors.guardianTeal,
-                      )
-                    : ScaleTransition(
-                        scale: _pulseScale,
-                        child: const Icon(
-                          SolarIconsBold.shieldCheck,
-                          size: 14,
-                          color: MekaarColors.guardianTeal,
-                        ),
-                      ),
+                const Icon(
+                  SolarIconsBold.shieldCheck,
+                  size: 14,
+                  color: MekaarColors.guardianTeal,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   _buildDisplayText(),

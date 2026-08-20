@@ -7,7 +7,7 @@ import 'mika_illustration.dart';
 
 enum MekaarStateLayout { centered, edge }
 
-class MekaarStateView extends StatefulWidget {
+class MekaarStateView extends StatelessWidget {
   const MekaarStateView({
     super.key,
     required this.pose,
@@ -34,33 +34,8 @@ class MekaarStateView extends StatefulWidget {
   final MikaReaction? reaction;
 
   @override
-  State<MekaarStateView> createState() => _MekaarStateViewState();
-}
-
-class _MekaarStateViewState extends State<MekaarStateView> {
-  final _mikaKey = GlobalKey<MikaAnimatedState>();
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.reaction != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mikaKey.currentState?.react(widget.reaction!);
-      });
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant MekaarStateView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.reaction != oldWidget.reaction && widget.reaction != null) {
-      _mikaKey.currentState?.react(widget.reaction!);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isEdge = widget.layout == MekaarStateLayout.edge;
+    final isEdge = layout == MekaarStateLayout.edge;
 
     final text = Column(
       mainAxisSize: MainAxisSize.min,
@@ -68,32 +43,32 @@ class _MekaarStateViewState extends State<MekaarStateView> {
           isEdge ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         Text(
-          widget.title,
+          title,
           textAlign: isEdge ? TextAlign.left : TextAlign.center,
           style: MekaarTypography.headingMD,
         ),
         const SizedBox(height: MekaarSpacing.sm),
         Text(
-          widget.message,
+          message,
           textAlign: isEdge ? TextAlign.left : TextAlign.center,
           style: MekaarTypography.bodyMD,
         ),
-        if (widget.actionLabel != null && widget.onAction != null) ...[
+        if (actionLabel != null && onAction != null) ...[
           const SizedBox(height: MekaarSpacing.lg),
           ElevatedButton.icon(
-            onPressed: widget.onAction,
-            icon: Icon(widget.icon, size: 18),
-            label: Text(widget.actionLabel!),
+            onPressed: onAction,
+            icon: Icon(icon, size: 18),
+            label: Text(actionLabel!),
           ),
         ],
       ],
     );
 
     final mika = MikaAnimated(
-      key: _mikaKey,
-      pose: widget.pose,
-      size: widget.illustrationSize,
-      semanticLabel: widget.semanticLabel,
+      pose: pose,
+      size: illustrationSize,
+      semanticLabel: semanticLabel,
+      reaction: reaction,
     );
 
     if (isEdge) {
@@ -113,8 +88,8 @@ class _MekaarStateViewState extends State<MekaarStateView> {
                 child: text,
               ),
               Positioned(
-                right: -widget.illustrationSize * 0.2,
-                bottom: -widget.illustrationSize * 0.12,
+                right: -illustrationSize * 0.2,
+                bottom: -illustrationSize * 0.12,
                 child: mika,
               ),
             ],

@@ -236,238 +236,225 @@ class _PinScreenState extends ConsumerState<PinScreen>
     return MekaarScaffold(
       flat: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 24,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Section Atas: Brand & Judul
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Section Atas: Brand & Judul
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 4),
+                  const Center(
+                    child: MekaarWordmark(fontSize: 32),
+                  ),
+                  const SizedBox(height: 12),
+                  // Emblem Keamanan Layered Halo
+                  Center(
+                    child: Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.blue.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: AppColors.blue.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.blue.withValues(alpha: 0.2),
+                            blurRadius: 18,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          SolarIconsBold.shieldKeyhole,
+                          color: AppColors.blue,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      widget.isSetup
+                          ? (_isConfirming
+                              ? 'Konfirmasi PIN'
+                              : 'Buat PIN Keamanan')
+                          : 'Buka Kunci Aplikasi',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Semantics(
+                      liveRegion: isLocked || _hasError,
+                      child: AnimatedSwitcher(
+                        duration: animationsDisabled
+                            ? Duration.zero
+                            : MekaarMotion.fast,
+                        child: Text(
+                          isLocked
+                              ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
+                              : _statusMessage,
+                          key: ValueKey(_statusMessage),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                            color: (isLocked || _hasError)
+                                ? MekaarColors.sosCoral
+                                : textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Section Kartu PIN (100% Simetris & Center Horizontal)
+              Center(
+                child: AnimatedBuilder(
+                  animation: _shakeAnimation,
+                  builder: (context, child) => Transform.translate(
+                    offset: Offset(
+                      animationsDisabled ? 0 : _shakeAnimation.value,
+                      0,
+                    ),
+                    child: child,
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _hasError
+                            ? MekaarColors.sosCoral
+                            : (_pin.isNotEmpty
+                                ? AppColors.blue.withValues(alpha: 0.5)
+                                : cardBorder),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.35 : 0.04,
+                          ),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        const SizedBox(height: 4),
-                        const Center(
-                          child: MekaarWordmark(fontSize: 32),
-                        ),
-                        const SizedBox(height: 12),
-                        // Emblem Keamanan Layered Halo
-                        Center(
-                          child: Container(
-                            width: 58,
-                            height: 58,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.blue.withValues(alpha: 0.12),
-                              border: Border.all(
-                                color: AppColors.blue.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.blue.withValues(alpha: 0.2),
-                                  blurRadius: 18,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                SolarIconsBold.shieldKeyhole,
-                                color: AppColors.blue,
-                                size: 28,
-                              ),
-                            ),
+                        // 6 Bulatan / Slot PIN persis di tengah horizontal
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            pinLength,
+                            (index) => _buildPinCircle(index),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            widget.isSetup
-                                ? (_isConfirming
-                                    ? 'Konfirmasi PIN'
-                                    : 'Buat PIN Keamanan')
-                                : 'Buka Kunci Aplikasi',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: textPrimary,
-                              letterSpacing: -0.3,
+                        // Tombol Toggle Mata di sisi kanan kartu
+                        Positioned(
+                          right: 0,
+                          child: IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(6),
+                            icon: Icon(
+                              _obscurePin
+                                  ? SolarIconsOutline.eyeClosed
+                                  : SolarIconsOutline.eye,
+                              size: 20,
+                              color: textSecondary,
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Center(
-                          child: Semantics(
-                            liveRegion: isLocked || _hasError,
-                            child: AnimatedSwitcher(
-                              duration: animationsDisabled
-                                  ? Duration.zero
-                                  : MekaarMotion.fast,
-                              child: Text(
-                                isLocked
-                                    ? 'Terlalu banyak percobaan salah. Terkunci ${authState.remainingLockMinutes} menit.'
-                                    : _statusMessage,
-                                key: ValueKey(_statusMessage),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 13,
-                                  color: (isLocked || _hasError)
-                                      ? MekaarColors.sosCoral
-                                      : textSecondary,
-                                ),
-                              ),
-                            ),
+                            tooltip: _obscurePin
+                                ? 'Tampilkan angka PIN'
+                                : 'Sembunyikan angka PIN',
+                            onPressed: () {
+                              setState(() => _obscurePin = !_obscurePin);
+                            },
                           ),
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
 
-                    const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-                    // Section Kartu PIN (100% Simetris & Center Horizontal)
-                    Center(
-                      child: AnimatedBuilder(
-                        animation: _shakeAnimation,
-                        builder: (context, child) => Transform.translate(
-                          offset: Offset(
-                            animationsDisabled ? 0 : _shakeAnimation.value,
-                            0,
-                          ),
-                          child: child,
-                        ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: surfaceColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _hasError
-                                  ? MekaarColors.sosCoral
-                                  : (_pin.isNotEmpty
-                                      ? AppColors.blue.withValues(alpha: 0.5)
-                                      : cardBorder),
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(
-                                  alpha: isDark ? 0.35 : 0.04,
-                                ),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // 6 Bulatan / Slot PIN persis di tengah horizontal
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(
-                                  pinLength,
-                                  (index) => _buildPinCircle(
-                                    index,
-                                    animationsDisabled,
-                                  ),
-                                ),
-                              ),
-                              // Tombol Toggle Mata di sisi kanan kartu
-                              Positioned(
-                                right: 0,
-                                child: IconButton(
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(6),
-                                  icon: Icon(
-                                    _obscurePin
-                                        ? SolarIconsOutline.eyeClosed
-                                        : SolarIconsOutline.eye,
-                                    size: 20,
-                                    color: textSecondary,
-                                  ),
-                                  tooltip: _obscurePin
-                                      ? 'Tampilkan angka PIN'
-                                      : 'Sembunyikan angka PIN',
-                                  onPressed: () {
-                                    setState(() => _obscurePin = !_obscurePin);
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+              // Section Keypad: Inline on screen
+              if (!isLocked) ...[
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildKeypadRow(['1', '2', '3']),
+                    _buildKeypadRow(['4', '5', '6']),
+                    _buildKeypadRow(['7', '8', '9']),
+                    _buildKeypadRow([
+                      _isSetupMode ? '' : 'Lupa',
+                      '0',
+                      '⌫',
+                    ]),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 200),
+              ],
 
-                    const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-                    // Section Keypad: Inline on screen
-                    if (!isLocked) ...[
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildKeypadRow(['1', '2', '3']),
-                          _buildKeypadRow(['4', '5', '6']),
-                          _buildKeypadRow(['7', '8', '9']),
-                          _buildKeypadRow([
-                            _isSetupMode ? '' : 'Lupa',
-                            '0',
-                            '⌫',
-                          ]),
-                        ],
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 200),
-                    ],
-
-                    const SizedBox(height: 10),
-
-                    // Section Bottom: SOS Button
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SOSButton(onPressed: _triggerSOS, size: 54),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Pencet SOS untuk keadaan darurat',
-                            style: TextStyle(
-                              color: MekaarColors.sosCoral,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
+              // Section Bottom: SOS Button
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SOSButton(onPressed: _triggerSOS, size: 54),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Pencet SOS untuk keadaan darurat',
+                      style: TextStyle(
+                        color: MekaarColors.sosCoral,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildPinCircle(int index, bool animationsDisabled) {
+  Widget _buildPinCircle(int index) {
     final isFilled = _pin.length > index;
     final isCurrent = _pin.length == index;
     final cardBorder = MekaarColors.cardBorderOf(context);
@@ -485,9 +472,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
       borderColor = cardBorder;
     }
 
-    return AnimatedContainer(
-      duration: animationsDisabled ? Duration.zero : MekaarMotion.fast,
-      curve: MekaarMotion.bounce,
+    return Container(
       width: 24,
       height: 24,
       margin: const EdgeInsets.symmetric(horizontal: 6),

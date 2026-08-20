@@ -22,7 +22,6 @@ class _SOSButtonState extends State<SOSButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  bool? _animationsDisabled;
 
   @override
   void initState() {
@@ -37,18 +36,31 @@ class _SOSButtonState extends State<SOSButton>
     );
   }
 
+  void _syncPulseState() {
+    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
+    if (widget.isActive && !animationsDisabled) {
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+    } else {
+      if (_pulseController.isAnimating || _pulseController.value != 0) {
+        _pulseController.stop();
+        _pulseController.value = 0;
+      }
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
-    if (_animationsDisabled == animationsDisabled) return;
-    _animationsDisabled = animationsDisabled;
+    _syncPulseState();
+  }
 
-    if (animationsDisabled) {
-      _pulseController.stop();
-      _pulseController.value = 0;
-    } else {
-      _pulseController.repeat(reverse: true);
+  @override
+  void didUpdateWidget(covariant SOSButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      _syncPulseState();
     }
   }
 
@@ -64,12 +76,71 @@ class _SOSButtonState extends State<SOSButton>
     widget.onPressed!();
   }
 
+  Widget _buildButtonContent(BuildContext context, Color baseColor, double scale) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Outer glow ring
+        if (widget.isActive)
+          Container(
+            width: widget.size * scale,
+            height: widget.size * scale,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: baseColor.withValues(alpha: 0.35),
+            ),
+          ),
+        // Inner main button
+        Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: baseColor,
+            boxShadow: [
+              BoxShadow(
+                color: baseColor.withValues(alpha: widget.isActive ? 0.5 : 0.35),
+                blurRadius: widget.isActive ? 22 : 14,
+                spreadRadius: widget.isActive ? 4 : 1,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Center(
+            child: ExcludeSemantics(
+              child: Text(
+                'SOS',
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontSize: (widget.size * 0.25).clamp(13.0, 20.0),
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final baseColor = widget.isActive
         ? MekaarColors.sosDeep
         : MekaarColors.sosRed;
     final targetSize = widget.size < 48 ? 48.0 : widget.size;
+
+    final buttonContent = widget.isActive
+        ? AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, _) => _buildButtonContent(
+              context,
+              baseColor,
+              _pulseAnimation.value,
+            ),
+          )
+        : _buildButtonContent(context, baseColor, 1.0);
 
     return Semantics(
       button: true,
@@ -89,59 +160,7 @@ class _SOSButtonState extends State<SOSButton>
             onTap: widget.onPressed == null ? null : _handlePress,
             radius: targetSize / 2,
             customBorder: const CircleBorder(),
-            child: AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                final scale = _pulseAnimation.value;
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer pulsating glow ring
-                    Container(
-                      width: widget.size * scale,
-                      height: widget.size * scale,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: baseColor.withValues(
-                          alpha: widget.isActive ? 0.35 : 0.15,
-                        ),
-                      ),
-                    ),
-                    // Inner main button
-                    Container(
-                      width: widget.size,
-                      height: widget.size,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: baseColor,
-                        boxShadow: [
-                          BoxShadow(
-                            color: baseColor.withValues(alpha: 0.4),
-                            blurRadius: 18,
-                            spreadRadius: widget.isActive ? 6 : 2,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: ExcludeSemantics(
-                          child: Text(
-                            'SOS',
-                            style: Theme.of(context).textTheme.displayLarge
-                                ?.copyWith(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 1,
-                                ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+            child: buttonContent,
           ),
         ),
       ),

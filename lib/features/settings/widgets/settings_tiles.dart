@@ -45,13 +45,17 @@ class SettingsTopBar extends StatelessWidget {
                 icon: Icon(
                   SolarIconsOutline.altArrowLeft,
                   color: MekaarColors.textPrimaryOf(context),
-                  size: 22,
+                  size: 20,
                 ),
                 style: IconButton.styleFrom(
-                  backgroundColor: MekaarColors.surface2Of(context),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  backgroundColor:
+                      MekaarColors.surface2Of(context).withValues(alpha: 0.85),
+                  side: BorderSide(
+                    color: MekaarColors.cardBorderOf(context)
+                        .withValues(alpha: 0.8),
+                    width: 1.0,
                   ),
+                  shape: const CircleBorder(),
                 ),
               ),
               ?trailing,

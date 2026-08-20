@@ -61,7 +61,6 @@ void main() {
 
       expect(find.text('Pesan'), findsOneWidget);
       expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
-      expect(find.byType(ShaderMask), findsWidgets);
     });
 
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {

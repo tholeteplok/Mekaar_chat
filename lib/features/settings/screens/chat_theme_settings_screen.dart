@@ -12,6 +12,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/chat_theme_model.dart';
 import '../providers/chat_theme_provider.dart';
+import '../widgets/settings_tiles.dart';
 
 /// Layar Kustomisasi Tema dan Wallpaper Chat
 /// Didesain 1:1 sesuai spesifikasi design.md & mockup tema_wallpaper_chat_redesign.html.
@@ -81,30 +82,8 @@ class _ChatThemeSettingsScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 1. Header (Chevron back + Judul Sentence Case) ──
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(SolarIconsOutline.altArrowLeft, size: 20),
-                color: textPrimary,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => Navigator.maybePop(context),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Tema dan wallpaper chat',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
-                  color: textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
+        // ── 1. Header Terpusat (SettingsTopBar) ──
+        const SettingsTopBar(title: 'Tema & Wallpaper Chat'),
 
         // ── Content Scrollable ──
         Expanded(

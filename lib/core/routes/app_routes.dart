@@ -76,7 +76,7 @@ class MekaarPageRoute extends PageRouteBuilder {
                 final isForward = animation.status == AnimationStatus.forward;
                 final t = isForward ? curved.value : reverse.value;
                 return Opacity(
-                  opacity: t,
+                  opacity: t.clamp(0.0, 1.0),
                   child: Transform.translate(
                     offset: Offset(0, 20 * (1 - t)),
                     child: Transform.scale(

@@ -39,12 +39,6 @@ enum MikaReaction {
 }
 
 /// Widget maskot Mika dengan animasi idle (breathing) dan reaksi satu-kali.
-///
-/// Gunakan [GlobalKey] untuk memicu reaksi dari parent:
-/// ```dart
-/// final _mikaKey = GlobalKey<MikaAnimatedState>();
-/// _mikaKey.currentState?.react(MikaReaction.happy);
-/// ```
 class MikaAnimated extends StatefulWidget {
   const MikaAnimated({
     super.key,
@@ -54,6 +48,7 @@ class MikaAnimated extends StatefulWidget {
     this.semanticLabel,
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
+    this.reaction,
   });
 
   final MikaPose pose;
@@ -62,6 +57,7 @@ class MikaAnimated extends StatefulWidget {
   final String? semanticLabel;
   final BoxFit fit;
   final Alignment alignment;
+  final MikaReaction? reaction;
 
   @override
   State<MikaAnimated> createState() => MikaAnimatedState();
@@ -81,6 +77,13 @@ class MikaAnimatedState extends State<MikaAnimated>
       vsync: this,
       duration: MekaarMotion.idle,
     );
+    if (widget.reaction != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.reaction != null) {
+          react(widget.reaction!);
+        }
+      });
+    }
   }
 
   @override
@@ -102,6 +105,9 @@ class MikaAnimatedState extends State<MikaAnimated>
       } else {
         _idleController.stop();
       }
+    }
+    if (widget.reaction != oldWidget.reaction && widget.reaction != null) {
+      react(widget.reaction!);
     }
   }
 

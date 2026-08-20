@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../constants/colors.dart';
-import '../constants/dimensions.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 
@@ -30,25 +29,19 @@ class MekaarTabHeader extends StatefulWidget {
   final TextEditingController? searchController;
   final ValueChanged<String>? onSearchChanged;
   final VoidCallback? onSearchClosed;
-  final String searchHint;
+  final String? searchHint;
 
   @override
   State<MekaarTabHeader> createState() => _MekaarTabHeaderState();
 }
 
-class _MekaarTabHeaderState extends State<MekaarTabHeader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+class _MekaarTabHeaderState extends State<MekaarTabHeader> {
   late final FocusNode _searchFocusNode;
 
   @override
   void initState() {
     super.initState();
     _searchFocusNode = FocusNode();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2500),
-    )..repeat();
   }
 
   @override
@@ -62,19 +55,8 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
   void dispose() {
     _searchFocusNode.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -86,77 +68,86 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader>
 
     return Container(
       key: const ValueKey('search_mode_header'),
-      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: searchBg,
-        borderRadius: BorderRadius.circular(MekaarRadius.lg),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.14)
-              : Colors.black.withValues(alpha: 0.08),
-          width: 0.8,
+          color: MekaarColors.cardBorderOf(context).withValues(alpha: 0.8),
+          width: 1,
         ),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(SolarIconsOutline.arrowLeft, size: 20),
-            color: MekaarColors.textPrimaryOf(context),
-            tooltip: 'Tutup Pencarian',
-            onPressed: () {
-              HapticService.trigger(MekaarHapticIntent.selection);
-              _searchFocusNode.unfocus();
-              widget.onSearchClosed?.call();
-            },
+          Icon(
+            SolarIconsOutline.magnifier,
+            color: MekaarColors.textSecondaryOf(context),
+            size: 20,
           ),
+          const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              controller: widget.searchController,
               focusNode: _searchFocusNode,
+              controller: widget.searchController,
               onChanged: widget.onSearchChanged,
-              textInputAction: TextInputAction.search,
-              style: TextStyle(
+              style: MekaarTypography.bodyMD.copyWith(
                 color: MekaarColors.textPrimaryOf(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
               decoration: InputDecoration(
-                hintText: widget.searchHint,
-                hintStyle: TextStyle(
-                  color: MekaarColors.textMutedOf(context),
-                  fontSize: 14,
+                hintText: widget.searchHint ?? 'Cari...',
+                hintStyle: MekaarTypography.bodyMD.copyWith(
+                  color: MekaarColors.textSecondaryOf(context),
                 ),
                 border: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                fillColor: Colors.transparent,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
           if (widget.searchController != null &&
               widget.searchController!.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(SolarIconsOutline.closeCircle, size: 18),
-              color: MekaarColors.textMutedOf(context),
-              tooltip: 'Hapus Teks',
-              onPressed: () {
-                widget.searchController?.clear();
+            GestureDetector(
+              onTap: () {
+                widget.searchController!.clear();
                 widget.onSearchChanged?.call('');
               },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  SolarIconsOutline.closeCircle,
+                  color: MekaarColors.textSecondaryOf(context),
+                  size: 18,
+                ),
+              ),
             ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              _searchFocusNode.unfocus();
+              widget.onSearchClosed?.call();
+            },
+            child: Text(
+              'Batal',
+              style: MekaarTypography.labelMD.copyWith(
+                color: AppColors.blue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildNormalMode() {
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final titleText = Text(
       widget.title,
-      style: MekaarTypography.displayLG.copyWith(
+      style: MekaarTypography.headingLG.copyWith(
         color: MekaarColors.textPrimaryOf(context),
-        fontSize: 26,
+        letterSpacing: -0.5,
+        fontWeight: FontWeight.w800,
       ),
     );
 
@@ -169,38 +160,7 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              disableAnimations
-                  ? titleText
-                  : AnimatedBuilder(
-                      animation: _controller,
-                      builder: (context, _) {
-                        final t = _controller.value;
-                        return ShaderMask(
-                          blendMode: BlendMode.srcATop,
-                          shaderCallback: (bounds) {
-                            final sweepX = (t * 2.0 - 0.5) * bounds.width;
-                            return LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                MekaarColors.textPrimaryOf(context)
-                                    .withValues(alpha: 0.25),
-                                Colors.transparent,
-                              ],
-                              stops: const [0.0, 0.5, 1.0],
-                              begin: Alignment(
-                                (sweepX - bounds.width * 0.3) / bounds.width,
-                                0,
-                              ),
-                              end: Alignment(
-                                (sweepX + bounds.width * 0.3) / bounds.width,
-                                0,
-                              ),
-                            ).createShader(bounds);
-                          },
-                          child: titleText,
-                        );
-                      },
-                    ),
+              titleText,
               if (widget.subtitle != null) ...[
                 const SizedBox(height: 4),
                 widget.subtitle!,

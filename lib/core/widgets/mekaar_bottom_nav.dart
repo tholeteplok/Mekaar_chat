@@ -119,106 +119,107 @@ class MekaarBottomNav extends StatelessWidget {
                         final unreadLabel = (item.unreadCount != null && item.unreadCount! > 0)
                             ? ', ${item.unreadCount! > 99 ? 'lebih dari 99' : item.unreadCount} belum dibaca'
                             : '';
-                        return Semantics(
-                          button: true,
-                          selected: isActive,
-                          label: '${item.label}$unreadLabel',
-                          hint: 'Ketuk untuk membuka menu ${item.label}',
-                          child: BounceInteractive(
-                            scaleFactor: 0.94,
-                            duration: const Duration(milliseconds: 120),
-                            onTap: () {
-                              if (safeIndex != index) onTap(index);
-                            },
-                            child: SizedBox(
-                              width: _tabWidth,
-                              height: _barHeight,
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        AnimatedScale(
-                                          scale: isActive ? 1.12 : 1.0,
-                                          duration: animationsDisabled
-                                              ? Duration.zero
-                                              : const Duration(
-                                                  milliseconds: 250),
-                                          curve: Curves.easeOutBack,
-                                          child: Icon(
-                                            isActive
-                                                ? item.activeIcon
-                                                : item.inactiveIcon,
-                                            color: isActive
-                                                ? effectiveActive
-                                                : effectiveInactive,
-                                            size: _iconSize,
-                                          ),
-                                        ),
-                                        // Unread badge
-                                        if (item.unreadCount != null &&
-                                            item.unreadCount! > 0)
-                                          Positioned(
-                                            top: -4,
-                                            right: -8,
-                                            child: Container(
-                                              constraints:
-                                                  const BoxConstraints(
-                                                      minWidth: 16),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 4,
-                                                vertical: 1,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.blue,
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        MekaarRadius.pill),
-                                                border: Border.all(
-                                                  color: navBgColor,
-                                                  width: 1.5,
-                                                ),
-                                              ),
-                                              child: Text(
-                                                item.unreadCount! > 99
-                                                    ? '99+'
-                                                    : '${item.unreadCount}',
-                                                textAlign: TextAlign.center,
-                                                style:
-                                                    MekaarTypography.badge,
-                                              ),
+                        return Expanded(
+                          child: Semantics(
+                            button: true,
+                            selected: isActive,
+                            label: '${item.label}$unreadLabel',
+                            hint: 'Ketuk untuk membuka menu ${item.label}',
+                            child: BounceInteractive(
+                              scaleFactor: 0.94,
+                              duration: const Duration(milliseconds: 120),
+                              onTap: () {
+                                if (safeIndex != index) onTap(index);
+                              },
+                              child: SizedBox(
+                                height: _barHeight,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          AnimatedScale(
+                                            scale: isActive ? 1.12 : 1.0,
+                                            duration: animationsDisabled
+                                                ? Duration.zero
+                                                : const Duration(
+                                                    milliseconds: 250),
+                                            curve: Curves.easeOutBack,
+                                            child: Icon(
+                                              isActive
+                                                  ? item.activeIcon
+                                                  : item.inactiveIcon,
+                                              color: isActive
+                                                  ? effectiveActive
+                                                  : effectiveInactive,
+                                              size: _iconSize,
                                             ),
                                           ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    AnimatedDefaultTextStyle(
-                                      duration: animationsDisabled
-                                          ? Duration.zero
-                                          : const Duration(
-                                              milliseconds: 200),
-                                      curve: Curves.easeInOut,
-                                      style: TextStyle(
-                                        fontSize: _fontSize,
-                                        fontWeight: isActive
-                                            ? FontWeight.w600
-                                            : FontWeight.w400,
-                                        color: isActive
-                                            ? effectiveActive
-                                            : effectiveInactive,
-                                        letterSpacing: -0.2,
+                                          // Unread badge
+                                          if (item.unreadCount != null &&
+                                              item.unreadCount! > 0)
+                                            Positioned(
+                                              top: -4,
+                                              right: -8,
+                                              child: Container(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                        minWidth: 16),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 4,
+                                                  vertical: 1,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.blue,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          MekaarRadius.pill),
+                                                  border: Border.all(
+                                                    color: navBgColor,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  item.unreadCount! > 99
+                                                      ? '99+'
+                                                      : '${item.unreadCount}',
+                                                  textAlign: TextAlign.center,
+                                                  style:
+                                                      MekaarTypography.badge,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                      child: Text(
-                                        item.label,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.clip,
-                                        softWrap: false,
+                                      const SizedBox(height: 2),
+                                      AnimatedDefaultTextStyle(
+                                        duration: animationsDisabled
+                                            ? Duration.zero
+                                            : const Duration(
+                                                milliseconds: 200),
+                                        curve: Curves.easeInOut,
+                                        style: TextStyle(
+                                          fontSize: _fontSize,
+                                          fontWeight: isActive
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                          color: isActive
+                                              ? effectiveActive
+                                              : effectiveInactive,
+                                          letterSpacing: -0.2,
+                                        ),
+                                        child: Text(
+                                          item.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.clip,
+                                          softWrap: false,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

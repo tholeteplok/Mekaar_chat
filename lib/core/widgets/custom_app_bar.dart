@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../constants/colors.dart';
 import '../constants/icons.dart';
 import 'avatar.dart';
@@ -219,10 +220,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             )
           : null,
       leading: canPop
-          ? IconButton(
-              tooltip: 'Kembali',
-              icon: const Icon(MekaarIcons.arrowBackIosNew, size: 20),
-              onPressed: onBackPress ?? () => Navigator.pop(context),
+          ? Center(
+              child: IconButton(
+                tooltip: 'Kembali',
+                icon: const Icon(SolarIconsOutline.altArrowLeft, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                      MekaarColors.surface2Of(context).withValues(alpha: 0.85),
+                  side: BorderSide(
+                    color: MekaarColors.cardBorderOf(context)
+                        .withValues(alpha: 0.8),
+                    width: 1.0,
+                  ),
+                  shape: const CircleBorder(),
+                ),
+                onPressed: onBackPress ?? () => Navigator.pop(context),
+              ),
             )
           : null,
       title: Row(
