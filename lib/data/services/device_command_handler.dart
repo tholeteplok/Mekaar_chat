@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:logger/logger.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/device_lost_model.dart';
 import '../repositories/device_lost_repository.dart';
 import '../services/alarm_service.dart';
@@ -83,6 +85,21 @@ class DeviceCommandHandler {
                 'accuracy': loc.accuracy,
               });
             }
+          }
+          break;
+
+        case 'logout':
+          if (SupabaseService.isInitialized) {
+            try {
+              await SupabaseService().client.auth.signOut(scope: SignOutScope.local);
+            } catch (_) {}
+          }
+          final navContext = AppNavigator.currentContext;
+          if (navContext != null && navContext.mounted) {
+            Navigator.of(navContext).pushNamedAndRemoveUntil(
+              AppRoutes.onboarding,
+              (route) => false,
+            );
           }
           break;
 

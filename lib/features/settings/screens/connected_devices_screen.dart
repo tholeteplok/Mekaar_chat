@@ -148,9 +148,9 @@ class _ConnectedDevicesScreenState
           color: MekaarColors.sosRed,
           size: 28,
         ),
-        title: 'Keluarkan Perangkat?',
+        title: 'Keluarkan & Logout?',
         message:
-            'Perangkat "${device.deviceLabel ?? device.platform}" akan dikeluarkan dan tidak bisa menerima notifikasi.',
+            'Sesi pada "${device.deviceLabel ?? device.platform}" akan diputuskan dan data akun akan dikeluarkan.\n\n⚠️ Jika perangkat hilang atau dicuri, gunakan menu "Temukan Ponsel Saya" terlebih dahulu untuk mengunci layar atau melacak lokasi sebelum mengeluarkan perangkat.',
         isDestructive: true,
         actions: [
           TextButton(
@@ -166,7 +166,7 @@ class _ConnectedDevicesScreenState
               backgroundColor: MekaarColors.sosRed,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Keluarkan'),
+            child: const Text('Keluarkan & Logout'),
           ),
         ],
       ),
@@ -179,7 +179,7 @@ class _ConnectedDevicesScreenState
       if (!mounted) return;
       MekaarSnackbar.success(
         context,
-        'Perangkat berhasil dikeluarkan.',
+        'Perangkat berhasil dikeluarkan & logout dikirim.',
       );
     }
   }
@@ -194,9 +194,9 @@ class _ConnectedDevicesScreenState
           color: MekaarColors.sosRed,
           size: 28,
         ),
-        title: 'Keluarkan Semua?',
+        title: 'Keluarkan Semua Perangkat Lain?',
         message:
-            '$count perangkat lain akan dikeluarkan. Hanya perangkat ini yang tetap terhubung.',
+            '$count perangkat lain akan dikeluarkan dan sesi login-nya akan diputuskan secara remote.\n\n⚠️ Perangkat yang dikeluarkan tidak akan bisa lagi menerima perintah pelacakan jarak jauh.',
         isDestructive: true,
         actions: [
           TextButton(

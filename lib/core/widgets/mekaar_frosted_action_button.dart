@@ -12,6 +12,7 @@ class MekaarFrostedActionButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Widget icon;
   final double size;
+  final EdgeInsetsGeometry padding;
   final String? tooltip;
   final String? semanticLabel;
 
@@ -20,6 +21,7 @@ class MekaarFrostedActionButton extends StatelessWidget {
     required this.onPressed,
     required this.icon,
     this.size = 56.0,
+    this.padding = const EdgeInsets.all(8.0),
     this.tooltip,
     this.semanticLabel,
   });
@@ -57,6 +59,7 @@ class MekaarFrostedActionButton extends StatelessWidget {
           child: Container(
             width: size,
             height: size,
+            padding: padding,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: bgColor,

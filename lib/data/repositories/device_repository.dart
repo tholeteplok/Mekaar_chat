@@ -72,12 +72,27 @@ class DeviceRepository {
     }
   }
 
-  /// Revoke (hapus) perangkat tertentu dan clear FCM token-nya.
+  /// Revoke (hapus) perangkat tertentu, kirim remote command 'logout', dan clear FCM token-nya.
   /// Dipanggil dari UI "Perangkat Terhubung" saat user memilih "Keluar".
   Future<void> revokeDevice(String deviceId) async {
     try {
+      final userId = _client.auth.currentUser?.id;
+      // 1. Kirim silent remote command 'logout' ke perangkat target
+      if (userId != null) {
+        try {
+          await _client.from('device_commands').insert({
+            'target_profile_id': userId,
+            'target_device_id': deviceId,
+            'command_type': 'logout',
+            'sender_profile_id': userId,
+            'status': 'pending',
+          });
+        } catch (_) {}
+      }
+
+      // 2. Hapus baris dari user_devices
       await _client.rpc('revoke_device', params: {'p_device_id': deviceId});
-      _logger.i('DeviceRepository: Device $deviceId di-revoke');
+      _logger.i('DeviceRepository: Device $deviceId di-revoke & remote logout dikirim');
     } catch (e, st) {
       _logger.w('DeviceRepository.revokeDevice gagal: $e\n$st');
       rethrow;

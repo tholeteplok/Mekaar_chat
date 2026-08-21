@@ -54,32 +54,39 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
     final isTargetingCurrentDevice = _selectedDeviceId == null ||
         _selectedDeviceId == devicesState.currentDeviceId;
 
+    final nextState = !_isAlarmPlaying;
+    final command = nextState ? 'alarm' : 'stop_alarm';
+
     // Jika targetnya perangkat saat ini, jalankan lokal juga
     if (isTargetingCurrentDevice) {
-      if (_isAlarmPlaying) {
-        await AlarmService.stopAlarm();
-        setState(() => _isAlarmPlaying = false);
-        if (mounted) MekaarSnackbar.success(context, 'Alarm dimatikan.');
-      } else {
+      if (nextState) {
         await AlarmService.playSOSAlarm();
-        setState(() => _isAlarmPlaying = true);
-        if (mounted) MekaarSnackbar.warning(context, 'Alarm berbunyi keras!');
+      } else {
+        await AlarmService.stopAlarm();
       }
     }
 
-    // Kirim remote command ke cloud jika targetnya perangkat lain atau semua
+    setState(() => _isAlarmPlaying = nextState);
+
+    // Kirim remote command ke cloud
     if (userId != null) {
       try {
         final repo = ref.read(deviceLostRepositoryProvider);
         await repo.sendRemoteCommand(
           targetProfileId: userId,
           targetDeviceId: _selectedDeviceId,
-          commandType: _isAlarmPlaying ? 'alarm' : 'stop_alarm',
+          commandType: command,
         );
-        if (!isTargetingCurrentDevice && mounted) {
+        if (mounted) {
           MekaarSnackbar.success(
             context,
-            'Perintah alarm dikirim ke perangkat target.',
+            nextState
+                ? (isTargetingCurrentDevice
+                    ? 'Alarm berbunyi keras!'
+                    : 'Perintah membunyikan alarm dikirim ke perangkat target.')
+                : (isTargetingCurrentDevice
+                    ? 'Alarm dimatikan.'
+                    : 'Perintah menghentikan alarm dikirim ke perangkat target.'),
           );
         }
       } catch (e) {
