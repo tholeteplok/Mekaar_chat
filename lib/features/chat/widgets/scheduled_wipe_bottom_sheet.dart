@@ -152,6 +152,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brandAccent = MekaarColors.accentOf(context);
     final targetLocal = _calculateTargetDateTime(_selectedTime);
     final isToday = targetLocal.day == DateTime.now().day;
 
@@ -166,12 +167,12 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: MekaarColors.softCoral.withValues(alpha: 0.15),
+                  color: brandAccent.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   SolarIconsBold.clockCircle,
-                  color: MekaarColors.softCoral,
+                  color: brandAccent,
                   size: 24,
                 ),
               ),
@@ -215,7 +216,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                 borderRadius: BorderRadius.circular(MekaarRadius.md),
                 border: Border.all(
                   color: _selectedMode != 'off'
-                      ? MekaarColors.softCoral.withValues(alpha: 0.5)
+                      ? brandAccent.withValues(alpha: 0.5)
                       : (isDark
                           ? Colors.white.withValues(alpha: 0.1)
                           : Colors.black.withValues(alpha: 0.08)),
@@ -242,7 +243,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                           fontSize: 32,
                           fontWeight: FontWeight.w800,
                           color: _selectedMode != 'off'
-                              ? MekaarColors.softCoral
+                              ? brandAccent
                               : MekaarColors.textPrimaryOf(context),
                           letterSpacing: 1.2,
                         ),
@@ -256,16 +257,16 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: MekaarColors.softCoral.withValues(alpha: 0.12),
+                      color: brandAccent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(MekaarRadius.pill),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           SolarIconsOutline.pen2,
                           size: 16,
-                          color: MekaarColors.softCoral,
+                          color: brandAccent,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -273,7 +274,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: MekaarColors.softCoral,
+                            color: brandAccent,
                           ),
                         ),
                       ],
@@ -291,6 +292,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
             title: 'Mati (Dinonaktifkan)',
             subtitle: 'Pesan tidak dihapus secara terjadwal',
             icon: SolarIconsOutline.closeCircle,
+            brandAccent: brandAccent,
           ),
           const SizedBox(height: 8),
           _buildModeOption(
@@ -300,6 +302,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                 ? 'Hapus seluruh chat pada ${isToday ? "Hari Ini" : "Besok"} pukul ${_formatTimeOfDay(_selectedTime)}'
                 : 'Hapus seluruh chat satu kali saat jam tercapai',
             icon: SolarIconsOutline.fire,
+            brandAccent: brandAccent,
           ),
           const SizedBox(height: 8),
           _buildModeOption(
@@ -307,6 +310,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
             title: 'Rutin Setiap Hari (Daily)',
             subtitle: 'Hapus seluruh riwayat chat setiap hari pukul ${_formatTimeOfDay(_selectedTime)}',
             icon: SolarIconsOutline.restart,
+            brandAccent: brandAccent,
           ),
           const SizedBox(height: 24),
 
@@ -314,7 +318,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
           ElevatedButton(
             onPressed: _onSave,
             style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.softCoral,
+              backgroundColor: brandAccent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -338,6 +342,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
     required String title,
     required String subtitle,
     required IconData icon,
+    required Color brandAccent,
   }) {
     final isSelected = _selectedMode == mode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -351,14 +356,14 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isSelected
-              ? MekaarColors.softCoral.withValues(alpha: isDark ? 0.16 : 0.08)
+              ? brandAccent.withValues(alpha: isDark ? 0.16 : 0.08)
               : (isDark
                   ? Colors.white.withValues(alpha: 0.03)
                   : Colors.black.withValues(alpha: 0.02)),
           borderRadius: BorderRadius.circular(MekaarRadius.md),
           border: Border.all(
             color: isSelected
-                ? MekaarColors.softCoral
+                ? brandAccent
                 : (isDark
                     ? Colors.white.withValues(alpha: 0.08)
                     : Colors.black.withValues(alpha: 0.06)),
@@ -371,7 +376,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
               icon,
               size: 22,
               color: isSelected
-                  ? MekaarColors.softCoral
+                  ? brandAccent
                   : MekaarColors.textSecondaryOf(context),
             ),
             const SizedBox(width: 12),
@@ -385,7 +390,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                       fontSize: 15,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       color: isSelected
-                          ? MekaarColors.softCoral
+                          ? brandAccent
                           : MekaarColors.textPrimaryOf(context),
                     ),
                   ),
@@ -401,9 +406,9 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
               ),
             ),
             if (isSelected)
-              const Icon(
+              Icon(
                 SolarIconsBold.checkCircle,
-                color: MekaarColors.softCoral,
+                color: brandAccent,
                 size: 20,
               ),
           ],

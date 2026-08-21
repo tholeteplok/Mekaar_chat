@@ -745,7 +745,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               onPressed: _showNewChatDialog,
               tooltip: 'Pesan Baru',
               icon: Icon(
-                SolarIconsBold.chatSquare,
+                SolarIconsBold.plus,
                 color: MekaarColors.accentOf(context),
                 size: 24,
               ),

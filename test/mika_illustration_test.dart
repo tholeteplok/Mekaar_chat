@@ -13,7 +13,7 @@ void main() {
         final pose = MikaPose.fromIndex(i);
         expect(pose.poseIndex, equals(i));
         expect(pose.spec.assetPath(isDark: false), contains('mika_light/mika_$i.png'));
-        expect(pose.spec.assetPath(isDark: true), contains('mika_dark/mika_$i.png'));
+        expect(pose.spec.assetPath(isDark: true), contains('mika_dark/mika_dark_$i.png'));
       }
     });
 
@@ -88,7 +88,7 @@ void main() {
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
       final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_3.png'));
+      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_dark_3.png'));
     });
 
     testWidgets('MikaIllustration dengan isDarkOverride bekerja independen dari Theme', (tester) async {
@@ -108,7 +108,7 @@ void main() {
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
       final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_12.png'));
+      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_dark_12.png'));
     });
 
     testWidgets('MekaarStateView meneruskan pose dan adaptif tema', (tester) async {
@@ -132,7 +132,7 @@ void main() {
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
       final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_24.png'));
+      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_dark_24.png'));
     });
 
     testWidgets('MikaAnimated merender pose adaptif tema dengan animasi breathing', (tester) async {

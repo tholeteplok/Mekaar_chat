@@ -1449,7 +1449,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       : SolarIconsOutline.shieldCross,
                                   size: 20,
                                   color: isScreenProtOn
-                                      ? MekaarColors.softCoral
+                                      ? MekaarColors.accentOf(context)
                                       : MekaarColors.textSecondaryOf(context),
                                 ),
                                 const SizedBox(width: 8),
@@ -1476,7 +1476,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       : SolarIconsOutline.forward,
                                   size: 20,
                                   color: isFwdProtOn
-                                      ? MekaarColors.softCoral
+                                      ? MekaarColors.accentOf(context)
                                       : MekaarColors.textSecondaryOf(context),
                                 ),
                                 const SizedBox(width: 8),
@@ -1503,7 +1503,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       : SolarIconsOutline.history,
                                   size: 20,
                                   color: isAutoDelOn
-                                      ? MekaarColors.softCoral
+                                      ? MekaarColors.accentOf(context)
                                       : MekaarColors.textSecondaryOf(context),
                                 ),
                                 const SizedBox(width: 8),
@@ -1530,7 +1530,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       : SolarIconsOutline.clockCircle,
                                   size: 20,
                                   color: _scheduledWipeMode != 'off'
-                                      ? MekaarColors.softCoral
+                                      ? MekaarColors.accentOf(context)
                                       : MekaarColors.textSecondaryOf(context),
                                 ),
                                 const SizedBox(width: 8),
@@ -1557,7 +1557,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       : SolarIconsOutline.fire,
                                   size: 20,
                                   color: _burnOnExit
-                                      ? MekaarColors.softCoral
+                                      ? MekaarColors.accentOf(context)
                                       : MekaarColors.textSecondaryOf(context),
                                 ),
                                 const SizedBox(width: 8),
@@ -1584,7 +1584,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       : SolarIconsOutline.eyeClosed,
                                   size: 20,
                                   color: isViewOnceOn
-                                      ? MekaarColors.softCoral
+                                      ? MekaarColors.accentOf(context)
                                       : MekaarColors.textSecondaryOf(context),
                                 ),
                                 const SizedBox(width: 8),

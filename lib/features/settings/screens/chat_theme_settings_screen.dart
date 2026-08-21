@@ -4,9 +4,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
+import '../../../core/widgets/bounce_interactive.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -979,67 +983,84 @@ class _ChatThemeSettingsScreenState
       ),
     ];
 
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      title: 'Pilih Preset Utama',
       builder: (ctx) {
-        return SafeArea(
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final brandAccent = MekaarColors.accentOf(context);
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Pilih Preset Utama',
-                  style: MekaarTypography.headingSM,
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: presets.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final item = presets[i];
-                    final isSelected = pref.preset == item.preset;
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: item.color,
-                        radius: 12,
-                      ),
-                      title: Text(
-                        item.title,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(
-                        item.subtitle,
-                        style: MekaarTypography.caption,
-                      ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: AppColors.blue)
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        notifier.applyPreset(item.preset);
-                      },
-                    );
+            children: presets.map((item) {
+              final isSelected = pref.preset == item.preset;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: BounceInteractive(
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    Navigator.pop(ctx);
+                    notifier.applyPreset(item.preset);
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? brandAccent.withValues(alpha: isDark ? 0.16 : 0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                      border: Border.all(
+                        color: isSelected
+                            ? brandAccent.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: item.color,
+                          radius: 12,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                  color: isSelected
+                                      ? brandAccent
+                                      : MekaarColors.textPrimaryOf(context),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                item.subtitle,
+                                style: MekaarTypography.caption.copyWith(
+                                  color: MekaarColors.textSecondaryOf(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(
+                            SolarIconsBold.checkCircle,
+                            color: brandAccent,
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         );
       },
@@ -1065,60 +1086,69 @@ class _ChatThemeSettingsScreenState
       (WallpaperType.neumorphicCanvas, 'Soft Slate Neumorphic', SolarIconsBold.boxMinimalistic, const Color(0xFF94A3B8)),
     ];
 
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      title: 'Pilih Wallpaper Canvas',
       builder: (ctx) {
-        return SafeArea(
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final brandAccent = MekaarColors.accentOf(context);
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Pilih Wallpaper Canvas',
-                  style: MekaarTypography.headingSM,
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: wallpapers.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final item = wallpapers[i];
-                    final isSelected = pref.wallpaperType == item.$1;
-                    return ListTile(
-                      leading: Icon(item.$3, color: item.$4, size: 20),
-                      title: Text(
-                        item.$2,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        ),
-                      ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: AppColors.blue)
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        notifier.setWallpaper(item.$1);
-                      },
-                    );
+            children: wallpapers.map((item) {
+              final isSelected = pref.wallpaperType == item.$1;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: BounceInteractive(
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    Navigator.pop(ctx);
+                    notifier.setWallpaper(item.$1);
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? brandAccent.withValues(alpha: isDark ? 0.16 : 0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                      border: Border.all(
+                        color: isSelected
+                            ? brandAccent.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(item.$3, color: item.$4, size: 22),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            item.$2,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                              color: isSelected
+                                  ? brandAccent
+                                  : MekaarColors.textPrimaryOf(context),
+                            ),
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(
+                            SolarIconsBold.checkCircle,
+                            color: brandAccent,
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         );
       },
@@ -1143,60 +1173,79 @@ class _ChatThemeSettingsScreenState
       (ChatBubbleStyle.solarpunkLeaf, 'Solarpunk Leaf', 'Kelopak daun melengkung'),
     ];
 
-    showModalBottomSheet(
+    MekaarBottomSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      title: 'Pilih Gaya Gelembung',
       builder: (ctx) {
-        return SafeArea(
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final brandAccent = MekaarColors.accentOf(context);
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Pilih Gaya Gelembung',
-                  style: MekaarTypography.headingSM,
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: styles.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final item = styles[i];
-                    final isSelected = pref.bubbleStyle == item.$1;
-                    return ListTile(
-                      title: Text(
-                        item.$2,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(item.$3, style: MekaarTypography.caption),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: AppColors.blue)
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        notifier.setBubbleStyle(item.$1);
-                      },
-                    );
+            children: styles.map((item) {
+              final isSelected = pref.bubbleStyle == item.$1;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: BounceInteractive(
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    Navigator.pop(ctx);
+                    notifier.setBubbleStyle(item.$1);
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? brandAccent.withValues(alpha: isDark ? 0.16 : 0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                      border: Border.all(
+                        color: isSelected
+                            ? brandAccent.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.$2,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                  color: isSelected
+                                      ? brandAccent
+                                      : MekaarColors.textPrimaryOf(context),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                item.$3,
+                                style: MekaarTypography.caption.copyWith(
+                                  color: MekaarColors.textSecondaryOf(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(
+                            SolarIconsBold.checkCircle,
+                            color: brandAccent,
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         );
       },

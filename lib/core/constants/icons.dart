@@ -6,7 +6,7 @@ import 'package:solar_icons/solar_icons.dart';
 class MekaarIcons {
   MekaarIcons._();
 
-  // ============ Status Chat ============
+  // ============ Status Chat & Obrolan ============
   /// Ikon perisai — untuk chat Guardian (E2EE + perlindungan)
   static const guardian = SolarIconsOutline.shieldKeyhole;
 
@@ -18,6 +18,14 @@ class MekaarIcons {
 
   /// Ikon gembok — untuk chat terenkripsi end-to-end
   static const encrypted = SolarIconsOutline.lock;
+
+  /// Ikon dialog / pesan obrolan (navbar & list)
+  static const dialog = SolarIconsOutline.dialog;
+  static const dialogBold = SolarIconsBold.dialog;
+
+  /// Ikon tambah / plus (FAB pesan baru & tombol tambah)
+  static const plus = SolarIconsOutline.plus;
+  static const plusBold = SolarIconsBold.plus;
 
   // ============ Navigasi & Aksi Dasar ============
   /// Panah kiri (kembali)

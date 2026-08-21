@@ -33,8 +33,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   static const List<MekaarNavItem> _navItems = [
     MekaarNavItem(
       label: 'Pesan',
-      inactiveIcon: SolarIconsOutline.chatSquare,
-      activeIcon: SolarIconsBold.chatSquare,
+      inactiveIcon: SolarIconsOutline.dialog,
+      activeIcon: SolarIconsBold.dialog,
     ),
     MekaarNavItem(
       label: 'Kontak',

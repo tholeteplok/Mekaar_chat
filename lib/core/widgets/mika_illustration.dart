@@ -20,7 +20,8 @@ class MikaPoseSpec {
   /// Path aset dinamis berbasis tema gelap/terang
   String assetPath({required bool isDark}) {
     final folder = isDark ? 'mika_dark' : 'mika_light';
-    return 'assets/mascot/$folder/mika_$index.png';
+    final fileName = isDark ? 'mika_dark_$index.png' : 'mika_$index.png';
+    return 'assets/mascot/$folder/$fileName';
   }
 }
 
