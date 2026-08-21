@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:solar_icons/solar_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -12,16 +15,19 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
-import '../../../data/services/alarm_service.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/sos_streaming_service.dart';
+import '../../../data/services/supabase_service.dart';
+import '../../sos/providers/device_lost_provider.dart';
 import '../../sos/providers/sos_provider.dart';
 
 /// Layar pembaca SOS untuk Guardian.
 ///
 /// Dibuka saat guardian mengetuk notifikasi SOS (FCM maupun realtime).
-/// Berbeda dari `SOSActiveScreen` yang merupakan sisi korban: layar ini
-/// TIDAK akan mengaktifkan SOS apa pun — hanya menampilkan identitas korban
-/// dan koordinat terakhir agar guardian bisa segera menuju lokasi.
+/// Menampilkan:
+/// 1. Feed video & audio WebRTC real-time dari korban (jika korban menyalakan video)
+/// 2. Lokasi GPS terakhir & riwayat koordinat darurat
+/// 3. Kontrol tombol darurat (Peta & Perintah Sirine Jarak Jauh)
 class SOSViewerScreen extends ConsumerStatefulWidget {
   final String sessionId;
   final String? userId;
@@ -45,20 +51,57 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   Map<String, dynamic>? _ping;
   Timer? _autoRefreshTimer;
 
+  // WebRTC Streaming
+  late final SosStreamingService _streamingService;
+  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  SosStreamState _streamState = SosStreamState.idle;
+  bool _hasRemoteVideo = false;
+
   @override
   void initState() {
     super.initState();
+    _initWebRtc();
     _loadPing();
-    // Segarkan koordinat otomatis tiap 10 detik selama layar terbuka
-    // agar guardian selalu melihat lokasi korban terbaru.
+
+    // Segarkan koordinat otomatis tiap 10 detik
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadPing(silent: true);
     });
   }
 
+  Future<void> _initWebRtc() async {
+    try {
+      await _remoteRenderer.initialize();
+      _streamingService = SosStreamingService(Supabase.instance.client);
+
+      _streamingService.onStreamStateChange = (state) {
+        if (mounted) setState(() => _streamState = state);
+      };
+
+      _streamingService.onRemoteStream = (stream) {
+        if (mounted) {
+          setState(() {
+            _remoteRenderer.srcObject = stream;
+            _hasRemoteVideo = stream.getVideoTracks().isNotEmpty;
+          });
+        }
+      };
+
+      final myUserId = SupabaseService().currentUserId;
+      if (myUserId != null) {
+        await _streamingService.joinStream(
+          sessionId: widget.sessionId,
+          myUserId: myUserId,
+        );
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    _streamingService.cleanUp();
+    _remoteRenderer.dispose();
     super.dispose();
   }
 
@@ -141,12 +184,36 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      await AlarmService.playSOSAlarm();
-      if (mounted) {
-        MekaarSnackbar.warning(
+      final victimUserId = widget.userId;
+      if (victimUserId == null || victimUserId.isEmpty) {
+        MekaarSnackbar.error(
           context,
-          'Sirine peringatan darurat dibunyikan.',
+          'ID korban tidak ditemukan. Tidak dapat mengirim perintah sirine.',
         );
+        return;
+      }
+
+      try {
+        final repo = ref.read(deviceLostRepositoryProvider);
+        await repo.sendRemoteCommand(
+          targetProfileId: victimUserId,
+          targetDeviceId: null, // Broadcast ke semua perangkat korban
+          commandType: 'alarm',
+          payload: {'sessionId': widget.sessionId},
+        );
+        if (mounted) {
+          MekaarSnackbar.warning(
+            context,
+            'Perintah sirine darurat dikirim ke perangkat $userName.',
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          MekaarSnackbar.error(
+            context,
+            'Gagal mengirim perintah sirine ke perangkat korban: $e',
+          );
+        }
       }
     }
   }
@@ -156,7 +223,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'SOS ${widget.userName ?? 'Darurat'}',
-        subtitle: 'Lokasi darurat korban',
+        subtitle: 'Pemantauan darurat real-time',
         actions: [
           IconButton(
             icon: const Icon(SolarIconsOutline.refresh),
@@ -178,7 +245,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
         semanticLabel: 'Memuat lokasi darurat',
       );
     }
-    if (_hasError) {
+    if (_hasError && _ping == null) {
       return _buildMessageState(
         icon: SolarIconsOutline.dangerTriangle,
         message: 'Lokasi darurat tidak dapat dimuat.',
@@ -186,27 +253,143 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
         onPressed: _loadPing,
       );
     }
-    if (_ping == null) {
-      return _buildMessageState(
-        icon: SolarIconsOutline.gps,
-        message: 'Belum ada koordinat yang diterima dari korban. '
-            'Menunggu ping lokasi berikutnya…',
-      );
-    }
 
     return RefreshIndicator(
       onRefresh: () => _loadPing(),
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              'Diperbarui ${_formatTimestamp(_updatedAt!.toIso8601String())}',
-              style: MekaarTypography.bodySM,
+          // ── 1. Video Stream Player jika aktif ──
+          if (_hasRemoteVideo && _remoteRenderer.srcObject != null) ...[
+            _buildVideoStreamCard(),
+            const SizedBox(height: 14),
+          ] else ...[
+            _buildStreamWaitingCard(),
+            const SizedBox(height: 14),
+          ],
+
+          // ── 2. Info Lokasi GPS ──
+          if (_updatedAt != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Diperbarui ${_formatTimestamp(_updatedAt!.toIso8601String())}',
+                style: MekaarTypography.caption.copyWith(
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+            ),
+
+          if (_ping != null) _buildPingCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoStreamCard() {
+    return CustomCard(
+      margin: EdgeInsets.zero,
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(MekaarRadius.lg),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              color: Colors.black87,
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: MekaarColors.sosRed,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Siaran Langsung Korban',
+                    style: MekaarTypography.labelSM.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.sosRed,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: RTCVideoView(
+                _remoteRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStreamWaitingCard() {
+    return CustomCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: MekaarColors.brandPrimary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              SolarIconsOutline.videocameraRecord,
+              color: MekaarColors.brandPrimary,
+              size: 20,
             ),
           ),
-          _buildPingCard(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Umpan Video Darurat',
+                  style: MekaarTypography.bodySM.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: MekaarColors.textPrimaryOf(context),
+                  ),
+                ),
+                Text(
+                  _streamState == SosStreamState.waitingForViewer ||
+                          _streamState == SosStreamState.connecting
+                      ? 'Menghubungkan ke siaran korban…'
+                      : 'Menunggu korban mengaktifkan kamera.',
+                  style: MekaarTypography.caption.copyWith(
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -224,13 +407,13 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 36, color: MekaarColors.textMuted),
+            Icon(icon, size: 36, color: MekaarColors.textMutedOf(context)),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
               style: MekaarTypography.bodyMD.copyWith(
-                color: MekaarColors.textMuted,
+                color: MekaarColors.textMutedOf(context),
               ),
             ),
             if (actionLabel != null && onPressed != null) ...[
@@ -252,6 +435,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
     final accuracy = (ping['accuracy'] as num?)?.toDouble();
 
     return CustomCard(
+      margin: EdgeInsets.zero,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,14 +449,16 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                     Text(
                       userName,
                       style: MekaarTypography.labelLG.copyWith(
-                        color: MekaarColors.textPrimary,
+                        color: MekaarColors.textPrimaryOf(context),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Sesi SOS aktif',
-                      style: MekaarTypography.bodySM,
+                      style: MekaarTypography.bodySM.copyWith(
+                        color: MekaarColors.textMutedOf(context),
+                      ),
                     ),
                   ],
                 ),
@@ -280,143 +466,157 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: MekaarColors.sosLight,
+                  color: MekaarColors.sosRed.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text(
                   'SOS Aktif',
                   style: MekaarTypography.labelSM.copyWith(
                     color: MekaarColors.sosRed,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              const Icon(
-                SolarIconsOutline.mapPoint,
-                size: 16,
-                color: MekaarColors.sosRed,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
-                  style: MekaarTypography.bodySM.copyWith(
-                    color: MekaarColors.textSecondary,
-                  ),
+
+          // Koordinat
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context),
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+              border: Border.all(color: MekaarColors.cardBorderOf(context)),
+            ),
+            child: Column(
+              children: [
+                _buildInfoRow(
+                  SolarIconsOutline.mapPoint,
+                  'Latitude',
+                  lat.toStringAsFixed(6),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  SolarIconsOutline.mapPoint,
+                  'Longitude',
+                  lon.toStringAsFixed(6),
+                ),
+                if (accuracy != null) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow(
+                    SolarIconsOutline.gps,
+                    'Akurasi',
+                    '±${accuracy.toStringAsFixed(1)} m',
+                  ),
+                ],
+                if (timestamp.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow(
+                    SolarIconsOutline.clockCircle,
+                    'Waktu Ping',
+                    _formatTimestamp(timestamp),
+                  ),
+                ],
+              ],
+            ),
           ),
-          if (timestamp.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(
-                  SolarIconsOutline.clockSquare,
-                  size: 16,
-                  color: MekaarColors.textMuted,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Diperbarui ${_formatTimestamp(timestamp)}',
-                  style: MekaarTypography.bodySM,
-                ),
-              ],
-            ),
-          ],
-          if (accuracy != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(
-                  SolarIconsOutline.gps,
-                  size: 16,
-                  color: MekaarColors.textMuted,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Akurasi: ${accuracy.toStringAsFixed(1)} m',
-                  style: MekaarTypography.bodySM,
-                ),
-              ],
-            ),
-          ],
           const SizedBox(height: 16),
+
+          // Tombol Aksi
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(SolarIconsOutline.map, size: 18),
-                  label: const Text('Lihat di Peta'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: MekaarColors.textPrimary,
-                    side: const BorderSide(color: MekaarColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.map,
-                    arguments: {
-                      'latitude': lat,
-                      'longitude': lon,
-                      'locationName': 'Lokasi $userName',
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  icon: const Icon(SolarIconsOutline.globus, size: 18),
-                  label: const Text('OpenStreetMap'),
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.map,
+                      arguments: {
+                        'lat': lat,
+                        'lon': lon,
+                        'title': 'Lokasi $userName',
+                      },
+                    );
+                  },
+                  icon: const Icon(SolarIconsOutline.map),
+                  label: const Text('Lihat di Peta'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.sosRed,
-                    foregroundColor: MekaarColors.surface,
+                    backgroundColor: MekaarColors.accentOf(context),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: () => _openInOpenStreetMap(lat, lon),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => _openInOpenStreetMap(lat, lon),
+                icon: const Icon(SolarIconsOutline.link),
+                label: const Text('OSM'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
+
+          // Tombol Sirine Peringatan
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
+              onPressed: () => _handleTriggerAlarm(userName),
               icon: const Icon(
-                SolarIconsOutline.volumeLoud,
-                size: 18,
+                SolarIconsOutline.bellBing,
                 color: MekaarColors.sosRed,
               ),
-              label: const Text(
+              label: Text(
                 'Bunyikan Sirine Peringatan',
-                style: TextStyle(
-                  color: MekaarColors.sosRed,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(color: MekaarColors.sosRed),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: MekaarColors.sosRed),
+                side: BorderSide(color: MekaarColors.sosRed.withValues(alpha: 0.5)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onPressed: () => _handleTriggerAlarm(userName),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: MekaarColors.textMutedOf(context)),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: MekaarTypography.bodySM.copyWith(
+            color: MekaarColors.textMutedOf(context),
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: MekaarTypography.bodySM.copyWith(
+            fontWeight: FontWeight.w600,
+            color: MekaarColors.textPrimaryOf(context),
+          ),
+        ),
+      ],
     );
   }
 }

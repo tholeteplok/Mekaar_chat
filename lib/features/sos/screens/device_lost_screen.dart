@@ -13,6 +13,8 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/alarm_service.dart';
+import '../../../data/services/supabase_service.dart';
+import '../../settings/providers/connected_devices_provider.dart';
 import '../providers/device_lost_provider.dart';
 
 class DeviceLostScreen extends ConsumerStatefulWidget {
@@ -30,11 +32,15 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
   bool _isLoadingLocation = true;
   String? _locationError;
   bool _isAlarmPlaying = false;
+  String? _selectedDeviceId; // null = semua perangkat / perangkat saat ini
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(_loadLocation);
+    Future.microtask(() {
+      _loadLocation();
+      ref.read(connectedDevicesProvider.notifier).load();
+    });
     _isAlarmPlaying = AlarmService.isPlaying;
 
     final currentLostState = ref.read(deviceLostProvider);
@@ -43,27 +49,43 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
   }
 
   Future<void> _toggleAlarm() async {
-    if (_isAlarmPlaying) {
-      await AlarmService.stopAlarm();
-      setState(() {
-        _isAlarmPlaying = false;
-      });
-      if (mounted) {
-        MekaarSnackbar.success(
-          context,
-          'Alarm berhasil dimatikan.',
-        );
+    final userId = SupabaseService().currentUserId;
+    final devicesState = ref.read(connectedDevicesProvider);
+    final isTargetingCurrentDevice = _selectedDeviceId == null ||
+        _selectedDeviceId == devicesState.currentDeviceId;
+
+    // Jika targetnya perangkat saat ini, jalankan lokal juga
+    if (isTargetingCurrentDevice) {
+      if (_isAlarmPlaying) {
+        await AlarmService.stopAlarm();
+        setState(() => _isAlarmPlaying = false);
+        if (mounted) MekaarSnackbar.success(context, 'Alarm dimatikan.');
+      } else {
+        await AlarmService.playSOSAlarm();
+        setState(() => _isAlarmPlaying = true);
+        if (mounted) MekaarSnackbar.warning(context, 'Alarm berbunyi keras!');
       }
-    } else {
-      await AlarmService.playSOSAlarm();
-      setState(() {
-        _isAlarmPlaying = true;
-      });
-      if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Alarm berbunyi keras!',
+    }
+
+    // Kirim remote command ke cloud jika targetnya perangkat lain atau semua
+    if (userId != null) {
+      try {
+        final repo = ref.read(deviceLostRepositoryProvider);
+        await repo.sendRemoteCommand(
+          targetProfileId: userId,
+          targetDeviceId: _selectedDeviceId,
+          commandType: _isAlarmPlaying ? 'alarm' : 'stop_alarm',
         );
+        if (!isTargetingCurrentDevice && mounted) {
+          MekaarSnackbar.success(
+            context,
+            'Perintah alarm dikirim ke perangkat target.',
+          );
+        }
+      } catch (e) {
+        if (mounted && !isTargetingCurrentDevice) {
+          MekaarSnackbar.error(context, 'Gagal mengirim perintah alarm: $e');
+        }
       }
     }
   }
@@ -105,59 +127,82 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
 
   Future<void> _openInOsm() async {
     if (_lat == null || _lon == null) {
-      MekaarSnackbar.error(
-        context,
-        'Lokasi tidak tersedia',
-      );
+      MekaarSnackbar.error(context, 'Lokasi tidak tersedia');
       return;
     }
     try {
       final url = LocationService.getOpenStreetMapUrl(_lat!, _lon!);
       final launched = await launchUrl(Uri.parse(url));
       if (!launched && mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Gagal membuka OpenStreetMap',
-        );
+        MekaarSnackbar.error(context, 'Gagal membuka OpenStreetMap');
       }
     } catch (e) {
-      if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Gagal membuka OpenStreetMap',
-        );
-      }
+      if (mounted) MekaarSnackbar.error(context, 'Gagal membuka OpenStreetMap');
     }
   }
 
   Future<void> _handleLockDevice() async {
     final msg = _messageController.text.trim();
     final contact = _contactController.text.trim();
+    final userId = SupabaseService().currentUserId;
+    final devicesState = ref.read(connectedDevicesProvider);
+    final isTargetingCurrentDevice = _selectedDeviceId == null ||
+        _selectedDeviceId == devicesState.currentDeviceId;
 
-    await ref.read(deviceLostProvider.notifier).lockDevice(
-          lockMessage: msg,
-          recoveryContact: contact.isEmpty ? null : contact,
+    // 1. Simpan lokal jika menargetkan perangkat saat ini
+    if (isTargetingCurrentDevice) {
+      await ref.read(deviceLostProvider.notifier).lockDevice(
+            lockMessage: msg,
+            recoveryContact: contact.isEmpty ? null : contact,
+          );
+    }
+
+    // 2. Kirim remote command ke server
+    if (userId != null) {
+      try {
+        final repo = ref.read(deviceLostRepositoryProvider);
+        await repo.sendRemoteCommand(
+          targetProfileId: userId,
+          targetDeviceId: _selectedDeviceId,
+          commandType: 'lock',
+          payload: {
+            'lockMessage': msg.isEmpty
+                ? 'Ponsel ini hilang. Harap hubungi nomor darurat di layar.'
+                : msg,
+            'recoveryContact': contact.isEmpty ? null : contact,
+          },
         );
+      } catch (e) {
+        if (mounted) {
+          MekaarSnackbar.error(context, 'Gagal mengirim perintah kunci: $e');
+        }
+      }
+    }
 
     if (!mounted) return;
     MekaarSnackbar.success(
       context,
-      'Pesan Layar Kunci disimpan. Mode Hilang Aktif!',
+      isTargetingCurrentDevice
+          ? 'Pesan Layar Kunci disimpan. Mode Hilang Aktif!'
+          : 'Perintah Kunci Layar dikirim ke perangkat target.',
     );
 
-    Navigator.pushNamed(context, AppRoutes.deviceLostLock);
+    if (isTargetingCurrentDevice) {
+      Navigator.pushNamed(context, AppRoutes.deviceLostLock);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final deviceLostState = ref.watch(deviceLostProvider);
+    final connectedState = ref.watch(connectedDevicesProvider);
 
     return MekaarScaffold(
       flat: true,
       appBar: const CustomAppBar(title: 'Temukan Ponsel Saya'),
       body: Column(
         children: [
-          // OSM Map showing last location
+          // Peta OSM menampilkan posisi
           Expanded(
             child: Column(
               children: [
@@ -171,66 +216,69 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                           semanticLabel: 'Mencari lokasi perangkat',
                         )
                       : _locationError != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const MikaIllustration(
-                                  pose: MikaPose.huft,
-                                  size: 90,
-                                  semanticLabel: 'Gagal memuat lokasi',
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const MikaIllustration(
+                                      pose: MikaPose.huft,
+                                      size: 90,
+                                      semanticLabel: 'Gagal memuat lokasi',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _locationError!,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color:
+                                            MekaarColors.textSecondaryOf(context),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    OutlinedButton.icon(
+                                      onPressed: _loadLocation,
+                                      icon:
+                                          const Icon(SolarIconsOutline.refresh),
+                                      label: const Text('Coba Lagi'),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _locationError!,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: MekaarColors.textSecondaryOf(context),
+                              ),
+                            )
+                          : Semantics(
+                              label: 'Peta lokasi terakhir perangkat',
+                              hint:
+                                  'Menampilkan posisi lokasi pada koordinat $_lat, $_lon',
+                              child: FlutterMap(
+                                options: MapOptions(
+                                  initialCenter: LatLng(_lat!, _lon!),
+                                  initialZoom: 15,
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate:
+                                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName: 'com.mekaar.app',
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: _loadLocation,
-                                  icon: const Icon(SolarIconsOutline.refresh),
-                                  label: const Text('Coba Lagi'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : Semantics(
-                          label: 'Peta lokasi terakhir perangkat',
-                          hint: 'Menampilkan posisi lokasi pada koordinat $_lat, $_lon',
-                          child: FlutterMap(
-                            options: MapOptions(
-                            initialCenter: LatLng(_lat!, _lon!),
-                            initialZoom: 15,
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.mekaar.app',
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(_lat!, _lon!),
-                                  width: 50,
-                                  height: 50,
-                                  child: const Icon(
-                                    SolarIconsOutline.smartphone,
-                                    color: MekaarColors.sosRed,
-                                    size: 40,
+                                  MarkerLayer(
+                                    markers: [
+                                      Marker(
+                                        point: LatLng(_lat!, _lon!),
+                                        width: 50,
+                                        height: 50,
+                                        child: const Icon(
+                                          SolarIconsOutline.smartphone,
+                                          color: MekaarColors.sosRed,
+                                          size: 40,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
-                      ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -247,7 +295,8 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
               ],
             ),
           ),
-          // Remote command interface panel
+
+          // Panel Perintah Jarak Jauh
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             decoration: BoxDecoration(
@@ -276,13 +325,56 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                       color: MekaarColors.textPrimaryOf(context),
                     ),
                   ),
+
+                  // Target Device Selector jika user memiliki > 1 device
+                  if (connectedState.devices.length > 1) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.surface2Of(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: MekaarColors.cardBorderOf(context)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String?>(
+                          value: _selectedDeviceId,
+                          isExpanded: true,
+                          hint: const Text('Target: Semua Perangkat'),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('Semua Perangkat Terdaftar'),
+                            ),
+                            ...connectedState.devices.map(
+                              (d) => DropdownMenuItem<String?>(
+                                value: d.deviceId,
+                                child: Text(
+                                  '${d.deviceLabel ?? d.platform} ${d.deviceId == connectedState.currentDeviceId ? '(Perangkat ini)' : ''}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            setState(() => _selectedDeviceId = val);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(SolarIconsOutline.volumeLoud),
-                          label: Text(_isAlarmPlaying ? 'Matikan Alarm' : 'Bunyikan Alarm'),
+                          label: Text(_isAlarmPlaying
+                              ? 'Matikan Alarm'
+                              : 'Bunyikan Alarm'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _isAlarmPlaying
                                 ? Theme.of(context).colorScheme.error
@@ -351,7 +443,8 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                     controller: _messageController,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      hintText: 'Misal: Ponsel ini hilang. Hubungi 08123456789 jika menemukan.',
+                      hintText:
+                          'Misal: Ponsel ini hilang. Hubungi 08123456789 jika menemukan.',
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
@@ -363,7 +456,8 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                     controller: _contactController,
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      hintText: 'Nomor HP Pemulihan (opsional, mis. 08123456789)',
+                      hintText:
+                          'Nomor HP Pemulihan (opsional, mis. 08123456789)',
                       prefixIcon: Icon(SolarIconsOutline.phone),
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,

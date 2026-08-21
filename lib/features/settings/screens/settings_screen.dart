@@ -226,6 +226,13 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => _handleTwoFactor(context, ref),
                 ),
                 SettingsNavTile(
+                  icon: SolarIconsOutline.smartphone,
+                  iconColor: MekaarColors.brandPrimary,
+                  title: 'Perangkat Terhubung',
+                  onTap: () => Navigator.pushNamed(
+                      context, AppRoutes.connectedDevices),
+                ),
+                SettingsNavTile(
                   icon: SolarIconsOutline.billList,
                   iconColor: MekaarColors.sosRed,
                   title: 'Riwayat SOS',

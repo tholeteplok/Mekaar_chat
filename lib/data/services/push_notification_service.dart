@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
 import 'supabase_service.dart';
 import 'notification_dedup_service.dart';
+import '../repositories/device_repository.dart';
+import 'device_command_handler.dart';
 
 /// Top-level background message handler dipanggil oleh Firebase Messaging OS
 /// saat aplikasi di-background atau ditutup (terminated state).
@@ -54,6 +56,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           userName: data['victimName'] as String?,
         ),
       );
+    } else if (type == 'device_command') {
+      await DeviceCommandHandler.handle(data);
     } else {
       await NotificationService.showMessageNotification(
         title: title,
@@ -174,6 +178,8 @@ class PushNotificationService {
               userName: data['victimName'] as String?,
             ),
           );
+        } else if (type == 'device_command') {
+          DeviceCommandHandler.handle(data);
         } else {
           NotificationService.showMessageNotification(
             title: title,
@@ -212,8 +218,11 @@ class PushNotificationService {
     try {
       final client = SupabaseService().client;
       if (client.auth.currentUser != null) {
-        await client.rpc('update_fcm_token', params: {'p_token': token});
-        _logger.i('FCM token registered in Supabase (length: ${token.length})');
+        // Registrasi device + FCM token ke tabel user_devices
+        // (fallback ke update_fcm_token jika migrasi 72 belum tersedia)
+        final repo = DeviceRepository(client);
+        await repo.registerDevice(fcmToken: token);
+        _logger.i('FCM token registered via DeviceRepository (length: ${token.length})');
       }
     } catch (e) {
       _logger.w('Gagal menyimpan token FCM ke Supabase: $e');

@@ -7,6 +7,7 @@ import 'package:mekaar_chat/data/models/message_model.dart';
 import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/data/models/sos_session_model.dart';
 import 'package:mekaar_chat/data/models/security_log_model.dart';
+import 'package:mekaar_chat/data/models/user_device.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 
 void main() {
@@ -146,6 +147,37 @@ void main() {
       expect(log.sosSessionId, 'session-456');
       expect(log.eventType, 'sos_started');
       expect(log.details?['reason'], 'panic_button');
+    });
+
+    test('UserDevice Model serialization & deserialization', () {
+      final now = DateTime.now();
+      final json = {
+        'id': 'device-row-001',
+        'profile_id': 'user-123',
+        'device_id': 'uuid-device-456',
+        'fcm_token': 'fcm-token-xyz',
+        'device_label': 'Samsung Galaxy S24',
+        'platform': 'android',
+        'app_version': '3.0.0',
+        'last_seen_at': now.toIso8601String(),
+        'created_at': now.toIso8601String(),
+      };
+
+      final device = UserDevice.fromJson(json);
+
+      expect(device.id, 'device-row-001');
+      expect(device.profileId, 'user-123');
+      expect(device.deviceId, 'uuid-device-456');
+      expect(device.fcmToken, 'fcm-token-xyz');
+      expect(device.deviceLabel, 'Samsung Galaxy S24');
+      expect(device.platform, 'android');
+      expect(device.appVersion, '3.0.0');
+      expect(device.isCurrent('uuid-device-456'), isTrue);
+      expect(device.isCurrent('other-device-id'), isFalse);
+
+      final serialized = device.toJson();
+      expect(serialized['device_id'], 'uuid-device-456');
+      expect(serialized['device_label'], 'Samsung Galaxy S24');
     });
   });
 

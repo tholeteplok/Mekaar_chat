@@ -278,8 +278,8 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                           width: double.infinity,
                           height: 54,
                           child: ElevatedButton.icon(
-                            icon: const Icon(SolarIconsOutline.videoLibrary),
-                            label: const Text('Rekam Bukti Darurat (Lokal)'),
+                            icon: const Icon(SolarIconsOutline.videocameraRecord),
+                            label: const Text('Siarkan Video & Rekam Darurat'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: MekaarColors.surface2Of(context),
                               foregroundColor: MekaarColors.textPrimaryOf(context),
@@ -294,7 +294,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Video tersimpan di perangkat Anda — belum dikirim ke Guardian',
+                          'Streaming langsung ke layar Guardian secara real-time',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,

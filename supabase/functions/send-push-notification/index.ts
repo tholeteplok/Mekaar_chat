@@ -115,16 +115,77 @@ function isInvalidTokenError(e: unknown): boolean {
       code === "messaging/registration-token-not-found");
 }
 
+interface DeviceTokenInfo {
+  token: string;
+  deviceId?: string;
+}
+
+async function getUserDeviceTokens(
+  supabaseClient: ReturnType<typeof createClient>,
+  profileId: string,
+  targetDeviceId?: string | null,
+): Promise<DeviceTokenInfo[]> {
+  try {
+    let query = supabaseClient
+      .from("user_devices")
+      .select("fcm_token, device_id")
+      .eq("profile_id", profileId)
+      .not("fcm_token", "is", null);
+
+    if (targetDeviceId) {
+      query = query.eq("device_id", targetDeviceId);
+    }
+
+    const { data: devices, error } = await query;
+    if (!error && devices && devices.length > 0) {
+      return devices.map((d: { fcm_token: string; device_id: string }) => ({
+        token: d.fcm_token,
+        deviceId: d.device_id,
+      }));
+    }
+  } catch (e) {
+    console.warn(`Query user_devices error (user ${profileId}):`, String(e));
+  }
+
+  // Fallback ke profiles.fcm_token
+  if (!targetDeviceId) {
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("fcm_token")
+      .eq("id", profileId)
+      .single();
+
+    if (profile?.fcm_token) {
+      return [{ token: profile.fcm_token }];
+    }
+  }
+
+  return [];
+}
+
 async function clearFcmToken(
   supabaseClient: ReturnType<typeof createClient>,
   profileId: string,
+  deviceId?: string,
 ): Promise<void> {
   try {
+    if (deviceId) {
+      await supabaseClient
+        .from("user_devices")
+        .update({ fcm_token: null })
+        .eq("profile_id", profileId)
+        .eq("device_id", deviceId);
+    } else {
+      await supabaseClient
+        .from("user_devices")
+        .update({ fcm_token: null })
+        .eq("profile_id", profileId);
+    }
     await supabaseClient
       .from("profiles")
       .update({ fcm_token: null })
       .eq("id", profileId);
-    console.warn(`FCM token untuk user ${profileId} dibersihkan (invalid).`);
+    console.warn(`FCM token untuk user ${profileId} (device ${deviceId ?? "all"}) dibersihkan (invalid).`);
   } catch (e) {
     console.warn(`Gagal membersihkan FCM token user ${profileId}:`, String(e));
   }
@@ -225,14 +286,11 @@ Deno.serve(async (req: Request) => {
           // mutedUntil sudah lewat — lanjut kirim (mute expired)
         }
 
-        const { data: profile } = await supabaseClient
-          .from("profiles")
-          .select("fcm_token")
-          .eq("id", p.profile_id)
-          .single();
-
-        const token = profile?.fcm_token;
-        if (!token) continue;
+        const deviceTokens = await getUserDeviceTokens(
+          supabaseClient,
+          p.profile_id,
+        );
+        if (deviceTokens.length === 0) continue;
 
         // Generate preview text berdasarkan tipe pesan
         let bodyText = msg.content || "";
@@ -246,40 +304,41 @@ Deno.serve(async (req: Request) => {
           bodyText = bodyText.substring(0, 97) + "...";
         }
 
-        results.push(
-          messaging.send({
-            token,
-            data: {
-              type: "message",
-              roomId: msg.room_id,
-              title: senderName,
-              body: bodyText,
-              senderName,
-              messageId: msg.id,
-            },
-            android: {
-              priority: "high",
-            },
-            apns: {
-              payload: {
-                aps: {
-                  badge: 1,
-                  "content-available": 1,
+        for (const dt of deviceTokens) {
+          results.push(
+            messaging.send({
+              token: dt.token,
+              data: {
+                type: "message",
+                roomId: msg.room_id,
+                title: senderName,
+                body: bodyText,
+                senderName,
+                messageId: msg.id,
+              },
+              android: {
+                priority: "high",
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    badge: 1,
+                    "content-available": 1,
+                  },
                 },
               },
-            },
-          }).catch(async (e: unknown) => {
-            // Token tidak valid, log tapi jangan crash
-            console.warn(
-              `FCM send failed for token (user ${p.profile_id}):`,
-              String(e),
-            );
-            if (isInvalidTokenError(e)) {
-              await clearFcmToken(supabaseClient, p.profile_id);
-            }
-            return null;
-          }),
-        );
+            }).catch(async (e: unknown) => {
+              console.warn(
+                `FCM send failed for token (user ${p.profile_id}, device ${dt.deviceId ?? "unknown"}):`,
+                String(e),
+              );
+              if (isInvalidTokenError(e)) {
+                await clearFcmToken(supabaseClient, p.profile_id, dt.deviceId);
+              }
+              return null;
+            }),
+          );
+        }
       }
 
       const sentCount = (await Promise.all(results)).filter(Boolean).length;
@@ -300,14 +359,13 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Lookup FCM token penerima
-      const { data: receiverProfile, error: recvErr } = await supabaseClient
-        .from("profiles")
-        .select("fcm_token")
-        .eq("id", call.receiver_id)
-        .single();
+      // Lookup FCM tokens penerima (semua device milik receiver)
+      const receiverTokens = await getUserDeviceTokens(
+        supabaseClient,
+        call.receiver_id,
+      );
 
-      if (recvErr || !receiverProfile?.fcm_token) {
+      if (receiverTokens.length === 0) {
         return new Response(
           JSON.stringify({ ok: true, reason: "no_fcm_token" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -330,42 +388,49 @@ Deno.serve(async (req: Request) => {
         call.call_type === "video" ? "Panggilan video masuk" : "Panggilan masuk";
 
       const messaging = getMessaging(getFirebaseApp());
-      try {
-        await messaging.send({
-          token: receiverProfile.fcm_token,
-          data: {
-            type: "call",
-            roomId: call.room_id,
-            callId: call.id,
-            callerId: call.caller_id,
-            title: callLabel,
-            body: callerName,
-            callerName,
-            callType: call.call_type,
-          },
-          android: {
-            priority: "high",
-          },
-          apns: {
-            payload: {
-              aps: {
-                "content-available": 1,
+      const callResults = [];
+
+      for (const dt of receiverTokens) {
+        callResults.push(
+          messaging.send({
+            token: dt.token,
+            data: {
+              type: "call",
+              roomId: call.room_id,
+              callId: call.id,
+              callerId: call.caller_id,
+              title: callLabel,
+              body: callerName,
+              callerName,
+              callType: call.call_type,
+            },
+            android: {
+              priority: "high",
+            },
+            apns: {
+              payload: {
+                aps: {
+                  "content-available": 1,
+                },
               },
             },
-          },
-        });
-      } catch (e) {
-        console.warn(
-          `FCM call send failed (receiver ${call.receiver_id}):`,
-          String(e),
+          }).catch(async (e: unknown) => {
+            console.warn(
+              `FCM call send failed (receiver ${call.receiver_id}, device ${dt.deviceId ?? "unknown"}):`,
+              String(e),
+            );
+            if (isInvalidTokenError(e)) {
+              await clearFcmToken(supabaseClient, call.receiver_id, dt.deviceId);
+            }
+            return null;
+          }),
         );
-        if (isInvalidTokenError(e)) {
-          await clearFcmToken(supabaseClient, call.receiver_id);
-        }
       }
 
+      const sentCount = (await Promise.all(callResults)).filter(Boolean).length;
+
       return new Response(
-        JSON.stringify({ ok: true, sent: 1, type: "call" }),
+        JSON.stringify({ ok: true, sent: sentCount, type: "call" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -415,26 +480,88 @@ Deno.serve(async (req: Request) => {
       const results = [];
 
       for (const rel of guardianRelations) {
-        const { data: guardianProfile } = await supabaseClient
-          .from("profiles")
-          .select("fcm_token")
-          .eq("id", rel.guardian_id)
-          .single();
+        const guardianTokens = await getUserDeviceTokens(
+          supabaseClient,
+          rel.guardian_id,
+        );
 
-        const token = guardianProfile?.fcm_token;
-        if (!token) continue;
+        for (const dt of guardianTokens) {
+          results.push(
+            messaging.send({
+              token: dt.token,
+              // DATA-ONLY — no 'notification' key agar selalu lewat kode Dart
+              data: {
+                type: "sos",
+                sessionId: sessionId,
+                userId: userId,
+                title: `🆘 DARURAT — ${victimName}`,
+                body: message ?? "Butuh bantuan segera! Tap untuk melihat lokasi.",
+                victimName: victimName,
+              },
+              android: {
+                priority: "high",
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    "content-available": 1,
+                    sound: "default",
+                  },
+                },
+              },
+            }).catch(async (e: unknown) => {
+              console.warn(`FCM SOS send failed for guardian ${rel.guardian_id} (device ${dt.deviceId ?? "unknown"}):`, String(e));
+              if (isInvalidTokenError(e)) {
+                await clearFcmToken(supabaseClient, rel.guardian_id, dt.deviceId);
+              }
+              return null;
+            }),
+          );
+        }
+      }
 
+      const sentCount = (await Promise.all(results)).filter(Boolean).length;
+      return new Response(
+        JSON.stringify({ ok: true, sent: sentCount, type: "sos" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ── Handle Device Command INSERT (Fase 2: Remote Commands) ──
+    if (payload.table === "device_commands") {
+      const cmd = payload.record as Record<string, unknown>;
+      const targetProfileId = cmd.target_profile_id as string;
+      const targetDeviceId = (cmd.target_device_id as string | null) || null;
+      const commandType = cmd.command_type as string;
+      const commandId = cmd.id as string;
+      const cmdPayload = cmd.payload ? JSON.stringify(cmd.payload) : "{}";
+
+      const targetTokens = await getUserDeviceTokens(
+        supabaseClient,
+        targetProfileId,
+        targetDeviceId,
+      );
+
+      if (targetTokens.length === 0) {
+        return new Response(
+          JSON.stringify({ ok: true, reason: "no_fcm_token" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const messaging = getMessaging(getFirebaseApp());
+      const results = [];
+
+      for (const dt of targetTokens) {
         results.push(
           messaging.send({
-            token,
-            // DATA-ONLY — no 'notification' key agar selalu lewat kode Dart
+            token: dt.token,
+            // DATA-ONLY message untuk remote command
             data: {
-              type: "sos",
-              sessionId: sessionId,
-              userId: userId,
-              title: `🆘 DARURAT — ${victimName}`,
-              body: message ?? "Butuh bantuan segera! Tap untuk melihat lokasi.",
-              victimName: victimName,
+              type: "device_command",
+              commandId: commandId,
+              commandType: commandType,
+              payload: cmdPayload,
             },
             android: {
               priority: "high",
@@ -443,14 +570,16 @@ Deno.serve(async (req: Request) => {
               payload: {
                 aps: {
                   "content-available": 1,
-                  sound: "default",
                 },
               },
             },
           }).catch(async (e: unknown) => {
-            console.warn(`FCM SOS send failed for guardian ${rel.guardian_id}:`, String(e));
+            console.warn(
+              `FCM device_command send failed (user ${targetProfileId}, device ${dt.deviceId ?? "unknown"}):`,
+              String(e),
+            );
             if (isInvalidTokenError(e)) {
-              await clearFcmToken(supabaseClient, rel.guardian_id);
+              await clearFcmToken(supabaseClient, targetProfileId, dt.deviceId);
             }
             return null;
           }),
@@ -459,7 +588,7 @@ Deno.serve(async (req: Request) => {
 
       const sentCount = (await Promise.all(results)).filter(Boolean).length;
       return new Response(
-        JSON.stringify({ ok: true, sent: sentCount, type: "sos" }),
+        JSON.stringify({ ok: true, sent: sentCount, type: "device_command" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

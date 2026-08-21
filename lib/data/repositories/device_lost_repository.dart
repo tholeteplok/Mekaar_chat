@@ -48,6 +48,27 @@ class DeviceLostRepository {
     }
   }
 
+  /// Kirim perintah jarak jauh ke perangkat tertentu atau semua perangkat user target.
+  /// (F7 + F10: Mengirim remote command melalui tabel device_commands dan FCM)
+  Future<void> sendRemoteCommand({
+    required String targetProfileId,
+    String? targetDeviceId,
+    required String commandType,
+    Map<String, dynamic> payload = const {},
+  }) async {
+    final senderId = _supabaseService.currentUserId;
+    if (senderId == null) throw Exception('Pengguna belum terautentikasi');
+
+    await _supabaseService.client.from('device_commands').insert({
+      'target_profile_id': targetProfileId,
+      'target_device_id': targetDeviceId,
+      'command_type': commandType,
+      'payload': payload,
+      'sender_profile_id': senderId,
+      'status': 'pending',
+    });
+  }
+
   /// Clear device lost state (unlock device)
   Future<void> clearDeviceLostState() async {
     await setDeviceLostState(const DeviceLostState(isLocked: false));

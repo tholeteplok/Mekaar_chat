@@ -6,6 +6,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../sos/providers/sos_provider.dart';
+import '../../sos/providers/device_lost_provider.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -65,6 +66,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final authState = ref.read(authProvider);
     if (authState.user != null) {
+      // 0. Device Lost Lockout Check
+      final deviceLostRepo = ref.read(deviceLostRepositoryProvider);
+      final lostState = await deviceLostRepo.getDeviceLostState();
+      if (lostState.isLocked) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.deviceLostLock);
+        return;
+      }
+
       // 1. Suspension Lockout Check (dengan SOS immunity guard)
       if (authState.profile?.isSuspended == true) {
         try {

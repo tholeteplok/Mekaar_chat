@@ -32,6 +32,7 @@ import 'package:mekaar_chat/features/settings/screens/trip_list_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/add_trip_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/trip_arrival_confirm_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/about_mekaar_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/connected_devices_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_picker_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
@@ -141,6 +142,7 @@ class AppRoutes {
   static const String accountSuspended = '/auth/account-suspended';
   static const String chatRequests = '/chat/requests';
   static const String about = '/settings/about';
+  static const String connectedDevices = '/settings/devices';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -259,6 +261,9 @@ class AppRoutes {
         return MekaarPageRoute(builder: (_) => const SoundPickerScreen());
       case AppRoutes.about:
         return MekaarPageRoute(builder: (_) => const AboutMekaarScreen());
+      case AppRoutes.connectedDevices:
+        return MekaarPageRoute(
+            builder: (_) => const ConnectedDevicesScreen());
       case AppRoutes.blockedList:
         return MekaarPageRoute(builder: (_) => const BlockedListScreen());
       case AppRoutes.tripList:

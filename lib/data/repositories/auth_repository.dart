@@ -10,6 +10,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../services/e2ee_service.dart';
 import '../services/supabase_service.dart';
+import 'device_repository.dart';
 
 class AuthRepository {
   final SupabaseService _supabaseService;
@@ -345,10 +346,12 @@ class AuthRepository {
   // Sign out
   Future<void> signOut() async {
     // Hapus FCM token dari server SEBELUM signout
-    // Mencegah push terkirim ke perangkat setelah user berganti
+    // Menggunakan DeviceRepository agar hanya token device ini yang dihapus
+    // (bukan semua device user), mendukung multi-device.
     try {
       if (SupabaseService.isInitialized) {
-        await _supabaseService.client.rpc('clear_fcm_token');
+        final repo = DeviceRepository(_supabaseService.client);
+        await repo.clearFcmTokenForThisDevice();
       }
     } catch (_) {
       // Lanjutkan signout meskipun gagal clear token

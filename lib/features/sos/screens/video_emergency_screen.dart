@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../data/services/webrtc_service.dart';
+import '../../../data/services/sos_streaming_service.dart';
+import '../../../data/services/supabase_service.dart';
 import '../../chat/providers/screen_protection_provider.dart';
 import '../providers/sos_provider.dart';
 
@@ -21,12 +23,13 @@ class VideoEmergencyScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
-  final WebRTCService _webrtcService = WebRTCService();
+  late final SosStreamingService _streamingService;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   bool _isFrontCamera = true;
   bool _isScreenLocked = false;
   Timer? _timer;
   int _recordingSeconds = 0;
+  SosStreamState _streamState = SosStreamState.idle;
 
   // Durasi maksimal rekaman sebelum otomatis berhenti (menit). 0 = tanpa batas.
   int _autoStopMinutes = 0;
@@ -35,6 +38,16 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   @override
   void initState() {
     super.initState();
+    _streamingService = SosStreamingService(Supabase.instance.client);
+    _streamingService.onStreamStateChange = (state) {
+      if (mounted) setState(() => _streamState = state);
+    };
+    _streamingService.onViewerJoined = () {
+      if (mounted) {
+        MekaarSnackbar.info(context, 'Guardian telah bergabung ke siaran video Anda.');
+      }
+    };
+
     Future.microtask(() {
       ref
           .read(screenProtectionControllerProvider)
@@ -51,15 +64,30 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   Future<void> _initVideo() async {
     try {
       await _localRenderer.initialize();
-      final stream = await _webrtcService.getLocalStream(
+      final stream = await _streamingService.initLocalMedia(
         audio: true,
         video: true,
         isFrontCamera: _isFrontCamera,
       );
-      setState(() {
-        _localRenderer.srcObject = stream;
-      });
-      ref.read(sosProvider.notifier).toggleVideo(true);
+
+      if (stream != null) {
+        setState(() {
+          _localRenderer.srcObject = stream;
+        });
+        ref.read(sosProvider.notifier).toggleVideo(true);
+
+        // Mulai broadcast ke Guardian jika sesi SOS aktif
+        final currentSos = ref.read(sosProvider);
+        final sessionId = currentSos.activeSession?.id;
+        final userId = SupabaseService().currentUserId;
+
+        if (sessionId != null && userId != null) {
+          await _streamingService.startBroadcast(
+            sessionId: sessionId,
+            myUserId: userId,
+          );
+        }
+      }
     } catch (_) {}
   }
 
@@ -123,28 +151,35 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   }
 
   Future<void> _switchCamera() async {
-    await _webrtcService.switchCamera();
+    await _streamingService.switchCamera();
     setState(() => _isFrontCamera = !_isFrontCamera);
   }
 
   void _toggleScreenLock() {
     setState(() => _isScreenLocked = !_isScreenLocked);
-    if (mounted) {
+    if (_isScreenLocked && mounted) {
       MekaarSnackbar.info(
         context,
-        _isScreenLocked
-            ? 'Layar dikunci. Video streaming tetap berjalan di latar belakang.'
-            : 'Layar dibuka.',
+        'Layar Terkunci. Ketuk 2x di mana saja untuk membuka.',
       );
     }
   }
 
-  void _stopRecording() async {
+  void _stopRecording() {
     _timer?.cancel();
-    _timer = null;
+    final currentSos = ref.read(sosProvider);
+    final sessionId = currentSos.activeSession?.id;
+    final userId = SupabaseService().currentUserId;
+
+    if (sessionId != null && userId != null) {
+      _streamingService.stopStream(sessionId, userId);
+    } else {
+      _streamingService.cleanUp();
+    }
+
+    _localRenderer.dispose();
     ref.read(sosProvider.notifier).toggleVideo(false);
-    await _webrtcService.cleanUp();
-    _localRenderer.srcObject = null;
+
     if (mounted) {
       Navigator.pop(context);
     }
@@ -153,8 +188,8 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _streamingService.cleanUp();
     _localRenderer.dispose();
-    unawaited(_webrtcService.cleanUp());
     ref
         .read(screenProtectionControllerProvider)
         .leaveMandatorySurface('sos_video');
@@ -169,102 +204,79 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sosState = ref.watch(sosProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Local Camera Feed View
-          _localRenderer.srcObject != null
-              ? SizedBox.expand(
-                  child: RTCVideoView(_localRenderer, mirror: _isFrontCamera),
-                )
-              : const Center(
-                  child: CircularProgressIndicator(color: MekaarColors.sosRed),
-                ),
-
-          // Locked Screen Dark Overlay
-          if (_isScreenLocked)
-            Container(
-              color: Colors.black87,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      SolarIconsBold.lock,
-                      size: 64,
-                      color: Colors.white24,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Layar Terkunci Secara Aman',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Perekaman kamera terus berjalan di latar belakang.',
-                      style: TextStyle(color: Colors.white30, fontSize: 13),
-                    ),
-                    const SizedBox(height: 32),
-                    OutlinedButton.icon(
-                      icon: const Icon(SolarIconsOutline.lockUnlocked),
-                      label: const Text('Buka Layar'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white30),
-                      ),
-                      onPressed: _toggleScreenLock,
-                    ),
-                  ],
-                ),
+          // Video Preview
+          if (_localRenderer.srcObject != null)
+            Positioned.fill(
+              child: RTCVideoView(
+                _localRenderer,
+                mirror: _isFrontCamera,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
               ),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
             ),
 
-          // Inactivity prompt "Apakah Anda Aman?" (blind spot #7)
-          if (ref.watch(sosProvider).needsInactivityAck && !_isScreenLocked)
-            Container(
-              color: Colors.black54,
-              child: Center(
+          // Inactivity prompt
+          if (sosState.needsInactivityAck)
+            Positioned(
+              top: 100,
+              left: 20,
+              right: 20,
+              child: Material(
+                color: Colors.transparent,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 32),
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: MekaarColors.surfaceOf(context),
+                    color: Colors.black87,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber, width: 1.5),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        SolarIconsOutline.heart,
-                        color: MekaarColors.sosRed,
-                        size: 36,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Apakah Anda Aman?',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      const Row(
+                        children: [
+                          Icon(SolarIconsBold.shieldWarning, color: Colors.amber, size: 24),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Apakah Anda Aman?',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Ketuk untuk melanjutkan rekam. Jika tidak ada respon, perekaman dihentikan otomatis untuk menjaga privasi.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12),
+                        'Perangkat Anda terdeteksi tidak bergerak. Sentuh layar atau tekan tombol di bawah jika Anda masih memerlukan rekaman ini.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _dismissInactivityPrompt,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: MekaarColors.guardianTeal,
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber,
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: _dismissInactivityPrompt,
+                          child: const Text(
+                            'Saya Masih Butuh Rekaman Ini',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
-                        child: const Text('Saya Aman, Lanjutkan'),
                       ),
                     ],
                   ),
@@ -272,20 +284,49 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
               ),
             ),
 
-          // Status HUD controls (Hidden when screen is locked)
+          // Screen Lock Overlay
+          if (_isScreenLocked)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onDoubleTap: _toggleScreenLock,
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.95),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(SolarIconsOutline.lock, color: Colors.white38, size: 48),
+                        SizedBox(height: 16),
+                        Text(
+                          'Kamera & Mic Tetap Merekam',
+                          style: TextStyle(color: Colors.white54, fontSize: 14),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Ketuk 2x untuk membuka kontrol layar',
+                          style: TextStyle(color: Colors.white24, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Non-locked Controls Overlay
           if (!_isScreenLocked) ...[
-            // Status Indicator Dot & Local Banner
+            // Top Bar: Timer, Stream Status, REC Indicator
             Positioned(
-              top: 40,
-              left: 20,
-              right: 20,
+              top: MediaQuery.of(context).padding.top + 16,
+              left: 16,
+              right: 16,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Timer Indicator
+                      // Timer
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -304,7 +345,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                           ),
                         ),
                       ),
-                      // Status Dot
+                      // Stream Status Dot
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -314,14 +355,26 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                           color: Colors.black45,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(MekaarIcons.circle, color: Colors.green, size: 8),
-                            SizedBox(width: 6),
+                            Icon(
+                              MekaarIcons.circle,
+                              color: _streamState == SosStreamState.streaming
+                                  ? Colors.green
+                                  : (_streamState == SosStreamState.waitingForViewer
+                                      ? Colors.amber
+                                      : Colors.lightBlue),
+                              size: 8,
+                            ),
+                            const SizedBox(width: 6),
                             Text(
-                              'Kamera & Mic Aktif (Lokal)',
-                              style: TextStyle(
+                              _streamState == SosStreamState.streaming
+                                  ? '🔴 Live ke Guardian'
+                                  : (_streamState == SosStreamState.waitingForViewer
+                                      ? 'Menunggu Guardian…'
+                                      : 'Kamera & Mic Aktif'),
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
@@ -363,44 +416,6 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Banner Peringatan Lokal
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: MekaarColors.accentOf(context).withValues(alpha: 0.5),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          SolarIconsOutline.infoCircle,
-                          size: 14,
-                          color: MekaarColors.accentOf(context),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Perekaman ini disimpan lokal di perangkat. Bagikan ke Guardian setelah situasi aman.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: MekaarColors.accentOf(context),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),
