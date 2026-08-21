@@ -11,6 +11,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -241,6 +242,163 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       currentlyMuted ? 'Notifikasi diaktifkan' : 'Notifikasi dibisukan',
     );
     ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  Future<void> _handleMarkAsReadRoom(Map<String, dynamic> room) async {
+    final roomId = room['id'] as String;
+    await ref.read(chatActionsProvider).markRoomRead(roomId);
+    if (!mounted) return;
+    HapticService.trigger(MekaarHapticIntent.selection);
+    ref.read(chatRoomsProvider.notifier).refreshRooms();
+  }
+
+  void _showChatTileContextMenu(BuildContext context, Map<String, dynamic> room) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    final roomId = room['id'] as String;
+    final chatName = room['name'] as String? ?? 'Obrolan';
+    final chatAvatar = room['avatar'] as String? ?? '';
+    final chatAvatarUrl = room['avatarUrl'] as String?;
+    final otherUserId = room['otherUserId'] as String?;
+    final isGuardian = room['isGuardian'] as bool? ?? false;
+    final isMuted = room['isMuted'] as bool? ?? false;
+    final unreadCount = room['unreadCount'] as int? ?? 0;
+    final hiddenRooms = ref.read(hiddenRoomIdsProvider);
+    final isHidden = hiddenRooms.contains(roomId);
+
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetCtx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header info obrolan
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Avatar(
+                  initial: chatAvatar.isNotEmpty ? chatAvatar : chatName[0],
+                  imageUrl: chatAvatarUrl,
+                  size: 44,
+                  isGuardian: isGuardian,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        chatName,
+                        style: MekaarTypography.headingSM.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        room['lastMessage'] as String? ?? 'Tidak ada pesan',
+                        style: MekaarTypography.bodySM.copyWith(
+                          color: MekaarColors.textMutedOf(context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+
+          // 1. Tandai Sudah Dibaca
+          if (unreadCount > 0)
+            ListTile(
+              leading: const Icon(SolarIconsOutline.checkCircle, color: AppColors.blue),
+              title: const Text('Tandai Sudah Dibaca'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _handleMarkAsReadRoom(room);
+              },
+            ),
+
+          // 2. Bisukan / Bunyikan Notifikasi
+          ListTile(
+            leading: Icon(
+              isMuted ? SolarIconsOutline.bell : SolarIconsOutline.bellOff,
+              color: isMuted ? AppColors.blue : MekaarColors.warnAmber,
+            ),
+            title: Text(isMuted ? 'Bunyikan Notifikasi' : 'Bisukan Notifikasi'),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              _handleMuteRoom(room);
+            },
+          ),
+
+          // 3. Arsipkan Obrolan
+          ListTile(
+            leading: const Icon(SolarIconsOutline.archive, color: MekaarColors.cyan),
+            title: const Text('Arsipkan Obrolan'),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              _handleArchiveRoom(room);
+            },
+          ),
+
+          // 4. Sembunyikan ke Private Vault
+          ListTile(
+            leading: const Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
+            title: Text(isHidden ? 'Tampilkan Obrolan' : 'Sembunyikan ke Private Vault'),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                context,
+                ref,
+                roomId: roomId,
+                chatName: chatName,
+              );
+            },
+          ),
+
+          // 5. Info Kontak & Pengaturan
+          ListTile(
+            leading: const Icon(SolarIconsOutline.infoCircle, color: AppColors.blue),
+            title: const Text('Info Kontak & Pengaturan'),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              Navigator.pushNamed(
+                context,
+                AppRoutes.contactSettings,
+                arguments: {
+                  'roomId': roomId,
+                  'chatName': chatName,
+                  'chatAvatar': chatAvatar,
+                  'otherUserId': otherUserId,
+                  'isGuardian': isGuardian,
+                },
+              );
+            },
+          ),
+
+          const Divider(height: 1),
+
+          // 6. Hapus Obrolan
+          ListTile(
+            leading: const Icon(SolarIconsOutline.trashBinTrash, color: MekaarColors.sosRed),
+            title: const Text(
+              'Hapus Chat',
+              style: TextStyle(color: MekaarColors.sosRed, fontWeight: FontWeight.w600),
+            ),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              _confirmDeleteRoom(room);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleArchiveRoom(Map<String, dynamic> room) async {
@@ -897,46 +1055,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 final roomId = room['id'] as String;
                 final isHidden = hiddenRoomIds.contains(roomId);
 
-                return GestureDetector(
-                  onLongPress: () {
+                return ChatListTile(
+                  room: room,
+                  isHidden: isHidden,
+                  onTap: () {
                     Navigator.pushNamed(
                       context,
-                      AppRoutes.contactSettings,
+                      AppRoutes.chat,
                       arguments: {
-                        'roomId': room['id'],
+                        'chatId': room['id'],
                         'chatName': room['name'],
                         'chatAvatar': room['avatar'],
-                        'otherUserId': room['otherUserId'],
+                        'chatAvatarUrl': room['avatarUrl'] as String?,
                         'isGuardian': room['isGuardian'] as bool? ?? false,
+                        'otherUserId': room['otherUserId'] as String?,
                       },
                     );
                   },
-                  child: ChatListTile(
-                    room: room,
-                    isHidden: isHidden,
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        AppRoutes.chat,
-                        arguments: {
-                          'chatId': room['id'],
-                          'chatName': room['name'],
-                          'chatAvatar': room['avatar'],
-                          'chatAvatarUrl': room['avatarUrl'] as String?,
-                          'isGuardian': room['isGuardian'] as bool? ?? false,
-                          'otherUserId': room['otherUserId'] as String?,
-                        },
-                      );
-                    },
-                    onMute: () => _handleMuteRoom(room),
-                    onDelete: () => _confirmDeleteRoom(room),
-                    onArchive: () => _handleArchiveRoom(room),
-                    onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
-                      context,
-                      ref,
-                      roomId: roomId,
-                      chatName: room['name'] as String? ?? 'Obrolan',
-                    ),
+                  onLongPress: () => _showChatTileContextMenu(context, room),
+                  onMarkRead: () => _handleMarkAsReadRoom(room),
+                  onMute: () => _handleMuteRoom(room),
+                  onDelete: () => _confirmDeleteRoom(room),
+                  onArchive: () => _handleArchiveRoom(room),
+                  onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                    context,
+                    ref,
+                    roomId: roomId,
+                    chatName: room['name'] as String? ?? 'Obrolan',
                   ),
                 );
               },

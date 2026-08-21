@@ -17,6 +17,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/widgets/private_vault_dialogs.dart';
+import '../../chat/widgets/chat_room_privacy_sheet.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/repositories/report_repository.dart';
@@ -225,6 +226,48 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+
+                // Pengaturan Privasi Obrolan Terpusat
+                ListTile(
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.blue.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      SolarIconsBold.shieldKeyhole,
+                      color: AppColors.blue,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Pengaturan Privasi Obrolan',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Proteksi layar, anti-forward, pesan menghilang, & self-destruct',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: MekaarColors.textMutedOf(context),
+                    ),
+                  ),
+                  trailing: Icon(
+                    SolarIconsOutline.altArrowRight,
+                    size: 16,
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                  onTap: () {
+                    ChatRoomPrivacySheet.show(
+                      context,
+                      roomId: widget.roomId,
+                      onSettingsChanged: () {
+                        _loadPreferences();
+                      },
+                    );
+                  },
+                ),
 
                 // Mute
                 _buildSwitchTile(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -304,27 +305,15 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       ],
                     ).animate().fadeIn(duration: 200.ms, delay: 100.ms),
                   ],
-                  if (canEnd)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(SolarIconsOutline.closeSquare, color: MekaarColors.sosRed),
-                        label: Text(
-                          sosState.status == SOSStatus.queuedOffline
-                              ? 'Batalkan SOS Tertunda'
-                              : 'Akhiri Mode Darurat',
-                          style: const TextStyle(color: MekaarColors.sosRed),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: MekaarColors.sosRed),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => _handleEndSOS(sosState),
-                      ),
+                  if (canEnd) ...[
+                    const SizedBox(height: 8),
+                    _HoldToEndSOSButton(
+                      label: sosState.status == SOSStatus.queuedOffline
+                          ? 'Batalkan SOS'
+                          : 'Akhiri Mode Darurat',
+                      onTrigger: () => _handleEndSOS(sosState),
                     ).animate().fadeIn(duration: 200.ms),
+                  ],
                   if (sosState.status == SOSStatus.failed)
                     SizedBox(
                       width: double.infinity,
@@ -342,6 +331,146 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Tombol Hold-to-Confirm (3 detik) untuk mencegah pengakhiran SOS yang tidak disengaja.
+class _HoldToEndSOSButton extends StatefulWidget {
+  final VoidCallback onTrigger;
+  final String label;
+
+  const _HoldToEndSOSButton({
+    required this.onTrigger,
+    required this.label,
+  });
+
+  @override
+  State<_HoldToEndSOSButton> createState() => _HoldToEndSOSButtonState();
+}
+
+class _HoldToEndSOSButtonState extends State<_HoldToEndSOSButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  Timer? _hapticTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _hapticTimer?.cancel();
+        HapticService.trigger(MekaarHapticIntent.success);
+        widget.onTrigger();
+        _controller.reset();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hapticTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    _controller.forward(from: 0.0);
+    _hapticTimer?.cancel();
+    _hapticTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
+      HapticService.trigger(MekaarHapticIntent.selection);
+    });
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    _hapticTimer?.cancel();
+    if (_controller.status != AnimationStatus.completed) {
+      _controller.reverse();
+    }
+  }
+
+  void _onTapCancel() {
+    _hapticTimer?.cancel();
+    _controller.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final progress = _controller.value;
+          final isHolding = progress > 0.03;
+
+          return Container(
+            height: 54,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: isHolding
+                  ? MekaarColors.sosRed.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isHolding
+                    ? MekaarColors.sosRed
+                    : MekaarColors.sosRed.withValues(alpha: 0.6),
+                width: isHolding ? 2 : 1.2,
+              ),
+            ),
+            child: Stack(
+              children: [
+                // Progress fill layer
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress,
+                    child: Container(
+                      color: MekaarColors.sosRed.withValues(alpha: 0.35),
+                    ),
+                  ),
+                ),
+                // Text & Icon
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isHolding
+                            ? SolarIconsBold.dangerSquare
+                            : SolarIconsOutline.closeSquare,
+                        color: MekaarColors.sosRed,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isHolding
+                            ? 'Tahan... ${(3 - (progress * 3)).clamp(0.1, 3.0).toStringAsFixed(1)}d'
+                            : 'Tahan 3 Detik: ${widget.label}',
+                        style: const TextStyle(
+                          color: MekaarColors.sosRed,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

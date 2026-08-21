@@ -295,6 +295,12 @@ class ChatBubble extends ConsumerWidget {
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: !isDeleted ? () => _showContextMenu(context) : null,
+        onDoubleTap: (!isDeleted && onReact != null)
+            ? () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                onReact!(message, '❤️');
+              }
+            : null,
         child: Column(
           crossAxisAlignment:
               isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,

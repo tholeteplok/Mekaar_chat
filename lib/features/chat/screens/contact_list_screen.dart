@@ -11,6 +11,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -20,6 +21,7 @@ import '../../../data/repositories/private_contact_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
+import '../widgets/chat_room_privacy_sheet.dart';
 
 class ContactListScreen extends ConsumerStatefulWidget {
   const ContactListScreen({super.key});
@@ -587,10 +589,14 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         },
                       );
                     },
+                    onLongPress: () {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      _showContactContextMenu(context, contact, name, avatar, isGuardian);
+                    },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                       child: Row(
                           children: [
@@ -685,11 +691,28 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              SolarIconsOutline.altArrowRight,
-                              color: mutedColor,
-                              size: 18,
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.infoCircle,
+                                color: mutedColor,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                HapticService.trigger(MekaarHapticIntent.selection);
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.contactSettings,
+                                  arguments: {
+                                    'roomId': contact['id'],
+                                    'chatName': name,
+                                    'chatAvatar': avatar,
+                                    'otherUserId': contact['otherUserId'] as String?,
+                                    'isGuardian': isGuardian,
+                                  },
+                                );
+                              },
+                              tooltip: 'Info Kontak',
                             ),
                           ],
                         ),
@@ -701,6 +724,97 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           ),
         ),
       ],
+    );
+  }
+
+  void _showContactContextMenu(
+    BuildContext context,
+    Map<String, dynamic> contact,
+    String name,
+    String avatar,
+    bool isGuardian,
+  ) {
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Avatar(
+                      imageUrl: contact['avatarUrl'] as String?,
+                      initial: avatar,
+                      isGuardian: isGuardian,
+                      size: 40,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: MekaarTypography.bodyMD.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(SolarIconsOutline.chatRoundDots, color: AppColors.blue),
+                title: const Text('Buka Obrolan'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.pushNamed(
+                    context,
+                    AppRoutes.chat,
+                    arguments: {
+                      'chatId': contact['id'],
+                      'chatName': name,
+                      'chatAvatar': avatar,
+                      'chatAvatarUrl': contact['avatarUrl'] as String?,
+                      'isGuardian': isGuardian,
+                      'otherUserId': contact['otherUserId'] as String?,
+                    },
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(SolarIconsOutline.userCircle, color: MekaarColors.cyan),
+                title: const Text('Info & Pengaturan Kontak'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.pushNamed(
+                    context,
+                    AppRoutes.contactSettings,
+                    arguments: {
+                      'roomId': contact['id'],
+                      'chatName': name,
+                      'chatAvatar': avatar,
+                      'otherUserId': contact['otherUserId'] as String?,
+                      'isGuardian': isGuardian,
+                    },
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(SolarIconsOutline.shieldCheck, color: MekaarColors.guardianTeal),
+                title: const Text('Pengaturan Privasi Obrolan'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ChatRoomPrivacySheet.show(context, roomId: contact['id'] as String);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
@@ -57,6 +58,7 @@ class _ChatComposerState extends State<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
   bool _showEmojiPicker = false;
+  List<String> _recentEmojis = [];
 
   AudioRecorder? _audioRecorder;
   bool _isRecording = false;
@@ -73,6 +75,33 @@ class _ChatComposerState extends State<ChatComposer> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onTextChanged);
+    _loadRecentEmojis();
+  }
+
+  Future<void> _loadRecentEmojis() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('frequent_emojis') ?? [];
+      if (mounted) {
+        setState(() => _recentEmojis = list);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveRecentEmoji(String emoji) async {
+    final updated = List<String>.from(_recentEmojis);
+    updated.remove(emoji);
+    updated.insert(0, emoji);
+    if (updated.length > 16) {
+      updated.removeLast();
+    }
+    if (mounted) {
+      setState(() => _recentEmojis = updated);
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('frequent_emojis', updated);
+    } catch (_) {}
   }
 
   @override
@@ -373,6 +402,8 @@ class _ChatComposerState extends State<ChatComposer> {
 
   Widget _buildEmojiPickerPanel() {
     final emojiCategories = <String, List<String>>{
+      if (_recentEmojis.isNotEmpty)
+        'Sering Digunakan': _recentEmojis,
       'Ekspresi & Wajah': [
         '😀', '😂', '😍', '🥰', '😎', '🥳', '🤩', '😇',
         '😋', '🤪', '😜', '🤗', '🤔', '🫣', '😌', '😏',
@@ -419,7 +450,9 @@ class _ChatComposerState extends State<ChatComposer> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: MekaarColors.textMutedOf(context),
+                      color: category.key == 'Sering Digunakan'
+                          ? AppColors.blue
+                          : MekaarColors.textMutedOf(context),
                     ),
                   ),
                 ),
@@ -430,6 +463,7 @@ class _ChatComposerState extends State<ChatComposer> {
                     return GestureDetector(
                       onTap: () {
                         HapticService.trigger(MekaarHapticIntent.selection);
+                        _saveRecentEmoji(emoji);
                         final text = widget.controller.text;
                         final selection = widget.controller.selection;
                         final newText = selection.isValid
@@ -710,7 +744,7 @@ class _ChatComposerState extends State<ChatComposer> {
                                 padding: const EdgeInsets.only(bottom: 2),
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                                  constraints: const BoxConstraints.tightFor(width: 44, height: 44),
                                   icon: Icon(
                                     MekaarIcons.smile,
                                     color: _showEmojiPicker
@@ -877,36 +911,44 @@ class _ReplyPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: MekaarSpacing.lg,
-        vertical: MekaarSpacing.sm,
-      ),
-      color: MekaarColors.surface2Of(context),
-      child: Row(
-        children: [
-          const Icon(
-            SolarIconsOutline.forward,
-            size: MekaarSizes.iconSm,
-            color: MekaarColors.textSecondary,
-          ),
-          const SizedBox(width: MekaarSpacing.sm),
-          Expanded(
-            child: Text(
-              'Membalas: ${message.content}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: MekaarColors.textSecondary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onVerticalDragEnd: (details) {
+        if (details.primaryVelocity != null && details.primaryVelocity! > 100) {
+          HapticService.trigger(MekaarHapticIntent.selection);
+          onCancel();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: MekaarSpacing.lg,
+          vertical: MekaarSpacing.sm,
+        ),
+        color: MekaarColors.surface2Of(context),
+        child: Row(
+          children: [
+            const Icon(
+              SolarIconsOutline.forward,
+              size: MekaarSizes.iconSm,
+              color: MekaarColors.textSecondary,
             ),
-          ),
-          IconButton(
-            icon: const Icon(SolarIconsOutline.closeCircle, size: MekaarSizes.iconSm),
-            onPressed: onCancel,
-          ),
-        ],
+            const SizedBox(width: MekaarSpacing.sm),
+            Expanded(
+              child: Text(
+                'Membalas: ${message.content}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(SolarIconsOutline.closeCircle, size: MekaarSizes.iconSm),
+              onPressed: onCancel,
+            ),
+          ],
+        ),
       ),
     );
   }

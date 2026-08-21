@@ -13,6 +13,8 @@ import '../providers/chat_provider.dart';
 class ChatListTile extends StatelessWidget {
   final Map<String, dynamic> room;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onMarkRead;
   final VoidCallback? onMute;
   final VoidCallback? onDelete;
   final VoidCallback? onArchive;
@@ -23,6 +25,8 @@ class ChatListTile extends StatelessWidget {
     super.key,
     required this.room,
     required this.onTap,
+    this.onLongPress,
+    this.onMarkRead,
     this.onMute,
     this.onDelete,
     this.onArchive,
@@ -44,6 +48,7 @@ class ChatListTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -106,13 +111,6 @@ class ChatListTile extends StatelessWidget {
                           MekaarIcons.notificationsOff,
                           size: 13,
                           color: MekaarColors.warnAmber,
-                        ),
-                        const SizedBox(width: MekaarSpacing.xs),
-                      ] else ...[
-                        const Icon(
-                          MekaarIcons.lockOutline,
-                          size: 13,
-                          color: MekaarColors.textMuted,
                         ),
                         const SizedBox(width: MekaarSpacing.xs),
                       ],
@@ -196,6 +194,14 @@ class ChatListTile extends StatelessWidget {
       startActionPane: ActionPane(
         motion: const BehindMotion(),
         children: [
+          if (onMarkRead != null && unreadCount > 0)
+            SlidableAction(
+              onPressed: (_) => onMarkRead!(),
+              backgroundColor: AppColors.blue,
+              foregroundColor: Colors.white,
+              icon: SolarIconsOutline.checkCircle,
+              label: 'Dibaca',
+            ),
           if (onDelete != null)
             SlidableAction(
               onPressed: (_) => onDelete!(),

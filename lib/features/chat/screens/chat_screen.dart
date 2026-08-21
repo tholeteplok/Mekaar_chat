@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/constants/icons.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
@@ -18,6 +17,7 @@ import '../../../core/widgets/chat_date_separator.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -29,7 +29,7 @@ import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
-import '../widgets/scheduled_wipe_bottom_sheet.dart';
+import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/typing_indicator.dart';
 import '../widgets/e2ee_preparation_banner.dart';
 import '../providers/e2ee_room_status_provider.dart';
@@ -84,6 +84,9 @@ class _ChatItemEntry {
 class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObserver {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+  String _searchQuery = '';
   bool _isViewOnce = false;
   bool _burnOnExit = false;
   bool _burnTriggered = false;
@@ -93,7 +96,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   final ValueNotifier<DateTime?> _otherLastSeenNotifier = ValueNotifier<DateTime?>(null);
   int _autoDeleteHours = 0;
   String _scheduledWipeMode = 'off';
-  TimeOfDay? _scheduledWipeTime;
   DateTime? _scheduledWipeTargetAt;
   final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
   final ValueNotifier<int> _newMessageCount = ValueNotifier<int>(0);
@@ -184,23 +186,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       
       // Muat preferensi Pembersihan Terjadwal level room
       String loadedWipeMode = 'off';
-      TimeOfDay? loadedWipeTime;
       DateTime? loadedWipeTarget;
       try {
         final wipeData = await repo.getRoomScheduledWipe(widget.chatId);
         if (wipeData != null) {
           loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
-          final timeStr = wipeData['scheduled_wipe_time'] as String?;
           final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
-          if (timeStr != null && timeStr.contains(':')) {
-            final parts = timeStr.split(':');
-            if (parts.length >= 2) {
-              loadedWipeTime = TimeOfDay(
-                hour: int.tryParse(parts[0]) ?? 14,
-                minute: int.tryParse(parts[1]) ?? 0,
-              );
-            }
-          }
           loadedWipeTarget = targetStr != null ? DateTime.tryParse(targetStr) : null;
         }
       } catch (_) {}
@@ -217,7 +208,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         _autoDeleteHours = roomAutoDelete;
         _burnOnExit = roomBurnOnExit;
         _scheduledWipeMode = loadedWipeMode;
-        _scheduledWipeTime = loadedWipeTime;
         _scheduledWipeTargetAt = loadedWipeTarget;
         _isViewOnce = savedViewOnce;
       });
@@ -322,6 +312,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     }
     _otherLastSeenNotifier.dispose();
     _textController.dispose();
+    _searchController.dispose();
     _scrollController.dispose();
     _showScrollButton.dispose();
     _newMessageCount.dispose();
@@ -659,105 +650,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     );
   }
 
-  void _toggleViewOnce() async {
-    final newValue = !_isViewOnce;
-    setState(() => _isViewOnce = newValue);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('room_view_once_${widget.chatId}', newValue);
-    } catch (_) {}
-    if (!mounted) return;
-    MekaarSnackbar.info(
-      context,
-      newValue
-          ? 'Mode Sekali Lihat Aktif (Media akan hilang setelah dibuka).'
-          : 'Mode Sekali Lihat Dinonaktifkan.',
-    );
-  }
-
-  void _setAutoDeleteHours(int hours) {
-    setState(() => _autoDeleteHours = hours);
-  }
-
-  String _autoDeleteLabel() {
-    if (_autoDeleteHours <= 0) return 'Mati';
-    if (_autoDeleteHours == 1) return '1 Jam';
-    if (_autoDeleteHours == 24) return '1 Hari';
-    if (_autoDeleteHours == 168) return '7 Hari';
-    return '$_autoDeleteHours Jam';
-  }
-
-  Future<void> _showAutoDeleteMenu() async {
-    final choice = await MekaarBottomSheet.show<int>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        final options = [
-          (0, 'Mati', 'Pesan disimpan selamanya'),
-          (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
-          (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
-          (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
-        ];
-        return MekaarBottomSheet(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Pesan Menghilang', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              ...options.map((opt) {
-                final selected = opt.$1 == _autoDeleteHours;
-                return ListTile(
-                  leading: Icon(
-                    selected ? SolarIconsBold.history : SolarIconsOutline.history,
-                    color: selected ? AppColors.blue : null,
-                  ),
-                  title: Text(opt.$2),
-                  subtitle: Text(opt.$3),
-                  trailing: selected
-                      ? const Icon(MekaarIcons.check, color: AppColors.blue)
-                      : null,
-                  onTap: () => Navigator.pop(ctx, opt.$1),
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-    if (choice != null) {
-      final previousHours = _autoDeleteHours;
-      _setAutoDeleteHours(choice);
-      try {
-        await ref
-            .read(chatRepositoryProvider)
-            .updateRoomDisappearingHours(widget.chatId, choice);
-      } catch (e) {
-        // Rollback tampilan optimis -- jangan biarkan UI menunjukkan
-        // pilihan baru seolah tersimpan padahal RPC gagal (ini persis
-        // pola yang sebelumnya membuat pengaturan tampak "hilang"/
-        // "terkunci" tanpa disadari, lihat migrations/40_fix_room_
-        // participant_rpcs_search_path.sql untuk akar masalahnya).
-        if (mounted) {
-          _setAutoDeleteHours(previousHours);
-          MekaarSnackbar.error(
-            context,
-            'Gagal menyimpan pengaturan pesan menghilang: $e',
-          );
-        }
-      }
-    }
-  }
-
-  String _scheduledWipeLabel() {
-    if (_scheduledWipeMode == 'off' || _scheduledWipeTime == null) return 'Mati';
-    final hour = _scheduledWipeTime!.hour.toString().padLeft(2, '0');
-    final minute = _scheduledWipeTime!.minute.toString().padLeft(2, '0');
-    final timeStr = '$hour:$minute';
-    if (_scheduledWipeMode == 'daily') return '$timeStr (Harian)';
-    return '$timeStr (1x)';
-  }
-
   void _scheduleWipeTimer() {
     _scheduledWipeTimer?.cancel();
     if (_scheduledWipeMode == 'off' || _scheduledWipeTargetAt == null) return;
@@ -790,124 +682,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         if (_scheduledWipeMode == 'one_shot') {
           setState(() {
             _scheduledWipeMode = 'off';
-            _scheduledWipeTime = null;
             _scheduledWipeTargetAt = null;
           });
         }
       }
     } catch (_) {}
-  }
-
-  Future<void> _showScheduledWipeMenu() async {
-    final result = await ScheduledWipeBottomSheet.show(
-      context: context,
-      initialMode: _scheduledWipeMode,
-      initialTime: _scheduledWipeTime,
-      initialTargetAt: _scheduledWipeTargetAt,
-    );
-
-    if (result != null) {
-      final prevMode = _scheduledWipeMode;
-      final prevTime = _scheduledWipeTime;
-      final prevTarget = _scheduledWipeTargetAt;
-
-      String? timeStr;
-      if (result.time != null) {
-        final h = result.time!.hour.toString().padLeft(2, '0');
-        final m = result.time!.minute.toString().padLeft(2, '0');
-        timeStr = '$h:$m:00';
-      }
-
-      setState(() {
-        _scheduledWipeMode = result.mode;
-        _scheduledWipeTime = result.time;
-        _scheduledWipeTargetAt = result.targetAtUtc;
-      });
-
-      _scheduleWipeTimer();
-
-      try {
-        await ref.read(chatRepositoryProvider).setRoomScheduledWipe(
-          roomId: widget.chatId,
-          mode: result.mode,
-          timeString: timeStr,
-          targetAtUtc: result.targetAtUtc,
-        );
-        if (mounted) {
-          MekaarSnackbar.success(
-            context,
-            result.mode == 'off'
-                ? 'Pembersihan terjadwal dinonaktifkan'
-                : 'Pembersihan terjadwal aktif pada pukul ${_scheduledWipeLabel()}',
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _scheduledWipeMode = prevMode;
-            _scheduledWipeTime = prevTime;
-            _scheduledWipeTargetAt = prevTarget;
-          });
-          _scheduleWipeTimer();
-          MekaarSnackbar.error(
-            context,
-            'Gagal menyimpan pembersihan terjadwal: $e',
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _toggleBurnOnExit() async {
-    if (!_burnOnExit) {
-      // Konfirmasi eksplisit sebelum aktivasi untuk mencegah penghapusan yang tidak disengaja
-      final confirmed = await MekaarDialog.showConfirmation<bool>(
-        context: context,
-        title: 'Aktifkan Hapus Saat Keluar?',
-        message:
-            'Seluruh riwayat pesan (kirim & terima) dalam ruangan ini akan otomatis terhapus seketika saat Anda meninggalkan layar obrolan.\n\nApakah Anda yakin ingin mengaktifkannya?',
-        isDestructive: true,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.sosRed,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Aktifkan'),
-          ),
-        ],
-      );
-      if (confirmed != true) return;
-    }
-
-    final newValue = !_burnOnExit;
-    final prevValue = _burnOnExit;
-    setState(() => _burnOnExit = newValue);
-
-    try {
-      await ref.read(chatRepositoryProvider).setRoomBurnOnExit(widget.chatId, newValue);
-      if (mounted) {
-        MekaarSnackbar.success(
-          context,
-          newValue
-              ? 'Hapus Saat Keluar Aktif: Pesan otomatis terhapus saat Anda keluar.'
-              : 'Hapus Saat Keluar Dinonaktifkan.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _burnOnExit = prevValue);
-        MekaarSnackbar.error(
-          context,
-          'Gagal menyimpan setelan Hapus Saat Keluar: ${ErrorResolver.resolve(e)}',
-        );
-      }
-    }
   }
 
   void _initiateCall(String callType) {
@@ -1067,8 +846,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                 builder: (context) {
                                   switch (chatMessagesUiMode(messagesStream)) {
                                     case ChatMessagesUiMode.data:
-                                      final messages = messagesStream.valueOrNull!;
-                                      if (messages.isEmpty) {
+                                      final rawMessages = messagesStream.valueOrNull!;
+                                      if (rawMessages.isEmpty) {
                                         return const MekaarStateView(
                                           pose: MikaPose.sleep,
                                           title: 'Belum Ada Pesan',
@@ -1077,12 +856,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                         );
                                       }
 
+                                      final messages = _searchQuery.isEmpty
+                                          ? rawMessages
+                                          : rawMessages
+                                              .where((m) => m.content
+                                                  .toLowerCase()
+                                                  .contains(_searchQuery.toLowerCase()))
+                                              .toList();
+
+                                      if (messages.isEmpty) {
+                                        return MekaarStateView(
+                                          pose: MikaPose.neutral,
+                                          title: 'Tidak Ditemukan',
+                                          message:
+                                              'Tidak ada pesan yang cocok dengan "$_searchQuery".',
+                                        );
+                                      }
+
                                       final reversed = messages.reversed.toList();
                                       final itemEntries = _buildItemEntries(
                                         reversed,
                                       );
                                       final messageMap = {
-                                        for (var m in messages) m.id: m,
+                                        for (var m in rawMessages) m.id: m,
                                       };
 
                                       return ListView.builder(
@@ -1227,14 +1023,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                 builder: (context, ref, _) {
                   final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
                   final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
-                  final isTyping = ref.watch(typingStateProvider(widget.chatId));
-                  final protection = ref.watch(roomScreenProtectionProvider(widget.chatId)).valueOrNull;
-                  final forwardingProtection = ref.watch(roomForwardingProtectionProvider(widget.chatId)).valueOrNull;
-
-                  final isScreenProtOn = protection?.callerEnabled ?? true;
-                  final isFwdProtOn = forwardingProtection?.callerEnabled ?? false;
-                  final isAutoDelOn = _autoDeleteHours > 0;
-                  final isViewOnceOn = _isViewOnce;
 
                   final isDark = Theme.of(context).brightness == Brightness.dark;
                   final frostedBg = isDark
@@ -1244,6 +1032,76 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                       ? Colors.white.withValues(alpha: 0.16)
                       : Colors.black.withValues(alpha: 0.10);
                   final textPrimary = MekaarColors.textPrimaryOf(context);
+
+                  if (_isSearching) {
+                    final topPadding = MediaQuery.of(context).padding.top;
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        top: topPadding + 4,
+                        left: 12,
+                        right: 12,
+                      ),
+                      child: MekaarGlassBlurContainer(
+                        height: 52,
+                        borderRadius: BorderRadius.circular(MekaarRadius.pill),
+                        border: Border.all(color: frostedBorder, width: 1),
+                        customColor: frostedBg,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.arrowLeft,
+                                color: roomThemeSpec.iconColor,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isSearching = false;
+                                  _searchQuery = '';
+                                  _searchController.clear();
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus: true,
+                                style: TextStyle(color: textPrimary, fontSize: 14),
+                                decoration: InputDecoration(
+                                  hintText: 'Cari dalam obrolan...',
+                                  hintStyle: TextStyle(
+                                    color: MekaarColors.textMutedOf(context),
+                                    fontSize: 14,
+                                  ),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                onChanged: (val) {
+                                  setState(() => _searchQuery = val.trim());
+                                },
+                              ),
+                            ),
+                            if (_searchQuery.isNotEmpty)
+                              IconButton(
+                                icon: Icon(
+                                  SolarIconsOutline.closeCircle,
+                                  color: MekaarColors.textMutedOf(context),
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final isTyping = ref.watch(typingStateProvider(widget.chatId));
 
                   return ValueListenableBuilder<DateTime?>(
                     valueListenable: _otherLastSeenNotifier,
@@ -1290,6 +1148,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                     )
                                 : null),
                         actions: [
+                          IconButton(
+                            icon: Icon(
+                              SolarIconsOutline.magnifier,
+                              color: roomThemeSpec.iconColor,
+                              size: 20,
+                            ),
+                            onPressed: () => setState(() => _isSearching = true),
+                          ),
                           // Actions Popup Menu (High-Contrast Frosted Glass)
                           PopupMenuButton<String>(
                             shape: RoundedRectangleBorder(
@@ -1304,48 +1170,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                             elevation: 10,
                             shadowColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
                             padding: EdgeInsets.zero,
-                            icon: RotatedBox(
-                              quarterTurns: 1,
-                              child: Icon(
-                                SolarIconsOutline.menuDots,
-                                color: roomThemeSpec.primaryAccentColor,
-                              ),
+                            icon: Icon(
+                              SolarIconsOutline.menuDots,
+                              color: roomThemeSpec.primaryAccentColor,
                             ),
                         onSelected: (value) async {
                           if (value == 'voice') {
                             _initiateCall('voice');
                           } else if (value == 'video') {
                             _initiateCall('video');
-                          } else if (value == 'sync_e2ee_keys') {
-                            E2eeService.instance.invalidateRoomKey(widget.chatId);
-                            ref.invalidate(chatMessagesProvider(widget.chatId));
-                            HapticService.trigger(MekaarHapticIntent.success);
-                            MekaarSnackbar.success(
-                              context,
-                              'Kunci enkripsi ruangan berhasil disinkronkan ulang.',
-                            );
-                          } else if (value == 'screen_protection') {
-                            try {
-                              await ref
-                                  .read(screenProtectionControllerProvider)
-                                  .setRoomPreference(widget.chatId, !isScreenProtOn);
-                            } catch (_) {}
-                          } else if (value == 'forwarding_protection') {
-                            try {
-                              await ref
-                                  .read(forwardingProtectionControllerProvider)
-                                  .setRoomPreference(widget.chatId, !isFwdProtOn);
-                            } catch (_) {}
-                          } else if (value == 'auto_delete') {
-                            _showAutoDeleteMenu();
-                          } else if (value == 'scheduled_wipe') {
-                            _showScheduledWipeMenu();
-                          } else if (value == 'burn_on_exit') {
-                            _toggleBurnOnExit();
-                          } else if (value == 'view_once') {
-                            _toggleViewOnce();
                           } else if (value == 'theme') {
                             Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
+                          } else if (value == 'privacy_settings') {
+                            ChatRoomPrivacySheet.show(
+                              context,
+                              roomId: widget.chatId,
+                              onSettingsChanged: () {
+                                if (mounted) setState(() {});
+                              },
+                            );
                           } else if (value == 'clear') {
                             _confirmClearHistory();
                           } else if (value == 'delete') {
@@ -1396,27 +1239,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                             ),
                           ),
                           PopupMenuItem<String>(
-                            value: 'sync_e2ee_keys',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  SolarIconsOutline.refreshSquare,
-                                  size: 20,
-                                  color: AppColors.blue,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Sinkronkan Kunci Enkripsi',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
                             value: 'theme',
                             child: Row(
                               children: [
@@ -1437,165 +1259,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                               ],
                             ),
                           ),
-                          const PopupMenuDivider(),
-                          // ── Kontrol Privasi Room ──
                           PopupMenuItem<String>(
-                            value: 'screen_protection',
+                            value: 'privacy_settings',
                             child: Row(
                               children: [
-                                Icon(
-                                  isScreenProtOn
-                                      ? SolarIconsBold.shieldCheck
-                                      : SolarIconsOutline.shieldCross,
+                                const Icon(
+                                  SolarIconsBold.shieldKeyhole,
                                   size: 20,
-                                  color: isScreenProtOn
-                                      ? MekaarColors.accentOf(context)
-                                      : MekaarColors.textSecondaryOf(context),
+                                  color: AppColors.blue,
                                 ),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Proteksi Layar: ${isScreenProtOn ? "Aktif" : "Mati"}',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'forwarding_protection',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isFwdProtOn
-                                      ? SolarIconsBold.forbiddenCircle
-                                      : SolarIconsOutline.forward,
-                                  size: 20,
-                                  color: isFwdProtOn
-                                      ? MekaarColors.accentOf(context)
-                                      : MekaarColors.textSecondaryOf(context),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Larang Teruskan: ${isFwdProtOn ? "Aktif" : "Mati"}',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'auto_delete',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isAutoDelOn
-                                      ? SolarIconsBold.history
-                                      : SolarIconsOutline.history,
-                                  size: 20,
-                                  color: isAutoDelOn
-                                      ? MekaarColors.accentOf(context)
-                                      : MekaarColors.textSecondaryOf(context),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Pesan Menghilang: ${_autoDeleteLabel()}',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'scheduled_wipe',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _scheduledWipeMode != 'off'
-                                      ? SolarIconsBold.clockCircle
-                                      : SolarIconsOutline.clockCircle,
-                                  size: 20,
-                                  color: _scheduledWipeMode != 'off'
-                                      ? MekaarColors.accentOf(context)
-                                      : MekaarColors.textSecondaryOf(context),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Pembersihan Terjadwal: ${_scheduledWipeLabel()}',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'burn_on_exit',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _burnOnExit
-                                      ? SolarIconsBold.fire
-                                      : SolarIconsOutline.fire,
-                                  size: 20,
-                                  color: _burnOnExit
-                                      ? MekaarColors.accentOf(context)
-                                      : MekaarColors.textSecondaryOf(context),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Hapus Saat Keluar: ${_burnOnExit ? "Aktif" : "Mati"}',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'view_once',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isViewOnceOn
-                                      ? SolarIconsBold.eyeClosed
-                                      : SolarIconsOutline.eyeClosed,
-                                  size: 20,
-                                  color: isViewOnceOn
-                                      ? MekaarColors.accentOf(context)
-                                      : MekaarColors.textSecondaryOf(context),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Mode Sekali Lihat: ${isViewOnceOn ? "Aktif" : "Mati"}',
-                                    style: TextStyle(
-                                      color: textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                Text(
+                                  'Pengaturan Privasi Obrolan',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],

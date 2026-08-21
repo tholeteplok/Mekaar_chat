@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/typography.dart';
+import '../services/haptic_service.dart';
 import 'bounce_interactive.dart';
 
 /// Item untuk [MekaarBottomNav].
@@ -129,7 +130,10 @@ class MekaarBottomNav extends StatelessWidget {
                               scaleFactor: 0.94,
                               duration: const Duration(milliseconds: 120),
                               onTap: () {
-                                if (safeIndex != index) onTap(index);
+                                if (safeIndex != index) {
+                                  HapticService.trigger(MekaarHapticIntent.selection);
+                                  onTap(index);
+                                }
                               },
                               child: SizedBox(
                                 height: _barHeight,

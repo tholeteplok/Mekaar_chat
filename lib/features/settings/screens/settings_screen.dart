@@ -319,13 +319,31 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => Navigator.pushNamed(context, AppRoutes.blockedList),
                 ),
               ],
-              SettingsNavTile(
-                icon: SolarIconsOutline.infoCircle,
-                iconColor: MekaarColors.cyan,
-                title: 'Tentang MEKAAR',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
-              ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────
+  // SECTION 7: Informasi & Bantuan
+  // ─────────────────────────────────────────────────
+  Widget _buildAboutSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        const SettingsSectionHeader(title: 'Informasi'),
+        CustomCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: SettingsNavTile(
+            icon: SolarIconsOutline.infoCircle,
+            iconColor: MekaarColors.cyan,
+            title: 'Tentang MEKAAR',
+            subtitle: 'Versi aplikasi & kebijakan privasi',
+            onTap: () => Navigator.pushNamed(context, AppRoutes.about),
           ),
         ),
       ],
@@ -371,6 +389,9 @@ class SettingsScreen extends ConsumerWidget {
 
                     // ── 6. Sistem ──
                     _buildSystemSection(context, ref),
+
+                    // ── 7. Informasi ──
+                    _buildAboutSection(context),
 
                     const SizedBox(height: 110),
                   ],
