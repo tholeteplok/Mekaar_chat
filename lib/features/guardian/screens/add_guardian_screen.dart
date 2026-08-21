@@ -47,7 +47,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
       context: context,
       icon: const Icon(
         SolarIconsOutline.infoCircle,
-        color: MekaarColors.guardianTeal,
+        color: AppColors.blue,
       ),
       title: 'Catatan Penting',
       message:
@@ -63,7 +63,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
           child: const Text(
             'Saya Mengerti, Kirim',
             style: TextStyle(
-              color: MekaarColors.softCoral,
+              color: AppColors.blue,
               fontWeight: FontWeight.bold,
             ),
           ),

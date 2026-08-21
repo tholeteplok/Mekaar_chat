@@ -455,18 +455,18 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               width: double.infinity,
               height: 52,
               child: OutlinedButton.icon(
-                icon: const Icon(
+                icon: Icon(
                   SolarIconsOutline.refresh,
-                  color: MekaarColors.guardianTeal,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 label: Text(
                   'Tukar Posisi (Saling Menjaga)',
                   style: MekaarTypography.buttonMD.copyWith(
-                    color: MekaarColors.guardianTeal,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: MekaarColors.guardianTeal),
+                  side: BorderSide(color: Theme.of(context).colorScheme.primary),
                   shape: const StadiumBorder(),
                 ),
                 onPressed: _initiateSwap,
@@ -562,14 +562,14 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   height: 36,
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? MekaarColors.softCoral.withValues(alpha: 0.1)
+                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
                         : MekaarColors.surface2Of(context),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     opt['icon'] as IconData,
                     color: isSelected
-                        ? MekaarColors.softCoral
+                        ? Theme.of(context).colorScheme.primary
                         : MekaarColors.textMuted,
                     size: 18,
                   ),
@@ -583,9 +583,9 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   style: MekaarTypography.bodySM,
                 ),
                 trailing: isSelected
-                    ? const Icon(
+                    ? Icon(
                         SolarIconsBold.checkCircle,
-                        color: MekaarColors.softCoral,
+                        color: Theme.of(context).colorScheme.primary,
                       )
                     : const Icon(
                         SolarIconsOutline.checkCircle,

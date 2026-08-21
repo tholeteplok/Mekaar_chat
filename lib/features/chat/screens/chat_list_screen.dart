@@ -748,7 +748,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               icon: Icon(
                 MekaarIcons.plusBold,
                 color: MekaarColors.accentOf(context),
-                size: 40,
+                size: 48,
               ),
             ),
           ],

@@ -7,7 +7,6 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
@@ -229,8 +228,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
     final textPrimary = MekaarColors.textPrimaryOf(context);
     final textSecondary = MekaarColors.textSecondaryOf(context);
-    final surfaceColor = MekaarColors.surfaceOf(context);
-    final cardBorder = MekaarColors.cardBorderOf(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return MekaarScaffold(
@@ -242,32 +239,28 @@ class _PinScreenState extends ConsumerState<PinScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Section Atas: Brand & Judul
+              // ── Section Atas: Emblem Shield & Judul ──
               Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 4),
-                  const Center(
-                    child: MekaarWordmark(fontSize: 32),
-                  ),
-                  const SizedBox(height: 12),
-                  // Emblem Keamanan Layered Halo
+                  const SizedBox(height: 8),
+                  // Emblem Keamanan Shield Keyhole dengan Soft Glow
                   Center(
                     child: Container(
-                      width: 58,
-                      height: 58,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.blue.withValues(alpha: 0.12),
+                        color: AppColors.blue.withValues(alpha: isDark ? 0.14 : 0.10),
                         border: Border.all(
-                          color: AppColors.blue.withValues(alpha: 0.3),
+                          color: AppColors.blue.withValues(alpha: isDark ? 0.35 : 0.25),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.blue.withValues(alpha: 0.2),
-                            blurRadius: 18,
+                            color: AppColors.blue.withValues(alpha: isDark ? 0.28 : 0.15),
+                            blurRadius: 22,
                             spreadRadius: 2,
                           ),
                         ],
@@ -276,12 +269,12 @@ class _PinScreenState extends ConsumerState<PinScreen>
                         child: Icon(
                           SolarIconsBold.shieldKeyhole,
                           color: AppColors.blue,
-                          size: 28,
+                          size: 34,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 18),
                   Center(
                     child: Text(
                       widget.isSetup
@@ -298,7 +291,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Center(
                     child: Semantics(
                       liveRegion: isLocked || _hasError,
@@ -326,9 +319,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 ],
               ),
 
-              const SizedBox(height: 12),
-
-              // Section Kartu PIN (100% Simetris & Center Horizontal)
+              // ── Section PIN Dots & Eye Toggle (Clean Minimalist) ──
               Center(
                 child: AnimatedBuilder(
                   animation: _shakeAnimation,
@@ -339,75 +330,43 @@ class _PinScreenState extends ConsumerState<PinScreen>
                     ),
                     child: child,
                   ),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _hasError
-                            ? MekaarColors.sosCoral
-                            : (_pin.isNotEmpty
-                                ? AppColors.blue.withValues(alpha: 0.5)
-                                : cardBorder),
-                        width: 1.2,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 6 Bulatan PIN
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(
+                          pinLength,
+                          (index) => _buildPinCircle(index),
+                        ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: isDark ? 0.35 : 0.04,
-                          ),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+                      const SizedBox(width: 8),
+                      // Tombol Toggle Mata di samping kanan
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: const EdgeInsets.all(6),
+                        icon: Icon(
+                          _obscurePin
+                              ? SolarIconsOutline.eyeClosed
+                              : SolarIconsOutline.eye,
+                          size: 20,
+                          color: textSecondary,
                         ),
-                      ],
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // 6 Bulatan / Slot PIN persis di tengah horizontal
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            pinLength,
-                            (index) => _buildPinCircle(index),
-                          ),
-                        ),
-                        // Tombol Toggle Mata di sisi kanan kartu
-                        Positioned(
-                          right: 0,
-                          child: IconButton(
-                            constraints: const BoxConstraints(),
-                            padding: const EdgeInsets.all(6),
-                            icon: Icon(
-                              _obscurePin
-                                  ? SolarIconsOutline.eyeClosed
-                                  : SolarIconsOutline.eye,
-                              size: 20,
-                              color: textSecondary,
-                            ),
-                            tooltip: _obscurePin
-                                ? 'Tampilkan angka PIN'
-                                : 'Sembunyikan angka PIN',
-                            onPressed: () {
-                              setState(() => _obscurePin = !_obscurePin);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                        tooltip: _obscurePin
+                            ? 'Tampilkan angka PIN'
+                            : 'Sembunyikan angka PIN',
+                        onPressed: () {
+                          setState(() => _obscurePin = !_obscurePin);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 10),
-
-              // Section Keypad: Inline on screen
+              // ── Section Keypad (Ergonomic Circular Buttons 74px) ──
               if (!isLocked) ...[
                 Column(
                   mainAxisSize: MainAxisSize.min,
@@ -423,25 +382,27 @@ class _PinScreenState extends ConsumerState<PinScreen>
                   ],
                 ),
               ] else ...[
-                const SizedBox(height: 200),
+                const SizedBox(height: 280),
               ],
 
-              const SizedBox(height: 10),
-
-              // Section Bottom: SOS Button
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              // ── Section Bottom: SOS Bar (Horizontal Row) ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SOSButton(onPressed: _triggerSOS, size: 54),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Pencet SOS untuk keadaan darurat',
-                      style: TextStyle(
-                        color: MekaarColors.sosCoral,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.2,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        'Pencet SOS untuk keadaan darurat',
+                        style: TextStyle(
+                          color: MekaarColors.sosCoral,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.1,
+                        ),
                       ),
                     ),
                   ],
@@ -457,8 +418,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
   Widget _buildPinCircle(int index) {
     final isFilled = _pin.length > index;
     final isCurrent = _pin.length == index;
-    final cardBorder = MekaarColors.cardBorderOf(context);
-    final surface2 = MekaarColors.surface2Of(context);
     final textPrimary = MekaarColors.textPrimaryOf(context);
 
     Color borderColor;
@@ -467,33 +426,33 @@ class _PinScreenState extends ConsumerState<PinScreen>
     } else if (isFilled) {
       borderColor = AppColors.blue;
     } else if (isCurrent) {
-      borderColor = AppColors.blue.withValues(alpha: 0.6);
+      borderColor = AppColors.blue.withValues(alpha: 0.7);
     } else {
-      borderColor = cardBorder;
+      borderColor = AppColors.blue.withValues(alpha: 0.4);
     }
 
     return Container(
-      width: 24,
-      height: 24,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
+      width: 20,
+      height: 20,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
           color: borderColor,
-          width: isCurrent || isFilled ? 2.5 : 1.5,
+          width: isCurrent || isFilled ? 2.5 : 1.8,
         ),
         color: isFilled
             ? (_obscurePin
                 ? (_hasError ? MekaarColors.sosCoral : AppColors.blue)
-                : surface2)
+                : Colors.transparent)
             : (isCurrent
-                ? AppColors.blue.withValues(alpha: 0.18)
-                : surface2),
+                ? AppColors.blue.withValues(alpha: 0.15)
+                : Colors.transparent),
         boxShadow: (isFilled && _obscurePin)
             ? [
                 BoxShadow(
                   color: (_hasError ? MekaarColors.sosCoral : AppColors.blue)
-                      .withValues(alpha: 0.4),
+                      .withValues(alpha: 0.45),
                   blurRadius: 8,
                   spreadRadius: 1,
                 ),
@@ -505,7 +464,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
             ? Text(
                 _pin[index],
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: _hasError ? MekaarColors.sosCoral : textPrimary,
                 ),
@@ -516,9 +475,12 @@ class _PinScreenState extends ConsumerState<PinScreen>
   }
 
   Widget _buildKeypadRow(List<String> keys) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: keys.map((key) => _buildKeypadButton(key)).toList(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: keys.map((key) => _buildKeypadButton(key)).toList(),
+      ),
     );
   }
 
@@ -529,19 +491,20 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final cardBorder = MekaarColors.cardBorderOf(context);
 
     if (key.isEmpty) {
-      return const SizedBox(width: 76, height: 60);
+      return const SizedBox(width: 74, height: 74);
     }
 
     if (key == 'Lupa') {
       return SizedBox(
-        width: 76,
-        height: 60,
+        width: 74,
+        height: 74,
         child: Center(
           child: TextButton(
             onPressed: _showForgotPinDialog,
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
-              minimumSize: const Size(60, 56),
+              minimumSize: const Size(70, 70),
+              shape: const CircleBorder(),
             ),
             child: Text(
               'Lupa\nPIN?',
@@ -566,14 +529,15 @@ class _PinScreenState extends ConsumerState<PinScreen>
       onTap: () => _handleKeyPress(key),
       child: ExcludeSemantics(
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          width: 64,
-          height: 56,
+          width: 74,
+          height: 74,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isBackspace ? Colors.transparent : surface2,
             border: Border.all(
-              color: isBackspace ? Colors.transparent : cardBorder,
+              color: isBackspace
+                  ? Colors.transparent
+                  : cardBorder.withValues(alpha: 0.4),
               width: 1,
             ),
           ),
@@ -585,15 +549,15 @@ class _PinScreenState extends ConsumerState<PinScreen>
               child: Center(
                 child: isBackspace
                     ? Icon(
-                        SolarIconsOutline.backspace,
+                        SolarIconsOutline.closeSquare,
                         color: textPrimary,
-                        size: 22,
+                        size: 26,
                       )
                     : Text(
                         key,
                         style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w400,
                           color: textPrimary,
                         ),
                       ),

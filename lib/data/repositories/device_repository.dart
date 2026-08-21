@@ -72,6 +72,19 @@ class DeviceRepository {
     }
   }
 
+  /// Membersihkan entri duplikat perangkat lama milik user ini.
+  Future<int> cleanupDuplicateDevices() async {
+    try {
+      final result = await _client.rpc('cleanup_my_duplicate_devices');
+      final count = result is int ? result : 0;
+      _logger.i('DeviceRepository: $count perangkat duplikat dibersihkan');
+      return count;
+    } catch (e) {
+      _logger.w('DeviceRepository.cleanupDuplicateDevices gagal: $e');
+      return 0;
+    }
+  }
+
   /// Revoke (hapus) perangkat tertentu, kirim remote command 'logout', dan clear FCM token-nya.
   /// Dipanggil dari UI "Perangkat Terhubung" saat user memilih "Keluar".
   Future<void> revokeDevice(String deviceId) async {

@@ -66,22 +66,18 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.04)
-                    : Colors.black.withValues(alpha: 0.04),
+                color: MekaarColors.surface2Of(context),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: TabBar(
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
                 indicator: BoxDecoration(
-                  color: MekaarColors.softCoral,
+                  color: AppColors.blue,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 labelColor: Colors.white,
-                unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white70
-                    : MekaarColors.textSecondaryOf(context),
+                unselectedLabelColor: MekaarColors.textSecondaryOf(context),
                 labelStyle: MekaarTypography.labelMD.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -110,21 +106,25 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     List<Guardian> guardians,
     GuardianLoadStatus status,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = MekaarColors.accentOf(context);
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Add Guardian Dotted Button
+          // Add Guardian Button
           GestureDetector(
             onTap: () => Navigator.pushNamed(context, AppRoutes.guardianAdd),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: isDark ? 0.08 : 0.04),
                 border: Border.all(
-                  color: MekaarColors.guardianTeal,
-                  width: 2,
+                  color: accentColor.withValues(alpha: isDark ? 0.45 : 0.35),
+                  width: 1.5,
                   style: BorderStyle.solid,
                 ),
                 borderRadius: BorderRadius.circular(999),
@@ -133,15 +133,16 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    SolarIconsOutline.addCircle,
-                    color: MekaarColors.guardianTeal,
+                    SolarIconsBold.addCircle,
+                    color: accentColor,
+                    size: 22,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Tambah Guardian Baru',
                     style: MekaarTypography.labelLG.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: MekaarColors.guardianTeal,
+                      color: accentColor,
                     ),
                   ),
                 ],

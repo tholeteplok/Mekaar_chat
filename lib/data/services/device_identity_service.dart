@@ -3,40 +3,68 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 /// Mengelola identitas unik perangkat (device_id) per instalasi.
 ///
-/// device_id di-generate sekali saat pertama kali dijalankan, kemudian
-/// disimpan permanen di [FlutterSecureStorage] sehingga bertahan
-/// meskipun user logout/login ulang, app di-update, atau data cache dihapus.
+/// Menggunakan dual-storage persistence:
+/// 1. [SharedPreferences] sebagai media penyimpanan utama (kebal terhadap Android KeyStore reset/update)
+/// 2. [FlutterSecureStorage] sebagai backup sekunder
 class DeviceIdentityService {
-  static const _storageKey = 'mekaar_device_id';
-  static const _storage = FlutterSecureStorage();
+  static const _storageKey = 'mekaar_persistent_device_id';
+  static const _legacyStorageKey = 'mekaar_device_id';
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
   static String? _cachedDeviceId;
   static String? _cachedDeviceLabel;
 
   /// Mendapatkan device_id permanen per instalasi.
-  /// Generate UUID baru jika belum ada.
+  /// Membaca dari SharedPreferences atau FlutterSecureStorage, atau men-generate UUID baru sekali saja.
   static Future<String> getDeviceId() async {
     if (_cachedDeviceId != null) return _cachedDeviceId!;
 
+    SharedPreferences? prefs;
     try {
-      final stored = await _storage.read(key: _storageKey);
-      if (stored != null && stored.isNotEmpty) {
-        _cachedDeviceId = stored;
-        return stored;
+      prefs = await SharedPreferences.getInstance();
+      final storedFromPrefs = prefs.getString(_storageKey) ??
+          prefs.getString(_legacyStorageKey);
+      if (storedFromPrefs != null && storedFromPrefs.isNotEmpty) {
+        _cachedDeviceId = storedFromPrefs;
+        // Pastikan tersimpan juga dengan key baru dan di secure storage
+        await prefs.setString(_storageKey, storedFromPrefs);
+        try {
+          await _secureStorage.write(key: _storageKey, value: storedFromPrefs);
+        } catch (_) {}
+        return storedFromPrefs;
       }
-    } catch (_) {
-      // SecureStorage bisa gagal di beberapa perangkat; generate baru.
-    }
+    } catch (_) {}
 
-    final newId = const Uuid().v4();
+    // Fallback: coba baca dari FlutterSecureStorage
     try {
-      await _storage.write(key: _storageKey, value: newId);
-    } catch (_) {
-      // Best-effort persist; jika gagal, ID tetap di-cache di memory.
+      final storedFromSecure = (await _secureStorage.read(key: _storageKey)) ??
+          (await _secureStorage.read(key: _legacyStorageKey));
+      if (storedFromSecure != null && storedFromSecure.isNotEmpty) {
+        _cachedDeviceId = storedFromSecure;
+        if (prefs != null) {
+          await prefs.setString(_storageKey, storedFromSecure);
+        }
+        return storedFromSecure;
+      }
+    } catch (_) {}
+
+    // Generate UUID baru dan simpan ke kedua media penyimpanan
+    final newId = const Uuid().v4();
+    if (prefs != null) {
+      try {
+        await prefs.setString(_storageKey, newId);
+      } catch (_) {}
     }
+    try {
+      await _secureStorage.write(key: _storageKey, value: newId);
+    } catch (_) {}
+
     _cachedDeviceId = newId;
     return newId;
   }

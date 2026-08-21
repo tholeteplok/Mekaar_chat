@@ -61,6 +61,8 @@ class ConnectedDevicesNotifier extends StateNotifier<ConnectedDevicesState> {
 
     try {
       final currentId = await DeviceIdentityService.getDeviceId();
+      // Bersihkan duplikat otomatis jika ada
+      await _repository.cleanupDuplicateDevices();
       final devices = await _repository.listMyDevices();
 
       state = state.copyWith(

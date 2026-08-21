@@ -115,6 +115,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   }
 
   Widget _buildPermissionsView() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = MekaarColors.textPrimaryOf(context);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -124,22 +127,22 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: MekaarColors.guardianLight,
+              color: AppColors.blue.withValues(alpha: isDark ? 0.12 : 0.06),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
+                color: AppColors.blue.withValues(alpha: isDark ? 0.35 : 0.25),
               ),
             ),
             child: Row(
               children: [
-                const Icon(SolarIconsOutline.refresh, color: MekaarColors.guardianTeal),
+                const Icon(SolarIconsOutline.refresh, color: AppColors.blue),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Tukar Posisi memungkinkan ${widget.guardian.name} juga menjadi guardian Anda '
                     'dengan izin yang sama. Kedua pihak harus menyetujui.',
                     style: MekaarTypography.bodySM.copyWith(
-                      color: MekaarColors.guardianTeal,
+                      color: isDark ? Colors.white70 : textPrimary,
                     ),
                   ),
                 ),
@@ -275,7 +278,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                 style: MekaarTypography.buttonLG.copyWith(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: MekaarColors.guardianTeal,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -294,10 +297,10 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       child: Column(
         children: [
           const Spacer(),
-          const Icon(
+          Icon(
             SolarIconsOutline.lock,
             size: 52,
-            color: MekaarColors.guardianTeal,
+            color: Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(height: 16),
           Text('Konfirmasi dengan PIN', style: MekaarTypography.headingMD),
@@ -319,9 +322,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: MekaarColors.border, width: 2),
+                  border: Border.all(
+                    color: AppColors.blue.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
                   color: _pin.length > index
-                      ? MekaarColors.guardianTeal
+                      ? AppColors.blue
                       : Colors.transparent,
                 ),
               ),

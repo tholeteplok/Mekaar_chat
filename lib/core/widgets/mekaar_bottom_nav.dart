@@ -40,8 +40,8 @@ class MekaarBottomNav extends StatelessWidget {
   static const double _tabWidth = _tabDimension; // 72.0
 
   // Tipografi ala Rhytmu (lebih terbaca).
-  static const double _iconSize = 20.0;
-  static const double _fontSize = 12.0;
+  static const double _iconSize = 24.0;
+  static const double _fontSize = 14.0;
 
   // Outer pill radius Mekaar existing (tidak diubah).
   static const double _barCornerRadius = 100.0;
