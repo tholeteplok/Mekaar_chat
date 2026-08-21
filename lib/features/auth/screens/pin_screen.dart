@@ -319,7 +319,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 ],
               ),
 
-              // ── Section PIN Dots & Eye Toggle (Clean Minimalist) ──
+              // ── Section PIN Dots & Eye Toggle (100% Center Horizontal) ──
               Center(
                 child: AnimatedBuilder(
                   animation: _shakeAnimation,
@@ -330,28 +330,22 @@ class _PinScreenState extends ConsumerState<PinScreen>
                     ),
                     child: child,
                   ),
-                  child: Row(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 6 Bulatan PIN
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(
-                          pinLength,
-                          (index) => _buildPinCircle(index),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Tombol Toggle Mata di samping kanan
+                      // Tombol Toggle Mata di atas input PIN
                       IconButton(
                         constraints: const BoxConstraints(),
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         icon: Icon(
                           _obscurePin
                               ? SolarIconsOutline.eyeClosed
                               : SolarIconsOutline.eye,
-                          size: 20,
+                          size: 22,
                           color: textSecondary,
                         ),
                         tooltip: _obscurePin
@@ -360,6 +354,16 @@ class _PinScreenState extends ConsumerState<PinScreen>
                         onPressed: () {
                           setState(() => _obscurePin = !_obscurePin);
                         },
+                      ),
+                      const SizedBox(height: 8),
+                      // 6 Bulatan PIN (Murni Center Horizontal)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          pinLength,
+                          (index) => _buildPinCircle(index),
+                        ),
                       ),
                     ],
                   ),
@@ -385,24 +389,22 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 const SizedBox(height: 280),
               ],
 
-              // ── Section Bottom: SOS Bar (Horizontal Row) ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+              // ── Section Bottom: SOS Bar (100% Center Horizontal) ──
+              Center(
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SOSButton(onPressed: _triggerSOS, size: 54),
                     const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        'Pencet SOS untuk keadaan darurat',
-                        style: TextStyle(
-                          color: MekaarColors.sosCoral,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.1,
-                        ),
+                    const Text(
+                      'Pencet SOS untuk keadaan darurat',
+                      style: TextStyle(
+                        color: MekaarColors.sosCoral,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.1,
                       ),
                     ),
                   ],

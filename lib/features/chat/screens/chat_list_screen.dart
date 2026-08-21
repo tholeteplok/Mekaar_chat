@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -27,7 +26,6 @@ import '../../auth/providers/auth_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
-import '../../../core/widgets/mekaar_frosted_action_button.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
@@ -740,15 +738,34 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           children: [
             // SOS Button on the left
             SOSButton(onPressed: _triggerSOS, size: 72),
-            // Add Message Frosted Action Button on the right
-            MekaarFrostedActionButton(
-              size: 56,
-              onPressed: _showNewChatDialog,
-              tooltip: 'Pesan Baru',
-              icon: Icon(
-                MekaarIcons.plusBold,
-                color: MekaarColors.accentOf(context),
-                size: 48,
+            // Add Message Action Button on the right (Clean Solid FAB)
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.blue,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.blue.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkResponse(
+                  customBorder: const CircleBorder(),
+                  onTap: _showNewChatDialog,
+                  child: const Center(
+                    child: Icon(
+                      SolarIconsOutline.addCircle,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
