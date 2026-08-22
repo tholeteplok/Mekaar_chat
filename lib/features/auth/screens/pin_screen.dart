@@ -412,25 +412,38 @@ class _PinScreenState extends ConsumerState<PinScreen>
               ],
 
               // ── Section Bottom: SOS Bar (100% Center Horizontal) ──
-              Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SOSButton(onPressed: _triggerSOS, size: 54),
-                    const SizedBox(width: 14),
-                    const Text(
-                      'Pencet SOS untuk keadaan darurat',
-                      style: TextStyle(
-                        color: MekaarColors.sosCoral,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.1,
-                      ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final isSosActive = ref.watch(sosProvider).status == SOSStatus.active;
+                  return Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SOSButton(
+                          onPressed: _triggerSOS,
+                          isActive: isSosActive,
+                          size: 54,
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          isSosActive
+                              ? 'Sesi darurat SOS sedang aktif'
+                              : 'Tahan 2 dtk untuk darurat',
+                          style: TextStyle(
+                            color: isSosActive
+                                ? MekaarColors.sosRed
+                                : MekaarColors.sosCoral,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ],
           ),

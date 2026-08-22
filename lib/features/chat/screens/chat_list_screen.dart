@@ -25,6 +25,7 @@ import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
+import '../../sos/providers/sos_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
@@ -895,7 +896,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // SOS Button on the left
-            SOSButton(onPressed: _triggerSOS, size: 72),
+            Consumer(
+              builder: (context, ref, _) {
+                final isSosActive = ref.watch(sosProvider).status == SOSStatus.active;
+                return SOSButton(
+                  onPressed: _triggerSOS,
+                  isActive: isSosActive,
+                  size: 72,
+                );
+              },
+            ),
             // Add Message Action Button on the right (Clean Solid FAB)
             Container(
               width: 56,

@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/bounce_interactive.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
+import '../../../core/widgets/mekaar_glass_blur_container.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_update_dialog.dart';
-import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../core/widgets/mekaar_crypto_donation_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
 import '../../../data/services/update_service.dart';
 import '../widgets/settings_tiles.dart';
 
@@ -133,7 +135,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
     HapticService.trigger(MekaarHapticIntent.selection);
     final target = urlString.trim().isNotEmpty
         ? urlString.trim()
-        : 'https://github.com/tholeteplok/Mekaar_chat/releases';
+        : 'https://github.com/tholeteplok/Mekaar_chat';
     try {
       final uri = Uri.parse(target);
       final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -156,333 +158,8 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return MekaarScaffold(
-      flat: true,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SettingsTopBar(title: 'Tentang MEKAAR'),
-
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ).copyWith(bottom: 40),
-                children: [
-                  // ── 1. Hero Brand Header ──
-                  _buildBrandHero(),
-                  const SizedBox(height: 16),
-
-                  // ── 2. Card Status Pembaruan ──
-                  _buildUpdateCard(),
-                  const SizedBox(height: 16),
-
-                  // ── 3. Card Filosofi & Prinsip Desain ──
-                  _buildPhilosophyCard(),
-                  const SizedBox(height: 16),
-
-                  // ── 4. Card Riwayat Pembaruan & Fitur Unggulan ──
-                  _buildChangelogCard(),
-                  const SizedBox(height: 16),
-
-                  // ── 5. Card Transparansi & Komunitas ──
-                  _buildCommunityCard(),
-                  const SizedBox(height: 16),
-
-                  // ── 6. Card Donasi Crypto ──
-                  _buildDonationCard(),
-                  const SizedBox(height: 24),
-
-                  // ── Footer Copyright ──
-                  Center(
-                    child: Text(
-                      'MEKAAR Personal Safety System · Open Source\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
-                      style: MekaarTypography.caption.copyWith(
-                        color: isDark ? MekaarColors.textMuted : const Color(0xFF8C95AA),
-                        fontSize: 12.5,
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBrandHero() {
-    return CustomCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: MekaarSpacing.md,
-        vertical: MekaarSpacing.lg,
-      ),
-      child: Column(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: MekaarColors.cyan.withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: Image.asset(
-                'assets/logo/app_icon.webp',
-                width: 88,
-                height: 88,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  SolarIconsBold.shieldCheck,
-                  size: 72,
-                  color: MekaarColors.cyan,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          const MekaarWordmark(fontSize: 26),
-          const SizedBox(height: 6),
-          Text(
-            'Personal-Safety & Privacy-First Messenger',
-            style: MekaarTypography.bodyMD.copyWith(
-              color: MekaarColors.textSecondaryOf(context),
-              fontWeight: FontWeight.w600,
-              fontSize: 13.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            decoration: BoxDecoration(
-              color: MekaarColors.surface2Of(context),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: MekaarColors.border.withValues(alpha: 0.15),
-              ),
-            ),
-            child: Text(
-              'Versi $_currentVersion',
-              style: MekaarTypography.caption.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: MekaarColors.textPrimaryOf(context),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpdateCard() {
-    final hasNewUpdate = _updateInfo?.hasUpdate ?? false;
-
-    return CustomCard(
-      padding: const EdgeInsets.all(MekaarSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (hasNewUpdate ? MekaarColors.sosRed : MekaarColors.accentOf(context))
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  hasNewUpdate
-                      ? SolarIconsBold.cloudUpload
-                      : SolarIconsBold.checkCircle,
-                  color: hasNewUpdate ? MekaarColors.sosRed : MekaarColors.accentOf(context),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasNewUpdate
-                          ? 'Pembaruan Tersedia'
-                          : 'Status Versi Aplikasi',
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15.5,
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      hasNewUpdate
-                          ? 'Versi ${_updateInfo!.latestVersion} siap diunduh'
-                          : 'Aplikasi Anda mutakhir (v$_currentVersion)',
-                      style: MekaarTypography.bodySM.copyWith(
-                        fontSize: 13,
-                        color: MekaarColors.textSecondaryOf(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (hasNewUpdate) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Catatan Rilis ${_updateInfo!.latestVersion}:',
-                    style: MekaarTypography.bodyMD.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: MekaarColors.textPrimaryOf(context),
-                    ),
-                  ),
-                ),
-                if (_updateInfo!.formattedSize.isNotEmpty)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: MekaarColors.accentOf(context).withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      _updateInfo!.formattedSize,
-                      style: MekaarTypography.caption.copyWith(
-                        color: MekaarColors.accentOf(context),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _updateInfo!.releaseNotes,
-              style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textSecondaryOf(context),
-                fontSize: 13,
-                height: 1.45,
-              ),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: MekaarColors.accentOf(context),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => _startInAppUpdate(_updateInfo!),
-                    icon: const Icon(SolarIconsOutline.download, size: 18),
-                    label: Text(
-                      _updateInfo!.formattedSize.isNotEmpty
-                          ? 'Unduh & Pasang (${_updateInfo!.formattedSize.split('·').first.trim()})'
-                          : 'Unduh & Pasang Pembaruan',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: BounceInteractive(
-                    onTap: _isCheckingUpdate ? null : _handleCheckUpdate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: MekaarColors.accentOf(context).withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (_isCheckingUpdate) ...[
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: MekaarColors.accentOf(context),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Menghubungi GitHub...',
-                              style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.accentOf(context),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                          ] else ...[
-                            Icon(
-                              SolarIconsOutline.refreshCircle,
-                              color: MekaarColors.accentOf(context),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Periksa Pembaruan',
-                              style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.accentOf(context),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhilosophyCard() {
+  void _showPhilosophySheet(BuildContext context) {
+    HapticService.trigger(MekaarHapticIntent.selection);
     final pillars = [
       (
         icon: SolarIconsOutline.shieldKeyhole,
@@ -521,29 +198,27 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       ),
     ];
 
-    return SettingsExpandableCard(
-      icon: SolarIconsOutline.heartAngle,
-      iconColor: MekaarColors.softCoral,
-      title: 'Filosofi & Pilar Keamanan',
-      subtitle: '5 prinsip perlindungan & integritas data',
-      children: [
-        for (int i = 0; i < pillars.length; i++) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: pillars[i].color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: MekaarColors.softCoral.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    pillars[i].icon,
-                    color: pillars[i].color,
-                    size: 18,
+                  child: const Icon(
+                    SolarIconsOutline.heartAngle,
+                    color: MekaarColors.softCoral,
+                    size: 22,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -552,20 +227,17 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        pillars[i].title,
-                        style: MekaarTypography.bodyMD.copyWith(
+                        'Filosofi & Pilar Keamanan',
+                        style: MekaarTypography.headingMD.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14.5,
-                          color: MekaarColors.textPrimaryOf(context),
+                          fontSize: 17,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        pillars[i].desc,
+                        '5 prinsip perlindungan & integritas data MEKAAR',
                         style: MekaarTypography.bodySM.copyWith(
-                          color: MekaarColors.textSecondaryOf(context),
-                          fontSize: 13,
-                          height: 1.45,
+                          color: MekaarColors.textMutedOf(context),
                         ),
                       ),
                     ],
@@ -573,19 +245,74 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                 ),
               ],
             ),
-          ),
-          if (i < pillars.length - 1)
-            Divider(
-              height: 16,
-              thickness: 0.5,
-              color: MekaarColors.border.withValues(alpha: 0.1),
+            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (int i = 0; i < pillars.length; i++) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: pillars[i].color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                pillars[i].icon,
+                                color: pillars[i].color,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    pillars[i].title,
+                                    style: MekaarTypography.bodyMD.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14.5,
+                                      color: MekaarColors.textPrimaryOf(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    pillars[i].desc,
+                                    style: MekaarTypography.bodySM.copyWith(
+                                      color: MekaarColors.textSecondaryOf(context),
+                                      fontSize: 13,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (i < pillars.length - 1)
+                        const MekaarCardDivider(fullWidth: true),
+                    ],
+                  ],
+                ),
+              ),
             ),
-        ],
-      ],
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildChangelogCard() {
+  void _showHighlightsSheet(BuildContext context) {
+    HapticService.trigger(MekaarHapticIntent.selection);
     final highlights = [
       (
         title: 'Burn on Exit',
@@ -617,46 +344,46 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       ),
     ];
 
-    return SettingsExpandableCard(
-      icon: SolarIconsOutline.notes,
-      iconColor: MekaarColors.cyan,
-      title: 'Fitur & Kemampuan Utama',
-      subtitle: '7 fitur keamanan unggulan MEKAAR',
-      children: [
-        for (int i = 0; i < highlights.length; i++) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 3),
-                  child: Icon(
-                    SolarIconsBold.checkCircle,
-                    color: MekaarColors.guardianTeal,
-                    size: 16,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.cyan.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    SolarIconsOutline.notes,
+                    color: MekaarColors.cyan,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        highlights[i].title,
-                        style: MekaarTypography.bodyMD.copyWith(
+                        'Fitur & Kemampuan Utama',
+                        style: MekaarTypography.headingMD.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: MekaarColors.textPrimaryOf(context),
+                          fontSize: 17,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        highlights[i].desc,
+                        '7 fitur keamanan unggulan MEKAAR',
                         style: MekaarTypography.bodySM.copyWith(
-                          color: MekaarColors.textSecondaryOf(context),
-                          fontSize: 13,
-                          height: 1.4,
+                          color: MekaarColors.textMutedOf(context),
                         ),
                       ),
                     ],
@@ -664,182 +391,643 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                 ),
               ],
             ),
-          ),
-          if (i < highlights.length - 1)
-            Divider(
-              height: 12,
-              thickness: 0.5,
-              color: MekaarColors.border.withValues(alpha: 0.1),
-            ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildCommunityCard() {
-    return CustomCard(
-      padding: const EdgeInsets.all(MekaarSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  SolarIconsOutline.code2,
-                  color: MekaarColors.accentOf(context),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Transparansi & Sumber Terbuka',
-                style: MekaarTypography.bodyMD.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15.5,
-                  color: MekaarColors.textPrimaryOf(context),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Kode sumber MEKAAR dapat diaudit secara terbuka untuk menjamin tidak adanya celah keamanan tersembunyi (backdoor).',
-            style: MekaarTypography.bodySM.copyWith(
-              color: MekaarColors.textSecondaryOf(context),
-              fontSize: 13,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: MekaarColors.surface2Of(context),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                SolarIconsOutline.linkCircle,
-                color: MekaarColors.accentOf(context),
-                size: 20,
-              ),
-            ),
-            title: Text(
-              'Repositori GitHub',
-              style: MekaarTypography.bodyMD.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 14.5,
-                color: MekaarColors.textPrimaryOf(context),
-              ),
-            ),
-            subtitle: Text(
-              'github.com/tholeteplok/Mekaar_chat',
-              style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.accentOf(context),
-                fontSize: 13,
-              ),
-            ),
-            trailing: Icon(
-              SolarIconsOutline.arrowRightUp,
-              color: MekaarColors.accentOf(context),
-              size: 18,
-            ),
-            onTap: () => _openUrl('https://github.com/tholeteplok/Mekaar_chat'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDonationCard() {
-    return CustomCard(
-      padding: const EdgeInsets.all(MekaarSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.blue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  SolarIconsBold.heart,
-                  color: AppColors.blue,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Dukung Pengembangan MEKAAR',
-                  style: MekaarTypography.bodyMD.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15.5,
-                    color: MekaarColors.textPrimaryOf(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'MEKAAR dikembangkan tanpa iklan & tanpa komersialisasi data. Kontribusi kripto sukarela Anda membantu operasional server & riset keamanan.',
-            style: MekaarTypography.bodySM.copyWith(
-              color: MekaarColors.textSecondaryOf(context),
-              fontSize: 13,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: BounceInteractive(
-              onTap: () => MekaarCryptoDonationBottomSheet.show(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.blue.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                  border: Border.all(
-                    color: AppColors.blue.withValues(alpha: 0.25),
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                    const Icon(
-                      SolarIconsBold.wallet2,
-                      size: 18,
-                      color: AppColors.blue,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Lihat Alamat Donasi Crypto',
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13.5,
-                        color: AppColors.blue,
+                    for (int i = 0; i < highlights.length; i++) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 3),
+                              child: Icon(
+                                SolarIconsBold.checkCircle,
+                                color: MekaarColors.guardianTeal,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    highlights[i].title,
+                                    style: MekaarTypography.bodyMD.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: MekaarColors.textPrimaryOf(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    highlights[i].desc,
+                                    style: MekaarTypography.bodySM.copyWith(
+                                      color: MekaarColors.textSecondaryOf(context),
+                                      fontSize: 13,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      if (i < highlights.length - 1)
+                        const MekaarCardDivider(fullWidth: true),
+                    ],
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTermsAndPrivacySheet(BuildContext context) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    final terms = [
+      (
+        icon: SolarIconsOutline.shieldKeyhole,
+        title: 'Komitmen Zero-Knowledge',
+        desc:
+            'Server MEKAAR tidak pernah menyimpan kunci privat atau memiliki akses dekripsi terhadap pesan, panggilan, dan media Anda.',
+      ),
+      (
+        icon: SolarIconsOutline.forbiddenCircle,
+        title: 'Bebas Iklan & Pelacak Komersial',
+        desc:
+            'Aplikasi beroperasi secara independen tanpa pelacak pihak ketiga, tanpa profil analitik iklan, dan tanpa monetisasi data pribadi.',
+      ),
+      (
+        icon: SolarIconsOutline.keySquare,
+        title: 'Kedaulatan Kunci Kriptografi',
+        desc:
+            'Setiap pasangan kunci enkripsi disimpan secara eksklusif di penyimpanan aman perangkat lokal Anda.',
+      ),
+      (
+        icon: SolarIconsOutline.usersGroupTwoRounded,
+        title: 'Etika & Perlindungan Komunitas',
+        desc:
+            'Aplikasi ditujukan untuk keselamatan pribadi. Dilarang keras menyalahgunakan sistem ini untuk aktivitas ilegal atau pelecehan.',
+      ),
+    ];
+
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    SolarIconsOutline.documentText,
+                    color: MekaarColors.guardianTeal,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Syarat Layanan & Privasi',
+                        style: MekaarTypography.headingMD.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Prinsip perlindungan hukum & zero-knowledge MEKAAR',
+                        style: MekaarTypography.bodySM.copyWith(
+                          color: MekaarColors.textMutedOf(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (int i = 0; i < terms.length; i++) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                terms[i].icon,
+                                color: MekaarColors.guardianTeal,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    terms[i].title,
+                                    style: MekaarTypography.bodyMD.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14.5,
+                                      color: MekaarColors.textPrimaryOf(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    terms[i].desc,
+                                    style: MekaarTypography.bodySM.copyWith(
+                                      color: MekaarColors.textSecondaryOf(context),
+                                      fontSize: 13,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (i < terms.length - 1)
+                        const MekaarCardDivider(fullWidth: true),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionHubItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassBg = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.65);
+    final glassBorder = Border.all(
+      color: isDark
+          ? Colors.white.withValues(alpha: 0.14)
+          : Colors.black.withValues(alpha: 0.07),
+      width: 1.0,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MekaarGlassBlurContainer(
+          isFloating: true,
+          width: 56,
+          height: 56,
+          borderRadius: BorderRadius.circular(18),
+          padding: EdgeInsets.zero,
+          border: glassBorder,
+          customColor: glassBg,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onTap,
+            child: Center(
+              child: Icon(
+                icon,
+                size: 22,
+                color: iconColor ?? MekaarColors.textPrimaryOf(context),
+              ),
+            ),
           ),
-        ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: MekaarTypography.labelSM.copyWith(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: MekaarColors.textSecondaryOf(context),
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasNewUpdate = _updateInfo?.hasUpdate ?? false;
+
+    return MekaarScaffold(
+      flat: true,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsTopBar(title: 'Tentang MEKAAR'),
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8).copyWith(bottom: 36),
+                children: [
+                  // ── 1. Hero Brand Header (Terpusat & Bersih) ──
+                  Center(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        // Logo Squircle
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.blue.withValues(alpha: isDark ? 0.25 : 0.15),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Image.asset(
+                              'assets/logo/app_icon.webp',
+                              width: 88,
+                              height: 88,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 88,
+                                height: 88,
+                                decoration: BoxDecoration(
+                                  color: AppColors.blue.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                child: const Icon(
+                                  SolarIconsBold.shieldCheck,
+                                  size: 48,
+                                  color: AppColors.blue,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Nama Brand
+                        Text(
+                          'Mekaar',
+                          style: MekaarTypography.headingLG.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Subtitle
+                        Text(
+                          'Personal-Safety & Privacy-First Messenger',
+                          style: MekaarTypography.bodyMD.copyWith(
+                            color: MekaarColors.textSecondaryOf(context),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+
+                        // Versi Aplikasi
+                        Text(
+                          'Versi $_currentVersion',
+                          style: MekaarTypography.caption.copyWith(
+                            color: MekaarColors.textMutedOf(context),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Status Pembaruan Pill Button ──
+                        InkWell(
+                          borderRadius: BorderRadius.circular(22),
+                          onTap: _isCheckingUpdate
+                              ? null
+                              : () {
+                                  if (hasNewUpdate) {
+                                    _showUpdateDialog(_updateInfo!);
+                                  } else {
+                                    _handleCheckUpdate();
+                                  }
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: hasNewUpdate
+                                  ? MekaarColors.sosRed.withValues(alpha: 0.15)
+                                  : AppColors.blue.withValues(alpha: isDark ? 0.18 : 0.12),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: hasNewUpdate
+                                    ? MekaarColors.sosRed.withValues(alpha: 0.4)
+                                    : AppColors.blue.withValues(alpha: isDark ? 0.4 : 0.25),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isCheckingUpdate) ...[
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.blue,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Memeriksa Pembaruan...',
+                                    style: TextStyle(
+                                      color: AppColors.blue,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ] else if (hasNewUpdate) ...[
+                                  const Icon(
+                                    SolarIconsBold.cloudUpload,
+                                    color: MekaarColors.sosRed,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Pembaruan Tersedia (v${_updateInfo!.latestVersion})',
+                                    style: const TextStyle(
+                                      color: MekaarColors.sosRed,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ] else ...[
+                                  const Icon(
+                                    SolarIconsBold.checkCircle,
+                                    color: AppColors.blue,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Versi Terbaru',
+                                    style: TextStyle(
+                                      color: AppColors.blue,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── 2. Quick Channels Action Hub (3 Frosted Glass Buttons) ──
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildActionHubItem(
+                          icon: SolarIconsOutline.letter,
+                          label: 'Bantuan',
+                          onTap: () => _openUrl('https://github.com/tholeteplok/Mekaar_chat/issues'),
+                        ),
+                        _buildActionHubItem(
+                          icon: SolarIconsOutline.code2,
+                          label: 'GitHub',
+                          onTap: () => _openUrl('https://github.com/tholeteplok/Mekaar_chat'),
+                        ),
+                        _buildActionHubItem(
+                          icon: SolarIconsBold.wallet2,
+                          label: 'Donasi',
+                          iconColor: AppColors.blue,
+                          onTap: () => MekaarCryptoDonationBottomSheet.show(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── 3. Grouped CustomCard (4 Menu Utama Tanpa Duplikasi) ──
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: CustomCard(
+                      margin: EdgeInsets.zero,
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          // 1. Filosofi & Pilar Keamanan
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.softCoral.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                SolarIconsOutline.heartAngle,
+                                color: MekaarColors.softCoral,
+                                size: 20,
+                              ),
+                            ),
+                            title: const Text(
+                              'Filosofi & Pilar Keamanan',
+                              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              '5 prinsip perlindungan & integritas data',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: MekaarColors.textMutedOf(context),
+                              ),
+                            ),
+                            trailing: Icon(
+                              SolarIconsOutline.altArrowRight,
+                              size: 16,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                            onTap: () => _showPhilosophySheet(context),
+                          ),
+                          const MekaarCardDivider(),
+
+                          // 2. Fitur & Kemampuan Utama
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.cyan.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                SolarIconsOutline.notes,
+                                color: MekaarColors.cyan,
+                                size: 20,
+                              ),
+                            ),
+                            title: const Text(
+                              'Fitur & Kemampuan Utama',
+                              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              '7 fitur keamanan unggulan MEKAAR',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: MekaarColors.textMutedOf(context),
+                              ),
+                            ),
+                            trailing: Icon(
+                              SolarIconsOutline.altArrowRight,
+                              size: 16,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                            onTap: () => _showHighlightsSheet(context),
+                          ),
+                          const MekaarCardDivider(),
+
+                          // 3. Syarat Layanan & Privasi
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                SolarIconsOutline.documentText,
+                                color: MekaarColors.guardianTeal,
+                                size: 20,
+                              ),
+                            ),
+                            title: const Text(
+                              'Syarat Layanan & Privasi',
+                              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              'Komitmen zero-knowledge & hak pengguna',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: MekaarColors.textMutedOf(context),
+                              ),
+                            ),
+                            trailing: Icon(
+                              SolarIconsOutline.altArrowRight,
+                              size: 16,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                            onTap: () => _showTermsAndPrivacySheet(context),
+                          ),
+                          const MekaarCardDivider(),
+
+                          // 4. Perizinan & Hak Akses Perangkat
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.warnAmber.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                SolarIconsOutline.shieldCheck,
+                                color: MekaarColors.warnAmber,
+                                size: 20,
+                              ),
+                            ),
+                            title: const Text(
+                              'Perizinan & Hak Akses',
+                              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              'Kamera, mikrofon, lokasi, & notifikasi',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: MekaarColors.textMutedOf(context),
+                              ),
+                            ),
+                            trailing: Icon(
+                              SolarIconsOutline.altArrowRight,
+                              size: 16,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                            onTap: () => MekaarPermissionsBottomSheet.show(
+                              context: context,
+                              onGrant: () async {
+                                await openAppSettings();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // ── 4. Footer Kriptografi & Lisensi ──
+                  Center(
+                    child: Text(
+                      'MEKAAR Personal Safety System · Open Source\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
+                      style: MekaarTypography.caption.copyWith(
+                        color: isDark ? MekaarColors.textMuted : const Color(0xFF8C95AA),
+                        fontSize: 12.5,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-
