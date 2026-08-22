@@ -412,6 +412,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // Update bio
+  Future<void> updateBio(String bio) async {
+    final configError = _configurationErrorMessage();
+    if (configError != null) {
+      throw Exception(configError);
+    }
+
+    try {
+      final updatedProfile = await _authRepository.updateBio(bio);
+      state = state.copyWith(profile: updatedProfile);
+    } catch (e) {
+      throw Exception('Gagal memperbarui bio: $e');
+    }
+  }
+
   Future<bool> loginWithGoogle() async {
     final configError = _configurationErrorMessage();
     if (configError != null) {

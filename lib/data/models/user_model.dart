@@ -25,6 +25,7 @@ class Profile {
   final String? fullName;
   final String? displayName;
   final String? avatarUrl;
+  final String? bio;
   final DateTime createdAt;
   final DateTime updatedAt;
   final LastSeenPrivacy lastSeenPrivacy;
@@ -56,6 +57,7 @@ class Profile {
     this.fullName,
     this.displayName,
     this.avatarUrl,
+    this.bio,
     required this.createdAt,
     required this.updatedAt,
     this.lastSeenPrivacy = LastSeenPrivacy.everyone,
@@ -93,6 +95,7 @@ class Profile {
       fullName: json['full_name'] as String?,
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      bio: json['bio'] as String?,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : DateTime.now(),
       lastSeenPrivacy:
@@ -133,6 +136,7 @@ class Profile {
       'full_name': fullName,
       'display_name': displayName,
       'avatar_url': avatarUrl,
+      'bio': bio,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'last_seen_privacy': lastSeenPrivacy.value,
@@ -165,6 +169,7 @@ class Profile {
     String? fullName,
     String? displayName,
     String? avatarUrl,
+    String? bio,
     DateTime? createdAt,
     DateTime? updatedAt,
     LastSeenPrivacy? lastSeenPrivacy,
@@ -195,6 +200,7 @@ class Profile {
       fullName: fullName ?? this.fullName,
       displayName: displayName ?? this.displayName,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      bio: bio ?? this.bio,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastSeenPrivacy: lastSeenPrivacy ?? this.lastSeenPrivacy,

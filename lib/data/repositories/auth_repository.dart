@@ -230,6 +230,23 @@ class AuthRepository {
     return Profile.fromJson(response);
   }
 
+  // Update bio in profiles table
+  Future<Profile> updateBio(String bio) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabaseService.client
+        .from('profiles')
+        .update({
+          'bio': bio,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    return Profile.fromJson(response);
+  }
+
   // Update last_seen_privacy preference
   Future<Profile> updateLastSeenPrivacy(String privacyValue) async {
     final userId = _supabaseService.currentUserId;

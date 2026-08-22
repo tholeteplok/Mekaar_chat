@@ -1148,14 +1148,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                     )
                                 : null),
                         actions: [
-                          IconButton(
-                            icon: Icon(
-                              SolarIconsOutline.magnifier,
-                              color: roomThemeSpec.iconColor,
-                              size: 20,
-                            ),
-                            onPressed: () => setState(() => _isSearching = true),
-                          ),
                           // Actions Popup Menu (High-Contrast Frosted Glass)
                           PopupMenuButton<String>(
                             shape: RoundedRectangleBorder(
@@ -1175,7 +1167,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                               color: roomThemeSpec.primaryAccentColor,
                             ),
                         onSelected: (value) async {
-                          if (value == 'voice') {
+                          if (value == 'search') {
+                            setState(() => _isSearching = true);
+                          } else if (value == 'voice') {
                             _initiateCall('voice');
                           } else if (value == 'video') {
                             _initiateCall('video');
@@ -1196,6 +1190,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                           }
                         },
                         itemBuilder: (BuildContext context) => [
+                          PopupMenuItem<String>(
+                            value: 'search',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  SolarIconsOutline.magnifier,
+                                  size: 20,
+                                  color: textPrimary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Cari Pesan',
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           PopupMenuItem<String>(
                             value: 'voice',
                             child: Row(

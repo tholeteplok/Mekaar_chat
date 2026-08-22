@@ -279,7 +279,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       child: Row(
                         children: [
                           Icon(
-                            SolarIconsOutline.lockUnlocked,
+                            SolarIconsOutline.eye,
                             color: MekaarColors.accentOf(context),
                             size: 20,
                           ),

@@ -1,4 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/supabase_service.dart';
+import '../../features/auth/providers/auth_provider.dart';
+
+final reportRepositoryProvider = Provider<ReportRepository>((ref) {
+  final supabase = ref.watch(supabaseServiceProvider);
+  return ReportRepository(supabase);
+});
 
 class ReportRepository {
   final SupabaseService _supabase;

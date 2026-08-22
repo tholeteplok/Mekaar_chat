@@ -68,9 +68,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Padding(
       padding: EdgeInsets.only(
         top: topPadding + 4,
-        left: 12,
-        right: 12,
-        bottom: 8,
+        left: 8,
+        right: 8,
+        bottom: 6,
       ),
       child: Row(
         children: [
@@ -79,8 +79,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             MekaarGlassBlurContainer(
               isFloating: true,
               shape: BoxShape.circle,
-              width: 58,
-              height: 58,
+              width: 50,
+              height: 50,
               border: glassBorder,
               customColor: glassBackgroundColor,
               child: IconButton(
@@ -94,7 +94,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 tooltip: 'Kembali',
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
 
           // ── Container 2 (Tengah): Informasi Kontak (Avatar, Nama, Status) ──
@@ -104,75 +104,75 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               label: '$title, ${subtitle ?? (isOnline ? 'Online' : 'Offline')}',
               hint: onAvatarTap != null ? 'Ketuk untuk membuka profil' : null,
               child: MekaarGlassBlurContainer(
-              isFloating: true,
-              height: 58,
-              borderRadius: BorderRadius.circular(29),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              border: glassBorder,
-              customColor: glassBackgroundColor,
-              child: InkWell(
-                onTap: onAvatarTap,
-                borderRadius: BorderRadius.circular(29),
-                child: Row(
-                  children: [
-                    if (avatarInitial != null || avatarUrl != null) ...[
-                      Avatar(
-                        initial: avatarInitial,
-                        imageUrl: avatarUrl,
-                        size: 36,
-                        isGuardian: isGuardian,
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            title,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor ?? MekaarColors.textPrimaryOf(context),
-                                  letterSpacing: -0.2,
-                                ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (showOnlineIndicator || subtitle != null) ...[
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (showOnlineIndicator) ...[
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isOnline
-                                          ? MekaarColors.success
-                                          : (subtitleColor ?? MekaarColors.textMutedOf(context)),
-                                    ),
+                isFloating: true,
+                height: 50,
+                borderRadius: BorderRadius.circular(25),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                border: glassBorder,
+                customColor: glassBackgroundColor,
+                child: InkWell(
+                  onTap: onAvatarTap,
+                  borderRadius: BorderRadius.circular(25),
+                  child: Row(
+                    children: [
+                      if (avatarInitial != null || avatarUrl != null) ...[
+                        Avatar(
+                          initial: avatarInitial,
+                          imageUrl: avatarUrl,
+                          size: 38,
+                          isGuardian: isGuardian,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              title,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: textColor ?? MekaarColors.textPrimaryOf(context),
+                                    letterSpacing: -0.2,
                                   ),
-                                  const SizedBox(width: 4),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    subtitle ?? (isOnline ? 'Online' : 'Offline'),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: isOnline && showOnlineIndicator
-                                          ? MekaarColors.success
-                                          : (subtitleColor ?? MekaarColors.textMutedOf(context)),
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                              overflow: TextOverflow.ellipsis,
                             ),
+                            if (showOnlineIndicator || subtitle != null) ...[
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (showOnlineIndicator) ...[
+                                    Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isOnline
+                                            ? MekaarColors.success
+                                            : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      subtitle ?? (isOnline ? 'Online' : 'Offline'),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: isOnline && showOnlineIndicator
+                                            ? MekaarColors.success
+                                            : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
-                        ],
                         ),
                       ),
                     ],
@@ -184,13 +184,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
           // ── Container 3 (Kanan): Aksi & Menu Dots ──
           if (actions != null && actions!.isNotEmpty) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             MekaarGlassBlurContainer(
               isFloating: true,
               shape: actions!.length == 1 ? BoxShape.circle : BoxShape.rectangle,
-              width: actions!.length == 1 ? 58 : null,
-              height: 58,
-              borderRadius: actions!.length == 1 ? null : BorderRadius.circular(29),
+              width: actions!.length == 1 ? 50 : null,
+              height: 50,
+              borderRadius: actions!.length == 1 ? null : BorderRadius.circular(25),
               padding: EdgeInsets.symmetric(horizontal: actions!.length == 1 ? 0 : 6),
               border: glassBorder,
               customColor: glassBackgroundColor,

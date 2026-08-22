@@ -39,10 +39,32 @@ class _PinScreenState extends ConsumerState<PinScreen>
     vsync: this,
     duration: const Duration(milliseconds: 400),
   );
-  late final Animation<double> _shakeAnimation = Tween<double>(
-    begin: -10,
-    end: 10,
-  ).chain(CurveTween(curve: Curves.elasticIn)).animate(_shakeController);
+  late final Animation<double> _shakeAnimation = TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween(begin: 0.0, end: -12.0).chain(CurveTween(curve: Curves.easeOut)),
+      weight: 1,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: -12.0, end: 12.0).chain(CurveTween(curve: Curves.easeInOut)),
+      weight: 2,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: 12.0, end: -8.0).chain(CurveTween(curve: Curves.easeInOut)),
+      weight: 2,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: -8.0, end: 8.0).chain(CurveTween(curve: Curves.easeInOut)),
+      weight: 2,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: 8.0, end: -4.0).chain(CurveTween(curve: Curves.easeInOut)),
+      weight: 2,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: -4.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)),
+      weight: 1,
+    ),
+  ]).animate(_shakeController);
 
   @override
   void initState() {

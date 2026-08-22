@@ -27,8 +27,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with AutomaticKeepAliveClientMixin {
   bool _isEditingUsername = false;
   bool _isEditingDisplayName = false;
+  bool _isEditingBio = false;
   late TextEditingController _usernameController;
   late TextEditingController _displayNameController;
+  late TextEditingController _bioController;
   bool _isUploadingAvatar = false;
 
   final ImagePickerService _imagePickerService = ImagePickerService();
@@ -97,11 +99,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final profile = ref.read(authProvider).profile;
     _usernameController = TextEditingController(text: profile?.username ?? '');
     _displayNameController = TextEditingController(text: profile?.displayName ?? profile?.fullName ?? '');
+    _bioController = TextEditingController(text: profile?.bio ?? '');
   }
 
   @override
   void dispose() {
     _usernameController.dispose();
+    _displayNameController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -122,6 +127,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ref.read(authProvider).profile?.displayName ??
           ref.read(authProvider).profile?.fullName ??
           '';
+    }
+  }
+
+  Future<void> _saveBio() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final newBio = _bioController.text.trim();
+    if (newBio.length > 160) {
+      if (mounted) MekaarSnackbar.error(context, 'Bio maksimal 160 karakter.');
+      return;
+    }
+    setState(() => _isEditingBio = false);
+    try {
+      await ref.read(authProvider.notifier).updateBio(newBio);
+      if (mounted) {
+        MekaarSnackbar.success(context, 'Bio berhasil diperbarui.');
+      }
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal memperbarui bio: $e');
+      }
+      _bioController.text = ref.read(authProvider).profile?.bio ?? '';
     }
   }
 
@@ -186,6 +212,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     if (_isEditingUsername) {
       await _saveUsername();
     }
+    if (_isEditingBio) {
+      await _saveBio();
+    }
     if (mounted) {
       MekaarSnackbar.success(context, 'Perubahan profil tersimpan.');
     }
@@ -206,7 +235,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final pinSet = authState.isPinSet;
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
-    final saveActionButton = (_isEditingDisplayName || _isEditingUsername)
+    final saveActionButton = (_isEditingDisplayName || _isEditingUsername || _isEditingBio)
         ? IconButton(
             onPressed: _saveAllChanges,
             icon: Icon(
@@ -284,7 +313,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     );
                                     _showAvatarOptions();
                                   },
-                            icon: const Icon(
+                             icon: const Icon(
                               SolarIconsOutline.camera,
                               size: 16,
                               color: MekaarColors.cyan,
@@ -343,7 +372,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           ),
                           const SizedBox(height: 6),
 
-                          // 3. Email
+                          // 3. Bio / Status
+                          _buildCleanRow(
+                            label: 'Bio',
+                            isEditing: _isEditingBio,
+                            controller: _bioController,
+                            value: (profile?.bio != null && profile!.bio!.isNotEmpty)
+                                ? profile.bio!
+                                : 'Tambah bio / status...',
+                            onToggle: () => setState(
+                              () => _isEditingBio = true,
+                            ),
+                            onSave: _saveBio,
+                          ),
+                          const SizedBox(height: 6),
+
+                          // 4. Email
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
