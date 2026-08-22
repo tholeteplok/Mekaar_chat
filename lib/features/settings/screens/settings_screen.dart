@@ -7,6 +7,7 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -16,6 +17,7 @@ import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
 import '../providers/notification_preferences_provider.dart';
+import '../../chat/providers/nearby_friends_provider.dart';
 import '../widgets/settings_tiles.dart';
 import '../widgets/account_snippet_card.dart';
 
@@ -120,6 +122,17 @@ class SettingsScreen extends ConsumerWidget {
                     ? 'Disetujui'
                     : 'Semua',
                 onTap: () => _showChatInvitationModeSheet(context, ref),
+              ),
+              SettingsNavTile(
+                icon: SolarIconsOutline.radar2,
+                iconColor: MekaarColors.guardianTeal,
+                title: 'Teman Sekitar (Proximity)',
+                valueText: ref.watch(nearbyFriendsProvider).isEnabled
+                    ? (ref.watch(nearbyFriendsProvider).visibilityMode == 'everyone'
+                        ? 'Semua'
+                        : 'Kontak')
+                    : 'Nonaktif',
+                onTap: () => _showNearbyFriendsPrivacySheet(context, ref),
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.mapPoint,
@@ -457,6 +470,120 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }),
               const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────
+  void _showNearbyFriendsPrivacySheet(BuildContext context, WidgetRef ref) {
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final state = ref.watch(nearbyFriendsProvider);
+        final isEnabled = state.isEnabled;
+        final currentMode = state.visibilityMode;
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text(
+                'Teman Sekitar & Proksimitas',
+                style: MekaarTypography.headingSM,
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Bagikan radius jarak kasar dengan kontak untuk mengetahui siapa yang sedang berada di dekat Anda.',
+                  style: MekaarTypography.bodySM,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                secondary: Icon(
+                  SolarIconsOutline.radar2,
+                  color: isEnabled ? MekaarColors.guardianTeal : null,
+                ),
+                title: const Text('Aktifkan Teman Sekitar'),
+                subtitle: const Text(
+                  'Hanya membagikan radius kasar (<500 m, 500 m–2 km, satu kota)',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: isEnabled,
+                onChanged: (value) async {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  final success = await ref
+                      .read(nearbyFriendsProvider.notifier)
+                      .toggleSharing(value);
+                  if (!success && ctx.mounted) {
+                    MekaarSnackbar.error(
+                      ctx,
+                      'Izin lokasi diperlukan untuk mengaktifkan fitur ini.',
+                    );
+                  }
+                },
+              ),
+              if (isEnabled) ...[
+                const Divider(),
+                ListTile(
+                  leading: Icon(
+                    currentMode == 'contacts_only'
+                        ? SolarIconsBold.checkCircle
+                        : SolarIconsOutline.usersGroupRounded,
+                    color: currentMode == 'contacts_only'
+                        ? MekaarColors.guardianTeal
+                        : null,
+                  ),
+                  title: const Text('Hanya Kontak Saya'),
+                  subtitle: const Text(
+                    'Hanya kontak yang saling menyimpan yang dapat melihat jarak',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: currentMode == 'contacts_only'
+                      ? const Icon(MekaarIcons.check,
+                          color: MekaarColors.guardianTeal)
+                      : null,
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    ref
+                        .read(nearbyFriendsProvider.notifier)
+                        .setVisibilityMode('contacts_only');
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    currentMode == 'everyone'
+                        ? SolarIconsBold.checkCircle
+                        : SolarIconsOutline.globus,
+                    color: currentMode == 'everyone'
+                        ? MekaarColors.guardianTeal
+                        : null,
+                  ),
+                  title: const Text('Semua Pengguna di Sekitar'),
+                  subtitle: const Text(
+                    'Termasuk pengguna non-kontak yang juga mengaktifkan fitur ini',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: currentMode == 'everyone'
+                      ? const Icon(MekaarIcons.check,
+                          color: MekaarColors.guardianTeal)
+                      : null,
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    ref
+                        .read(nearbyFriendsProvider.notifier)
+                        .setVisibilityMode('everyone');
+                  },
+                ),
+              ],
+              const SizedBox(height: 16),
             ],
           ),
         );

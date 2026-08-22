@@ -22,6 +22,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
+import '../widgets/nearby_friends_canvas.dart';
 
 class ContactListScreen extends ConsumerStatefulWidget {
   const ContactListScreen({super.key});
@@ -331,6 +332,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       ),
                     ),
                   ),
+                // Teman Sekitar (Proximity Floating Canvas)
+                if (!_isSearchActive && !wasDuress)
+                  const NearbyFriendsCanvas(),
+
                 const SizedBox(height: 6),
                 // Sliding Segment Tabs Bar
                 MekaarSlidingSegmentBar(
