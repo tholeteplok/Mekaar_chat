@@ -120,13 +120,13 @@ void main() {
       );
 
       final stateAll = const NearbyFriendsState(
-        displayFilter: 'all',
+        visibilityMode: 'everyone',
         friends: [friendContact, friendNonContact],
       );
       expect(stateAll.filteredFriends.length, equals(2));
 
       final stateContactsOnly = const NearbyFriendsState(
-        displayFilter: 'contacts_only',
+        visibilityMode: 'contacts_only',
         friends: [friendContact, friendNonContact],
       );
       expect(stateContactsOnly.filteredFriends.length, equals(1));
@@ -208,7 +208,7 @@ void main() {
 
     testWidgets('Saat fitur enabled dan kosong, menampilkan empty state', (tester) async {
       final fakeRepo = FakeNearbyRepository();
-      await fakeRepo.updatePreferences(enabled: true);
+      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
 
       await tester.pumpWidget(
         ProviderScope(
@@ -238,7 +238,7 @@ void main() {
 
     testWidgets('Saat fitur enabled dan ada teman, merender filter [Semua] & [Kontak] serta memfilter daftar', (tester) async {
       final fakeRepo = FakeNearbyRepository();
-      await fakeRepo.updatePreferences(enabled: true);
+      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
       fakeRepo.mockFriends = [
         const NearbyFriendModel(
           userId: 'friend-1',

@@ -454,12 +454,12 @@ class SettingsScreen extends ConsumerWidget {
                     selected
                         ? SolarIconsBold.checkCircle
                         : SolarIconsOutline.shieldUser,
-                    color: selected ? MekaarColors.softCoral : null,
+                    color: selected ? MekaarColors.primaryOf(context) : null,
                   ),
                   title: Text(opt.$2),
                   subtitle: Text(opt.$3, style: const TextStyle(fontSize: 12)),
                   trailing: selected
-                      ? const Icon(MekaarIcons.check, color: MekaarColors.softCoral)
+                      ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
                       : null,
                   onTap: () {
                     ref
@@ -617,11 +617,11 @@ class SettingsScreen extends ConsumerWidget {
                     selected
                         ? SolarIconsBold.checkCircle
                         : SolarIconsOutline.user,
-                    color: selected ? MekaarColors.softCoral : null,
+                    color: selected ? MekaarColors.primaryOf(context) : null,
                   ),
                   title: Text(privacy.label),
                   trailing: selected
-                      ? const Icon(MekaarIcons.check, color: MekaarColors.softCoral)
+                      ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
                       : null,
                   onTap: () {
                     ref

@@ -9,6 +9,7 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_map_preview.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/saved_place_model.dart';
@@ -380,57 +381,82 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
               ),
               const SizedBox(height: MekaarSpacing.md),
 
-              // 4. Kartu Titik Lokasi Tujuan di Peta Real-Time
-              CustomCard(
-                padding: const EdgeInsets.all(MekaarSpacing.md),
-                border: Border.all(color: MekaarColors.cyan.withValues(alpha: 0.3)),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: MekaarColors.cyan.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            SolarIconsBold.mapPoint,
-                            color: MekaarColors.cyan,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: MekaarSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Titik Koordinat Tujuan Physical',
-                                style: MekaarTypography.bodySM.copyWith(color: MekaarColors.textMutedOf(context)),
+              // 4. Peta Preview Titik Tujuan + Radius Geofence Live
+              if (_destinationLocation == null)
+                CustomCard(
+                  padding: const EdgeInsets.all(MekaarSpacing.lg),
+                  child: SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: _isLoadingGps
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: MekaarColors.accent),
+                                ),
+                                const SizedBox(height: MekaarSpacing.sm),
+                                Text(
+                                  'Menunggu lokasi GPS...',
+                                  style: MekaarTypography.bodySM.copyWith(
+                                    color: MekaarColors.textMutedOf(context),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              'Titik tujuan belum ditentukan.\nKetuk "Pilih Lokasi Tujuan di Peta" di bawah.',
+                              textAlign: TextAlign.center,
+                              style: MekaarTypography.bodySM.copyWith(
+                                color: MekaarColors.textMutedOf(context),
                               ),
-                              Text(
-                                '$latStr, $lngStr',
-                                style: MekaarTypography.bodyMD.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            ),
                     ),
-                    const SizedBox(height: MekaarSpacing.sm),
-                    OutlinedButton.icon(
-                      onPressed: () => _openMapPicker(),
-                      icon: const Icon(SolarIconsBold.mapPointSearch, color: MekaarColors.cyan, size: 18),
-                      label: const Text('🗺️ Pilih Lokasi Tujuan di Peta'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: MekaarColors.cyan,
-                        side: const BorderSide(color: MekaarColors.cyan),
-                        minimumSize: const Size.fromHeight(44),
-                        shape: const StadiumBorder(),
-                      ),
+                  ),
+                )
+              else ...[
+                // Peta mini read-only: tap di mana pun membuka full picker.
+                Semantics(
+                  label:
+                      'Peta pratinjau titik tujuan, ketuk untuk memilih lokasi',
+                  button: true,
+                  child: MekaarMapPreview(
+                    center: _destinationLocation!,
+                    radiusMeters: _radiusMeters.toDouble(),
+                    onTap: () => _openMapPicker(),
+                    markerChild: Icon(
+                      SolarIconsBold.mapPoint,
+                      color: MekaarColors.accentOf(context),
+                      size: 44,
                     ),
-                  ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: MekaarSpacing.sm),
+                  child: Text(
+                    'Koordinat: $latStr, $lngStr',
+                    textAlign: TextAlign.center,
+                    style: MekaarTypography.caption.copyWith(
+                      color: MekaarColors.textSecondaryOf(context),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+              OutlinedButton.icon(
+                onPressed: () => _openMapPicker(),
+                icon: Icon(SolarIconsBold.mapPointSearch,
+                    color: MekaarColors.accentTextOf(context), size: 18),
+                label: const Text('Pilih Lokasi Tujuan di Peta'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: MekaarColors.accentTextOf(context),
+                  side: BorderSide(color: MekaarColors.accentTextOf(context)),
+                  minimumSize: const Size.fromHeight(44),
+                  shape: const StadiumBorder(),
                 ),
               ),
               const SizedBox(height: MekaarSpacing.md),

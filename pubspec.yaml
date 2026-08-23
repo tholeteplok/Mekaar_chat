@@ -53,6 +53,7 @@ dependencies:
   # Maps
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
+  http: ^1.6.0 # Geocoding Nominatim (pencarian lokasi di peta)
 
   # Location & Permissions
   location: ^6.0.2

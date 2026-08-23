@@ -6,8 +6,7 @@ import '../../../data/services/location_service.dart';
 
 class NearbyFriendsState {
   final bool isEnabled;
-  final String visibilityMode;
-  final String displayFilter; // 'all' or 'contacts_only'
+  final String visibilityMode; // 'contacts_only' or 'everyone'
   final bool isLoading;
   final List<NearbyFriendModel> friends;
   final DateTime? lastFetchedAt;
@@ -16,7 +15,6 @@ class NearbyFriendsState {
   const NearbyFriendsState({
     this.isEnabled = false,
     this.visibilityMode = 'contacts_only',
-    this.displayFilter = 'all',
     this.isLoading = false,
     this.friends = const [],
     this.lastFetchedAt,
@@ -24,7 +22,7 @@ class NearbyFriendsState {
   });
 
   List<NearbyFriendModel> get filteredFriends {
-    if (displayFilter == 'contacts_only') {
+    if (visibilityMode == 'contacts_only') {
       return friends.where((f) => f.isContact).toList();
     }
     return friends;
@@ -33,7 +31,6 @@ class NearbyFriendsState {
   NearbyFriendsState copyWith({
     bool? isEnabled,
     String? visibilityMode,
-    String? displayFilter,
     bool? isLoading,
     List<NearbyFriendModel>? friends,
     DateTime? lastFetchedAt,
@@ -42,7 +39,6 @@ class NearbyFriendsState {
     return NearbyFriendsState(
       isEnabled: isEnabled ?? this.isEnabled,
       visibilityMode: visibilityMode ?? this.visibilityMode,
-      displayFilter: displayFilter ?? this.displayFilter,
       isLoading: isLoading ?? this.isLoading,
       friends: friends ?? this.friends,
       lastFetchedAt: lastFetchedAt ?? this.lastFetchedAt,
@@ -115,9 +111,10 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
         }
       }
 
+      final targetVisibilityMode = visibilityMode ?? state.visibilityMode;
       final prefs = await _repository.updatePreferences(
         enabled: enabled,
-        visibilityMode: visibilityMode ?? state.visibilityMode,
+        visibilityMode: targetVisibilityMode,
       );
 
       state = state.copyWith(
@@ -141,16 +138,10 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
     }
   }
 
-  /// Mengubah mode visibilitas (contacts_only vs everyone)
+  /// Mengubah mode visibilitas (contacts_only vs everyone) dan memperbarui database serta list
   Future<void> setVisibilityMode(String mode) async {
     if (state.visibilityMode == mode) return;
     await toggleSharing(state.isEnabled, visibilityMode: mode);
-  }
-
-  /// Mengubah filter tampilan canvas ('all' vs 'contacts_only')
-  void setDisplayFilter(String filter) {
-    if (state.displayFilter == filter) return;
-    state = state.copyWith(displayFilter: filter);
   }
 
   /// Mengambil lokasi saat ini dan memperbarui daftar teman sekitar

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -7,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_map_preview.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -258,32 +258,15 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                               label: 'Peta lokasi terakhir perangkat',
                               hint:
                                   'Menampilkan posisi lokasi pada koordinat $_lat, $_lon',
-                              child: FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: LatLng(_lat!, _lon!),
-                                  initialZoom: 15,
+                              child: MekaarMapPreview(
+                                center: LatLng(_lat!, _lon!),
+                                zoom: 15,
+                                interactive: true,
+                                markerChild: const Icon(
+                                  SolarIconsOutline.smartphone,
+                                  color: MekaarColors.sosRed,
+                                  size: 40,
                                 ),
-                                children: [
-                                  TileLayer(
-                                    urlTemplate:
-                                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                    userAgentPackageName: 'com.mekaar.app',
-                                  ),
-                                  MarkerLayer(
-                                    markers: [
-                                      Marker(
-                                        point: LatLng(_lat!, _lon!),
-                                        width: 50,
-                                        height: 50,
-                                        child: const Icon(
-                                          SolarIconsOutline.smartphone,
-                                          color: MekaarColors.sosRed,
-                                          size: 40,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ),
                             ),
                 ),

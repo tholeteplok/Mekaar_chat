@@ -195,11 +195,11 @@ class NearbyFriendsCanvas extends ConsumerWidget {
               // Filter Segmen: [Semua] [Kontak]
               MekaarSlidingSegmentBar(
                 tabs: const ['Semua', 'Kontak'],
-                selectedIndex: state.displayFilter == 'all' ? 0 : 1,
+                selectedIndex: state.visibilityMode == 'everyone' ? 0 : 1,
                 onTabSelected: (index) {
                   ref
                       .read(nearbyFriendsProvider.notifier)
-                      .setDisplayFilter(index == 0 ? 'all' : 'contacts_only');
+                      .setVisibilityMode(index == 0 ? 'everyone' : 'contacts_only');
                 },
                 height: 28,
                 width: 135,
@@ -260,7 +260,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      state.displayFilter == 'contacts_only'
+                      state.visibilityMode == 'contacts_only'
                           ? 'Belum ada kontak di sekitar'
                           : 'Belum ada teman di sekitar',
                       style: MekaarTypography.bodySM.copyWith(

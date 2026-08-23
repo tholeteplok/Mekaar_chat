@@ -244,7 +244,6 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         icon: const Icon(SolarIconsOutline.gps),
                         label: const Text('Lihat Lokasi Saya'),
                         onPressed: () async {
-                          final navigator = Navigator.of(context);
                           final result = await ref
                               .read(sosProvider.notifier)
                               .getOwnSessionWithPing();
