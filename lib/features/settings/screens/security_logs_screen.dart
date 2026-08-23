@@ -71,25 +71,25 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                       const SizedBox(height: 6),
                       Text(
                         '${result['algorithm']?.isNotEmpty ?? false ? result['algorithm'] : 'Ed25519'}: ${result['signature']}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontFamily: 'monospace',
+                        style: MekaarTypography.monoMD.copyWith(
+                          fontSize: 11,
+                          color: MekaarColors.textSecondaryOf(context),
                         ),
                       ),
                       if (result['public_key']?.isNotEmpty ?? false) ...[
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Public key server (untuk verifikasi independen):',
                           style: TextStyle(
-                            fontSize: 10,
-                            color: MekaarColors.textMuted,
+                            fontSize: 11,
+                            color: MekaarColors.textMutedOf(context),
                           ),
                         ),
                         Text(
                           result['public_key'] ?? '',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontFamily: 'monospace',
+                          style: MekaarTypography.monoMD.copyWith(
+                            fontSize: 11,
+                            color: MekaarColors.textSecondaryOf(context),
                           ),
                         ),
                       ],
@@ -161,10 +161,10 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                                 color: MekaarColors.surface2Of(context),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 SolarIconsOutline.history,
                                 size: 40,
-                                color: MekaarColors.textMuted,
+                                color: MekaarColors.textMutedOf(context),
                               ),
                             ),
                             const SizedBox(height: 16),

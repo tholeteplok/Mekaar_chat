@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -236,15 +237,16 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.black87,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.amber, width: 1.5),
+                    borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    border: Border.all(color: MekaarColors.warnAmber, width: 1.5),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Row(
                         children: [
-                          Icon(SolarIconsBold.shieldWarning, color: Colors.amber, size: 24),
+                          Icon(SolarIconsBold.shieldWarning,
+                              color: MekaarColors.warnAmber, size: 24),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -268,8 +270,8 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black,
+                            backgroundColor: MekaarColors.warnAmber,
+                            foregroundColor: MekaarColors.textOnYellow,
                           ),
                           onPressed: _dismissInactivityPrompt,
                           child: const Text(
@@ -290,27 +292,37 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onDoubleTap: _toggleScreenLock,
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.95),
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(SolarIconsOutline.lock, color: Colors.white38, size: 48),
-                        SizedBox(height: 16),
-                        Text(
-                          'Kamera & Mic Tetap Merekam',
-                          style: TextStyle(color: Colors.white54, fontSize: 14),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Ketuk 2x untuk membuka kontrol layar',
-                          style: TextStyle(color: Colors.white24, fontSize: 11),
-                        ),
-                      ],
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.95),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(SolarIconsOutline.lock,
+                              color: Colors.white70, size: 48),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Kamera & Mic Tetap Merekam',
+                            style: TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                          const SizedBox(height: 8),
+                          // Instruksi jalan keluar dari lock mode — harus
+                          // selalu terbaca di atas latar hitam pekat.
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              'Ketuk 2x untuk membuka kontrol layar',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ),
             ),
 
@@ -361,16 +373,16 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
                             Icon(
                               MekaarIcons.circle,
                               color: _streamState == SosStreamState.streaming
-                                  ? Colors.green
+                                  ? MekaarColors.safeTeal
                                   : (_streamState == SosStreamState.waitingForViewer
-                                      ? Colors.amber
-                                      : Colors.lightBlue),
+                                      ? MekaarColors.warnAmber
+                                      : MekaarColors.cyan),
                               size: 8,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               _streamState == SosStreamState.streaming
-                                  ? '🔴 Live ke Guardian'
+                                  ? 'Siaran Langsung ke Guardian'
                                   : (_streamState == SosStreamState.waitingForViewer
                                       ? 'Menunggu Guardian…'
                                       : 'Kamera & Mic Aktif'),
@@ -422,7 +434,7 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
             ),
             // Bottom Action buttons
             Positioned(
-              bottom: 40,
+              bottom: MediaQuery.of(context).padding.bottom + 24,
               left: 0,
               right: 0,
               child: Row(
@@ -464,30 +476,34 @@ class _VideoEmergencyScreenState extends ConsumerState<VideoEmergencyScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDestructive ? MekaarColors.sosRed : Colors.black45,
-              border: Border.all(color: Colors.white24),
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDestructive ? MekaarColors.sosRed : Colors.black45,
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

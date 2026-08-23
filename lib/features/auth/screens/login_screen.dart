@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
@@ -204,15 +205,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               color: textSecondary,
                             ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               borderSide: BorderSide(color: cardBorder),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               borderSide: BorderSide(color: cardBorder),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               borderSide: const BorderSide(
                                 color: AppColors.blue,
                                 width: 1.5,
@@ -247,15 +248,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: textSecondary,
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             borderSide: BorderSide(color: cardBorder),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             borderSide: BorderSide(color: cardBorder),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             borderSide: const BorderSide(
                               color: AppColors.blue,
                               width: 1.5,
@@ -318,15 +319,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             borderSide: BorderSide(color: cardBorder),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             borderSide: BorderSide(color: cardBorder),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             borderSide: const BorderSide(
                               color: AppColors.blue,
                               width: 1.5,
@@ -341,13 +342,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerRight,
-                          child: GestureDetector(
-                            onTap: () {
+                          child: TextButton(
+                            onPressed: () {
                               Navigator.pushNamed(
                                 context,
                                 AppRoutes.forgotPassword,
                               );
                             },
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(44, 44),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                            ),
                             child: const Text(
                               'Lupa Password?',
                               style: TextStyle(
@@ -382,7 +389,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             backgroundColor: AppColors.blue,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             ),
                           ),
                           child: authState.isLoading
@@ -415,7 +422,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               width: 1.5,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             ),
                             textStyle: const TextStyle(
                               fontWeight: FontWeight.w600,
@@ -440,8 +447,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => setState(() => _isLogin = !_isLogin),
+                  TextButton(
+                    onPressed: () => setState(() => _isLogin = !_isLogin),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                    ),
                     child: Text(
                       _isLogin ? 'Daftar' : 'Masuk',
                       style: const TextStyle(

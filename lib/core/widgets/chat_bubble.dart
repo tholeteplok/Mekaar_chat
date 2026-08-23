@@ -236,13 +236,13 @@ class ChatBubble extends ConsumerWidget {
             margin: const EdgeInsets.symmetric(vertical: 10),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: MekaarColors.infoLight,
+              color: MekaarColors.surface2Of(context),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               message.content,
               style: TextStyle(
-                color: MekaarColors.info,
+                color: MekaarColors.textSecondaryOf(context),
                 fontSize: 11 * chatPref.textScale,
                 fontWeight: FontWeight.w600,
               ),
@@ -271,7 +271,7 @@ class ChatBubble extends ConsumerWidget {
     String? fontFamily = spec.fontFamily;
 
     if (isDeleted) {
-      bubbleColor = isMe ? MekaarColors.border : MekaarColors.borderLight;
+      bubbleColor = MekaarColors.surface3Of(context);
       textColor = MekaarColors.textMutedOf(context);
       border = null;
       bubbleGradient = null;
@@ -480,8 +480,8 @@ class ChatBubble extends ConsumerWidget {
                     children: [
                       Text(
                         isWarning
-                            ? '🛡️ Delayed Check-In Alert'
-                            : '🛡️ Auto Check-In Status',
+                            ? 'Peringatan Check-In Tertunda'
+                            : 'Status Auto Check-In',
                         style: TextStyle(
                           color: isWarning
                               ? MekaarColors.sosCoral
@@ -693,7 +693,7 @@ class ChatBubble extends ConsumerWidget {
             if (target.content.contains('auto_checkin')) {
               previewText = '🛡️ Auto Check-In Rute';
             } else if (target.content.contains('delayed_alert')) {
-              previewText = '🛡️ Peringatan Terlambat Arrival';
+              previewText = 'Peringatan Keterlambatan Kedatangan';
             } else {
               previewText = target.content;
             }

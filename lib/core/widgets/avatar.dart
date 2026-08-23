@@ -20,13 +20,14 @@ class Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatarColor = backgroundColor ?? _getAvatarColor(initial);
+    final inkColor = _inkFor(avatarColor);
     final innerSize = isGuardian ? size - 4 : size;
 
     Widget avatarChild = Center(
       child: Text(
         initial?.isNotEmpty == true ? initial![0].toUpperCase() : '?',
         style: TextStyle(
-          color: Colors.white,
+          color: inkColor,
           fontSize: innerSize * 0.42,
           fontWeight: FontWeight.w700,
         ),
@@ -75,6 +76,14 @@ class Avatar extends StatelessWidget {
     return coreWidget;
   }
 
+  /// Tinta inisial dipilih dari luminansi latar agar kontras selalu memadai
+  /// (putih di atas warning/success hanya ≈2:1).
+  Color _inkFor(Color bg) {
+    return bg.computeLuminance() > 0.5
+        ? AppColors.darkBlue
+        : Colors.white;
+  }
+
   Color _getAvatarColor(String? text) {
     if (text == null || text.isEmpty) return AppColors.blue;
     final colors = [
@@ -83,8 +92,8 @@ class Avatar extends StatelessWidget {
       MekaarColors.info,
       MekaarColors.success,
       MekaarColors.warning,
-      const Color(0xFF8B5CF6), // Purple
-      const Color(0xFFEC4899), // Pink
+      MekaarColors.purple,
+      MekaarColors.pink,
     ];
     final index = text.codeUnits.fold(0, (prev, element) => prev + element);
     return colors[index.abs() % colors.length];

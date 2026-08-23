@@ -313,15 +313,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     );
                                     _showAvatarOptions();
                                   },
-                             icon: const Icon(
-                              SolarIconsOutline.camera,
-                              size: 16,
-                              color: MekaarColors.cyan,
-                            ),
+                             icon: Icon(
+                               SolarIconsOutline.camera,
+                               size: 16,
+                               color: MekaarColors.accentTextOf(context),
+                             ),
                             label: Text(
                               'Ubah Foto',
                               style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentTextOf(context),
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -485,7 +485,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                               child: Text(
                                 pinSet ? 'Ubah PIN' : 'Atur PIN',
                                 style: MekaarTypography.bodySM.copyWith(
-                                  color: MekaarColors.cyan,
+                                  color: MekaarColors.accentTextOf(context),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -571,12 +571,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     decoration: InputDecoration(
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                      border: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: MekaarColors.cyan),
+                      border: UnderlineInputBorder(
+                        borderSide:
+                            BorderSide(color: MekaarColors.accentTextOf(context)),
                       ),
-                      focusedBorder: const UnderlineInputBorder(
+                      focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(
-                          color: MekaarColors.cyan,
+                          color: MekaarColors.accentTextOf(context),
                           width: 2,
                         ),
                       ),
@@ -597,7 +598,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   ? SolarIconsOutline.checkCircle
                   : SolarIconsOutline.pen,
               color: isEditing
-                  ? MekaarColors.cyan
+                  ? MekaarColors.accentTextOf(context)
                   : MekaarColors.textMutedOf(context),
               size: 18,
             ),

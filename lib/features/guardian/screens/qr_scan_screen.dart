@@ -137,18 +137,18 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                           children: [
                             Text(
                               name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: MekaarColors.textPrimary,
+                                color: MekaarColors.textPrimaryOf(context),
                               ),
                             ),
                             if (username.isNotEmpty)
                               Text(
                                 '@$username',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
-                                  color: MekaarColors.textSecondary,
+                                  color: MekaarColors.textSecondaryOf(context),
                                 ),
                               ),
                           ],
@@ -157,11 +157,11 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Izin Keamanan (hanya aktif saat SOS Anda):',
                     style: TextStyle(
                       fontSize: 13,
-                      color: MekaarColors.textSecondary,
+                      color: MekaarColors.textSecondaryOf(context),
                     ),
                   ),
                   SwitchListTile(

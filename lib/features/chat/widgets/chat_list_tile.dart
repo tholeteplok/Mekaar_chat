@@ -235,8 +235,8 @@ class _UnreadBadge extends StatelessWidget {
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
         style: const TextStyle(
-          color: MekaarColors.textOnYellow,
-          fontSize: 10,
+          color: MekaarColors.textOnBlue,
+          fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
       ),

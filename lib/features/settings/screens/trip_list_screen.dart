@@ -91,7 +91,7 @@ class TripListScreen extends ConsumerWidget {
                     if (context.mounted) {
                       MekaarSnackbar.success(
                         context,
-                        '📍 Check-In manual untuk rute "${trip.title}" berhasil disimpan!',
+                        'Check-In manual untuk rute "${trip.title}" berhasil disimpan!',
                       );
                     }
                   } catch (e) {
@@ -221,7 +221,7 @@ class _TripTile extends StatelessWidget {
                 ),
                 child: Icon(
                   SolarIconsBold.mapPoint,
-                  color: trip.isActive ? MekaarColors.cyan : MekaarColors.textMutedOf(context),
+                  color: trip.isActive ? MekaarColors.accentTextOf(context) : MekaarColors.textMutedOf(context),
                   size: 20,
                 ),
               ),
@@ -253,6 +253,7 @@ class _TripTile extends StatelessWidget {
               IconButton(
                 icon: const Icon(SolarIconsOutline.trashBinMinimalistic, color: MekaarColors.sosCoral, size: 20),
                 onPressed: onDelete,
+                tooltip: 'Hapus Rute',
               ),
             ],
           ),
@@ -274,7 +275,7 @@ class _TripTile extends StatelessWidget {
                 Icon(SolarIconsOutline.clockCircle, size: 14, color: MekaarColors.textMutedOf(context)),
                 const SizedBox(width: 4),
                 Text(
-                  'Estimasi tiba: ${trip.expectedTime} WIB (+${trip.gracePeriodMinutes}m grace)',
+                  'Estimasi tiba: ${trip.expectedTime} WIB (tenggang ${trip.gracePeriodMinutes} menit)',
                   style: MekaarTypography.bodySM.copyWith(color: MekaarColors.textMutedOf(context)),
                 ),
               ],
@@ -283,12 +284,12 @@ class _TripTile extends StatelessWidget {
           const SizedBox(height: 4),
           Row(
             children: [
-              Icon(SolarIconsOutline.infoCircle, size: 14, color: MekaarColors.cyan),
+              Icon(SolarIconsOutline.infoCircle, size: 14, color: MekaarColors.accentTextOf(context)),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   _statusSummaryText(trip),
-                  style: MekaarTypography.bodySM.copyWith(color: MekaarColors.cyan, fontWeight: FontWeight.w600),
+                  style: MekaarTypography.bodySM.copyWith(color: MekaarColors.accentTextOf(context), fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -297,13 +298,13 @@ class _TripTile extends StatelessWidget {
             const SizedBox(height: MekaarSpacing.sm),
             OutlinedButton.icon(
               onPressed: onManualCheckIn,
-              icon: const Icon(SolarIconsBold.checkCircle, size: 16, color: MekaarColors.cyan),
-              label: const Text('📍 Check-In Manual'),
+              icon: Icon(SolarIconsBold.checkCircle, size: 16, color: MekaarColors.accentTextOf(context)),
+              label: const Text('Check-In Manual'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: MekaarColors.cyan,
-                side: BorderSide(color: MekaarColors.cyan.withValues(alpha: 0.5)),
-                minimumSize: const Size.fromHeight(36),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                foregroundColor: MekaarColors.accentTextOf(context),
+                side: BorderSide(color: MekaarColors.accentTextOf(context).withValues(alpha: 0.5)),
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(MekaarRadius.sm)),
               ),
             ),
           ],

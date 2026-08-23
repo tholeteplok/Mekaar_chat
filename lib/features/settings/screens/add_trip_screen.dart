@@ -569,11 +569,11 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                   onPressed: _isSaving ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: MekaarColors.textOnYellow,
+                    foregroundColor: MekaarColors.textOnBlue,
                     shape: const StadiumBorder(),
                   ),
                   child: _isSaving
-                      ? const CircularProgressIndicator(color: MekaarColors.textOnYellow)
+                      ? const CircularProgressIndicator(color: MekaarColors.textOnBlue)
                       : const Text('Simpan Rute Perjalanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),

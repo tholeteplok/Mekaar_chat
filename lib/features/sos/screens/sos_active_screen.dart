@@ -146,9 +146,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
             : sosState.status == SOSStatus.queuedOffline
             ? 'SOS masih tertunda. Batalkan SOS tertunda sebelum kembali.'
             : 'Proses SOS belum selesai. Tunggu konfirmasi status.';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        MekaarSnackbar.info(context, message);
       },
       child: MekaarScaffold(
         flat: true,
@@ -227,13 +225,13 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: MekaarColors.warningLight,
+                        color: MekaarColors.warnAmber,
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
                         'Izin Mikrofon Ditolak',
-                        style: MekaarTypography.labelMD.copyWith(
-                          color: MekaarColors.warning,
+                        style: MekaarTypography.labelLG.copyWith(
+                          color: MekaarColors.textOnYellow,
                         ),
                       ),
                     ),
@@ -247,18 +245,13 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         label: const Text('Lihat Lokasi Saya'),
                         onPressed: () async {
                           final navigator = Navigator.of(context);
-                          final messenger = ScaffoldMessenger.of(context);
                           final result = await ref
                               .read(sosProvider.notifier)
                               .getOwnSessionWithPing();
                           if (!mounted) return;
                           final ping = result?['ping'] as Map?;
                           if (ping == null) {
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Lokasi belum tersedia'),
-                              ),
-                            );
+                            MekaarSnackbar.warning(context, 'Lokasi belum tersedia');
                             return;
                           }
                           navigator.pushNamed(
@@ -291,7 +284,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                               ),
                             ),
                             onPressed: () =>
-                                Navigator.pushNamed(context, '/sos/video'),
+                                Navigator.pushNamed(context, AppRoutes.sosVideo),
                           ),
                         ),
                         const SizedBox(height: 6),

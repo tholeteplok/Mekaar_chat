@@ -7,6 +7,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
@@ -723,11 +724,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
         _hasError = false;
         _statusMessage = 'Buat PIN 6 digit baru untuk mengamankan aplikasi.';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('PIN lama berhasil direset. Silakan buat PIN 6 digit baru.'),
-          backgroundColor: MekaarColors.accentOf(context),
-        ),
+      MekaarSnackbar.success(
+        context,
+        'PIN lama berhasil direset. Silakan buat PIN 6 digit baru.',
       );
     }
   }
@@ -837,11 +836,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
                         if (ctx.mounted) Navigator.pop(ctx, 'restored');
                       } else {
                         if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                              content: Text('PIN lama salah. Coba lagi.'),
-                              backgroundColor: MekaarColors.sosRed,
-                            ),
+                          MekaarSnackbar.error(
+                            ctx,
+                            'PIN lama salah. Coba lagi.',
                           );
                         }
                       }

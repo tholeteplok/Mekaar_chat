@@ -126,7 +126,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     final diff = now.difference(lastSeen);
 
     if (diff.inMinutes < 2) {
-      return 'Online';
+      return 'Daring';
     }
 
     final isSameDay = now.year == lastSeen.year &&
@@ -339,7 +339,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: isOnline
-                                  ? MekaarColors.success
+                                  ? MekaarColors.successTextOf(context)
                                   : MekaarColors.textMutedOf(context),
                             ),
                           ),
@@ -350,7 +350,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: isOnline
-                                  ? MekaarColors.success
+                                  ? MekaarColors.successTextOf(context)
                                   : MekaarColors.textMutedOf(context),
                             ),
                           ),
@@ -368,12 +368,12 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               width: 1,
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(SolarIconsOutline.shieldUser, size: 13, color: MekaarColors.guardianTeal),
-                              SizedBox(width: 4),
-                              Text('Guardian', style: TextStyle(color: MekaarColors.guardianTeal, fontSize: 11, fontWeight: FontWeight.bold)),
+                              Icon(SolarIconsOutline.shieldUser, size: 13, color: MekaarColors.safeTextOf(context)),
+                              const SizedBox(width: 4),
+                              Text('Guardian', style: TextStyle(color: MekaarColors.safeTextOf(context), fontSize: 11, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -573,8 +573,10 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               : _showE2eeFingerprint
                                   ? Text(
                                       _e2eeFingerprint,
-                                      style: MekaarTypography.bodySM.copyWith(
-                                        fontFamily: 'monospace',
+                                      style: MekaarTypography.monoMD.copyWith(
+                                        color:
+                                            MekaarColors.textSecondaryOf(
+                                                context),
                                         letterSpacing: 1.0,
                                       ),
                                     )
@@ -653,8 +655,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                         ),
                                         child: SelectableText(
                                           _e2eeFingerprint,
-                                          style: TextStyle(
-                                            fontFamily: 'monospace',
+                                          style: MekaarTypography.monoMD.copyWith(
                                             fontSize: 12,
                                             color: MekaarColors.textPrimaryOf(context),
                                             letterSpacing: 1.0,
@@ -663,10 +664,10 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                       ),
                                       const SizedBox(height: 10),
                                     ],
-                                    const Text(
-                                      '🔒 Komitmen Privasi Mutlak:',
+                                    Text(
+                                      'Komitmen Privasi Mutlak:',
                                       style: TextStyle(
-                                        color: MekaarColors.guardianTeal,
+                                        color: MekaarColors.safeTextOf(context),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
@@ -913,7 +914,7 @@ class _ReportUserDialogState extends ConsumerState<_ReportUserDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: MekaarColors.warnAmber,
-            foregroundColor: Colors.white,
+            foregroundColor: MekaarColors.textOnYellow,
           ),
           onPressed: _isSubmitting ? null : _submitReport,
           child: _isSubmitting
@@ -922,7 +923,7 @@ class _ReportUserDialogState extends ConsumerState<_ReportUserDialog> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: MekaarColors.textOnYellow,
                   ),
                 )
               : const Text('Kirim Laporan'),

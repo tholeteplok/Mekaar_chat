@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -141,15 +142,15 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                         ),
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         borderSide: BorderSide(color: cardBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         borderSide: BorderSide(color: cardBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         borderSide: const BorderSide(
                           color: AppColors.blue,
                           width: 1.5,
@@ -192,15 +193,15 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                         ),
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         borderSide: BorderSide(color: cardBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         borderSide: BorderSide(color: cardBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         borderSide: const BorderSide(
                           color: AppColors.blue,
                           width: 1.5,
@@ -225,7 +226,7 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                         backgroundColor: AppColors.blue,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         ),
                       ),
                       child: _isLoading

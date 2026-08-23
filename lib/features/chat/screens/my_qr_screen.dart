@@ -164,21 +164,21 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                                 .withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(100),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 SolarIconsBold.shieldCheck,
                                 size: 13,
-                                color: MekaarColors.guardianTeal,
+                                color: MekaarColors.safeTextOf(context),
                               ),
-                              SizedBox(width: 5),
+                              const SizedBox(width: 5),
                               Text(
                                 'Mekaar Aegis E2EE',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: MekaarColors.guardianTeal,
+                                  color: MekaarColors.safeTextOf(context),
                                 ),
                               ),
                             ],

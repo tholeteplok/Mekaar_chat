@@ -101,10 +101,9 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? MekaarColors.cardDark
-                                  : MekaarColors.surface2,
-                              borderRadius: BorderRadius.circular(12),
+                              color: MekaarColors.surface2Of(context),
+                              borderRadius:
+                                  BorderRadius.circular(MekaarRadius.sm),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,17 +115,17 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
                                 const SizedBox(height: 8),
                                 SelectableText(
                                   _secret,
-                                  style: MekaarTypography.bodyMD.copyWith(
-                                    fontFamily: 'monospace',
+                                  style: MekaarTypography.monoMD.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: MekaarColors.softCoral,
+                                    color:
+                                        MekaarColors.textPrimaryOf(context),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 SelectableText(
                                   uri,
                                   style: MekaarTypography.bodySM.copyWith(
-                                    color: MekaarColors.textMuted,
+                                    color: MekaarColors.textMutedOf(context),
                                   ),
                                 ),
                               ],
@@ -143,7 +142,7 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
                             keyboardType: TextInputType.number,
                             maxLength: 6,
                             textAlign: TextAlign.center,
-                            style: MekaarTypography.headingMD.copyWith(letterSpacing: 8),
+                            style: MekaarTypography.monoLG.copyWith(fontSize: 24),
                             decoration: const InputDecoration(
                               hintText: '••••••',
                               counterText: '',

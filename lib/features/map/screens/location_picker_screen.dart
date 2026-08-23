@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:solar_icons/solar_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
@@ -102,6 +103,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.mekaar.app',
+              ),
+              // Atribusi OSM (kepatuhan lisensi tile)
+              RichAttributionWidget(
+                attributions: [
+                  TextSourceAttribution(
+                    '© OpenStreetMap contributors',
+                    onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
+                  ),
+                ],
               ),
               // Lingkaran visualisasi Geofence radius
               CircleLayer(

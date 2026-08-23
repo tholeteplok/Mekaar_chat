@@ -681,8 +681,8 @@ class _ChatComposerState extends State<ChatComposer> {
                         PressableScale(
                           onTap: _stopAndSendRecording,
                           child: Container(
-                            width: 36,
-                            height: 36,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: primaryAccent,
@@ -690,7 +690,7 @@ class _ChatComposerState extends State<ChatComposer> {
                             child: const Icon(
                               SolarIconsOutline.plain,
                               color: Colors.white,
-                              size: 16,
+                              size: 20,
                             ),
                           ),
                         ),
@@ -926,18 +926,18 @@ class _ReplyPreview extends StatelessWidget {
         color: MekaarColors.surface2Of(context),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               SolarIconsOutline.forward,
               size: MekaarSizes.iconSm,
-              color: MekaarColors.textSecondary,
+              color: MekaarColors.textSecondaryOf(context),
             ),
             const SizedBox(width: MekaarSpacing.sm),
             Expanded(
               child: Text(
                 'Membalas: ${message.content}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: MekaarColors.textSecondary,
+                  color: MekaarColors.textSecondaryOf(context),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

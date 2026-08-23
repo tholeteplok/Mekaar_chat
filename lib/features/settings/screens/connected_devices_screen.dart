@@ -315,9 +315,9 @@ class _DeviceCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          'Online',
+                          'Aktif',
                           style: MekaarTypography.caption.copyWith(
-                            color: MekaarColors.guardianTeal,
+                            color: MekaarColors.safeTextOf(context),
                             fontWeight: FontWeight.w700,
                           ),
                         ),

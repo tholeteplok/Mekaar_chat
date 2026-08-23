@@ -112,10 +112,11 @@ class BlockedListScreen extends ConsumerWidget {
                               ),
                               trailing: TextButton(
                                 style: TextButton.styleFrom(
-                                  foregroundColor: MekaarColors.cyan,
+                                  foregroundColor:
+                                      MekaarColors.accentTextOf(context),
+                                  minimumSize: const Size(44, 44),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
-                                    vertical: 6,
                                   ),
                                 ),
                                 onPressed: () async {

@@ -186,7 +186,7 @@ class _SetUsernameScreenState extends ConsumerState<SetUsernameScreen> {
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: MekaarColors.textOnYellow,
+                      foregroundColor: MekaarColors.textOnBlue,
                       shape: const StadiumBorder(),
                       elevation: 0,
                     ),
@@ -195,15 +195,14 @@ class _SetUsernameScreenState extends ConsumerState<SetUsernameScreen> {
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
-                              color: MekaarColors.textOnYellow,
+                              color: MekaarColors.textOnBlue,
                               strokeWidth: 2.5,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Simpan & Lanjutkan',
-                            style: TextStyle(
+                            style: MekaarTypography.buttonLG.copyWith(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
                   ),

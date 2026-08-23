@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/bounce_interactive.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -239,9 +240,8 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                       const SizedBox(height: 4),
                       Text(
                         _formatTimeOfDay(_selectedTime),
-                        style: TextStyle(
+                        style: MekaarTypography.monoLG.copyWith(
                           fontSize: 32,
-                          fontWeight: FontWeight.w800,
                           color: _selectedMode != 'off'
                               ? brandAccent
                               : MekaarColors.textPrimaryOf(context),

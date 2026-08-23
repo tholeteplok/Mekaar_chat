@@ -108,31 +108,36 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
           if (widget.searchController != null &&
               widget.searchController!.text.isNotEmpty)
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () {
                 widget.searchController!.clear();
                 widget.onSearchChanged?.call('');
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.all(12),
                 child: Icon(
                   SolarIconsOutline.closeCircle,
                   color: MekaarColors.textSecondaryOf(context),
-                  size: 18,
+                  size: 20,
                 ),
               ),
             ),
           const SizedBox(width: 4),
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               HapticService.trigger(MekaarHapticIntent.selection);
               _searchFocusNode.unfocus();
               widget.onSearchClosed?.call();
             },
-            child: Text(
-              'Batal',
-              style: MekaarTypography.labelMD.copyWith(
-                color: AppColors.blue,
-                fontWeight: FontWeight.bold,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Text(
+                'Batal',
+                style: MekaarTypography.labelMD.copyWith(
+                  color: MekaarColors.primaryOf(context),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),

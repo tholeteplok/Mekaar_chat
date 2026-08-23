@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../settings/screens/profile_screen.dart';
@@ -162,7 +163,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: MekaarColors.guardianTeal,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
                       boxShadow: [
                         BoxShadow(
                           color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
@@ -173,13 +174,14 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(SolarIconsOutline.mapPoint, color: Colors.white, size: 20),
+                        const Icon(SolarIconsOutline.mapPoint,
+                            color: MekaarColors.textOnTeal, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            '📍 Sharing Lokasi Hangout ke ${activeTrip.destinationName} s.d $endTimeStr',
+                            'Berbagi lokasi ke ${activeTrip.destinationName} hingga $endTimeStr',
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: MekaarColors.textOnTeal,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -187,22 +189,28 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () async {
-                            await ref.read(tripPermissionNotifierProvider.notifier).cancelHangout();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Hentikan',
-                              style: TextStyle(
-                                color: MekaarColors.softCoral,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                        Semantics(
+                          button: true,
+                          child: GestureDetector(
+                            onTap: () async {
+                              await ref
+                                  .read(tripPermissionNotifierProvider.notifier)
+                                  .cancelHangout();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Hentikan',
+                                style: TextStyle(
+                                  color: MekaarColors.sosDeep,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),

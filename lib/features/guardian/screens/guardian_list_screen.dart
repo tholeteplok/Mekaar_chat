@@ -283,13 +283,13 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       ),
                       if (isPending)
                         _buildBadge(
-                          'Pending',
+                          'Menunggu Persetujuan',
                           MekaarColors.warning,
                           MekaarColors.warningLight,
                         )
                       else if (isExpired)
                         _buildBadge(
-                          'Expired',
+                          'Kadaluarsa',
                           MekaarColors.sosRed,
                           MekaarColors.sosLight,
                         )
@@ -320,7 +320,9 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                         Text(
                           '${guardian.daysRemaining} hari lagi',
                           style: MekaarTypography.labelSM.copyWith(
-                            color: MekaarColors.success,
+                            color: guardian.daysRemaining <= 3
+                                ? MekaarColors.warning
+                                : MekaarColors.successTextOf(context),
                           ),
                         ),
                     ],
@@ -444,15 +446,15 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
         ),
         TextButton(
           onPressed: () async {
-            final scaffoldMessenger = ScaffoldMessenger.of(context);
-            Navigator.pop(context);
+            final navigator = Navigator.of(context);
             try {
               await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
             } catch (e) {
-              scaffoldMessenger.showSnackBar(
-                SnackBar(content: Text('Gagal menolak undangan: $e')),
-              );
+              if (mounted) {
+                MekaarSnackbar.error(context, 'Gagal menolak undangan.');
+              }
             }
+            navigator.pop();
           },
           child: const Text(
             'Tolak',
@@ -497,16 +499,21 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
       ),
       child: Text(
         text,
-        style: MekaarTypography.labelSM.copyWith(color: textColor, fontSize: 9),
+        style: MekaarTypography.labelSM.copyWith(color: textColor),
       ),
     );
   }
 
   Widget _buildPermissionChip(String label, bool isEnabled) {
+    // Warna adaptif: chip pastel terang menyala di dark mode.
+    final activeColor = MekaarColors.successTextOf(context);
+    final inactiveColor = MekaarColors.textMutedOf(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isEnabled ? MekaarColors.successLight : MekaarColors.borderLight,
+        color: isEnabled
+            ? activeColor.withValues(alpha: 0.12)
+            : MekaarColors.borderOf(context),
         borderRadius: BorderRadius.circular(100),
       ),
       child: Row(
@@ -517,14 +524,13 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                 ? SolarIconsOutline.checkCircle
                 : SolarIconsOutline.closeCircle,
             size: 10,
-            color: isEnabled ? MekaarColors.success : MekaarColors.textMuted,
+            color: isEnabled ? activeColor : inactiveColor,
           ),
           const SizedBox(width: 4),
           Text(
             label,
             style: MekaarTypography.labelSM.copyWith(
-              fontSize: 9,
-              color: isEnabled ? MekaarColors.success : MekaarColors.textMuted,
+              color: isEnabled ? activeColor : inactiveColor,
             ),
           ),
         ],

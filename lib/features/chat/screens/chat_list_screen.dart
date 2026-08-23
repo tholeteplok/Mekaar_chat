@@ -788,7 +788,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           },
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                             decoration: BoxDecoration(
                               color: MekaarColors.guardianTeal,
                               borderRadius: BorderRadius.circular(8),
@@ -796,13 +796,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(SolarIconsOutline.lock, color: Colors.white, size: 12),
+                                Icon(SolarIconsOutline.lock, color: MekaarColors.textOnTeal, size: 14),
                                 SizedBox(width: 4),
                                 Text(
                                   'Kunci',
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
+                                    color: MekaarColors.textOnTeal,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

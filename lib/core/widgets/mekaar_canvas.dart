@@ -6,6 +6,7 @@ import '../constants/theme_resolver.dart';
 import '../constants/time_palette.dart';
 import '../providers/theme_provider.dart';
 import '../providers/time_tick_provider.dart';
+import '../theme/force_dark_scope.dart';
 import '../../features/sos/providers/sos_provider.dart';
 
 /// Canvas background yang dipakai di seluruh app.
@@ -30,16 +31,23 @@ class MekaarCanvas extends ConsumerWidget {
       isSosActive = ref.watch(sosProvider).isSOSActive;
     } catch (_) {}
 
+    // SOS aktif juga memaksa palet gelap agar konten tetap terbaca
+    // di atas kanvas merah tua.
+    final effectiveForceDark = forceDark || isSosActive;
+
     if (isSosActive) {
-      return Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: AppColors.sosDeep,
-        child: child,
+      return ForceDarkScope(
+        forceDark: true,
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: AppColors.sosDeep,
+          child: child,
+        ),
       );
     }
 
-    if (flat && !forceDark) {
+    if (flat && !effectiveForceDark) {
       return Container(
         width: double.infinity,
         height: double.infinity,
@@ -56,14 +64,17 @@ class MekaarCanvas extends ConsumerWidget {
     final gradient = ThemeResolver.resolveCanvasGradient(
       pref,
       sosActive: isSosActive,
-      forceDark: forceDark,
+      forceDark: effectiveForceDark,
     );
 
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(gradient: gradient),
-      child: child,
+    return ForceDarkScope(
+      forceDark: effectiveForceDark,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(gradient: gradient),
+        child: child,
+      ),
     );
   }
 }

@@ -30,56 +30,62 @@ class ScrollToBottomButton extends StatelessWidget {
         scale: visible ? 1.0 : 0.5,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutBack,
-        child: GestureDetector(
-          onTap: visible ? onTap : null,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: MekaarColors.surfaceOf(context),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: MekaarColors.textMuted.withValues(alpha: 0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  SolarIconsOutline.altArrowDown,
-                  color: iconColor ?? MekaarColors.textPrimaryOf(context),
-                  size: 22,
-                ),
-                if (newMessageCount > 0)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 18),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accentColor ?? AppColors.blue,
-                        borderRadius: BorderRadius.circular(MekaarRadius.pill),
-                      ),
-                      child: Text(
-                        newMessageCount > 99 ? '99+' : '$newMessageCount',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+        child: Semantics(
+          button: true,
+          label: 'Ke pesan terbaru',
+          child: GestureDetector(
+            onTap: visible ? onTap : null,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: MekaarColors.surfaceOf(context),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: MekaarColors.textMutedOf(context)
+                        .withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    SolarIconsOutline.altArrowDown,
+                    color: iconColor ?? MekaarColors.textPrimaryOf(context),
+                    size: 22,
+                  ),
+                  if (newMessageCount > 0)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 18),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accentColor ?? AppColors.blue,
+                          borderRadius:
+                              BorderRadius.circular(MekaarRadius.pill),
+                        ),
+                        child: Text(
+                          newMessageCount > 99 ? '99+' : '$newMessageCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

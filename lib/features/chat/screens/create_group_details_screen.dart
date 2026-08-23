@@ -84,10 +84,9 @@ class _CreateGroupDetailsScreenState
           context,
           AppRoutes.chat,
           arguments: {
-            'roomId': roomId,
-            'userName': groupName,
-            'avatar': groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G',
-            'isGuardian': false,
+            'chatId': roomId,
+            'chatName': groupName,
+            'chatAvatar': groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G',
             'isGroup': true,
           },
         );

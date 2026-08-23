@@ -186,6 +186,7 @@ class AppRoutes {
             chatAvatar: args['chatAvatar'],
             chatAvatarUrl: args['chatAvatarUrl'] as String?,
             isGuardian: args['isGuardian'] ?? false,
+            isGroup: args['isGroup'] ?? false,
             otherUserId: args['otherUserId'] as String?,
           ),
         );

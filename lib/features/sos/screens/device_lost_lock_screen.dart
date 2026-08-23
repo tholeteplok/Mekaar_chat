@@ -47,7 +47,7 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
       await AlarmService.playSOSAlarm();
       if (!mounted) return;
       setState(() => _isAlarmPlaying = true);
-      MekaarSnackbar.error(context, 'Alarm berbunyi keras!');
+      MekaarSnackbar.success(context, 'Siren alarm sedang berbunyi.');
     }
   }
 
@@ -313,11 +313,11 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
                     icon: const Icon(SolarIconsBold.phoneCalling),
                     label: Text('Hubungi Pemilik ($contact)'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      foregroundColor: Colors.white,
+                      backgroundColor: MekaarColors.success,
+                      foregroundColor: MekaarColors.textOnLime,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
@@ -334,7 +334,7 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
                             ? SolarIconsOutline.volumeCross
                             : SolarIconsOutline.volumeLoud,
                       ),
-                      label: Text(_isAlarmPlaying ? 'Stop Sirine' : 'Bunyikan Sirine'),
+                      label: Text(_isAlarmPlaying ? 'Matikan Alarm' : 'Bunyikan Alarm'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         foregroundColor: Colors.white,

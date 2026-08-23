@@ -184,7 +184,7 @@ class NearbyConsentDialog extends StatelessWidget {
                   onPressed: onAccept,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: MekaarColors.guardianTeal,
-                    foregroundColor: Colors.white,
+                    foregroundColor: MekaarColors.textOnTeal,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                     shape: RoundedRectangleBorder(

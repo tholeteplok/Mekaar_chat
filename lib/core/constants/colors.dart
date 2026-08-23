@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/force_dark_scope.dart';
+
 /// AppColors — Single source of truth untuk token warna resmi MEKAAR (Clean Core).
 abstract class AppColors {
   // ── Brand Core (Sumber Tunggal) ──
@@ -58,6 +60,9 @@ class MekaarColors {
   static const Color sosCoral = AppColors.sosCoral;
   static const Color sosDeep = AppColors.sosDeep;
   static const Color safeTeal = AppColors.safeTeal;
+  /// Tinta gelap teal untuk teks/ikon di atas permukaan terang
+  /// (safeTeal #2DD4BF hanya ≈1.8:1 di atas putih).
+  static const Color safeTealInk = Color(0xFF0C6B60);
   static const Color warnAmber = AppColors.warnAmber;
 
   // ── Surfaces & Text Tokens ──
@@ -76,6 +81,8 @@ class MekaarColors {
   static const Color textOnBlue = AppColors.textOnBlue;
   static const Color textOnYellow = Color(0xFF2B2400);
   static const Color textOnLime = Color(0xFF1A2E05);
+  /// Tinta gelap untuk teks di atas permukaan teal #2DD4BF (putih ≈1.9:1).
+  static const Color textOnTeal = Color(0xFF04302A);
 
   static const Color card = AppColors.cardLight;
   static const Color cardDark = AppColors.cardDark;
@@ -104,6 +111,10 @@ class MekaarColors {
   static const Color sosLight = Color(0xFFFFF1F2);
   static const Color guardianLight = Color(0xFFE6FFFA);
   static const Color success = Color(0xFF10B981);
+  /// Tinta hijau gelap untuk teks status online/aktif di permukaan terang.
+  static const Color successInk = Color(0xFF047857);
+  static Color successTextOf(BuildContext c) =>
+      isDarkContext(c) ? success : successInk;
   static const Color successLight = Color(0xFFECFDF5);
   static const Color warning = Color(0xFFF59E0B);
   static const Color warningLight = Color(0xFFFFFBEB);
@@ -111,48 +122,70 @@ class MekaarColors {
   static const Color infoLight = Color(0xFFEFF6FF);
 
   // ── Context-aware Helpers ──
+  /// True jika konteks ini harus memakai palet gelap: tema sistem gelap
+  /// ATAU berada di dalam subtree forceDark (SOS / device-lost).
+  static bool isDarkContext(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark ||
+      ForceDarkScope.isForcedDark(c);
+
   static Color primaryOf(BuildContext c) =>
       Theme.of(c).colorScheme.primary;
 
   static Color surfaceOf(BuildContext c) =>
-      Theme.of(c).colorScheme.surface;
+      isDarkContext(c) ? cardDark : Theme.of(c).colorScheme.surface;
 
   static Color surface2Of(BuildContext c) {
-    final isDark = Theme.of(c).brightness == Brightness.dark;
+    final isDark = isDarkContext(c);
     return isDark ? surface2Dark : surface2;
   }
 
-  static Color backgroundOf(BuildContext c) =>
-      Theme.of(c).brightness == Brightness.dark
-          ? backgroundDark
-          : background;
+  static Color surface3Of(BuildContext c) {
+    final isDark = isDarkContext(c);
+    return isDark ? surface3Dark : surface3;
+  }
+
+  static Color backgroundOf(BuildContext c) {
+    final isDark = isDarkContext(c);
+    return isDark ? backgroundDark : background;
+  }
 
   static Color dividerOf(BuildContext c) =>
-      Theme.of(c).dividerColor;
+      isDarkContext(c) ? borderDark : Theme.of(c).dividerColor;
 
-  static Color borderOf(BuildContext c) =>
-      Theme.of(c).brightness == Brightness.dark
-          ? borderDark
-          : borderLight;
+  static Color borderOf(BuildContext c) {
+    final isDark = isDarkContext(c);
+    return isDark ? borderDark : borderLight;
+  }
 
   static Color cardBorderOf(BuildContext c) => borderOf(c);
 
   static Color textPrimaryOf(BuildContext c) {
-    final isDark = Theme.of(c).brightness == Brightness.dark;
+    final isDark = isDarkContext(c);
     return isDark ? textPrimaryDark : textPrimaryLight;
   }
 
   static Color textSecondaryOf(BuildContext c) {
-    final isDark = Theme.of(c).brightness == Brightness.dark;
+    final isDark = isDarkContext(c);
     return isDark ? textSecondaryDark : textSecondaryLight;
   }
 
   static Color textMutedOf(BuildContext c) {
-    final isDark = Theme.of(c).brightness == Brightness.dark;
+    final isDark = isDarkContext(c);
     return isDark
         ? textSecondaryDark.withValues(alpha: 0.72)
         : textSecondaryLight.withValues(alpha: 0.72);
   }
+
+  /// Warna aksen yang tetap terbaca sebagai teks/ikon di permukaan terang:
+  /// biru brand di light mode (cyan #38BDF8 gagal kontras di atas putih),
+  /// cyan di dark mode.
+  static Color accentTextOf(BuildContext c) =>
+      isDarkContext(c) ? cyan : blue;
+
+  /// Teal semantik "aman/guardian" untuk teks & ikon:
+  /// terang di dark mode, tinta gelap kontras-tinggi di light mode.
+  static Color safeTextOf(BuildContext c) =>
+      isDarkContext(c) ? safeTeal : safeTealInk;
 
   static Color outgoingBubbleOf(BuildContext c) => AppColors.blue;
 

@@ -138,16 +138,17 @@ class _CreateGroupSelectMembersScreenState
                         top: 0,
                         right: 0,
                         child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
                           onTap: () => _toggleMember(userId, profile),
                           child: Container(
-                            padding: const EdgeInsets.all(2),
+                            padding: const EdgeInsets.all(8),
                             decoration: const BoxDecoration(
                               color: MekaarColors.sosRed,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
                               MekaarIcons.close,
-                              size: 12,
+                              size: 16,
                               color: Colors.white,
                             ),
                           ),

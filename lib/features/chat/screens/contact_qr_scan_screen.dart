@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -125,7 +127,7 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showError('Gagal memproses QR Code: $e');
+        _showError('Gagal memproses kode QR. Coba pindai ulang.');
         _resumeScanner();
       }
     }
@@ -137,12 +139,7 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: MekaarColors.sosRed,
-      ),
-    );
+    MekaarSnackbar.error(context, message);
   }
 
   @override
@@ -163,25 +160,45 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
               ),
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 24,
             right: 24,
             bottom: 48,
-            child: Text(
-              'Arahkan kamera ke kode QR profil teman Anda untuk memulai obrolan.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.white),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MekaarSpacing.lg,
+                vertical: MekaarSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+              child: const Text(
+                'Arahkan kamera ke kode QR profil teman Anda untuk memulai obrolan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.white),
+              ),
             ),
           ),
+          // Panel pemrosesan: latar kartu gelap solid agar teks StateView
+          // (token tema) selalu terbaca di atas feed kamera terang.
           if (_isProcessing)
-            const ColoredBox(
+            ColoredBox(
               color: Colors.black54,
               child: Center(
-                child: MekaarStateView(
-                  pose: MikaPose.ask,
-                  title: 'Memproses kode...',
-                  message: 'Mekaar sedang mengenali profil teman Anda.',
-                  illustrationSize: 96,
+                child: Container(
+                  padding: const EdgeInsets.all(MekaarSpacing.xl),
+                  margin: const EdgeInsets.symmetric(horizontal: MekaarSpacing.xxl),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.cardDark,
+                    borderRadius: BorderRadius.circular(MekaarRadius.lg),
+                  ),
+                  child: const MekaarStateView(
+                    pose: MikaPose.ask,
+                    title: 'Memproses kode...',
+                    message: 'Mekaar sedang mengenali profil teman Anda.',
+                    illustrationSize: 96,
+                  ),
                 ),
               ),
             ),

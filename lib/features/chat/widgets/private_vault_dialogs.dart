@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../providers/private_vault_provider.dart';
 
@@ -57,6 +57,8 @@ class PrivateVaultDialogs {
     final codeController = TextEditingController();
     final confirmController = TextEditingController();
     String? errorMessage;
+    bool obscureCode = true;
+    bool obscureConfirm = true;
 
     final result = await showDialog<bool>(
       context: context,
@@ -64,6 +66,33 @@ class PrivateVaultDialogs {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
+            InputDecoration vaultInputDecoration(String hint) {
+              return InputDecoration(
+                hintText: hint,
+                filled: true,
+                fillColor: MekaarColors.surface2Of(dialogCtx),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  borderSide: BorderSide(
+                    color: MekaarColors.borderOf(dialogCtx),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  borderSide: BorderSide(
+                    color: MekaarColors.borderOf(dialogCtx),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  borderSide: const BorderSide(
+                    color: AppColors.blue,
+                    width: 2,
+                  ),
+                ),
+              );
+            }
+
             return MekaarDialog(
               icon: const Icon(
                 SolarIconsBold.shieldKeyhole,
@@ -78,15 +107,53 @@ class PrivateVaultDialogs {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                  MekaarSearchField(
+                  TextField(
                     controller: codeController,
-                    hintText: 'Masukkan kode rahasia (min. 4 karakter)',
-                    errorText: errorMessage,
+                    obscureText: obscureCode,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration:
+                        vaultInputDecoration('Masukkan kode rahasia (min. 4 karakter)')
+                            .copyWith(
+                      errorText: errorMessage,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureCode
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setDialogState(() => obscureCode = !obscureCode),
+                        tooltip: obscureCode
+                            ? 'Tampilkan kode'
+                            : 'Sembunyikan kode',
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  MekaarSearchField(
+                  TextField(
                     controller: confirmController,
-                    hintText: 'Konfirmasi kode rahasia',
+                    obscureText: obscureConfirm,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration:
+                        vaultInputDecoration('Konfirmasi kode rahasia')
+                            .copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureConfirm
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                        ),
+                        onPressed: () => setDialogState(
+                            () => obscureConfirm = !obscureConfirm),
+                        tooltip: obscureConfirm
+                            ? 'Tampilkan kode'
+                            : 'Sembunyikan kode',
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -98,7 +165,7 @@ class PrivateVaultDialogs {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: MekaarColors.guardianTeal,
-                    foregroundColor: Colors.white,
+                    foregroundColor: MekaarColors.textOnTeal,
                   ),
                   onPressed: () async {
                     final code = codeController.text.trim();

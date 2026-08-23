@@ -14,6 +14,8 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
   final Map<int, int>? badges;
   final Color? activeColor;
   final double height;
+  final double? width;
+  final EdgeInsetsGeometry? margin;
 
   const MekaarSlidingSegmentBar({
     super.key,
@@ -23,6 +25,8 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
     this.badges,
     this.activeColor,
     this.height = 40.0,
+    this.width,
+    this.margin,
   });
 
   @override
@@ -39,9 +43,9 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.black.withValues(alpha: 0.05);
 
-    return Container(
+    Widget bar = Container(
       height: height,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: trackColor,
@@ -110,16 +114,19 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: MekaarTypography.labelLG.copyWith(
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : MekaarColors.textMutedOf(context),
-                                  fontSize: 13,
+                              Flexible(
+                                child: Text(
+                                  label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: MekaarTypography.labelLG.copyWith(
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.onPrimary
+                                        : MekaarColors.textMutedOf(context),
+                                    fontSize: height < 34 ? 11.5 : 13.0,
+                                  ),
                                 ),
                               ),
                               if (badgeCount > 0) ...[
@@ -160,5 +167,10 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
         },
       ),
     );
+
+    if (width != null) {
+      return SizedBox(width: width, child: bar);
+    }
+    return bar;
   }
 }

@@ -46,6 +46,15 @@ class LocationMapScreen extends StatelessWidget {
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.mekaar.app',
                 ),
+                // Atribusi OSM (kepatuhan lisensi tile)
+                RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution(
+                      '© OpenStreetMap contributors',
+                      onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
+                    ),
+                  ],
+                ),
                 MarkerLayer(
                   markers: [
                     Marker(

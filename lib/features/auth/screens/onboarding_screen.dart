@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -103,24 +105,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             semanticLabel: 'Ilustrasi ${slide.title}',
                             animate: true,
                           ),
-                          const SizedBox(height: 36),
-                          Text(
-                            slide.title,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            slide.desc,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: textSecondary,
-                              height: 1.6,
+                          const SizedBox(height: MekaarSpacing.section),
+                          SingleChildScrollView(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  slide.title,
+                                  textAlign: TextAlign.center,
+                                  style: MekaarTypography.headingLG
+                                      .copyWith(color: textPrimary),
+                                ),
+                                const SizedBox(height: MekaarSpacing.lg),
+                                Text(
+                                  slide.desc,
+                                  textAlign: TextAlign.center,
+                                  style: MekaarTypography.bodySM.copyWith(
+                                    color: textSecondary,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

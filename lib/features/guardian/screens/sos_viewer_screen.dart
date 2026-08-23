@@ -611,7 +611,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
         const Spacer(),
         Text(
           value,
-          style: MekaarTypography.bodySM.copyWith(
+          style: MekaarTypography.monoMD.copyWith(
             fontWeight: FontWeight.w600,
             color: MekaarColors.textPrimaryOf(context),
           ),

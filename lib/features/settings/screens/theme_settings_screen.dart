@@ -239,7 +239,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               ),
               Text(
                 timeStr,
-                style: MekaarTypography.headingMD.copyWith(
+                style: MekaarTypography.monoLG.copyWith(
                   fontWeight: FontWeight.bold,
                   color: MekaarColors.textPrimaryOf(context),
                 ),

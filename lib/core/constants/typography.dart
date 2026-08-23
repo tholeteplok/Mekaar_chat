@@ -100,21 +100,20 @@ class MekaarTypography {
     letterSpacing: 0.2,
   );
 
-  static TextStyle get labelSM => _font(
-    fontSize: 9,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0.3,
-  );
+  static TextStyle get labelSM =>
+      _font(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.2);
 
+  // Floor keterbacaan: caption/badge/overline tidak boleh di bawah 11px
+  // agar tetap legible dan kontrasnya memadai.
   static TextStyle get caption => _font(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w700,
     height: 1.2,
     letterSpacing: 0.2,
   );
 
   static TextStyle get badge => _font(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w800,
     color: Colors.white,
     height: 1.0,
@@ -128,7 +127,7 @@ class MekaarTypography {
   );
 
   static TextStyle get overline => _font(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w800,
     letterSpacing: 1.0,
   );

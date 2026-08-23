@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../providers/auth_provider.dart';
@@ -43,44 +45,40 @@ class AccountSuspendedScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               // Judul Pembekuan
-              const Text(
+              Text(
                 'Akun Anda Dibekukan',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: MekaarColors.sosRed,
+                style: MekaarTypography.headingLG.copyWith(
+                  color: MekaarColors.sosCoral,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               // Alasan Suspensi Card
+              // Kartu ber-latar gelap tetap di kedua mode; teks dipatok ke
+              // token gelap agar selalu terbaca.
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: MekaarColors.cardDark.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(MekaarRadius.md),
                   border: Border.all(
                     color: MekaarColors.sosRed.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'ALASAN PEMBEKUAN:',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: MekaarColors.sosRed,
-                        letterSpacing: 1.0,
+                      style: MekaarTypography.overline.copyWith(
+                        color: MekaarColors.sosCoral,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       displayReason,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: MekaarColors.textPrimaryOf(context),
+                      style: MekaarTypography.bodySM.copyWith(
+                        color: MekaarColors.textPrimaryDark,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.center,
@@ -91,8 +89,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               Text(
                 'Sistem RLS dan akses ruang chat Anda telah dikunci demi keamanan pengguna lain. Jika Anda merasa ini adalah kekeliruan, Anda dapat mengajukan banding ke tim keselamatan.',
-                style: TextStyle(
-                  fontSize: 12,
+                style: MekaarTypography.bodySM.copyWith(
                   color: MekaarColors.textSecondaryOf(context),
                   height: 1.4,
                 ),
@@ -104,17 +101,19 @@ class AccountSuspendedScreen extends ConsumerWidget {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: () => _launchSupportEmail(displayReason),
+                  onPressed: () => _launchSupportEmail(context, displayReason),
                   icon: const Icon(Icons.support_agent_rounded, size: 20),
-                  label: const Text(
+                  label: Text(
                     'Hubungi Tim Keselamatan (Banding)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: MekaarTypography.labelLG.copyWith(
+                      color: MekaarColors.textOnBlue,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: MekaarColors.accentOf(context),
-                    foregroundColor: Colors.white,
+                    foregroundColor: MekaarColors.textOnBlue,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     ),
                   ),
                 ),
@@ -129,9 +128,11 @@ class AccountSuspendedScreen extends ConsumerWidget {
                     await ref.read(authProvider.notifier).logout();
                   },
                   icon: const Icon(Icons.logout_rounded, size: 20, color: MekaarColors.sosRed),
-                  label: const Text(
+                  label: Text(
                     'Keluar dari Akun',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: MekaarColors.sosRed),
+                    style: MekaarTypography.labelLG.copyWith(
+                      color: MekaarColors.sosRed,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: MekaarColors.sosRed),
@@ -148,7 +149,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
     );
   }
 
-  void _launchSupportEmail(String reason) async {
+  Future<void> _launchSupportEmail(BuildContext context, String reason) async {
     final uri = Uri(
       scheme: 'mailto',
       path: 'safety@mekaar.app',
@@ -159,6 +160,12 @@ class AccountSuspendedScreen extends ConsumerWidget {
     );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak ditemukan aplikasi email di perangkat ini.'),
+        ),
+      );
     }
   }
 }

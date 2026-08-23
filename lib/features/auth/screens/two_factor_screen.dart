@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -109,15 +110,15 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                     color: textSecondary,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     borderSide: BorderSide(color: cardBorder),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     borderSide: BorderSide(color: cardBorder),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     borderSide: const BorderSide(
                       color: AppColors.blue,
                       width: 1.5,
@@ -136,7 +137,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                     backgroundColor: AppColors.blue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     ),
                   ),
                   child: _isVerifying

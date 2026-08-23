@@ -1015,7 +1015,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                     child: Text(
                       'MEKAAR Personal Safety System · Open Source\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
                       style: MekaarTypography.caption.copyWith(
-                        color: isDark ? MekaarColors.textMuted : const Color(0xFF8C95AA),
+                        color: MekaarColors.textSecondaryOf(context),
                         fontSize: 12.5,
                         height: 1.5,
                       ),

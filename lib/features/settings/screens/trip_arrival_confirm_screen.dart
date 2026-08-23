@@ -99,7 +99,12 @@ class _TripArrivalConfirmScreenState
             const SettingsTopBar(title: 'Konfirmasi Tiba'),
             Expanded(
               child: _isLoadingTrip
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const MekaarStateView(
+                      pose: MikaPose.pin,
+                      title: 'Memuat Perjalanan',
+                      message: 'Sedang mengambil detail perjalanan Anda...',
+                      layout: MekaarStateLayout.centered,
+                    )
                   : Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: MekaarSpacing.lg,
@@ -127,7 +132,7 @@ class _TripArrivalConfirmScreenState
                         onPressed: _isProcessing ? null : _confirmArrived,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.guardianTeal,
-                          foregroundColor: Colors.white,
+                          foregroundColor: MekaarColors.textOnTeal,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(MekaarRadius.lg),
@@ -139,7 +144,7 @@ class _TripArrivalConfirmScreenState
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation(MekaarColors.textOnTeal),
                                 ),
                               )
                             : const Text('Ya, Saya Sudah Sampai'),

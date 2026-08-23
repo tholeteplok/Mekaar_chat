@@ -245,7 +245,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     final diff = now.difference(lastSeen);
 
     if (diff.inMinutes < 2) {
-      return 'Online';
+      return 'Daring';
     }
 
     final isSameDay = now.year == lastSeen.year &&
@@ -550,9 +550,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             if (!mounted) return;
             Navigator.pop(context);
           },
-          child: const Text(
+          child: Text(
             'Hapus',
-            style: TextStyle(color: MekaarColors.textSecondary),
+            style: TextStyle(color: MekaarColors.sosRed),
           ),
         ),
       ],
@@ -614,7 +614,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                     ).colorScheme.surfaceContainerHighest,
                     child: Text(
                       avatar.isNotEmpty ? avatar : name[0],
-                      style: const TextStyle(color: MekaarColors.textPrimary),
+                      style: TextStyle(
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
                     ),
                   ),
                   title: Text(name),

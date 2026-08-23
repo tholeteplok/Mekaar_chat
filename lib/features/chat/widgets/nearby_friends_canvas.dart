@@ -7,8 +7,8 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/bounce_interactive.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../providers/chat_provider.dart';
@@ -90,290 +90,220 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     }
   }
 
-  Widget _buildFilterChip(
-    BuildContext context, {
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: () {
-        HapticService.trigger(MekaarHapticIntent.selection);
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark
-                  ? Colors.white.withValues(alpha: 0.16)
-                  : Colors.white)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isSelected && !isDark
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected
-                ? MekaarColors.textPrimaryOf(context)
-                : MekaarColors.textMutedOf(context),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(nearbyFriendsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayList = state.filteredFriends;
 
-    // ── 1. State Nonaktif: Tampilkan CTA Banner Ramping ──
+    // ── 1. State Nonaktif: Tampilkan CTA Flat Ramping di Canvas ──
     if (!state.isEnabled) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  SolarIconsBold.radar2,
-                  color: MekaarColors.guardianTeal,
-                  size: 22,
-                ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Teman Sekitar',
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Lihat kontak yang sedang berada di radius dekat',
-                      style: MekaarTypography.caption.copyWith(
-                        color: MekaarColors.textMutedOf(context),
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
+              child: const Icon(
+                SolarIconsBold.radar2,
+                color: MekaarColors.guardianTeal,
+                size: 20,
               ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () async {
-                  final accept = await NearbyConsentDialog.show(context);
-                  if (accept) {
-                    await ref
-                        .read(nearbyFriendsProvider.notifier)
-                        .toggleSharing(true);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: MekaarColors.guardianTeal,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Teman Sekitar',
+                    style: MekaarTypography.bodyMD.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Aktifkan',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  Text(
+                    'Lihat teman yang aktif di radius dekat',
+                    style: MekaarTypography.caption.copyWith(
+                      color: MekaarColors.textMutedOf(context),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () async {
+                final accept = await NearbyConsentDialog.show(context);
+                if (accept) {
+                  await ref
+                      .read(nearbyFriendsProvider.notifier)
+                      .toggleSharing(true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MekaarColors.guardianTeal,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ],
-          ),
+              child: const Text(
+                'Aktifkan',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    // ── 2. State Aktif: Tampilkan Floating Constellation Canvas ──
+    // ── 2. State Aktif: Tampilkan Langsung pada Canvas (Tanpa Kartu) ──
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: CustomCard(
-        margin: EdgeInsets.zero,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header Canvas
-            Row(
-              children: [
-                const Icon(
-                  SolarIconsBold.radar2,
-                  color: MekaarColors.guardianTeal,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Teman Sekitar',
-                  style: MekaarTypography.bodyMD.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const Spacer(),
-                // Filter Segment: [Semua] [Kontak]
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.black.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildFilterChip(
-                        context,
-                        label: 'Semua',
-                        isSelected: state.displayFilter == 'all',
-                        onTap: () => ref
-                            .read(nearbyFriendsProvider.notifier)
-                            .setDisplayFilter('all'),
-                      ),
-                      _buildFilterChip(
-                        context,
-                        label: 'Kontak',
-                        isSelected: state.displayFilter == 'contacts_only',
-                        onTap: () => ref
-                            .read(nearbyFriendsProvider.notifier)
-                            .setDisplayFilter('contacts_only'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // Refresh Action
-                IconButton(
-                  onPressed: state.isLoading
-                      ? null
-                      : () => ref
-                          .read(nearbyFriendsProvider.notifier)
-                          .refreshNearby(force: true),
-                  icon: state.isLoading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: MekaarColors.guardianTeal,
-                          ),
-                        )
-                      : Icon(
-                          SolarIconsOutline.refreshCircle,
-                          size: 18,
-                          color: MekaarColors.textMutedOf(context),
-                        ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  splashRadius: 16,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Canvas Body
-            if (displayList.isEmpty && !state.isLoading) ...[
-              // Empty State
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
-                        ),
-                        child: Icon(
-                          SolarIconsOutline.userHands,
-                          size: 28,
-                          color: MekaarColors.textMutedOf(context),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        state.displayFilter == 'contacts_only'
-                            ? 'Belum ada kontak di sekitar'
-                            : 'Belum ada teman di sekitar',
-                        style: MekaarTypography.bodySM.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: MekaarColors.textPrimaryOf(context),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Jarak diperbarui otomatis saat kontak aktif di radius < 10 km',
-                        style: MekaarTypography.caption.copyWith(
-                          color: MekaarColors.textMutedOf(context),
-                          fontSize: 11.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header Section: Teman Sekitar
+          Row(
+            children: [
+              const Icon(
+                SolarIconsBold.radar2,
+                color: MekaarColors.guardianTeal,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Teman Sekitar',
+                style: MekaarTypography.bodyMD.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
               ),
-            ] else ...[
-              // Floating Avatar Horizontal Scroll List
-              SizedBox(
-                height: 116,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: displayList.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 14),
-                  itemBuilder: (context, index) {
-                    final friend = displayList[index];
-                    return _buildFloatingAvatarItem(
-                      context,
-                      ref,
-                      friend,
-                      isDark,
-                    );
-                  },
-                ),
+              const Spacer(),
+              // Filter Segmen: [Semua] [Kontak]
+              MekaarSlidingSegmentBar(
+                tabs: const ['Semua', 'Kontak'],
+                selectedIndex: state.displayFilter == 'all' ? 0 : 1,
+                onTabSelected: (index) {
+                  ref
+                      .read(nearbyFriendsProvider.notifier)
+                      .setDisplayFilter(index == 0 ? 'all' : 'contacts_only');
+                },
+                height: 28,
+                width: 135,
+                margin: EdgeInsets.zero,
+                activeColor: MekaarColors.guardianTeal,
+              ),
+              const SizedBox(width: 6),
+              // Refresh Action
+              IconButton(
+                onPressed: state.isLoading
+                    ? null
+                    : () => ref
+                        .read(nearbyFriendsProvider.notifier)
+                        .refreshNearby(force: true),
+                icon: state.isLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: MekaarColors.guardianTeal,
+                        ),
+                      )
+                    : Icon(
+                        SolarIconsOutline.refreshCircle,
+                        size: 18,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                splashRadius: 16,
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+
+          // Canvas Body (Flat di atas background)
+          if (displayList.isEmpty && !state.isLoading) ...[
+            // Empty State
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? Colors.white10
+                            : Colors.black.withValues(alpha: 0.04),
+                      ),
+                      child: Icon(
+                        SolarIconsOutline.userHands,
+                        size: 24,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      state.displayFilter == 'contacts_only'
+                          ? 'Belum ada kontak di sekitar'
+                          : 'Belum ada teman di sekitar',
+                      style: MekaarTypography.bodySM.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5,
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Jarak diperbarui otomatis saat aktif di radius < 10 km',
+                      style: MekaarTypography.caption.copyWith(
+                        color: MekaarColors.textMutedOf(context),
+                        fontSize: 11,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            // Floating Avatar Horizontal Scroll List langsung pada canvas
+            SizedBox(
+              height: 114,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: displayList.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final friend = displayList[index];
+                  return _buildFloatingAvatarItem(
+                    context,
+                    ref,
+                    friend,
+                    isDark,
+                  );
+                },
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
