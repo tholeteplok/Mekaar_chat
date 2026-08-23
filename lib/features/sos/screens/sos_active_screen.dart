@@ -244,10 +244,11 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                         icon: const Icon(SolarIconsOutline.gps),
                         label: const Text('Lihat Lokasi Saya'),
                         onPressed: () async {
+                          final navigator = Navigator.of(context);
                           final result = await ref
                               .read(sosProvider.notifier)
                               .getOwnSessionWithPing();
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           final ping = result?['ping'] as Map?;
                           if (ping == null) {
                             MekaarSnackbar.warning(context, 'Lokasi belum tersedia');
