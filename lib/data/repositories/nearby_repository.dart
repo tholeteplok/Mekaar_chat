@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/nearby_friend_model.dart';
 
@@ -8,6 +9,7 @@ final nearbyRepositoryProvider = Provider<NearbyRepository>((ref) {
 
 class NearbyRepository {
   final SupabaseClient _client;
+  final Logger _logger = Logger();
 
   NearbyRepository(this._client);
 
@@ -97,8 +99,9 @@ class NearbyRepository {
       return response
           .map((item) => NearbyFriendModel.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList();
-    } catch (e) {
-      return [];
+    } catch (e, st) {
+      _logger.w('get_nearby_friends RPC failed: $e', error: e, stackTrace: st);
+      rethrow;
     }
   }
 

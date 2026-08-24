@@ -62,7 +62,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
             const SizedBox(height: 36),
             if (userId == null)
               const MekaarStateView(
-                pose: MikaPose.key,
+                pose: MikaPose.neutral,
                 title: 'Menyiapkan Kode QR',
                 message: 'Menghasilkan kode profil Anda…',
                 semanticLabel: 'Memuat kode QR profil',

@@ -263,13 +263,13 @@ class _CreateGroupSelectMembersScreenState
                 );
               },
               loading: () => const MekaarStateView(
-                pose: MikaPose.hi,
+                pose: MikaPose.neutral,
                 title: 'Memuat Kontak',
                 message: 'Mengambil daftar kontak untuk dipilih…',
                 semanticLabel: 'Memuat daftar kontak',
               ),
               error: (err, stack) => MekaarStateView(
-                pose: MikaPose.huft,
+                pose: ErrorResolver.resolvePose(err),
                 title: 'Gagal Memuat Kontak',
                 message: ErrorResolver.resolve(err),
                 actionLabel: 'Coba Lagi',

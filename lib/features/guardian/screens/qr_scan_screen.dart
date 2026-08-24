@@ -315,7 +315,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
               color: Colors.black54,
               child: Center(
                 child: MekaarStateView(
-                  pose: MikaPose.ask,
+                  pose: MikaPose.neutral,
                   title: 'Memproses kode...',
                   message: 'Mekaar sedang memeriksa undangan Anda.',
                   illustrationSize: 96,

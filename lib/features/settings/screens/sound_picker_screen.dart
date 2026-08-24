@@ -208,12 +208,12 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                   ),
                 ),
                 loading: () => const MekaarStateView(
-                  pose: MikaPose.phone,
+                  pose: MikaPose.neutral,
                   title: 'Memuat Preferensi Suara',
                   message: 'Sedang mengambil pengaturan nada & suara Anda...',
                 ),
                 error: (err, _) => MekaarStateView(
-                  pose: MikaPose.huft,
+                  pose: ErrorResolver.resolvePose(err),
                   title: 'Gagal Memuat Pengaturan',
                   message: ErrorResolver.resolve(err),
                   actionLabel: 'Coba Lagi',

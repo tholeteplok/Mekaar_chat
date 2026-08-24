@@ -100,7 +100,7 @@ class _TripArrivalConfirmScreenState
             Expanded(
               child: _isLoadingTrip
                   ? const MekaarStateView(
-                      pose: MikaPose.pin,
+                      pose: MikaPose.neutral,
                       title: 'Memuat Perjalanan',
                       message: 'Sedang mengambil detail perjalanan Anda...',
                       layout: MekaarStateLayout.centered,

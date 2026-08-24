@@ -158,7 +158,7 @@ class _GuardianTrackingScreenState
   Widget _buildBody() {
     if (_isLoading) {
       return const MekaarStateView(
-        pose: MikaPose.shield,
+        pose: MikaPose.neutral,
         title: 'Memuat Lokasi Darurat',
         message: 'Mengambil sesi SOS yang sedang Anda jaga…',
         layout: MekaarStateLayout.centered,

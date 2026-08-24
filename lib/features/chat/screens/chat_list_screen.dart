@@ -873,7 +873,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   loading: () => const ChatListSkeleton(),
                   error: (err, stack) => Center(
                     child: MekaarStateView(
-                      pose: MikaPose.huft,
+                      pose: ErrorResolver.resolvePose(err),
                       title: 'Gagal Memuat Chat',
                       message: ErrorResolver.resolve(err),
                       actionLabel: 'Coba Lagi',
@@ -1020,8 +1020,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       final hasSearch = _searchQuery.trim().isNotEmpty;
       final isGuardianFilter = _selectedTab == 'Guardian';
       final isArchiveFilter = _selectedTab == 'Arsip';
+      final MikaPose emptyPose = hasSearch
+          ? MikaPose.confused
+          : isGuardianFilter
+              ? MikaPose.shield
+              : MikaPose.sleep;
+
       return _EmptyChats(
         onStart: _showNewChatDialog,
+        pose: emptyPose,
         title: hasSearch
             ? 'Chat tidak ditemukan'
             : isGuardianFilter
@@ -1108,12 +1115,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
 class _EmptyChats extends StatelessWidget {
   final VoidCallback onStart;
+  final MikaPose pose;
   final String title;
   final String message;
   final bool showStartButton;
 
   const _EmptyChats({
     required this.onStart,
+    this.pose = MikaPose.sleep,
     required this.title,
     required this.message,
     required this.showStartButton,
@@ -1129,7 +1138,7 @@ class _EmptyChats extends StatelessWidget {
           child: Column(
             children: [
               MikaAnimated(
-                pose: MikaPose.sleep,
+                pose: pose,
                 size: 120,
                 semanticLabel: 'Mika menyapa dari layar kosong',
               ),

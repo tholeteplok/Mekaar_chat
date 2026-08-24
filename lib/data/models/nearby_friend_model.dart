@@ -76,7 +76,7 @@ class NearbyFriendModel {
     required this.band,
     required this.isRecent,
     required this.isContact,
-    this.chatInvitationMode = 'all',
+    this.chatInvitationMode = 'approved_only',
   });
 
   factory NearbyFriendModel.fromJson(Map<String, dynamic> json) {
@@ -87,7 +87,7 @@ class NearbyFriendModel {
       band: NearbyBand.fromString(json['band'] as String?),
       isRecent: json['is_recent'] as bool? ?? true,
       isContact: json['is_contact'] as bool? ?? false,
-      chatInvitationMode: json['chat_invitation_mode'] as String? ?? 'all',
+      chatInvitationMode: json['chat_invitation_mode'] as String? ?? 'approved_only',
     );
   }
 

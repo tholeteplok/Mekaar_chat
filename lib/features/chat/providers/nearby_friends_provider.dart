@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../../../data/repositories/nearby_repository.dart';
 import '../../../data/services/location_service.dart';
@@ -57,6 +58,7 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
   final NearbyRepository _repository;
   final Future<bool> Function()? _requestPermission;
   final Future<({double latitude, double longitude})?> Function()? _getLocation;
+  final Logger _logger = Logger();
   DateTime? _lastFetchTime;
   static const Duration _throttleDuration = Duration(seconds: 15);
 
@@ -84,7 +86,8 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
       if (prefs.enabled) {
         unawaited(refreshNearby(force: true));
       }
-    } catch (e) {
+    } catch (e, st) {
+      _logger.e('loadPreferences error: $e', error: e, stackTrace: st);
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Gagal memuat preferensi Teman Sekitar.',
@@ -129,7 +132,8 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
       }
 
       return true;
-    } catch (e) {
+    } catch (e, st) {
+      _logger.e('toggleSharing error: $e', error: e, stackTrace: st);
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Gagal memperbarui status Teman Sekitar.',
@@ -190,7 +194,8 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
         friends: nearbyList,
         lastFetchedAt: DateTime.now(),
       );
-    } catch (e) {
+    } catch (e, st) {
+      _logger.e('refreshNearby error: $e', error: e, stackTrace: st);
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Gagal menyegarkan teman sekitar.',

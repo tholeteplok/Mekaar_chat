@@ -216,7 +216,7 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                 Expanded(
                   child: _isLoadingLocation
                       ? const MekaarStateView(
-                          pose: MikaPose.phone,
+                          pose: MikaPose.neutral,
                           title: 'Mencari Lokasi',
                           message: 'Menentukan posisi perangkat Anda…',
                           illustrationSize: 96,

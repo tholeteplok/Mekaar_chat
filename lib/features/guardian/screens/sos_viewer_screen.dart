@@ -238,7 +238,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   Widget _buildBody() {
     if (_isLoading && _ping == null) {
       return const MekaarStateView(
-        pose: MikaPose.shield,
+        pose: MikaPose.neutral,
         title: 'Memuat Lokasi Darurat',
         message: 'Mengambil koordinat terakhir korban…',
         layout: MekaarStateLayout.centered,

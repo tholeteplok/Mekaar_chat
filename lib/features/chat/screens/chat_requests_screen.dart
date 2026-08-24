@@ -40,7 +40,7 @@ class ChatRequestsScreen extends ConsumerWidget {
                 children: const [
                   SizedBox(height: 80),
                   MekaarStateView(
-                    pose: MikaPose.ok,
+                    pose: MikaPose.sleep,
                     title: 'Tidak Ada Permintaan',
                     message: 'Semua pesan masuk dari pengirim terverifikasi.',
                     illustrationSize: 100,
@@ -67,7 +67,7 @@ class ChatRequestsScreen extends ConsumerWidget {
             children: [
               const SizedBox(height: 80),
               MekaarStateView(
-                pose: MikaPose.huft,
+                pose: ErrorResolver.resolvePose(err),
                 title: 'Gagal Memuat Permintaan',
                 message: ErrorResolver.resolve(err),
                 actionLabel: 'Coba Lagi',

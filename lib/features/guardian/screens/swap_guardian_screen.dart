@@ -336,7 +336,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           const Spacer(),
           if (_isLoading)
             const MekaarStateView(
-              pose: MikaPose.pin,
+              pose: MikaPose.neutral,
               title: 'Memproses perubahan...',
               message: 'Tunggu sebentar ya, Mekaar menyimpan pengaturan Anda.',
               illustrationSize: 96,

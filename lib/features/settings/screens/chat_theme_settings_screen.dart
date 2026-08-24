@@ -74,12 +74,12 @@ class _ChatThemeSettingsScreenState
       body: SafeArea(
         child: themeState.when(
           loading: () => const MekaarStateView(
-            pose: MikaPose.pin,
+            pose: MikaPose.neutral,
             title: 'Memuat Tema Chat',
             message: 'Sedang mengambil pengaturan tema & wallpaper Anda...',
           ),
           error: (err, _) => MekaarStateView(
-            pose: MikaPose.huft,
+            pose: ErrorResolver.resolvePose(err),
             title: 'Gagal Memuat Tema Chat',
             message: ErrorResolver.resolve(err),
             actionLabel: 'Coba Lagi',

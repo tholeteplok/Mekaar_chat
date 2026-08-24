@@ -869,7 +869,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
                                       if (messages.isEmpty) {
                                         return MekaarStateView(
-                                          pose: MikaPose.neutral,
+                                          pose: MikaPose.confused,
                                           title: 'Tidak Ditemukan',
                                           message:
                                               'Tidak ada pesan yang cocok dengan "$_searchQuery".',
@@ -909,7 +909,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       );
                                     case ChatMessagesUiMode.error:
                                       return MekaarStateView(
-                                        pose: MikaPose.huft,
+                                        pose: ErrorResolver.resolvePose(
+                                          messagesStream.error,
+                                        ),
                                         title: 'Gagal Memuat',
                                         message: ErrorResolver.resolve(
                                           messagesStream.error,

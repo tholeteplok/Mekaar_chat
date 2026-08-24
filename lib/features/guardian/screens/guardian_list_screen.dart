@@ -153,7 +153,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           Expanded(
             child: status == GuardianLoadStatus.loading
                 ? const MekaarStateView(
-                    pose: MikaPose.ask,
+                    pose: MikaPose.neutral,
                     title: 'Memuat Guardian',
                     message: 'Sedang mengambil daftar Guardian Anda...',
                     layout: MekaarStateLayout.centered,
@@ -170,7 +170,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           MikaAnimated(
-                            pose: MikaPose.ask,
+                            pose: MikaPose.shield,
                             size: 110,
                             semanticLabel: 'Belum ada guardian',
                           ),
@@ -212,7 +212,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
       padding: const EdgeInsets.all(20.0),
       child: status == GuardianLoadStatus.loading
           ? const MekaarStateView(
-              pose: MikaPose.ask,
+              pose: MikaPose.neutral,
               title: 'Memuat Daftar',
               message: 'Sedang mengambil daftar yang menjaga Anda...',
               layout: MekaarStateLayout.centered,
@@ -224,12 +224,23 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           : list.isEmpty
           ? AnimatedAppear(
               child: Center(
-                child: Text(
-                  'Belum ada yang menambahkan Anda sebagai Guardian.',
-                  textAlign: TextAlign.center,
-                  style: MekaarTypography.bodyMD.copyWith(
-                    color: MekaarColors.textMutedOf(context),
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    MikaAnimated(
+                      pose: MikaPose.shield,
+                      size: 110,
+                      semanticLabel: 'Belum ada yang menambahkan Anda',
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Belum ada yang menambahkan Anda sebagai Guardian.',
+                      textAlign: TextAlign.center,
+                      style: MekaarTypography.bodyMD.copyWith(
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             )

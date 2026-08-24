@@ -91,7 +91,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
             const SizedBox(height: 32),
             if (_isLoading)
               const MekaarStateView(
-                pose: MikaPose.shield,
+                pose: MikaPose.neutral,
                 title: 'Menyiapkan Kode QR',
                 message: 'Membuat kode undangan Guardian Anda…',
                 semanticLabel: 'Memuat kode QR undangan',

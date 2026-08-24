@@ -214,7 +214,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
             const Spacer(),
             if (_isSetting)
               const MekaarStateView(
-                pose: MikaPose.pin,
+                pose: MikaPose.neutral,
                 title: 'Mengatur PIN Paksaan',
                 message: 'Tunggu sebentar, kami mengamankan akun Anda.',
                 illustrationSize: 96,

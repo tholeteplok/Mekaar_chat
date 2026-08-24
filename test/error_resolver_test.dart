@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/core/utils/error_resolver.dart';
+import 'package:mekaar_chat/core/widgets/mika_illustration.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -65,6 +66,37 @@ void main() {
       final msg = ErrorResolver.resolve(null);
       expect(msg, contains('Terjadi kendala yang tidak diketahui'));
       expect(msg, contains('[ERR_UNKNOWN]'));
+    });
+
+    test('ErrorResolver.resolvePose maps errors to accurate MikaPose', () {
+      // 1. Network / Timeout -> huft (24)
+      expect(ErrorResolver.resolvePose(TimeoutException('Timed out')), equals(MikaPose.huft));
+      expect(ErrorResolver.resolvePose(const SocketException('Failed')), equals(MikaPose.huft));
+
+      // 2. Server / Postgrest -> shocked (6)
+      expect(
+        ErrorResolver.resolvePose(const PostgrestException(message: 'Internal Error', code: '500')),
+        equals(MikaPose.shocked),
+      );
+
+      // 3. Auth -> awkward (21)
+      expect(
+        ErrorResolver.resolvePose(const AuthException('Invalid login credentials')),
+        equals(MikaPose.awkward),
+      );
+
+      // 4. Permission / Call failed -> sad (10)
+      expect(ErrorResolver.resolvePose('Permission denied for resource'), equals(MikaPose.sad));
+      expect(ErrorResolver.resolvePose('Panggilan gagal terhubung'), equals(MikaPose.sad));
+
+      // 5. Media too large -> pout (13)
+      expect(ErrorResolver.resolvePose('File terlalu besar atau kegedean'), equals(MikaPose.pout));
+
+      // 6. E2EE -> surprised (4)
+      expect(ErrorResolver.resolvePose('Gagal dekripsi pesan E2EE'), equals(MikaPose.surprised));
+
+      // 7. Retry berulang -> angry (5)
+      expect(ErrorResolver.resolvePose('Gagal setelah retry berulang'), equals(MikaPose.angry));
     });
   });
 }

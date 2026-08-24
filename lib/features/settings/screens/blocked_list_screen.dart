@@ -40,7 +40,7 @@ class BlockedListScreen extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const MikaIllustration(
-                            pose: MikaPose.hide,
+                            pose: MikaPose.shield,
                             size: 110,
                             semanticLabel: 'Tidak ada pengguna diblokir',
                           ),
@@ -143,12 +143,12 @@ class BlockedListScreen extends ConsumerWidget {
                   );
                 },
                 loading: () => const MekaarStateView(
-                  pose: MikaPose.hide,
+                  pose: MikaPose.neutral,
                   title: 'Memuat Daftar Blokir',
                   message: 'Sedang mengambil daftar pengguna yang Anda blokir...',
                 ),
                 error: (err, _) => MekaarStateView(
-                  pose: MikaPose.huft,
+                  pose: ErrorResolver.resolvePose(err),
                   title: 'Gagal Memuat Daftar Blokir',
                   message: ErrorResolver.resolve(err),
                   actionLabel: 'Coba Lagi',

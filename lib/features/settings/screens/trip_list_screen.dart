@@ -143,13 +143,13 @@ class TripListScreen extends ConsumerWidget {
           );
         },
         loading: () => const MekaarStateView(
-          pose: MikaPose.pin,
+          pose: MikaPose.neutral,
           title: 'Memuat Rute',
           message: 'Sedang mengambil daftar rute perjalanan Anda...',
           layout: MekaarStateLayout.centered,
         ),
         error: (err, _) => MekaarStateView(
-          pose: MikaPose.huft,
+          pose: ErrorResolver.resolvePose(err),
           title: 'Gagal Memuat Rute',
           message: ErrorResolver.resolve(err),
           actionLabel: 'Coba Lagi',

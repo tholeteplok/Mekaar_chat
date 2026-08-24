@@ -194,7 +194,7 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
                     borderRadius: BorderRadius.circular(MekaarRadius.lg),
                   ),
                   child: const MekaarStateView(
-                    pose: MikaPose.ask,
+                    pose: MikaPose.neutral,
                     title: 'Memproses kode...',
                     message: 'Mekaar sedang mengenali profil teman Anda.',
                     illustrationSize: 96,

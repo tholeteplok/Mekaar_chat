@@ -125,12 +125,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
     return roomsAsync.when(
       loading: () => const MekaarStateView(
-        pose: MikaPose.phone,
+        pose: MikaPose.neutral,
         title: 'Memuat Kontak',
         message: 'Sedang mengambil daftar kontak Anda...',
       ),
       error: (err, stack) => MekaarStateView(
-        pose: MikaPose.huft,
+        pose: ErrorResolver.resolvePose(err),
         title: 'Gagal Memuat Kontak',
         message: ErrorResolver.resolve(err),
         actionLabel: 'Coba Lagi',
@@ -565,8 +565,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const MikaIllustration(
-              pose: MikaPose.ask,
+            MikaIllustration(
+              pose: hasFilter ? MikaPose.confused : MikaPose.ask,
               size: 140,
               animate: true,
             ),
