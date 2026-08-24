@@ -15,6 +15,7 @@ import '../../../core/providers/time_tick_provider.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 
@@ -69,14 +70,11 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               padding: const EdgeInsets.all(MekaarSpacing.md),
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(MekaarRadius.md),
-                  ),
-                  child: Icon(SolarIconsOutline.text, color: MekaarColors.accentTextOf(context), size: 22),
+                leading: MekaarIconBadge(
+                  icon: SolarIconsOutline.text,
+                  color: MekaarColors.accentTextOf(context),
+                  backgroundColor:
+                      MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
                 ),
                 title: Text(
                   activeFont.displayName,
@@ -111,14 +109,10 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                 children: [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                      ),
-                      child: Icon(SolarIconsOutline.palette, color: MekaarColors.textMutedOf(context), size: 20),
+                    leading: MekaarIconBadge(
+                      icon: SolarIconsOutline.palette,
+                      color: MekaarColors.textMutedOf(context),
+                      backgroundColor: MekaarColors.surface2Of(context),
                     ),
                     title: Text(
                       'Aksen Warna Primary',
@@ -145,14 +139,11 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   SizedBox(height: 8),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                      ),
-                      child: Icon(SolarIconsOutline.gallery, color: MekaarColors.accentTextOf(context), size: 20),
+                    leading: MekaarIconBadge(
+                      icon: SolarIconsOutline.gallery,
+                      color: MekaarColors.accentTextOf(context),
+                      backgroundColor:
+                          MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
                     ),
                     title: Text(
                       'Wallpaper Chat & Gelembung',
@@ -315,19 +306,18 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
 
           return InkWell(
             onTap: () => notifier.setPreference(opt.$1),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(MekaarRadius.md),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: opt.$5.withValues(alpha: selected ? 0.20 : 0.10),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(opt.$4, color: opt.$5, size: 20),
+                  MekaarIconBadge(
+                    icon: opt.$4,
+                    color: opt.$5,
+                    circle: true,
+                    size: 40,
+                    backgroundColor:
+                        opt.$5.withValues(alpha: selected ? 0.20 : 0.10),
                   ),
                   const SizedBox(width: 14),
                   Expanded(

@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 
@@ -115,18 +116,11 @@ class SoundPreferenceSection extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              SolarIconsOutline.musicLibrary2,
-                              color: accentColor,
-                              size: 18,
-                            ),
+                          MekaarIconBadge(
+                            icon: SolarIconsOutline.musicLibrary2,
+                            color: accentColor,
+                            circle: true,
+                            size: 40,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -139,13 +133,9 @@ class SoundPreferenceSection extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: MekaarColors.surface2Of(context),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                          SizedBox(
+                            width: 32,
+                            height: 32,
                             child: Icon(
                               SolarIconsOutline.altArrowRight,
                               color: MekaarColors.textMutedOf(context),
@@ -201,27 +191,22 @@ class _SoundTile extends StatelessWidget {
           children: [
             // Play / Stop Icon Button Badge
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: enabled
                   ? () {
                       HapticService.trigger(MekaarHapticIntent.selection);
                       onPreview(option.path);
                     }
                   : null,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(
-                    alpha: previewing ? 0.25 : 0.12,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  previewing
-                      ? SolarIconsBold.stopCircle
-                      : SolarIconsOutline.playCircle,
-                  color: accentColor,
-                  size: 20,
+              child: MekaarIconBadge(
+                icon: previewing
+                    ? SolarIconsBold.stopCircle
+                    : SolarIconsOutline.playCircle,
+                color: accentColor,
+                circle: true,
+                size: 44,
+                backgroundColor: accentColor.withValues(
+                  alpha: previewing ? 0.25 : 0.12,
                 ),
               ),
             ),

@@ -9,6 +9,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../providers/guardian_provider.dart';
 
@@ -97,13 +98,11 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
                 semanticLabel: 'Memuat kode QR undangan',
               )
             else if (_token != null)
-              Container(
+              // QR wajib latar putih solid demi scannability — warna eksplisit.
+              CustomCard(
+                margin: EdgeInsets.zero,
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: MekaarColors.borderOf(context)),
-                ),
+                color: Colors.white,
                 child: QrImageView(
                   data: QrInviteScreen.payloadFor(_token!),
                   version: QrVersions.auto,

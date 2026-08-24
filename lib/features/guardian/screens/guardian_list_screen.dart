@@ -11,6 +11,7 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_animated.dart';
@@ -502,17 +503,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
   }
 
   Widget _buildBadge(String text, Color textColor, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Text(
-        text,
-        style: MekaarTypography.labelSM.copyWith(color: textColor),
-      ),
-    );
+    return MekaarBadge(label: text, color: textColor);
   }
 
   Widget _buildPermissionChip(String label, bool isEnabled) {

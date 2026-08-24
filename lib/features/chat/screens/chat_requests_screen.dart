@@ -144,23 +144,16 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
           const SizedBox(height: 12),
 
           // Keterangan Undangan Wajib
-          Container(
-            width: double.infinity,
+          CustomCard(
+            margin: EdgeInsets.zero,
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: MekaarColors.surfaceOf(context),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Theme.of(context).dividerColor,
-              ),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'KETERANGAN UNDANGAN:',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: MekaarColors.accentOf(context),
                     letterSpacing: 0.8,

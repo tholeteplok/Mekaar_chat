@@ -107,7 +107,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(MekaarRadius.sm),
               ),
               child: const Icon(
                 SolarIconsBold.radar2,
@@ -373,7 +373,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.08)
                     : Colors.black.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(MekaarRadius.sm),
               ),
               child: Text(
                 friend.band.shortLabel,

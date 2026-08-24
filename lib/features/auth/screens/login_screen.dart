@@ -140,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.blue.withValues(alpha: 0.15),
@@ -150,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                       child: Image.asset(
                         'assets/logo/app_icon.webp',
                         width: 38,

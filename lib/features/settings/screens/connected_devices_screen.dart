@@ -8,6 +8,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -307,21 +308,12 @@ class _DeviceCard extends StatelessWidget {
                     ),
                     if (isCurrent) ...[
                       const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: MekaarColors.guardianTeal.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Aktif',
-                          style: MekaarTypography.caption.copyWith(
-                            color: MekaarColors.safeTextOf(context),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      Builder(builder: (context) {
+                        return MekaarBadge(
+                          label: 'Aktif',
+                          color: MekaarColors.safeTextOf(context),
+                        );
+                      }),
                     ],
                   ],
                 ),

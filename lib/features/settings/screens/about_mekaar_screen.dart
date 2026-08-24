@@ -259,7 +259,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: pillars[i].color.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                               child: Icon(
                                 pillars[i].icon,
@@ -542,7 +542,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                               child: Icon(
                                 terms[i].icon,
@@ -869,7 +869,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: MekaarColors.softCoral.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                               child: const Icon(
                                 SolarIconsOutline.heartAngle,
@@ -903,7 +903,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: MekaarColors.accentTextOf(context).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                               child: Icon(
                                 SolarIconsOutline.notes,
@@ -937,7 +937,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                               child: const Icon(
                                 SolarIconsOutline.documentText,
@@ -971,7 +971,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: MekaarColors.warnAmber.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                               child: const Icon(
                                 SolarIconsOutline.shieldCheck,

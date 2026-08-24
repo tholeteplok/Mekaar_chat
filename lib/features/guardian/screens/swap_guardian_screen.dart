@@ -11,6 +11,8 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../core/widgets/mekaar_badge.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
@@ -115,38 +117,23 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   }
 
   Widget _buildPermissionsView() {
-    final isDark = MekaarColors.isDarkContext(context);
-    final textPrimary = MekaarColors.textPrimaryOf(context);
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Info Banner
-          Container(
+          MekaarBanner(
+            margin: EdgeInsets.zero,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.blue.withValues(alpha: isDark ? 0.12 : 0.06),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.blue.withValues(alpha: isDark ? 0.35 : 0.25),
+            color: AppColors.blue,
+            icon: SolarIconsOutline.refresh,
+            content: Text(
+              'Tukar Posisi memungkinkan ${widget.guardian.name} juga menjadi guardian Anda '
+              'dengan izin yang sama. Kedua pihak harus menyetujui.',
+              style: MekaarTypography.bodySM.copyWith(
+                color: MekaarColors.textSecondaryOf(context),
               ),
-            ),
-            child: Row(
-              children: [
-                const Icon(SolarIconsOutline.refresh, color: AppColors.blue),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Tukar Posisi memungkinkan ${widget.guardian.name} juga menjadi guardian Anda '
-                    'dengan izin yang sama. Kedua pihak harus menyetujui.',
-                    style: MekaarTypography.bodySM.copyWith(
-                      color: isDark ? Colors.white70 : textPrimary,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
 
@@ -417,18 +404,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   }
 
   Widget _miniChip(String label, bool enabled) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: enabled ? MekaarColors.successLight : MekaarColors.borderOf(context),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Text(
-        label,
-        style: MekaarTypography.labelSM.copyWith(
-          color: enabled ? MekaarColors.success : MekaarColors.textMutedOf(context),
-        ),
-      ),
+    return MekaarBadge(
+      label: label,
+      color: enabled
+          ? MekaarColors.successTextOf(context)
+          : MekaarColors.textMutedOf(context),
+      outlined: !enabled,
     );
   }
 }

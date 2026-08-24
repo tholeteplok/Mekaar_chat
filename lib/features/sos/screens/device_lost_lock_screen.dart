@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -202,38 +203,10 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
             children: [
               const SizedBox(height: 20),
               // Header Tag
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: MekaarColors.sosRed.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: MekaarColors.sosRed.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      SolarIconsBold.shieldWarning,
-                      color: MekaarColors.sosRed,
-                      size: 18,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'PERANGKAT DALAM MODE HILANG',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
+              const MekaarBadge(
+                label: 'PERANGKAT DALAM MODE HILANG',
+                color: MekaarColors.sosCoral,
+                icon: SolarIconsBold.shieldWarning,
               ),
               const SizedBox(height: 32),
               // Mascot Illustration

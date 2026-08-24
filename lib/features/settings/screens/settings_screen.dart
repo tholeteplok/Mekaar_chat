@@ -11,6 +11,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
@@ -155,50 +156,31 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Keamanan'),
-        Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: MekaarColors.guardianTeal.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: MekaarColors.guardianTeal.withValues(alpha: 0.25),
-              width: 0.8,
-            ),
-          ),
-          child: const Row(
-            children: [
-              Icon(
-                SolarIconsBold.shieldCheck,
-                color: MekaarColors.guardianTeal,
-                size: 20,
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Mekaar Aegis Protocol',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: MekaarColors.guardianTeal,
-                      ),
-                    ),
-                    Text(
-                      'Enkripsi ujung-ke-ujung & proteksi privasi aktif',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: MekaarColors.guardianTeal,
-                      ),
-                    ),
-                  ],
+        Builder(builder: (context) {
+          final safeColor = MekaarColors.safeTextOf(context);
+          return MekaarBanner(
+            color: safeColor,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            icon: SolarIconsBold.shieldCheck,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mekaar Aegis Protocol',
+                  style: MekaarTypography.labelLG.copyWith(color: safeColor),
                 ),
-              ),
-            ],
-          ),
-        ),
+                Text(
+                  'Enkripsi ujung-ke-ujung & proteksi privasi aktif',
+                  style: MekaarTypography.bodySM.copyWith(
+                    color: MekaarColors.textSecondaryOf(context),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),

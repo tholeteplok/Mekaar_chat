@@ -10,6 +10,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -74,26 +75,16 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                 alignment: Alignment.topCenter,
                 children: [
                   // White/Surface QR Card Container
-                  Container(
+                  CustomCard(
                     margin: const EdgeInsets.only(top: 40),
                     padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-                    decoration: BoxDecoration(
-                      color: isDark ? MekaarColors.cardDark : Colors.white,
-                      borderRadius: BorderRadius.circular(MekaarRadius.xl),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.12)
-                            : Colors.black.withValues(alpha: 0.08),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black
-                              .withValues(alpha: isDark ? 0.35 : 0.10),
-                          blurRadius: 28,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                    color: isDark ? MekaarColors.cardDark : Colors.white,
+                    borderRadius: MekaarRadius.xl,
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.black.withValues(alpha: 0.08),
+                      width: 1,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -161,9 +152,10 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: MekaarColors.guardianTeal
+                            color: MekaarColors.safeTextOf(context)
                                 .withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(MekaarRadius.pill),
+                            borderRadius:
+                                BorderRadius.circular(MekaarRadius.pill),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,

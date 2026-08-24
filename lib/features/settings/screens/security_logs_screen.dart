@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -51,7 +52,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: MekaarColors.guardianTeal.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +227,7 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
             height: 40,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(MekaarRadius.sm),
             ),
             child: Icon(iconData, color: color, size: 20),
           ),

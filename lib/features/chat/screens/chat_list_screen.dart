@@ -14,6 +14,7 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
@@ -753,69 +754,57 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.guardianTeal.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                      border: Border.all(
-                        color: MekaarColors.guardianTeal.withValues(alpha: 0.35),
+                  child: Builder(builder: (context) {
+                    final safeColor = MekaarColors.safeTextOf(context);
+                    return MekaarBanner(
+                      color: safeColor,
+                      margin: EdgeInsets.zero,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      icon: SolarIconsBold.shieldKeyhole,
+                      content: Text(
+                        'Vault Obrolan Terbuka (Sesi Aktif)',
+                        style: TextStyle(
+                          color: MekaarColors.textPrimaryOf(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          SolarIconsBold.shieldKeyhole,
-                          color: MekaarColors.guardianTeal,
-                          size: 18,
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Vault Obrolan Terbuka (Sesi Aktif)',
-                            style: TextStyle(
-                              color: MekaarColors.textPrimaryOf(context),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+                      action: InkWell(
+                        onTap: () {
+                          HapticService.trigger(MekaarHapticIntent.selection);
+                          ref.read(privateVaultUnlockedProvider.notifier).state = false;
+                          MekaarSnackbar.info(context, 'Vault Obrolan Terkunci');
+                        },
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minHeight: 44,
                           ),
-                        ),
-                        InkWell(
-                          onTap: () {
-                            HapticService.trigger(MekaarHapticIntent.selection);
-                            ref.read(privateVaultUnlockedProvider.notifier).state = false;
-                            MekaarSnackbar.info(context, 'Vault Obrolan Terkunci');
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              minHeight: 44,
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: MekaarColors.guardianTeal,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(SolarIconsOutline.lock, color: MekaarColors.textOnTeal, size: 14),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Kunci',
-                                  style: TextStyle(
-                                    color: MekaarColors.textOnTeal,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: MekaarColors.guardianTeal,
+                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(SolarIconsOutline.lock, color: MekaarColors.textOnTeal, size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                'Kunci',
+                                style: TextStyle(
+                                  color: MekaarColors.textOnTeal,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  }),
                 );
               },
             ),
@@ -828,28 +817,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                   child: InkWell(
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.chatRequests),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.blue.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.blue.withValues(alpha: 0.25)),
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.chatRequests),
+                    borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    child: MekaarBanner(
+                      color: AppColors.blue,
+                      margin: EdgeInsets.zero,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      icon: SolarIconsOutline.shieldUser,
+                      content: Text(
+                        '$count Permintaan Chat Masuk Baru',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.blue),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(SolarIconsOutline.shieldUser, color: AppColors.blue, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '$count Permintaan Chat Masuk Baru',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.blue),
-                            ),
-                          ),
-                          const Icon(SolarIconsOutline.altArrowRight, size: 16, color: AppColors.blue),
-                        ],
-                      ),
+                      action: const Icon(SolarIconsOutline.altArrowRight,
+                          size: 16, color: AppColors.blue),
                     ),
                   ),
                 );

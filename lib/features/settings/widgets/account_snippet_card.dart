@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
@@ -120,7 +121,7 @@ class AccountSnippetCard extends ConsumerWidget {
             height: 32,
             decoration: BoxDecoration(
               color: MekaarColors.surface2Of(context),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(MekaarRadius.sm),
             ),
             child: Icon(
               SolarIconsOutline.altArrowRight,

@@ -652,7 +652,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
                                           color: MekaarColors.surface2Of(context),
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
                                         ),
                                         child: SelectableText(
                                           _e2eeFingerprint,

@@ -13,6 +13,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/location_service.dart';
@@ -320,7 +321,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: MekaarColors.sosRed,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(MekaarRadius.pill),
                     ),
                     child: const Text(
                       'LIVE',
@@ -463,19 +464,9 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: MekaarColors.sosRed.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  'SOS Aktif',
-                  style: MekaarTypography.labelSM.copyWith(
-                    color: MekaarColors.sosRed,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              const MekaarBadge(
+                label: 'SOS Aktif',
+                color: MekaarColors.sosRed,
               ),
             ],
           ),

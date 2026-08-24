@@ -806,7 +806,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                     // 6. Estimasi Waktu Tiba (TimePicker)
                     InkWell(
                       onTap: _selectExpectedTime,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                       child: IgnorePointer(
                         child: TextFormField(
                           controller: _expectedTimeController,

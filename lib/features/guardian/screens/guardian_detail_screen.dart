@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -441,41 +442,22 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
   Widget _buildStatusBadge(bool isPending, bool isExpired) {
     if (isPending) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: MekaarColors.warningLight,
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          'Menunggu Persetujuan',
-          style: MekaarTypography.labelSM.copyWith(color: MekaarColors.warning),
-        ),
+      return const MekaarBadge(
+        label: 'Menunggu Persetujuan',
+        color: MekaarColors.warning,
       );
     } else if (isExpired) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: MekaarColors.sosLight,
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          'Kadaluarsa',
-          style: MekaarTypography.labelSM.copyWith(color: MekaarColors.sosRed),
-        ),
+      return const MekaarBadge(
+        label: 'Kadaluarsa',
+        color: MekaarColors.sosRed,
       );
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: MekaarColors.successLight,
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Text(
-        'Aktif',
-        style: MekaarTypography.labelSM.copyWith(color: MekaarColors.success),
-      ),
-    );
+    return Builder(builder: (context) {
+      return MekaarBadge(
+        label: 'Aktif',
+        color: MekaarColors.successTextOf(context),
+      );
+    });
   }
 
   Widget _buildStorageOptions() {

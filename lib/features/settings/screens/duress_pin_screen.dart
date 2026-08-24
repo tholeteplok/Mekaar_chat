@@ -6,6 +6,7 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -167,17 +168,16 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
               child: Column(
                 children: [
-                  Container(
+                  MekaarBanner(
+                    margin: EdgeInsets.zero,
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.sosRed.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
+                    color: MekaarColors.sosRed,
+                    icon: SolarIconsOutline.shieldWarning,
+                    content: Text(
                       'Jika Anda dipaksa memasukkan PIN, gunakan PIN Paksaan ini. '
                       'Aplikasi akan terbuka seperti biasa, namun diam-diam memicu SOS ke Guardian.',
                       style: MekaarTypography.bodySM.copyWith(
-                        color: MekaarColors.sosRed,
+                        color: MekaarColors.sosDeep,
                         fontWeight: FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,

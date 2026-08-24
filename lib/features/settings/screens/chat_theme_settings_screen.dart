@@ -233,7 +233,7 @@ class _ChatThemeSettingsScreenState
                         'Tema chat berhasil dikembalikan ke default!',
                       );
                     },
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,

@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -458,26 +459,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 ),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: pinSet
-                                    ? MekaarColors.successLight
-                                    : MekaarColors.warningLight,
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                              child: Text(
-                                pinSet ? 'PIN Aktif' : 'Belum Diatur',
-                                style: MekaarTypography.caption.copyWith(
-                                  color: pinSet
-                                      ? MekaarColors.success
-                                      : MekaarColors.warning,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            MekaarBadge(
+                              label: pinSet ? 'PIN Aktif' : 'Belum Diatur',
+                              color: pinSet
+                                  ? MekaarColors.successTextOf(context)
+                                  : MekaarColors.warning,
                             ),
                             const Spacer(),
                             TextButton(

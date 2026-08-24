@@ -7,6 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -165,14 +166,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   const SizedBox(height: MekaarSpacing.sm),
 
                   // Members List
-                  Container(
-                    decoration: BoxDecoration(
-                      color: MekaarColors.surfaceOf(context),
-                      borderRadius: BorderRadius.circular(MekaarRadius.md),
-                      border: Border.all(
-                        color: MekaarColors.borderOf(context).withValues(alpha: 0.1),
-                      ),
-                    ),
+                  CustomCard(
+                    margin: EdgeInsets.zero,
+                    padding: EdgeInsets.zero,
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -220,7 +216,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                                       horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: AppColors.blue.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                                   ),
                                   child: Text(
                                     role == 'owner' ? 'Pembuat' : 'Admin',

@@ -10,6 +10,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../providers/chat_provider.dart';
 
 class CreateGroupDetailsScreen extends ConsumerStatefulWidget {
@@ -206,14 +207,9 @@ class _CreateGroupDetailsScreenState
               ),
             ),
             const SizedBox(height: MekaarSpacing.sm),
-            Container(
-              decoration: BoxDecoration(
-                color: MekaarColors.surfaceOf(context),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: MekaarColors.borderOf(context).withValues(alpha: 0.1),
-                ),
-              ),
+            CustomCard(
+              margin: EdgeInsets.zero,
+              padding: EdgeInsets.zero,
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),

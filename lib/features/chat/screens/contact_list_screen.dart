@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -14,6 +15,7 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/repositories/private_contact_repository.dart';
@@ -251,69 +253,52 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       horizontal: 20,
                       vertical: 6,
                     ),
-                    child: Container(
+                    child: MekaarBanner(
+                      color: MekaarColors.accentOf(context),
+                      margin: EdgeInsets.zero,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 10,
                       ),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.accentOf(context).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: MekaarColors.accentOf(context).withValues(alpha: 0.35),
-                          width: 1,
+                      icon: SolarIconsOutline.eye,
+                      content: Text(
+                        'Private Vault Terbuka',
+                        style: MekaarTypography.bodySM.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: MekaarColors.accentOf(context),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            SolarIconsOutline.eye,
+                      action: TextButton.icon(
+                        onPressed: () {
+                          HapticService.trigger(
+                              MekaarHapticIntent.selection);
+                          ref
+                              .read(privateVaultUnlockedProvider.notifier)
+                              .state = false;
+                          MekaarSnackbar.info(
+                            context,
+                            'Private Vault Dikunci',
+                          );
+                        },
+                        icon: Icon(
+                          SolarIconsOutline.lock,
+                          size: 16,
+                          color: MekaarColors.accentOf(context),
+                        ),
+                        label: Text(
+                          'Kunci',
+                          style: TextStyle(
                             color: MekaarColors.accentOf(context),
-                            size: 20,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Private Vault Terbuka',
-                              style: MekaarTypography.bodySM.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: MekaarColors.accentOf(context),
-                              ),
-                            ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
                           ),
-                          TextButton.icon(
-                            onPressed: () {
-                              HapticService.trigger(
-                                  MekaarHapticIntent.selection);
-                              ref
-                                  .read(privateVaultUnlockedProvider.notifier)
-                                  .state = false;
-                              MekaarSnackbar.info(
-                                context,
-                                'Private Vault Dikunci',
-                              );
-                            },
-                            icon: Icon(
-                              SolarIconsOutline.lock,
-                              size: 16,
-                              color: MekaarColors.accentOf(context),
-                            ),
-                            label: Text(
-                              'Kunci',
-                              style: TextStyle(
-                                color: MekaarColors.accentOf(context),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              minimumSize: const Size(44, 44),
-                            ),
-                          ),
-                        ],
+                          minimumSize: const Size(44, 44),
+                        ),
                       ),
                     ),
                   ),
@@ -354,7 +339,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Header Seksi Teman di dalam Kartu ──
+              // ── Header Seksi Kontak di dalam Kartu ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
                 child: Row(
@@ -366,7 +351,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Teman',
+                      'Kontak',
                       style: MekaarTypography.bodyMD.copyWith(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -381,7 +366,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       decoration: BoxDecoration(
                         color: MekaarColors.primaryOf(context)
                             .withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
                       ),
                       child: Text(
                         '${contacts.length}',
