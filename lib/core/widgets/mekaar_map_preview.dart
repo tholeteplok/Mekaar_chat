@@ -19,6 +19,7 @@ import '../constants/colors.dart';
 class MekaarMapPreview extends StatelessWidget {
   final LatLng center;
   final double zoom;
+  final MapController? mapController;
 
   /// Radius geofence dalam meter. Null = tidak merender [CircleLayer].
   final double? radiusMeters;
@@ -32,16 +33,19 @@ class MekaarMapPreview extends StatelessWidget {
   final bool interactive;
   final VoidCallback? onTap;
   final void Function(TapPosition tapPosition, LatLng latLng)? onMapTap;
+  final BorderRadiusGeometry? borderRadius;
 
   const MekaarMapPreview({
     super.key,
     required this.center,
     this.zoom = 16,
+    this.mapController,
     this.radiusMeters,
     this.markerChild,
     this.interactive = false,
     this.onTap,
     this.onMapTap,
+    this.borderRadius,
   });
 
   @override
@@ -49,6 +53,7 @@ class MekaarMapPreview extends StatelessWidget {
     final accent = MekaarColors.accentOf(context);
 
     Widget map = FlutterMap(
+      mapController: mapController,
       options: MapOptions(
         initialCenter: center,
         initialZoom: zoom,
@@ -110,7 +115,7 @@ class MekaarMapPreview extends StatelessWidget {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: borderRadius ?? BorderRadius.circular(24),
       child: SizedBox(width: double.infinity, child: map),
     );
   }
