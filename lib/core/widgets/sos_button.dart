@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/motion.dart';
 import '../services/haptic_service.dart';
 
 /// Tombol Darurat SOS dengan dukungan Hold-to-Confirm (2 detik) untuk aktivasi
@@ -38,7 +39,7 @@ class _SOSButtonState extends State<SOSButton>
     super.initState();
     // 1. Controller untuk animasi pulsasi idle saat status aktif
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1600),
+      duration: MekaarMotion.idle,
       vsync: this,
     );
 

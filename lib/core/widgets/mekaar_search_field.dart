@@ -19,7 +19,7 @@ class MekaarSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
 
     final borderColor = errorText != null
         ? MekaarColors.sosRed

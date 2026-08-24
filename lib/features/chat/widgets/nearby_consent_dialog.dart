@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -165,7 +166,7 @@ class NearbyConsentDialog extends StatelessWidget {
                       color: isDark ? Colors.white24 : Colors.black12,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
                     ),
                   ),
                   child: Text(
@@ -188,7 +189,7 @@ class NearbyConsentDialog extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
                     ),
                   ),
                   child: const Text(

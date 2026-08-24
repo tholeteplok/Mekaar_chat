@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/bounce_interactive.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -148,19 +149,18 @@ class NearbyFriendsCanvas extends ConsumerWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: MekaarColors.guardianTeal,
-                foregroundColor: Colors.white,
+                foregroundColor: MekaarColors.textOnTeal,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                minimumSize: const Size(44, 44),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(MekaarRadius.sm),
                 ),
               ),
               child: const Text(
                 'Aktifkan',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -229,8 +229,6 @@ class NearbyFriendsCanvas extends ConsumerWidget {
                         color: MekaarColors.textMutedOf(context),
                       ),
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                splashRadius: 16,
               ),
             ],
           ),
@@ -353,7 +351,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
       );
     }
 
-    return BounceInteractive(
+    return PressableScale(
       onTap: () => _handleFriendTap(context, ref, friend),
       child: SizedBox(
         width: 76,

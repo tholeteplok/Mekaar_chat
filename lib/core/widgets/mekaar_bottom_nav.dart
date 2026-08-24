@@ -2,9 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
+import '../constants/motion.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
-import 'bounce_interactive.dart';
+import 'animations.dart';
 
 /// Item untuk [MekaarBottomNav].
 class MekaarNavItem {
@@ -126,9 +127,8 @@ class MekaarBottomNav extends StatelessWidget {
                             selected: isActive,
                             label: '${item.label}$unreadLabel',
                             hint: 'Ketuk untuk membuka menu ${item.label}',
-                            child: BounceInteractive(
-                              scaleFactor: 0.94,
-                              duration: const Duration(milliseconds: 120),
+                            child: PressableScale(
+                              scale: 0.94,
                               onTap: () {
                                 if (safeIndex != index) {
                                   HapticService.trigger(MekaarHapticIntent.selection);
@@ -148,8 +148,7 @@ class MekaarBottomNav extends StatelessWidget {
                                             scale: isActive ? 1.12 : 1.0,
                                             duration: animationsDisabled
                                                 ? Duration.zero
-                                                : const Duration(
-                                                    milliseconds: 250),
+                                                : MekaarMotion.fast,
                                             curve: Curves.easeOutBack,
                                             child: Icon(
                                               isActive
@@ -202,8 +201,7 @@ class MekaarBottomNav extends StatelessWidget {
                                       AnimatedDefaultTextStyle(
                                         duration: animationsDisabled
                                             ? Duration.zero
-                                            : const Duration(
-                                                milliseconds: 200),
+                                            : MekaarMotion.fast,
                                         curve: Curves.easeInOut,
                                         style: TextStyle(
                                           fontSize: _fontSize,

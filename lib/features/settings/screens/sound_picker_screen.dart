@@ -126,7 +126,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                         selectedPath: prefs.messageSound,
                         previewingPath: _previewingPath,
                         previewIsPlaying: _isPlayingPreview,
-                        accentColor: MekaarColors.cyan,
+                        accentColor: MekaarColors.primaryOf(context),
                         enabled: prefs.messageSoundEnabled,
                         canDisable: true,
                         onSelected: (path) => ref

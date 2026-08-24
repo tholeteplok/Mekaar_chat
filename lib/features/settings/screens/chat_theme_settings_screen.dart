@@ -9,7 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/bounce_interactive.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -18,6 +18,22 @@ import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/chat_theme_model.dart';
 import '../providers/chat_theme_provider.dart';
 import '../widgets/settings_tiles.dart';
+
+/// Swatch preset tema chat & wallpaper — data produk (identitas visual
+/// tiap preset), BUKAN token UI adaptif. Jangan dipakai untuk chrome UI.
+const Color _kSwatchNeon = Color(0xFF00F5D4);
+const Color _kSwatchSlate = Color(0xFF94A3B8);
+const Color _kSwatchPixel = Color(0xFF3B567D);
+const Color _kSwatchCandy = Color(0xFFFF6B9D);
+const Color _kSwatchRetroWave = Color(0xFFFF006E);
+const Color _kSwatchMonoLime = Color(0xFF39FF14);
+const Color _kSwatchFirefly = Color(0xFFF5C97D);
+const Color _kSwatchDiaryInk = Color(0xFF1E3A8A);
+const Color _kSwatchTeal80s = Color(0xFF008080);
+const Color _kSwatchIsoBlue = Color(0xFF3B82F6);
+const Color _kSwatchSwissOrange = Color(0xFFFF5722);
+const Color _kSwatchNeonCyan = Color(0xFF00F0FF);
+const Color _kSwatchPatternGray = Color(0xFF64748B);
 
 /// Layar Kustomisasi Tema dan Wallpaper Chat
 /// Didesain 1:1 sesuai spesifikasi design.md & mockup tema_wallpaper_chat_redesign.html.
@@ -76,11 +92,8 @@ class _ChatThemeSettingsScreenState
   }
 
   Widget _buildContent(BuildContext context, ChatThemePreference chatPref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = MekaarColors.surfaceOf(context);
-    final cardBorderColor = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : const Color(0xFFDCE7F5);
+    final cardBorderColor = MekaarColors.borderOf(context);
     final textPrimary = MekaarColors.textPrimaryOf(context);
     final textSecondary = MekaarColors.textSecondaryOf(context);
 
@@ -273,7 +286,7 @@ class _ChatThemeSettingsScreenState
         ChatPresetResolver.getBubbleSpec(pref, context, isMe: false);
     final roomThemeSpec =
         ChatPresetResolver.getRoomThemeSpec(pref, context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
 
     return Container(
       decoration: BoxDecoration(
@@ -438,8 +451,8 @@ class _ChatThemeSettingsScreenState
                     ),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? const Color(0xFF1E2638)
-                          : const Color(0xFFE8F4FC),
+                          ? MekaarColors.composerPillDark
+                          : MekaarColors.composerPillLight,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -484,7 +497,7 @@ class _ChatThemeSettingsScreenState
     Color textSecondary,
   ) {
     final isMekaar = pref.preset == ChatThemePreset.mekaar;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
 
     return InkWell(
       onTap: () => _showPresetPicker(context, pref),
@@ -504,8 +517,8 @@ class _ChatThemeSettingsScreenState
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isDark
-                    ? const Color(0xFF1B2E4B)
-                    : const Color(0xFFE8F4FC),
+                    ? MekaarColors.composerPillDark
+                    : MekaarColors.composerPillLight,
               ),
               child: const Center(
                 child: Icon(
@@ -619,7 +632,7 @@ class _ChatThemeSettingsScreenState
     Color textPrimary,
     Color textSecondary,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
     final notifier = ref.read(chatThemeProvider.notifier);
 
     final quickGradients = [
@@ -692,8 +705,8 @@ class _ChatThemeSettingsScreenState
                             color: pref.useCustomBubbleColors
                                 ? AppColors.blue
                                 : (isDark
-                                    ? const Color(0xFF1E2638)
-                                    : const Color(0xFFE8F4FC)),
+                                    ? MekaarColors.composerPillDark
+                                    : MekaarColors.composerPillLight),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
@@ -744,8 +757,8 @@ class _ChatThemeSettingsScreenState
                           padding: const EdgeInsets.symmetric(vertical: 7),
                           decoration: BoxDecoration(
                             color: isDark
-                                ? const Color(0xFF1E2638)
-                                : const Color(0xFFE8F4FC),
+                                ? MekaarColors.composerPillDark
+                                : MekaarColors.composerPillLight,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
@@ -918,67 +931,67 @@ class _ChatThemeSettingsScreenState
       (
         title: 'Neon Dreams',
         subtitle: 'Night Youth neon edge & dark glow',
-        color: const Color(0xFF00F5D4),
+        color: _kSwatchNeon,
         preset: ChatThemePreset.neonDreams,
       ),
       (
         title: 'Comic Pop Art',
         subtitle: 'Playful halftone & bold outline',
-        color: const Color(0xFFFFD84D),
+        color: MekaarColors.yellow,
         preset: ChatThemePreset.comicPopArt,
       ),
       (
         title: 'Neumorphism UI',
         subtitle: 'Soft slate 3D extruded surface',
-        color: const Color(0xFF94A3B8),
+        color: _kSwatchSlate,
         preset: ChatThemePreset.neumorphism,
       ),
       (
         title: 'Glassmorphism',
         subtitle: 'Frosted purple tint transparan',
-        color: const Color(0xFF8B5CF6),
+        color: MekaarColors.purple,
         preset: ChatThemePreset.glassmorphism,
       ),
       (
         title: 'Pixel Garden 8-Bit',
         subtitle: 'Siku piksel retro arcade',
-        color: const Color(0xFF3B567D),
+        color: _kSwatchPixel,
         preset: ChatThemePreset.pixelGarden,
       ),
       (
         title: 'Candy Pop',
         subtitle: 'Playful pink & mint isometric',
-        color: const Color(0xFFFF6B9D),
+        color: _kSwatchCandy,
         preset: ChatThemePreset.candyPop,
       ),
       (
         title: 'Retro Wave',
         subtitle: 'Windows 95 nostalgic bevel',
-        color: const Color(0xFFFF006E),
+        color: _kSwatchRetroWave,
         preset: ChatThemePreset.retroWave,
       ),
       (
         title: 'Mono Vibe',
         subtitle: 'Minimalist lime text on black',
-        color: const Color(0xFF39FF14),
+        color: _kSwatchMonoLime,
         preset: ChatThemePreset.monoVibe,
       ),
       (
         title: 'Solarpunk Eco',
         subtitle: 'Kelopak daun hijau organik',
-        color: const Color(0xFF10B981),
+        color: MekaarColors.success,
         preset: ChatThemePreset.solarpunk,
       ),
       (
         title: 'Kunang-kunang (Firefly)',
         subtitle: 'Amber slow glow malam hari',
-        color: const Color(0xFFF5C97D),
+        color: _kSwatchFirefly,
         preset: ChatThemePreset.fireflyNight,
       ),
       (
         title: 'Buku Harian (Diary)',
         subtitle: 'Tulisan tangan & stempel tinta',
-        color: const Color(0xFF1E3A8A),
+        color: _kSwatchDiaryInk,
         preset: ChatThemePreset.diary,
       ),
     ];
@@ -987,7 +1000,7 @@ class _ChatThemeSettingsScreenState
       context: context,
       title: 'Pilih Preset Utama',
       builder: (ctx) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isDark = MekaarColors.isDarkContext(context);
         final brandAccent = MekaarColors.accentOf(context);
 
         return Padding(
@@ -998,7 +1011,7 @@ class _ChatThemeSettingsScreenState
               final isSelected = pref.preset == item.preset;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: BounceInteractive(
+                child: PressableScale(
                   onTap: () {
                     HapticService.trigger(MekaarHapticIntent.selection);
                     Navigator.pop(ctx);
@@ -1072,25 +1085,25 @@ class _ChatThemeSettingsScreenState
 
     final wallpapers = [
       (WallpaperType.solidColor, 'Mekaar Clean Canvas', SolarIconsBold.palette2, AppColors.blue),
-      (WallpaperType.pixelGardenCanvas, 'Pixel Garden 8-Bit', SolarIconsBold.gamepad, const Color(0xFF3B567D)),
-      (WallpaperType.fireflyCanvas, 'Kunang-Kunang', SolarIconsBold.stars, const Color(0xFFF5C97D)),
-      (WallpaperType.diaryRuledPaper, 'Kertas Garis Buku Harian', SolarIconsBold.documentText, const Color(0xFF1E3A8A)),
-      (WallpaperType.retroY2KCanvas, 'Retro Y2K Teal', SolarIconsBold.laptop, const Color(0xFF008080)),
-      (WallpaperType.isometricGrid, 'Isometric Grid 2.5D', SolarIconsBold.box, const Color(0xFF3B82F6)),
-      (WallpaperType.swissGrid, 'Swiss Grid Minimalist', SolarIconsBold.widget, const Color(0xFFFF5722)),
-      (WallpaperType.neonGrid, 'Neon Cyber Grid', SolarIconsBold.bolt, const Color(0xFF00F0FF)),
-      (WallpaperType.comicHalftone, 'Comic Halftone', SolarIconsBold.chatRoundDots, const Color(0xFFFFD84D)),
-      (WallpaperType.solarpunkCanvas, 'Solarpunk Eco', SolarIconsBold.leaf, const Color(0xFF10B981)),
-      (WallpaperType.pattern, 'Pola Dots Minimalis', SolarIconsBold.tuningSquare, const Color(0xFF64748B)),
-      (WallpaperType.gradient, 'Gradien Soft', SolarIconsBold.palette, const Color(0xFF8B5CF6)),
-      (WallpaperType.neumorphicCanvas, 'Soft Slate Neumorphic', SolarIconsBold.boxMinimalistic, const Color(0xFF94A3B8)),
+      (WallpaperType.pixelGardenCanvas, 'Pixel Garden 8-Bit', SolarIconsBold.gamepad, _kSwatchPixel),
+      (WallpaperType.fireflyCanvas, 'Kunang-Kunang', SolarIconsBold.stars, _kSwatchFirefly),
+      (WallpaperType.diaryRuledPaper, 'Kertas Garis Buku Harian', SolarIconsBold.documentText, _kSwatchDiaryInk),
+      (WallpaperType.retroY2KCanvas, 'Retro Y2K Teal', SolarIconsBold.laptop, _kSwatchTeal80s),
+      (WallpaperType.isometricGrid, 'Isometric Grid 2.5D', SolarIconsBold.box, _kSwatchIsoBlue),
+      (WallpaperType.swissGrid, 'Swiss Grid Minimalist', SolarIconsBold.widget, _kSwatchSwissOrange),
+      (WallpaperType.neonGrid, 'Neon Cyber Grid', SolarIconsBold.bolt, _kSwatchNeonCyan),
+      (WallpaperType.comicHalftone, 'Comic Halftone', SolarIconsBold.chatRoundDots, MekaarColors.yellow),
+      (WallpaperType.solarpunkCanvas, 'Solarpunk Eco', SolarIconsBold.leaf, MekaarColors.success),
+      (WallpaperType.pattern, 'Pola Dots Minimalis', SolarIconsBold.tuningSquare, _kSwatchPatternGray),
+      (WallpaperType.gradient, 'Gradien Soft', SolarIconsBold.palette, MekaarColors.purple),
+      (WallpaperType.neumorphicCanvas, 'Soft Slate Neumorphic', SolarIconsBold.boxMinimalistic, _kSwatchSlate),
     ];
 
     MekaarBottomSheet.show(
       context: context,
       title: 'Pilih Wallpaper Canvas',
       builder: (ctx) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isDark = MekaarColors.isDarkContext(context);
         final brandAccent = MekaarColors.accentOf(context);
 
         return Padding(
@@ -1101,7 +1114,7 @@ class _ChatThemeSettingsScreenState
               final isSelected = pref.wallpaperType == item.$1;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: BounceInteractive(
+                child: PressableScale(
                   onTap: () {
                     HapticService.trigger(MekaarHapticIntent.selection);
                     Navigator.pop(ctx);
@@ -1177,7 +1190,7 @@ class _ChatThemeSettingsScreenState
       context: context,
       title: 'Pilih Gaya Gelembung',
       builder: (ctx) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isDark = MekaarColors.isDarkContext(context);
         final brandAccent = MekaarColors.accentOf(context);
 
         return Padding(
@@ -1188,7 +1201,7 @@ class _ChatThemeSettingsScreenState
               final isSelected = pref.bubbleStyle == item.$1;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: BounceInteractive(
+                child: PressableScale(
                   onTap: () {
                     HapticService.trigger(MekaarHapticIntent.selection);
                     Navigator.pop(ctx);
@@ -1300,7 +1313,7 @@ class _ChatThemeSettingsScreenState
             return AlertDialog(
               backgroundColor: MekaarColors.surfaceOf(context),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(MekaarRadius.lg),
               ),
               title: Row(
                 children: [

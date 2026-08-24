@@ -83,6 +83,8 @@ class CallInvitationListener {
     final context = AppNavigator.currentContext;
     if (context != null && context.mounted) {
       Navigator.of(context).push(
+        // PENGECAHAN TRANSISI: layar panggilan masuk sengaja memakai
+        // MaterialPageRoute (platform-feel ala dialer OS).
         MaterialPageRoute(
           builder: (_) => IncomingCallScreen(
             callId: callId,

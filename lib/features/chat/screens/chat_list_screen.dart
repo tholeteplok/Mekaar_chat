@@ -339,7 +339,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
           // 3. Arsipkan Obrolan
           ListTile(
-            leading: const Icon(SolarIconsOutline.archive, color: MekaarColors.cyan),
+            leading: Icon(SolarIconsOutline.archive, color: MekaarColors.accentTextOf(context)),
             title: const Text('Arsipkan Obrolan'),
             onTap: () {
               Navigator.pop(sheetCtx);
@@ -769,7 +769,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           color: MekaarColors.guardianTeal,
                           size: 18,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Vault Obrolan Terbuka (Sesi Aktif)',
@@ -788,6 +788,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           },
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
+                            constraints: const BoxConstraints(
+                              minHeight: 44,
+                            ),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                             decoration: BoxDecoration(
                               color: MekaarColors.guardianTeal,
@@ -908,8 +911,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             ),
             // Add Message Action Button on the right (Clean Solid FAB)
             Container(
-              width: 56,
-              height: 56,
+              width: MekaarSizes.fab,
+              height: MekaarSizes.fab,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.blue,

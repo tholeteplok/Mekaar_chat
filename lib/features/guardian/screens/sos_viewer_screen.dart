@@ -358,7 +358,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
             height: 40,
             decoration: BoxDecoration(
               color: MekaarColors.brandPrimary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(MekaarRadius.sm),
             ),
             child: const Icon(
               SolarIconsOutline.videocameraRecord,
@@ -546,7 +546,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     ),
                   ),
                 ),
@@ -562,7 +562,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                     horizontal: 14,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                   ),
                 ),
               ),
@@ -587,7 +587,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                 side: BorderSide(color: MekaarColors.sosRed.withValues(alpha: 0.5)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(MekaarRadius.sm),
                 ),
               ),
             ),

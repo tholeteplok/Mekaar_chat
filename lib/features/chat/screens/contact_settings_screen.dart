@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
@@ -226,7 +227,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     Color? iconColor,
     bool isActive = false,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
     final glassBg = isDark
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.65);
@@ -244,14 +245,14 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
           MekaarGlassBlurContainer(
             isFloating: true,
             height: 52,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(MekaarRadius.lg),
             padding: EdgeInsets.zero,
             border: glassBorder,
             customColor: isActive
                 ? MekaarColors.guardianTeal.withValues(alpha: 0.20)
                 : glassBg,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(MekaarRadius.lg),
               onTap: onTap,
               child: Center(
                 child: Icon(
@@ -604,7 +605,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                 backgroundColor:
                                     Theme.of(context).colorScheme.surface,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(MekaarRadius.lg),
                                 ),
                                 title: const Row(
                                   children: [

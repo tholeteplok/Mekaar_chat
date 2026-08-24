@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
@@ -260,12 +261,24 @@ class _SlideUpCallButtonState extends State<_SlideUpCallButton>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+      duration: MekaarMotion.loop,
+    );
 
     _pulseAnim = Tween<double>(begin: 0.0, end: 6.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: cincin pulse dimatikan, tombol tetap berfungsi.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _animController.stop();
+      _animController.value = 0;
+    } else if (!_animController.isAnimating) {
+      _animController.repeat(reverse: true);
+    }
   }
 
   @override
@@ -340,8 +353,8 @@ class _SlideUpCallButtonState extends State<_SlideUpCallButton>
             onVerticalDragUpdate: _onVerticalDragUpdate,
             onVerticalDragEnd: _onVerticalDragEnd,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 100),
-              curve: Curves.easeOut,
+              duration: MekaarMotion.fast,
+              curve: MekaarMotion.standard,
               transform: Matrix4.translationValues(0, _dragOffsetY, 0),
               child: Container(
                 width: 76,

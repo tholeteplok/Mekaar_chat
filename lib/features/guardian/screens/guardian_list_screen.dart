@@ -106,7 +106,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     List<Guardian> guardians,
     GuardianLoadStatus status,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
     final accentColor = MekaarColors.accentOf(context);
 
     return Padding(
@@ -228,7 +228,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                   'Belum ada yang menambahkan Anda sebagai Guardian.',
                   textAlign: TextAlign.center,
                   style: MekaarTypography.bodyMD.copyWith(
-                    color: MekaarColors.textMuted,
+                    color: MekaarColors.textMutedOf(context),
                   ),
                 ),
               ),
@@ -341,9 +341,9 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                     ? () => _confirmBreakGuardian(guardian)
                     : null,
               ),
-              const Icon(
+              Icon(
                 SolarIconsOutline.altArrowRight,
-                color: MekaarColors.textMuted,
+                color: MekaarColors.textMutedOf(context),
                 size: 18,
               ),
             ] else if (isPending) ...[
@@ -470,17 +470,17 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             SolarIconsOutline.dangerTriangle,
             size: 36,
-            color: MekaarColors.textMuted,
+            color: MekaarColors.textMutedOf(context),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             'Daftar Guardian tidak dapat dimuat.',
             textAlign: TextAlign.center,
             style: MekaarTypography.bodyMD.copyWith(
-              color: MekaarColors.textMuted,
+              color: MekaarColors.textMutedOf(context),
             ),
           ),
           const SizedBox(height: 16),

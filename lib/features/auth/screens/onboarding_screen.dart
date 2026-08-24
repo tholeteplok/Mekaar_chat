@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
@@ -47,7 +48,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _nextPage() {
     if (_currentPage < _slides.length - 1) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
+        duration: MekaarMotion.counter,
         curve: Curves.easeIn,
       );
     } else {
@@ -94,7 +95,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                     return AnimatedAppear(
                       key: ValueKey(index),
-                      duration: const Duration(milliseconds: 350),
+                      duration: MekaarMotion.slow,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -142,7 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     children: List.generate(
                       _slides.length,
                       (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
+                        duration: MekaarMotion.counter,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         width: _currentPage == index ? 24 : 8,
                         height: 8,

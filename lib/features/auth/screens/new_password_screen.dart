@@ -223,11 +223,6 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                        ),
                       ),
                       child: _isLoading
                           ? const SizedBox(

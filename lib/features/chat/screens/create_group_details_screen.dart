@@ -211,7 +211,7 @@ class _CreateGroupDetailsScreenState
                 color: MekaarColors.surfaceOf(context),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: MekaarColors.border.withValues(alpha: 0.1),
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.1),
                 ),
               ),
               child: ListView.separated(
@@ -220,7 +220,7 @@ class _CreateGroupDetailsScreenState
                 itemCount: widget.selectedUserProfiles.length,
                 separatorBuilder: (ctx, idx) => Divider(
                   height: 1,
-                  color: MekaarColors.border.withValues(alpha: 0.05),
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.05),
                 ),
                 itemBuilder: (context, index) {
                   final profile = widget.selectedUserProfiles[index];

@@ -115,7 +115,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   }
 
   Widget _buildPermissionsView() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
     final textPrimary = MekaarColors.textPrimaryOf(context);
 
     return SingleChildScrollView(
@@ -352,7 +352,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             child: Text(
               'Kembali',
               style: MekaarTypography.bodyMD.copyWith(
-                color: MekaarColors.textSecondary,
+                color: MekaarColors.textSecondaryOf(context),
               ),
             ),
           ),
@@ -420,13 +420,13 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: enabled ? MekaarColors.successLight : MekaarColors.borderLight,
+        color: enabled ? MekaarColors.successLight : MekaarColors.borderOf(context),
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(
         label,
         style: MekaarTypography.labelSM.copyWith(
-          color: enabled ? MekaarColors.success : MekaarColors.textMuted,
+          color: enabled ? MekaarColors.success : MekaarColors.textMutedOf(context),
         ),
       ),
     );

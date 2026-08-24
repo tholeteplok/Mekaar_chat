@@ -4,7 +4,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/bounce_interactive.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 
 /// Model hasil dari [ScheduledWipeBottomSheet]
@@ -206,7 +206,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
           const SizedBox(height: 20),
 
           // Card Pemilih Jam (Time Display & Selector)
-          BounceInteractive(
+          PressableScale(
             onTap: _pickTime,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -347,7 +347,7 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
     final isSelected = _selectedMode == mode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return BounceInteractive(
+    return PressableScale(
       onTap: () {
         HapticService.trigger(MekaarHapticIntent.selection);
         setState(() => _selectedMode = mode);

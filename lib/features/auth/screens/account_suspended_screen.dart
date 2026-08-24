@@ -112,9 +112,6 @@ class AccountSuspendedScreen extends ConsumerWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: MekaarColors.accentOf(context),
                     foregroundColor: MekaarColors.textOnBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                    ),
                   ),
                 ),
               ),

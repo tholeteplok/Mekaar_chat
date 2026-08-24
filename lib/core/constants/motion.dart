@@ -14,6 +14,13 @@ class MekaarMotion {
   static const Duration counter = Duration(milliseconds: 300);
   static const Duration idle = Duration(milliseconds: 1500);
 
+  /// Loop indikator hidup (pulse banner, shimmer, waveform) — bukan transisi.
+  static const Duration loop = Duration(milliseconds: 1000);
+
+  /// Jeda antar-item animasi staggered list; pasangkan dengan [staggerMax].
+  static const Duration staggerStep = Duration(milliseconds: 40);
+  static const Duration staggerMax = Duration(milliseconds: 240);
+
   // Kurva
   static const Curve standard = Curves.easeOutCubic;
   static const Curve emphasized = Curves.easeInOutCubic;

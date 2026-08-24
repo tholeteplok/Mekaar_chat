@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -38,7 +39,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
     final username = authState.profile?.username ?? '';
     final avatarUrl = authState.profile?.avatarUrl;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MekaarColors.isDarkContext(context);
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return MekaarScaffold(
@@ -78,7 +79,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
                     decoration: BoxDecoration(
                       color: isDark ? MekaarColors.cardDark : Colors.white,
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(MekaarRadius.xl),
                       border: Border.all(
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.12)
@@ -102,7 +103,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(MekaarRadius.lg),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.06),
@@ -162,7 +163,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                           decoration: BoxDecoration(
                             color: MekaarColors.guardianTeal
                                 .withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(100),
+                            borderRadius: BorderRadius.circular(MekaarRadius.pill),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -241,7 +242,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     elevation: 3,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(100),
+                      borderRadius: BorderRadius.circular(MekaarRadius.pill),
                     ),
                   ),
                 ),
@@ -279,7 +280,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                       width: 1.2,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(100),
+                      borderRadius: BorderRadius.circular(MekaarRadius.pill),
                     ),
                   ),
                 ),

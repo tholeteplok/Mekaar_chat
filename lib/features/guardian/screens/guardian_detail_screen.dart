@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -209,7 +210,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                           : SolarIconsOutline.userMinus,
                       color: isBlocked
                           ? MekaarColors.sosRed
-                          : MekaarColors.textSecondary,
+                          : MekaarColors.textSecondaryOf(context),
                     ),
                     title: Text(
                       isBlocked ? 'Buka Blokir Guardian' : 'Blokir Guardian',
@@ -238,19 +239,11 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: MekaarColors.successLight,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        SolarIconsOutline.stopwatch,
+                    MekaarIconBadge(
+                        icon: SolarIconsOutline.stopwatch,
                         color: MekaarColors.success,
-                        size: 20,
+                        backgroundColor: MekaarColors.successLight,
                       ),
-                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -276,19 +269,11 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: MekaarColors.sosLight,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        SolarIconsOutline.danger,
+                    MekaarIconBadge(
+                        icon: SolarIconsOutline.danger,
                         color: MekaarColors.sosRed,
-                        size: 20,
+                        backgroundColor: MekaarColors.sosLight,
                       ),
-                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -317,23 +302,15 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   SwitchListTile(
                     activeThumbColor: Theme.of(context).colorScheme.primary,
                     activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                    secondary: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _gpsEnabled
-                            ? MekaarColors.infoLight
-                            : MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        SolarIconsOutline.mapPoint,
+                    secondary: MekaarIconBadge(
+                        icon: SolarIconsOutline.mapPoint,
                         color: _gpsEnabled
                             ? MekaarColors.info
-                            : MekaarColors.textMuted,
-                        size: 20,
+                            : MekaarColors.textMutedOf(context),
+                        backgroundColor: _gpsEnabled
+                            ? MekaarColors.infoLight
+                            : MekaarColors.surface2Of(context),
                       ),
-                    ),
                     title: Text(
                       'Lacak Lokasi GPS',
                       style: MekaarTypography.labelLG,
@@ -349,23 +326,15 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   SwitchListTile(
                     activeThumbColor: Theme.of(context).colorScheme.primary,
                     activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                    secondary: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _micEnabled
-                            ? MekaarColors.guardianLight
-                            : MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        SolarIconsOutline.microphone,
+                    secondary: MekaarIconBadge(
+                        icon: SolarIconsOutline.microphone,
                         color: _micEnabled
                             ? MekaarColors.guardianTeal
-                            : MekaarColors.textMuted,
-                        size: 20,
+                            : MekaarColors.textMutedOf(context),
+                        backgroundColor: _micEnabled
+                            ? MekaarColors.guardianLight
+                            : MekaarColors.surface2Of(context),
                       ),
-                    ),
                     title: Text(
                       'Akses Mikrofon',
                       style: MekaarTypography.labelLG,
@@ -381,23 +350,15 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   SwitchListTile(
                     activeThumbColor: Theme.of(context).colorScheme.primary,
                     activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                    secondary: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _videoEnabled
-                            ? MekaarColors.guardianLight
-                            : MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        SolarIconsOutline.videocamera,
+                    secondary: MekaarIconBadge(
+                        icon: SolarIconsOutline.videocamera,
                         color: _videoEnabled
                             ? MekaarColors.guardianTeal
-                            : MekaarColors.textMuted,
-                        size: 20,
+                            : MekaarColors.textMutedOf(context),
+                        backgroundColor: _videoEnabled
+                            ? MekaarColors.guardianLight
+                            : MekaarColors.surface2Of(context),
                       ),
-                    ),
                     title: Text(
                       'Akses Kamera (Video Darurat)',
                       style: MekaarTypography.labelLG,
@@ -557,22 +518,18 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
           return Column(
             children: [
               ListTile(
-                leading: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
-                        : MekaarColors.surface2Of(context),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    opt['icon'] as IconData,
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : MekaarColors.textMuted,
-                    size: 18,
-                  ),
+                leading: MekaarIconBadge(
+                  icon: opt['icon'] as IconData,
+                  size: 40,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : MekaarColors.textMutedOf(context),
+                  backgroundColor: isSelected
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.12)
+                      : MekaarColors.surface2Of(context),
                 ),
                 title: Text(
                   opt['label'] as String,
@@ -587,9 +544,9 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         SolarIconsBold.checkCircle,
                         color: Theme.of(context).colorScheme.primary,
                       )
-                    : const Icon(
+                    : Icon(
                         SolarIconsOutline.checkCircle,
-                        color: MekaarColors.textMuted,
+                        color: MekaarColors.textMutedOf(context),
                       ),
                 onTap: () =>
                     setState(() => _storageOption = opt['value'] as String),

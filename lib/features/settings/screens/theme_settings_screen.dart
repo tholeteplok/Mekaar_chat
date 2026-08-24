@@ -73,10 +73,10 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: MekaarColors.cyan.withValues(alpha: 0.15),
+                    color: MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(MekaarRadius.md),
                   ),
-                  child: const Icon(SolarIconsOutline.text, color: MekaarColors.cyan, size: 22),
+                  child: Icon(SolarIconsOutline.text, color: MekaarColors.accentTextOf(context), size: 22),
                 ),
                 title: Text(
                   activeFont.displayName,
@@ -142,17 +142,17 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                       child: Text('Auto', style: MekaarTypography.bodySM.copyWith(fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: MekaarColors.cyan.withValues(alpha: 0.15),
+                        color: MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(MekaarRadius.md),
                       ),
-                      child: const Icon(SolarIconsOutline.gallery, color: MekaarColors.cyan, size: 20),
+                      child: Icon(SolarIconsOutline.gallery, color: MekaarColors.accentTextOf(context), size: 20),
                     ),
                     title: Text(
                       'Wallpaper Chat & Gelembung',
@@ -246,7 +246,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: MekaarSpacing.md),
+          SizedBox(height: MekaarSpacing.md),
           Text(
             'Halo, MEKAAR User!',
             style: GoogleFonts.getFont(
@@ -258,7 +258,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             'Pratinjau antarmuka Clean Core dengan font "${activeFont.displayName}".',
             style: GoogleFonts.getFont(
@@ -342,7 +342,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                             color: MekaarColors.textPrimaryOf(context),
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           opt.$3,
                           style: MekaarTypography.bodySM.copyWith(
@@ -381,9 +381,9 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TabBar(
-              labelColor: MekaarColors.cyan,
+              labelColor: MekaarColors.accentTextOf(context),
               unselectedLabelColor: MekaarColors.textMutedOf(context),
-              indicatorColor: MekaarColors.cyan,
+              indicatorColor: MekaarColors.accentTextOf(context),
               tabs: const [
                 Tab(text: 'Modern & Clean'),
                 Tab(text: 'Playful & Komik'),
@@ -441,7 +441,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               textStyle: TextStyle(
                 fontWeight: selected ? FontWeight.bold : FontWeight.w600,
                 fontSize: 16,
-                color: selected ? MekaarColors.cyan : MekaarColors.textPrimaryOf(context),
+                color: selected ? MekaarColors.accentTextOf(context) : MekaarColors.textPrimaryOf(context),
               ),
             ),
           ),
@@ -456,7 +456,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             ),
           ),
           trailing: selected
-              ? const Icon(SolarIconsBold.checkCircle, color: MekaarColors.cyan, size: 20)
+              ? Icon(SolarIconsBold.checkCircle, color: MekaarColors.accentTextOf(context), size: 20)
               : null,
           onTap: () async {
             await notifier.setFontFamily(font.key);

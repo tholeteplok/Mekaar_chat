@@ -271,7 +271,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                             color: MekaarColors.accentOf(context),
                             size: 20,
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Private Vault Terbuka',
@@ -309,10 +309,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
-                                vertical: 4,
                               ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              minimumSize: const Size(44, 44),
                             ),
                           ),
                         ],
@@ -374,7 +372,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 7,
@@ -405,7 +403,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       width: 155,
                       margin: EdgeInsets.zero,
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     // Toggle Tampilan List / Grid
                     IconButton(
                       icon: Icon(
@@ -417,9 +415,6 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       ),
                       tooltip:
                           _isGridView ? 'Tampilan Daftar' : 'Tampilan Grid',
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(),
-                      splashRadius: 16,
                       onPressed: _toggleViewMode,
                     ),
                   ],
@@ -575,7 +570,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               size: 140,
               animate: true,
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text(
               hasFilter ? 'Kontak Tidak Ditemukan' : 'Belum Ada Kontak',
               style: MekaarTypography.bodyMD.copyWith(
@@ -585,7 +580,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               hasFilter
                   ? 'Coba cari dengan kata kunci lain.'
@@ -685,7 +680,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                               ),
                             ),
                             if (isHidden && isVaultUnlocked) ...[
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -704,7 +699,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                       size: 11,
                                       color: MekaarColors.accentOf(context),
                                     ),
-                                    const SizedBox(width: 3),
+                                    SizedBox(width: 3),
                                     Text(
                                       'Vault',
                                       style: TextStyle(
@@ -718,7 +713,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                               ),
                             ],
                             if (isGuardian) ...[
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -847,7 +842,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 },
               ),
               ListTile(
-                leading: const Icon(SolarIconsOutline.userCircle, color: MekaarColors.cyan),
+                leading: Icon(SolarIconsOutline.userCircle, color: MekaarColors.accentTextOf(context)),
                 title: const Text('Info & Pengaturan Kontak'),
                 onTap: () {
                   Navigator.pop(ctx);

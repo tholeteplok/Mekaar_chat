@@ -8,6 +8,7 @@ import 'package:location/location.dart' as loc;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
@@ -771,7 +772,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0.0,
-        duration: const Duration(milliseconds: 300),
+        duration: MekaarMotion.counter,
         curve: Curves.easeOut,
       );
     }
@@ -1026,10 +1027,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                   final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
                   final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
 
-                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  final isDark = MekaarColors.isDarkContext(context);
                   final frostedBg = isDark
-                      ? const Color(0xF2181D2E)
-                      : const Color(0xF6FFFFFF);
+                      ? MekaarColors.composerOverlayDark
+                      : MekaarColors.composerOverlayLight;
                   final frostedBorder = isDark
                       ? Colors.white.withValues(alpha: 0.16)
                       : Colors.black.withValues(alpha: 0.10);
@@ -1509,7 +1510,7 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
     super.initState();
     _recoilController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 180),
+      duration: MekaarMotion.fast,
     );
   }
 

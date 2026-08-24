@@ -149,6 +149,9 @@ void _handleNotificationRoute(NotificationRoute route) {
       final roomId = route.roomId;
       final callerId = route.callerId;
       if (callId == null || roomId == null || callerId == null) return;
+      // PENGECAHAN TRANSISI: layar panggilan masuk sengaja memakai
+      // MaterialPageRoute (platform-feel slide-up ala dialer OS), bukan
+      // MekaarPageRoute fade. Jangan diubah tanpa revisi design.md.
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => IncomingCallScreen(

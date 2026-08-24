@@ -3,7 +3,8 @@ import 'package:shimmer/shimmer.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 
-/// Balok skeleton generik untuk state loading, dibungkus efek shimmer.
+/// Balok skeleton generik untuk state loading.
+/// Tanpa shimmer (warna statis) bila user mengaktifkan reduced motion.
 class SkeletonBox extends StatelessWidget {
   final double width;
   final double height;
@@ -22,7 +23,7 @@ class SkeletonBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: MekaarColors.surface3Of(context),
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -30,6 +31,7 @@ class SkeletonBox extends StatelessWidget {
 }
 
 /// Membungkus konten skeleton dengan gradient shimmer yang mengikuti tema.
+/// Reduced motion: child dirender apa adanya tanpa animasi.
 class MekaarShimmer extends StatelessWidget {
   final Widget child;
 
@@ -37,9 +39,13 @@ class MekaarShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return child;
+    }
+    final isDark = MekaarColors.isDarkContext(context);
     return Shimmer.fromColors(
-      baseColor: isDark ? MekaarColors.surfaceDark : MekaarColors.surface3,
+      baseColor:
+          isDark ? MekaarColors.surfaceDark : MekaarColors.surface3,
       highlightColor:
           isDark ? MekaarColors.surface : MekaarColors.borderLight,
       child: child,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -187,17 +188,14 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                     // 1. Tombol TERIMA (Hijau/Teal)
                     SizedBox(
                       width: double.infinity,
-                      height: 40,
+                      height: 48,
                       child: ElevatedButton.icon(
                         onPressed: _handleAccept,
                         icon: const Icon(SolarIconsOutline.checkCircle, size: 18),
                         label: const Text('Terima Undangan'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.accentOf(context),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          foregroundColor: MekaarColors.textOnBlue,
                         ),
                       ),
                     ),
@@ -214,7 +212,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                               foregroundColor: MekaarColors.textSecondaryOf(context),
                               side: BorderSide(color: Theme.of(context).dividerColor),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                             ),
                           ),
@@ -229,7 +227,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: MekaarColors.sosRed),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(MekaarRadius.sm),
                               ),
                             ),
                           ),

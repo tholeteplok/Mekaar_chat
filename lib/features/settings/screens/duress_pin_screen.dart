@@ -205,7 +205,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                   height: 13,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: MekaarColors.border, width: 2),
+                    border: Border.all(color: MekaarColors.borderOf(context), width: 2),
                     color: _pin.length > i ? MekaarColors.textPrimaryOf(context) : Colors.transparent,
                   ),
                 ),

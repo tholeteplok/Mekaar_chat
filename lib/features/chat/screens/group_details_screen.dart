@@ -168,9 +168,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: MekaarColors.surfaceOf(context),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
                       border: Border.all(
-                        color: MekaarColors.border.withValues(alpha: 0.1),
+                        color: MekaarColors.borderOf(context).withValues(alpha: 0.1),
                       ),
                     ),
                     child: ListView.separated(
@@ -179,7 +179,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                       itemCount: _participants.length,
                       separatorBuilder: (ctx, idx) => Divider(
                         height: 1,
-                        color: MekaarColors.border.withValues(alpha: 0.05),
+                        color: MekaarColors.borderOf(context).withValues(alpha: 0.05),
                       ),
                       itemBuilder: (context, index) {
                         final p = _participants[index];

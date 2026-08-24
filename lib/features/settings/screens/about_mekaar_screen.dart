@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -98,15 +99,12 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Nanti'),
+          child: Text('Nanti'),
         ),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: MekaarColors.accentOf(context),
-            foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            foregroundColor: MekaarColors.textOnBlue,
           ),
           onPressed: () {
             Navigator.pop(context);
@@ -233,7 +231,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                           fontSize: 17,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2),
                       Text(
                         '5 prinsip perlindungan & integritas data MEKAAR',
                         style: MekaarTypography.bodySM.copyWith(
@@ -282,7 +280,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                       color: MekaarColors.textPrimaryOf(context),
                                     ),
                                   ),
-                                  const SizedBox(height: 3),
+                                  SizedBox(height: 3),
                                   Text(
                                     pillars[i].desc,
                                     style: MekaarTypography.bodySM.copyWith(
@@ -358,12 +356,12 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: MekaarColors.cyan.withValues(alpha: 0.12),
+                    color: MekaarColors.accentTextOf(context).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     SolarIconsOutline.notes,
-                    color: MekaarColors.cyan,
+                    color: MekaarColors.accentTextOf(context),
                     size: 22,
                   ),
                 ),
@@ -379,7 +377,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                           fontSize: 17,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2),
                       Text(
                         '7 fitur keamanan unggulan MEKAAR',
                         style: MekaarTypography.bodySM.copyWith(
@@ -423,7 +421,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                       color: MekaarColors.textPrimaryOf(context),
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  SizedBox(height: 2),
                                   Text(
                                     highlights[i].desc,
                                     style: MekaarTypography.bodySM.copyWith(
@@ -516,7 +514,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                           fontSize: 17,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2),
                       Text(
                         'Prinsip perlindungan hukum & zero-knowledge MEKAAR',
                         style: MekaarTypography.bodySM.copyWith(
@@ -565,7 +563,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                       color: MekaarColors.textPrimaryOf(context),
                                     ),
                                   ),
-                                  const SizedBox(height: 3),
+                                  SizedBox(height: 3),
                                   Text(
                                     terms[i].desc,
                                     style: MekaarTypography.bodySM.copyWith(
@@ -634,7 +632,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(
           label,
           style: MekaarTypography.labelSM.copyWith(
@@ -675,7 +673,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         // Logo Squircle
                         Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(22),
+                            borderRadius: BorderRadius.circular(MekaarRadius.xl),
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.blue.withValues(alpha: isDark ? 0.25 : 0.15),
@@ -685,7 +683,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                             ],
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
+                            borderRadius: BorderRadius.circular(MekaarRadius.xl),
                             child: Image.asset(
                               'assets/logo/app_icon.webp',
                               width: 88,
@@ -696,7 +694,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                 height: 88,
                                 decoration: BoxDecoration(
                                   color: AppColors.blue.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(22),
+                                  borderRadius: BorderRadius.circular(MekaarRadius.xl),
                                 ),
                                 child: const Icon(
                                   SolarIconsBold.shieldCheck,
@@ -718,7 +716,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                             letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
 
                         // Subtitle
                         Text(
@@ -730,7 +728,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: 6),
 
                         // Versi Aplikasi
                         Text(
@@ -745,7 +743,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
 
                         // ── Status Pembaruan Pill Button ──
                         InkWell(
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(MekaarRadius.xl),
                           onTap: _isCheckingUpdate
                               ? null
                               : () {
@@ -761,7 +759,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               color: hasNewUpdate
                                   ? MekaarColors.sosRed.withValues(alpha: 0.15)
                                   : AppColors.blue.withValues(alpha: isDark ? 0.18 : 0.12),
-                              borderRadius: BorderRadius.circular(22),
+                              borderRadius: BorderRadius.circular(MekaarRadius.xl),
                               border: Border.all(
                                 color: hasNewUpdate
                                     ? MekaarColors.sosRed.withValues(alpha: 0.4)
@@ -879,7 +877,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                 size: 20,
                               ),
                             ),
-                            title: const Text(
+                            title: Text(
                               'Filosofi & Pilar Keamanan',
                               style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                             ),
@@ -904,16 +902,16 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                             leading: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: MekaarColors.cyan.withValues(alpha: 0.12),
+                                color: MekaarColors.accentTextOf(context).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 SolarIconsOutline.notes,
-                                color: MekaarColors.cyan,
+                                color: MekaarColors.accentTextOf(context),
                                 size: 20,
                               ),
                             ),
-                            title: const Text(
+                            title: Text(
                               'Fitur & Kemampuan Utama',
                               style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                             ),
@@ -947,7 +945,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                 size: 20,
                               ),
                             ),
-                            title: const Text(
+                            title: Text(
                               'Syarat Layanan & Privasi',
                               style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                             ),
@@ -981,7 +979,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                 size: 20,
                               ),
                             ),
-                            title: const Text(
+                            title: Text(
                               'Perizinan & Hak Akses',
                               style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                             ),
@@ -1008,7 +1006,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  SizedBox(height: 28),
 
                   // ── 4. Footer Kriptografi & Lisensi ──
                   Center(

@@ -205,11 +205,6 @@ class _ForgotPasswordScreenState
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submitRequest,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                        ),
                       ),
                       child: _isLoading
                           ? const SizedBox(
@@ -394,11 +389,6 @@ class _ForgotPasswordScreenState
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submitOtpFallback,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                        ),
                       ),
                       child: _isLoading
                           ? const SizedBox(

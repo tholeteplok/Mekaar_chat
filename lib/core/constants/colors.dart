@@ -93,6 +93,14 @@ class MekaarColors {
   static const Color borderDark = AppColors.borderDark;
   static const Color border = Color(0xFFDCE7F5);
 
+  // ── Permukaan komposer chat & mockup preview-nya ──
+  /// Frosted bar komposer di chat_screen (alpha penuh, bukan token tema).
+  static const Color composerOverlayLight = Color(0xF6FFFFFF);
+  static const Color composerOverlayDark = Color(0xF2181D2E);
+  /// Pil input "Ketik pesan…" pada preview pengaturan tema chat.
+  static const Color composerPillLight = Color(0xFFE8F4FC);
+  static const Color composerPillDark = Color(0xFF1E2638);
+
   // ── Background Surfaces ──
   static const Color background = AppColors.lightBlue;
   static const Color backgroundDark = AppColors.darkBlue;

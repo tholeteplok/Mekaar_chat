@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -111,7 +112,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           } else {
             _pageController.animateToPage(
               0,
-              duration: const Duration(milliseconds: 300),
+              duration: MekaarMotion.counter,
               curve: Curves.easeOutCubic,
             );
           }
@@ -142,7 +143,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                   } else {
                     _pageController.animateToPage(
                       index,
-                      duration: const Duration(milliseconds: 300),
+                      duration: MekaarMotion.counter,
                       curve: Curves.easeOutCubic,
                     );
                   }
@@ -198,11 +199,16 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                                   .cancelHangout();
                             },
                             child: Container(
+                              constraints: const BoxConstraints(
+                                minHeight: 44,
+                              ),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 10),
+                              alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius:
+                                    BorderRadius.circular(MekaarRadius.pill),
                               ),
                               child: const Text(
                                 'Hentikan',

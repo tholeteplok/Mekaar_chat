@@ -220,13 +220,13 @@ class _GuardianTrackingScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 36, color: MekaarColors.textMuted),
-            const SizedBox(height: 12),
+            Icon(icon, size: 36, color: MekaarColors.textMutedOf(context)),
+            SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
               style: MekaarTypography.bodyMD.copyWith(
-                color: MekaarColors.textMuted,
+                color: MekaarColors.textMutedOf(context),
               ),
             ),
             if (actionLabel != null && onPressed != null) ...[
@@ -268,7 +268,7 @@ class _GuardianTrackingScreenState
                     Text(
                       userName,
                       style: MekaarTypography.labelLG.copyWith(
-                        color: MekaarColors.textPrimary,
+                        color: MekaarColors.textPrimaryOf(context),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -319,7 +319,7 @@ class _GuardianTrackingScreenState
                 Icon(
                   SolarIconsOutline.gps,
                   size: 16,
-                  color: MekaarColors.textMuted,
+                  color: MekaarColors.textMutedOf(context),
                 ),
                 SizedBox(width: 8),
                 Text(
@@ -336,11 +336,11 @@ class _GuardianTrackingScreenState
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(SolarIconsOutline.map, size: 18),
-                    label: const Text('Lihat di Peta'),
+                    icon: Icon(SolarIconsOutline.map, size: 18),
+                    label: Text('Lihat di Peta'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: MekaarColors.textPrimary,
-                      side: const BorderSide(color: MekaarColors.border),
+                      foregroundColor: MekaarColors.textPrimaryOf(context),
+                      side: BorderSide(color: MekaarColors.borderOf(context)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -425,24 +425,24 @@ class _GuardianTrackingScreenState
               size: 16,
               color: MekaarColors.sosRed,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text(
                 '${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
                 style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.textSecondary,
+                  color: MekaarColors.textSecondaryOf(context),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Row(
           children: [
-            const Icon(
+            Icon(
               SolarIconsOutline.clockSquare,
               size: 16,
-              color: MekaarColors.textMuted,
+              color: MekaarColors.textMutedOf(context),
             ),
             const SizedBox(width: 8),
             Text(
@@ -452,13 +452,13 @@ class _GuardianTrackingScreenState
           ],
         ),
         if (accuracy != null) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Row(
             children: [
-              const Icon(
+              Icon(
                 SolarIconsOutline.gps,
                 size: 16,
-                color: MekaarColors.textMuted,
+                color: MekaarColors.textMutedOf(context),
               ),
               const SizedBox(width: 8),
               Text(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -84,7 +85,7 @@ class SoundPreferenceSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: AnimatedOpacity(
               opacity: enabled ? 1 : 0.45,
-              duration: const Duration(milliseconds: 180),
+              duration: MekaarMotion.fast,
               child: Column(
                 children: [
                   for (final option in options)

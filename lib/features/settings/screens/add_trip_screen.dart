@@ -582,12 +582,12 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                     // 1. Nama Perjalanan
                     TextFormField(
                       controller: _titleController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Nama Perjalanan',
                         hintText: 'Contoh: Pulang Kerja, Ke Kampus',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(SolarIconsOutline.routing,
-                            color: MekaarColors.cyan),
+                            color: MekaarColors.primaryOf(context)),
                       ),
                       validator: (v) => v == null || v.trim().isEmpty
                           ? 'Nama perjalanan wajib diisi'
@@ -607,17 +607,17 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                         if (_isLoadingGps)
                           Row(
                             children: [
-                              const SizedBox(
+                              SizedBox(
                                 width: 12,
                                 height: 12,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: MekaarColors.cyan),
+                                    strokeWidth: 2, color: MekaarColors.primaryOf(context)),
                               ),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(
                                 'Deteksi GPS...',
                                 style: MekaarTypography.bodySM
-                                    .copyWith(color: MekaarColors.cyan),
+                                    .copyWith(color: MekaarColors.primaryOf(context)),
                               ),
                             ],
                           ),
@@ -635,10 +635,10 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                         return ChoiceChip(
                           label: Text(choice),
                           selected: isSelected,
-                          selectedColor: MekaarColors.cyan.withValues(alpha: 0.2),
+                          selectedColor: MekaarColors.primaryOf(context).withValues(alpha: 0.2),
                           side: BorderSide(
                             color: isSelected
-                                ? MekaarColors.cyan
+                                ? MekaarColors.primaryOf(context)
                                 : MekaarColors.surface2Of(context),
                           ),
                           onSelected: (selected) {
@@ -661,15 +661,15 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                       style: MekaarTypography.bodyMD
                           .copyWith(fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: MekaarSpacing.xs),
+                    SizedBox(height: MekaarSpacing.xs),
                     TextFormField(
                       controller: _destLabelController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Nama / Label Tujuan',
                         hintText: 'Contoh: Rumah, Kos, Kantor',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(SolarIconsOutline.mapPoint,
-                            color: MekaarColors.cyan),
+                            color: MekaarColors.primaryOf(context)),
                       ),
                       validator: (v) => v == null || v.trim().isEmpty
                           ? 'Label tujuan wajib diisi'
@@ -712,7 +712,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                                 isSaved ? MekaarIcons.bookmarkAdded : icon,
                                 size: 16,
                                 color: isSaved
-                                    ? MekaarColors.cyan
+                                    ? MekaarColors.primaryOf(context)
                                     : MekaarColors.textMutedOf(context),
                               ),
                               label: Row(
@@ -720,18 +720,18 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                                 children: [
                                   Text(name),
                                   if (isSaved) ...[
-                                    const SizedBox(width: 4),
-                                    const Icon(MekaarIcons.checkCircle,
-                                        size: 12, color: MekaarColors.cyan),
+                                    SizedBox(width: 4),
+                                    Icon(MekaarIcons.checkCircle,
+                                        size: 12, color: MekaarColors.primaryOf(context)),
                                   ],
                                 ],
                               ),
                               backgroundColor: isSaved
-                                  ? MekaarColors.cyan.withValues(alpha: 0.1)
+                                  ? MekaarColors.primaryOf(context).withValues(alpha: 0.1)
                                   : null,
                               side: BorderSide(
                                 color: isSaved
-                                    ? MekaarColors.cyan
+                                    ? MekaarColors.primaryOf(context)
                                     : MekaarColors.surface2Of(context),
                               ),
                               onPressed: () => _handleBookmarkChipTap(
@@ -757,7 +757,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                       max: 500,
                       divisions: 8,
                       label: '$_radiusMeters m',
-                      activeColor: MekaarColors.cyan,
+                      activeColor: MekaarColors.primaryOf(context),
                       onChanged: (val) =>
                           setState(() => _radiusMeters = val.toInt()),
                     ),
@@ -781,11 +781,11 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                           label: Text(dayName),
                           selected: isSelected,
                           selectedColor:
-                              MekaarColors.cyan.withValues(alpha: 0.25),
-                          checkmarkColor: MekaarColors.cyan,
+                              MekaarColors.primaryOf(context).withValues(alpha: 0.25),
+                          checkmarkColor: MekaarColors.primaryOf(context),
                           side: BorderSide(
                             color: isSelected
-                                ? MekaarColors.cyan
+                                ? MekaarColors.primaryOf(context)
                                 : MekaarColors.surface2Of(context),
                           ),
                           onSelected: (selected) {
@@ -810,14 +810,14 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                       child: IgnorePointer(
                         child: TextFormField(
                           controller: _expectedTimeController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Estimasi Waktu Tiba (WIB)',
                             hintText: '18:30',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(SolarIconsOutline.clockCircle,
-                                color: MekaarColors.cyan),
+                                color: MekaarColors.primaryOf(context)),
                             suffixIcon: Icon(SolarIconsOutline.altArrowDown,
-                                color: MekaarColors.cyan),
+                                color: MekaarColors.primaryOf(context)),
                           ),
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
@@ -869,7 +869,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                               subtitle: Text(
                                   g.email.isNotEmpty ? g.email : 'Guardian'),
                               value: isSelected,
-                              activeColor: MekaarColors.cyan,
+                              activeColor: MekaarColors.primaryOf(context),
                               onChanged: (val) {
                                 setState(() {
                                   if (val == true) {

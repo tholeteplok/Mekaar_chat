@@ -85,7 +85,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
               'Tunjukkan kode ini ke teman terpercaya. Ia dapat memindainya untuk mengirim undangan menjadi Guardian Anda.',
               textAlign: TextAlign.center,
               style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textSecondary,
+                color: MekaarColors.textSecondaryOf(context),
               ),
             ),
             const SizedBox(height: 32),
@@ -102,7 +102,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: MekaarColors.borderLight),
+                  border: Border.all(color: MekaarColors.borderOf(context)),
                 ),
                 child: QrImageView(
                   data: QrInviteScreen.payloadFor(_token!),
@@ -151,7 +151,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
               'Perbarui kode jika Anda merasa kode lama pernah tersebar.',
               textAlign: TextAlign.center,
               style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textSecondary,
+                color: MekaarColors.textSecondaryOf(context),
               ),
             ),
           ],

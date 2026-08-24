@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/motion.dart';
 
 /// Spesifikasi konfigurasi posisi, skala, alignment, dan semantic per ekspresi Mika.
 /// Memungkinkan fine-tuning posisi visual untuk setiap ekspresi maskot secara terpusat.
@@ -192,7 +193,7 @@ class MikaIllustration extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 420),
+      duration: MekaarMotion.slow,
       curve: Curves.easeOutCubic,
       child: imageWidget,
       builder: (context, value, child) => Opacity(

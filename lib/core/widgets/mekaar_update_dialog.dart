@@ -6,6 +6,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/services/update_service.dart';
 import '../constants/colors.dart';
+import '../constants/dimensions.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_snackbar.dart';
@@ -175,7 +176,7 @@ class _InAppUpdateDialogState extends ConsumerState<InAppUpdateDialog> {
     return Dialog(
       backgroundColor: MekaarColors.surfaceOf(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(MekaarRadius.lg),
         side: BorderSide(
           color: MekaarColors.border.withValues(alpha: 0.15),
         ),
@@ -193,7 +194,7 @@ class _InAppUpdateDialogState extends ConsumerState<InAppUpdateDialog> {
                   decoration: BoxDecoration(
                     color:
                         MekaarColors.accentOf(context).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
                   ),
                   child: Icon(
                     SolarIconsBold.cloudDownload,
@@ -268,7 +269,7 @@ class _InAppUpdateDialogState extends ConsumerState<InAppUpdateDialog> {
                         backgroundColor: MekaarColors.accentOf(context),
                         foregroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
                         ),
                       ),
                       onPressed: () {

@@ -5,7 +5,7 @@ import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
-import 'bounce_interactive.dart';
+import 'animations.dart';
 import 'mekaar_bottom_sheet.dart';
 import 'mekaar_snackbar.dart';
 
@@ -245,7 +245,7 @@ class MekaarCryptoDonationBottomSheet extends StatelessWidget {
                   ],
                 ),
               ),
-              BounceInteractive(
+              PressableScale(
                 onTap: () => _copyToClipboard(context, wallet),
                 child: Container(
                   padding: const EdgeInsets.symmetric(

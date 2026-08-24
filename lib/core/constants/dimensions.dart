@@ -27,6 +27,8 @@ class MekaarSizes {
   static const double avatarLg = 48;
   static const double iconSm = 18;
   static const double iconMd = 20;
+  /// Ukuran kontainer ikon standar pada tile/list (spec MekaarInfoTile).
+  static const double iconBadge = 44;
   static const double fab = 60;  // FAB size to 60px (per design.md)
   static const double sos = 72;
   static const double composerButton = 42;

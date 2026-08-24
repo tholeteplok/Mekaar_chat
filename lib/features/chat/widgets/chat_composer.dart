@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,6 +12,7 @@ import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/motion.dart';
 import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
@@ -260,6 +260,7 @@ class _ChatComposerState extends State<ChatComposer> {
         children: [
           _attachItem(
             ctx,
+            step: 0,
             icon: SolarIconsOutline.gallery,
             label: 'Pilih dari Galeri',
             color: MekaarColors.info,
@@ -267,9 +268,10 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickImage(ImageSource.gallery);
             },
-          ).animate().fadeIn(duration: 200.ms, delay: 0.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
+          ),
           _attachItem(
             ctx,
+            step: 1,
             icon: SolarIconsOutline.camera,
             label: 'Ambil Foto',
             color: MekaarColors.guardianTeal,
@@ -277,9 +279,10 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickImage(ImageSource.camera);
             },
-          ).animate().fadeIn(duration: 200.ms, delay: 50.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
+          ),
           _attachItem(
             ctx,
+            step: 2,
             icon: SolarIconsOutline.videoLibrary,
             label: 'Pilih dari Galeri Video',
             color: MekaarColors.purple,
@@ -287,9 +290,10 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickVideo(ImageSource.gallery);
             },
-          ).animate().fadeIn(duration: 200.ms, delay: 100.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
+          ),
           _attachItem(
             ctx,
+            step: 3,
             icon: SolarIconsOutline.videocamera,
             label: 'Rekam Video',
             color: MekaarColors.pink,
@@ -297,9 +301,10 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               _pickVideo(ImageSource.camera);
             },
-          ).animate().fadeIn(duration: 200.ms, delay: 150.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
+          ),
           _attachItem(
             ctx,
+            step: 4,
             icon: SolarIconsOutline.mapPoint,
             label: 'Bagikan Lokasi',
             color: AppColors.blue,
@@ -307,10 +312,11 @@ class _ChatComposerState extends State<ChatComposer> {
               Navigator.pop(ctx);
               widget.onSendLocation?.call();
             },
-          ).animate().fadeIn(duration: 200.ms, delay: 200.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
+          ),
           if (widget.onShareLiveLocation != null)
             _attachItem(
               ctx,
+              step: 5,
               icon: SolarIconsOutline.gps,
               label: 'Lokasi Live',
               color: MekaarColors.guardianTeal,
@@ -318,7 +324,7 @@ class _ChatComposerState extends State<ChatComposer> {
                 Navigator.pop(ctx);
                 _showLiveDurationSheet(ctx);
               },
-            ).animate().fadeIn(duration: 200.ms, delay: 250.ms).slideY(begin: 0.1, end: 0, duration: 250.ms, curve: Curves.easeOutBack),
+            ),
           const SizedBox(height: 16),
         ],
       ),
@@ -331,23 +337,28 @@ class _ChatComposerState extends State<ChatComposer> {
     required String label,
     required Color color,
     required VoidCallback onTap,
+    int step = 0,
   }) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
+    // Entrance staggered via AnimatedAppear — token motion + reduced motion.
+    return AnimatedAppear(
+      delay: MekaarMotion.staggerStep * step,
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 20),
         ),
-        child: Icon(icon, color: color, size: 20),
+        title: Text(label,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: MekaarColors.textPrimaryOf(context))),
+        onTap: onTap,
       ),
-      title: Text(label,
-          style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: MekaarColors.textPrimaryOf(context))),
-      onTap: onTap,
     );
   }
 
@@ -613,7 +624,7 @@ class _ChatComposerState extends State<ChatComposer> {
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: LinearProgressIndicator(
-                backgroundColor: MekaarColors.borderLight,
+                backgroundColor: MekaarColors.borderOf(context),
                 color: primaryAccent,
                 minHeight: 2,
               ),
@@ -874,7 +885,7 @@ class _BlinkingDotState extends State<_BlinkingDot>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: MekaarMotion.loop,
     )..repeat(reverse: true);
   }
 

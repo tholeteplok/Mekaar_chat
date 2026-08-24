@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/dimensions.dart';
 import '../services/haptic_service.dart';
 
 /// [MekaarFrostedActionButton] — Tombol aksi bulat mengambang (FAB) terpusat
@@ -20,7 +21,7 @@ class MekaarFrostedActionButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     required this.icon,
-    this.size = 56.0,
+    this.size = MekaarSizes.fab,
     this.padding = const EdgeInsets.all(8.0),
     this.tooltip,
     this.semanticLabel,

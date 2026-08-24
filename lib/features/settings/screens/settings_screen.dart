@@ -49,7 +49,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.chatRoundDots,
-                iconColor: MekaarColors.cyan,
                 title: 'Tema & Wallpaper Chat',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
               ),
@@ -116,7 +115,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.shieldUser,
-                iconColor: MekaarColors.cyan,
                 title: 'Proteksi Undangan Chat',
                 valueText: ref.watch(chatInvitationModeProvider) == 'approved_only'
                     ? 'Disetujui'
@@ -272,7 +270,6 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SettingsNavTile(
             icon: SolarIconsOutline.bell,
-            iconColor: MekaarColors.cyan,
             title: 'Nada & Suara',
             onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
           ),
@@ -321,8 +318,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.gps,
-                  iconColor: MekaarColors.cyan,
-                  title: 'Temukan Ponsel Saya',
+                    title: 'Temukan Ponsel Saya',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
                 ),
                 SettingsNavTile(
@@ -353,7 +349,6 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SettingsNavTile(
             icon: SolarIconsOutline.infoCircle,
-            iconColor: MekaarColors.cyan,
             title: 'Tentang MEKAAR',
             subtitle: 'Versi aplikasi & kebijakan privasi',
             onTap: () => Navigator.pushNamed(context, AppRoutes.about),

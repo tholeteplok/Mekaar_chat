@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -25,7 +26,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void initState() {
     super.initState();
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: MekaarMotion.playful,
       vsync: this,
     );
     _fadeAnimation = CurvedAnimation(
@@ -175,7 +176,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             children: [
               // Logo aplikasi resmi Mekaar
               AnimatedAppear(
-                duration: const Duration(milliseconds: 500),
+                duration: MekaarMotion.playful,
                 offsetY: 24,
                 child: Image.asset(
                   'assets/logo/app_icon.webp',

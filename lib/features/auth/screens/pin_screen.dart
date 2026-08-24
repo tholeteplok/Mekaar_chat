@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -38,7 +39,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
   late final AnimationController _shakeController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 400),
+    duration: MekaarMotion.slow,
   );
   late final Animation<double> _shakeAnimation = TweenSequence<double>([
     TweenSequenceItem(
@@ -624,7 +625,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: MekaarColors.surfaceOf(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(MekaarRadius.lg)),
           title: const Row(
             children: [
               Icon(SolarIconsOutline.lockUnlocked, color: MekaarColors.sosRed),
@@ -743,7 +744,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: MekaarColors.surfaceOf(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(MekaarRadius.lg)),
           title: const Row(
             children: [
               Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.warnAmber),

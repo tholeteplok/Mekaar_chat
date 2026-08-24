@@ -134,11 +134,6 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                 child: ElevatedButton(
                   onPressed: _isVerifying ? null : _verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                    ),
                   ),
                   child: _isVerifying
                       ? const SizedBox(

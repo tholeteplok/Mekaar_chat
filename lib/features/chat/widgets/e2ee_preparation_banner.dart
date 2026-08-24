@@ -1,7 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../providers/e2ee_room_status_provider.dart';
 
@@ -28,10 +31,21 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-
+      duration: MekaarMotion.loop,
+    );
     _checkAutoDismiss();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: pulse dimatikan, ikon tampil solid.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulseController.stop();
+      _pulseController.value = 1;
+    } else if (!_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    }
   }
 
   @override
@@ -64,8 +78,6 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
   Widget build(BuildContext context) {
     if (_dismissed) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     IconData iconData;
     Color accentColor;
     String message;
@@ -74,19 +86,19 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
     switch (widget.status) {
       case E2eeRoomStatus.preparing:
         iconData = SolarIconsOutline.shieldKeyhole;
-        accentColor = MekaarColors.cyan;
+        accentColor = MekaarColors.safeTextOf(context);
         message = 'Mekaar Aegis: Menyiapkan jalur percakapan privat...';
         showSpinner = true;
         break;
       case E2eeRoomStatus.negotiating:
         iconData = SolarIconsOutline.lockKeyhole;
-        accentColor = MekaarColors.yellow;
+        accentColor = MekaarColors.accentTextOf(context);
         message = 'Mekaar Aegis: Negosiasi kunci kriptografi...';
         showSpinner = true;
         break;
       case E2eeRoomStatus.ready:
         iconData = SolarIconsBold.checkCircle;
-        accentColor = MekaarColors.safeTeal;
+        accentColor = MekaarColors.safeTextOf(context);
         message = 'Mekaar Aegis: Percakapan terlindungi E2EE';
         showSpinner = false;
         break;
@@ -104,24 +116,22 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
         break;
     }
 
-    final bgColor = isDark
-        ? MekaarColors.cardDark.withValues(alpha: 0.9)
-        : Colors.white.withValues(alpha: 0.95);
     final borderColor = accentColor.withValues(alpha: 0.3);
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
+      duration: MekaarMotion.counter,
       child: Container(
         key: ValueKey(widget.status),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.symmetric(
+            horizontal: MekaarSpacing.lg, vertical: MekaarSpacing.sm),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
+          color: MekaarColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(MekaarRadius.md),
           border: Border.all(color: borderColor, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withValues(alpha: isDark ? 0.2 : 0.08),
+              color: accentColor.withValues(alpha: 0.12),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -130,8 +140,9 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
         child: Row(
           children: [
             FadeTransition(
-              opacity: showSpinner
-                  ? Tween<double>(begin: 0.4, end: 1.0).animate(_pulseController)
+              opacity: showSpinner && !MediaQuery.disableAnimationsOf(context)
+                  ? Tween<double>(begin: 0.4, end: 1.0)
+                      .animate(_pulseController)
                   : const AlwaysStoppedAnimation(1.0),
               child: Icon(
                 iconData,
@@ -145,7 +156,7 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
                 message,
                 style: MekaarTypography.caption.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : MekaarColors.canvasTop,
+                  color: MekaarColors.textPrimaryOf(context),
                 ),
               ),
             ),

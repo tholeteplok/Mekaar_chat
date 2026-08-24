@@ -1340,6 +1340,7 @@ class _ImageBubble extends ConsumerWidget {
                     if (file != null && ctx.mounted) {
                       await Navigator.push(
                         ctx,
+                        // PENGECAHAN TRANSISI: viewer media fullscreen sengaja memakai MaterialPageRoute
                         MaterialPageRoute(
                           builder: (_) => _FullScreenImageViewer(
                             imageProvider: FileImage(file),
@@ -1436,6 +1437,8 @@ class _ImageBubble extends ConsumerWidget {
               onTap: () {
                 Navigator.push(
                   context,
+                  // PENGECAHAN TRANSISI: viewer media fullscreen sengaja
+                  // memakai MaterialPageRoute (lihat catatan design.md).
                   MaterialPageRoute(
                     builder: (_) =>
                         _FullScreenImageViewer(imageProvider: FileImage(file)),

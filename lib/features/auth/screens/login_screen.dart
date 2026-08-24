@@ -379,19 +379,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ],
                       const SizedBox(height: 36),
-                      // Primary Button
+                      // Primary Button — style dari tema (StadiumBorder biru).
                       SizedBox(
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
                           onPressed: authState.isLoading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.blue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                            ),
-                          ),
                           child: authState.isLoading
                               ? const SizedBox(
                                   width: 24,
@@ -420,9 +413,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             side: BorderSide(
                               color: cardBorder,
                               width: 1.5,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(MekaarRadius.sm),
                             ),
                             textStyle: const TextStyle(
                               fontWeight: FontWeight.w600,

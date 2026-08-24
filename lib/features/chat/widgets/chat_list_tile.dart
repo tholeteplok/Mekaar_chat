@@ -80,7 +80,7 @@ class ChatListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: MekaarSpacing.sm),
+                      SizedBox(width: MekaarSpacing.sm),
                       Text(
                         _formatTimestamp(timestamp),
                         style: MekaarTypography.bodySM.copyWith(
@@ -184,8 +184,8 @@ class ChatListTile extends StatelessWidget {
           if (onArchive != null)
             SlidableAction(
               onPressed: (_) => onArchive!(),
-              backgroundColor: MekaarColors.textMuted,
-              foregroundColor: MekaarColors.textPrimary,
+              backgroundColor: MekaarColors.textMutedOf(context),
+              foregroundColor: MekaarColors.textPrimaryOf(context),
               icon: MekaarIcons.archive,
               label: 'Arsip',
             ),

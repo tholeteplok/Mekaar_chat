@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -130,7 +132,7 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = widget.iconColor ?? MekaarColors.cyan;
+    final effectiveColor = widget.iconColor ?? MekaarColors.accentTextOf(context);
 
     return CustomCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -188,7 +190,7 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
                   ),
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0.0,
-                    duration: const Duration(milliseconds: 200),
+                    duration: MekaarMotion.fast,
                     child: Icon(
                       SolarIconsOutline.altArrowDown,
                       color: MekaarColors.textSecondaryOf(context),
@@ -207,7 +209,7 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
                 const SizedBox(height: 12),
                 Container(
                   height: 1,
-                  color: MekaarColors.border.withValues(alpha: 0.15),
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.15),
                 ),
                 const SizedBox(height: 12),
                 ...widget.children,
@@ -216,7 +218,7 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
             crossFadeState: _isExpanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 220),
+            duration: MekaarMotion.normal,
           ),
         ],
       ),
@@ -304,8 +306,8 @@ class SettingsSwitchTile extends StatelessWidget {
           children: [
             // Icon Badge dengan background tint lembut
             Container(
-              width: 40,
-              height: 40,
+              width: MekaarSizes.iconBadge,
+              height: MekaarSizes.iconBadge,
               decoration: BoxDecoration(
                 color: effectiveIconBgColor,
                 shape: BoxShape.circle,
@@ -411,7 +413,7 @@ class SettingsNavTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveIconColor = isDestructive
         ? MekaarColors.sosRed
-        : (iconColor ?? MekaarColors.cyan);
+        : (iconColor ?? MekaarColors.accentTextOf(context));
 
     final effectiveIconBgColor = isDestructive
         ? MekaarColors.sosRed.withValues(alpha: 0.12)
@@ -429,8 +431,8 @@ class SettingsNavTile extends StatelessWidget {
           children: [
             // Icon Badge dengan background tint lembut
             Container(
-              width: 40,
-              height: 40,
+              width: MekaarSizes.iconBadge,
+              height: MekaarSizes.iconBadge,
               decoration: BoxDecoration(
                 color: effectiveIconBgColor,
                 shape: BoxShape.circle,

@@ -80,7 +80,7 @@ class _CreateGroupSelectMembersScreenState
                 color: MekaarColors.surfaceOf(context),
                 border: Border(
                   bottom: BorderSide(
-                    color: MekaarColors.border.withValues(alpha: 0.1),
+                    color: MekaarColors.borderOf(context).withValues(alpha: 0.1),
                   ),
                 ),
               ),

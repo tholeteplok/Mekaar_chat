@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -266,38 +267,45 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(SolarIconsOutline.videocameraRecord),
-                            label: const Text('Siarkan Video & Rekam Darurat'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: MekaarColors.surface2Of(context),
-                              foregroundColor: MekaarColors.textPrimaryOf(context),
-                              elevation: 0,
-                              side: BorderSide(
-                                color: MekaarColors.cardBorderOf(context),
+                    AnimatedAppear(
+                      delay: MekaarMotion.staggerStep,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(
+                                  SolarIconsOutline.videocameraRecord),
+                              label:
+                                  const Text('Siarkan Video & Rekam Darurat'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    MekaarColors.surface2Of(context),
+                                foregroundColor:
+                                    MekaarColors.textPrimaryOf(context),
+                                elevation: 0,
+                                side: BorderSide(
+                                  color: MekaarColors.cardBorderOf(context),
+                                ),
                               ),
+                              onPressed: () => Navigator.pushNamed(
+                                  context, AppRoutes.sosVideo),
                             ),
-                            onPressed: () =>
-                                Navigator.pushNamed(context, AppRoutes.sosVideo),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Streaming langsung ke layar Guardian secara real-time',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: MekaarColors.textMutedOf(context),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Streaming langsung ke layar Guardian secara real-time',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
                           ),
-                        ),
-                      ],
-                    ).animate().fadeIn(duration: 200.ms, delay: 100.ms),
+                        ],
+                      ),
+                    ),
                   ],
                   if (canEnd) ...[
                     const SizedBox(height: 8),
@@ -307,9 +315,8 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                           ? 'Batalkan SOS'
                           : 'Akhiri Mode Darurat',
                       onTrigger: () => _handleEndSOS(sosState),
-                    ).animate().fadeIn(duration: 200.ms),
-                  ],
-                  if (sosState.status == SOSStatus.failed)
+                    ),
+                  ],                  if (sosState.status == SOSStatus.failed)
                     SizedBox(
                       width: double.infinity,
                       height: 54,

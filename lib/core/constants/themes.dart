@@ -133,6 +133,13 @@ class MekaarTheme {
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(64, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
       popupMenuTheme: PopupMenuThemeData(
         color: AppColors.cardLight,
         surfaceTintColor: Colors.transparent,
@@ -292,6 +299,13 @@ class MekaarTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(64, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
