@@ -19,6 +19,8 @@ import '../theme/chat_preset_resolver.dart';
 import '../constants/icons.dart';
 import '../../data/repositories/screen_protection_repository.dart';
 import '../../features/chat/providers/chat_provider.dart';
+import '../../features/chat/providers/emoji_pack_provider.dart';
+import '../utils/emoji_shortcode_parser.dart';
 
 // Helper function to download, decrypt, and cache E2EE media locally.
 Future<File?> _getOrDecryptMedia({
@@ -257,7 +259,10 @@ class ChatBubble extends ConsumerWidget {
     final emojiCount = (message.type == MessageType.text && !isDeleted)
         ? _getEmojiOnlyCount(message.content)
         : 0;
-    final isOnlyEmoji = emojiCount > 0;
+    final singleCustom = (message.type == MessageType.text && !isDeleted)
+        ? isSingleCustomEmoji(message.content)
+        : false;
+    final isOnlyEmoji = emojiCount > 0 || singleCustom;
 
     // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
     final spec = ChatPresetResolver.getBubbleSpec(chatPref, context, isMe: isMe);
@@ -505,6 +510,18 @@ class ChatBubble extends ConsumerWidget {
         }
 
         final count = !message.isDeleted ? _getEmojiOnlyCount(message.content) : 0;
+        final singleCustom =
+            !message.isDeleted && isSingleCustomEmoji(message.content);
+        if (singleCustom) {
+          // Satu token custom emoji murni → glyph besar ala emoji-only.
+          return CustomEmojiGlyph(
+            slug: parseEmojiContent(message.content)
+                .whereType<CustomEmojiSegment>()
+                .first
+                .slug,
+            size: 72,
+          );
+        }
         if (count > 0) {
           return Text(
             message.content,
@@ -512,6 +529,18 @@ class ChatBubble extends ConsumerWidget {
               fontSize: _getEmojiFontSize(count),
               height: 1.15,
             ),
+          );
+        }
+        if (RegExp(r':([a-z0-9_]{2,32}):').hasMatch(message.content)) {
+          return _RichEmojiContent(
+            content: message.content,
+            baseStyle: customTextStyle ??
+                TextStyle(
+                  color: textColor,
+                  fontSize: 16,
+                  height: 1.4,
+                  fontFamily: fontFamily,
+                ),
           );
         }
         return Text(
@@ -706,6 +735,9 @@ class ChatBubble extends ConsumerWidget {
             break;
         }
       }
+      // Token custom emoji tidak dirender sebagai gambar di preview —
+      // ganti dengan placeholder agar tidak bocor token mentah.
+      previewText = replaceCustomEmojiTokens(previewText, (_) => '[emoji]');
     }
 
     final accentColor = isMe
@@ -1817,5 +1849,109 @@ class _AnimatedPresetBubbleEntranceState
           ),
         );
     }
+  }
+}
+
+/// ===== Custom Emoji (Toko Emoji) =====
+///
+/// Pesan hanya membawa token `:slug:` terenkripsi; aset diselesaikan dari
+/// katalog Toko Emoji. Pack terpasang dirender dari disk (luring), yang
+/// tidak di-install lazy-load via URL publik katalog.
+
+class _EmojiPlaceholder extends StatelessWidget {
+  final String slug;
+  final double size;
+  const _EmojiPlaceholder({required this.slug, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.18,
+        vertical: size * 0.06,
+      ),
+      decoration: BoxDecoration(
+        color: MekaarColors.surface2Of(context),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        ':$slug:',
+        style: TextStyle(
+          fontSize: size * 0.42,
+          color: MekaarColors.textMutedOf(context),
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    );
+  }
+}
+
+class CustomEmojiGlyph extends ConsumerWidget {
+  final String slug;
+  final double size;
+  const CustomEmojiGlyph({
+    super.key,
+    required this.slug,
+    this.size = 24,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final url = ref.watch(emojiCatalogProvider.notifier).urlFor(slug);
+    if (url == null) return _EmojiPlaceholder(slug: slug, size: size);
+    final service = ref.read(emojiPackServiceProvider);
+    return FutureBuilder<File?>(
+      future: service.resolveLocalFile(slug),
+      builder: (context, snap) {
+        final file = snap.data;
+        if (file != null) {
+          return Image.file(file, width: size, height: size,
+              fit: BoxFit.contain);
+        }
+        return Image.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => _EmojiPlaceholder(slug: slug, size: size),
+          loadingBuilder: (_, child, progress) =>
+              progress == null ? child : SizedBox(width: size, height: size),
+        );
+      },
+    );
+  }
+}
+
+/// Konten teks campuran dengan token custom emoji inline.
+class _RichEmojiContent extends StatelessWidget {
+  final String content;
+  final TextStyle baseStyle;
+  const _RichEmojiContent({required this.content, required this.baseStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    final segments = parseEmojiContent(content);
+    final inlineSize =
+        baseStyle.fontSize != null ? baseStyle.fontSize! * 1.35 : 22.0;
+    final spans = <InlineSpan>[];
+    for (final seg in segments) {
+      switch (seg) {
+        case TextSegment(:final text):
+          if (text.isEmpty) break;
+          spans.add(TextSpan(text: text));
+        case CustomEmojiSegment(:final slug):
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              baseline: TextBaseline.alphabetic,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: CustomEmojiGlyph(slug: slug, size: inlineSize),
+              ),
+            ),
+          );
+      }
+    }
+    return RichText(text: TextSpan(style: baseStyle, children: spans));
   }
 }

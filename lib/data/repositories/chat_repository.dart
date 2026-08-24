@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/emoji_shortcode_parser.dart';
 import '../services/supabase_service.dart';
 import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
@@ -135,7 +136,8 @@ class ChatRepository {
         } else if (lastMsg.type == MessageType.system) {
           lastMessageText = lastMsg.content;
         } else {
-          lastMessageText = lastMsg.content;
+          lastMessageText =
+              replaceCustomEmojiTokens(lastMsg.content, (_) => '[emoji]');
         }
         lastMessageTime = lastMsg.createdAt;
       }

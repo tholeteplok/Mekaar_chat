@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +13,7 @@ import '../../../data/models/message_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/constants/motion.dart';
 import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
@@ -19,10 +21,13 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/routes/app_routes.dart';
+import '../../../data/models/emoji_pack_model.dart';
+import '../providers/emoji_pack_provider.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
 
-class ChatComposer extends StatefulWidget {
+class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
   final Message? replyMessage;
   final Message? editingMessage; // non-null when in edit mode
@@ -51,10 +56,10 @@ class ChatComposer extends StatefulWidget {
   });
 
   @override
-  State<ChatComposer> createState() => _ChatComposerState();
+  ConsumerState<ChatComposer> createState() => _ChatComposerState();
 }
 
-class _ChatComposerState extends State<ChatComposer> {
+class _ChatComposerState extends ConsumerState<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
   bool _showEmojiPicker = false;
@@ -411,7 +416,189 @@ class _ChatComposerState extends State<ChatComposer> {
     }
   }
 
+  /// Tab panel aktif: null = emoji standar; string = slug pack terpasang.
+  String? _activeEmojiPack;
+
   Widget _buildEmojiPickerPanel() {
+    final installed = ref.watch(installedPacksProvider);
+    final catalog = ref.watch(emojiCatalogProvider);
+
+    final packs = catalog.valueOrNull == null
+        ? const <EmojiPack>[]
+        : (catalog.valueOrNull!)
+            .where((p) => installed.isInstalled(p.slug))
+            .toList();
+    // Jaga tab aktif tetap valid.
+    if (_activeEmojiPack != null &&
+        !packs.any((p) => p.slug == _activeEmojiPack)) {
+      _activeEmojiPack = null;
+    }
+    final activePack = packs
+        .where((p) => p.slug == _activeEmojiPack)
+        .cast<EmojiPack?>()
+        .firstOrNull;
+
+    return Container(
+      height: 240,
+      decoration: BoxDecoration(
+        color: MekaarColors.surfaceOf(context),
+        border: Border(
+          top: BorderSide(
+            color: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          // ── Tab strip: Standar | pack terpasang... | Toko ──
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: MekaarSpacing.md),
+              children: [
+                _emojiTabChip(
+                  label: 'Standar',
+                  selected: _activeEmojiPack == null,
+                  onTap: () => setState(() => _activeEmojiPack = null),
+                ),
+                for (final pack in packs)
+                  _emojiTabChip(
+                    label: pack.name,
+                    coverUrl: pack.coverUrl,
+                    selected: _activeEmojiPack == pack.slug,
+                    onTap: () =>
+                        setState(() => _activeEmojiPack = pack.slug),
+                  ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    Navigator.pushNamed(context, AppRoutes.emojiStore);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(left: MekaarSpacing.sm),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.accentTextOf(context)
+                          .withValues(alpha: 0.10),
+                      borderRadius:
+                          BorderRadius.circular(MekaarRadius.pill),
+                      border: Border.all(
+                        color: MekaarColors.accentTextOf(context)
+                            .withValues(alpha: 0.35),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          SolarIconsOutline.addCircle,
+                          size: 16,
+                          color: MekaarColors.accentTextOf(context),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Toko',
+                          style: MekaarTypography.labelMD.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: MekaarColors.accentTextOf(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color:
+                MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
+          ),
+          // ── Konten grid ──
+          Expanded(
+            child: activePack != null
+                ? _buildPackGrid(activePack, installed)
+                : SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    child: _buildStandardEmojiGrid(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emojiTabChip({
+    required String label,
+    String? coverUrl,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: MekaarSpacing.sm),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          constraints: const BoxConstraints(minHeight: 32),
+          decoration: BoxDecoration(
+            color: selected
+                ? MekaarColors.primaryOf(context).withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(MekaarRadius.pill),
+            border: Border.all(
+              color: selected
+                  ? MekaarColors.primaryOf(context)
+                  : MekaarColors.borderOf(context),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (coverUrl != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    coverUrl,
+                    width: 18,
+                    height: 18,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Icon(
+                      SolarIconsBold.stickerSmileCircle,
+                      size: 16,
+                      color: MekaarColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: MekaarTypography.labelMD.copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? MekaarColors.primaryOf(context)
+                      : MekaarColors.textSecondaryOf(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStandardEmojiGrid() {
     final emojiCategories = <String, List<String>>{
       if (_recentEmojis.isNotEmpty)
         'Sering Digunakan': _recentEmojis,
@@ -435,68 +622,142 @@ class _ChatComposerState extends State<ChatComposer> {
       ],
     };
 
-    return Container(
-      height: 240,
-      decoration: BoxDecoration(
-        color: MekaarColors.surfaceOf(context),
-        border: Border(
-          top: BorderSide(
-            color: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: emojiCategories.entries.map((category) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 6),
+              child: Text(
+                category.key,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: category.key == 'Sering Digunakan'
+                      ? AppColors.blue
+                      : MekaarColors.textMutedOf(context),
+                ),
+              ),
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              children: category.value.map((emoji) {
+                return GestureDetector(
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    _saveRecentEmoji(emoji);
+                    _insertAtCursor(emoji);
+                  },
+                  child: Text(
+                    emoji,
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  /// Grid item pack terpasang — membaca file dari disk (luring).
+  Widget _buildPackGrid(EmojiPack pack, InstalledPacksState installed) {
+    final service = ref.read(emojiPackServiceProvider);
+    final items = ref
+        .read(emojiCatalogProvider.notifier)
+        .itemsOf(pack.slug);
+    final downloading = installed.downloading[pack.slug];
+
+    if (downloading != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Mengunduh ${pack.name}...',
+                style: MekaarTypography.bodySM.copyWith(
+                  color: MekaarColors.textSecondaryOf(context),
+                )),
+            const SizedBox(height: MekaarSpacing.sm),
+            SizedBox(
+              width: 160,
+              child: LinearProgressIndicator(value: downloading, minHeight: 4),
+            ),
+          ],
+        ),
+      );
+    }
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'Item pack belum tersedia.',
+          style: MekaarTypography.bodySM.copyWith(
+            color: MekaarColors.textMutedOf(context),
           ),
         ),
-      ),
+      );
+    }
+
+    return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: emojiCategories.entries.map((category) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 6),
-                  child: Text(
-                    category.key,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: category.key == 'Sering Digunakan'
-                          ? AppColors.blue
-                          : MekaarColors.textMutedOf(context),
-                    ),
-                  ),
-                ),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
-                  children: category.value.map((emoji) {
-                    return GestureDetector(
-                      onTap: () {
-                        HapticService.trigger(MekaarHapticIntent.selection);
-                        _saveRecentEmoji(emoji);
-                        final text = widget.controller.text;
-                        final selection = widget.controller.selection;
-                        final newText = selection.isValid
-                            ? text.replaceRange(selection.start, selection.end, emoji)
-                            : text + emoji;
-                        widget.controller.text = newText;
-                        widget.controller.selection = TextSelection.collapsed(
-                          offset: (selection.isValid ? selection.start : text.length) + emoji.length,
-                        );
-                      },
-                      child: Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 26),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 56,
+        mainAxisSpacing: MekaarSpacing.sm,
+        crossAxisSpacing: MekaarSpacing.sm,
       ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return GestureDetector(
+          onTap: () async {
+            HapticService.trigger(MekaarHapticIntent.selection);
+            final file = await service.resolveLocalFile(item.shortcode);
+            if (!mounted) return;
+            if (file == null) {
+              // File lokal hilang (mis. dibersihkan OS): minta unduh ulang.
+              await ref
+                  .read(installedPacksProvider.notifier)
+                  .install(pack.slug);
+              return;
+            }
+            _insertAtCursor(':${item.shortcode}:');
+          },
+          child: FutureBuilder<File?>(
+            future: service.resolveLocalFile(item.shortcode),
+            builder: (context, snap) {
+              final file = snap.data;
+              if (file == null) {
+                return ColoredBox(
+                  color: MekaarColors.surface2Of(context),
+                  child: Icon(
+                    SolarIconsBold.stickerSmileCircle,
+                    size: 22,
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                );
+              }
+              return Image.file(file, fit: BoxFit.contain);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// Sisipkan teks pada posisi kursor controller.
+  void _insertAtCursor(String token) {
+    final text = widget.controller.text;
+    final selection = widget.controller.selection;
+    final newText = selection.isValid
+        ? text.replaceRange(selection.start, selection.end, token)
+        : text + token;
+    widget.controller.text = newText;
+    widget.controller.selection = TextSelection.collapsed(
+      offset:
+          (selection.isValid ? selection.start : text.length) + token.length,
     );
   }
 

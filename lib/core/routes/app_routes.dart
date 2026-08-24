@@ -9,6 +9,7 @@ import 'package:mekaar_chat/features/auth/screens/splash_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/account_suspended_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/main_navigation_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/chat_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/emoji_store_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/chat_requests_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
@@ -135,6 +136,7 @@ class AppRoutes {
   static const String call = '/call';
   static const String contactQrScan = '/chat/qr-scan';
   static const String myQr = '/chat/my-qr';
+  static const String emojiStore = '/chat/emoji-store';
   static const String contactSettings = '/chat/settings';
   static const String createGroupSelectMembers = '/chat/group/select-members';
   static const String createGroupDetails = '/chat/group/details';
@@ -246,6 +248,8 @@ class AppRoutes {
       case AppRoutes.themeSettings:
         return MekaarPageRoute(builder: (_) => const ThemeSettingsScreen());
 
+      case AppRoutes.emojiStore:
+        return MekaarPageRoute(builder: (_) => const EmojiStoreScreen());
       case AppRoutes.chatThemeSettings:
         return MekaarPageRoute(builder: (_) => const ChatThemeSettingsScreen());
 

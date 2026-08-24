@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/utils/emoji_shortcode_parser.dart';
 import '../../../core/widgets/avatar.dart';
 import '../providers/chat_provider.dart';
 
@@ -131,9 +132,13 @@ class ChatListTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               );
                             }
+                            final rawLastMsg = room['lastMessage'] as String?;
+                            final displayLastMsg = rawLastMsg != null
+                                ? replaceCustomEmojiTokens(
+                                    rawLastMsg, (_) => '[emoji]')
+                                : 'Mulai percakapan...';
                             return Text(
-                              room['lastMessage'] as String? ??
-                                  'Mulai percakapan...',
+                              displayLastMsg,
                               style: MekaarTypography.labelLG.copyWith(
                                 fontWeight: FontWeight.w400,
                                 color: MekaarColors.textMutedOf(context),

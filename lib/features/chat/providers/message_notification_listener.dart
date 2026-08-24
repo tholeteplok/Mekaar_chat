@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/emoji_shortcode_parser.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../settings/providers/trip_monitor_scheduler.dart';
@@ -132,7 +133,9 @@ class MessageNotificationListener {
       finalBody = 'Anda menerima pesan baru';
     } else {
       finalTitle = senderName;
-      finalBody = isEncrypted ? '🔒 Pesan terenkripsi' : content;
+      finalBody = isEncrypted
+          ? '🔒 Pesan terenkripsi'
+          : replaceCustomEmojiTokens(content, (_) => '[emoji]');
     }
 
     await NotificationService.showMessageNotification(
