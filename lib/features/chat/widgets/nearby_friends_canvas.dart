@@ -14,6 +14,7 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
+import '../providers/private_vault_provider.dart';
 import 'nearby_consent_dialog.dart';
 
 class NearbyFriendsCanvas extends ConsumerWidget {
@@ -95,7 +96,24 @@ class NearbyFriendsCanvas extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(nearbyFriendsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final displayList = state.filteredFriends;
+    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
+
+    // Kumpulkan userId dari room yang disembunyikan jika vault terkunci (anti-leak)
+    final hiddenUserIds = <String>{};
+    if (!isVaultUnlocked && hiddenRoomIds.isNotEmpty) {
+      for (final r in chatRooms) {
+        if (hiddenRoomIds.contains(r['id']) && r['otherUserId'] != null) {
+          hiddenUserIds.add(r['otherUserId'] as String);
+        }
+      }
+    }
+
+    final displayList = state.filteredFriends.where((f) {
+      if (hiddenUserIds.contains(f.userId)) return false;
+      return true;
+    }).toList();
 
     // ── 1. State Nonaktif: Tampilkan CTA Flat Ramping di Canvas ──
     if (!state.isEnabled) {
@@ -291,11 +309,17 @@ class NearbyFriendsCanvas extends ConsumerWidget {
                 separatorBuilder: (context, index) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final friend = displayList[index];
+                  final isVaultContact = isVaultUnlocked &&
+                      hiddenRoomIds.isNotEmpty &&
+                      chatRooms.any((r) =>
+                          hiddenRoomIds.contains(r['id']) &&
+                          r['otherUserId'] == friend.userId);
                   return _buildFloatingAvatarItem(
                     context,
                     ref,
                     friend,
                     isDark,
+                    isVaultContact: isVaultContact,
                   );
                 },
               ),
@@ -310,8 +334,9 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     NearbyFriendModel friend,
-    bool isDark,
-  ) {
+    bool isDark, {
+    bool isVaultContact = false,
+  }) {
     final size = friend.band.avatarSize;
     final neutralBorder = isDark
         ? Colors.white.withValues(alpha: 0.15)
@@ -362,7 +387,34 @@ class NearbyFriendsCanvas extends ConsumerWidget {
             // Avatar Container
             SizedBox(
               height: 68,
-              child: Center(child: avatarWidget),
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  Center(child: avatarWidget),
+                  if (isVaultContact)
+                    Positioned(
+                      right: (76 - size) / 2,
+                      bottom: (68 - size) / 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                          color: MekaarColors.accentOf(context),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: MekaarColors.surfaceOf(context),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: const Icon(
+                          SolarIconsOutline.lock,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 4),
 

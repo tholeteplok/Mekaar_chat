@@ -1,53 +1,8 @@
--- Migration 78: Teman Sekitar (Proximity, Opt-in, Radius-only)
--- Menghadirkan sistem berbagi jarak kasar (band diskrit) mutual opt-in tanpa mengekspos koordinat mentah.
--- Kebijakan Retensi:
--- 1. Single-row per user (PRIMARY KEY user_id) di nearby_location_pings, di-overwrite saat ping baru (TIDAK ADA AKUMULASI HISTORI LOKASI).
--- 2. TTL 1 Jam: Lokasi kedaluwarsa (> 1 jam) otomatis dibersihkan (purged) dari database di setiap pemanggilan RPC.
--- 3. Instant Revocation: Saat fitur dinonaktifkan (enabled = false), baris lokasi pengguna langsung dihapus permanen seketika.
+-- MEKAAR 3.0 Migration 81: Fix get_nearby_friends RPC Column & Table References
+-- 1. Mengoreksi kolom room_participants dari user_id ke profile_id
+-- 2. Mengoreksi tabel blokir dari blocked_users ke user_blocks (blocker_id, blocked_id)
+-- 3. Memastikan GRANT EXECUTE diberikan ke role authenticated
 
--- 1. Tabel Preferensi Berbagi Radius Teman Sekitar
-CREATE TABLE IF NOT EXISTS public.nearby_sharing_prefs (
-    user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
-    enabled BOOLEAN NOT NULL DEFAULT false,
-    visibility_mode TEXT NOT NULL DEFAULT 'contacts_only' CHECK (visibility_mode IN ('contacts_only', 'everyone')),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- RLS untuk preferensi
-ALTER TABLE public.nearby_sharing_prefs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own nearby sharing prefs"
-    ON public.nearby_sharing_prefs
-    FOR ALL
-    TO authenticated
-    USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
-
--- 2. Tabel Ephemeral Ping Lokasi Teman Sekitar (Anti-History: Single row per user)
-CREATE TABLE IF NOT EXISTS public.nearby_location_pings (
-    user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
-    latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- RLS untuk location pings (Hanya bisa diakses via RPC Security Definer)
-ALTER TABLE public.nearby_location_pings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own nearby location ping"
-    ON public.nearby_location_pings
-    FOR ALL
-    TO authenticated
-    USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
-
--- Index untuk efisiensi waktu pembersihan/filter
-CREATE INDEX IF NOT EXISTS idx_nearby_location_pings_updated_at 
-    ON public.nearby_location_pings (updated_at);
-
--- 3. RPC: get_nearby_friends
--- Memperbarui ping pengguna yang memanggil dan mengembalikan daftar teman sekitar dalam band diskrit.
--- Client TIDAK PERNAH menerima koordinat latitude/longitude pengguna lain.
 CREATE OR REPLACE FUNCTION public.get_nearby_friends(
     p_latitude DOUBLE PRECISION,
     p_longitude DOUBLE PRECISION
@@ -151,7 +106,7 @@ BEGIN
         prof.avatar_url,
         f.distance_band AS band,
         (f.ping_time >= (now() - INTERVAL '15 minutes')) AS is_recent,
-        -- Cek apakah mereka sudah saling terhubung di room obrolan
+        -- Cek apakah mereka sudah saling terhubung di room obrolan (profile_id)
         EXISTS (
             SELECT 1 
             FROM public.room_participants rp1
@@ -203,3 +158,6 @@ BEGIN
         f.ping_time DESC;
 END;
 $$;
+
+-- Berikan hak eksekusi ke authenticated user
+GRANT EXECUTE ON FUNCTION public.get_nearby_friends(DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated;

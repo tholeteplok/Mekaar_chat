@@ -8,6 +8,10 @@ import 'package:mekaar_chat/features/chat/widgets/nearby_friends_canvas.dart';
 import 'package:mekaar_chat/features/chat/providers/nearby_friends_provider.dart';
 import 'package:mekaar_chat/data/repositories/nearby_repository.dart';
 
+import 'package:mekaar_chat/features/chat/providers/chat_provider.dart';
+import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
+import 'package:solar_icons/solar_icons.dart';
+
 class FakeNearbyRepository implements NearbyRepository {
   NearbyPreferences _prefs = const NearbyPreferences(enabled: false);
   List<NearbyFriendModel> mockFriends = [];
@@ -40,6 +44,37 @@ class FakeNearbyRepository implements NearbyRepository {
   Future<void> disableNearbySharing() async {
     _prefs = const NearbyPreferences(enabled: false);
   }
+}
+
+class FakeChatRoomsNotifier
+    extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
+    implements ChatRoomsNotifier {
+  FakeChatRoomsNotifier(List<Map<String, dynamic>> rooms)
+      : super(AsyncValue.data(rooms));
+
+  @override
+  Future<void> refreshRooms({bool forceLoading = false}) async {}
+
+  @override
+  Future<String> getOrCreateRoom(
+    String otherUserId,
+    String type, {
+    bool screenshotEnabled = true,
+  }) async => 'mock-room-id';
+}
+
+class FakeHiddenRoomIdsNotifier extends StateNotifier<Set<String>>
+    implements HiddenRoomIdsNotifier {
+  FakeHiddenRoomIdsNotifier(super.ids);
+
+  @override
+  Future<void> loadHiddenRooms() async {}
+
+  @override
+  Future<bool> toggleHide(String roomId) async => false;
+
+  @override
+  bool isHidden(String roomId) => state.contains(roomId);
 }
 
 void main() {
@@ -300,6 +335,136 @@ void main() {
 
       expect(find.text('Alya Rahma'), findsOneWidget);
       expect(find.text('Dimas Seto'), findsOneWidget);
+    });
+
+    testWidgets('Saat Private Vault terkunci, kontak dalam hiddenRoomIds disaring dari canvas', (tester) async {
+      final fakeRepo = FakeNearbyRepository();
+      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
+      fakeRepo.mockFriends = [
+        const NearbyFriendModel(
+          userId: 'friend-public',
+          displayName: 'Teman Publik',
+          band: NearbyBand.veryClose,
+          isRecent: true,
+          isContact: true,
+        ),
+        const NearbyFriendModel(
+          userId: 'friend-vault',
+          displayName: 'Teman Rahasia',
+          band: NearbyBand.close,
+          isRecent: true,
+          isContact: true,
+        ),
+      ];
+
+      final mockRooms = [
+        {
+          'id': 'room-normal',
+          'otherUserId': 'friend-public',
+          'name': 'Teman Publik',
+        },
+        {
+          'id': 'room-vault-secret',
+          'otherUserId': 'friend-vault',
+          'name': 'Teman Rahasia',
+        },
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+            nearbyFriendsProvider.overrideWith(
+              (ref) => NearbyFriendsNotifier(
+                fakeRepo,
+                requestPermission: () async => true,
+                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+              ),
+            ),
+            chatRoomsProvider.overrideWith((ref) => FakeChatRoomsNotifier(mockRooms)),
+            hiddenRoomIdsProvider.overrideWith((ref) => FakeHiddenRoomIdsNotifier({'room-vault-secret'})),
+            privateVaultUnlockedProvider.overrideWith((ref) => false), // Vault terkunci
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: NearbyFriendsCanvas(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Teman publik tampil
+      expect(find.text('Teman Publik'), findsOneWidget);
+      // Teman rahasia (vault terkunci) disaring demi privasi
+      expect(find.text('Teman Rahasia'), findsNothing);
+    });
+
+    testWidgets('Saat Private Vault terbuka, kontak vault tampil di canvas dengan badge gembok', (tester) async {
+      final fakeRepo = FakeNearbyRepository();
+      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
+      fakeRepo.mockFriends = [
+        const NearbyFriendModel(
+          userId: 'friend-public',
+          displayName: 'Teman Publik',
+          band: NearbyBand.veryClose,
+          isRecent: true,
+          isContact: true,
+        ),
+        const NearbyFriendModel(
+          userId: 'friend-vault',
+          displayName: 'Teman Rahasia',
+          band: NearbyBand.close,
+          isRecent: true,
+          isContact: true,
+        ),
+      ];
+
+      final mockRooms = [
+        {
+          'id': 'room-normal',
+          'otherUserId': 'friend-public',
+          'name': 'Teman Publik',
+        },
+        {
+          'id': 'room-vault-secret',
+          'otherUserId': 'friend-vault',
+          'name': 'Teman Rahasia',
+        },
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+            nearbyFriendsProvider.overrideWith(
+              (ref) => NearbyFriendsNotifier(
+                fakeRepo,
+                requestPermission: () async => true,
+                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+              ),
+            ),
+            chatRoomsProvider.overrideWith((ref) => FakeChatRoomsNotifier(mockRooms)),
+            hiddenRoomIdsProvider.overrideWith((ref) => FakeHiddenRoomIdsNotifier({'room-vault-secret'})),
+            privateVaultUnlockedProvider.overrideWith((ref) => true), // Vault terbuka
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: NearbyFriendsCanvas(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Keduanya tampil
+      expect(find.text('Teman Publik'), findsOneWidget);
+      expect(find.text('Teman Rahasia'), findsOneWidget);
+
+      // Menampilkan badge lock icon untuk kontak vault
+      expect(find.byIcon(SolarIconsOutline.lock), findsOneWidget);
     });
   });
 }
