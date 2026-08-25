@@ -91,6 +91,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   bool _isViewOnce = false;
   bool _burnOnExit = false;
   bool _burnTriggered = false;
+  bool _isEmojiPickerOpen = false;
   Message? _replyMessage;
   Message? _editingMessage;
   DateTime? _otherLastRead;
@@ -884,13 +885,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                         for (var m in rawMessages) m.id: m,
                                       };
 
+                                      final emojiInset = _isEmojiPickerOpen ? 270.0 : 0.0;
                                       return ListView.builder(
                                         controller: _scrollController,
                                         reverse: true,
-                                        // Padding bawah memberi ruang untuk composer floating + inset keyboard
+                                        // Padding bawah memberi ruang untuk composer floating + inset keyboard + panel emoji
                                         padding: EdgeInsets.only(
                                           top: 8,
-                                          bottom: 130 + keyboardHeight,
+                                          bottom: 130 + keyboardHeight + emojiInset,
                                         ),
                                         itemCount: itemEntries.length,
                                         itemBuilder: (context, index) {
@@ -939,8 +941,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                         builder: (context, ref, _) {
                           final isTyping = ref.watch(typingStateProvider(widget.chatId));
                           if (!isTyping) return const SizedBox.shrink();
+                          final emojiInset = _isEmojiPickerOpen ? 270.0 : 0.0;
                           return Padding(
-                            padding: EdgeInsets.only(bottom: 84 + keyboardHeight),
+                            padding: EdgeInsets.only(bottom: 84 + keyboardHeight + emojiInset),
                             child: const TypingIndicator(dotColor: AppColors.blue),
                           );
                         },
@@ -969,6 +972,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                     editingMessage: _editingMessage,
                     enabled: isE2eeReady,
                     roomThemeSpec: roomThemeSpec,
+                    onEmojiPanelVisibilityChanged: (isOpen) {
+                      if (_isEmojiPickerOpen != isOpen) {
+                        setState(() => _isEmojiPickerOpen = isOpen);
+                        if (isOpen) {
+                          WidgetsBinding.instance
+                              .addPostFrameCallback((_) => _scrollToBottom());
+                        }
+                      }
+                    },
                     onSend: _handleSend,
                     onCancelReply: () => setState(() => _replyMessage = null),
                     onCancelEdit: () {
@@ -987,7 +999,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             Positioned(
               left: 0,
               right: 0,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 120,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 120 + (_isEmojiPickerOpen ? 270.0 : 0.0),
               child: Center(
                 child: Consumer(
                   builder: (context, ref, _) {

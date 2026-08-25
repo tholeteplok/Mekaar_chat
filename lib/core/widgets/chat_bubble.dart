@@ -509,17 +509,18 @@ class ChatBubble extends ConsumerWidget {
           );
         }
 
-        final count = !message.isDeleted ? _getEmojiOnlyCount(message.content) : 0;
+        final count =
+            !message.isDeleted ? _getEmojiOnlyCount(message.content) : 0;
         final singleCustom =
             !message.isDeleted && isSingleCustomEmoji(message.content);
         if (singleCustom) {
-          // Satu token custom emoji murni → glyph besar ala emoji-only.
+          // Satu token custom emoji murni → glyph besar ala sticker emoji-only (128px).
           return CustomEmojiGlyph(
             slug: parseEmojiContent(message.content)
                 .whereType<CustomEmojiSegment>()
                 .first
                 .slug,
-            size: 72,
+            size: 128,
           );
         }
         if (count > 0) {
@@ -1932,7 +1933,7 @@ class _RichEmojiContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final segments = parseEmojiContent(content);
     final inlineSize =
-        baseStyle.fontSize != null ? baseStyle.fontSize! * 1.35 : 22.0;
+        baseStyle.fontSize != null ? baseStyle.fontSize! * 1.65 : 28.0;
     final spans = <InlineSpan>[];
     for (final seg in segments) {
       switch (seg) {

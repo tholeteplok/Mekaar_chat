@@ -39,6 +39,7 @@ class ChatComposer extends ConsumerStatefulWidget {
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
   final bool enabled;
   final ChatRoomThemeSpec? roomThemeSpec;
+  final ValueChanged<bool>? onEmojiPanelVisibilityChanged;
 
   const ChatComposer({
     super.key,
@@ -53,6 +54,7 @@ class ChatComposer extends ConsumerStatefulWidget {
     this.onShareLiveLocation,
     this.enabled = true,
     this.roomThemeSpec,
+    this.onEmojiPanelVisibilityChanged,
   });
 
   @override
@@ -410,9 +412,11 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
   void _toggleEmojiPicker() {
     if (_showEmojiPicker) {
       setState(() => _showEmojiPicker = false);
+      widget.onEmojiPanelVisibilityChanged?.call(false);
     } else {
       FocusScope.of(context).unfocus();
       setState(() => _showEmojiPicker = true);
+      widget.onEmojiPanelVisibilityChanged?.call(true);
     }
   }
 
@@ -439,7 +443,7 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
         .firstOrNull;
 
     return Container(
-      height: 240,
+      height: 270,
       decoration: BoxDecoration(
         color: MekaarColors.surfaceOf(context),
         border: Border(
@@ -704,7 +708,7 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 56,
+        maxCrossAxisExtent: 72,
         mainAxisSpacing: MekaarSpacing.sm,
         crossAxisSpacing: MekaarSpacing.sm,
       ),
@@ -1071,6 +1075,7 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
                                 onTap: () {
                                   if (_showEmojiPicker) {
                                     setState(() => _showEmojiPicker = false);
+                                    widget.onEmojiPanelVisibilityChanged?.call(false);
                                   }
                                 },
                               ),
