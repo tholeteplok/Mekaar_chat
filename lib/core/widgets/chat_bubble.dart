@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/message_model.dart';
 import '../../data/services/e2ee_service.dart';
 import '../constants/colors.dart';
+import '../constants/dimensions.dart';
 import '../constants/shadows.dart';
 import '../routes/app_routes.dart';
 import '../services/haptic_service.dart';
@@ -1867,20 +1868,23 @@ class _EmojiPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: size * 0.18,
-        vertical: size * 0.06,
-      ),
+      constraints: BoxConstraints(maxWidth: size, maxHeight: size),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: MekaarColors.surface2Of(context),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(MekaarRadius.sm),
       ),
-      child: Text(
-        ':$slug:',
-        style: TextStyle(
-          fontSize: size * 0.42,
-          color: MekaarColors.textMutedOf(context),
-          fontStyle: FontStyle.italic,
+      child: Center(
+        child: Text(
+          ':$slug:',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: (size * 0.18).clamp(9.0, 13.0),
+            color: MekaarColors.textMutedOf(context),
+            fontStyle: FontStyle.italic,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
@@ -1898,26 +1902,62 @@ class CustomEmojiGlyph extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final url = ref.watch(emojiCatalogProvider.notifier).urlFor(slug);
-    if (url == null) return _EmojiPlaceholder(slug: slug, size: size);
+    final catalogAsync = ref.watch(emojiCatalogProvider);
     final service = ref.read(emojiPackServiceProvider);
+
     return FutureBuilder<File?>(
       future: service.resolveLocalFile(slug),
       builder: (context, snap) {
         final file = snap.data;
         if (file != null) {
-          return Image.file(file, width: size, height: size,
-              fit: BoxFit.contain);
+          return Image.file(
+            file,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+          );
         }
-        return Image.network(
-          url,
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-          errorBuilder: (_, _, _) => _EmojiPlaceholder(slug: slug, size: size),
-          loadingBuilder: (_, child, progress) =>
-              progress == null ? child : SizedBox(width: size, height: size),
-        );
+
+        // Jika pengecekan disk masih berjalan
+        if (snap.connectionState == ConnectionState.waiting) {
+          return SizedBox(width: size, height: size);
+        }
+
+        // Cek URL dari katalog jika belum terpasang lokal
+        final url = ref.read(emojiCatalogProvider.notifier).urlFor(slug);
+        if (url != null) {
+          return Image.network(
+            url,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) =>
+                _EmojiPlaceholder(slug: slug, size: size),
+            loadingBuilder: (_, child, progress) =>
+                progress == null ? child : SizedBox(width: size, height: size),
+          );
+        }
+
+        // Sedang memuat katalog (offline atau initial startup)
+        if (catalogAsync.isLoading) {
+          return SizedBox(
+            width: size,
+            height: size,
+            child: Center(
+              child: SizedBox(
+                width: (size * 0.3).clamp(12.0, 24.0),
+                height: (size * 0.3).clamp(12.0, 24.0),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: MekaarColors.guardianTeal.withValues(alpha: 0.4),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Katalog selesai dimuat namun slug tidak dikenal
+        return _EmojiPlaceholder(slug: slug, size: size);
       },
     );
   }

@@ -7,6 +7,7 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
+import 'emoji_pack_provider.dart';
 import 'private_vault_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'app_realtime_listener.dart';
@@ -229,10 +230,13 @@ class _NotificationListenerHostState
     super.initState();
     // Pastikan tidak ada room "aktif" tersisa dari sesi sebelumnya.
     ref.read(activeRoomIdProvider.notifier).state = null;
-    // Satu channel global terpadu untuk seluruh listener notifikasi DB
-    // (messages, calls, sos_sessions, profiles) — mengurangi kontensi subscribe.
     ref.read(appRealtimeListenerProvider).start();
     ref.read(tripMonitorSchedulerProvider).start();
+    // Pre-warm katalog emoji dan verifikasi pack lokal di disk
+    Future.microtask(() {
+      ref.read(emojiCatalogProvider.future);
+      ref.read(installedPacksProvider);
+    });
   }
 
   @override

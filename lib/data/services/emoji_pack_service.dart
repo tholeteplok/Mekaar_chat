@@ -88,6 +88,8 @@ class EmojiPackService {
   }
 
   final Map<String, bool> _installedMemo = {};
+  final Map<String, File?> _localFileCache = {};
+
   /// Cek cepat apakah direktori pack ada di disk.
   Future<bool> isInstalled(String slug) async {
     if (_installedMemo.containsKey(slug)) return _installedMemo[slug]!;
@@ -99,6 +101,7 @@ class EmojiPackService {
 
   void _markInstalled(String slug, bool installed) {
     _installedMemo[slug] = installed;
+    _localFileCache.clear();
   }
 
   /// Unduh seluruh file item pack ke disk. Idempoten — file yang sudah
@@ -129,6 +132,7 @@ class EmojiPackService {
         }
         await file.writeAsBytes(resp.bodyBytes, flush: true);
       }
+      _localFileCache[item.shortcode] = file;
       done++;
       onProgress?.call(done, items.length);
     }
@@ -158,8 +162,18 @@ class EmojiPackService {
   /// Path lokal file emoji bila pack terpasang; null bila tidak.
   /// Berfungsi 100% offline-first meskipun katalog belum sempat di-fetch.
   Future<File?> resolveLocalFile(String shortcode) async {
+    if (_localFileCache.containsKey(shortcode)) {
+      final cached = _localFileCache[shortcode];
+      if (cached == null) return null;
+      if (await cached.exists()) return cached;
+      _localFileCache.remove(shortcode);
+    }
+
     final base = await baseDir();
-    if (!await base.exists()) return null;
+    if (!await base.exists()) {
+      _localFileCache[shortcode] = null;
+      return null;
+    }
 
     final url = _urlIndex[shortcode];
     final expectedName = url?.substring(url.lastIndexOf('/') + 1);
@@ -171,6 +185,7 @@ class EmojiPackService {
         final candidate =
             File('${d.path}${Platform.pathSeparator}$expectedName');
         if (await candidate.exists() && await candidate.length() > 0) {
+          _localFileCache[shortcode] = candidate;
           return candidate;
         }
       }
@@ -179,10 +194,12 @@ class EmojiPackService {
         final candidate =
             File('${d.path}${Platform.pathSeparator}$shortcode$ext');
         if (await candidate.exists() && await candidate.length() > 0) {
+          _localFileCache[shortcode] = candidate;
           return candidate;
         }
       }
     }
+    _localFileCache[shortcode] = null;
     return null;
   }
 

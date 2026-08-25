@@ -35,9 +35,11 @@ class ContactListScreen extends ConsumerStatefulWidget {
 class _ContactListScreenState extends ConsumerState<ContactListScreen>
     with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   late final TextEditingController _searchController;
+  late final ScrollController _contactsScrollController;
   Timer? _vaultDebounceTimer;
   String _searchQuery = '';
   bool _isSearchActive = false;
+  double _collapseProgress = 0.0;
   int _selectedTabIndex = 0;
   final List<String> _tabs = ['A-Z', 'Baru Ditambahkan'];
   bool _isGridView = false;
@@ -51,7 +53,20 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _searchController = TextEditingController();
+    _contactsScrollController = ScrollController();
+    _contactsScrollController.addListener(_onContactsScroll);
     _loadViewPreference();
+  }
+
+  void _onContactsScroll() {
+    if (!_contactsScrollController.hasClients) return;
+    final offset = _contactsScrollController.offset;
+    final progress = (offset / 120.0).clamp(0.0, 1.0);
+    if ((progress - _collapseProgress).abs() > 0.02) {
+      setState(() {
+        _collapseProgress = progress;
+      });
+    }
   }
 
   Future<void> _loadViewPreference() async {
@@ -81,6 +96,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _vaultDebounceTimer?.cancel();
+    _contactsScrollController.removeListener(_onContactsScroll);
+    _contactsScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -304,7 +321,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                   ),
                 // Teman Sekitar (Proximity Floating Canvas)
                 if (!_isSearchActive && !wasDuress)
-                  const NearbyFriendsCanvas(),
+                  NearbyFriendsCanvas(collapseProgress: _collapseProgress),
 
                 const SizedBox(height: 4),
                 Expanded(
@@ -327,6 +344,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     bool isVaultUnlocked,
   ) {
     return ListView(
+      controller: _contactsScrollController,
       padding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 4,

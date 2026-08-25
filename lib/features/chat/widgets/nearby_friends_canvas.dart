@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -15,10 +12,16 @@ import '../../../data/models/nearby_friend_model.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
-import 'nearby_consent_dialog.dart';
+import 'nearby_orbital_canvas.dart';
+import 'nearby_teaser_card.dart';
 
 class NearbyFriendsCanvas extends ConsumerWidget {
-  const NearbyFriendsCanvas({super.key});
+  final double collapseProgress;
+
+  const NearbyFriendsCanvas({
+    super.key,
+    this.collapseProgress = 0.0,
+  });
 
   Future<void> _handleFriendTap(
     BuildContext context,
@@ -100,6 +103,13 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
 
+    final screenH = MediaQuery.sizeOf(context).height;
+    // Default 50%-55% layar saat top, menyusut ke 28%-30% saat scroll kontak
+    final maxH = (screenH * 0.44).clamp(240.0, 360.0);
+    final minH = (screenH * 0.22).clamp(140.0, 190.0);
+    final dynamicHeight =
+        maxH - (maxH - minH) * collapseProgress.clamp(0.0, 1.0);
+
     // Kumpulkan userId dari room yang disembunyikan jika vault terkunci (anti-leak)
     final hiddenUserIds = <String>{};
     if (!isVaultUnlocked && hiddenRoomIds.isNotEmpty) {
@@ -115,78 +125,38 @@ class NearbyFriendsCanvas extends ConsumerWidget {
       return true;
     }).toList();
 
-    // ── 1. State Nonaktif: Tampilkan CTA Flat Ramping di Canvas ──
+    // ── 1. State Nonaktif: Tampilkan Teaser Card Interaktif ──
     if (!state.isEnabled) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(MekaarRadius.sm),
-              ),
-              child: const Icon(
-                SolarIconsBold.radar2,
-                color: MekaarColors.guardianTeal,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Teman Sekitar',
-                    style: MekaarTypography.bodyMD.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                  Text(
-                    'Lihat teman yang aktif di radius dekat',
-                    style: MekaarTypography.caption.copyWith(
-                      color: MekaarColors.textMutedOf(context),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () async {
-                final accept = await NearbyConsentDialog.show(context);
-                if (accept) {
-                  await ref
-                      .read(nearbyFriendsProvider.notifier)
-                      .toggleSharing(true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MekaarColors.guardianTeal,
-                foregroundColor: MekaarColors.textOnTeal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                minimumSize: const Size(44, 44),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                ),
-              ),
-              child: const Text(
-                'Aktifkan',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
+      return NearbyTeaserCard(
+        collapseProgress: collapseProgress,
+        canvasHeight: dynamicHeight,
+        onActivate: () async {
+          await ref
+              .read(nearbyFriendsProvider.notifier)
+              .toggleSharing(true);
+        },
       );
     }
 
-    // ── 2. State Aktif: Tampilkan Langsung pada Canvas (Tanpa Kartu) ──
+    // ── 2. State Aktif: Tampilkan Header + Orbital Physics Canvas ──
+    final orbitalItems = displayList.map((friend) {
+      final isVaultContact = isVaultUnlocked &&
+          hiddenRoomIds.isNotEmpty &&
+          chatRooms.any((r) =>
+              hiddenRoomIds.contains(r['id']) &&
+              r['otherUserId'] == friend.userId);
+      return OrbitalAvatarItem(
+        id: friend.userId,
+        displayName: friend.displayName,
+        avatarUrl: friend.avatarUrl,
+        distanceBadge: friend.band.label,
+        isContact: friend.isContact,
+        isRecent: friend.isRecent,
+        isVaultContact: isVaultContact,
+        onTap: () => _handleFriendTap(context, ref, friend),
+      );
+    }).toList();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: Column(
@@ -217,7 +187,8 @@ class NearbyFriendsCanvas extends ConsumerWidget {
                 onTabSelected: (index) {
                   ref
                       .read(nearbyFriendsProvider.notifier)
-                      .setVisibilityMode(index == 0 ? 'everyone' : 'contacts_only');
+                      .setVisibilityMode(
+                          index == 0 ? 'everyone' : 'contacts_only');
                 },
                 height: 28,
                 width: 135,
@@ -250,9 +221,9 @@ class NearbyFriendsCanvas extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
 
-          // Canvas Body (Flat di atas background)
+          // Canvas Body
           if (displayList.isEmpty && !state.isLoading) ...[
             // Empty State
             Padding(
@@ -299,164 +270,15 @@ class NearbyFriendsCanvas extends ConsumerWidget {
               ),
             ),
           ] else ...[
-            // Floating Avatar Horizontal Scroll List langsung pada canvas
-            SizedBox(
-              height: 114,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: displayList.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 14),
-                itemBuilder: (context, index) {
-                  final friend = displayList[index];
-                  final isVaultContact = isVaultUnlocked &&
-                      hiddenRoomIds.isNotEmpty &&
-                      chatRooms.any((r) =>
-                          hiddenRoomIds.contains(r['id']) &&
-                          r['otherUserId'] == friend.userId);
-                  return _buildFloatingAvatarItem(
-                    context,
-                    ref,
-                    friend,
-                    isDark,
-                    isVaultContact: isVaultContact,
-                  );
-                },
-              ),
+            // Orbital Physics Canvas untuk data teman aktif
+            NearbyOrbitalCanvas(
+              items: orbitalItems,
+              collapseProgress: collapseProgress,
+              height: (dynamicHeight - 44).clamp(120.0, 320.0),
+              isPreview: false,
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildFloatingAvatarItem(
-    BuildContext context,
-    WidgetRef ref,
-    NearbyFriendModel friend,
-    bool isDark, {
-    bool isVaultContact = false,
-  }) {
-    final size = friend.band.avatarSize;
-    final neutralBorder = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : Colors.black.withValues(alpha: 0.08);
-
-    Widget avatarWidget = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: neutralBorder,
-          width: 1.5,
-        ),
-      ),
-      child: ClipOval(
-        child: Avatar(
-          imageUrl: friend.avatarUrl,
-          initial: friend.displayName.isNotEmpty
-              ? friend.displayName[0].toUpperCase()
-              : '?',
-          size: size,
-        ),
-      ),
-    );
-
-    // Jika idle/offline < 1 jam, terapkan efek desaturasi (grayscale)
-    if (!friend.isRecent) {
-      avatarWidget = ColorFiltered(
-        colorFilter: const ColorFilter.matrix(<double>[
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0,      0,      0,      0.65, 0,
-        ]),
-        child: avatarWidget,
-      );
-    }
-
-    return PressableScale(
-      onTap: () => _handleFriendTap(context, ref, friend),
-      child: SizedBox(
-        width: 76,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Avatar Container
-            SizedBox(
-              height: 68,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  Center(child: avatarWidget),
-                  if (isVaultContact)
-                    Positioned(
-                      right: (76 - size) / 2,
-                      bottom: (68 - size) / 2,
-                      child: Container(
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: BoxDecoration(
-                          color: MekaarColors.accentOf(context),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: MekaarColors.surfaceOf(context),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: const Icon(
-                          SolarIconsOutline.lock,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-
-            // Distance Band Chip
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(MekaarRadius.sm),
-              ),
-              child: Text(
-                friend.band.shortLabel,
-                style: MekaarTypography.caption.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: friend.isRecent
-                      ? MekaarColors.textSecondaryOf(context)
-                      : MekaarColors.textMutedOf(context),
-                ),
-                maxLines: 1,
-              ),
-            ),
-            const SizedBox(height: 3),
-
-            // Display Name
-            Text(
-              friend.displayName,
-              style: MekaarTypography.labelSM.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: friend.isRecent
-                    ? MekaarColors.textPrimaryOf(context)
-                    : MekaarColors.textMutedOf(context),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

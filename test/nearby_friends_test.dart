@@ -235,7 +235,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Teman Sekitar'), findsOneWidget);
       expect(find.text('Aktifkan'), findsOneWidget);
@@ -265,7 +266,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Teman Sekitar'), findsOneWidget);
       expect(find.text('Belum ada teman di sekitar'), findsOneWidget);
@@ -311,7 +313,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Teman Sekitar'), findsOneWidget);
       expect(find.text('Semua'), findsOneWidget);
@@ -323,7 +326,8 @@ void main() {
 
       // Tap filter [Kontak]
       await tester.tap(find.text('Kontak'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       // Mode 'Kontak': Hanya Alya yang tampil, Dimas (non-kontak) disaring
       expect(find.text('Alya Rahma'), findsOneWidget);
@@ -331,7 +335,8 @@ void main() {
 
       // Tap filter [Semua] kembali
       await tester.tap(find.text('Semua'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Alya Rahma'), findsOneWidget);
       expect(find.text('Dimas Seto'), findsOneWidget);
@@ -393,7 +398,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       // Teman publik tampil
       expect(find.text('Teman Publik'), findsOneWidget);
@@ -457,7 +463,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       // Keduanya tampil
       expect(find.text('Teman Publik'), findsOneWidget);
@@ -465,6 +472,25 @@ void main() {
 
       // Menampilkan badge lock icon untuk kontak vault
       expect(find.byIcon(SolarIconsOutline.lock), findsOneWidget);
+    });
+
+    test('NearbyFriendsNotifier toggleSharing & setVisibilityMode merespons secara non-blocking', () async {
+      final fakeRepo = FakeNearbyRepository();
+      final notifier = NearbyFriendsNotifier(
+        fakeRepo,
+        requestPermission: () async => true,
+        getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+      );
+
+      final success = await notifier.toggleSharing(true);
+      expect(success, isTrue);
+      expect(notifier.state.isEnabled, isTrue);
+
+      await notifier.setVisibilityMode('everyone');
+      expect(notifier.state.visibilityMode, 'everyone');
+
+      await notifier.setVisibilityMode('contacts_only');
+      expect(notifier.state.visibilityMode, 'contacts_only');
     });
   });
 }

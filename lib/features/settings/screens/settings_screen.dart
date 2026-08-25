@@ -400,55 +400,59 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       showDragHandle: true,
       builder: (ctx) {
-        final current = ref.watch(chatInvitationModeProvider);
-        final options = [
-          ('approved_only', 'Hanya yang Disetujui', 'Pengguna baru harus mengirim permintaan chat terlebih dahulu'),
-          ('everyone', 'Semua Orang', 'Siapapun dapat langsung mengirim pesan kepada Anda'),
-        ];
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                'Proteksi Undangan Chat',
-                style: MekaarTypography.headingSM,
-              ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Tentukan siapa yang dapat mengirim pesan langsung kepada Anda.',
-                  style: MekaarTypography.bodySM,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...options.map((opt) {
-                final selected = opt.$1 == current;
-                return ListTile(
-                  leading: Icon(
-                    selected
-                        ? SolarIconsBold.checkCircle
-                        : SolarIconsOutline.shieldUser,
-                    color: selected ? MekaarColors.primaryOf(context) : null,
+        return Consumer(
+          builder: (context, sheetRef, _) {
+            final current = sheetRef.watch(chatInvitationModeProvider);
+            final options = [
+              ('approved_only', 'Hanya yang Disetujui', 'Pengguna baru harus mengirim permintaan chat terlebih dahulu'),
+              ('everyone', 'Semua Orang', 'Siapapun dapat langsung mengirim pesan kepada Anda'),
+            ];
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'Proteksi Undangan Chat',
+                    style: MekaarTypography.headingSM,
                   ),
-                  title: Text(opt.$2),
-                  subtitle: Text(opt.$3, style: const TextStyle(fontSize: 12)),
-                  trailing: selected
-                      ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
-                      : null,
-                  onTap: () {
-                    ref
-                        .read(chatInvitationModeProvider.notifier)
-                        .setMode(opt.$1);
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Tentukan siapa yang dapat mengirim pesan langsung kepada Anda.',
+                      style: MekaarTypography.bodySM,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...options.map((opt) {
+                    final selected = opt.$1 == current;
+                    return ListTile(
+                      leading: Icon(
+                        selected
+                            ? SolarIconsBold.checkCircle
+                            : SolarIconsOutline.shieldUser,
+                        color: selected ? MekaarColors.primaryOf(context) : null,
+                      ),
+                      title: Text(opt.$2),
+                      subtitle: Text(opt.$3, style: const TextStyle(fontSize: 12)),
+                      trailing: selected
+                          ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
+                          : null,
+                      onTap: () {
+                        sheetRef
+                            .read(chatInvitationModeProvider.notifier)
+                            .setMode(opt.$1);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -460,109 +464,116 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       showDragHandle: true,
       builder: (ctx) {
-        final state = ref.watch(nearbyFriendsProvider);
-        final isEnabled = state.isEnabled;
-        final currentMode = state.visibilityMode;
+        return Consumer(
+          builder: (context, sheetRef, _) {
+            final state = sheetRef.watch(nearbyFriendsProvider);
+            final isEnabled = state.isEnabled;
+            final currentMode = state.visibilityMode;
+            final isProcessing = state.isLoading;
 
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                'Teman Sekitar & Proksimitas',
-                style: MekaarTypography.headingSM,
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'Teman Sekitar & Proksimitas',
+                    style: MekaarTypography.headingSM,
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Bagikan radius jarak kasar dengan kontak untuk mengetahui siapa yang sedang berada di dekat Anda.',
+                      style: MekaarTypography.bodySM,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    secondary: Icon(
+                      SolarIconsOutline.radar2,
+                      color: isEnabled ? MekaarColors.guardianTeal : null,
+                    ),
+                    title: const Text('Aktifkan Teman Sekitar'),
+                    subtitle: const Text(
+                      'Hanya membagikan radius kasar (<500 m, 500 m–2 km, satu kota)',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: isEnabled,
+                    onChanged: isProcessing
+                        ? null
+                        : (value) async {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            final success = await sheetRef
+                                .read(nearbyFriendsProvider.notifier)
+                                .toggleSharing(value);
+                            if (!success && ctx.mounted) {
+                              MekaarSnackbar.error(
+                                ctx,
+                                'Izin lokasi diperlukan untuk mengaktifkan fitur ini.',
+                              );
+                            }
+                          },
+                  ),
+                  if (isEnabled) ...[
+                    const Divider(),
+                    ListTile(
+                      leading: Icon(
+                        currentMode == 'contacts_only'
+                            ? SolarIconsBold.checkCircle
+                            : SolarIconsOutline.usersGroupRounded,
+                        color: currentMode == 'contacts_only'
+                            ? MekaarColors.guardianTeal
+                            : null,
+                      ),
+                      title: const Text('Hanya Kontak Saya'),
+                      subtitle: const Text(
+                        'Hanya kontak yang saling menyimpan yang dapat melihat jarak',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: currentMode == 'contacts_only'
+                          ? const Icon(MekaarIcons.check,
+                              color: MekaarColors.guardianTeal)
+                          : null,
+                      onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        sheetRef
+                            .read(nearbyFriendsProvider.notifier)
+                            .setVisibilityMode('contacts_only');
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        currentMode == 'everyone'
+                            ? SolarIconsBold.checkCircle
+                            : SolarIconsOutline.globus,
+                        color: currentMode == 'everyone'
+                            ? MekaarColors.guardianTeal
+                            : null,
+                      ),
+                      title: const Text('Semua Pengguna di Sekitar'),
+                      subtitle: const Text(
+                        'Termasuk pengguna non-kontak yang juga mengaktifkan fitur ini',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: currentMode == 'everyone'
+                          ? const Icon(MekaarIcons.check,
+                              color: MekaarColors.guardianTeal)
+                          : null,
+                      onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        sheetRef
+                            .read(nearbyFriendsProvider.notifier)
+                            .setVisibilityMode('everyone');
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Bagikan radius jarak kasar dengan kontak untuk mengetahui siapa yang sedang berada di dekat Anda.',
-                  style: MekaarTypography.bodySM,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                secondary: Icon(
-                  SolarIconsOutline.radar2,
-                  color: isEnabled ? MekaarColors.guardianTeal : null,
-                ),
-                title: const Text('Aktifkan Teman Sekitar'),
-                subtitle: const Text(
-                  'Hanya membagikan radius kasar (<500 m, 500 m–2 km, satu kota)',
-                  style: TextStyle(fontSize: 12),
-                ),
-                value: isEnabled,
-                onChanged: (value) async {
-                  HapticService.trigger(MekaarHapticIntent.selection);
-                  final success = await ref
-                      .read(nearbyFriendsProvider.notifier)
-                      .toggleSharing(value);
-                  if (!success && ctx.mounted) {
-                    MekaarSnackbar.error(
-                      ctx,
-                      'Izin lokasi diperlukan untuk mengaktifkan fitur ini.',
-                    );
-                  }
-                },
-              ),
-              if (isEnabled) ...[
-                const Divider(),
-                ListTile(
-                  leading: Icon(
-                    currentMode == 'contacts_only'
-                        ? SolarIconsBold.checkCircle
-                        : SolarIconsOutline.usersGroupRounded,
-                    color: currentMode == 'contacts_only'
-                        ? MekaarColors.guardianTeal
-                        : null,
-                  ),
-                  title: const Text('Hanya Kontak Saya'),
-                  subtitle: const Text(
-                    'Hanya kontak yang saling menyimpan yang dapat melihat jarak',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  trailing: currentMode == 'contacts_only'
-                      ? const Icon(MekaarIcons.check,
-                          color: MekaarColors.guardianTeal)
-                      : null,
-                  onTap: () {
-                    HapticService.trigger(MekaarHapticIntent.selection);
-                    ref
-                        .read(nearbyFriendsProvider.notifier)
-                        .setVisibilityMode('contacts_only');
-                  },
-                ),
-                ListTile(
-                  leading: Icon(
-                    currentMode == 'everyone'
-                        ? SolarIconsBold.checkCircle
-                        : SolarIconsOutline.globus,
-                    color: currentMode == 'everyone'
-                        ? MekaarColors.guardianTeal
-                        : null,
-                  ),
-                  title: const Text('Semua Pengguna di Sekitar'),
-                  subtitle: const Text(
-                    'Termasuk pengguna non-kontak yang juga mengaktifkan fitur ini',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  trailing: currentMode == 'everyone'
-                      ? const Icon(MekaarIcons.check,
-                          color: MekaarColors.guardianTeal)
-                      : null,
-                  onTap: () {
-                    HapticService.trigger(MekaarHapticIntent.selection);
-                    ref
-                        .read(nearbyFriendsProvider.notifier)
-                        .setVisibilityMode('everyone');
-                  },
-                ),
-              ],
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -576,41 +587,45 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       showDragHandle: true,
       builder: (ctx) {
-        final current = ref.watch(lastSeenPrivacyProvider);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                'Terakhir Dilihat & Online',
-                style: MekaarTypography.headingSM,
-              ),
-              const SizedBox(height: 8),
-              ...LastSeenPrivacy.values.map((privacy) {
-                final selected = privacy == current;
-                return ListTile(
-                  leading: Icon(
-                    selected
-                        ? SolarIconsBold.checkCircle
-                        : SolarIconsOutline.user,
-                    color: selected ? MekaarColors.primaryOf(context) : null,
+        return Consumer(
+          builder: (context, sheetRef, _) {
+            final current = sheetRef.watch(lastSeenPrivacyProvider);
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'Terakhir Dilihat & Online',
+                    style: MekaarTypography.headingSM,
                   ),
-                  title: Text(privacy.label),
-                  trailing: selected
-                      ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
-                      : null,
-                  onTap: () {
-                    ref
-                        .read(lastSeenPrivacyProvider.notifier)
-                        .setPrivacy(privacy);
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
+                  const SizedBox(height: 8),
+                  ...LastSeenPrivacy.values.map((privacy) {
+                    final selected = privacy == current;
+                    return ListTile(
+                      leading: Icon(
+                        selected
+                            ? SolarIconsBold.checkCircle
+                            : SolarIconsOutline.user,
+                        color: selected ? MekaarColors.primaryOf(context) : null,
+                      ),
+                      title: Text(privacy.label),
+                      trailing: selected
+                          ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
+                          : null,
+                      onTap: () {
+                        sheetRef
+                            .read(lastSeenPrivacyProvider.notifier)
+                            .setPrivacy(privacy);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
         );
       },
     );

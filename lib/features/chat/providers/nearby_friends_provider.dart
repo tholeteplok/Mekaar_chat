@@ -128,7 +128,7 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
       );
 
       if (enabled) {
-        await refreshNearby(force: true);
+        unawaited(refreshNearby(force: true));
       }
 
       return true;

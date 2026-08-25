@@ -102,4 +102,19 @@ void main() {
       expect(countCustomEmojiTokens(':satu: :dua: :tiga:'), 3);
     });
   });
+
+  group('Salma Custom Emoji Shortcode Support', () {
+    test('token Salma berhasil diparse sebagai CustomEmojiSegment', () {
+      final segs = parseEmojiContent('Halo :salma_wave: sayang :salma_love:!');
+      expect(segs, hasLength(5));
+      expect((segs[1] as CustomEmojiSegment).slug, 'salma_wave');
+      expect((segs[3] as CustomEmojiSegment).slug, 'salma_love');
+    });
+
+    test('isSingleCustomEmoji mendeteksi single emoji Salma', () {
+      expect(isSingleCustomEmoji(':salma_senang:'), isTrue);
+      expect(isSingleCustomEmoji(' :salma_huft: '), isTrue);
+      expect(isSingleCustomEmoji('pesan :salma_senang:'), isFalse);
+    });
+  });
 }
