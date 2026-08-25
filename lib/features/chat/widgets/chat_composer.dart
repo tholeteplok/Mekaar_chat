@@ -476,45 +476,21 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
                     onTap: () =>
                         setState(() => _activeEmojiPack = pack.slug),
                   ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
+                IconButton(
+                  tooltip: 'Toko Emoji',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                  splashRadius: 20,
+                  icon: Icon(
+                    SolarIconsOutline.bagSmile,
+                    size: 22,
+                    color: MekaarColors.textSecondaryOf(context),
+                  ),
+                  onPressed: () {
                     HapticService.trigger(MekaarHapticIntent.selection);
                     Navigator.pushNamed(context, AppRoutes.emojiStore);
                   },
-                  child: Container(
-                    margin: const EdgeInsets.only(left: MekaarSpacing.sm),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.accentTextOf(context)
-                          .withValues(alpha: 0.10),
-                      borderRadius:
-                          BorderRadius.circular(MekaarRadius.pill),
-                      border: Border.all(
-                        color: MekaarColors.accentTextOf(context)
-                            .withValues(alpha: 0.35),
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          SolarIconsOutline.addCircle,
-                          size: 16,
-                          color: MekaarColors.accentTextOf(context),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Toko',
-                          style: MekaarTypography.labelMD.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: MekaarColors.accentTextOf(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ),

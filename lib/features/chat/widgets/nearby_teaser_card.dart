@@ -105,13 +105,13 @@ class NearbyTeaserCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton.icon(
+                      ElevatedButton(
                         onPressed: () => _handleActivation(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.guardianTeal,
                           foregroundColor: MekaarColors.textOnTeal,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
+                            horizontal: 16,
                             vertical: 8,
                           ),
                           minimumSize: const Size(40, 38),
@@ -121,8 +121,7 @@ class NearbyTeaserCard extends StatelessWidget {
                                 BorderRadius.circular(MekaarRadius.pill),
                           ),
                         ),
-                        icon: const Icon(SolarIconsBold.radar2, size: 15),
-                        label: const Text(
+                        child: const Text(
                           'Aktifkan',
                           style: TextStyle(
                             fontSize: 12.5,
