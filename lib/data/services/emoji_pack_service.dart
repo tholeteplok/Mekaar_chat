@@ -35,8 +35,16 @@ class EmojiPackService {
         .eq('is_active', true)
         .order('sort_order');
 
-    final packs =
-        (packsRows as List).map((r) => EmojiPack.fromJson(r)).toList();
+    final packs = (packsRows as List).map((r) {
+      final json = Map<String, dynamic>.from(r);
+      final rawCover = json['cover_url'] as String?;
+      final slug = json['slug'] as String? ?? '';
+      if (rawCover != null && rawCover.isNotEmpty) {
+        json['cover_url'] = _normalizeUrl(rawCover, packSlug: slug);
+      }
+      return EmojiPack.fromJson(json);
+    }).toList();
+
     if (packs.isEmpty) {
       _urlIndex = {};
       return packs;
@@ -50,9 +58,18 @@ class EmojiPackService {
         .inFilter('emoji_packs.slug', slugs)
         .order('sort_order');
 
-    final items = (itemRows as List)
-        .map((r) => EmojiPackItem.fromJson(Map<String, dynamic>.from(r)))
-        .toList();
+    final items = (itemRows as List).map((r) {
+      final json = Map<String, dynamic>.from(r);
+      final rawUrl = json['file_url'] as String? ?? '';
+      final packSlug = (json['emoji_packs'] as Map<String, dynamic>?)?['slug']
+              as String? ??
+          json['pack_slug'] as String? ??
+          '';
+      final shortcode = json['shortcode'] as String? ?? '';
+      json['file_url'] =
+          _normalizeUrl(rawUrl, packSlug: packSlug, shortcode: shortcode);
+      return EmojiPackItem.fromJson(json);
+    }).toList();
 
     _urlIndex = {
       for (final it in items) it.shortcode: it.fileUrl,
@@ -64,6 +81,30 @@ class EmojiPackService {
         p.slug: items.where((i) => i.packSlug == p.slug).toList(),
     };
     return packs;
+  }
+
+  /// Menormalkan URL agar otomatis terhubung ke Supabase Storage instance yang aktif
+  /// tanpa bergantung pada domain placeholder di database.
+  String _normalizeUrl(
+    String rawUrl, {
+    required String packSlug,
+    String? shortcode,
+  }) {
+    if (rawUrl.isEmpty) {
+      final fileName = shortcode == null ? '_cover.png' : '$shortcode.png';
+      return _client.storage.from(bucket).getPublicUrl('$packSlug/$fileName');
+    }
+    if (rawUrl.contains('REPLACE-DISETUJUI') || rawUrl.contains('REPLACE-')) {
+      final ext = rawUrl.contains('.')
+          ? rawUrl.substring(rawUrl.lastIndexOf('.'))
+          : '.png';
+      final fileName = shortcode == null ? '_cover$ext' : '$shortcode$ext';
+      return _client.storage.from(bucket).getPublicUrl('$packSlug/$fileName');
+    }
+    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+      return _client.storage.from(bucket).getPublicUrl(rawUrl);
+    }
+    return rawUrl;
   }
 
   Map<String, List<EmojiPackItem>> _itemsByPack = {};
