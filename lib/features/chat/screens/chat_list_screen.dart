@@ -75,10 +75,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         hash,
         r['id'],
         r['name'],
-        r['last_message_at'],
-        r['unread_count'],
+        r['timestamp'],
+        r['unreadCount'],
+        r['lastMessage'],
         r['isArchived'],
         r['isGuardian'],
+        r['isMuted'],
       );
     }
     return hash;

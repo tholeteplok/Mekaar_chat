@@ -52,6 +52,12 @@ class AppRealtimeListener {
           callback: messageListener.handleInsert,
         )
         .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'messages',
+          callback: messageListener.handleMessageChange,
+        )
+        .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'calls',

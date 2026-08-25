@@ -85,7 +85,12 @@ class ChatListTile extends StatelessWidget {
                       Text(
                         _formatTimestamp(timestamp),
                         style: MekaarTypography.bodySM.copyWith(
-                          color: MekaarColors.textMutedOf(context),
+                          color: unreadCount > 0
+                              ? MekaarColors.accentOf(context)
+                              : MekaarColors.textMutedOf(context),
+                          fontWeight: unreadCount > 0
+                              ? FontWeight.w700
+                              : FontWeight.w400,
                         ),
                       ),
                     ],
@@ -140,8 +145,12 @@ class ChatListTile extends StatelessWidget {
                             return Text(
                               displayLastMsg,
                               style: MekaarTypography.labelLG.copyWith(
-                                fontWeight: FontWeight.w400,
-                                color: MekaarColors.textMutedOf(context),
+                                fontWeight: unreadCount > 0
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: unreadCount > 0
+                                    ? MekaarColors.textPrimaryOf(context)
+                                    : MekaarColors.textMutedOf(context),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

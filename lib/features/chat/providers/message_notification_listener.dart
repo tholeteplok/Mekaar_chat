@@ -44,6 +44,10 @@ class MessageNotificationListener {
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
     if (roomId == null || senderId == null || currentUserId == null) return;
 
+    // Refresh daftar chat rooms secara real-time agar unread badge, urutan room,
+    // dan preview pesan langsung ter-update di chat list & bottom nav bar.
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
+
     // 1. Echo broadcast: abaikan pesan sendiri.
     // 2. User sedang di room ini? Jangan ganggu.
     // 3. Pesan yang di-soft-delete tidak perlu notif.
@@ -69,6 +73,12 @@ class MessageNotificationListener {
     }
 
     _notify(roomId, senderId, content, isEncrypted);
+  }
+
+  /// Dipanggil saat ada perubahan pesan (update/soft-delete) di tabel messages
+  void handleMessageChange(PostgresChangePayload payload) {
+    if (_disposed) return;
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   /// Filter murni (tanpa side-effect) untuk menentukan apakah sebuah pesan

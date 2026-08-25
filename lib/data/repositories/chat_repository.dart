@@ -102,46 +102,6 @@ class ChatRepository {
         }
       } catch (_) {}
 
-      // Get last message in the room after history_cleared_at
-      var lastMsgQuery = _supabaseService.client
-          .from('messages')
-          .select()
-          .eq('room_id', roomId);
-      
-      if (historyClearedAt != null) {
-        lastMsgQuery = lastMsgQuery.gt('created_at', historyClearedAt.toIso8601String());
-      }
-
-      final lastMsgResponse = await lastMsgQuery
-          .order('created_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-
-      String lastMessageText = 'Mulai percakapan...';
-      DateTime lastMessageTime = DateTime.now();
-
-      if (lastMsgResponse != null) {
-        final lastMsg = Message.fromJson(lastMsgResponse);
-        if (lastMsg.isDeleted) {
-          lastMessageText = 'Pesan telah dihapus';
-        } else if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty) {
-          // Tampilkan label aman tanpa membebani isolate utama dengan puluhan dekripsi paralel
-          lastMessageText = '🔒 Pesan terenkripsi';
-        } else if (lastMsg.type == MessageType.image) {
-          lastMessageText = '📷 Foto';
-        } else if (lastMsg.type == MessageType.voice) {
-          lastMessageText = '🎤 Pesan Suara';
-        } else if (lastMsg.type == MessageType.location) {
-          lastMessageText = '📍 Lokasi';
-        } else if (lastMsg.type == MessageType.system) {
-          lastMessageText = lastMsg.content;
-        } else {
-          lastMessageText =
-              replaceCustomEmojiTokens(lastMsg.content, (_) => '[emoji]');
-        }
-        lastMessageTime = lastMsg.createdAt;
-      }
-
       // Count unread messages (messages after our last_read_at, NOT sent by us, and after history_cleared_at)
       int unreadCount = 0;
       try {
@@ -170,6 +130,47 @@ class ChatRepository {
           unreadCount = unreadResp.count;
         }
       } catch (_) {}
+
+      // Get last message in the room after history_cleared_at
+      var lastMsgQuery = _supabaseService.client
+          .from('messages')
+          .select()
+          .eq('room_id', roomId);
+      
+      if (historyClearedAt != null) {
+        lastMsgQuery = lastMsgQuery.gt('created_at', historyClearedAt.toIso8601String());
+      }
+
+      final lastMsgResponse = await lastMsgQuery
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      String lastMessageText = 'Mulai percakapan...';
+      DateTime lastMessageTime = DateTime.now();
+
+      if (lastMsgResponse != null) {
+        final lastMsg = Message.fromJson(lastMsgResponse);
+        final bool isUnreadFromOther = unreadCount > 0 && lastMsg.senderId != userId;
+        if (lastMsg.isDeleted) {
+          lastMessageText = 'Pesan telah dihapus';
+        } else if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty) {
+          // Tampilkan label aman tanpa membebani isolate utama dengan puluhan dekripsi paralel
+          lastMessageText = isUnreadFromOther ? '🔒 Pesan baru' : '🔒 Pesan terenkripsi';
+        } else if (lastMsg.type == MessageType.image) {
+          lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
+        } else if (lastMsg.type == MessageType.voice) {
+          lastMessageText = isUnreadFromOther ? '🎤 Pesan suara baru' : '🎤 Pesan Suara';
+        } else if (lastMsg.type == MessageType.location) {
+          lastMessageText = isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
+        } else if (lastMsg.type == MessageType.system) {
+          lastMessageText = lastMsg.content;
+        } else {
+          lastMessageText =
+              replaceCustomEmojiTokens(lastMsg.content, (_) => '[emoji]');
+        }
+        lastMessageTime = lastMsg.createdAt;
+      }
 
       return {
         'id': roomId,

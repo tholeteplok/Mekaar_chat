@@ -356,6 +356,7 @@ class ChatActionsNotifier {
   Future<void> markRoomRead(String roomId) async {
     await _chatRepository.markRoomRead(roomId);
     _ref.invalidate(otherParticipantLastReadProvider(roomId));
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> updateLastSeen() async {
