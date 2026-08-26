@@ -149,7 +149,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
   Future<void> _launchSupportEmail(BuildContext context, String reason) async {
     final uri = Uri(
       scheme: 'mailto',
-      path: 'safety@mekaar.app',
+      path: 'mekaar.chat@gmail.com',
       queryParameters: {
         'subject': 'Permohonan Banding Pembekuan Akun MEKAAR',
         'body': 'Halo Tim Keselamatan MEKAAR,\n\nSaya ingin mengajukan banding atas pembekuan akun saya dengan rincian:\nAlasan: $reason\n\nPenjelasan Tambahan:\n',

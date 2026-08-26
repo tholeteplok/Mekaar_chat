@@ -31,7 +31,7 @@ class LocationService {
     }
   }
 
-  // Get current device coordinates
+  // Get current device coordinates with timeout and service check
   static Future<loc.LocationData?> getCurrentLocation() async {
     try {
       final hasPermission = await requestPermission();
@@ -43,7 +43,24 @@ class LocationService {
         if (!requestEnabled) return null;
       }
 
-      return await _location.getLocation();
+      try {
+        await _location.changeSettings(
+          accuracy: loc.LocationAccuracy.high,
+          interval: 1000,
+        );
+      } catch (_) {}
+
+      // Timeout 8 detik untuk mencegah freeze jika GPS hardware lambat mengunci satelit
+      try {
+        return await _location.getLocation().timeout(const Duration(seconds: 8));
+      } catch (_) {
+        try {
+          await _location.changeSettings(accuracy: loc.LocationAccuracy.balanced);
+          return await _location.getLocation().timeout(const Duration(seconds: 4));
+        } catch (_) {
+          return null;
+        }
+      }
     } catch (e) {
       return null;
     }

@@ -21,6 +21,7 @@ import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/nearby_friends_canvas.dart';
@@ -109,6 +110,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       // Auto-relock vault seketika saat aplikasi diminimize atau background
       if (ref.read(privateVaultUnlockedProvider)) {
         ref.read(privateVaultUnlockedProvider.notifier).state = false;
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // Auto-sync lokasi & teman sekitar saat aplikasi dibuka kembali
+      if (ref.read(nearbyFriendsProvider).isEnabled) {
+        ref.read(nearbyFriendsProvider.notifier).refreshNearby();
       }
     }
   }

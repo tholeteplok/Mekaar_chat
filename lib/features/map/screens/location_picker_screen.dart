@@ -261,6 +261,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                               color: MekaarColors.textMutedOf(context),
                             ),
                             border: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            filled: false,
+                            fillColor: Colors.transparent,
                             isDense: true,
                           ),
                           style: MekaarTypography.bodyMD.copyWith(

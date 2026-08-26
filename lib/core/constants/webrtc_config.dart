@@ -53,6 +53,14 @@ class WebRtcConfig {
           'credential': 'openrelayproject',
         },
       ]);
+    } else {
+      // Release mode tanpa TURN — panggilan di jaringan seluler (CGNAT/Symmetric NAT) akan gagal.
+      debugPrint(
+        '🔴 WebRtcConfig: TURN_URL tidak dikonfigurasi di build produksi! '
+        'Panggilan di jaringan seluler (Symmetric NAT) TIDAK akan tersambung. '
+        'Gunakan --dart-define=TURN_URL=turn:server:port '
+        '--dart-define=TURN_USERNAME=user --dart-define=TURN_CREDENTIAL=pass',
+      );
     }
 
     return {

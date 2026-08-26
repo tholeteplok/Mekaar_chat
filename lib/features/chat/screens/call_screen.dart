@@ -5,7 +5,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
+import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
@@ -112,7 +114,10 @@ class _CallScreenState extends ConsumerState<CallScreen>
       _statusPollingTimer?.cancel();
       _finishCall('Koneksi panggilan gagal');
     } else if (newStatus == 'answered') {
+      // Reset timeout: cancel timer lama 30 detik, mulai timer koneksi ICE 15 detik
+      // agar ada cukup waktu untuk negosiasi SDP + ICE gathering setelah dijawab.
       _callTimeoutTimer?.cancel();
+      _startIceConnectionTimer();
       if (widget.isCaller && _myUserId != null) {
         _signaling?.createOfferIfPending(_myUserId!);
       }
@@ -172,6 +177,24 @@ class _CallScreenState extends ConsumerState<CallScreen>
           } catch (_) {}
         }
         _finishCall('Tidak dijawab');
+      }
+    });
+  }
+
+  /// Timer koneksi ICE — dimulai setelah panggilan dijawab.
+  /// Memberi 15 detik tambahan untuk negosiasi SDP + ICE gathering + TURN relay.
+  void _startIceConnectionTimer() {
+    _callTimeoutTimer?.cancel();
+    _callTimeoutTimer = Timer(const Duration(seconds: 15), () async {
+      if (_callStatus != 'Tersambung' && !_isEnding && !_isDisposed) {
+        if (_currentCallId != null) {
+          try {
+            await ref
+                .read(callRepositoryProvider)
+                .updateCallStatus(_currentCallId!, 'failed');
+          } catch (_) {}
+        }
+        _finishCall('Koneksi panggilan gagal');
       }
     });
   }
@@ -242,6 +265,17 @@ class _CallScreenState extends ConsumerState<CallScreen>
       _signaling = signaling;
       _configureSignaling(signaling);
 
+      // Cek & minta izin mikrofon (dan kamera untuk video call) sebelum initMedia
+      final hasPermission = await _requestCallPermissions();
+      if (!hasPermission) {
+        _finishCall('Izin mikrofon diperlukan untuk panggilan');
+        return;
+      }
+      if (_isDisposed || _isEnding) {
+        _cleanUp();
+        return;
+      }
+
       await signaling.initMedia(_isVideoCall);
       if (_isDisposed || _isEnding) {
         _cleanUp();
@@ -286,6 +320,54 @@ class _CallScreenState extends ConsumerState<CallScreen>
         });
       }
     }
+  }
+
+  /// Minta izin mikrofon (dan kamera untuk video call).
+  /// Menampilkan SnackBar informatif jika izin ditolak, dengan opsi buka Settings.
+  Future<bool> _requestCallPermissions() async {
+    // Cek mikrofon
+    final hasMic = await PermissionsHelper.hasMicPermission();
+    if (!hasMic) {
+      final granted = await PermissionsHelper.requestMic();
+      if (!granted) {
+        if (mounted) {
+          final isPermanent = await PermissionsHelper.isMicPermanentlyDenied();
+          if (mounted) {
+            if (isPermanent) {
+              MekaarSnackbar.error(
+                context,
+                'Izin mikrofon diblokir. Buka Pengaturan > Izin Aplikasi untuk mengaktifkan.',
+              );
+              // Otomatis buka settings jika sudah permanently denied
+              PermissionsHelper.openSettings();
+            } else {
+              MekaarSnackbar.error(
+                context,
+                'Izin mikrofon diperlukan untuk melakukan panggilan.',
+              );
+            }
+          }
+        }
+        return false;
+      }
+    }
+
+    // Cek kamera untuk video call
+    if (_isVideoCall) {
+      final hasCam = await PermissionsHelper.hasCameraPermission();
+      if (!hasCam) {
+        final granted = await PermissionsHelper.requestCamera();
+        if (!granted) {
+          if (mounted) {
+            MekaarSnackbar.warning(context, 'Izin kamera ditolak. Panggilan dilanjutkan tanpa video.');
+          }
+          // Tetap lanjutkan panggilan tanpa video
+          _isVideoOn = false;
+        }
+      }
+    }
+
+    return true;
   }
 
   void _configureSignaling(WebRtcSignalingService signaling) {

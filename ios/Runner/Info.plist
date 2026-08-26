@@ -72,5 +72,9 @@
 	<string>MEKAAR memerlukan akses mikrofon untuk panggilan suara/video dan pelaporan darurat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MEKAAR memerlukan akses ke galeri untuk memilih dan memotong foto profil.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MEKAAR memerlukan akses lokasi untuk fitur Teman Sekitar dan berbagi lokasi darurat.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>MEKAAR memerlukan akses lokasi untuk fitur Teman Sekitar dan berbagi lokasi darurat.</string>
 </dict>
 </plist>

@@ -21,9 +21,15 @@ class WebRtcSignalingService {
   bool _isCleaningUp = false;
   bool _isCleanedUp = false;
 
+  /// Cache answer SDP agar bisa dikirim ulang saat menerima duplikat offer
+  /// tanpa harus memanggil setRemoteDescription lagi (mencegah InvalidStateError).
+  Map<String, dynamic>? _cachedAnswer;
+
   Timer? _retryTimer;
   int _retryCount = 0;
   static const int _maxRetries = 6;
+  static const int _channelSubscribeMaxRetries = 2;
+  static const Duration _channelRetryDelay = Duration(seconds: 2);
 
   Function(MediaStream stream)? onLocalStream;
   Function(MediaStream stream)? onRemoteStream;
@@ -120,27 +126,8 @@ class WebRtcSignalingService {
         },
       );
 
-      final subscribed = Completer<void>();
-      _channel!.subscribe((status, [error]) {
-        if (status == RealtimeSubscribeStatus.subscribed) {
-          if (!subscribed.isCompleted) {
-            subscribed.complete();
-          }
-        } else if (status == RealtimeSubscribeStatus.channelError ||
-            status == RealtimeSubscribeStatus.timedOut ||
-            status == RealtimeSubscribeStatus.closed) {
-          final failure =
-              error ??
-              StateError('Gagal berlangganan kanal panggilan: ${status.name}');
-          if (!subscribed.isCompleted) {
-            subscribed.completeError(failure);
-          } else {
-            _emitError(failure);
-          }
-        }
-      });
-
-      await subscribed.future;
+      // Subscribe ke channel dengan retry untuk menangani WebSocket transient timeout
+      await _subscribeChannelWithRetry(channelTopic, myUserId, isCaller);
 
       if (_isCleaningUp || _isCleanedUp || _channel == null) {
         return;
@@ -194,6 +181,89 @@ class WebRtcSignalingService {
 
       _sendSignal(myUserId, type, data);
     });
+  }
+
+  /// Subscribe ke Supabase Realtime channel dengan retry otomatis.
+  /// Menangani kasus WebSocket reconnect / transient timeout.
+  Future<void> _subscribeChannelWithRetry(
+    String channelTopic,
+    String myUserId,
+    bool isCaller,
+  ) async {
+    Object? lastError;
+
+    for (int attempt = 0; attempt <= _channelSubscribeMaxRetries; attempt++) {
+      if (_isCleaningUp || _isCleanedUp || _channel == null) {
+        return;
+      }
+
+      // Jika bukan percobaan pertama, tunggu sebelum retry
+      if (attempt > 0) {
+        // Bersihkan channel lama dan buat ulang dengan config yang sama
+        final oldChannel = _channel;
+        if (oldChannel != null) {
+          try {
+            await oldChannel.unsubscribe();
+          } catch (_) {}
+          try {
+            await _client.removeChannel(oldChannel);
+          } catch (_) {}
+        }
+
+        await Future<void>.delayed(_channelRetryDelay);
+
+        if (_isCleaningUp || _isCleanedUp) return;
+
+        // Re-create channel dengan topic yang sama
+        _channel = _client.channel(
+          channelTopic,
+          opts: const RealtimeChannelConfig(private: true),
+        );
+
+        // Re-register broadcast handler pada channel baru
+        _channel!.onBroadcast(
+          event: 'signal',
+          callback: (payload) async {
+            await _handleSignal(payload, myUserId, isCaller);
+          },
+        );
+      }
+
+      final subscribed = Completer<void>();
+      _channel!.subscribe((status, [error]) {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          if (!subscribed.isCompleted) {
+            subscribed.complete();
+          }
+        } else if (status == RealtimeSubscribeStatus.channelError ||
+            status == RealtimeSubscribeStatus.timedOut ||
+            status == RealtimeSubscribeStatus.closed) {
+          final failure =
+              error ??
+              StateError('Gagal berlangganan kanal panggilan: ${status.name}');
+          if (!subscribed.isCompleted) {
+            subscribed.completeError(failure);
+          } else {
+            _emitError(failure);
+          }
+        }
+      });
+
+      try {
+        await subscribed.future;
+        return; // Berhasil subscribe
+      } catch (e) {
+        lastError = e;
+        if (attempt < _channelSubscribeMaxRetries) {
+          _emitError(StateError(
+            'Subscribe kanal gagal (percobaan ${attempt + 1}/${_channelSubscribeMaxRetries + 1}), retry...',
+          ));
+        }
+      }
+    }
+
+    // Semua percobaan gagal
+    throw lastError ?? StateError('Gagal berlangganan kanal panggilan setelah retry');
   }
 
   /// Pemicu manual pembentukan Offer (dipanggil jika DB status = 'answered' tetapi broadcast 'joined' terlewati)
@@ -263,6 +333,15 @@ class WebRtcSignalingService {
         case 'offer':
           if (!isCaller && data != null) {
             _retryTimer?.cancel();
+
+            // Guard duplikat offer: jika answer sudah di-cache, kirim ulang
+            // tanpa memanggil setRemoteDescription lagi (mencegah InvalidStateError).
+            if (_cachedAnswer != null && _remoteDescriptionSet) {
+              await _sendSignal(myUserId, 'answer', _cachedAnswer!);
+              _retransmitLocalCandidates(myUserId);
+              break;
+            }
+
             await connection.setRemoteDescription(
               RTCSessionDescription(data['sdp'], data['type']),
             );
@@ -276,6 +355,9 @@ class WebRtcSignalingService {
               'sdp': answer.sdp,
               'type': answer.type,
             };
+
+            // Cache answer untuk retransmisi saat menerima duplikat offer
+            _cachedAnswer = answerData;
 
             await _sendSignal(myUserId, 'answer', answerData);
             _retransmitLocalCandidates(myUserId);
@@ -422,6 +504,7 @@ class WebRtcSignalingService {
 
     _pendingCandidates.clear();
     _myLocalCandidates.clear();
+    _cachedAnswer = null;
     _remoteDescriptionSet = false;
     _hasCreatedOffer = false;
     _hasReceivedAnswer = false;

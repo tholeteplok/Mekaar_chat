@@ -134,13 +134,17 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
     final target = urlString.trim().isNotEmpty
         ? urlString.trim()
         : 'https://github.com/tholeteplok/Mekaar_chat';
+    final isMail = target.startsWith('mailto:');
     try {
       final uri = Uri.parse(target);
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        uri,
+        mode: isMail ? LaunchMode.externalApplication : LaunchMode.externalApplication,
+      );
       if (!launched) {
         final fallbackLaunched =
             await launchUrl(uri, mode: LaunchMode.platformDefault);
-        if (!fallbackLaunched) {
+        if (!fallbackLaunched && !isMail) {
           await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
         }
       }
@@ -150,7 +154,12 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         await launchUrl(uri, mode: LaunchMode.platformDefault);
       } catch (_) {
         if (mounted) {
-          MekaarSnackbar.error(context, 'Tidak dapat membuka tautan.');
+          MekaarSnackbar.error(
+            context,
+            isMail
+                ? 'Tidak dapat membuka aplikasi email di perangkat ini.'
+                : 'Tidak dapat membuka tautan.',
+          );
         }
       }
     }
@@ -837,7 +846,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         _buildActionHubItem(
                           icon: SolarIconsOutline.letter,
                           label: 'Bantuan',
-                          onTap: () => _openUrl('https://github.com/tholeteplok/Mekaar_chat/issues'),
+                          onTap: () => _openUrl('mailto:mekaar.chat@gmail.com?subject=Bantuan%20Aplikasi%20MEKAAR'),
                         ),
                         _buildActionHubItem(
                           icon: SolarIconsOutline.code2,

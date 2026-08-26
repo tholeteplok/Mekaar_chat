@@ -177,9 +177,25 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
       }
 
       if (lat == null || lon == null) {
+        // Coba retry 1x setelah 2 detik jika GPS baru saja diaktifkan / cold start
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (!mounted || !state.isEnabled) return;
+
+        if (_getLocation != null) {
+          final loc = await _getLocation();
+          lat = loc?.latitude;
+          lon = loc?.longitude;
+        } else {
+          final locationData = await LocationService.getCurrentLocation();
+          lat = locationData?.latitude;
+          lon = locationData?.longitude;
+        }
+      }
+
+      if (lat == null || lon == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'Tidak dapat memperoleh koordinat lokasi terkini.',
+          errorMessage: 'Tidak dapat memperoleh koordinat lokasi terkini. Pastikan GPS aktif.',
         );
         return;
       }
@@ -193,6 +209,7 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
         isLoading: false,
         friends: nearbyList,
         lastFetchedAt: DateTime.now(),
+        errorMessage: null,
       );
     } catch (e, st) {
       _logger.e('refreshNearby error: $e', error: e, stackTrace: st);
