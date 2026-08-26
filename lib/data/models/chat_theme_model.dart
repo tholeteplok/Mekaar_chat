@@ -1,76 +1,86 @@
-/// Enum tipe wallpaper obrolan.
+/// Enum tipe wallpaper obrolan (7 Preset Inti + Custom).
 enum WallpaperType {
   dynamicTime,
   solidColor,
-  gradient,
-  pattern,
-  neonGrid,
   comicHalftone,
   neumorphicCanvas,
+  gradient,
   pixelGardenCanvas,
+  pattern,
+  solarpunkCanvas,
+  customImage,
+  // Alias / Legacy types untuk kompatibilitas riwayat preferensi lama
+  neonGrid,
   isometricGrid,
   retroY2KCanvas,
   swissGrid,
-  solarpunkCanvas,
   fireflyCanvas,
   diaryRuledPaper,
-  customImage,
 }
 
-/// Enum gaya kelengkungan & border gelembung obrolan.
+/// Enum gaya kelengkungan & border gelembung obrolan (7 Preset Inti + Utilitas).
 enum ChatBubbleStyle {
-  modernPill,
-  classicRounded,
+  modernPill, // Mekaar
+  playfulOutlined, // Comic
+  neumorphicSoft, // Neuro
+  glassmorphism, // Glass
+  pixelGardenStyle, // Pixel
+  classicRounded, // Candy / Classic
+  solarpunkLeaf, // Eco
+  // Alias / Legacy styles untuk kompatibilitas riwayat preferensi lama
   compactSharp,
-  glassmorphism,
-  playfulOutlined,
   cyberEdge,
-  neumorphicSoft,
-  pixelGardenStyle,
   isometric3D,
   retroBevel,
   swissSquare,
-  solarpunkLeaf,
   fireflyAmber,
   diaryHandwriting,
 }
 
-/// Enum palet warna gelembubg pengirim & penerima.
+/// Enum palet warna gelembung pengirim & penerima.
 enum ChatBubbleColorPreset {
   defaultTime,
-  cyberpunkNeon,
   comicPop,
-  emeraldTeal,
-  purpleDream,
-  midnightGold,
-  roseGold,
   neumorphicSoft,
   glassmorphismTint,
   pixelGardenNavy,
+  roseGold,
+  solarpunkSage,
+  // Alias / Legacy colors
+  cyberpunkNeon,
+  emeraldTeal,
+  purpleDream,
+  midnightGold,
   isometricBlock,
   retroWin95,
   swissElectric,
-  solarpunkSage,
   fireflyAmber,
   diaryInk,
 }
 
-/// Enum preset utama obrolan (Total 12 Presets).
+/// Enum preset utama obrolan (7 Presets Inti + Custom + Aliases).
 enum ChatThemePreset {
   custom,
-  mekaar, // Preset default baru: Clean Theme senada Core UI
-  neonDreams,
+  mekaar, // 1. Mekaar Clean Theme (Default)
+  comic,  // 2. Comic Pop Art
+  neuro,  // 3. Neuro / Neumorphism Soft UI
+  glass,  // 4. Glassmorphism Frosted Glass
+  pixel,  // 5. Pixel Garden 8-Bit
+  candy,  // 6. Candy Pop / Playful
+  eco,    // 7. Solarpunk Eco Organic Leaf
+
+  // Alias untuk kompatibilitas riwayat preferensi lama
   comicPopArt,
   neumorphism,
   glassmorphism,
   pixelGarden,
   candyPop,
+  solarpunk,
+  neonDreams,
   retroWave,
   monoVibe,
-  solarpunk,
   fireflyNight,
   diary,
-  // Alias untuk kompatibilitas riwayat preferensi lama
   dynamicTime,
   neonCyberpunk,
   isometric3d,
@@ -156,16 +166,22 @@ class ChatThemePreference {
   factory ChatThemePreference.fromJson(Map<String, dynamic> json) {
     final rawPreset = json['preset'] as String?;
     ChatThemePreset p;
-    if (rawPreset == 'dynamicTime') {
+    if (rawPreset == null || rawPreset == 'mekaar' || rawPreset == 'dynamicTime' || rawPreset == 'monoVibe' || rawPreset == 'swissMinimalist') {
       p = ChatThemePreset.mekaar;
-    } else if (rawPreset == 'neonCyberpunk') {
-      p = ChatThemePreset.neonDreams;
-    } else if (rawPreset == 'isometric3d') {
-      p = ChatThemePreset.candyPop;
-    } else if (rawPreset == 'retroY2K') {
-      p = ChatThemePreset.retroWave;
-    } else if (rawPreset == 'swissMinimalist') {
-      p = ChatThemePreset.monoVibe;
+    } else if (rawPreset == 'comic' || rawPreset == 'comicPopArt' || rawPreset == 'diary') {
+      p = ChatThemePreset.comic;
+    } else if (rawPreset == 'neuro' || rawPreset == 'neumorphism' || rawPreset == 'neonDreams' || rawPreset == 'neonCyberpunk') {
+      p = ChatThemePreset.neuro;
+    } else if (rawPreset == 'glass' || rawPreset == 'glassmorphism' || rawPreset == 'fireflyNight') {
+      p = ChatThemePreset.glass;
+    } else if (rawPreset == 'pixel' || rawPreset == 'pixelGarden' || rawPreset == 'retroWave' || rawPreset == 'retroY2K') {
+      p = ChatThemePreset.pixel;
+    } else if (rawPreset == 'candy' || rawPreset == 'candyPop' || rawPreset == 'isometric3d') {
+      p = ChatThemePreset.candy;
+    } else if (rawPreset == 'eco' || rawPreset == 'solarpunk') {
+      p = ChatThemePreset.eco;
+    } else if (rawPreset == 'custom') {
+      p = ChatThemePreset.custom;
     } else {
       p = ChatThemePreset.values.firstWhere(
         (e) => e.name == rawPreset,
@@ -207,106 +223,74 @@ class ChatThemePreference {
   );
   static const dynamicTime = mekaar;
 
-  /// Preset 2: Neon Dreams (Night Youth).
-  static const neonDreams = ChatThemePreference(
-    preset: ChatThemePreset.neonDreams,
-    wallpaperType: WallpaperType.neonGrid,
-    bubbleStyle: ChatBubbleStyle.cyberEdge,
-    bubbleColorPreset: ChatBubbleColorPreset.cyberpunkNeon,
-    textScale: 1.0,
-  );
-  static const neonCyberpunk = neonDreams;
-
-  /// Preset 3: Comic Pop Art.
-  static const comicPopArt = ChatThemePreference(
-    preset: ChatThemePreset.comicPopArt,
+  /// Preset 2: Comic Pop Art.
+  static const comic = ChatThemePreference(
+    preset: ChatThemePreset.comic,
     wallpaperType: WallpaperType.comicHalftone,
     bubbleStyle: ChatBubbleStyle.playfulOutlined,
     bubbleColorPreset: ChatBubbleColorPreset.comicPop,
     textScale: 1.0,
   );
+  static const comicPopArt = comic;
 
-  /// Preset 4: Neumorphism / Soft UI.
-  static const neumorphism = ChatThemePreference(
-    preset: ChatThemePreset.neumorphism,
+  /// Preset 3: Neuro / Neumorphism Soft UI.
+  static const neuro = ChatThemePreference(
+    preset: ChatThemePreset.neuro,
     wallpaperType: WallpaperType.neumorphicCanvas,
     bubbleStyle: ChatBubbleStyle.neumorphicSoft,
     bubbleColorPreset: ChatBubbleColorPreset.neumorphicSoft,
     textScale: 1.0,
   );
+  static const neumorphism = neuro;
 
-  /// Preset 5: Glassmorphism / Frosted Glass.
-  static const glassmorphism = ChatThemePreference(
-    preset: ChatThemePreset.glassmorphism,
+  /// Preset 4: Glassmorphism / Frosted Glass.
+  static const glass = ChatThemePreference(
+    preset: ChatThemePreset.glass,
     wallpaperType: WallpaperType.gradient,
     bubbleStyle: ChatBubbleStyle.glassmorphism,
     bubbleColorPreset: ChatBubbleColorPreset.glassmorphismTint,
     textScale: 1.0,
   );
+  static const glassmorphism = glass;
 
-  /// Preset 6: Pixel Garden 8-Bit (Bluebloom).
-  static const pixelGarden = ChatThemePreference(
-    preset: ChatThemePreset.pixelGarden,
+  /// Preset 5: Pixel Garden 8-Bit (Arcade).
+  static const pixel = ChatThemePreference(
+    preset: ChatThemePreset.pixel,
     wallpaperType: WallpaperType.pixelGardenCanvas,
     bubbleStyle: ChatBubbleStyle.pixelGardenStyle,
     bubbleColorPreset: ChatBubbleColorPreset.pixelGardenNavy,
     textScale: 1.0,
   );
+  static const pixelGarden = pixel;
 
-  /// Preset 7: Candy Pop (Playful Youth).
-  static const candyPop = ChatThemePreference(
-    preset: ChatThemePreset.candyPop,
+  /// Preset 6: Candy Pop (Playful).
+  static const candy = ChatThemePreference(
+    preset: ChatThemePreset.candy,
     wallpaperType: WallpaperType.pattern,
-    bubbleStyle: ChatBubbleStyle.modernPill,
+    bubbleStyle: ChatBubbleStyle.classicRounded,
     bubbleColorPreset: ChatBubbleColorPreset.roseGold,
     textScale: 1.0,
   );
-  static const isometric3d = candyPop;
+  static const candyPop = candy;
+  static const isometric3d = candy;
 
-  /// Preset 8: Retro Wave (Nostalgic Youth).
-  static const retroWave = ChatThemePreference(
-    preset: ChatThemePreset.retroWave,
-    wallpaperType: WallpaperType.retroY2KCanvas,
-    bubbleStyle: ChatBubbleStyle.modernPill,
-    bubbleColorPreset: ChatBubbleColorPreset.purpleDream,
-    textScale: 1.0,
-  );
-  static const retroY2K = retroWave;
-
-  /// Preset 9: Mono Vibe (Minimalist Youth).
-  static const monoVibe = ChatThemePreference(
-    preset: ChatThemePreset.monoVibe,
-    wallpaperType: WallpaperType.swissGrid,
-    bubbleStyle: ChatBubbleStyle.compactSharp,
-    bubbleColorPreset: ChatBubbleColorPreset.swissElectric,
-    textScale: 1.0,
-  );
-  static const swissMinimalist = monoVibe;
-
-  /// Preset 10: Solarpunk / Organic Eco-Tech.
-  static const solarpunk = ChatThemePreference(
-    preset: ChatThemePreset.solarpunk,
+  /// Preset 7: Eco / Solarpunk (Organic Leaf).
+  static const eco = ChatThemePreference(
+    preset: ChatThemePreset.eco,
     wallpaperType: WallpaperType.solarpunkCanvas,
     bubbleStyle: ChatBubbleStyle.solarpunkLeaf,
     bubbleColorPreset: ChatBubbleColorPreset.solarpunkSage,
     textScale: 1.0,
   );
+  static const solarpunk = eco;
 
-  /// Preset 11: Kunang-kunang / Firefly Night.
-  static const fireflyNight = ChatThemePreference(
-    preset: ChatThemePreset.fireflyNight,
-    wallpaperType: WallpaperType.fireflyCanvas,
-    bubbleStyle: ChatBubbleStyle.fireflyAmber,
-    bubbleColorPreset: ChatBubbleColorPreset.fireflyAmber,
-    textScale: 1.0,
-  );
-
-  /// Preset 12: Buku Harian / Diary.
-  static const diary = ChatThemePreference(
-    preset: ChatThemePreset.diary,
-    wallpaperType: WallpaperType.diaryRuledPaper,
-    bubbleStyle: ChatBubbleStyle.diaryHandwriting,
-    bubbleColorPreset: ChatBubbleColorPreset.diaryInk,
-    textScale: 1.0,
-  );
+  // Legacy Presets Aliases
+  static const neonDreams = neuro;
+  static const neonCyberpunk = neuro;
+  static const retroWave = pixel;
+  static const retroY2K = pixel;
+  static const monoVibe = mekaar;
+  static const swissMinimalist = mekaar;
+  static const fireflyNight = glass;
+  static const diary = comic;
 }

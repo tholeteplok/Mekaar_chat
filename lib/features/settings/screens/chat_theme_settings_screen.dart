@@ -21,19 +21,13 @@ import '../widgets/settings_tiles.dart';
 
 /// Swatch preset tema chat & wallpaper — data produk (identitas visual
 /// tiap preset), BUKAN token UI adaptif. Jangan dipakai untuk chrome UI.
-const Color _kSwatchNeon = Color(0xFF00F5D4);
-const Color _kSwatchSlate = Color(0xFF94A3B8);
+const Color _kSwatchMekaar = AppColors.blue;
+const Color _kSwatchComic = Color(0xFFFFD84D);
+const Color _kSwatchNeuro = Color(0xFF94A3B8);
+const Color _kSwatchGlass = Color(0xFF8B5CF6);
 const Color _kSwatchPixel = Color(0xFF3B567D);
 const Color _kSwatchCandy = Color(0xFFFF6B9D);
-const Color _kSwatchRetroWave = Color(0xFFFF006E);
-const Color _kSwatchMonoLime = Color(0xFF39FF14);
-const Color _kSwatchFirefly = Color(0xFFF5C97D);
-const Color _kSwatchDiaryInk = Color(0xFF1E3A8A);
-const Color _kSwatchTeal80s = Color(0xFF008080);
-const Color _kSwatchIsoBlue = Color(0xFF3B82F6);
-const Color _kSwatchSwissOrange = Color(0xFFFF5722);
-const Color _kSwatchNeonCyan = Color(0xFF00F0FF);
-const Color _kSwatchPatternGray = Color(0xFF64748B);
+const Color _kSwatchEco = Color(0xFF10B981);
 
 /// Layar Kustomisasi Tema dan Wallpaper Chat
 /// Didesain 1:1 sesuai spesifikasi design.md & mockup tema_wallpaper_chat_redesign.html.
@@ -924,75 +918,45 @@ class _ChatThemeSettingsScreenState
     final presets = [
       (
         title: 'Mekaar (clean theme)',
-        subtitle: 'Default — senada dengan Core',
-        color: AppColors.blue,
+        subtitle: 'Default — senada dengan Core UI',
+        color: _kSwatchMekaar,
         preset: ChatThemePreset.mekaar,
       ),
       (
-        title: 'Neon Dreams',
-        subtitle: 'Night Youth neon edge & dark glow',
-        color: _kSwatchNeon,
-        preset: ChatThemePreset.neonDreams,
-      ),
-      (
         title: 'Comic Pop Art',
-        subtitle: 'Playful halftone & bold outline',
-        color: MekaarColors.yellow,
-        preset: ChatThemePreset.comicPopArt,
+        subtitle: 'Halftone pop-art & bold outline',
+        color: _kSwatchComic,
+        preset: ChatThemePreset.comic,
       ),
       (
-        title: 'Neumorphism UI',
-        subtitle: 'Soft slate 3D extruded surface',
-        color: _kSwatchSlate,
-        preset: ChatThemePreset.neumorphism,
+        title: 'Neuro UI (Neumorphism)',
+        subtitle: 'Soft slate 3D extruded/inset surface',
+        color: _kSwatchNeuro,
+        preset: ChatThemePreset.neuro,
       ),
       (
         title: 'Glassmorphism',
-        subtitle: 'Frosted purple tint transparan',
-        color: MekaarColors.purple,
-        preset: ChatThemePreset.glassmorphism,
+        subtitle: 'Frosted glass transparan specular glow',
+        color: _kSwatchGlass,
+        preset: ChatThemePreset.glass,
       ),
       (
         title: 'Pixel Garden 8-Bit',
-        subtitle: 'Siku piksel retro arcade',
+        subtitle: 'Siku piksel retro arcade & dither',
         color: _kSwatchPixel,
-        preset: ChatThemePreset.pixelGarden,
+        preset: ChatThemePreset.pixel,
       ),
       (
         title: 'Candy Pop',
-        subtitle: 'Playful pink & mint isometric',
+        subtitle: 'Playful rounded pink & mint',
         color: _kSwatchCandy,
-        preset: ChatThemePreset.candyPop,
+        preset: ChatThemePreset.candy,
       ),
       (
-        title: 'Retro Wave',
-        subtitle: 'Windows 95 nostalgic bevel',
-        color: _kSwatchRetroWave,
-        preset: ChatThemePreset.retroWave,
-      ),
-      (
-        title: 'Mono Vibe',
-        subtitle: 'Minimalist lime text on black',
-        color: _kSwatchMonoLime,
-        preset: ChatThemePreset.monoVibe,
-      ),
-      (
-        title: 'Solarpunk Eco',
-        subtitle: 'Kelopak daun hijau organik',
-        color: MekaarColors.success,
-        preset: ChatThemePreset.solarpunk,
-      ),
-      (
-        title: 'Kunang-kunang (Firefly)',
-        subtitle: 'Amber slow glow malam hari',
-        color: _kSwatchFirefly,
-        preset: ChatThemePreset.fireflyNight,
-      ),
-      (
-        title: 'Buku Harian (Diary)',
-        subtitle: 'Tulisan tangan & stempel tinta',
-        color: _kSwatchDiaryInk,
-        preset: ChatThemePreset.diary,
+        title: 'Eco (Solarpunk)',
+        subtitle: 'Kelopak daun hijau organik alam',
+        color: _kSwatchEco,
+        preset: ChatThemePreset.eco,
       ),
     ];
 
@@ -1084,19 +1048,13 @@ class _ChatThemeSettingsScreenState
     final notifier = ref.read(chatThemeProvider.notifier);
 
     final wallpapers = [
-      (WallpaperType.solidColor, 'Mekaar Clean Canvas', SolarIconsBold.palette2, AppColors.blue),
+      (WallpaperType.solidColor, 'Mekaar Clean Canvas', SolarIconsBold.palette2, _kSwatchMekaar),
+      (WallpaperType.comicHalftone, 'Comic Halftone', SolarIconsBold.chatRoundDots, _kSwatchComic),
+      (WallpaperType.neumorphicCanvas, 'Neumorphic Slate Canvas', SolarIconsBold.boxMinimalistic, _kSwatchNeuro),
+      (WallpaperType.gradient, 'Glassmorphism Gradient', SolarIconsBold.palette, _kSwatchGlass),
       (WallpaperType.pixelGardenCanvas, 'Pixel Garden 8-Bit', SolarIconsBold.gamepad, _kSwatchPixel),
-      (WallpaperType.fireflyCanvas, 'Kunang-Kunang', SolarIconsBold.stars, _kSwatchFirefly),
-      (WallpaperType.diaryRuledPaper, 'Kertas Garis Buku Harian', SolarIconsBold.documentText, _kSwatchDiaryInk),
-      (WallpaperType.retroY2KCanvas, 'Retro Y2K Teal', SolarIconsBold.laptop, _kSwatchTeal80s),
-      (WallpaperType.isometricGrid, 'Isometric Grid 2.5D', SolarIconsBold.box, _kSwatchIsoBlue),
-      (WallpaperType.swissGrid, 'Swiss Grid Minimalist', SolarIconsBold.widget, _kSwatchSwissOrange),
-      (WallpaperType.neonGrid, 'Neon Cyber Grid', SolarIconsBold.bolt, _kSwatchNeonCyan),
-      (WallpaperType.comicHalftone, 'Comic Halftone', SolarIconsBold.chatRoundDots, MekaarColors.yellow),
-      (WallpaperType.solarpunkCanvas, 'Solarpunk Eco', SolarIconsBold.leaf, MekaarColors.success),
-      (WallpaperType.pattern, 'Pola Dots Minimalis', SolarIconsBold.tuningSquare, _kSwatchPatternGray),
-      (WallpaperType.gradient, 'Gradien Soft', SolarIconsBold.palette, MekaarColors.purple),
-      (WallpaperType.neumorphicCanvas, 'Soft Slate Neumorphic', SolarIconsBold.boxMinimalistic, _kSwatchSlate),
+      (WallpaperType.pattern, 'Pola Candy Dots', SolarIconsBold.tuningSquare, _kSwatchCandy),
+      (WallpaperType.solarpunkCanvas, 'Solarpunk Eco Canvas', SolarIconsBold.leaf, _kSwatchEco),
     ];
 
     MekaarBottomSheet.show(
@@ -1172,18 +1130,13 @@ class _ChatThemeSettingsScreenState
     final notifier = ref.read(chatThemeProvider.notifier);
 
     final styles = [
-      (ChatBubbleStyle.modernPill, 'Modern Pill', 'Membulat halus 20px'),
-      (ChatBubbleStyle.classicRounded, 'Classic Rounded', 'Klasik rounded 12px'),
-      (ChatBubbleStyle.compactSharp, 'Compact Sharp', 'Sudut tajam 4px'),
-      (ChatBubbleStyle.glassmorphism, 'Glassmorphism', 'Transparan ber-border kaca'),
-      (ChatBubbleStyle.playfulOutlined, 'Comic Playful', 'Border hitam pop art'),
-      (ChatBubbleStyle.cyberEdge, 'Cyberpunk Edge', 'Glow neon border tegas'),
-      (ChatBubbleStyle.neumorphicSoft, 'Neumorphic Soft', 'Efek timbul 3D lembut'),
-      (ChatBubbleStyle.pixelGardenStyle, 'Pixel Garden 8-Bit', 'Siku piksel arcade'),
-      (ChatBubbleStyle.isometric3D, 'Isometric 2.5D', 'Extruded blok 3D'),
-      (ChatBubbleStyle.retroBevel, 'Retro OS Bevel', 'Bevel Windows 95'),
-      (ChatBubbleStyle.swissSquare, 'Swiss Minimalist', 'Siku tegak 0px'),
-      (ChatBubbleStyle.solarpunkLeaf, 'Solarpunk Leaf', 'Kelopak daun melengkung'),
+      (ChatBubbleStyle.modernPill, 'Modern Pill', 'Membulat halus 20px (Mekaar)'),
+      (ChatBubbleStyle.playfulOutlined, 'Comic Playful', 'Border hitam pop-art & drop shadow'),
+      (ChatBubbleStyle.neumorphicSoft, 'Neumorphic Soft', 'Efek timbul/tenggelam 3D lembut (Neuro)'),
+      (ChatBubbleStyle.glassmorphism, 'Glassmorphism', 'Transparan ber-border kaca frosted (Glass)'),
+      (ChatBubbleStyle.pixelGardenStyle, 'Pixel Garden 8-Bit', 'Siku piksel arcade 0px dengan badge'),
+      (ChatBubbleStyle.classicRounded, 'Candy Rounded', 'Bubbly rounded 22px playful (Candy)'),
+      (ChatBubbleStyle.solarpunkLeaf, 'Solarpunk Leaf', 'Kelopak daun melengkung asimetris (Eco)'),
     ];
 
     MekaarBottomSheet.show(
@@ -1519,33 +1472,34 @@ class _ChatThemeSettingsScreenState
     switch (preset) {
       case ChatThemePreset.mekaar:
       case ChatThemePreset.dynamicTime:
+      case ChatThemePreset.monoVibe:
+      case ChatThemePreset.swissMinimalist:
         return 'Mekaar (clean theme)';
+      case ChatThemePreset.comic:
+      case ChatThemePreset.comicPopArt:
+      case ChatThemePreset.diary:
+        return 'Comic Pop Art';
+      case ChatThemePreset.neuro:
+      case ChatThemePreset.neumorphism:
       case ChatThemePreset.neonDreams:
       case ChatThemePreset.neonCyberpunk:
-        return 'Neon Dreams';
-      case ChatThemePreset.comicPopArt:
-        return 'Comic Pop Art';
-      case ChatThemePreset.neumorphism:
-        return 'Neumorphism UI';
+        return 'Neuro (Neumorphism)';
+      case ChatThemePreset.glass:
       case ChatThemePreset.glassmorphism:
+      case ChatThemePreset.fireflyNight:
         return 'Glassmorphism';
+      case ChatThemePreset.pixel:
       case ChatThemePreset.pixelGarden:
+      case ChatThemePreset.retroWave:
+      case ChatThemePreset.retroY2K:
         return 'Pixel Garden 8-Bit';
+      case ChatThemePreset.candy:
       case ChatThemePreset.candyPop:
       case ChatThemePreset.isometric3d:
         return 'Candy Pop';
-      case ChatThemePreset.retroWave:
-      case ChatThemePreset.retroY2K:
-        return 'Retro Wave';
-      case ChatThemePreset.monoVibe:
-      case ChatThemePreset.swissMinimalist:
-        return 'Mono Vibe';
+      case ChatThemePreset.eco:
       case ChatThemePreset.solarpunk:
-        return 'Solarpunk Eco';
-      case ChatThemePreset.fireflyNight:
-        return 'Kunang-kunang';
-      case ChatThemePreset.diary:
-        return 'Buku Harian';
+        return 'Eco (Solarpunk)';
       case ChatThemePreset.custom:
         return 'Kustomisasi Manual';
     }
@@ -1556,65 +1510,54 @@ class _ChatThemeSettingsScreenState
       case WallpaperType.solidColor:
       case WallpaperType.dynamicTime:
         return 'Mekaar clean canvas';
-      case WallpaperType.pixelGardenCanvas:
-        return 'Pixel Garden 8-Bit';
-      case WallpaperType.fireflyCanvas:
-        return 'Kunang-Kunang';
-      case WallpaperType.diaryRuledPaper:
-        return 'Kertas Garis Buku Harian';
-      case WallpaperType.retroY2KCanvas:
-        return 'Retro Y2K Teal';
-      case WallpaperType.isometricGrid:
-        return 'Isometric Grid 2.5D';
-      case WallpaperType.swissGrid:
-        return 'Swiss Grid';
-      case WallpaperType.neonGrid:
-        return 'Neon Cyber Grid';
       case WallpaperType.comicHalftone:
         return 'Comic Halftone';
+      case WallpaperType.neumorphicCanvas:
+        return 'Neumorphic Canvas';
+      case WallpaperType.gradient:
+        return 'Gradien Glassmorphism';
+      case WallpaperType.pixelGardenCanvas:
+        return 'Pixel Garden 8-Bit';
+      case WallpaperType.pattern:
+        return 'Pola Candy Dots';
       case WallpaperType.solarpunkCanvas:
         return 'Solarpunk Eco';
-      case WallpaperType.pattern:
-        return 'Pola Dots';
-      case WallpaperType.gradient:
-        return 'Gradien Soft';
-      case WallpaperType.neumorphicCanvas:
-        return 'Soft Slate Neumorphic';
       case WallpaperType.customImage:
         return 'Foto Galeri';
+      case WallpaperType.fireflyCanvas:
+      case WallpaperType.diaryRuledPaper:
+      case WallpaperType.retroY2KCanvas:
+      case WallpaperType.isometricGrid:
+      case WallpaperType.swissGrid:
+      case WallpaperType.neonGrid:
+        return 'Wallpaper Preset';
     }
   }
 
   String _getBubbleStyleLabel(ChatBubbleStyle style) {
     switch (style) {
       case ChatBubbleStyle.modernPill:
-        return 'Modern pill';
-      case ChatBubbleStyle.classicRounded:
-        return 'Classic rounded';
-      case ChatBubbleStyle.compactSharp:
-        return 'Compact sharp';
-      case ChatBubbleStyle.glassmorphism:
-        return 'Glassmorphism';
+        return 'Modern pill (Mekaar)';
       case ChatBubbleStyle.playfulOutlined:
         return 'Comic playful';
-      case ChatBubbleStyle.cyberEdge:
-        return 'Cyberpunk edge';
       case ChatBubbleStyle.neumorphicSoft:
-        return 'Neumorphic soft';
+        return 'Neumorphic soft (Neuro)';
+      case ChatBubbleStyle.glassmorphism:
+        return 'Glassmorphism';
       case ChatBubbleStyle.pixelGardenStyle:
-        return 'Pixel garden';
-      case ChatBubbleStyle.isometric3D:
-        return 'Isometric 3D';
-      case ChatBubbleStyle.retroBevel:
-        return 'Retro bevel';
-      case ChatBubbleStyle.swissSquare:
-        return 'Swiss square';
+        return 'Pixel garden 8-bit';
+      case ChatBubbleStyle.classicRounded:
+        return 'Candy rounded';
       case ChatBubbleStyle.solarpunkLeaf:
-        return 'Solarpunk leaf';
+        return 'Solarpunk leaf (Eco)';
+      case ChatBubbleStyle.compactSharp:
+      case ChatBubbleStyle.cyberEdge:
+      case ChatBubbleStyle.isometric3D:
+      case ChatBubbleStyle.retroBevel:
+      case ChatBubbleStyle.swissSquare:
       case ChatBubbleStyle.fireflyAmber:
-        return 'Firefly amber';
       case ChatBubbleStyle.diaryHandwriting:
-        return 'Buku harian';
+        return 'Gaya Preset';
     }
   }
 }

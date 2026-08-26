@@ -8,6 +8,8 @@ import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/data/models/sos_session_model.dart';
 import 'package:mekaar_chat/data/models/security_log_model.dart';
 import 'package:mekaar_chat/data/models/user_device.dart';
+import 'package:mekaar_chat/data/models/chat_theme_model.dart';
+import 'package:mekaar_chat/core/theme/chat_preset_resolver.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 
 void main() {
@@ -219,6 +221,79 @@ void main() {
       expect(notifier.state, isFalse);
       expect(prefs.getBool(PinLockEnabledNotifier.preferenceKey), isFalse);
       notifier.dispose();
+    });
+  });
+
+  group('Chat Theme 7 Presets Unit Tests', () {
+    test('Canonical 7 Presets are correctly initialized', () {
+      expect(ChatThemePreference.mekaar.preset, equals(ChatThemePreset.mekaar));
+      expect(ChatThemePreference.comic.preset, equals(ChatThemePreset.comic));
+      expect(ChatThemePreference.neuro.preset, equals(ChatThemePreset.neuro));
+      expect(ChatThemePreference.glass.preset, equals(ChatThemePreset.glass));
+      expect(ChatThemePreference.pixel.preset, equals(ChatThemePreset.pixel));
+      expect(ChatThemePreference.candy.preset, equals(ChatThemePreset.candy));
+      expect(ChatThemePreference.eco.preset, equals(ChatThemePreset.eco));
+    });
+
+    test('Legacy preset names deserialize smoothly to canonical 7 presets', () {
+      final legacyMapping = {
+        'comicPopArt': ChatThemePreset.comic,
+        'comic': ChatThemePreset.comic,
+        'diary': ChatThemePreset.comic,
+        'neumorphism': ChatThemePreset.neuro,
+        'neuro': ChatThemePreset.neuro,
+        'neonDreams': ChatThemePreset.neuro,
+        'neonCyberpunk': ChatThemePreset.neuro,
+        'glassmorphism': ChatThemePreset.glass,
+        'glass': ChatThemePreset.glass,
+        'fireflyNight': ChatThemePreset.glass,
+        'pixelGarden': ChatThemePreset.pixel,
+        'pixel': ChatThemePreset.pixel,
+        'retroWave': ChatThemePreset.pixel,
+        'retroY2K': ChatThemePreset.pixel,
+        'candyPop': ChatThemePreset.candy,
+        'candy': ChatThemePreset.candy,
+        'isometric3d': ChatThemePreset.candy,
+        'solarpunk': ChatThemePreset.eco,
+        'eco': ChatThemePreset.eco,
+        'mekaar': ChatThemePreset.mekaar,
+        'dynamicTime': ChatThemePreset.mekaar,
+        'monoVibe': ChatThemePreset.mekaar,
+        'swissMinimalist': ChatThemePreset.mekaar,
+      };
+
+      legacyMapping.forEach((rawString, expectedPreset) {
+        final json = {'preset': rawString};
+        final parsed = ChatThemePreference.fromJson(json);
+        expect(parsed.preset, equals(expectedPreset),
+            reason: 'Failed parsing legacy string: $rawString');
+      });
+    });
+
+    test('Serialization to JSON and deserialization back matches values', () {
+      for (final pref in [
+        ChatThemePreference.mekaar,
+        ChatThemePreference.comic,
+        ChatThemePreference.neuro,
+        ChatThemePreference.glass,
+        ChatThemePreference.pixel,
+        ChatThemePreference.candy,
+        ChatThemePreference.eco,
+      ]) {
+        final json = pref.toJson();
+        final reconstructed = ChatThemePreference.fromJson(json);
+        expect(reconstructed.preset, equals(pref.preset));
+        expect(reconstructed.wallpaperType, equals(pref.wallpaperType));
+        expect(reconstructed.bubbleStyle, equals(pref.bubbleStyle));
+      }
+    });
+
+    test('Entrance animation returns valid specifications for all 7 presets', () {
+      for (final preset in ChatThemePreset.values) {
+        final anim = ChatPresetResolver.getEntranceAnimation(preset);
+        expect(anim.duration, isNotNull);
+        expect(anim.curve, isNotNull);
+      }
     });
   });
 }

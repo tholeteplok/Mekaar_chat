@@ -101,7 +101,7 @@ class MekaarCryptoDonationBottomSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                SolarIconsBold.heart,
+                SolarIconsBold.handHeart,
                 color: accentColor,
                 size: 26,
               ),
@@ -112,7 +112,7 @@ class MekaarCryptoDonationBottomSheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Dukung MEKAAR 💙',
+                    'Dukung MEKAAR',
                     style: MekaarTypography.headingSM.copyWith(
                       fontWeight: FontWeight.bold,
                       color: MekaarColors.textPrimaryOf(context),

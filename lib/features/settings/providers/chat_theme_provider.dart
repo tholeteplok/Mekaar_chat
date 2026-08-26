@@ -35,44 +35,40 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
     switch (preset) {
       case ChatThemePreset.mekaar:
       case ChatThemePreset.dynamicTime:
-        await _save(ChatThemePreference.mekaar);
-        break;
-      case ChatThemePreset.neonDreams:
-      case ChatThemePreset.neonCyberpunk:
-        await _save(ChatThemePreference.neonDreams);
-        break;
-      case ChatThemePreset.comicPopArt:
-        await _save(ChatThemePreference.comicPopArt);
-        break;
-      case ChatThemePreset.neumorphism:
-        await _save(ChatThemePreference.neumorphism);
-        break;
-      case ChatThemePreset.glassmorphism:
-        await _save(ChatThemePreference.glassmorphism);
-        break;
-      case ChatThemePreset.pixelGarden:
-        await _save(ChatThemePreference.pixelGarden);
-        break;
-      case ChatThemePreset.candyPop:
-      case ChatThemePreset.isometric3d:
-        await _save(ChatThemePreference.candyPop);
-        break;
-      case ChatThemePreset.retroWave:
-      case ChatThemePreset.retroY2K:
-        await _save(ChatThemePreference.retroWave);
-        break;
       case ChatThemePreset.monoVibe:
       case ChatThemePreset.swissMinimalist:
-        await _save(ChatThemePreference.monoVibe);
+        await _save(ChatThemePreference.mekaar);
         break;
-      case ChatThemePreset.solarpunk:
-        await _save(ChatThemePreference.solarpunk);
-        break;
-      case ChatThemePreset.fireflyNight:
-        await _save(ChatThemePreference.fireflyNight);
-        break;
+      case ChatThemePreset.comic:
+      case ChatThemePreset.comicPopArt:
       case ChatThemePreset.diary:
-        await _save(ChatThemePreference.diary);
+        await _save(ChatThemePreference.comic);
+        break;
+      case ChatThemePreset.neuro:
+      case ChatThemePreset.neumorphism:
+      case ChatThemePreset.neonDreams:
+      case ChatThemePreset.neonCyberpunk:
+        await _save(ChatThemePreference.neuro);
+        break;
+      case ChatThemePreset.glass:
+      case ChatThemePreset.glassmorphism:
+      case ChatThemePreset.fireflyNight:
+        await _save(ChatThemePreference.glass);
+        break;
+      case ChatThemePreset.pixel:
+      case ChatThemePreset.pixelGarden:
+      case ChatThemePreset.retroWave:
+      case ChatThemePreset.retroY2K:
+        await _save(ChatThemePreference.pixel);
+        break;
+      case ChatThemePreset.candy:
+      case ChatThemePreset.candyPop:
+      case ChatThemePreset.isometric3d:
+        await _save(ChatThemePreference.candy);
+        break;
+      case ChatThemePreset.eco:
+      case ChatThemePreset.solarpunk:
+        await _save(ChatThemePreference.eco);
         break;
       case ChatThemePreset.custom:
         final current = state.valueOrNull ?? const ChatThemePreference();
