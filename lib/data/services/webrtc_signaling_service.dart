@@ -112,12 +112,9 @@ class WebRtcSignalingService {
         _handleIceConnectionState(state);
       };
 
-      // Topik dispesifikkan ke ID panggilan unik (room_call:$callId) dengan kanal private sesuai RLS Supabase
+      // Topik dispesifikkan ke ID panggilan unik (room_call:$callId)
       final channelTopic = 'room_call:$callId';
-      _channel = _client.channel(
-        channelTopic,
-        opts: const RealtimeChannelConfig(private: true),
-      );
+      _channel = _client.channel(channelTopic);
 
       _channel!.onBroadcast(
         event: 'signal',
@@ -215,10 +212,7 @@ class WebRtcSignalingService {
         if (_isCleaningUp || _isCleanedUp) return;
 
         // Re-create channel dengan topic yang sama
-        _channel = _client.channel(
-          channelTopic,
-          opts: const RealtimeChannelConfig(private: true),
-        );
+        _channel = _client.channel(channelTopic);
 
         // Re-register broadcast handler pada channel baru
         _channel!.onBroadcast(

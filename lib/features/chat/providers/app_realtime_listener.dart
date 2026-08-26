@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/auth_provider.dart' hide AuthState;
 import '../../auth/providers/password_change_alert_listener.dart';
 import 'call_invitation_listener.dart';
 import 'message_notification_listener.dart';
@@ -21,8 +22,26 @@ class AppRealtimeListener {
   final Ref _ref;
   final Logger _log = Logger();
   RealtimeChannel? _channel;
+  StreamSubscription<AuthState>? _authSub;
+  String? _subscribedUserId;
 
-  AppRealtimeListener(this._ref);
+  AppRealtimeListener(this._ref) {
+    _initAuthListener();
+  }
+
+  void _initAuthListener() {
+    final supabase = _ref.read(supabaseServiceProvider);
+    _authSub = supabase.client.auth.onAuthStateChange.listen((data) {
+      final user = data.session?.user;
+      if (user != null) {
+        if (_subscribedUserId != user.id || _channel == null) {
+          start();
+        }
+      } else {
+        dispose();
+      }
+    });
+  }
 
   void start() {
     final supabaseService = _ref.read(supabaseServiceProvider);
@@ -31,6 +50,15 @@ class AppRealtimeListener {
       _log.w('AppRealtimeListener: user belum login, skip.');
       return;
     }
+
+    if (_channel != null && _subscribedUserId == userId) {
+      return; // Sudah tersubscribe untuk user yang sama
+    }
+
+    // Bersihkan channel lama jika ada
+    _channel?.unsubscribe();
+    _channel = null;
+    _subscribedUserId = userId;
 
     // Setup non-channel (auth state lokal & prefetch owner IDs)
     _ref.read(passwordChangeAlertListenerProvider).startAuthListener();
@@ -94,8 +122,11 @@ class AppRealtimeListener {
   }
 
   void dispose() {
+    _authSub?.cancel();
+    _authSub = null;
     _channel?.unsubscribe();
     _channel = null;
+    _subscribedUserId = null;
   }
 }
 

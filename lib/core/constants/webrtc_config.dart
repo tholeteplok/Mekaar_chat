@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// WebRtcConfig — Sumber tunggal konfigurasi ICE & TURN untuk WebRTC.
 /// Digunakan oleh seluruh layanan WebRTC di aplikasi (Panggilan 1:1 dan Emergency).
 class WebRtcConfig {
@@ -30,12 +28,9 @@ class WebRtcConfig {
         'username': _turnUsername,
         'credential': _turnCredential,
       });
-    } else if (kDebugMode) {
-      debugPrint(
-        '⚠️ WebRtcConfig: TURN_URL tidak diset, memakai relay publik '
-        'openrelay.metered.ca (DEV ONLY). Set --dart-define=TURN_URL '
-        '(+ TURN_USERNAME/TURN_CREDENTIAL) sebelum build produksi.',
-      );
+    } else {
+      // Fallback relay publik agar koneksi WebRTC tetap tembus meski di balik Wi-Fi AP Isolation
+      // atau Symmetric NAT tanpa konfigurasi --dart-define.
       iceServers.addAll(const [
         {
           'urls': 'turn:openrelay.metered.ca:80',
@@ -53,14 +48,6 @@ class WebRtcConfig {
           'credential': 'openrelayproject',
         },
       ]);
-    } else {
-      // Release mode tanpa TURN — panggilan di jaringan seluler (CGNAT/Symmetric NAT) akan gagal.
-      debugPrint(
-        '🔴 WebRtcConfig: TURN_URL tidak dikonfigurasi di build produksi! '
-        'Panggilan di jaringan seluler (Symmetric NAT) TIDAK akan tersambung. '
-        'Gunakan --dart-define=TURN_URL=turn:server:port '
-        '--dart-define=TURN_USERNAME=user --dart-define=TURN_CREDENTIAL=pass',
-      );
     }
 
     return {
