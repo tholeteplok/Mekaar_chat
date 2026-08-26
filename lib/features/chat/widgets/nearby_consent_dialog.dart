@@ -42,7 +42,7 @@ class NearbyConsentDialog extends StatelessWidget {
         icon: SolarIconsOutline.radar2,
         title: 'Hanya Radius Kasar (Bukan GPS Presisi)',
         desc:
-            'Jarak ditampilkan dalam band diskrit (<500 m, 500 m–2 km, satu kota). Koordinat mentah Anda tidak pernah dibagikan ke orang lain.',
+            'Jarak ditampilkan dalam band diskrit (Dekatmu, Sekitarmu, Di kotamu). Koordinat mentah Anda tidak pernah dibagikan ke orang lain.',
         color: MekaarColors.guardianTeal,
       ),
       (
@@ -68,41 +68,22 @@ class NearbyConsentDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: MekaarColors.guardianTeal.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  SolarIconsBold.radar2,
-                  color: MekaarColors.guardianTeal,
-                  size: 26,
+              Text(
+                'Teman Sekitar',
+                style: MekaarTypography.headingMD.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Teman Sekitar',
-                      style: MekaarTypography.headingMD.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Kesadaran jarak sosial berbasis privasi',
-                      style: MekaarTypography.bodySM.copyWith(
-                        color: MekaarColors.textMutedOf(context),
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 2),
+              Text(
+                'Kesadaran jarak sosial berbasis privasi',
+                style: MekaarTypography.bodySM.copyWith(
+                  color: MekaarColors.textMutedOf(context),
+                  fontSize: 12.5,
                 ),
               ),
             ],

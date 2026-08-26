@@ -805,13 +805,13 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                   ),
                                 ] else ...[
                                   const Icon(
-                                    SolarIconsBold.checkCircle,
+                                    SolarIconsBold.refresh,
                                     color: AppColors.blue,
                                     size: 16,
                                   ),
                                   const SizedBox(width: 6),
                                   const Text(
-                                    'cek pembaruan',
+                                    'Cek Pembaruan',
                                     style: TextStyle(
                                       color: AppColors.blue,
                                       fontSize: 13,

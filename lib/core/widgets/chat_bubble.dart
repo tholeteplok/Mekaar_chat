@@ -227,6 +227,24 @@ class ChatBubble extends ConsumerWidget {
     );
   }
 
+  bool _isStickerOrGifMessage(Message msg) {
+    if (msg.type != MessageType.image) return false;
+    if (msg.isViewOnce) return false;
+    final url = (msg.mediaUrl ?? '').toLowerCase();
+    final content = msg.content.toLowerCase();
+    if (url.contains('gboard_') || content.contains('gboard_')) return true;
+    if ((url.endsWith('.gif') ||
+            url.endsWith('.webp') ||
+            url.contains('.gif?') ||
+            url.contains('.webp?')) &&
+        (msg.content.isEmpty ||
+            msg.content == msg.mediaUrl ||
+            msg.isEncrypted)) {
+      return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
@@ -257,6 +275,7 @@ class ChatBubble extends ConsumerWidget {
     }
 
     final isDeleted = message.isDeleted;
+    final isSticker = !isDeleted && _isStickerOrGifMessage(message);
     final emojiCount = (message.type == MessageType.text && !isDeleted)
         ? _getEmojiOnlyCount(message.content)
         : 0;
@@ -264,6 +283,7 @@ class ChatBubble extends ConsumerWidget {
         ? isSingleCustomEmoji(message.content)
         : false;
     final isOnlyEmoji = emojiCount > 0 || singleCustom;
+    final isFrameless = isOnlyEmoji || isSticker;
 
     // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
     final spec = ChatPresetResolver.getBubbleSpec(chatPref, context, isMe: isMe);
@@ -282,7 +302,7 @@ class ChatBubble extends ConsumerWidget {
       border = null;
       bubbleGradient = null;
       shadows = null;
-    } else if (isOnlyEmoji) {
+    } else if (isFrameless) {
       bubbleColor = Colors.transparent;
       border = null;
       bubbleGradient = null;
@@ -315,7 +335,9 @@ class ChatBubble extends ConsumerWidget {
               margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
               padding: isOnlyEmoji
                   ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
-                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  : (isSticker
+                      ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
+                      : const EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.76,
               ),
@@ -327,7 +349,8 @@ class ChatBubble extends ConsumerWidget {
                 boxShadow: shadows,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (spec.headerWidget != null && !isDeleted) spec.headerWidget!,
@@ -348,11 +371,67 @@ class ChatBubble extends ConsumerWidget {
                   if (message.replyToId != null && !isDeleted)
                     _buildQuotedReplyBox(context),
                   // Main content
-                  _buildContentWidget(context, textColor, fontFamily, spec.textStyle),
+                  _buildContentWidget(
+                    context,
+                    textColor,
+                    fontFamily,
+                    spec.textStyle,
+                    isSticker: isSticker,
+                  ),
                   const SizedBox(height: 4),
                   // Timestamp + edited + read receipt
                   Builder(
                     builder: (context) {
+                      if (isSticker && !isDeleted) {
+                        return Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.38),
+                            borderRadius:
+                                BorderRadius.circular(MekaarRadius.pill),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (message.isEncrypted) ...[
+                                const Icon(
+                                  MekaarIcons.lockOutline,
+                                  size: 9.5,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 3),
+                              ],
+                              Text(
+                                DateFormat('HH:mm')
+                                    .format(message.createdAt.toLocal()),
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (message.autoDeleteAt != null) ...[
+                                const SizedBox(width: 3),
+                                const Icon(
+                                  MekaarIcons.timerOutlined,
+                                  size: 9.5,
+                                  color: Colors.white,
+                                ),
+                              ],
+                              if (isMe) ...[
+                                const SizedBox(width: 4),
+                                _ReadReceiptIcon(
+                                  status: receiptStatus,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }
+
                       final metaColor = isOnlyEmoji
                           ? MekaarColors.textMutedOf(context)
                           : (isMe
@@ -431,8 +510,9 @@ class ChatBubble extends ConsumerWidget {
     BuildContext context,
     Color textColor,
     String? fontFamily,
-    TextStyle? customTextStyle,
-  ) {
+    TextStyle? customTextStyle, {
+    bool isSticker = false,
+  }) {
     if (message.isDeleted) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -560,6 +640,7 @@ class ChatBubble extends ConsumerWidget {
         return _ImageBubble(
           message: message,
           textColor: textColor,
+          isSticker: isSticker,
           onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
         );
 
@@ -1333,11 +1414,13 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
 class _ImageBubble extends ConsumerWidget {
   final Message message;
   final Color textColor;
+  final bool isSticker;
   final VoidCallback onViewOnceOpened;
 
   const _ImageBubble({
     required this.message,
     required this.textColor,
+    this.isSticker = false,
     required this.onViewOnceOpened,
   });
 
@@ -1435,13 +1518,9 @@ class _ImageBubble extends ConsumerWidget {
       builder: (context, snapshot) {
         final file = snapshot.data;
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            height: 180,
-            width: 220,
-            decoration: BoxDecoration(
-              color: MekaarColors.surface2Of(context),
-              borderRadius: BorderRadius.circular(10),
-            ),
+          return SizedBox(
+            height: isSticker ? 140 : 180,
+            width: isSticker ? 140 : 220,
             child: const Center(
               child: SizedBox(
                 width: 24,
@@ -1454,13 +1533,40 @@ class _ImageBubble extends ConsumerWidget {
 
         if (file == null) {
           return Container(
-            height: 180,
-            width: 220,
+            height: isSticker ? 120 : 180,
+            width: isSticker ? 120 : 220,
             decoration: BoxDecoration(
               color: MekaarColors.surface2Of(context),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(MekaarIcons.brokenImage, color: MekaarColors.textMuted),
+          );
+        }
+
+        if (isSticker) {
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      _FullScreenImageViewer(imageProvider: FileImage(file)),
+                ),
+              );
+            },
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 180,
+                maxHeight: 180,
+                minWidth: 80,
+                minHeight: 80,
+              ),
+              child: Image.file(
+                file,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
           );
         }
 
