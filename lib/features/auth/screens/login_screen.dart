@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -405,7 +404,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: OutlinedButton.icon(
                           onPressed:
                               authState.isLoading ? null : _signInWithGoogle,
-                          icon: const Icon(MekaarIcons.gMobiledata, size: 28),
+                          icon: Image.asset(
+                            'assets/icon/google.png',
+                            width: 22,
+                            height: 22,
+                            fit: BoxFit.contain,
+                          ),
                           label: const Text('Lanjut dengan Google'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: textPrimary,

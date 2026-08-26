@@ -14,14 +14,14 @@ class CryptoWalletItem {
   final String coinName;
   final String networkLabel;
   final String address;
-  final IconData icon;
+  final String iconAsset;
   final Color brandColor;
 
   const CryptoWalletItem({
     required this.coinName,
     required this.networkLabel,
     required this.address,
-    required this.icon,
+    required this.iconAsset,
     required this.brandColor,
   });
 }
@@ -35,28 +35,28 @@ class MekaarCryptoDonationBottomSheet extends StatelessWidget {
       coinName: 'Solana (SOL)',
       networkLabel: 'Solana Native (SOL & SPL)',
       address: '8NygxsjfWmcDMMTVuBS2VSAq7b6MnfGTqsPutCfLobyk',
-      icon: SolarIconsBold.tuningSquare,
+      iconAsset: 'assets/icon/sol.png',
       brandColor: Color(0xFF14F195),
     ),
     CryptoWalletItem(
       coinName: 'EVM Multi-Chain (ETH)',
       networkLabel: 'Ethereum, Base, Arbitrum, Polygon, BNB',
       address: '0x49a2013dcbb322079e18136e25e39ab940a74c5e',
-      icon: SolarIconsBold.layersMinimalistic,
+      iconAsset: 'assets/icon/eth.png',
       brandColor: Color(0xFF627EEA),
     ),
     CryptoWalletItem(
       coinName: 'TRON (TRX / USDT)',
       networkLabel: 'TRON Network (TRX & USDT-TRC20)',
       address: 'TBQf6zEfjhsBbcAAyam626JED3ordfX6Y1',
-      icon: SolarIconsBold.shieldKeyhole,
+      iconAsset: 'assets/icon/trx.png',
       brandColor: Color(0xFFFF060A),
     ),
     CryptoWalletItem(
       coinName: 'Bitcoin (BTC)',
       networkLabel: 'Bitcoin Network Native',
       address: 'bc1pywldcavnzq7ztmsqvm8unq3rkrlzafvenzhgmsvz7t32ysq0lcvqmcwfvw',
-      icon: SolarIconsBold.wallet2,
+      iconAsset: 'assets/icon/btc.png',
       brandColor: Color(0xFFF7931A),
     ),
   ];
@@ -211,15 +211,18 @@ class MekaarCryptoDonationBottomSheet extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                width: 32,
+                height: 32,
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: wallet.brandColor.withValues(alpha: 0.15),
+                  color: wallet.brandColor.withValues(alpha: isDark ? 0.2 : 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  wallet.icon,
-                  size: 16,
-                  color: wallet.brandColor,
+                child: Image.asset(
+                  wallet.iconAsset,
+                  width: 22,
+                  height: 22,
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(width: 10),
