@@ -150,6 +150,8 @@ class NearbyFriendsCanvas extends ConsumerWidget {
         displayName: friend.displayName,
         avatarUrl: friend.avatarUrl,
         distanceBadge: friend.band.label,
+        band: friend.band,
+        avatarSize: friend.band.avatarSize,
         isContact: friend.isContact,
         isRecent: friend.isRecent,
         isVaultContact: isVaultContact,

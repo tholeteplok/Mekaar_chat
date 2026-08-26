@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
+import '../../../data/models/nearby_friend_model.dart';
 import 'nearby_consent_dialog.dart';
 import 'nearby_orbital_canvas.dart';
 
@@ -25,24 +26,27 @@ class NearbyTeaserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = collapseProgress.clamp(0.0, 1.0);
 
-    // 3 Mock Items untuk Preview Mode
+    // 3 Mock Items untuk Preview Mode dengan variasi ukuran bubble (64px, 52px, 42px)
     final previewItems = [
       OrbitalAvatarItem(
         id: 'preview-1',
         displayName: 'Dei',
-        distanceBadge: '< 500 m',
+        distanceBadge: 'Dekatmu',
+        band: NearbyBand.veryClose,
         onTap: () => _handleActivation(context),
       ),
       OrbitalAvatarItem(
         id: 'preview-2',
         displayName: 'Raka',
-        distanceBadge: '1.2 km',
+        distanceBadge: 'Sekitarmu',
+        band: NearbyBand.close,
         onTap: () => _handleActivation(context),
       ),
       OrbitalAvatarItem(
         id: 'preview-3',
         displayName: 'Maya',
-        distanceBadge: 'Di dekatmu',
+        distanceBadge: 'Di kotamu',
+        band: NearbyBand.sameCity,
         onTap: () => _handleActivation(context),
       ),
     ];

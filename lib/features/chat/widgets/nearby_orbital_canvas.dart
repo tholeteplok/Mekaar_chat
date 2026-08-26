@@ -7,6 +7,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../data/models/nearby_friend_model.dart';
 
 /// Item avatar yang ditampilkan pada [NearbyOrbitalCanvas].
 class OrbitalAvatarItem {
@@ -14,6 +15,8 @@ class OrbitalAvatarItem {
   final String displayName;
   final String? avatarUrl;
   final String? distanceBadge;
+  final NearbyBand band;
+  final double avatarSize;
   final bool isContact;
   final bool isRecent;
   final bool isVaultContact;
@@ -24,15 +27,22 @@ class OrbitalAvatarItem {
     required this.displayName,
     this.avatarUrl,
     this.distanceBadge,
+    this.band = NearbyBand.close,
+    double? avatarSize,
     this.isContact = true,
     this.isRecent = true,
     this.isVaultContact = false,
     this.onTap,
-  });
+  }) : avatarSize = avatarSize ??
+            (band == NearbyBand.veryClose
+                ? 64.0
+                : (band == NearbyBand.close ? 52.0 : 42.0));
 }
 
-/// Canvas orbit interaktif 2D dengan fisika pegas (spring-damper),
-/// deteksi tubrukan elastis, dan adaptasi collapse saat scroll.
+/// Canvas teman sekitar 2D interaktif dengan layout Static Bubble-Packing
+/// dan interaksi Momentary Magnet-Drag (pegas kembali ke posisi resting statis).
+///
+/// Layar diam total saat tidak disentuh (zero ambient loop / zero perpetual ticker).
 class NearbyOrbitalCanvas extends StatefulWidget {
   final List<OrbitalAvatarItem> items;
   final double collapseProgress; // 0.0 = full expanded, 1.0 = full collapsed
@@ -52,11 +62,10 @@ class NearbyOrbitalCanvas extends StatefulWidget {
 }
 
 class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
-    with TickerProviderStateMixin {
-  late final AnimationController _breathController;
+    with SingleTickerProviderStateMixin {
   late final AnimationController _springController;
 
-  // State seretan pengguna
+  // State seretan pengguna (momentary)
   final Map<int, Offset> _dragOffsets = {};
   final Map<int, Offset> _springStartOffsets = {};
   int? _activeDragIndex;
@@ -66,11 +75,6 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
   @override
   void initState() {
     super.initState();
-    _breathController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat();
-
     _springController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -88,58 +92,58 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
 
   @override
   void dispose() {
-    _breathController.dispose();
     _springController.dispose();
     super.dispose();
   }
 
-  /// Menghitung posisi tengah avatar ke-i berdasarkan rasio collapse
-  Offset _getAvatarCenter(int index, Offset center, double collapse) {
+  /// Menghitung posisi resting statis avatar (Bubble-Packing terpusat)
+  Offset _getStaticRestingPosition(
+    int index,
+    Offset center,
+    double collapse,
+    Size canvasSize,
+  ) {
     final count = widget.items.length;
     final progress = collapse.clamp(0.0, 1.0);
-    final timeVal = _breathController.value * 2 * math.pi;
+    final maxH = (widget.height / 2) - 40;
+    final maxW = (canvasSize.width / 2) - 46;
 
-    double rx = 100.0;
-    double ry = 62.0 * (1.0 - 0.55 * progress);
-
-    double baseAngle;
     if (count == 1) {
-      baseAngle = -math.pi / 2;
-      rx = 0;
-      ry = 0;
-    } else if (count == 2) {
-      baseAngle = index == 0 ? -math.pi * 0.75 : -math.pi * 0.25;
-      rx = 75.0;
-      ry = 45.0 * (1.0 - 0.5 * progress);
-    } else if (count == 3) {
-      // Formasi segitiga asimetris estetik
-      final angles = [-math.pi * 0.82, -math.pi * 0.18, math.pi * 0.5];
-      final radiiX = [92.0, 96.0, 70.0];
-      final radiiY = [
-        54.0 * (1.0 - 0.6 * progress),
-        58.0 * (1.0 - 0.6 * progress),
-        48.0 * (1.0 - 0.6 * progress),
-      ];
-      baseAngle = angles[index % 3];
-      rx = radiiX[index % 3];
-      ry = radiiY[index % 3];
-    } else {
-      baseAngle = (2 * math.pi * index) / count - math.pi / 2;
+      return center;
     }
 
-    // Sinusoidal floating wave per-avatar
-    final floatX =
-        math.sin(timeVal * 1.35 + index * 2.1) * 3.5 * (1.0 - 0.4 * progress);
-    final floatY =
-        math.cos(timeVal * 1.1 + index * 1.7) * 4.0 * (1.0 - 0.5 * progress);
+    if (count == 2) {
+      final double spreadX = 64.0.clamp(0.0, maxW);
+      final double offsetY = 10.0 * (1.0 - progress);
+      if (index == 0) {
+        return Offset(center.dx - spreadX, center.dy - offsetY);
+      } else {
+        return Offset(center.dx + spreadX, center.dy + offsetY);
+      }
+    }
 
-    final restingPos = Offset(
-      center.dx + rx * math.cos(baseAngle) + floatX,
-      center.dy + ry * math.sin(baseAngle) + floatY,
+    if (count == 3) {
+      // Kluster segitiga harmonis bubble-map
+      final double rx = 74.0.clamp(0.0, maxW);
+      final double ry = (44.0 * (1.0 - 0.55 * progress)).clamp(0.0, maxH);
+      if (index == 0) {
+        return Offset(center.dx - rx, center.dy - ry * 0.75);
+      } else if (index == 1) {
+        return Offset(center.dx + rx, center.dy - ry * 0.75);
+      } else {
+        return Offset(center.dx, center.dy + ry);
+      }
+    }
+
+    // Count >= 4: Distribusi Circle-Packing statis deterministik (Golden Angle)
+    final double angle = (index * 2.39996323) - (math.pi / 2);
+    final double dist = 44.0 * math.sqrt(index + 1);
+    final double rx = dist.clamp(0.0, maxW);
+    final double ry = (dist * (1.0 - 0.55 * progress)).clamp(0.0, maxH);
+    return Offset(
+      center.dx + rx * math.cos(angle),
+      center.dy + ry * math.sin(angle),
     );
-
-    final drag = _dragOffsets[index] ?? Offset.zero;
-    return restingPos + drag;
   }
 
   @override
@@ -147,54 +151,43 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
     final size = MediaQuery.sizeOf(context);
     final center = Offset(size.width / 2, widget.height / 2);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    const nodeWidth = 92.0;
 
-    return AnimatedBuilder(
-      animation: _breathController,
-      builder: (context, _) {
-        return SizedBox(
-          height: widget.height,
-          width: double.infinity,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              // ── 1. Background Ambient Pulsing Radar Rings ──
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _RadarBackgroundPainter(
-                      center: center,
-                      animationValue: _breathController.value,
-                      collapseProgress: widget.collapseProgress,
-                      isDark: isDark,
-                    ),
-                  ),
-                ),
+    return SizedBox(
+      height: widget.height,
+      width: double.infinity,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          ...List.generate(widget.items.length, (index) {
+            final item = widget.items[index];
+            final resting = _getStaticRestingPosition(
+              index,
+              center,
+              widget.collapseProgress,
+              size,
+            );
+            final drag = _dragOffsets[index] ?? Offset.zero;
+            final pos = resting + drag;
+            final isDragging = _activeDragIndex == index;
+            final avatarRadius = item.avatarSize / 2;
+
+            return Positioned(
+              left: pos.dx - (nodeWidth / 2),
+              top: pos.dy - avatarRadius,
+              width: nodeWidth,
+              child: _buildAvatarNode(
+                context,
+                index,
+                item,
+                isDragging,
+                isDark,
               ),
-
-              // ── 2. Floating Avatar Nodes ──
-              ...List.generate(widget.items.length, (index) {
-                final item = widget.items[index];
-                final pos =
-                    _getAvatarCenter(index, center, widget.collapseProgress);
-                final isDragging = _activeDragIndex == index;
-
-                return Positioned(
-                  left: pos.dx - 32,
-                  top: pos.dy - 38,
-                  child: _buildAvatarNode(
-                    context,
-                    index,
-                    item,
-                    isDragging,
-                    isDark,
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -206,7 +199,7 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
     bool isDark,
   ) {
     final scale = isDragging ? 1.14 : 1.0;
-    const avatarRadius = 25.0;
+    final avatarDiameter = item.avatarSize;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -253,25 +246,29 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
         curve: Curves.easeOutCubic,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Avatar Circle dengan Glow Guardian Teal Glass
+            // Avatar Circle dengan Glow Guardian Teal HANYA saat di-drag
             Stack(
               clipBehavior: Clip.none,
+              alignment: Alignment.center,
               children: [
                 Container(
-                  width: avatarRadius * 2,
-                  height: avatarRadius * 2,
+                  width: avatarDiameter,
+                  height: avatarDiameter,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: MekaarColors.guardianTeal.withValues(
-                          alpha: isDragging ? 0.45 : 0.20,
-                        ),
-                        blurRadius: isDragging ? 18 : 10,
-                        spreadRadius: isDragging ? 3 : 1,
-                      ),
-                    ],
+                    boxShadow: isDragging
+                        ? [
+                            BoxShadow(
+                              color: MekaarColors.guardianTeal.withValues(
+                                alpha: 0.45,
+                              ),
+                              blurRadius: 18,
+                              spreadRadius: 3,
+                            ),
+                          ]
+                        : const [],
                     border: Border.all(
                       color: isDragging
                           ? MekaarColors.guardianTeal
@@ -281,15 +278,7 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
                     ),
                   ),
                   child: ClipOval(
-                    child: item.avatarUrl != null
-                        ? Avatar(
-                            imageUrl: item.avatarUrl,
-                            initial: item.displayName.isNotEmpty
-                                ? item.displayName[0].toUpperCase()
-                                : '?',
-                            size: avatarRadius * 2,
-                          )
-                        : _buildStylizedPlaceholder(item, index, isDark),
+                    child: _buildAvatarImage(item, index, isDark),
                   ),
                 ),
                 if (item.isVaultContact)
@@ -359,7 +348,7 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
                   ),
                 if (item.displayName.isNotEmpty)
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 80),
+                    constraints: const BoxConstraints(maxWidth: 86),
                     child: Text(
                       item.displayName,
                       style: MekaarTypography.caption.copyWith(
@@ -382,94 +371,49 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
     );
   }
 
-  /// Placeholder avatar bergaya siluet modern untuk mode preview
-  Widget _buildStylizedPlaceholder(
+  /// Memuat avatar pengguna atau ilustrasi maskot resmi MEKAAR (Mika, Salma, Croo)
+  Widget _buildAvatarImage(
     OrbitalAvatarItem item,
     int index,
     bool isDark,
   ) {
-    final icons = [
-      SolarIconsBold.user,
-      SolarIconsBold.userCheck,
-      SolarIconsBold.userHands,
-    ];
-    final icon = icons[index % icons.length];
-
-    return Container(
-      color: isDark
-          ? const Color(0xFF192C44)
-          : MekaarColors.lightBlue,
-      child: Center(
-        child: Icon(
-          icon,
-          size: 24,
-          color: MekaarColors.guardianTeal.withValues(alpha: 0.85),
-        ),
-      ),
-    );
-  }
-}
-
-/// CustomPainter untuk menggambar gelombang radar melingkar konsentris di latar belakang
-class _RadarBackgroundPainter extends CustomPainter {
-  final Offset center;
-  final double animationValue;
-  final double collapseProgress;
-  final bool isDark;
-
-  _RadarBackgroundPainter({
-    required this.center,
-    required this.animationValue,
-    required this.collapseProgress,
-    required this.isDark,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final progress = collapseProgress.clamp(0.0, 1.0);
-    final pulse = math.sin(animationValue * 2 * math.pi) * 3.0;
-
-    final rings = [
-      (radius: 46.0 + pulse * 0.5, alpha: 0.14),
-      (radius: 88.0 + pulse, alpha: 0.10),
-      (radius: 132.0 + pulse * 1.2, alpha: 0.06),
-    ];
-
-    for (final ring in rings) {
-      final rx = ring.radius;
-      final ry = ring.radius * (1.0 - 0.55 * progress);
-
-      final paint = Paint()
-        ..color = MekaarColors.guardianTeal.withValues(
-          alpha: ring.alpha * (1.0 - 0.4 * progress),
-        )
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2;
-
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: center,
-          width: rx * 2,
-          height: ry * 2,
-        ),
-        paint,
+    if (item.avatarUrl != null && item.avatarUrl!.isNotEmpty) {
+      return Avatar(
+        imageUrl: item.avatarUrl,
+        initial: item.displayName.isNotEmpty
+            ? item.displayName[0].toUpperCase()
+            : '?',
+        size: item.avatarSize,
       );
     }
 
-    // Pusat radar titik pendar halus
-    final centerPaint = Paint()
-      ..color = MekaarColors.guardianTeal.withValues(
-        alpha: 0.35 * (1.0 - 0.5 * progress),
-      )
-      ..style = PaintingStyle.fill;
+    final mascotAssets = [
+      'assets/mascot/avatar/mika.png',
+      'assets/mascot/avatar/salma.png',
+      'assets/mascot/avatar/croo.png',
+    ];
+    final assetPath = mascotAssets[index % mascotAssets.length];
 
-    canvas.drawCircle(center, 4.0, centerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _RadarBackgroundPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-        oldDelegate.collapseProgress != collapseProgress ||
-        oldDelegate.isDark != isDark;
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      width: item.avatarSize,
+      height: item.avatarSize,
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: isDark ? const Color(0xFF192C44) : MekaarColors.lightBlue,
+        child: Center(
+          child: Text(
+            item.displayName.isNotEmpty
+                ? item.displayName[0].toUpperCase()
+                : '?',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: item.avatarSize * 0.38,
+              color: MekaarColors.guardianTeal,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

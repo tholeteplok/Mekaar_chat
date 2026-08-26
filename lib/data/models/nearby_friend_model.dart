@@ -6,22 +6,22 @@ enum NearbyBand {
   String get label {
     switch (this) {
       case NearbyBand.veryClose:
-        return 'Sangat dekat (< 500 m)';
+        return 'Dekatmu';
       case NearbyBand.close:
-        return 'Dekat (500 m – 2 km)';
+        return 'Sekitarmu';
       case NearbyBand.sameCity:
-        return 'Di kota yang sama';
+        return 'Di kotamu';
     }
   }
 
   String get shortLabel {
     switch (this) {
       case NearbyBand.veryClose:
-        return '< 500 m';
+        return 'Dekatmu';
       case NearbyBand.close:
-        return 'Dekat';
+        return 'Sekitarmu';
       case NearbyBand.sameCity:
-        return 'Satu Kota';
+        return 'Di kotamu';
     }
   }
 

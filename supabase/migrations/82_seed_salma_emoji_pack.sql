@@ -4,7 +4,7 @@
 --
 -- CARA UNGGAH ASET STORAGE:
 -- Unggah 25 file .png beserta _cover.png dari folder
--- `assets/.temp_emoji/salma/` (atau direktori unduhan) ke bucket Supabase Storage:
+-- `assets/.temp_emoji/salma/` ke bucket Supabase Storage:
 --   Bucket: "emoji-packs"
 --   Folder: "salma/"
 --   Path contoh: salma/salma_wave.png, salma/_cover.png
@@ -18,7 +18,7 @@ values (
   'Sahabat setia MEKAAR — ceria, hangat, dan penuh ekspresi.',
   'salma/_cover.png',
   25,
-  1438769,
+  1441814,
   1,
   true
 )
@@ -49,26 +49,26 @@ from pack,
   ('salma_love', 59938, 2),
   ('salma_senang', 56681, 3),
   ('salma_kaget', 59295, 4),
-  ('salma_marah', 54205, 5),
-  ('salma_panik', 62214, 6),
-  ('salma_tidur', 51890, 7),
-  ('salma_melet', 52027, 8),
-  ('salma_tanya', 51967, 9),
-  ('salma_sedih', 61557, 10),
-  ('salma_mewek', 60234, 11),
-  ('salma_semangat', 59242, 12),
-  ('salma_pout', 53756, 13),
-  ('salma_terharu', 66606, 14),
-  ('salma_hore', 70931, 15),
-  ('salma_keren', 55413, 16),
-  ('salma_ok', 60130, 17),
-  ('salma_tangan_ok', 64188, 18),
-  ('salma_pesta', 64553, 19),
-  ('salma_salam', 55902, 20),
-  ('salma_canggung', 50368, 21),
-  ('salma_bingung', 51343, 22),
-  ('salma_mata_hati', 59568, 23),
-  ('salma_huft', 47467, 24)
+  ('salma_marah', 54059, 5),
+  ('salma_panik', 62132, 6),
+  ('salma_tidur', 51514, 7),
+  ('salma_melet', 51823, 8),
+  ('salma_tanya', 51910, 9),
+  ('salma_sedih', 58984, 10),
+  ('salma_mewek', 58583, 11),
+  ('salma_semangat', 58411, 12),
+  ('salma_pout', 52363, 13),
+  ('salma_terharu', 64904, 14),
+  ('salma_hore', 70644, 15),
+  ('salma_keren', 54211, 16),
+  ('salma_ok', 58006, 17),
+  ('salma_tangan_ok', 62475, 18),
+  ('salma_pesta', 63393, 19),
+  ('salma_salam', 58871, 20),
+  ('salma_canggung', 53522, 21),
+  ('salma_bingung', 54706, 22),
+  ('salma_mata_hati', 62889, 23),
+  ('salma_huft', 50224, 24)
 ) as item(shortcode, bytes, sort_order)
 on conflict (pack_id, shortcode) do update set
   file_url = excluded.file_url,

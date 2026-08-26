@@ -138,6 +138,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/mascot/avatar/
     - assets/mascot/mika_light/
     - assets/mascot/mika_dark/
     - assets/sounds/

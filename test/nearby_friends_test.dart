@@ -95,9 +95,9 @@ void main() {
       expect(NearbyBand.close.avatarSize, equals(54.0));
       expect(NearbyBand.sameCity.avatarSize, equals(42.0));
 
-      expect(NearbyBand.veryClose.shortLabel, equals('< 500 m'));
-      expect(NearbyBand.close.shortLabel, equals('Dekat'));
-      expect(NearbyBand.sameCity.shortLabel, equals('Satu Kota'));
+      expect(NearbyBand.veryClose.shortLabel, equals('Dekatmu'));
+      expect(NearbyBand.close.shortLabel, equals('Sekitarmu'));
+      expect(NearbyBand.sameCity.shortLabel, equals('Di kotamu'));
     });
 
     test('NearbyFriendModel serialization and deserialization', () {

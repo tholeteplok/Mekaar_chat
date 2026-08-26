@@ -811,7 +811,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   const Text(
-                                    'Versi Terbaru',
+                                    'cek pembaruan',
                                     style: TextStyle(
                                       color: AppColors.blue,
                                       fontSize: 13,
