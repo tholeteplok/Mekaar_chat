@@ -1,9 +1,58 @@
--- MEKAAR 3.0 Migration 82: Fix get_nearby_friends RPC Resilience & Preference Fallback
--- 1. Menangani auto-upsert preferensi pemanggil saat get_nearby_friends dipanggil
--- 2. Menggunakan LEFT JOIN pada nearby_sharing_prefs agar tidak menggugurkan pengguna dengan preferensi bawaan
--- 3. Mendukung COALESCE(prof.display_name, prof.full_name, prof.username, 'Pengguna MEKAAR')
--- 4. Memastikan otorisasi GRANT EXECUTE untuk role authenticated
+-- ==============================================================================
+-- MEKAAR 3.0 Migration 84: Fix Realtime Publication & Resilient Nearby Friends
+-- 
+-- 1. Memastikan publikasi supabase_realtime memuat tabel-tabel penting (calls, messages, profiles)
+-- 2. Mengaktifkan REPLICA IDENTITY FULL pada tabel calls dan messages
+-- 3. Memperbarui RPC get_nearby_friends agar mendukung filter 'Semua' (everyone) dan
+--    filter 'Kontak' (room_participants, chat_requests accepted, guardians) secara andal
+-- ==============================================================================
 
+BEGIN;
+
+-- 1. Pastikan tabel calls, messages, profiles, nearby_location_pings ada di publikasi Realtime
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.calls;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.sos_sessions;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 2. Set REPLICA IDENTITY FULL agar CDC / filter realtime bekerja sempurna
+ALTER TABLE public.calls REPLICA IDENTITY FULL;
+ALTER TABLE public.messages REPLICA IDENTITY FULL;
+ALTER TABLE public.profiles REPLICA IDENTITY FULL;
+ALTER TABLE public.nearby_location_pings REPLICA IDENTITY FULL;
+ALTER TABLE public.nearby_sharing_prefs REPLICA IDENTITY FULL;
+
+-- 3. Update RPC get_nearby_friends
 CREATE OR REPLACE FUNCTION public.get_nearby_friends(
     p_latitude DOUBLE PRECISION,
     p_longitude DOUBLE PRECISION
@@ -111,44 +160,63 @@ BEGIN
         prof.avatar_url,
         f.distance_band AS band,
         (f.ping_time >= (now() - INTERVAL '15 minutes')) AS is_recent,
-        -- Cek apakah mereka sudah saling terhubung di room obrolan (profile_id)
-        EXISTS (
-            SELECT 1 
-            FROM public.room_participants rp1
-            JOIN public.room_participants rp2 ON rp1.room_id = rp2.room_id
-            WHERE rp1.profile_id = v_caller_id
-              AND rp2.profile_id = prof.id
+        -- Cek status kontak komprehensif: room_participants, accepted chat_requests, atau active guardians
+        (
+            EXISTS (
+                SELECT 1 
+                FROM public.room_participants rp1
+                JOIN public.room_participants rp2 ON rp1.room_id = rp2.room_id
+                WHERE rp1.profile_id = v_caller_id
+                  AND rp2.profile_id = prof.id
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM public.chat_requests cr
+                WHERE ((cr.sender_id = v_caller_id AND cr.receiver_id = prof.id)
+                    OR (cr.sender_id = prof.id AND cr.receiver_id = v_caller_id))
+                  AND cr.status = 'accepted'
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM public.guardians g
+                WHERE ((g.user_id = v_caller_id AND g.guardian_id = prof.id)
+                    OR (g.user_id = prof.id AND g.guardian_id = v_caller_id))
+                  AND g.status = 'active'
+            )
         ) AS is_contact,
         COALESCE(prof.chat_invitation_mode, 'all') AS chat_invitation_mode
     FROM filtered_and_banded f
     JOIN public.profiles prof ON prof.id = f.target_user_id
     WHERE 
-        -- Pengecekan Mutual Visibility:
+        -- Filter berdasarkan preferensi visibilitas pemanggil:
         (
-            -- Jika target 'everyone', tampil. Jika 'contacts_only', harus mutual contact
-            f.target_visibility = 'everyone'
-            OR (
-                f.target_visibility = 'contacts_only'
-                AND EXISTS (
-                    SELECT 1 
-                    FROM public.room_participants rp1
-                    JOIN public.room_participants rp2 ON rp1.room_id = rp2.room_id
-                    WHERE rp1.profile_id = v_caller_id
-                      AND rp2.profile_id = prof.id
-                )
-            )
-        )
-        AND (
-            -- Jika caller 'everyone', tampilkan semua teman terdekat. Jika 'contacts_only', hanya tampilkan kontak
+            -- Jika pemanggil memilih 'everyone' (Semua): Tampilkan semua pengguna dalam radius 10 km
             v_caller_visibility = 'everyone'
             OR (
+                -- Jika pemanggil memilih 'contacts_only' (Kontak): Wajib berstatus kontak
                 v_caller_visibility = 'contacts_only'
-                AND EXISTS (
-                    SELECT 1 
-                    FROM public.room_participants rp1
-                    JOIN public.room_participants rp2 ON rp1.room_id = rp2.room_id
-                    WHERE rp1.profile_id = v_caller_id
-                      AND rp2.profile_id = prof.id
+                AND (
+                    EXISTS (
+                        SELECT 1 
+                        FROM public.room_participants rp1
+                        JOIN public.room_participants rp2 ON rp1.room_id = rp2.room_id
+                        WHERE rp1.profile_id = v_caller_id
+                          AND rp2.profile_id = prof.id
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM public.chat_requests cr
+                        WHERE ((cr.sender_id = v_caller_id AND cr.receiver_id = prof.id)
+                            OR (cr.sender_id = prof.id AND cr.receiver_id = v_caller_id))
+                          AND cr.status = 'accepted'
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM public.guardians g
+                        WHERE ((g.user_id = v_caller_id AND g.guardian_id = prof.id)
+                            OR (g.user_id = prof.id AND g.guardian_id = v_caller_id))
+                          AND g.status = 'active'
+                    )
                 )
             )
         )
@@ -166,3 +234,5 @@ $$;
 
 -- Berikan hak eksekusi ke authenticated user
 GRANT EXECUTE ON FUNCTION public.get_nearby_friends(DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated;
+
+COMMIT;
