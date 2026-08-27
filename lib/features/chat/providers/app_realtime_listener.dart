@@ -89,11 +89,6 @@ class AppRealtimeListener {
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'calls',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'receiver_id',
-            value: userId,
-          ),
           callback: callListener.handleInsertCall,
         )
         .onPostgresChanges(

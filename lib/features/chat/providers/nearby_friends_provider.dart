@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../../../data/repositories/nearby_repository.dart';
 import '../../../data/services/location_service.dart';
@@ -60,6 +61,7 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
   final Future<({double latitude, double longitude})?> Function()? _getLocation;
   final Logger _logger = Logger();
   DateTime? _lastFetchTime;
+  StreamSubscription<dynamic>? _authSub;
   static const Duration _throttleDuration = Duration(seconds: 15);
 
   NearbyFriendsNotifier(
@@ -69,7 +71,24 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
   })  : _requestPermission = requestPermission,
         _getLocation = getLocation,
         super(const NearbyFriendsState()) {
+    _initAuthListener();
     loadPreferences();
+  }
+
+  void _initAuthListener() {
+    try {
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        if (data.session?.user != null) {
+          loadPreferences();
+        }
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 
   /// Memuat preferensi awal dari database

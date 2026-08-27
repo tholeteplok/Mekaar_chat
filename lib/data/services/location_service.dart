@@ -50,13 +50,13 @@ class LocationService {
         );
       } catch (_) {}
 
-      // Timeout 8 detik untuk mencegah freeze jika GPS hardware lambat mengunci satelit
+      // Timeout 12 detik untuk memastikan GPS hardware berhasil mengunci koordinat satelit
       try {
-        return await _location.getLocation().timeout(const Duration(seconds: 8));
+        return await _location.getLocation().timeout(const Duration(seconds: 12));
       } catch (_) {
         try {
           await _location.changeSettings(accuracy: loc.LocationAccuracy.balanced);
-          return await _location.getLocation().timeout(const Duration(seconds: 4));
+          return await _location.getLocation().timeout(const Duration(seconds: 6));
         } catch (_) {
           return null;
         }

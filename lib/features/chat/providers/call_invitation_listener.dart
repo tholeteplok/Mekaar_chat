@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/navigation/app_navigator.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
@@ -30,12 +31,20 @@ class CallInvitationListener {
     final callId = newRow['id'] as String?;
     final roomId = newRow['room_id'] as String?;
     final callerId = newRow['caller_id'] as String?;
+    final receiverId = newRow['receiver_id'] as String?;
     final callType = newRow['call_type'] as String? ?? 'voice';
     final status = newRow['status'] as String?;
+
+    final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
+    if (currentUserId == null || receiverId != currentUserId) {
+      return; // Abaikan jika kita bukan penerima panggilan ini
+    }
 
     if (callId == null || roomId == null || callerId == null || status != 'ringing') {
       return;
     }
+
+    _log.i('🔔 CallInvitationListener: Menerima panggilan masuk baru $callId dari $callerId');
 
     // Call Collision Guard: Jika user sedang aktif dalam panggilan lain, otomatis tolak dengan status 'busy'
     final activeCallId = _ref.read(activeCallIdProvider);
