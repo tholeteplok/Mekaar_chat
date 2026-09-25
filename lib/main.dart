@@ -13,12 +13,16 @@ import 'package:mekaar_chat/features/chat/providers/message_notification_listene
 import 'package:mekaar_chat/features/chat/screens/incoming_call_screen.dart';
 import 'package:mekaar_chat/data/repositories/trip_repository.dart';
 import 'package:mekaar_chat/data/services/deep_link_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 
 final logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi format tanggal lokal (Indonesia) untuk intl
+  await initializeDateFormatting('id_ID', null);
 
   // 1. Initialize Supabase using --dart-define
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');

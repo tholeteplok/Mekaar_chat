@@ -58,11 +58,12 @@ class ChatComposer extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ChatComposer> createState() => _ChatComposerState();
+  ConsumerState<ChatComposer> createState() => ChatComposerState();
 }
 
-class _ChatComposerState extends ConsumerState<ChatComposer> {
+class ChatComposerState extends ConsumerState<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
+  final FocusNode _focusNode = FocusNode();
   bool _isUploading = false;
   bool _showEmojiPicker = false;
   List<String> _recentEmojis = [];
@@ -83,6 +84,14 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
     super.initState();
     widget.controller.addListener(_onTextChanged);
     _loadRecentEmojis();
+  }
+
+  /// Menutup panel emoji secara eksplisit (misalnya saat tombol Back ditekan)
+  void closeEmojiPicker() {
+    if (_showEmojiPicker) {
+      setState(() => _showEmojiPicker = false);
+      widget.onEmojiPanelVisibilityChanged?.call(false);
+    }
   }
 
   Future<void> _loadRecentEmojis() async {
@@ -114,6 +123,7 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
   @override
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
+    _focusNode.dispose();
     _recordTimer?.cancel();
     _audioRecorder?.dispose();
     super.dispose();
@@ -411,10 +421,10 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
 
   void _toggleEmojiPicker() {
     if (_showEmojiPicker) {
-      setState(() => _showEmojiPicker = false);
-      widget.onEmojiPanelVisibilityChanged?.call(false);
+      closeEmojiPicker();
+      _focusNode.requestFocus();
     } else {
-      FocusScope.of(context).unfocus();
+      _focusNode.unfocus();
       setState(() => _showEmojiPicker = true);
       widget.onEmojiPanelVisibilityChanged?.call(true);
     }
@@ -1011,6 +1021,7 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
                             Expanded(
                               child: TextField(
                                 controller: widget.controller,
+                                focusNode: _focusNode,
                                 enabled: widget.enabled,
                                 keyboardType: TextInputType.multiline,
                                 minLines: 1,
@@ -1048,12 +1059,7 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
                                   color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
                                 ),
                                 onSubmitted: (_) => widget.enabled ? widget.onSend() : null,
-                                onTap: () {
-                                  if (_showEmojiPicker) {
-                                    setState(() => _showEmojiPicker = false);
-                                    widget.onEmojiPanelVisibilityChanged?.call(false);
-                                  }
-                                },
+                                onTap: closeEmojiPicker,
                               ),
                             ),
                           ],

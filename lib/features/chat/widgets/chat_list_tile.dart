@@ -58,7 +58,9 @@ class ChatListTile extends StatelessWidget {
           child: Row(
             children: [
               Avatar(
-                initial: room['avatar'] as String? ?? name[0],
+                initial: (room['avatar'] as String?)?.isNotEmpty == true
+                    ? room['avatar'] as String
+                    : (name.isNotEmpty ? name[0] : 'U'),
                 imageUrl: room['avatarUrl'] as String?,
                 size: MekaarSizes.avatarLg,
                 isGuardian: isGuardian,
@@ -259,20 +261,27 @@ class _UnreadBadge extends StatelessWidget {
 }
 
 String _formatTimestamp(DateTime dt) {
-  final localDt = dt.toLocal();
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final msgDate = DateTime(localDt.year, localDt.month, localDt.day);
+  try {
+    final localDt = dt.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDate = DateTime(localDt.year, localDt.month, localDt.day);
 
-  if (msgDate == today) return DateFormat('HH:mm').format(localDt);
-  if (msgDate == today.subtract(const Duration(days: 1))) return 'Kemarin';
+    if (msgDate == today) return DateFormat('HH:mm').format(localDt);
+    if (msgDate == today.subtract(const Duration(days: 1))) return 'Kemarin';
 
-  final diff = today.difference(msgDate).inDays;
-  if (diff < 7) {
-    const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    return days[msgDate.weekday % 7];
+    final diff = today.difference(msgDate).inDays;
+    if (diff < 7) {
+      const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+      return days[msgDate.weekday % 7];
+    }
+
+    if (localDt.year == now.year) {
+      return DateFormat('d MMM', 'id_ID').format(localDt);
+    }
+    return DateFormat('d MMM yy', 'id_ID').format(localDt);
+  } catch (_) {
+    // Fallback defensif jika terjadi kendala format lokal
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
-
-  if (localDt.year == now.year) return DateFormat('d MMM', 'id_ID').format(localDt);
-  return DateFormat('d MMM yy', 'id_ID').format(localDt);
 }

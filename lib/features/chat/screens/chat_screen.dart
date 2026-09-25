@@ -83,6 +83,7 @@ class _ChatItemEntry {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObserver {
+  final GlobalKey<ChatComposerState> _composerKey = GlobalKey<ChatComposerState>();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
@@ -791,8 +792,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return PopScope(
-      canPop: true,
+      canPop: !_isEmojiPickerOpen,
       onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isEmojiPickerOpen) {
+          _composerKey.currentState?.closeEmojiPicker();
+          setState(() => _isEmojiPickerOpen = false);
+          return;
+        }
         if (didPop && _burnOnExit) {
           _triggerBurnOnExit();
         }
@@ -967,6 +973,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                   final isE2eeReady = e2eeStatus == E2eeRoomStatus.ready;
 
                   return ChatComposer(
+                    key: _composerKey,
                     controller: _textController,
                     replyMessage: _replyMessage,
                     editingMessage: _editingMessage,
