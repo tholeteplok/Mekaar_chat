@@ -1040,8 +1040,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         CustomCard(
           margin: EdgeInsets.zero,
           padding: EdgeInsets.zero,
+          useSketchBorder: true,
+          borderRadius: MekaarRadius.card,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(MekaarRadius.lg),
+            borderRadius: BorderRadius.circular(MekaarRadius.card),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),

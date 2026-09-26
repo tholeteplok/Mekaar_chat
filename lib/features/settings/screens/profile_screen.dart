@@ -4,6 +4,7 @@ import '../../../data/services/image_picker_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -41,7 +42,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
     setState(() => _isUploadingAvatar = true);
 
-    final file = await _imagePickerService.pickAndProcessImage(source, context: context);
+    final file = await _imagePickerService.pickAndProcessImage(
+      source,
+      context: context,
+    );
     if (file == null) {
       if (mounted) setState(() => _isUploadingAvatar = false);
       return; // User cancelled or error
@@ -51,7 +55,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.uploadAndUpdateAvatar(file);
       await ref.read(authProvider.notifier).loadProfile();
-      
+
       if (mounted) {
         MekaarSnackbar.success(context, 'Foto profil berhasil diperbarui.');
       }
@@ -66,7 +70,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     }
   }
 
+  Future<void> _handleDeleteAvatar() async {
+    if (_isUploadingAvatar) return;
+
+    setState(() => _isUploadingAvatar = true);
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.deleteAvatar();
+      await ref.read(authProvider.notifier).loadProfile();
+
+      if (mounted) {
+        MekaarSnackbar.success(context, 'Foto profil berhasil dihapus.');
+      }
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal menghapus foto profil: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  void _confirmDeleteAvatar() {
+    MekaarDialog.show(
+      context: context,
+      title: 'Hapus Foto Profil?',
+      body:
+          'Foto profil Anda akan dihapus dan kembali menampilkan inisial krayon MEKAAR.',
+      confirmLabel: 'Hapus',
+      confirmColor: MekaarColors.sosRed,
+      isDestructive: true,
+      onConfirm: _handleDeleteAvatar,
+    );
+  }
+
   void _showAvatarOptions() {
+    final hasCustomAvatar =
+        ref.read(authProvider).profile?.avatarUrl?.isNotEmpty ?? false;
+
     MekaarBottomSheet.show(
       context: context,
       showDragHandle: true,
@@ -89,6 +133,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               _handlePickAndUploadAvatar(ImageSource.gallery);
             },
           ),
+          if (hasCustomAvatar) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(
+                SolarIconsOutline.trashBinTrash,
+                color: MekaarColors.sosRed,
+              ),
+              title: const Text(
+                'Hapus Foto Profil',
+                style: TextStyle(
+                  color: MekaarColors.sosRed,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmDeleteAvatar();
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -99,7 +163,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     super.initState();
     final profile = ref.read(authProvider).profile;
     _usernameController = TextEditingController(text: profile?.username ?? '');
-    _displayNameController = TextEditingController(text: profile?.displayName ?? profile?.fullName ?? '');
+    _displayNameController = TextEditingController(
+      text: profile?.displayName ?? profile?.fullName ?? '',
+    );
     _bioController = TextEditingController(text: profile?.bio ?? '');
   }
 
@@ -230,13 +296,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final profile = authState.profile;
 
     final userName =
-        profile?.displayName ?? profile?.fullName ?? profile?.username ?? 'User';
+        profile?.displayName ??
+        profile?.fullName ??
+        profile?.username ??
+        'User';
     final userEmail = user?.email ?? '';
     final username = profile?.username ?? '';
     final pinSet = authState.isPinSet;
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
-    final saveActionButton = (_isEditingDisplayName || _isEditingUsername || _isEditingBio)
+    final saveActionButton =
+        (_isEditingDisplayName || _isEditingUsername || _isEditingBio)
         ? IconButton(
             onPressed: _saveAllChanges,
             icon: Icon(
@@ -254,15 +324,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         child: Column(
           children: [
             if (canPop)
-              SettingsTopBar(
-                title: 'Profil',
-                trailing: saveActionButton,
-              )
+              SettingsTopBar(title: 'Profil', trailing: saveActionButton)
             else
-              MekaarTabHeader(
-                title: 'Profil',
-                action: saveActionButton,
-              ),
+              MekaarTabHeader(title: 'Profil', action: saveActionButton),
 
             Expanded(
               child: SingleChildScrollView(
@@ -277,7 +341,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       child: Column(
                         children: [
                           GestureDetector(
-                            onTap: _isUploadingAvatar ? null : _showAvatarOptions,
+                            onTap: _isUploadingAvatar
+                                ? null
+                                : _showAvatarOptions,
                             child: Stack(
                               alignment: Alignment.bottomRight,
                               children: [
@@ -291,7 +357,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     width: 84,
                                     height: 84,
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.5),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Center(
@@ -314,11 +382,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     );
                                     _showAvatarOptions();
                                   },
-                             icon: Icon(
-                               SolarIconsOutline.camera,
-                               size: 16,
-                               color: MekaarColors.accentTextOf(context),
-                             ),
+                            icon: Icon(
+                              SolarIconsOutline.camera,
+                              size: 16,
+                              color: MekaarColors.accentTextOf(context),
+                            ),
                             label: Text(
                               'Ubah Foto',
                               style: MekaarTypography.bodySM.copyWith(
@@ -340,6 +408,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                         horizontal: 16,
                         vertical: 12,
                       ),
+                      useSketchBorder: true,
+                      borderRadius: MekaarRadius.card,
                       child: Column(
                         children: [
                           // 1. Nama Tampilan
@@ -347,13 +417,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             label: 'Nama',
                             isEditing: _isEditingDisplayName,
                             controller: _displayNameController,
-                            value: profile?.displayName ??
+                            value:
+                                profile?.displayName ??
                                 profile?.fullName ??
                                 profile?.username ??
                                 'Belum diatur',
-                            onToggle: () => setState(
-                              () => _isEditingDisplayName = true,
-                            ),
+                            onToggle: () =>
+                                setState(() => _isEditingDisplayName = true),
                             onSave: _saveDisplayName,
                           ),
                           const SizedBox(height: 6),
@@ -366,9 +436,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             value: username.isNotEmpty
                                 ? '@$username'
                                 : 'Belum diatur',
-                            onToggle: () => setState(
-                              () => _isEditingUsername = true,
-                            ),
+                            onToggle: () =>
+                                setState(() => _isEditingUsername = true),
                             onSave: _saveUsername,
                           ),
                           const SizedBox(height: 6),
@@ -378,12 +447,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             label: 'Bio',
                             isEditing: _isEditingBio,
                             controller: _bioController,
-                            value: (profile?.bio != null && profile!.bio!.isNotEmpty)
+                            value:
+                                (profile?.bio != null &&
+                                    profile!.bio!.isNotEmpty)
                                 ? profile.bio!
                                 : 'Tambah bio / status...',
-                            onToggle: () => setState(
-                              () => _isEditingBio = true,
-                            ),
+                            onToggle: () =>
+                                setState(() => _isEditingBio = true),
                             onSave: _saveBio,
                           ),
                           const SizedBox(height: 6),
@@ -409,8 +479,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                         ? userEmail
                                         : 'Belum terhubung',
                                     style: MekaarTypography.bodyMD.copyWith(
-                                      color:
-                                          MekaarColors.textPrimaryOf(context),
+                                      color: MekaarColors.textPrimaryOf(
+                                        context,
+                                      ),
                                       fontWeight: FontWeight.w600,
                                     ),
                                     maxLines: 1,
@@ -447,6 +518,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           horizontal: 16,
                           vertical: 10,
                         ),
+                        useSketchBorder: true,
+                        borderRadius: MekaarRadius.card,
                         child: Row(
                           children: [
                             SizedBox(
@@ -558,8 +631,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 4),
                       border: UnderlineInputBorder(
-                        borderSide:
-                            BorderSide(color: MekaarColors.accentTextOf(context)),
+                        borderSide: BorderSide(
+                          color: MekaarColors.accentTextOf(context),
+                        ),
                       ),
                       focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(
@@ -580,9 +654,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
           IconButton(
             icon: Icon(
-              isEditing
-                  ? SolarIconsOutline.checkCircle
-                  : SolarIconsOutline.pen,
+              isEditing ? SolarIconsOutline.checkCircle : SolarIconsOutline.pen,
               color: isEditing
                   ? MekaarColors.accentTextOf(context)
                   : MekaarColors.textMutedOf(context),

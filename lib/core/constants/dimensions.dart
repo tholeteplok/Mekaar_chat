@@ -15,6 +15,7 @@ class MekaarSpacing {
 }
 
 class MekaarRadius {
+  static const double card = 16;  // Standar baku kartu Citrea (tetap & presisi)
   static const double sm = 12;   // Chip, badge
   static const double md = 18;   // Bubble chat, input bar
   static const double lg = 24;   // Kartu chat list, sheet

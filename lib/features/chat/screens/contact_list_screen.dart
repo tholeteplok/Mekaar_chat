@@ -184,8 +184,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           }
         }
 
-        final allContacts =
-            wasDuress ? <Map<String, dynamic>>[] : uniqueContacts.values.toList();
+        final allContacts = wasDuress
+            ? <Map<String, dynamic>>[]
+            : uniqueContacts.values.toList();
 
         // 4. Filter berdasarkan pencarian
         final filteredContacts = allContacts.where((contact) {
@@ -199,9 +200,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         // 5. Urutkan berdasarkan tab pill filter aktif
         if (_selectedTabIndex == 0) {
           // A-Z: Urutkan secara alfabetis berdasarkan nama
-          filteredContacts.sort((a, b) => (a['name'] as String)
-              .toLowerCase()
-              .compareTo((b['name'] as String).toLowerCase()));
+          filteredContacts.sort(
+            (a, b) => (a['name'] as String).toLowerCase().compareTo(
+              (b['name'] as String).toLowerCase(),
+            ),
+          );
         } else {
           // Baru Ditambahkan: Urutkan berdasarkan interaksi/penambahan terbaru
           filteredContacts.sort((a, b) {
@@ -229,10 +232,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     });
                     _vaultDebounceTimer?.cancel();
                     if (val.trim().length >= 4) {
-                      _vaultDebounceTimer =
-                          Timer(const Duration(milliseconds: 400), () {
-                        _checkVaultPasscode(val);
-                      });
+                      _vaultDebounceTimer = Timer(
+                        const Duration(milliseconds: 400),
+                        () {
+                          _checkVaultPasscode(val);
+                        },
+                      );
                     }
                   },
                   onSearchClosed: () {
@@ -293,15 +298,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       ),
                       action: TextButton.icon(
                         onPressed: () {
-                          HapticService.trigger(
-                              MekaarHapticIntent.selection);
+                          HapticService.trigger(MekaarHapticIntent.selection);
                           ref
-                              .read(privateVaultUnlockedProvider.notifier)
-                              .state = false;
-                          MekaarSnackbar.info(
-                            context,
-                            'Private Vault Dikunci',
-                          );
+                                  .read(privateVaultUnlockedProvider.notifier)
+                                  .state =
+                              false;
+                          MekaarSnackbar.info(context, 'Private Vault Dikunci');
                         },
                         icon: Icon(
                           SolarIconsOutline.lock,
@@ -317,9 +319,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           minimumSize: const Size(44, 44),
                         ),
                       ),
@@ -334,7 +334,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                   child: filteredContacts.isEmpty
                       ? _buildEmptyState()
                       : _buildContactsCard(
-                          filteredContacts, hiddenRoomIds, isVaultUnlocked),
+                          filteredContacts,
+                          hiddenRoomIds,
+                          isVaultUnlocked,
+                        ),
                 ),
               ],
             ),
@@ -359,89 +362,103 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         CustomCard(
           margin: EdgeInsets.zero,
           padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Header Seksi Kontak di dalam Kartu ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      SolarIconsBold.usersGroupRounded,
-                      color: MekaarColors.primaryOf(context),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Kontak',
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.primaryOf(context)
-                            .withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                      ),
-                      child: Text(
-                        '${contacts.length}',
-                        style: MekaarTypography.caption.copyWith(
-                          color: MekaarColors.primaryOf(context),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // Filter A-Z / Baru Ditambahkan
-                    MekaarSlidingSegmentBar(
-                      tabs: _tabs,
-                      selectedIndex: _selectedTabIndex,
-                      onTabSelected: (index) =>
-                          setState(() => _selectedTabIndex = index),
-                      height: 28,
-                      width: 155,
-                      margin: EdgeInsets.zero,
-                    ),
-                    SizedBox(width: 4),
-                    // Toggle Tampilan List / Grid
-                    IconButton(
-                      icon: Icon(
-                        _isGridView
-                            ? SolarIconsOutline.list
-                            : SolarIconsOutline.menuDotsSquare,
+          useSketchBorder: true,
+          borderRadius: MekaarRadius.card,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(MekaarRadius.card),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header Seksi Kontak di dalam Kartu ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        SolarIconsBold.usersGroupRounded,
                         color: MekaarColors.primaryOf(context),
                         size: 18,
                       ),
-                      tooltip:
-                          _isGridView ? 'Tampilan Daftar' : 'Tampilan Grid',
-                      onPressed: _toggleViewMode,
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'Kontak',
+                        style: MekaarTypography.bodyMD.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: MekaarColors.primaryOf(
+                            context,
+                          ).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                        ),
+                        child: Text(
+                          '${contacts.length}',
+                          style: MekaarTypography.caption.copyWith(
+                            color: MekaarColors.primaryOf(context),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Filter A-Z / Baru Ditambahkan
+                      MekaarSlidingSegmentBar(
+                        tabs: _tabs,
+                        selectedIndex: _selectedTabIndex,
+                        onTabSelected: (index) =>
+                            setState(() => _selectedTabIndex = index),
+                        height: 28,
+                        width: 155,
+                        margin: EdgeInsets.zero,
+                      ),
+                      SizedBox(width: 4),
+                      // Toggle Tampilan List / Grid
+                      IconButton(
+                        icon: Icon(
+                          _isGridView
+                              ? SolarIconsOutline.list
+                              : SolarIconsOutline.menuDotsSquare,
+                          color: MekaarColors.primaryOf(context),
+                          size: 18,
+                        ),
+                        tooltip: _isGridView
+                            ? 'Tampilan Daftar'
+                            : 'Tampilan Grid',
+                        onPressed: _toggleViewMode,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                color:
-                    MekaarColors.cardBorderOf(context).withValues(alpha: 0.5),
-              ),
-              // ── Body Kartu (Grid vs List) ──
-              _isGridView
-                  ? _buildContactsGridContent(
-                      contacts, hiddenRoomIds, isVaultUnlocked)
-                  : _buildContactsListContent(
-                      contacts, hiddenRoomIds, isVaultUnlocked),
-            ],
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: MekaarColors.cardBorderOf(
+                    context,
+                  ).withValues(alpha: 0.5),
+                ),
+                // ── Body Kartu (Grid vs List) ──
+                _isGridView
+                    ? _buildContactsGridContent(
+                        contacts,
+                        hiddenRoomIds,
+                        isVaultUnlocked,
+                      )
+                    : _buildContactsListContent(
+                        contacts,
+                        hiddenRoomIds,
+                        isVaultUnlocked,
+                      ),
+              ],
+            ),
           ),
         ),
       ],
@@ -497,10 +514,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 );
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -654,13 +668,16 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             },
             onLongPress: () {
               HapticService.trigger(MekaarHapticIntent.selection);
-              _showContactContextMenu(context, contact, name, avatar, isGuardian);
+              _showContactContextMenu(
+                context,
+                contact,
+                name,
+                avatar,
+                isGuardian,
+              );
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
                   Avatar(
@@ -696,8 +713,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: MekaarColors.accentOf(context)
-                                      .withValues(alpha: 0.15),
+                                  color: MekaarColors.accentOf(
+                                    context,
+                                  ).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Row(
@@ -729,19 +747,15 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      MekaarColors.safeTextOf(context)
-                                          .withValues(alpha: 0.12),
-                                  borderRadius:
-                                      BorderRadius.circular(4),
+                                  color: MekaarColors.safeTextOf(
+                                    context,
+                                  ).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   'Guardian',
-                                  style: MekaarTypography.caption
-                                      .copyWith(
-                                    color:
-                                        MekaarColors.safeTextOf(
-                                            context),
+                                  style: MekaarTypography.caption.copyWith(
+                                    color: MekaarColors.safeTextOf(context),
                                   ),
                                 ),
                               ),
@@ -809,7 +823,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Avatar(
@@ -822,7 +839,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     Expanded(
                       child: Text(
                         name,
-                        style: MekaarTypography.bodyMD.copyWith(fontWeight: FontWeight.bold),
+                        style: MekaarTypography.bodyMD.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -832,7 +851,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(SolarIconsOutline.chatRoundDots, color: AppColors.blue),
+                leading: const Icon(
+                  SolarIconsOutline.chatRoundDots,
+                  color: AppColors.blue,
+                ),
                 title: const Text('Buka Obrolan'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -851,7 +873,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 },
               ),
               ListTile(
-                leading: Icon(SolarIconsOutline.userCircle, color: MekaarColors.accentTextOf(context)),
+                leading: Icon(
+                  SolarIconsOutline.userCircle,
+                  color: MekaarColors.accentTextOf(context),
+                ),
                 title: const Text('Info & Pengaturan Kontak'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -869,11 +894,17 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 },
               ),
               ListTile(
-                leading: const Icon(SolarIconsOutline.shieldCheck, color: MekaarColors.guardianTeal),
+                leading: const Icon(
+                  SolarIconsOutline.shieldCheck,
+                  color: MekaarColors.guardianTeal,
+                ),
                 title: const Text('Pengaturan Privasi Obrolan'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ChatRoomPrivacySheet.show(context, roomId: contact['id'] as String);
+                  ChatRoomPrivacySheet.show(
+                    context,
+                    roomId: contact['id'] as String,
+                  );
                 },
               ),
               const SizedBox(height: 8),

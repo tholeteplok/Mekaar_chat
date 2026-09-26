@@ -33,7 +33,9 @@ class AuthRepository {
     final accessToken = googleAuth.accessToken;
 
     if (idToken == null || idToken.isEmpty) {
-      throw Exception('Gagal memperoleh ID Token dari Google. Pastikan Google Auth terkonfigurasi dengan benar.');
+      throw Exception(
+        'Gagal memperoleh ID Token dari Google. Pastikan Google Auth terkonfigurasi dengan benar.',
+      );
     }
 
     final response = await _supabaseService.client.auth.signInWithIdToken(
@@ -64,24 +66,33 @@ class AuthRepository {
       if (user == null) throw Exception('User not logged in');
 
       final rawExt = imageFile.path.split('.').last.toLowerCase();
-      final ext = (rawExt == 'jpeg' || rawExt == 'jpg' || rawExt == 'png' || rawExt == 'webp') ? rawExt : 'jpg';
+      final ext =
+          (rawExt == 'jpeg' ||
+              rawExt == 'jpg' ||
+              rawExt == 'png' ||
+              rawExt == 'webp')
+          ? rawExt
+          : 'jpg';
       final fileName = 'avatar.$ext';
       final storagePath = '${user.id}/$fileName';
 
       // Upload to Supabase Storage bucket 'avatars'
-      await _supabaseService.client.storage.from('avatars').upload(
-        storagePath,
-        imageFile,
-        fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
-      );
+      await _supabaseService.client.storage
+          .from('avatars')
+          .upload(
+            storagePath,
+            imageFile,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+          );
 
       // Get public URL
       final publicUrl = _supabaseService.client.storage
           .from('avatars')
           .getPublicUrl(storagePath);
-          
+
       // Add timestamp to avoid caching issues on client side
-      final timestampUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      final timestampUrl =
+          '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
 
       // Update profile
       await _supabaseService.client
@@ -92,6 +103,38 @@ class AuthRepository {
       return timestampUrl;
     } catch (e) {
       debugPrint('Error uploading avatar: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAvatar() async {
+    try {
+      final user = _supabaseService.client.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      // 1. Update profiles table: set avatar_url = null
+      await _supabaseService.client
+          .from('profiles')
+          .update({
+            'avatar_url': null,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', user.id);
+
+      // 2. Best-effort cleanup files in Supabase storage bucket 'avatars'
+      try {
+        final files = await _supabaseService.client.storage
+            .from('avatars')
+            .list(path: user.id);
+        if (files.isNotEmpty) {
+          final paths = files.map((f) => '${user.id}/${f.name}').toList();
+          await _supabaseService.client.storage.from('avatars').remove(paths);
+        }
+      } catch (e) {
+        debugPrint('Best-effort avatar storage cleanup: $e');
+      }
+    } catch (e) {
+      debugPrint('Error deleting avatar: $e');
       rethrow;
     }
   }
@@ -237,10 +280,7 @@ class AuthRepository {
 
     final response = await _supabaseService.client
         .from('profiles')
-        .update({
-          'bio': bio,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
+        .update({'bio': bio, 'updated_at': DateTime.now().toIso8601String()})
         .eq('id', userId)
         .select()
         .single();
@@ -319,10 +359,7 @@ class AuthRepository {
   Future<Profile> enableTwoFa(String secret) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
-    await _supabaseService.client.rpc(
-      'enable_2fa',
-      params: {'secret': secret},
-    );
+    await _supabaseService.client.rpc('enable_2fa', params: {'secret': secret});
     final profile = await getProfile();
     if (profile == null) throw Exception('Profil tidak ditemukan');
     return profile;
@@ -333,7 +370,9 @@ class AuthRepository {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
 
-    final provider = _supabaseService.currentUser?.appMetadata['provider'] as String? ?? 'email';
+    final provider =
+        _supabaseService.currentUser?.appMetadata['provider'] as String? ??
+        'email';
     if (provider == 'email' && (password != null && password.isNotEmpty)) {
       final verified = await verifyPassword(password);
       if (!verified) throw Exception('Password konfirmasi salah.');
@@ -417,15 +456,17 @@ class AuthRepository {
       hashLength: 32,
     );
     final secretKey = SecretKey(utf8.encode(pin));
-    
+
     // Generate salt if not provided
-    final actualSalt = salt ?? List<int>.generate(16, (i) => math.Random.secure().nextInt(256));
-    
+    final actualSalt =
+        salt ??
+        List<int>.generate(16, (i) => math.Random.secure().nextInt(256));
+
     final derivedKey = await argon2.deriveKey(
       secretKey: secretKey,
       nonce: actualSalt,
     );
-    
+
     final derivedBytes = await derivedKey.extractBytes();
     final saltBase64 = base64Encode(actualSalt);
     final hashBase64 = base64Encode(derivedBytes);
@@ -473,11 +514,14 @@ class AuthRepository {
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
 
-    await _supabaseService.client.from('profiles').update({
-      'pin_hash': '',
-      'duress_pin_hash': null,
-      'duress_enabled': false,
-    }).eq('id', userId);
+    await _supabaseService.client
+        .from('profiles')
+        .update({
+          'pin_hash': '',
+          'duress_pin_hash': null,
+          'duress_enabled': false,
+        })
+        .eq('id', userId);
   }
 
   // Set PIN in database and local secure storage
@@ -572,10 +616,10 @@ class AuthRepository {
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
 
-    await _supabaseService.client.from('profiles').update({
-      'duress_pin_hash': pinHash,
-      'duress_enabled': true,
-    }).eq('id', userId);
+    await _supabaseService.client
+        .from('profiles')
+        .update({'duress_pin_hash': pinHash, 'duress_enabled': true})
+        .eq('id', userId);
   }
 
   Future<bool> isDuressEnabled() async {
@@ -636,7 +680,10 @@ class AuthRepository {
   Future<void> saveDuressUnlockStatus(bool wasDuress) async {
     try {
       if (wasDuress) {
-        await _secureStorage.write(key: 'last_unlock_was_duress', value: 'true');
+        await _secureStorage.write(
+          key: 'last_unlock_was_duress',
+          value: 'true',
+        );
       } else {
         await _secureStorage.delete(key: 'last_unlock_was_duress');
       }
@@ -663,7 +710,8 @@ class AuthRepository {
     try {
       await _supabaseService.client
           .from('profiles')
-          .update({'duress_enabled': false, 'duress_pin_hash': null}).eq('id', userId);
+          .update({'duress_enabled': false, 'duress_pin_hash': null})
+          .eq('id', userId);
     } catch (_) {}
   }
 
@@ -683,10 +731,15 @@ class AuthRepository {
   // ── Persistent PIN Lockout & 2FA State ──────────────────────
   Future<void> savePinLockout(int attempts, DateTime? lockedUntil) async {
     try {
-      await _secureStorage.write(key: 'pin_attempts', value: attempts.toString());
+      await _secureStorage.write(
+        key: 'pin_attempts',
+        value: attempts.toString(),
+      );
       if (lockedUntil != null) {
         await _secureStorage.write(
-            key: 'pin_locked_until', value: lockedUntil.toUtc().toIso8601String());
+          key: 'pin_locked_until',
+          value: lockedUntil.toUtc().toIso8601String(),
+        );
       } else {
         await _secureStorage.delete(key: 'pin_locked_until');
       }

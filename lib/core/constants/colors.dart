@@ -8,7 +8,7 @@ abstract class AppColors {
   static const Color blue = Color(0xFF136CFC);
   static const Color darkBlue = Color(0xFF152641);
   static const Color green = Color(0xFFC3F84A);
-  static const Color lightBlue = Color(0xFFE8F4FC);
+  static const Color lightBlue = Color(0xFFFAF9F6);
 
   // ── Protective Semantics (Tidak Berubah) ──
   static const Color sosCoral = Color(0xFFFF5D5D);
@@ -22,6 +22,9 @@ abstract class AppColors {
   static const Color cardDark = Color(0xFF1E304F);
   static const Color borderLight = Color(0xFFDCE7F5);
   static const Color borderDark = Color(0xFF25395B);
+  static const Color charcoal = Color(0xFF262626);
+  static const Color sketchCharcoal = Color(0xFF000000);
+  static const Color sketchGrey = Color(0xFFCBD5E1);
 }
 
 /// MekaarColors — Kelas utilitas warna MEKAAR dengan kompatibilitas dan context-aware helpers.
@@ -33,6 +36,9 @@ class MekaarColors {
   static const Color darkBlue = AppColors.darkBlue;
   static const Color green = AppColors.green;
   static const Color lightBlue = AppColors.lightBlue;
+  static const Color charcoal = AppColors.charcoal;
+  static const Color sketchCharcoal = AppColors.sketchCharcoal;
+  static const Color sketchGrey = AppColors.sketchGrey;
 
   // ── Brand Aliases ──
   static const Color brandPrimary = AppColors.blue;
@@ -60,6 +66,7 @@ class MekaarColors {
   static const Color sosCoral = AppColors.sosCoral;
   static const Color sosDeep = AppColors.sosDeep;
   static const Color safeTeal = AppColors.safeTeal;
+
   /// Tinta gelap teal untuk teks/ikon di atas permukaan terang
   /// (safeTeal #2DD4BF hanya ≈1.8:1 di atas putih).
   static const Color safeTealInk = Color(0xFF0C6B60);
@@ -81,6 +88,7 @@ class MekaarColors {
   static const Color textOnBlue = AppColors.textOnBlue;
   static const Color textOnYellow = Color(0xFF2B2400);
   static const Color textOnLime = Color(0xFF1A2E05);
+
   /// Tinta gelap untuk teks di atas permukaan teal #2DD4BF (putih ≈1.9:1).
   static const Color textOnTeal = Color(0xFF04302A);
 
@@ -97,6 +105,7 @@ class MekaarColors {
   /// Frosted bar komposer di chat_screen (alpha penuh, bukan token tema).
   static const Color composerOverlayLight = Color(0xF6FFFFFF);
   static const Color composerOverlayDark = Color(0xF2181D2E);
+
   /// Pil input "Ketik pesan…" pada preview pengaturan tema chat.
   static const Color composerPillLight = Color(0xFFE8F4FC);
   static const Color composerPillDark = Color(0xFF1E2638);
@@ -119,6 +128,7 @@ class MekaarColors {
   static const Color sosLight = Color(0xFFFFF1F2);
   static const Color guardianLight = Color(0xFFE6FFFA);
   static const Color success = Color(0xFF10B981);
+
   /// Tinta hijau gelap untuk teks status online/aktif di permukaan terang.
   static const Color successInk = Color(0xFF047857);
   static Color successTextOf(BuildContext c) =>
@@ -136,8 +146,7 @@ class MekaarColors {
       Theme.of(c).brightness == Brightness.dark ||
       ForceDarkScope.isForcedDark(c);
 
-  static Color primaryOf(BuildContext c) =>
-      Theme.of(c).colorScheme.primary;
+  static Color primaryOf(BuildContext c) => Theme.of(c).colorScheme.primary;
 
   static Color surfaceOf(BuildContext c) =>
       isDarkContext(c) ? cardDark : Theme.of(c).colorScheme.surface;
@@ -187,8 +196,7 @@ class MekaarColors {
   /// Warna aksen yang tetap terbaca sebagai teks/ikon di permukaan terang:
   /// biru brand di light mode (cyan #38BDF8 gagal kontras di atas putih),
   /// cyan di dark mode.
-  static Color accentTextOf(BuildContext c) =>
-      isDarkContext(c) ? cyan : blue;
+  static Color accentTextOf(BuildContext c) => isDarkContext(c) ? cyan : blue;
 
   /// Teal semantik "aman/guardian" untuk teks & ikon:
   /// terang di dark mode, tinta gelap kontras-tinggi di light mode.
@@ -208,28 +216,19 @@ class MekaarGradients {
   static const LinearGradient canvasDark = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      AppColors.darkBlue,
-      AppColors.darkBlue,
-    ],
+    colors: [AppColors.darkBlue, AppColors.darkBlue],
   );
 
   static const LinearGradient canvasLight = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      AppColors.lightBlue,
-      AppColors.lightBlue,
-    ],
+    colors: [AppColors.lightBlue, AppColors.lightBlue],
   );
 
   static const LinearGradient canvasSos = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      AppColors.sosDeep,
-      AppColors.sosCoral,
-    ],
+    colors: [AppColors.sosDeep, AppColors.sosCoral],
   );
 
   static const LinearGradient incomingBubble = LinearGradient(
