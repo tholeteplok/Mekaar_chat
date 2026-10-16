@@ -8,10 +8,7 @@ class FakeRealtimeChannel extends RealtimeChannel {
   RealtimeSubscribeStatus lastStatus = RealtimeSubscribeStatus.closed;
 
   FakeRealtimeChannel()
-      : super(
-          'room_call:test',
-          RealtimeClient('ws://localhost:1234/realtime'),
-        );
+    : super('room_call:test', RealtimeClient('ws://localhost:1234/realtime'));
 
   @override
   RealtimeChannel onBroadcast({
@@ -41,8 +38,7 @@ class FakeRealtimeChannel extends RealtimeChannel {
   Future<ChannelResponse> sendBroadcastMessage({
     required String event,
     required Map<String, dynamic> payload,
-  }) async =>
-      ChannelResponse.ok;
+  }) async => ChannelResponse.ok;
 
   void simulateIncoming(Map<String, dynamic> payload) {
     onBroadcastCallback?.call(payload);
@@ -51,18 +47,17 @@ class FakeRealtimeChannel extends RealtimeChannel {
 
 class FakeSupabaseClient extends SupabaseClient {
   final FakeRealtimeChannel _channel = FakeRealtimeChannel();
+  RealtimeChannelConfig? lastOpts;
 
   FakeSupabaseClient()
-      : super(
-          'https://example.supabase.co',
-          'public-anon-key',
-        );
+    : super('https://example.supabase.co', 'public-anon-key');
 
   @override
   RealtimeChannel channel(
     String topic, {
     RealtimeChannelConfig opts = const RealtimeChannelConfig(),
   }) {
+    lastOpts = opts;
     return _channel;
   }
 
@@ -74,17 +69,14 @@ void main() {
   group('WebRtcSignalingService', () {
     test('konstruktor menerima configuration opsional tanpa throw', () {
       final client = FakeSupabaseClient();
-      expect(
-        () => WebRtcSignalingService(client),
-        returnsNormally,
-      );
+      expect(() => WebRtcSignalingService(client), returnsNormally);
       expect(
         () => WebRtcSignalingService(
           client,
           configuration: {
             'iceServers': [
-              {'urls': 'stun:stun.l.google.com:19302'}
-            ]
+              {'urls': 'stun:stun.l.google.com:19302'},
+            ],
           },
         ),
         returnsNormally,

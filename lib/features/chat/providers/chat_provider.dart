@@ -78,30 +78,64 @@ final chatRoomsProvider =
 /// [chatReconnectingProvider] (penerima) agar tidak ada subscribe kedua.
 final _chatReconnectControllerProvider =
     Provider.family<StreamController<bool>, String>((ref, roomId) {
-  final controller = StreamController<bool>.broadcast();
-  ref.onDispose(controller.close);
-  return controller;
-});
+      final controller = StreamController<bool>.broadcast();
+      ref.onDispose(controller.close);
+      return controller;
+    });
 
 final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
   ref,
   roomId,
 ) {
   final repo = ref.watch(chatRepositoryProvider);
-  final reconnectController = ref.watch(_chatReconnectControllerProvider(roomId));
-  return repo.streamMessages(roomId, onReconnectChange: (reconnecting) {
-    if (!reconnectController.isClosed) {
-      reconnectController.add(reconnecting);
-    }
-  });
+  final reconnectController = ref.watch(
+    _chatReconnectControllerProvider(roomId),
+  );
+  return repo.streamMessages(
+    roomId,
+    onReconnectChange: (reconnecting) {
+      if (!reconnectController.isClosed) {
+        reconnectController.add(reconnecting);
+      }
+    },
+  );
 });
 
 /// Sinyal non-blocking bahwa stream pesan sedang mencoba menyambung ulang
 /// setelah gangguan Realtime sesaat (retry+backoff berjalan di repository).
-final chatReconnectingProvider = StreamProvider.family<bool, String>((ref, roomId) {
+final chatReconnectingProvider = StreamProvider.family<bool, String>((
+  ref,
+  roomId,
+) {
   final controller = ref.watch(_chatReconnectControllerProvider(roomId));
   return controller.stream;
 });
+
+// ─────────────────────────────────────────
+// Optimistic Pending Messages (per room)
+// ─────────────────────────────────────────
+class PendingMessagesNotifier extends StateNotifier<List<Message>> {
+  PendingMessagesNotifier() : super(const []);
+
+  void addPending(Message message) {
+    state = [...state, message];
+  }
+
+  void removePending(String tempId) {
+    state = state.where((m) => m.id != tempId).toList();
+  }
+
+  void clearPending() {
+    state = const [];
+  }
+}
+
+final pendingMessagesProvider =
+    StateNotifierProvider.family<
+      PendingMessagesNotifier,
+      List<Message>,
+      String
+    >((ref, roomId) => PendingMessagesNotifier());
 
 // ─────────────────────────────────────────
 // Read receipts: other participant's last_read_at
@@ -168,10 +202,7 @@ class TypingNotifier extends StateNotifier<bool> {
             _debounceTimer = Timer(const Duration(milliseconds: 2500), () {});
             _channel?.sendBroadcastMessage(
               event: 'typing',
-              payload: {
-                'sender_id': currentUserId,
-                'is_typing': true,
-              },
+              payload: {'sender_id': currentUserId, 'is_typing': true},
             );
           }
         } else {
@@ -179,10 +210,7 @@ class TypingNotifier extends StateNotifier<bool> {
           _debounceTimer = Timer(const Duration(milliseconds: 500), () {
             _channel?.sendBroadcastMessage(
               event: 'typing',
-              payload: {
-                'sender_id': currentUserId,
-                'is_typing': false,
-              },
+              payload: {'sender_id': currentUserId, 'is_typing': false},
             );
           });
         }
@@ -201,8 +229,8 @@ class TypingNotifier extends StateNotifier<bool> {
 
 final typingStateProvider =
     StateNotifierProvider.family<TypingNotifier, bool, String>(
-  (ref, roomId) => TypingNotifier(ref, roomId),
-);
+      (ref, roomId) => TypingNotifier(ref, roomId),
+    );
 
 // ─────────────────────────────────────────
 // Chat Actions (send, edit, react, delete, mark read)
@@ -213,7 +241,7 @@ class ChatActionsNotifier {
 
   ChatActionsNotifier(this._chatRepository, this._ref);
 
-  Future<void> sendMessage(
+  Future<Message> sendMessage(
     String roomId,
     String content, {
     String? mediaUrl,
@@ -224,13 +252,14 @@ class ChatActionsNotifier {
     DateTime? scheduledWipeTargetAt,
   }) async {
     DateTime? autoDeleteAt;
-    if (scheduledWipeTargetAt != null && scheduledWipeTargetAt.isAfter(DateTime.now())) {
+    if (scheduledWipeTargetAt != null &&
+        scheduledWipeTargetAt.isAfter(DateTime.now())) {
       autoDeleteAt = scheduledWipeTargetAt;
     } else if (autoDeleteHours != null && autoDeleteHours > 0) {
       autoDeleteAt = DateTime.now().add(Duration(hours: autoDeleteHours));
     }
 
-    await _chatRepository.sendMessage(
+    final sentMessage = await _chatRepository.sendMessage(
       roomId,
       content,
       mediaUrl: mediaUrl,
@@ -241,6 +270,7 @@ class ChatActionsNotifier {
     );
 
     _chatRepository.updateLastSeen();
+    return sentMessage;
   }
 
   Future<void> markViewOnceOpened(String messageId) async {
@@ -314,9 +344,7 @@ class ChatActionsNotifier {
     // Throttle: update paling sering setiap 10 detik untuk menghindari
     // overload database dan menghemat baterai.
     DateTime? lastLocUpdate;
-    _liveLocationSub = LocationService.getLocationStream().listen((
-      data,
-    ) async {
+    _liveLocationSub = LocationService.getLocationStream().listen((data) async {
       if (DateTime.now().isAfter(end)) {
         await stopLiveLocationShare();
         return;
@@ -331,7 +359,10 @@ class ChatActionsNotifier {
       final lng = data.longitude;
       if (lat != null && lng != null) {
         try {
-          await _chatRepository.updateMessageContent(message.id, formatContent(lat, lng));
+          await _chatRepository.updateMessageContent(
+            message.id,
+            formatContent(lat, lng),
+          );
           lastLocUpdate = now;
         } catch (_) {}
       }
@@ -363,10 +394,7 @@ class ChatActionsNotifier {
     await _chatRepository.updateLastSeen();
   }
 
-  bool canForward(
-    Message message, {
-    bool forwardingProtectionActive = false,
-  }) {
+  bool canForward(Message message, {bool forwardingProtectionActive = false}) {
     return _chatRepository.canForwardMessage(
       message,
       forwardingProtectionActive: forwardingProtectionActive,
@@ -400,7 +428,9 @@ final chatActionsProvider = Provider<ChatActionsNotifier>((ref) {
   return notifier;
 });
 
-final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final supabase = ref.watch(supabaseServiceProvider);
   final currentUserId = supabase.currentUserId;
   if (currentUserId == null) return [];

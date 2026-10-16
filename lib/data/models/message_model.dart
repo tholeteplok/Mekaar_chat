@@ -20,6 +20,7 @@ class Message {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isEncrypted;
+  final bool isSending;
 
   Message({
     required this.id,
@@ -35,6 +36,7 @@ class Message {
     this.isDeleted = false,
     this.isSilentDeleted = false,
     this.isEncrypted = false,
+    this.isSending = false,
     this.autoDeleteAt,
     this.editedAt,
     this.reactions = const {},
@@ -61,8 +63,9 @@ class Message {
     if (rawReactions is Map) {
       rawReactions.forEach((key, value) {
         if (value is List) {
-          parsedReactions[key.toString()] =
-              value.map((e) => e.toString()).toList();
+          parsedReactions[key.toString()] = value
+              .map((e) => e.toString())
+              .toList();
         }
       });
     }
@@ -137,6 +140,7 @@ class Message {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isEncrypted,
+    bool? isSending,
   }) {
     return Message(
       id: id ?? this.id,
@@ -157,6 +161,7 @@ class Message {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isEncrypted: isEncrypted ?? this.isEncrypted,
+      isSending: isSending ?? this.isSending,
     );
   }
 }

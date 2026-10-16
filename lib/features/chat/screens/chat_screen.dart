@@ -74,16 +74,18 @@ class _ChatItemEntry {
   final DateTime? date;
 
   const _ChatItemEntry.message(this.message)
-      : kind = _ChatItemKind.message,
-        date = null;
+    : kind = _ChatItemKind.message,
+      date = null;
 
   const _ChatItemEntry.dateSeparator(this.date)
-      : kind = _ChatItemKind.dateSeparator,
-        message = null;
+    : kind = _ChatItemKind.dateSeparator,
+      message = null;
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObserver {
-  final GlobalKey<ChatComposerState> _composerKey = GlobalKey<ChatComposerState>();
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with WidgetsBindingObserver {
+  final GlobalKey<ChatComposerState> _composerKey =
+      GlobalKey<ChatComposerState>();
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
@@ -96,7 +98,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   Message? _replyMessage;
   Message? _editingMessage;
   DateTime? _otherLastRead;
-  final ValueNotifier<DateTime?> _otherLastSeenNotifier = ValueNotifier<DateTime?>(null);
+  final ValueNotifier<DateTime?> _otherLastSeenNotifier =
+      ValueNotifier<DateTime?>(null);
   int _autoDeleteHours = 0;
   String _scheduledWipeMode = 'off';
   DateTime? _scheduledWipeTargetAt;
@@ -117,11 +120,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
           final pid = p['profile_id'] as String?;
           final profile = p['public_profiles'] as Map<String, dynamic>?;
           if (pid != null && profile != null) {
-            final name = (profile['display_name'] as String?)?.isNotEmpty == true
+            final name =
+                (profile['display_name'] as String?)?.isNotEmpty == true
                 ? profile['display_name'] as String
                 : profile['full_name'] as String? ??
-                    profile['username'] as String? ??
-                    'Anggota';
+                      profile['username'] as String? ??
+                      'Anggota';
             names[pid] = name;
           }
         }
@@ -131,9 +135,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   }
 
   void _onScrollChanged() {
-    final atBottom = _scrollController.hasClients &&
+    final atBottom =
+        _scrollController.hasClients &&
         _scrollController.position.pixels >=
-             _scrollController.position.minScrollExtent + 200;
+            _scrollController.position.minScrollExtent + 200;
     if (_showScrollButton.value != atBottom) {
       _showScrollButton.value = atBottom;
       if (!atBottom && _newMessageCount.value > 0) {
@@ -146,7 +151,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   void _startPresenceHeartbeat() {
     _presenceHeartbeatTimer?.cancel();
-    _presenceHeartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    _presenceHeartbeatTimer = Timer.periodic(const Duration(seconds: 30), (
+      _,
+    ) async {
       if (!mounted) return;
       final repo = ref.read(chatRepositoryProvider);
       await repo.updateLastSeen();
@@ -180,13 +187,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
-      
+
       // Muat preferensi pesan menghilang level room (tersinkronisasi untuk kedua pihak)
       final roomAutoDelete = await repo.getRoomDisappearingHours(widget.chatId);
-      
+
       // Muat preferensi Burn on Exit level room
       final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.chatId);
-      
+
       // Muat preferensi Pembersihan Terjadwal level room
       String loadedWipeMode = 'off';
       DateTime? loadedWipeTarget;
@@ -195,7 +202,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         if (wipeData != null) {
           loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
           final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
-          loadedWipeTarget = targetStr != null ? DateTime.tryParse(targetStr) : null;
+          loadedWipeTarget = targetStr != null
+              ? DateTime.tryParse(targetStr)
+              : null;
         }
       } catch (_) {}
 
@@ -203,7 +212,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       bool savedViewOnce = false;
       try {
         final prefs = await SharedPreferences.getInstance();
-        savedViewOnce = prefs.getBool('room_view_once_${widget.chatId}') ?? false;
+        savedViewOnce =
+            prefs.getBool('room_view_once_${widget.chatId}') ?? false;
       } catch (_) {}
 
       if (!mounted) return;
@@ -224,7 +234,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
       if (widget.otherUserId != null) {
-        _otherLastSeenNotifier.value = await repo.getLastSeen(widget.otherUserId!);
+        _otherLastSeenNotifier.value = await repo.getLastSeen(
+          widget.otherUserId!,
+        );
       }
       if (widget.isGroup) {
         _loadGroupParticipants();
@@ -251,12 +263,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       return 'Daring';
     }
 
-    final isSameDay = now.year == lastSeen.year &&
+    final isSameDay =
+        now.year == lastSeen.year &&
         now.month == lastSeen.month &&
         now.day == lastSeen.day;
 
     final yesterday = now.subtract(const Duration(days: 1));
-    final isYesterday = yesterday.year == lastSeen.year &&
+    final isYesterday =
+        yesterday.year == lastSeen.year &&
         yesterday.month == lastSeen.month &&
         yesterday.day == lastSeen.day;
 
@@ -281,7 +295,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         'Sep',
         'Okt',
         'Nov',
-        'Des'
+        'Des',
       ];
       final monthName = monthNames[lastSeen.month - 1];
       return 'Terakhir dilihat ${lastSeen.day} $monthName pukul $timeStr';
@@ -324,7 +338,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if ((state == AppLifecycleState.paused || state == AppLifecycleState.inactive) && _burnOnExit) {
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.inactive) &&
+        _burnOnExit) {
       _triggerBurnOnExit();
     }
   }
@@ -333,7 +349,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     if (_burnTriggered || !_burnOnExit) return;
     _burnTriggered = true;
     try {
-      await ref.read(chatRepositoryProvider).executeRoomBurnOnExit(widget.chatId);
+      await ref
+          .read(chatRepositoryProvider)
+          .executeRoomBurnOnExit(widget.chatId);
       if (mounted) {
         ref.invalidate(chatMessagesProvider(widget.chatId));
       }
@@ -386,7 +404,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       return;
     }
 
-    // ── Mode 2: Kirim Pesan Baru (Optimistic Input Clearing) ──
+    // ── Mode 2: Kirim Pesan Baru (Optimistic UI 0ms Latency) ──
     final textToSend = text;
     final replyToMessage = _replyMessage;
     final isViewOnceToSend = _isViewOnce;
@@ -397,6 +415,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       _replyMessage = null;
     });
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(false);
+
+    // Buat pesan optimistik agar bubble langsung muncul seketika di layar
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final now = DateTime.now();
+    final optimisticMessage = Message(
+      id: tempId,
+      roomId: widget.chatId,
+      senderId: currentUserId,
+      content: textToSend,
+      type: MessageType.text,
+      isViewOnce: isViewOnceToSend,
+      replyToId: replyToMessage?.id,
+      createdAt: now,
+      updatedAt: now,
+      isSending: true,
+    );
+
+    ref
+        .read(pendingMessagesProvider(widget.chatId).notifier)
+        .addPending(optimisticMessage);
     _scrollToBottom();
 
     try {
@@ -409,9 +448,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         autoDeleteHours: _autoDeleteHours,
         scheduledWipeTargetAt: _scheduledWipeTargetAt,
       );
-    } catch (e) {
-      // Fail-Safe Restoration: Kembalikan teks dan state bila pengiriman jaringan gagal
+
+      // Setelah terkirim ke server, hapus item pending sementara
       if (mounted) {
+        ref
+            .read(pendingMessagesProvider(widget.chatId).notifier)
+            .removePending(tempId);
+      }
+    } catch (e) {
+      // Fail-Safe Restoration: Hapus pending, kembalikan teks dan state bila pengiriman gagal
+      if (mounted) {
+        ref
+            .read(pendingMessagesProvider(widget.chatId).notifier)
+            .removePending(tempId);
         setState(() {
           _textController.text = textToSend;
           _replyMessage = replyToMessage;
@@ -434,12 +483,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       String url;
 
       // Check whether room supports E2EE (peer key exists) without wasteful dummy encryption
-      final peerKey = widget.otherUserId != null 
+      final peerKey = widget.otherUserId != null
           ? await E2eeService.instance.getPeerPublicKey(widget.otherUserId!)
           : null;
       if (peerKey != null && peerKey.isNotEmpty) {
         // Kamar chat mendukung E2EE, enkripsi & unggah media
-        final result = await uploader.uploadEncryptedChatMedia(file, widget.chatId);
+        final result = await uploader.uploadEncryptedChatMedia(
+          file,
+          widget.chatId,
+        );
         url = result.url;
         fileKeyB64 = result.keyB64;
       } else {
@@ -524,7 +576,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
           .read(chatActionsProvider)
           .shareLiveLocation(widget.chatId, durationMinutes);
       if (mounted) {
-        MekaarSnackbar.success(context, 'Lokasi live dibagikan selama $durationMinutes menit');
+        MekaarSnackbar.success(
+          context,
+          'Lokasi live dibagikan selama $durationMinutes menit',
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -540,7 +595,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     MekaarDialog.showConfirmation<void>(
       context: context,
       title: 'Hapus untuk Saya?',
-      message: 'Pesan akan disembunyikan untuk Anda saja. Lawan bicara tetap dapat melihat pesan ini.',
+      message:
+          'Pesan akan disembunyikan untuk Anda saja. Lawan bicara tetap dapat melihat pesan ini.',
       isDestructive: true,
       actions: [
         TextButton(
@@ -549,14 +605,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         ),
         TextButton(
           onPressed: () async {
-            await ref.read(chatActionsProvider).hideMessageForMe(msg.id, roomId: widget.chatId);
+            await ref
+                .read(chatActionsProvider)
+                .hideMessageForMe(msg.id, roomId: widget.chatId);
             if (!mounted) return;
             Navigator.pop(context);
           },
-          child: Text(
-            'Hapus',
-            style: TextStyle(color: MekaarColors.sosRed),
-          ),
+          child: Text('Hapus', style: TextStyle(color: MekaarColors.sosRed)),
         ),
       ],
     );
@@ -577,7 +632,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         ),
         TextButton(
           onPressed: () async {
-            await ref.read(chatActionsProvider).deleteMessageForEveryone(msg.id);
+            await ref
+                .read(chatActionsProvider)
+                .deleteMessageForEveryone(msg.id);
             if (!mounted) return;
             Navigator.pop(context);
           },
@@ -671,8 +728,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       _triggerLocalScheduledWipe();
       if (_scheduledWipeMode == 'daily' && mounted) {
         setState(() {
-          _scheduledWipeTargetAt =
-              _scheduledWipeTargetAt!.add(const Duration(days: 1));
+          _scheduledWipeTargetAt = _scheduledWipeTargetAt!.add(
+            const Duration(days: 1),
+          );
         });
         _scheduleWipeTimer();
       }
@@ -681,7 +739,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   Future<void> _triggerLocalScheduledWipe() async {
     try {
-      await ref.read(chatRepositoryProvider).executeRoomScheduledWipe(widget.chatId);
+      await ref
+          .read(chatRepositoryProvider)
+          .executeRoomScheduledWipe(widget.chatId);
       if (mounted) {
         ref.invalidate(chatMessagesProvider(widget.chatId));
         if (_scheduledWipeMode == 'one_shot') {
@@ -697,7 +757,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
     if (currentUserId == null || widget.otherUserId == null) {
-      MekaarSnackbar.error(context, 'Panggilan tidak tersedia untuk obrolan ini.');
+      MekaarSnackbar.error(
+        context,
+        'Panggilan tidak tersedia untuk obrolan ini.',
+      );
       return;
     }
     Navigator.pushNamed(
@@ -782,13 +845,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    final readReceiptsEnabled = ref.watch(
-      authProvider.select((a) => a.profile?.readReceiptsEnabled),
-    ) ?? true;
+    final readReceiptsEnabled =
+        ref.watch(authProvider.select((a) => a.profile?.readReceiptsEnabled)) ??
+        true;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
-    final topAreaHeight = MediaQuery.of(context).padding.top + kToolbarHeight + 16.0;
+    final topAreaHeight =
+        MediaQuery.of(context).padding.top + kToolbarHeight + 16.0;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return PopScope(
@@ -812,7 +876,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             // ── Layer 0: Wallpaper/Background (Scoped Consumer) ──
             Consumer(
               builder: (context, ref, _) {
-                final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+                final chatPref =
+                    ref.watch(chatThemeProvider).valueOrNull ??
+                    const ChatThemePreference();
                 return _buildWallpaperBackground(chatPref);
               },
             ),
@@ -821,17 +887,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             Positioned.fill(
               child: Consumer(
                 builder: (context, ref, _) {
-                  final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
-                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
-                  final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
-                  final messagesStream = ref.watch(chatMessagesProvider(widget.chatId));
+                  final chatPref =
+                      ref.watch(chatThemeProvider).valueOrNull ??
+                      const ChatThemePreference();
+                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
+                    chatPref,
+                    context,
+                  );
+                  final e2eeStatus = ref.watch(
+                    e2eeRoomStatusProvider(widget.chatId),
+                  );
+                  final messagesStream = ref.watch(
+                    chatMessagesProvider(widget.chatId),
+                  );
                   final reconnecting =
-                      ref.watch(chatReconnectingProvider(widget.chatId)).value ??
-                          false;
-                  final protectionAsync = ref.watch(roomScreenProtectionProvider(widget.chatId));
+                      ref
+                          .watch(chatReconnectingProvider(widget.chatId))
+                          .value ??
+                      false;
+                  final protectionAsync = ref.watch(
+                    roomScreenProtectionProvider(widget.chatId),
+                  );
                   final protection = protectionAsync.valueOrNull;
-                  final forwardingProtectionAsync = ref.watch(roomForwardingProtectionProvider(widget.chatId));
-                  final forwardingProtection = forwardingProtectionAsync.valueOrNull;
+                  final forwardingProtectionAsync = ref.watch(
+                    roomForwardingProtectionProvider(widget.chatId),
+                  );
+                  final forwardingProtection =
+                      forwardingProtectionAsync.valueOrNull;
 
                   return Column(
                     children: [
@@ -841,7 +923,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                       E2eePreparationBanner(status: e2eeStatus),
                       if (protection?.effective ?? true)
                         ScreenProtectionStatusBadge(
-                          label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                          label:
+                              protection?.statusLabel ?? 'Proteksi ruang aktif',
                         ),
                       Expanded(
                         child: Column(
@@ -856,7 +939,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                 builder: (context) {
                                   switch (chatMessagesUiMode(messagesStream)) {
                                     case ChatMessagesUiMode.data:
-                                      final rawMessages = messagesStream.valueOrNull!;
+                                      final rawDbMessages =
+                                          messagesStream.valueOrNull!;
+                                      final pendingMessages = ref.watch(
+                                        pendingMessagesProvider(widget.chatId),
+                                      );
+                                      final dbIds = {
+                                        for (var m in rawDbMessages) m.id,
+                                      };
+                                      final activePending = pendingMessages
+                                          .where((p) => !dbIds.contains(p.id))
+                                          .toList();
+                                      final rawMessages = [
+                                        ...rawDbMessages,
+                                        ...activePending,
+                                      ];
+
                                       if (rawMessages.isEmpty) {
                                         return const MekaarStateView(
                                           pose: MikaPose.sleep,
@@ -869,10 +967,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       final messages = _searchQuery.isEmpty
                                           ? rawMessages
                                           : rawMessages
-                                              .where((m) => m.content
-                                                  .toLowerCase()
-                                                  .contains(_searchQuery.toLowerCase()))
-                                              .toList();
+                                                .where(
+                                                  (m) => m.content
+                                                      .toLowerCase()
+                                                      .contains(
+                                                        _searchQuery
+                                                            .toLowerCase(),
+                                                      ),
+                                                )
+                                                .toList();
 
                                       if (messages.isEmpty) {
                                         return MekaarStateView(
@@ -883,7 +986,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                         );
                                       }
 
-                                      final reversed = messages.reversed.toList();
+                                      final reversed = messages.reversed
+                                          .toList();
                                       final itemEntries = _buildItemEntries(
                                         reversed,
                                       );
@@ -891,14 +995,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                         for (var m in rawMessages) m.id: m,
                                       };
 
-                                      final emojiInset = _isEmojiPickerOpen ? 270.0 : 0.0;
+                                      final emojiInset = _isEmojiPickerOpen
+                                          ? 270.0
+                                          : 0.0;
                                       return ListView.builder(
                                         controller: _scrollController,
                                         reverse: true,
                                         // Padding bawah memberi ruang untuk composer floating + inset keyboard + panel emoji
                                         padding: EdgeInsets.only(
                                           top: 8,
-                                          bottom: 130 + keyboardHeight + emojiInset,
+                                          bottom:
+                                              130 + keyboardHeight + emojiInset,
                                         ),
                                         itemCount: itemEntries.length,
                                         itemBuilder: (context, index) {
@@ -945,12 +1052,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                       ),
                       Consumer(
                         builder: (context, ref, _) {
-                          final isTyping = ref.watch(typingStateProvider(widget.chatId));
+                          final isTyping = ref.watch(
+                            typingStateProvider(widget.chatId),
+                          );
                           if (!isTyping) return const SizedBox.shrink();
                           final emojiInset = _isEmojiPickerOpen ? 270.0 : 0.0;
                           return Padding(
-                            padding: EdgeInsets.only(bottom: 84 + keyboardHeight + emojiInset),
-                            child: const TypingIndicator(dotColor: AppColors.blue),
+                            padding: EdgeInsets.only(
+                              bottom: 84 + keyboardHeight + emojiInset,
+                            ),
+                            child: const TypingIndicator(
+                              dotColor: AppColors.blue,
+                            ),
                           );
                         },
                       ),
@@ -967,9 +1080,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
               bottom: MediaQuery.of(context).viewInsets.bottom,
               child: Consumer(
                 builder: (context, ref, _) {
-                  final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
-                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
-                  final e2eeStatus = ref.watch(e2eeRoomStatusProvider(widget.chatId));
+                  final chatPref =
+                      ref.watch(chatThemeProvider).valueOrNull ??
+                      const ChatThemePreference();
+                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
+                    chatPref,
+                    context,
+                  );
+                  final e2eeStatus = ref.watch(
+                    e2eeRoomStatusProvider(widget.chatId),
+                  );
                   final isE2eeReady = e2eeStatus == E2eeRoomStatus.ready;
 
                   return ChatComposer(
@@ -983,8 +1103,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                       if (_isEmojiPickerOpen != isOpen) {
                         setState(() => _isEmojiPickerOpen = isOpen);
                         if (isOpen) {
-                          WidgetsBinding.instance
-                              .addPostFrameCallback((_) => _scrollToBottom());
+                          WidgetsBinding.instance.addPostFrameCallback(
+                            (_) => _scrollToBottom(),
+                          );
                         }
                       }
                     },
@@ -1006,12 +1127,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             Positioned(
               left: 0,
               right: 0,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 120 + (_isEmojiPickerOpen ? 270.0 : 0.0),
+              bottom:
+                  MediaQuery.of(context).viewInsets.bottom +
+                  120 +
+                  (_isEmojiPickerOpen ? 270.0 : 0.0),
               child: Center(
                 child: Consumer(
                   builder: (context, ref, _) {
-                    final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
-                    final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+                    final chatPref =
+                        ref.watch(chatThemeProvider).valueOrNull ??
+                        const ChatThemePreference();
+                    final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
+                      chatPref,
+                      context,
+                    );
 
                     return ValueListenableBuilder<bool>(
                       valueListenable: _showScrollButton,
@@ -1045,8 +1174,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
               right: 0,
               child: Consumer(
                 builder: (context, ref, _) {
-                  final chatPref = ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
-                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+                  final chatPref =
+                      ref.watch(chatThemeProvider).valueOrNull ??
+                      const ChatThemePreference();
+                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
+                    chatPref,
+                    context,
+                  );
 
                   final isDark = MekaarColors.isDarkContext(context);
                   final frostedBg = isDark
@@ -1091,7 +1225,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                               child: TextField(
                                 controller: _searchController,
                                 autofocus: true,
-                                style: TextStyle(color: textPrimary, fontSize: 14),
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Cari dalam obrolan...',
                                   hintStyle: TextStyle(
@@ -1100,7 +1237,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                   ),
                                   border: InputBorder.none,
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
                                 ),
                                 onChanged: (val) {
                                   setState(() => _searchQuery = val.trim());
@@ -1125,7 +1264,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                     );
                   }
 
-                  final isTyping = ref.watch(typingStateProvider(widget.chatId));
+                  final isTyping = ref.watch(
+                    typingStateProvider(widget.chatId),
+                  );
 
                   return ValueListenableBuilder<DateTime?>(
                     valueListenable: _otherLastSeenNotifier,
@@ -1150,16 +1291,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                         subtitleColor: roomThemeSpec.subtitleColor,
                         onAvatarTap: widget.isGroup
                             ? () => Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.groupDetails,
-                                  arguments: {
-                                    'roomId': widget.chatId,
-                                    'groupName': widget.chatName,
-                                    'groupAvatarUrl': widget.chatAvatarUrl,
-                                  },
-                                )
+                                context,
+                                AppRoutes.groupDetails,
+                                arguments: {
+                                  'roomId': widget.chatId,
+                                  'groupName': widget.chatName,
+                                  'groupAvatarUrl': widget.chatAvatarUrl,
+                                },
+                              )
                             : (widget.otherUserId != null
-                                ? () => Navigator.pushNamed(
+                                  ? () => Navigator.pushNamed(
                                       context,
                                       AppRoutes.contactSettings,
                                       arguments: {
@@ -1170,213 +1311,216 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                         'isGuardian': widget.isGuardian,
                                       },
                                     )
-                                : null),
+                                  : null),
                         actions: [
                           // Actions Popup Menu (High-Contrast Frosted Glass)
                           PopupMenuButton<String>(
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(MekaarRadius.md),
-                              side: BorderSide(
-                                color: frostedBorder,
-                                width: 1,
+                              borderRadius: BorderRadius.circular(
+                                MekaarRadius.md,
                               ),
+                              side: BorderSide(color: frostedBorder, width: 1),
                             ),
                             color: frostedBg,
                             surfaceTintColor: Colors.transparent,
                             elevation: 10,
-                            shadowColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
+                            shadowColor: Colors.black.withValues(
+                              alpha: isDark ? 0.45 : 0.18,
+                            ),
                             padding: EdgeInsets.zero,
                             icon: Icon(
                               SolarIconsOutline.menuDots,
                               color: roomThemeSpec.primaryAccentColor,
                             ),
-                        onSelected: (value) async {
-                          if (value == 'search') {
-                            setState(() => _isSearching = true);
-                          } else if (value == 'voice') {
-                            _initiateCall('voice');
-                          } else if (value == 'video') {
-                            _initiateCall('video');
-                          } else if (value == 'theme') {
-                            Navigator.pushNamed(context, AppRoutes.chatThemeSettings);
-                          } else if (value == 'privacy_settings') {
-                            ChatRoomPrivacySheet.show(
-                              context,
-                              roomId: widget.chatId,
-                              onSettingsChanged: () {
-                                if (mounted) setState(() {});
-                              },
-                            );
-                          } else if (value == 'clear') {
-                            _confirmClearHistory();
-                          } else if (value == 'delete') {
-                            _confirmDeleteChat();
-                          }
-                        },
-                        itemBuilder: (BuildContext context) => [
-                          PopupMenuItem<String>(
-                            value: 'search',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  SolarIconsOutline.magnifier,
-                                  size: 20,
-                                  color: textPrimary,
+                            onSelected: (value) async {
+                              if (value == 'search') {
+                                setState(() => _isSearching = true);
+                              } else if (value == 'voice') {
+                                _initiateCall('voice');
+                              } else if (value == 'video') {
+                                _initiateCall('video');
+                              } else if (value == 'theme') {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.chatThemeSettings,
+                                );
+                              } else if (value == 'privacy_settings') {
+                                ChatRoomPrivacySheet.show(
+                                  context,
+                                  roomId: widget.chatId,
+                                  onSettingsChanged: () {
+                                    if (mounted) setState(() {});
+                                  },
+                                );
+                              } else if (value == 'clear') {
+                                _confirmClearHistory();
+                              } else if (value == 'delete') {
+                                _confirmDeleteChat();
+                              }
+                            },
+                            itemBuilder: (BuildContext context) => [
+                              PopupMenuItem<String>(
+                                value: 'search',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.magnifier,
+                                      size: 20,
+                                      color: textPrimary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Cari Pesan',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Cari Pesan',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'voice',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.phone,
+                                      size: 20,
+                                      color: textPrimary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Panggilan Suara',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'voice',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  SolarIconsOutline.phone,
-                                  size: 20,
-                                  color: textPrimary,
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'video',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.videocamera,
+                                      size: 20,
+                                      color: textPrimary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Panggilan Video',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Panggilan Suara',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'theme',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.palette,
+                                      size: 20,
+                                      color: textPrimary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Tema & Wallpaper Chat',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'video',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  SolarIconsOutline.videocamera,
-                                  size: 20,
-                                  color: textPrimary,
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'privacy_settings',
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      SolarIconsBold.shieldKeyhole,
+                                      size: 20,
+                                      color: AppColors.blue,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Pengaturan Privasi Obrolan',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Panggilan Video',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              ),
+                              const PopupMenuDivider(),
+                              PopupMenuItem<String>(
+                                value: 'clear',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.eraser,
+                                      size: 20,
+                                      color: MekaarColors.warning,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Bersihkan Obrolan',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'theme',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  SolarIconsOutline.palette,
-                                  size: 20,
-                                  color: textPrimary,
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.trashBinTrash,
+                                      size: 20,
+                                      color: MekaarColors.sosRed,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Hapus Chat',
+                                      style: TextStyle(
+                                        color: MekaarColors.sosRed,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Tema & Wallpaper Chat',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'privacy_settings',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  SolarIconsBold.shieldKeyhole,
-                                  size: 20,
-                                  color: AppColors.blue,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Pengaturan Privasi Obrolan',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuDivider(),
-                          PopupMenuItem<String>(
-                            value: 'clear',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  SolarIconsOutline.eraser,
-                                  size: 20,
-                                  color: MekaarColors.warning,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Bersihkan Obrolan',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  SolarIconsOutline.trashBinTrash,
-                                  size: 20,
-                                  color: MekaarColors.sosRed,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Hapus Chat',
-                                  style: TextStyle(
-                                    color: MekaarColors.sosRed,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
+                      );
+                    },
                   );
                 },
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
-}
-
+      ),
+    );
+  }
 
   /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
   List<_ChatItemEntry> _buildItemEntries(List<Message> reversedMessages) {
@@ -1423,10 +1567,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
     final msg = entry.message!;
     final isMe = msg.senderId == currentUserId;
-    final canEdit = actions.canEdit(
-      msg,
-      isGuardianRoom: widget.isGuardian,
-    );
+    final canEdit = actions.canEdit(msg, isGuardianRoom: widget.isGuardian);
 
     Message? replyToMsg;
     String? replyToSender;
@@ -1445,12 +1586,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       message: msg,
       isMe: isMe,
       canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
-      canUnsend: isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
+      canUnsend:
+          isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
       canEdit: isMe && canEdit,
       canForward: actions.canForward(
         msg,
-        forwardingProtectionActive:
-            forwardingProtection?.effective ?? false,
+        forwardingProtectionActive: forwardingProtection?.effective ?? false,
       ),
       otherLastReadAt: _otherLastRead,
       showReadReceipts: showReadReceipts,
@@ -1466,10 +1607,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         });
       },
       onEdit: (editMsg, newContent) {
-        if (!actions.canEdit(
-          editMsg,
-          isGuardianRoom: widget.isGuardian,
-        )) {
+        if (!actions.canEdit(editMsg, isGuardianRoom: widget.isGuardian)) {
           return;
         }
         ref
@@ -1483,8 +1621,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       onForward: (forwardingProtection?.effective ?? false)
           ? null
           : (forwardMsg) => _handleForwardMessage(forwardMsg),
-      onReact: (reactMsg, emoji) =>
-          _handleReactToMessage(reactMsg, emoji),
+      onReact: (reactMsg, emoji) => _handleReactToMessage(reactMsg, emoji),
     );
 
     // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeToReply
@@ -1511,10 +1648,7 @@ class _SwipeToReplyWrapper extends StatefulWidget {
   final Widget child;
   final VoidCallback onReply;
 
-  const _SwipeToReplyWrapper({
-    required this.child,
-    required this.onReply,
-  });
+  const _SwipeToReplyWrapper({required this.child, required this.onReply});
 
   @override
   State<_SwipeToReplyWrapper> createState() => _SwipeToReplyWrapperState();
@@ -1669,4 +1803,3 @@ class ReconnectingBadge extends StatelessWidget {
     );
   }
 }
-

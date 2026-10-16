@@ -10,6 +10,11 @@ import 'reconnect_policy.dart';
 class ChatRepository {
   final SupabaseService _supabaseService;
 
+  /// Cache in-memory untuk pesan terdekripsi per pesan (id -> decryptedContent).
+  /// Menghindari dekripsi kriptografis berulang terhadap ratusan pesan setiap kali
+  /// Realtime stream memancarkan batch pembaruan.
+  final Map<String, String> _decryptedContentCache = {};
+
   ChatRepository(this._supabaseService);
 
   // Get active chat rooms for current user
@@ -23,7 +28,6 @@ class ChatRepository {
         .select('room_id, is_muted, is_archived, chat_rooms(id, room_type)')
         .eq('profile_id', userId)
         .isFilter('deleted_at', null);
-
 
     final roomFutures = (roomsResponse as List).map((row) async {
       final roomId = row['room_id'] as String;
@@ -74,9 +78,12 @@ class ChatRepository {
                 .maybeSingle();
             if (profileResponse != null) {
               profile = profileResponse;
-              chatName = (profile['display_name'] as String?)?.isNotEmpty == true
+              chatName =
+                  (profile['display_name'] as String?)?.isNotEmpty == true
                   ? profile['display_name'] as String
-                  : profile['full_name'] as String? ?? profile['username'] as String? ?? 'User';
+                  : profile['full_name'] as String? ??
+                        profile['username'] as String? ??
+                        'User';
               chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
               avatarUrl = profile['avatar_url'] as String?;
             }
@@ -93,8 +100,11 @@ class ChatRepository {
             .eq('room_id', roomId)
             .eq('profile_id', userId)
             .maybeSingle();
-        if (myParticipant != null && myParticipant['history_cleared_at'] != null) {
-          historyClearedAt = DateTime.parse(myParticipant['history_cleared_at'] as String);
+        if (myParticipant != null &&
+            myParticipant['history_cleared_at'] != null) {
+          historyClearedAt = DateTime.parse(
+            myParticipant['history_cleared_at'] as String,
+          );
           final now = DateTime.now().toUtc();
           if (historyClearedAt.isAfter(now)) {
             historyClearedAt = now;
@@ -112,7 +122,8 @@ class ChatRepository {
             .eq('profile_id', userId)
             .maybeSingle();
         final myLastRead = myParticipant?['last_read_at'] as String?;
-        final myHistoryCleared = myParticipant?['history_cleared_at'] as String?;
+        final myHistoryCleared =
+            myParticipant?['history_cleared_at'] as String?;
         if (myLastRead != null) {
           var unreadQuery = _supabaseService.client
               .from('messages')
@@ -121,7 +132,7 @@ class ChatRepository {
               .neq('sender_id', userId)
               .gt('created_at', myLastRead)
               .eq('is_deleted', false);
-          
+
           if (myHistoryCleared != null) {
             unreadQuery = unreadQuery.gt('created_at', myHistoryCleared);
           }
@@ -136,9 +147,12 @@ class ChatRepository {
           .from('messages')
           .select()
           .eq('room_id', roomId);
-      
+
       if (historyClearedAt != null) {
-        lastMsgQuery = lastMsgQuery.gt('created_at', historyClearedAt.toIso8601String());
+        lastMsgQuery = lastMsgQuery.gt(
+          'created_at',
+          historyClearedAt.toIso8601String(),
+        );
       }
 
       final lastMsgResponse = await lastMsgQuery
@@ -151,23 +165,30 @@ class ChatRepository {
 
       if (lastMsgResponse != null) {
         final lastMsg = Message.fromJson(lastMsgResponse);
-        final bool isUnreadFromOther = unreadCount > 0 && lastMsg.senderId != userId;
+        final bool isUnreadFromOther =
+            unreadCount > 0 && lastMsg.senderId != userId;
         if (lastMsg.isDeleted) {
           lastMessageText = 'Pesan telah dihapus';
         } else if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty) {
           // Tampilkan label aman tanpa membebani isolate utama dengan puluhan dekripsi paralel
-          lastMessageText = isUnreadFromOther ? '🔒 Pesan baru' : '🔒 Pesan terenkripsi';
+          lastMessageText = isUnreadFromOther
+              ? '🔒 Pesan baru'
+              : '🔒 Pesan terenkripsi';
         } else if (lastMsg.type == MessageType.image) {
           lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
         } else if (lastMsg.type == MessageType.voice) {
-          lastMessageText = isUnreadFromOther ? '🎤 Pesan suara baru' : '🎤 Pesan Suara';
+          lastMessageText = isUnreadFromOther
+              ? '🎤 Pesan suara baru'
+              : '🎤 Pesan Suara';
         } else if (lastMsg.type == MessageType.location) {
           lastMessageText = isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
         } else if (lastMsg.type == MessageType.system) {
           lastMessageText = lastMsg.content;
         } else {
-          lastMessageText =
-              replaceCustomEmojiTokens(lastMsg.content, (_) => '[emoji]');
+          lastMessageText = replaceCustomEmojiTokens(
+            lastMsg.content,
+            (_) => '[emoji]',
+          );
         }
         lastMessageTime = lastMsg.createdAt;
       }
@@ -195,7 +216,10 @@ class ChatRepository {
     final roomsList = results.whereType<Map<String, dynamic>>().toList();
 
     // Sort by last message time
-    roomsList.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+    roomsList.sort(
+      (a, b) =>
+          (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime),
+    );
     return roomsList;
   }
 
@@ -236,7 +260,9 @@ class ChatRepository {
   }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
-    if (userId == otherUserId) throw Exception('Cannot create room with yourself');
+    if (userId == otherUserId) {
+      throw Exception('Cannot create room with yourself');
+    }
 
     final checkQuery = await _supabaseService.client
         .from('room_participants')
@@ -331,7 +357,7 @@ class ChatRepository {
             .from('hidden_messages')
             .select('message_id')
             .eq('profile_id', userId);
-        
+
         for (var row in hiddenData) {
           hiddenMsgIds.add(row['message_id'] as String);
         }
@@ -347,28 +373,46 @@ class ChatRepository {
         try {
           var msgs = maps.map((map) => Message.fromJson(map)).toList();
           if (historyClearedAt != null) {
-            msgs = msgs.where((m) => m.createdAt.isAfter(historyClearedAt!)).toList();
+            msgs = msgs
+                .where((m) => m.createdAt.isAfter(historyClearedAt!))
+                .toList();
           }
 
           // Filter out silent_deleted, hidden (dari cache in-memory), dan expired messages
           final now = DateTime.now().toUtc();
           msgs = msgs.where((m) {
             if (m.isSilentDeleted || hiddenMsgIds.contains(m.id)) return false;
-            if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) return false;
+            if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) {
+              return false;
+            }
             return true;
           }).toList();
 
-          final decryptedMsgs = await Future.wait(msgs.map((m) async {
-            if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
-              try {
-                final plain = await E2eeService.instance.decryptForRoom(roomId, m.content);
-                return m.copyWith(content: plain);
-              } catch (_) {
-                return m.copyWith(content: E2eeService.undecryptableText);
+          final decryptedMsgs = await Future.wait(
+            msgs.map((m) async {
+              if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
+                final cached = _decryptedContentCache[m.id];
+                if (cached != null) {
+                  return m.copyWith(content: cached);
+                }
+                try {
+                  final plain = await E2eeService.instance.decryptForRoom(
+                    roomId,
+                    m.content,
+                  );
+                  // Batasi kapasitas cache agar penggunaan memori tetap minimal (<2000 item)
+                  if (_decryptedContentCache.length > 2000) {
+                    _decryptedContentCache.clear();
+                  }
+                  _decryptedContentCache[m.id] = plain;
+                  return m.copyWith(content: plain);
+                } catch (_) {
+                  return m.copyWith(content: E2eeService.undecryptableText);
+                }
               }
-            }
-            return m;
-          }));
+              return m;
+            }),
+          );
 
           if (!controller.isClosed) {
             controller.add(decryptedMsgs);
@@ -517,6 +561,7 @@ class ChatRepository {
 
   // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone
   Future<void> deleteMessageForEveryone(String messageId) async {
+    _decryptedContentCache.remove(messageId);
     try {
       // Try the new advanced RPC first
       await _supabaseService.client.rpc(
@@ -548,6 +593,7 @@ class ChatRepository {
 
   // Local delete: hides message for the current user only (like WhatsApp)
   Future<void> hideMessageForMe(String messageId) async {
+    _decryptedContentCache.remove(messageId);
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
     try {
@@ -679,6 +725,7 @@ class ChatRepository {
 
   /// Edit isi teks pesan. Hanya pengirim di chat non-guardian yang boleh.
   Future<void> editMessage(String messageId, String newContent) async {
+    _decryptedContentCache.remove(messageId);
     final contentToStore = await _reencryptIfNeeded(messageId, newContent);
     await _supabaseService.client
         .from('messages')
@@ -834,10 +881,7 @@ class ChatRepository {
     try {
       await _supabaseService.client
           .from('room_participants')
-          .update({
-            'deleted_at': nowIso,
-            'history_cleared_at': nowIso,
-          })
+          .update({'deleted_at': nowIso, 'history_cleared_at': nowIso})
           .eq('room_id', roomId)
           .eq('profile_id', userId);
     } catch (_) {}
@@ -858,7 +902,9 @@ class ChatRepository {
     try {
       final row = await _supabaseService.client
           .from('room_participants')
-          .select('room_id, is_muted, muted_until, disappearing_override_hours, is_archived')
+          .select(
+            'room_id, is_muted, muted_until, disappearing_override_hours, is_archived',
+          )
           .eq('room_id', roomId)
           .eq('profile_id', userId)
           .maybeSingle();
@@ -960,10 +1006,7 @@ class ChatRepository {
   Future<void> setRoomBurnOnExit(String roomId, bool enabled) async {
     await _supabaseService.client.rpc(
       'set_room_burn_on_exit',
-      params: {
-        'p_room_id': roomId,
-        'p_enabled': enabled,
-      },
+      params: {'p_room_id': roomId, 'p_enabled': enabled},
     );
   }
 
@@ -1064,7 +1107,7 @@ class ChatRepository {
         'profile_id': userId,
         'role': 'owner',
         'screenshot_protection_enabled': true,
-      }
+      },
     ];
 
     for (final pid in participantIds) {
@@ -1099,34 +1142,38 @@ class ChatRepository {
 
       final participantsResp = await _supabaseService.client
           .from('room_participants')
-          .select('profile_id, role, joined_at, public_profiles(id, username, full_name, display_name, avatar_url)')
+          .select(
+            'profile_id, role, joined_at, public_profiles(id, username, full_name, display_name, avatar_url)',
+          )
           .eq('room_id', roomId)
           .isFilter('deleted_at', null);
 
-      return {
-        'room': roomResp,
-        'participants': participantsResp,
-      };
+      return {'room': roomResp, 'participants': participantsResp};
     } catch (_) {
       return null;
     }
   }
 
   /// Menambahkan anggota baru ke grup.
-  Future<void> addGroupParticipants(String roomId, List<String> profileIds) async {
+  Future<void> addGroupParticipants(
+    String roomId,
+    List<String> profileIds,
+  ) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
 
-    final toInsert = profileIds.map((pid) => {
-      'room_id': roomId,
-      'profile_id': pid,
-      'role': 'member',
-      'invited_by': userId,
-    }).toList();
+    final toInsert = profileIds
+        .map(
+          (pid) => {
+            'room_id': roomId,
+            'profile_id': pid,
+            'role': 'member',
+            'invited_by': userId,
+          },
+        )
+        .toList();
 
-    await _supabaseService.client
-        .from('room_participants')
-        .upsert(toInsert);
+    await _supabaseService.client.from('room_participants').upsert(toInsert);
   }
 
   /// Mengeluarkan anggota dari grup (Owner/Admin).
@@ -1150,5 +1197,3 @@ class ChatRepository {
         .eq('profile_id', userId);
   }
 }
-
-

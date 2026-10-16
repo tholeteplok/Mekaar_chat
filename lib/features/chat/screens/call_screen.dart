@@ -150,7 +150,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
     // 2. Periodic Polling Fallback (1.5 Detik) - Menjamin status pasti ter-update walau WebSocket missed
     _statusPollingTimer?.cancel();
-    _statusPollingTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
+    _statusPollingTimer = Timer.periodic(const Duration(milliseconds: 1500), (
+      _,
+    ) async {
       if (_isEnding || _isDisposed || _callStatus == 'Tersambung') {
         _statusPollingTimer?.cancel();
         return;
@@ -182,10 +184,10 @@ class _CallScreenState extends ConsumerState<CallScreen>
   }
 
   /// Timer koneksi ICE — dimulai setelah panggilan dijawab.
-  /// Memberi 15 detik tambahan untuk negosiasi SDP + ICE gathering + TURN relay.
+  /// Memberi 25 detik tambahan untuk negosiasi SDP + ICE gathering + TURN relay.
   void _startIceConnectionTimer() {
     _callTimeoutTimer?.cancel();
-    _callTimeoutTimer = Timer(const Duration(seconds: 15), () async {
+    _callTimeoutTimer = Timer(const Duration(seconds: 25), () async {
       if (_callStatus != 'Tersambung' && !_isEnding && !_isDisposed) {
         if (_currentCallId != null) {
           try {
@@ -202,7 +204,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
   Future<void> _loadAvatar() async {
     final otherId = widget.isCaller ? widget.receiverId : widget.callerId;
     try {
-      final profileRow = await ref.read(supabaseServiceProvider).client
+      final profileRow = await ref
+          .read(supabaseServiceProvider)
+          .client
           .from('public_profiles')
           .select('avatar_url')
           .eq('id', otherId)
@@ -219,7 +223,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
     try {
       if (widget.isCaller && _currentCallId == null) {
         try {
-          final callRow = await ref.read(callRepositoryProvider).createCall(
+          final callRow = await ref
+              .read(callRepositoryProvider)
+              .createCall(
                 roomId: widget.roomId,
                 callerId: widget.callerId,
                 receiverId: widget.receiverId,
@@ -359,7 +365,10 @@ class _CallScreenState extends ConsumerState<CallScreen>
         final granted = await PermissionsHelper.requestCamera();
         if (!granted) {
           if (mounted) {
-            MekaarSnackbar.warning(context, 'Izin kamera ditolak. Panggilan dilanjutkan tanpa video.');
+            MekaarSnackbar.warning(
+              context,
+              'Izin kamera ditolak. Panggilan dilanjutkan tanpa video.',
+            );
           }
           // Tetap lanjutkan panggilan tanpa video
           _isVideoOn = false;
@@ -414,7 +423,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
         _callTimeoutTimer?.cancel();
         if (_currentCallId != null) {
           try {
-            ref.read(callRepositoryProvider).updateCallStatus(
+            ref
+                .read(callRepositoryProvider)
+                .updateCallStatus(
                   _currentCallId!,
                   'answered',
                   startedAt: _connectedAt,
@@ -541,13 +552,14 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (_currentCallId != null) {
       try {
         if (_connectedAt != null) {
-          await ref.read(callRepositoryProvider).endCall(
-                _currentCallId!,
-                startedAt: _connectedAt,
-              );
+          await ref
+              .read(callRepositoryProvider)
+              .endCall(_currentCallId!, startedAt: _connectedAt);
         } else {
           final endStatus = _callStatus == 'Tersambung' ? 'ended' : 'missed';
-          await ref.read(callRepositoryProvider).updateCallStatus(_currentCallId!, endStatus);
+          await ref
+              .read(callRepositoryProvider)
+              .updateCallStatus(_currentCallId!, endStatus);
         }
       } catch (_) {}
     }
@@ -736,7 +748,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 children: [
                   if (!_isVideoCall) ...[
                     Avatar(
-                      initial: widget.chatName.isNotEmpty ? widget.chatName[0].toUpperCase() : 'U',
+                      initial: widget.chatName.isNotEmpty
+                          ? widget.chatName[0].toUpperCase()
+                          : 'U',
                       imageUrl: _avatarUrl,
                       size: 100,
                     ),
@@ -802,19 +816,27 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _controlButton(
-                    icon: _isSpeakerOn ? MekaarIcons.volumeUp : MekaarIcons.volumeDown,
+                    icon: _isSpeakerOn
+                        ? MekaarIcons.volumeUp
+                        : MekaarIcons.volumeDown,
                     color: _isSpeakerOn ? Colors.white : Colors.white24,
                     iconColor: _isSpeakerOn ? Colors.black : Colors.white,
                     onTap: _mediaReady && !_isEnding ? _toggleSpeaker : null,
-                    tooltip: _isSpeakerOn ? 'Matikan Speaker' : 'Nyalakan Speaker',
+                    tooltip: _isSpeakerOn
+                        ? 'Matikan Speaker'
+                        : 'Nyalakan Speaker',
                   ),
                   if (_isVideoCall)
                     _controlButton(
-                      icon: _isVideoOn ? MekaarIcons.videocam : MekaarIcons.videocamOff,
+                      icon: _isVideoOn
+                          ? MekaarIcons.videocam
+                          : MekaarIcons.videocamOff,
                       color: _isVideoOn ? Colors.white : Colors.white24,
                       iconColor: _isVideoOn ? Colors.black : Colors.white,
                       onTap: _mediaReady && !_isEnding ? _toggleVideo : null,
-                      tooltip: _isVideoOn ? 'Matikan Kamera' : 'Nyalakan Kamera',
+                      tooltip: _isVideoOn
+                          ? 'Matikan Kamera'
+                          : 'Nyalakan Kamera',
                     ),
                   _controlButton(
                     icon: _isMuted ? MekaarIcons.micOff : MekaarIcons.mic,

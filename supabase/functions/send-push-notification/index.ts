@@ -88,6 +88,7 @@ interface MessageRecord {
   content: string | null;
   msg_type: string;
   is_deleted: boolean;
+  is_encrypted?: boolean;
   created_at: string;
 }
 
@@ -292,12 +293,19 @@ Deno.serve(async (req: Request) => {
         );
         if (deviceTokens.length === 0) continue;
 
-        // Generate preview text berdasarkan tipe pesan
+        // Generate preview text berdasarkan tipe pesan & status enkripsi
         let bodyText = msg.content || "";
-        if (msg.msg_type === "image") bodyText = "📷 Gambar";
-        else if (msg.msg_type === "voice") bodyText = "🎤 Pesan suara";
-        else if (msg.msg_type === "video") bodyText = "🎬 Video";
-        else if (msg.msg_type === "location") bodyText = "📍 Lokasi";
+        if (msg.is_encrypted) {
+          bodyText = "🔒 Pesan baru";
+        } else if (msg.msg_type === "image") {
+          bodyText = "📷 Gambar";
+        } else if (msg.msg_type === "voice") {
+          bodyText = "🎤 Pesan suara";
+        } else if (msg.msg_type === "video") {
+          bodyText = "🎬 Video";
+        } else if (msg.msg_type === "location") {
+          bodyText = "📍 Lokasi";
+        }
 
         // Batasi panjang body
         if (bodyText.length > 100) {
@@ -308,6 +316,10 @@ Deno.serve(async (req: Request) => {
           results.push(
             messaging.send({
               token: dt.token,
+              notification: {
+                title: senderName,
+                body: bodyText,
+              },
               data: {
                 type: "message",
                 roomId: msg.room_id,
@@ -318,11 +330,16 @@ Deno.serve(async (req: Request) => {
               },
               android: {
                 priority: "high",
+                notification: {
+                  channelId: "mekaar_message_channel",
+                  sound: "default",
+                },
               },
               apns: {
                 payload: {
                   aps: {
                     badge: 1,
+                    sound: "default",
                     "content-available": 1,
                   },
                 },
@@ -394,6 +411,10 @@ Deno.serve(async (req: Request) => {
         callResults.push(
           messaging.send({
             token: dt.token,
+            notification: {
+              title: callLabel,
+              body: callerName,
+            },
             data: {
               type: "call",
               roomId: call.room_id,
@@ -406,10 +427,15 @@ Deno.serve(async (req: Request) => {
             },
             android: {
               priority: "high",
+              notification: {
+                channelId: "mekaar_call_channel",
+                sound: "default",
+              },
             },
             apns: {
               payload: {
                 aps: {
+                  sound: "default",
                   "content-available": 1,
                 },
               },

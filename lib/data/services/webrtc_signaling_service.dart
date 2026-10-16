@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,12 +15,17 @@ class WebRtcSignalingService {
   final Map<String, dynamic> _configuration;
 
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
-  final List<Map<String, dynamic>> _myLocalCandidates = <Map<String, dynamic>>[];
+  final List<Map<String, dynamic>> _myLocalCandidates =
+      <Map<String, dynamic>>[];
   bool _remoteDescriptionSet = false;
   bool _hasCreatedOffer = false;
   bool _hasReceivedAnswer = false;
   bool _isCleaningUp = false;
   bool _isCleanedUp = false;
+
+  /// Cache offer SDP agar bisa dikirim ulang saat penerima mengirim sinyal 'joined'
+  /// setelah inisialisasi media selesai (mencegah deadlock signaling).
+  Map<String, dynamic>? _cachedOffer;
 
   /// Cache answer SDP agar bisa dikirim ulang saat menerima duplikat offer
   /// tanpa harus memanggil setRemoteDescription lagi (mencegah InvalidStateError).
@@ -85,6 +91,17 @@ class WebRtcSignalingService {
 
       _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
         if (candidate.candidate != null) {
+          final candStr = candidate.candidate ?? '';
+          String candType = 'unknown';
+          if (candStr.contains('typ host')) {
+            candType = 'host (lokal)';
+          } else if (candStr.contains('typ srflx')) {
+            candType = 'srflx (STUN NAT)';
+          } else if (candStr.contains('typ relay')) {
+            candType = 'relay (TURN server)';
+          }
+          debugPrint('📡 [WebRTC ICE] Kandidat ditemukan: $candType');
+
           final candData = {
             'candidate': candidate.candidate,
             'sdpMid': candidate.sdpMid,
@@ -113,8 +130,12 @@ class WebRtcSignalingService {
       };
 
       // Topik dispesifikkan ke ID panggilan unik (room_call:$callId)
+      // Menggunakan private: true agar sinkron dengan aturan RLS realtime.messages
       final channelTopic = 'room_call:$callId';
-      _channel = _client.channel(channelTopic);
+      _channel = _client.channel(
+        channelTopic,
+        opts: const RealtimeChannelConfig(private: true),
+      );
 
       _channel!.onBroadcast(
         event: 'signal',
@@ -148,7 +169,11 @@ class WebRtcSignalingService {
     }
   }
 
-  void _startHandshakeRetry(String myUserId, String type, Map<String, dynamic> data) {
+  void _startHandshakeRetry(
+    String myUserId,
+    String type,
+    Map<String, dynamic> data,
+  ) {
     _retryTimer?.cancel();
     _retryCount = 0;
 
@@ -212,7 +237,10 @@ class WebRtcSignalingService {
         if (_isCleaningUp || _isCleanedUp) return;
 
         // Re-create channel dengan topic yang sama
-        _channel = _client.channel(channelTopic);
+        _channel = _client.channel(
+          channelTopic,
+          opts: const RealtimeChannelConfig(private: true),
+        );
 
         // Re-register broadcast handler pada channel baru
         _channel!.onBroadcast(
@@ -249,21 +277,27 @@ class WebRtcSignalingService {
       } catch (e) {
         lastError = e;
         if (attempt < _channelSubscribeMaxRetries) {
-          _emitError(StateError(
-            'Subscribe kanal gagal (percobaan ${attempt + 1}/${_channelSubscribeMaxRetries + 1}), retry...',
-          ));
+          _emitError(
+            StateError(
+              'Subscribe kanal gagal (percobaan ${attempt + 1}/${_channelSubscribeMaxRetries + 1}), retry...',
+            ),
+          );
         }
       }
     }
 
     // Semua percobaan gagal
-    throw lastError ?? StateError('Gagal berlangganan kanal panggilan setelah retry');
+    throw lastError ??
+        StateError('Gagal berlangganan kanal panggilan setelah retry');
   }
 
   /// Pemicu manual pembentukan Offer (dipanggil jika DB status = 'answered' tetapi broadcast 'joined' terlewati)
   Future<void> createOfferIfPending(String myUserId) async {
     final connection = _peerConnection;
-    if (connection == null || _hasCreatedOffer || _isCleaningUp || _isCleanedUp) {
+    if (connection == null ||
+        _hasCreatedOffer ||
+        _isCleaningUp ||
+        _isCleanedUp) {
       return;
     }
 
@@ -271,11 +305,10 @@ class WebRtcSignalingService {
       _hasCreatedOffer = true;
       final offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
-      
-      final offerData = {
-        'sdp': offer.sdp,
-        'type': offer.type,
-      };
+
+      final offerData = {'sdp': offer.sdp, 'type': offer.type};
+
+      _cachedOffer = offerData;
 
       _myLocalCandidates.clear();
       _startHandshakeRetry(myUserId, 'offer', offerData);
@@ -320,6 +353,11 @@ class WebRtcSignalingService {
           if (isCaller && !_hasCreatedOffer) {
             await createOfferIfPending(myUserId);
           } else if (isCaller && _hasCreatedOffer) {
+            // PERBAIKAN DEADLOCK: Kirim ulang Offer yang sudah dibuat bila belum menerima Answer
+            // Mengatasi kasus penerima baru siap setelah inisialisasi media beberapa detik kemudian
+            if (_cachedOffer != null && !_hasReceivedAnswer) {
+              await _sendSignal(myUserId, 'offer', _cachedOffer!);
+            }
             _retransmitLocalCandidates(myUserId);
           }
           break;
@@ -344,11 +382,8 @@ class WebRtcSignalingService {
 
             final answer = await connection.createAnswer();
             await connection.setLocalDescription(answer);
-            
-            final answerData = {
-              'sdp': answer.sdp,
-              'type': answer.type,
-            };
+
+            final answerData = {'sdp': answer.sdp, 'type': answer.type};
 
             // Cache answer untuk retransmisi saat menerima duplikat offer
             _cachedAnswer = answerData;
@@ -498,6 +533,7 @@ class WebRtcSignalingService {
 
     _pendingCandidates.clear();
     _myLocalCandidates.clear();
+    _cachedOffer = null;
     _cachedAnswer = null;
     _remoteDescriptionSet = false;
     _hasCreatedOffer = false;
