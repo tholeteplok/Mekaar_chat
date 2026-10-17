@@ -59,14 +59,30 @@ class _CallScreenState extends ConsumerState<CallScreen>
   bool _allowPop = false;
   bool _hasPopped = false;
   bool _statusIsError = false;
-  String _callStatus = 'Menyiapkan panggilan...';
+  String _callStatus = 'Menyiapkan...';
   String? _myUserId;
   String? _avatarUrl;
   String? _currentCallId;
   RealtimeChannel? _statusChannel;
   Timer? _callTimeoutTimer;
   Timer? _statusPollingTimer;
+  Timer? _durationTimer;
   DateTime? _connectedAt;
+
+  bool get _isConnected =>
+      _connectedAt != null ||
+      _callStatus == 'Terhubung' ||
+      _callStatus == 'Tersambung';
+
+  String get _displayCallStatus {
+    if (_connectedAt != null) {
+      final seconds = DateTime.now().difference(_connectedAt!).inSeconds;
+      final m = (seconds ~/ 60).toString().padLeft(2, '0');
+      final s = (seconds % 60).toString().padLeft(2, '0');
+      return 'Terhubung ($m:$s)';
+    }
+    return _callStatus;
+  }
 
   bool get _isVideoCall => widget.callType == 'video';
 
@@ -96,28 +112,44 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (newStatus == 'declined') {
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
+      _durationTimer?.cancel();
       _finishCall('Panggilan ditolak');
     } else if (newStatus == 'busy') {
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
+      _durationTimer?.cancel();
       _finishCall('Pengguna sedang dalam panggilan lain');
     } else if (newStatus == 'ended') {
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
+      _durationTimer?.cancel();
       _finishCall('Panggilan berakhir');
     } else if (newStatus == 'missed') {
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
+      _durationTimer?.cancel();
       _finishCall('Tidak dijawab');
     } else if (newStatus == 'failed') {
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
+      _durationTimer?.cancel();
       _finishCall('Koneksi panggilan gagal');
+    } else if (newStatus == 'ringing') {
+      if (widget.isCaller && mounted && !_isConnected) {
+        setState(() {
+          _callStatus = 'Berdering...';
+        });
+      }
     } else if (newStatus == 'answered') {
-      // Reset timeout: cancel timer lama 30 detik, mulai timer koneksi ICE 15 detik
+      // Reset timeout: cancel timer lama 30 detik, mulai timer koneksi ICE 25 detik
       // agar ada cukup waktu untuk negosiasi SDP + ICE gathering setelah dijawab.
       _callTimeoutTimer?.cancel();
       _startIceConnectionTimer();
+      if (mounted && !_isConnected) {
+        setState(() {
+          _callStatus = 'Menghubungkan...';
+        });
+      }
       if (widget.isCaller && _myUserId != null) {
         _signaling?.createOfferIfPending(_myUserId!);
       }
@@ -153,7 +185,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _statusPollingTimer = Timer.periodic(const Duration(milliseconds: 1500), (
       _,
     ) async {
-      if (_isEnding || _isDisposed || _callStatus == 'Tersambung') {
+      if (_isEnding || _isDisposed || _isConnected) {
         _statusPollingTimer?.cancel();
         return;
       }
@@ -167,10 +199,21 @@ class _CallScreenState extends ConsumerState<CallScreen>
     });
   }
 
+  void _startDurationTimer() {
+    _durationTimer?.cancel();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _isEnding || _isDisposed || _connectedAt == null) {
+        _durationTimer?.cancel();
+        return;
+      }
+      setState(() {});
+    });
+  }
+
   void _startCallTimeoutTimer() {
     _callTimeoutTimer?.cancel();
     _callTimeoutTimer = Timer(const Duration(seconds: 30), () async {
-      if (_callStatus != 'Tersambung' && !_isEnding && !_isDisposed) {
+      if (!_isConnected && !_isEnding && !_isDisposed) {
         if (_currentCallId != null) {
           try {
             await ref
@@ -188,7 +231,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
   void _startIceConnectionTimer() {
     _callTimeoutTimer?.cancel();
     _callTimeoutTimer = Timer(const Duration(seconds: 25), () async {
-      if (_callStatus != 'Tersambung' && !_isEnding && !_isDisposed) {
+      if (!_isConnected && !_isEnding && !_isDisposed) {
         if (_currentCallId != null) {
           try {
             await ref
@@ -221,30 +264,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   Future<void> _initializeCall() async {
     try {
-      if (widget.isCaller && _currentCallId == null) {
-        try {
-          final callRow = await ref
-              .read(callRepositoryProvider)
-              .createCall(
-                roomId: widget.roomId,
-                callerId: widget.callerId,
-                receiverId: widget.receiverId,
-                callType: widget.callType,
-              );
-          _currentCallId = callRow['id'] as String?;
-          if (_currentCallId != null && mounted) {
-            ref.read(activeCallIdProvider.notifier).state = _currentCallId!;
-          }
-        } catch (e) {
-          _finishCall('Gagal terhubung ke panggilan');
-          return;
-        }
+      if (mounted) {
+        setState(() {
+          _callStatus = 'Menyiapkan...';
+          _statusIsError = false;
+        });
       }
-
-      if (_currentCallId != null) {
-        _watchCallStatus();
-      }
-      _startCallTimeoutTimer();
 
       await _localRenderer.initialize();
       _localRendererInitialized = true;
@@ -302,6 +327,31 @@ class _CallScreenState extends ConsumerState<CallScreen>
         });
       }
 
+      if (widget.isCaller && _currentCallId == null) {
+        try {
+          final callRow = await ref
+              .read(callRepositoryProvider)
+              .createCall(
+                roomId: widget.roomId,
+                callerId: widget.callerId,
+                receiverId: widget.receiverId,
+                callType: widget.callType,
+              );
+          _currentCallId = callRow['id'] as String?;
+          if (_currentCallId != null && mounted) {
+            ref.read(activeCallIdProvider.notifier).state = _currentCallId!;
+          }
+        } catch (e) {
+          _finishCall('Gagal terhubung ke panggilan');
+          return;
+        }
+      }
+
+      if (_currentCallId != null) {
+        _watchCallStatus();
+      }
+      _startCallTimeoutTimer();
+
       await signaling.startSignaling(
         roomId: widget.roomId,
         callId: _currentCallId ?? widget.roomId,
@@ -309,6 +359,13 @@ class _CallScreenState extends ConsumerState<CallScreen>
         isCaller: widget.isCaller,
         isVideo: _isVideoCall,
       );
+
+      if (mounted && !_isConnected) {
+        setState(() {
+          _callStatus = widget.isCaller ? 'Memanggil...' : 'Menghubungkan...';
+        });
+      }
+
       if (_isDisposed || _isEnding) {
         _cleanUp();
       }
@@ -421,6 +478,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       if (normalizedState == 'connected') {
         _connectedAt ??= DateTime.now();
         _callTimeoutTimer?.cancel();
+        _startDurationTimer();
         if (_currentCallId != null) {
           try {
             ref
@@ -474,12 +532,16 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   String _localizedCallState(String state) {
     switch (state.toLowerCase()) {
+      case 'preparing':
+        return 'Menyiapkan...';
+      case 'connecting':
+        return 'Menghubungkan...';
       case 'calling':
         return 'Memanggil...';
       case 'ringing':
         return 'Berdering...';
       case 'connected':
-        return 'Tersambung';
+        return 'Terhubung';
       case 'disconnected':
       case 'failed':
       case 'closed':
@@ -549,6 +611,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     }
     _isEnding = true;
     _callTimeoutTimer?.cancel();
+    _durationTimer?.cancel();
     if (_currentCallId != null) {
       try {
         if (_connectedAt != null) {
@@ -556,7 +619,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
               .read(callRepositoryProvider)
               .endCall(_currentCallId!, startedAt: _connectedAt);
         } else {
-          final endStatus = _callStatus == 'Tersambung' ? 'ended' : 'missed';
+          final endStatus = _isConnected ? 'ended' : 'missed';
           await ref
               .read(callRepositoryProvider)
               .updateCallStatus(_currentCallId!, endStatus);
@@ -594,6 +657,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     }
     _isEnding = true;
     _callTimeoutTimer?.cancel();
+    _durationTimer?.cancel();
     _cleanUp();
     if (mounted) {
       setState(() {
@@ -625,6 +689,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _isCleanedUp = true;
     _callTimeoutTimer?.cancel();
     _statusPollingTimer?.cancel();
+    _durationTimer?.cancel();
     _statusChannel?.unsubscribe();
 
     // Reset activeCallIdProvider in Riverpod
@@ -778,7 +843,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                       ],
                       Flexible(
                         child: Text(
-                          _callStatus,
+                          _displayCallStatus,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,

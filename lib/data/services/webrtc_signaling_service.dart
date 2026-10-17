@@ -130,12 +130,8 @@ class WebRtcSignalingService {
       };
 
       // Topik dispesifikkan ke ID panggilan unik (room_call:$callId)
-      // Menggunakan private: true agar sinkron dengan aturan RLS realtime.messages
       final channelTopic = 'room_call:$callId';
-      _channel = _client.channel(
-        channelTopic,
-        opts: const RealtimeChannelConfig(private: true),
-      );
+      _channel = _client.channel(channelTopic);
 
       _channel!.onBroadcast(
         event: 'signal',
@@ -158,7 +154,8 @@ class WebRtcSignalingService {
         await _sendSignal(myUserId, 'caller_ready', {});
       } else {
         if (onCallStateChange != null) {
-          onCallStateChange!('ringing');
+          // Penerima yang sudah mengangkat langsung berstatus 'connecting' (bukan 'ringing')
+          onCallStateChange!('connecting');
         }
         // Penerima memancarkan sinyal 'joined' secara berkala (handshake retry)
         _startHandshakeRetry(myUserId, 'joined', {});
@@ -237,10 +234,7 @@ class WebRtcSignalingService {
         if (_isCleaningUp || _isCleanedUp) return;
 
         // Re-create channel dengan topic yang sama
-        _channel = _client.channel(
-          channelTopic,
-          opts: const RealtimeChannelConfig(private: true),
-        );
+        _channel = _client.channel(channelTopic);
 
         // Re-register broadcast handler pada channel baru
         _channel!.onBroadcast(
@@ -337,12 +331,23 @@ class WebRtcSignalingService {
 
       final type = payload['type'] as String?;
       final data = payload['data'] as Map<String, dynamic>?;
+      debugPrint('📩 [WEBRTC_SIGNAL] Menerima sinyal type=$type dari sender=$sender');
+
       final connection = _peerConnection;
       if (type == null || connection == null) {
         return;
       }
 
       switch (type) {
+        case 'device_ringing':
+          if (isCaller) {
+            debugPrint('🔔 [WEBRTC_SIGNAL] Perangkat lawan aktif berdering, memperbarui status pemanggil');
+            if (onCallStateChange != null) {
+              onCallStateChange!('ringing');
+            }
+          }
+          break;
+
         case 'caller_ready':
           if (!isCaller) {
             _startHandshakeRetry(myUserId, 'joined', {});
@@ -506,6 +511,7 @@ class WebRtcSignalingService {
       return;
     }
     try {
+      debugPrint('📤 [WEBRTC_SIGNAL] Mengirim sinyal type=$type (sender: $senderId)');
       await channel.sendBroadcastMessage(
         event: 'signal',
         payload: {'sender': senderId, 'type': type, 'data': data},

@@ -38,12 +38,48 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
 
 class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
   RealtimeChannel? _statusChannel;
+  RealtimeChannel? _signalingChannel;
+  Timer? _ringingBroadcastTimer;
   bool _isResponding = false;
 
   @override
   void initState() {
     super.initState();
     _watchCallCancelledByCaller();
+    _broadcastDeviceRinging();
+  }
+
+  /// Memberi tahu pemanggil bahwa perangkat penerima sedang aktif berdering
+  void _broadcastDeviceRinging() {
+    try {
+      final client = ref.read(supabaseServiceProvider).client;
+      final myUserId = ref.read(authProvider).user?.id ?? '';
+      final channelTopic = 'room_call:${widget.callId}';
+      _signalingChannel = client.channel(channelTopic);
+
+      void sendRingingSignal() {
+        if (!mounted || _isResponding) return;
+        try {
+          _signalingChannel?.sendBroadcastMessage(
+            event: 'signal',
+            payload: {
+              'sender': myUserId,
+              'type': 'device_ringing',
+              'data': {'callId': widget.callId},
+            },
+          );
+        } catch (_) {}
+      }
+
+      _signalingChannel!.subscribe((status, [error]) {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          sendRingingSignal();
+          // Retransmit 1.5 detik kemudian untuk memastikan pemanggil menangkap sinyal
+          _ringingBroadcastTimer?.cancel();
+          _ringingBroadcastTimer = Timer(const Duration(milliseconds: 1500), sendRingingSignal);
+        }
+      });
+    } catch (_) {}
   }
 
   /// Memantau jika penelepon membatalkan panggilan sebelum direspons
@@ -131,7 +167,9 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
 
   @override
   void dispose() {
+    _ringingBroadcastTimer?.cancel();
     _statusChannel?.unsubscribe();
+    _signalingChannel?.unsubscribe();
     NotificationService.cancelIncomingCallNotification();
     super.dispose();
   }
