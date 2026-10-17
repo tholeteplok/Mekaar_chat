@@ -147,6 +147,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final currentUserId = ref.watch(supabaseServiceProvider).currentUserId;
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final showNearbyPreview = ref.watch(nearbyPreviewPreferenceProvider);
+    final nearbyState = ref.watch(nearbyFriendsProvider);
 
     return roomsAsync.when(
       loading: () => const MekaarStateView(
@@ -326,7 +328,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     ),
                   ),
                 // Teman Sekitar (Proximity Floating Canvas)
-                if (!_isSearchActive && !wasDuress)
+                // Hanya tampil jika: tidak sedang mencari, bukan duress,
+                // dan (fitur sudah aktif / isEnabled ATAU preferensi preview diizinkan pengguna)
+                if (!_isSearchActive &&
+                    !wasDuress &&
+                    (nearbyState.isEnabled || showNearbyPreview))
                   NearbyFriendsCanvas(collapseProgress: _collapseProgress),
 
                 const SizedBox(height: 4),

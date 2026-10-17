@@ -50,7 +50,7 @@ class FakeChatRoomsNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
     implements ChatRoomsNotifier {
   FakeChatRoomsNotifier(List<Map<String, dynamic>> rooms)
-      : super(AsyncValue.data(rooms));
+    : super(AsyncValue.data(rooms));
 
   @override
   Future<void> refreshRooms({bool forceLoading = false}) async {}
@@ -165,7 +165,10 @@ void main() {
         friends: [friendContact, friendNonContact],
       );
       expect(stateContactsOnly.filteredFriends.length, equals(1));
-      expect(stateContactsOnly.filteredFriends.first.displayName, equals('Contact Friend'));
+      expect(
+        stateContactsOnly.filteredFriends.first.displayName,
+        equals('Contact Friend'),
+      );
     });
   });
 
@@ -212,40 +215,47 @@ void main() {
   });
 
   group('NearbyFriendsCanvas Widget Tests', () {
-    testWidgets('Saat fitur disabled, menampilkan CTA Banner "Teman Sekitar" & tombol "Aktifkan"', (tester) async {
-      final fakeRepo = FakeNearbyRepository();
+    testWidgets(
+      'Saat fitur disabled, menampilkan CTA Banner "Teman Sekitar" & tombol "Aktifkan"',
+      (tester) async {
+        final fakeRepo = FakeNearbyRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            nearbyRepositoryProvider.overrideWithValue(fakeRepo),
-            nearbyFriendsProvider.overrideWith(
-              (ref) => NearbyFriendsNotifier(
-                fakeRepo,
-                requestPermission: () async => true,
-                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+              nearbyFriendsProvider.overrideWith(
+                (ref) => NearbyFriendsNotifier(
+                  fakeRepo,
+                  requestPermission: () async => true,
+                  getLocation: () async =>
+                      (latitude: -6.2088, longitude: 106.8456),
+                ),
               ),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: NearbyFriendsCanvas(),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: NearbyFriendsCanvas()),
             ),
           ),
-        ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(find.text('Teman Sekitar'), findsOneWidget);
+        expect(find.text('Aktifkan'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Saat fitur enabled dan kosong, menampilkan empty state', (
+      tester,
+    ) async {
+      final fakeRepo = FakeNearbyRepository();
+      await fakeRepo.updatePreferences(
+        enabled: true,
+        visibilityMode: 'everyone',
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(find.text('Teman Sekitar'), findsOneWidget);
-      expect(find.text('Aktifkan'), findsOneWidget);
-    });
-
-    testWidgets('Saat fitur enabled dan kosong, menampilkan empty state', (tester) async {
-      final fakeRepo = FakeNearbyRepository();
-      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -254,15 +264,12 @@ void main() {
               (ref) => NearbyFriendsNotifier(
                 fakeRepo,
                 requestPermission: () async => true,
-                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+                getLocation: () async =>
+                    (latitude: -6.2088, longitude: 106.8456),
               ),
             ),
           ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: NearbyFriendsCanvas(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: NearbyFriendsCanvas())),
         ),
       );
 
@@ -273,224 +280,282 @@ void main() {
       expect(find.text('Belum ada teman di sekitar'), findsOneWidget);
     });
 
-    testWidgets('Saat fitur enabled dan ada teman, merender filter [Semua] & [Kontak] serta memfilter daftar', (tester) async {
-      final fakeRepo = FakeNearbyRepository();
-      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
-      fakeRepo.mockFriends = [
-        const NearbyFriendModel(
-          userId: 'friend-1',
-          displayName: 'Alya Rahma',
-          band: NearbyBand.veryClose,
-          isRecent: true,
-          isContact: true,
-        ),
-        const NearbyFriendModel(
-          userId: 'friend-2',
-          displayName: 'Dimas Seto',
-          band: NearbyBand.close,
-          isRecent: false, // offline < 1h
-          isContact: false,
-        ),
-      ];
+    testWidgets(
+      'Saat fitur enabled dan ada teman, merender filter [Semua] & [Kontak] serta memfilter daftar',
+      (tester) async {
+        final fakeRepo = FakeNearbyRepository();
+        await fakeRepo.updatePreferences(
+          enabled: true,
+          visibilityMode: 'everyone',
+        );
+        fakeRepo.mockFriends = [
+          const NearbyFriendModel(
+            userId: 'friend-1',
+            displayName: 'Alya Rahma',
+            band: NearbyBand.veryClose,
+            isRecent: true,
+            isContact: true,
+          ),
+          const NearbyFriendModel(
+            userId: 'friend-2',
+            displayName: 'Dimas Seto',
+            band: NearbyBand.close,
+            isRecent: false, // offline < 1h
+            isContact: false,
+          ),
+        ];
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            nearbyRepositoryProvider.overrideWithValue(fakeRepo),
-            nearbyFriendsProvider.overrideWith(
-              (ref) => NearbyFriendsNotifier(
-                fakeRepo,
-                requestPermission: () async => true,
-                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+              nearbyFriendsProvider.overrideWith(
+                (ref) => NearbyFriendsNotifier(
+                  fakeRepo,
+                  requestPermission: () async => true,
+                  getLocation: () async =>
+                      (latitude: -6.2088, longitude: 106.8456),
+                ),
               ),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: NearbyFriendsCanvas(),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: NearbyFriendsCanvas()),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.text('Teman Sekitar'), findsOneWidget);
-      expect(find.text('Semua'), findsOneWidget);
-      expect(find.text('Kontak'), findsOneWidget);
+        expect(find.text('Teman Sekitar'), findsOneWidget);
+        expect(find.text('Semua'), findsOneWidget);
+        expect(find.text('Kontak'), findsOneWidget);
 
-      // Mode 'Semua': Baik Alya maupun Dimas tampil
-      expect(find.text('Alya Rahma'), findsOneWidget);
-      expect(find.text('Dimas Seto'), findsOneWidget);
+        // Mode 'Semua': Baik Alya maupun Dimas tampil
+        expect(find.text('Alya Rahma'), findsOneWidget);
+        expect(find.text('Dimas Seto'), findsOneWidget);
 
-      // Tap filter [Kontak]
-      await tester.tap(find.text('Kontak'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        // Tap filter [Kontak]
+        await tester.tap(find.text('Kontak'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      // Mode 'Kontak': Hanya Alya yang tampil, Dimas (non-kontak) disaring
-      expect(find.text('Alya Rahma'), findsOneWidget);
-      expect(find.text('Dimas Seto'), findsNothing);
+        // Mode 'Kontak': Hanya Alya yang tampil, Dimas (non-kontak) disaring
+        expect(find.text('Alya Rahma'), findsOneWidget);
+        expect(find.text('Dimas Seto'), findsNothing);
 
-      // Tap filter [Semua] kembali
-      await tester.tap(find.text('Semua'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        // Tap filter [Semua] kembali
+        await tester.tap(find.text('Semua'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.text('Alya Rahma'), findsOneWidget);
-      expect(find.text('Dimas Seto'), findsOneWidget);
-    });
+        expect(find.text('Alya Rahma'), findsOneWidget);
+        expect(find.text('Dimas Seto'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Saat Private Vault terkunci, kontak dalam hiddenRoomIds disaring dari canvas', (tester) async {
-      final fakeRepo = FakeNearbyRepository();
-      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
-      fakeRepo.mockFriends = [
-        const NearbyFriendModel(
-          userId: 'friend-public',
-          displayName: 'Teman Publik',
-          band: NearbyBand.veryClose,
-          isRecent: true,
-          isContact: true,
-        ),
-        const NearbyFriendModel(
-          userId: 'friend-vault',
-          displayName: 'Teman Rahasia',
-          band: NearbyBand.close,
-          isRecent: true,
-          isContact: true,
-        ),
-      ];
+    testWidgets(
+      'Saat Private Vault terkunci, kontak dalam hiddenRoomIds disaring dari canvas',
+      (tester) async {
+        final fakeRepo = FakeNearbyRepository();
+        await fakeRepo.updatePreferences(
+          enabled: true,
+          visibilityMode: 'everyone',
+        );
+        fakeRepo.mockFriends = [
+          const NearbyFriendModel(
+            userId: 'friend-public',
+            displayName: 'Teman Publik',
+            band: NearbyBand.veryClose,
+            isRecent: true,
+            isContact: true,
+          ),
+          const NearbyFriendModel(
+            userId: 'friend-vault',
+            displayName: 'Teman Rahasia',
+            band: NearbyBand.close,
+            isRecent: true,
+            isContact: true,
+          ),
+        ];
 
-      final mockRooms = [
-        {
-          'id': 'room-normal',
-          'otherUserId': 'friend-public',
-          'name': 'Teman Publik',
-        },
-        {
-          'id': 'room-vault-secret',
-          'otherUserId': 'friend-vault',
-          'name': 'Teman Rahasia',
-        },
-      ];
+        final mockRooms = [
+          {
+            'id': 'room-normal',
+            'otherUserId': 'friend-public',
+            'name': 'Teman Publik',
+          },
+          {
+            'id': 'room-vault-secret',
+            'otherUserId': 'friend-vault',
+            'name': 'Teman Rahasia',
+          },
+        ];
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            nearbyRepositoryProvider.overrideWithValue(fakeRepo),
-            nearbyFriendsProvider.overrideWith(
-              (ref) => NearbyFriendsNotifier(
-                fakeRepo,
-                requestPermission: () async => true,
-                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+              nearbyFriendsProvider.overrideWith(
+                (ref) => NearbyFriendsNotifier(
+                  fakeRepo,
+                  requestPermission: () async => true,
+                  getLocation: () async =>
+                      (latitude: -6.2088, longitude: 106.8456),
+                ),
               ),
-            ),
-            chatRoomsProvider.overrideWith((ref) => FakeChatRoomsNotifier(mockRooms)),
-            hiddenRoomIdsProvider.overrideWith((ref) => FakeHiddenRoomIdsNotifier({'room-vault-secret'})),
-            privateVaultUnlockedProvider.overrideWith((ref) => false), // Vault terkunci
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: NearbyFriendsCanvas(),
+              chatRoomsProvider.overrideWith(
+                (ref) => FakeChatRoomsNotifier(mockRooms),
+              ),
+              hiddenRoomIdsProvider.overrideWith(
+                (ref) => FakeHiddenRoomIdsNotifier({'room-vault-secret'}),
+              ),
+              privateVaultUnlockedProvider.overrideWith(
+                (ref) => false,
+              ), // Vault terkunci
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: NearbyFriendsCanvas()),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      // Teman publik tampil
-      expect(find.text('Teman Publik'), findsOneWidget);
-      // Teman rahasia (vault terkunci) disaring demi privasi
-      expect(find.text('Teman Rahasia'), findsNothing);
-    });
+        // Teman publik tampil
+        expect(find.text('Teman Publik'), findsOneWidget);
+        // Teman rahasia (vault terkunci) disaring demi privasi
+        expect(find.text('Teman Rahasia'), findsNothing);
+      },
+    );
 
-    testWidgets('Saat Private Vault terbuka, kontak vault tampil di canvas dengan badge gembok', (tester) async {
-      final fakeRepo = FakeNearbyRepository();
-      await fakeRepo.updatePreferences(enabled: true, visibilityMode: 'everyone');
-      fakeRepo.mockFriends = [
-        const NearbyFriendModel(
-          userId: 'friend-public',
-          displayName: 'Teman Publik',
-          band: NearbyBand.veryClose,
-          isRecent: true,
-          isContact: true,
-        ),
-        const NearbyFriendModel(
-          userId: 'friend-vault',
-          displayName: 'Teman Rahasia',
-          band: NearbyBand.close,
-          isRecent: true,
-          isContact: true,
-        ),
-      ];
+    testWidgets(
+      'Saat Private Vault terbuka, kontak vault tampil di canvas dengan badge gembok',
+      (tester) async {
+        final fakeRepo = FakeNearbyRepository();
+        await fakeRepo.updatePreferences(
+          enabled: true,
+          visibilityMode: 'everyone',
+        );
+        fakeRepo.mockFriends = [
+          const NearbyFriendModel(
+            userId: 'friend-public',
+            displayName: 'Teman Publik',
+            band: NearbyBand.veryClose,
+            isRecent: true,
+            isContact: true,
+          ),
+          const NearbyFriendModel(
+            userId: 'friend-vault',
+            displayName: 'Teman Rahasia',
+            band: NearbyBand.close,
+            isRecent: true,
+            isContact: true,
+          ),
+        ];
 
-      final mockRooms = [
-        {
-          'id': 'room-normal',
-          'otherUserId': 'friend-public',
-          'name': 'Teman Publik',
-        },
-        {
-          'id': 'room-vault-secret',
-          'otherUserId': 'friend-vault',
-          'name': 'Teman Rahasia',
-        },
-      ];
+        final mockRooms = [
+          {
+            'id': 'room-normal',
+            'otherUserId': 'friend-public',
+            'name': 'Teman Publik',
+          },
+          {
+            'id': 'room-vault-secret',
+            'otherUserId': 'friend-vault',
+            'name': 'Teman Rahasia',
+          },
+        ];
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            nearbyRepositoryProvider.overrideWithValue(fakeRepo),
-            nearbyFriendsProvider.overrideWith(
-              (ref) => NearbyFriendsNotifier(
-                fakeRepo,
-                requestPermission: () async => true,
-                getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+              nearbyFriendsProvider.overrideWith(
+                (ref) => NearbyFriendsNotifier(
+                  fakeRepo,
+                  requestPermission: () async => true,
+                  getLocation: () async =>
+                      (latitude: -6.2088, longitude: 106.8456),
+                ),
               ),
-            ),
-            chatRoomsProvider.overrideWith((ref) => FakeChatRoomsNotifier(mockRooms)),
-            hiddenRoomIdsProvider.overrideWith((ref) => FakeHiddenRoomIdsNotifier({'room-vault-secret'})),
-            privateVaultUnlockedProvider.overrideWith((ref) => true), // Vault terbuka
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: NearbyFriendsCanvas(),
+              chatRoomsProvider.overrideWith(
+                (ref) => FakeChatRoomsNotifier(mockRooms),
+              ),
+              hiddenRoomIdsProvider.overrideWith(
+                (ref) => FakeHiddenRoomIdsNotifier({'room-vault-secret'}),
+              ),
+              privateVaultUnlockedProvider.overrideWith(
+                (ref) => true,
+              ), // Vault terbuka
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: NearbyFriendsCanvas()),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      // Keduanya tampil
-      expect(find.text('Teman Publik'), findsOneWidget);
-      expect(find.text('Teman Rahasia'), findsOneWidget);
+        // Keduanya tampil
+        expect(find.text('Teman Publik'), findsOneWidget);
+        expect(find.text('Teman Rahasia'), findsOneWidget);
 
-      // Menampilkan badge lock icon untuk kontak vault
-      expect(find.byIcon(SolarIconsOutline.lock), findsOneWidget);
-    });
+        // Menampilkan badge lock icon untuk kontak vault
+        expect(find.byIcon(SolarIconsOutline.lock), findsOneWidget);
+      },
+    );
 
-    test('NearbyFriendsNotifier toggleSharing & setVisibilityMode merespons secara non-blocking', () async {
-      final fakeRepo = FakeNearbyRepository();
-      final notifier = NearbyFriendsNotifier(
-        fakeRepo,
-        requestPermission: () async => true,
-        getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
-      );
+    test(
+      'NearbyFriendsNotifier toggleSharing & setVisibilityMode merespons secara non-blocking',
+      () async {
+        final fakeRepo = FakeNearbyRepository();
+        final notifier = NearbyFriendsNotifier(
+          fakeRepo,
+          requestPermission: () async => true,
+          getLocation: () async => (latitude: -6.2088, longitude: 106.8456),
+        );
 
-      final success = await notifier.toggleSharing(true);
-      expect(success, isTrue);
-      expect(notifier.state.isEnabled, isTrue);
+        final success = await notifier.toggleSharing(true);
+        expect(success, isTrue);
+        expect(notifier.state.isEnabled, isTrue);
 
-      await notifier.setVisibilityMode('everyone');
-      expect(notifier.state.visibilityMode, 'everyone');
+        await notifier.setVisibilityMode('everyone');
+        expect(notifier.state.visibilityMode, 'everyone');
 
-      await notifier.setVisibilityMode('contacts_only');
-      expect(notifier.state.visibilityMode, 'contacts_only');
-    });
+        await notifier.setVisibilityMode('contacts_only');
+        expect(notifier.state.visibilityMode, 'contacts_only');
+      },
+    );
+
+    test(
+      'NearbyPreviewPreferenceNotifier default true dan dapat di-toggle ke false',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        // Default adalah true (preview ditampilkan)
+        expect(container.read(nearbyPreviewPreferenceProvider), isTrue);
+
+        // Ubah ke false (sembunyikan preview)
+        await container
+            .read(nearbyPreviewPreferenceProvider.notifier)
+            .setVisible(false);
+        expect(container.read(nearbyPreviewPreferenceProvider), isFalse);
+
+        // Verifikasi tersimpan di SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getBool(nearbyPreviewPrefKey), isFalse);
+
+        // Ubah kembali ke true
+        await container
+            .read(nearbyPreviewPreferenceProvider.notifier)
+            .setVisible(true);
+        expect(container.read(nearbyPreviewPreferenceProvider), isTrue);
+        expect(prefs.getBool(nearbyPreviewPrefKey), isTrue);
+      },
+    );
   });
 }

@@ -29,7 +29,9 @@ class SettingsScreen extends ConsumerWidget {
   // SECTION 1: Tampilan — selector tema & font
   // ─────────────────────────────────────────────────
   Widget _buildDisplaySection(BuildContext context, WidgetRef ref) {
-    final currentFontKey = ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
+    final currentFontKey =
+        ref.watch(fontFamilyProvider).valueOrNull ??
+        AppFontFamily.defaultFontKey;
     final activeFont = AppFontFamily.findByKey(currentFontKey);
 
     return Column(
@@ -46,12 +48,14 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: MekaarColors.purple,
                 title: 'Tampilan & Font',
                 valueText: activeFont.displayName,
-                onTap: () => Navigator.pushNamed(context, AppRoutes.themeSettings),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.themeSettings),
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.chatRoundDots,
                 title: 'Tema & Wallpaper Chat',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
               ),
             ],
           ),
@@ -96,8 +100,9 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: MekaarColors.warning,
                 title: 'Sembunyikan Notifikasi Darurat',
                 value: ref.watch(notificationMaskingProvider),
-                onChanged: (value) =>
-                    ref.read(notificationMaskingProvider.notifier).setEnabled(value),
+                onChanged: (value) => ref
+                    .read(notificationMaskingProvider.notifier)
+                    .setEnabled(value),
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.user,
@@ -117,7 +122,8 @@ class SettingsScreen extends ConsumerWidget {
               SettingsNavTile(
                 icon: SolarIconsOutline.shieldUser,
                 title: 'Proteksi Undangan Chat',
-                valueText: ref.watch(chatInvitationModeProvider) == 'approved_only'
+                valueText:
+                    ref.watch(chatInvitationModeProvider) == 'approved_only'
                     ? 'Disetujui'
                     : 'Semua',
                 onTap: () => _showChatInvitationModeSheet(context, ref),
@@ -127,9 +133,10 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: MekaarColors.guardianTeal,
                 title: 'Teman Sekitar (Proximity)',
                 valueText: ref.watch(nearbyFriendsProvider).isEnabled
-                    ? (ref.watch(nearbyFriendsProvider).visibilityMode == 'everyone'
-                        ? 'Semua'
-                        : 'Kontak')
+                    ? (ref.watch(nearbyFriendsProvider).visibilityMode ==
+                              'everyone'
+                          ? 'Semua'
+                          : 'Kontak')
                     : 'Nonaktif',
                 onTap: () => _showNearbyFriendsPrivacySheet(context, ref),
               ),
@@ -156,31 +163,32 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Keamanan'),
-        Builder(builder: (context) {
-          final safeColor = MekaarColors.safeTextOf(context);
-          return MekaarBanner(
-            color: safeColor,
-            margin: const EdgeInsets.only(bottom: 8),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            icon: SolarIconsBold.shieldCheck,
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mekaar Aegis Protocol',
-                  style: MekaarTypography.labelLG.copyWith(color: safeColor),
-                ),
-                Text(
-                  'Enkripsi ujung-ke-ujung & proteksi privasi aktif',
-                  style: MekaarTypography.bodySM.copyWith(
-                    color: MekaarColors.textSecondaryOf(context),
+        Builder(
+          builder: (context) {
+            final safeColor = MekaarColors.safeTextOf(context);
+            return MekaarBanner(
+              color: safeColor,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              icon: SolarIconsBold.shieldCheck,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mekaar Aegis Protocol',
+                    style: MekaarTypography.labelLG.copyWith(color: safeColor),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                  Text(
+                    'Enkripsi ujung-ke-ujung & proteksi privasi aktif',
+                    style: MekaarTypography.bodySM.copyWith(
+                      color: MekaarColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -193,7 +201,9 @@ class SettingsScreen extends ConsumerWidget {
                 value: ref.watch(pinLockEnabledProvider),
                 onChanged: (bool value) async {
                   try {
-                    await ref.read(pinLockEnabledProvider.notifier).toggle(value);
+                    await ref
+                        .read(pinLockEnabledProvider.notifier)
+                        .toggle(value);
                   } catch (_) {
                     if (context.mounted) {
                       MekaarSnackbar.error(
@@ -209,7 +219,8 @@ class SettingsScreen extends ConsumerWidget {
                   icon: SolarIconsOutline.lockKeyhole,
                   iconColor: MekaarColors.sosCoral,
                   title: 'PIN Paksaan (Duress)',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.duressPin),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.duressPin),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.shieldKeyhole,
@@ -222,8 +233,8 @@ class SettingsScreen extends ConsumerWidget {
                   icon: SolarIconsOutline.smartphone,
                   iconColor: MekaarColors.brandPrimary,
                   title: 'Perangkat Terhubung',
-                  onTap: () => Navigator.pushNamed(
-                      context, AppRoutes.connectedDevices),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.connectedDevices),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.billList,
@@ -285,8 +296,8 @@ class SettingsScreen extends ConsumerWidget {
                 value: hapticsEnabled,
                 onChanged: prefsAsync.hasValue
                     ? (value) => ref
-                        .read(notificationPreferencesProvider.notifier)
-                        .toggleHaptics(value)
+                          .read(notificationPreferencesProvider.notifier)
+                          .toggleHaptics(value)
                     : null,
               ),
               if (!wasDuress) ...[
@@ -295,19 +306,22 @@ class SettingsScreen extends ConsumerWidget {
                   iconColor: MekaarColors.guardianTeal,
                   title: 'Izin Guardian Alarm',
                   value: ref.watch(allowGuardianAlarmProvider),
-                  onChanged: (value) =>
-                      ref.read(allowGuardianAlarmProvider.notifier).setEnabled(value),
+                  onChanged: (value) => ref
+                      .read(allowGuardianAlarmProvider.notifier)
+                      .setEnabled(value),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.gps,
-                    title: 'Temukan Ponsel Saya',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
+                  title: 'Temukan Ponsel Saya',
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.deviceLost),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.userBlock,
                   iconColor: MekaarColors.sosCoral,
                   title: 'Daftar Blokir',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.blockedList),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.blockedList),
                 ),
               ],
             ],
@@ -367,9 +381,7 @@ class SettingsScreen extends ConsumerWidget {
                     _buildDisplaySection(context, ref),
 
                     // ── 3. Privasi (tersembunyi saat duress) ──
-                    if (!wasDuress) ...[
-                      _buildPrivacySection(context, ref),
-                    ],
+                    if (!wasDuress) ...[_buildPrivacySection(context, ref)],
 
                     // ── 4. Keamanan ──
                     _buildSecuritySection(context, ref),
@@ -404,8 +416,16 @@ class SettingsScreen extends ConsumerWidget {
           builder: (context, sheetRef, _) {
             final current = sheetRef.watch(chatInvitationModeProvider);
             final options = [
-              ('approved_only', 'Hanya yang Disetujui', 'Pengguna baru harus mengirim permintaan chat terlebih dahulu'),
-              ('everyone', 'Semua Orang', 'Siapapun dapat langsung mengirim pesan kepada Anda'),
+              (
+                'approved_only',
+                'Hanya yang Disetujui',
+                'Pengguna baru harus mengirim permintaan chat terlebih dahulu',
+              ),
+              (
+                'everyone',
+                'Semua Orang',
+                'Siapapun dapat langsung mengirim pesan kepada Anda',
+              ),
             ];
             return SafeArea(
               child: Column(
@@ -433,12 +453,20 @@ class SettingsScreen extends ConsumerWidget {
                         selected
                             ? SolarIconsBold.checkCircle
                             : SolarIconsOutline.shieldUser,
-                        color: selected ? MekaarColors.primaryOf(context) : null,
+                        color: selected
+                            ? MekaarColors.primaryOf(context)
+                            : null,
                       ),
                       title: Text(opt.$2),
-                      subtitle: Text(opt.$3, style: const TextStyle(fontSize: 12)),
+                      subtitle: Text(
+                        opt.$3,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       trailing: selected
-                          ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
+                          ? Icon(
+                              MekaarIcons.check,
+                              color: MekaarColors.primaryOf(context),
+                            )
                           : null,
                       onTap: () {
                         sheetRef
@@ -470,6 +498,7 @@ class SettingsScreen extends ConsumerWidget {
             final isEnabled = state.isEnabled;
             final currentMode = state.visibilityMode;
             final isProcessing = state.isLoading;
+            final showPreview = sheetRef.watch(nearbyPreviewPreferenceProvider);
 
             return SafeArea(
               child: Column(
@@ -486,7 +515,6 @@ class SettingsScreen extends ConsumerWidget {
                     child: Text(
                       'Bagikan radius jarak kasar dengan kontak untuk mengetahui siapa yang sedang berada di dekat Anda.',
                       style: MekaarTypography.bodySM,
-                      textAlign: TextAlign.center,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -516,6 +544,27 @@ class SettingsScreen extends ConsumerWidget {
                             }
                           },
                   ),
+                  const Divider(),
+                  SwitchListTile(
+                    secondary: Icon(
+                      showPreview
+                          ? SolarIconsOutline.eye
+                          : SolarIconsOutline.eyeClosed,
+                      color: showPreview ? MekaarColors.guardianTeal : null,
+                    ),
+                    title: const Text('Preview di Tab Kontak'),
+                    subtitle: const Text(
+                      'Tampilkan kartu radar di atas daftar kontak saat fitur belum diaktifkan',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: showPreview,
+                    onChanged: (value) {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      sheetRef
+                          .read(nearbyPreviewPreferenceProvider.notifier)
+                          .setVisible(value);
+                    },
+                  ),
                   if (isEnabled) ...[
                     const Divider(),
                     ListTile(
@@ -533,8 +582,10 @@ class SettingsScreen extends ConsumerWidget {
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: currentMode == 'contacts_only'
-                          ? const Icon(MekaarIcons.check,
-                              color: MekaarColors.guardianTeal)
+                          ? const Icon(
+                              MekaarIcons.check,
+                              color: MekaarColors.guardianTeal,
+                            )
                           : null,
                       onTap: () {
                         HapticService.trigger(MekaarHapticIntent.selection);
@@ -558,8 +609,10 @@ class SettingsScreen extends ConsumerWidget {
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: currentMode == 'everyone'
-                          ? const Icon(MekaarIcons.check,
-                              color: MekaarColors.guardianTeal)
+                          ? const Icon(
+                              MekaarIcons.check,
+                              color: MekaarColors.guardianTeal,
+                            )
                           : null,
                       onTap: () {
                         HapticService.trigger(MekaarHapticIntent.selection);
@@ -607,11 +660,16 @@ class SettingsScreen extends ConsumerWidget {
                         selected
                             ? SolarIconsBold.checkCircle
                             : SolarIconsOutline.user,
-                        color: selected ? MekaarColors.primaryOf(context) : null,
+                        color: selected
+                            ? MekaarColors.primaryOf(context)
+                            : null,
                       ),
                       title: Text(privacy.label),
                       trailing: selected
-                          ? Icon(MekaarIcons.check, color: MekaarColors.primaryOf(context))
+                          ? Icon(
+                              MekaarIcons.check,
+                              color: MekaarColors.primaryOf(context),
+                            )
                           : null,
                       onTap: () {
                         sheetRef
@@ -668,7 +726,8 @@ class SettingsScreen extends ConsumerWidget {
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, passwordController.text.trim()),
+              onPressed: () =>
+                  Navigator.pop(ctx, passwordController.text.trim()),
               child: const Text('Konfirmasi'),
             ),
           ],
@@ -697,5 +756,3 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 }
-
-

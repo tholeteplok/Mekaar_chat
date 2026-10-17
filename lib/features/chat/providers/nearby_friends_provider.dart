@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../../../data/repositories/nearby_repository.dart';
@@ -51,9 +52,40 @@ class NearbyFriendsState {
 
 final nearbyFriendsProvider =
     StateNotifierProvider<NearbyFriendsNotifier, NearbyFriendsState>((ref) {
-  final repository = ref.watch(nearbyRepositoryProvider);
-  return NearbyFriendsNotifier(repository);
-});
+      final repository = ref.watch(nearbyRepositoryProvider);
+      return NearbyFriendsNotifier(repository);
+    });
+
+// ─────────────────────────────────────────
+// Preferensi Tampilan Preview di Tab Kontak
+// ─────────────────────────────────────────
+const String nearbyPreviewPrefKey = 'show_nearby_friends_preview_on_contacts';
+
+class NearbyPreviewPreferenceNotifier extends StateNotifier<bool> {
+  NearbyPreviewPreferenceNotifier() : super(true) {
+    _loadPreference();
+  }
+
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool(nearbyPreviewPrefKey) ?? true;
+    } catch (_) {}
+  }
+
+  Future<void> setVisible(bool visible) async {
+    state = visible;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(nearbyPreviewPrefKey, visible);
+    } catch (_) {}
+  }
+}
+
+final nearbyPreviewPreferenceProvider =
+    StateNotifierProvider<NearbyPreviewPreferenceNotifier, bool>((ref) {
+      return NearbyPreviewPreferenceNotifier();
+    });
 
 class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
   final NearbyRepository _repository;
@@ -68,9 +100,9 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
     this._repository, {
     Future<bool> Function()? requestPermission,
     Future<({double latitude, double longitude})?> Function()? getLocation,
-  })  : _requestPermission = requestPermission,
-        _getLocation = getLocation,
-        super(const NearbyFriendsState()) {
+  }) : _requestPermission = requestPermission,
+       _getLocation = getLocation,
+       super(const NearbyFriendsState()) {
     _initAuthListener();
     loadPreferences();
   }
@@ -127,7 +159,8 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
         if (!hasPermission) {
           state = state.copyWith(
             isLoading: false,
-            errorMessage: 'Izin lokasi diperlukan untuk mengaktifkan Teman Sekitar.',
+            errorMessage:
+                'Izin lokasi diperlukan untuk mengaktifkan Teman Sekitar.',
           );
           return false;
         }
@@ -214,7 +247,8 @@ class NearbyFriendsNotifier extends StateNotifier<NearbyFriendsState> {
       if (lat == null || lon == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'Tidak dapat memperoleh koordinat lokasi terkini. Pastikan GPS aktif.',
+          errorMessage:
+              'Tidak dapat memperoleh koordinat lokasi terkini. Pastikan GPS aktif.',
         );
         return;
       }
