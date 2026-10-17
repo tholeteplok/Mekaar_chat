@@ -46,6 +46,15 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     super.initState();
     _watchCallCancelledByCaller();
     _broadcastDeviceRinging();
+    _markCallRingingInDb();
+  }
+
+  /// Memperbarui status panggilan di Supabase dari 'calling' -> 'ringing'
+  /// sebagai bukti konfirmasi (ACK) bahwa panggilan telah sampai di perangkat penerima
+  void _markCallRingingInDb() {
+    try {
+      ref.read(callRepositoryProvider).markCallRinging(widget.callId);
+    } catch (_) {}
   }
 
   /// Memberi tahu pemanggil bahwa perangkat penerima sedang aktif berdering

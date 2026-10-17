@@ -60,6 +60,18 @@ class CallHistoryBubble extends StatelessWidget {
       statusColor = MekaarColors.sosRed;
       statusText = 'Panggilan gagal';
       statusIcon = SolarIconsOutline.closeCircle;
+    } else if (call.status == 'calling') {
+      statusColor = MekaarColors.textSecondaryOf(context);
+      statusText = isMe ? 'Memanggil...' : 'Panggilan masuk...';
+      statusIcon = isMe
+          ? SolarIconsOutline.arrowRightUp
+          : SolarIconsOutline.arrowLeftDown;
+    } else if (call.status == 'ringing') {
+      statusColor = MekaarColors.textSecondaryOf(context);
+      statusText = isMe ? 'Berdering...' : 'Panggilan masuk...';
+      statusIcon = isMe
+          ? SolarIconsOutline.arrowRightUp
+          : SolarIconsOutline.arrowLeftDown;
     } else {
       statusColor = MekaarColors.textSecondaryOf(context);
       statusText = call.getDisplayStatus(isMe);

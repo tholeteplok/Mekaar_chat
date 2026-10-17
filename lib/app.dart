@@ -9,8 +9,8 @@ import 'core/widgets/screen_protection_widgets.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/chat/providers/screen_protection_provider.dart';
 import 'data/services/notification_service.dart';
-
 import 'core/navigation/app_navigator.dart';
+import 'core/widgets/mekaar_update_overlay.dart';
 
 class MekaarApp extends ConsumerWidget {
   const MekaarApp({super.key});
@@ -46,27 +46,29 @@ class MekaarApp extends ConsumerWidget {
       builder: (context, child) {
         final currentChild = child ?? const SizedBox();
 
-        return StreamBuilder<bool>(
-          stream: protectionController.captureState,
-          initialData: false,
-          builder: (context, captureSnapshot) {
-            return StreamBuilder<Map<String, dynamic>>(
-              stream: protectionController.states.map(
-                (states) => Map<String, dynamic>.from(states),
-              ),
-              builder: (context, _) {
-                final hideContent =
-                    (captureSnapshot.data ?? false) &&
-                    protectionController.hasProtectedSurface;
-                return Stack(
-                  children: [
-                    currentChild,
-                    ScreenCaptureProtectionOverlay(visible: hideContent),
-                  ],
-                );
-              },
-            );
-          },
+        return MekaarUpdateOverlay(
+          child: StreamBuilder<bool>(
+            stream: protectionController.captureState,
+            initialData: false,
+            builder: (context, captureSnapshot) {
+              return StreamBuilder<Map<String, dynamic>>(
+                stream: protectionController.states.map(
+                  (states) => Map<String, dynamic>.from(states),
+                ),
+                builder: (context, _) {
+                  final hideContent =
+                      (captureSnapshot.data ?? false) &&
+                      protectionController.hasProtectedSurface;
+                  return Stack(
+                    children: [
+                      currentChild,
+                      ScreenCaptureProtectionOverlay(visible: hideContent),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         );
       },
     );

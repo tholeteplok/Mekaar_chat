@@ -36,7 +36,7 @@ class CallRepository {
           'caller_id': callerId,
           'receiver_id': receiverId,
           'call_type': callType,
-          'status': 'ringing',
+          'status': 'calling',
         })
         .select()
         .single();
@@ -125,6 +125,15 @@ class CallRepository {
     if (durationSeconds != null) updates['duration_seconds'] = durationSeconds;
 
     await _client.from('calls').update(updates).eq('id', callId);
+  }
+
+  /// Konfirmasi dari perangkat penerima bahwa layar panggilan aktif dan sedang berdering
+  Future<void> markCallRinging(String callId) async {
+    try {
+      await updateCallStatus(callId, 'ringing');
+    } catch (e) {
+      debugPrint('[CallRepository] Gagal memperbarui status ke ringing: $e');
+    }
   }
 
   /// Mengakhiri panggilan dan mencatat durasi secara otomatis

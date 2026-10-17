@@ -99,4 +99,37 @@ void main() {
       );
     });
   });
+
+  group('UpdateService Release Notes Parser Tests', () {
+    final updateService = UpdateService();
+
+    test('Mem-parsing kategori fix, feat, perf, dan ui dari conventional commits', () {
+      const raw = '''
+# Changelog
+* feat(chat): Tambahkan riwayat panggilan suara dan video
+* fix(e2ee): Perbaiki loop dekripsi pesan
+* perf(network): Optimasi bandwidth sinyal WebRTC
+* ui(theme): Perbarui warna bubble riwayat panggilan
+''';
+
+      final items = updateService.parseReleaseNotes(raw);
+      expect(items.length, equals(4));
+      expect(items[0].category, equals(ReleaseCategory.feat));
+      expect(items[0].text, equals('Tambahkan riwayat panggilan suara dan video'));
+      expect(items[1].category, equals(ReleaseCategory.fix));
+      expect(items[1].text, equals('Perbaiki loop dekripsi pesan'));
+      expect(items[2].category, equals(ReleaseCategory.perf));
+      expect(items[2].text, equals('Optimasi bandwidth sinyal WebRTC'));
+      expect(items[3].category, equals(ReleaseCategory.ui));
+      expect(items[3].text, equals('Perbarui warna bubble riwayat panggilan'));
+    });
+
+    test('Fallback default item jika raw notes kosong', () {
+      final items = updateService.parseReleaseNotes('');
+      expect(items.length, equals(1));
+      expect(items.first.category, equals(ReleaseCategory.general));
+      expect(items.first.text, contains('stabilitas'));
+    });
+  });
 }
+

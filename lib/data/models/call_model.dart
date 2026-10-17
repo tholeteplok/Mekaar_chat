@@ -67,8 +67,12 @@ class CallModel {
         return isCaller ? 'Panggilan dibatalkan' : 'Panggilan tak terjawab';
       case 'failed':
         return 'Panggilan gagal';
-      case 'ringing':
+      case 'calling':
         return isCaller ? 'Memanggil...' : 'Panggilan masuk...';
+      case 'ringing':
+        return isCaller ? 'Berdering...' : 'Panggilan masuk...';
+      case 'ended':
+        return isCaller ? 'Panggilan dibatalkan' : 'Panggilan tak terjawab';
       default:
         return status;
     }

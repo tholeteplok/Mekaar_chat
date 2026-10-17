@@ -248,82 +248,255 @@ class UpdateService {
     }
   }
 
-  /// Mengunduh file APK langsung ke cache aplikasi dengan kalkulasi byte dan stream progress
+  /// Mendapatkan referensi File APK pembaruan di penyimpanan persisten aplikasi (/updates/)
+  Future<File> getUpdateFile(String version) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final updateDir = Directory('${docsDir.path}/updates');
+    if (!await updateDir.exists()) {
+      await updateDir.create(recursive: true);
+    }
+    final sanitizedVer =
+        _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    return File('${updateDir.path}/Mekaar-$sanitizedVer.apk');
+  }
+
+  /// Membersihkan berkas APK versi lama di penyimpanan lokal
+  Future<void> cleanupOldApkFiles(String currentKeepVersion) async {
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final updateDir = Directory('${docsDir.path}/updates');
+      if (!await updateDir.exists()) return;
+
+      final sanitizedCurrent = _sanitizeVersion(currentKeepVersion)
+          .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final currentFileName = 'Mekaar-$sanitizedCurrent.apk';
+
+      final entities = updateDir.listSync();
+      for (final entity in entities) {
+        if (entity is File && entity.path.endsWith('.apk')) {
+          final fileName = entity.uri.pathSegments.last;
+          if (fileName != currentFileName) {
+            try {
+              entity.deleteSync();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Memeriksa berapa byte file APK yang sudah tersimpan di penyimpanan persisten untuk versi tertentu
+  Future<int> getDownloadedApkBytes(String version) async {
+    try {
+      final saveFile = await getUpdateFile(version);
+      if (await saveFile.exists()) {
+        return await saveFile.length();
+      }
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Memeriksa apakah file APK untuk versi tertentu sudah selesai diunduh 100%
+  Future<bool> isApkFullyDownloaded(String version, int expectedBytes) async {
+    try {
+      final saveFile = await getUpdateFile(version);
+      if (!await saveFile.exists()) return false;
+      final len = await saveFile.length();
+      if (expectedBytes > 0) {
+        return len >= expectedBytes;
+      }
+      return len > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Mengunduh file APK langsung ke penyimpanan persisten aplikasi dengan dukungan Resumable Download (HTTP Range)
+  /// dan pemulihan otomatis (Auto-Retry) jika koneksi terputus.
   Future<File> downloadApk({
     required String downloadUrl,
     required String version,
-    required void Function(double progress, int receivedBytes, int totalBytes) onProgress,
+    required void Function(double progress, int receivedBytes, int totalBytes)
+        onProgress,
     int? expectedTotalBytes,
   }) async {
-    final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 15);
-    client.idleTimeout = const Duration(seconds: 30);
-    client.autoUncompress = false;
+    await cleanupOldApkFiles(version);
+    final saveFile = await getUpdateFile(version);
 
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final sanitizedVer = _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-      final saveFile = File('${tempDir.path}/Mekaar-$sanitizedVer.apk');
-      if (await saveFile.exists()) {
-        await saveFile.delete();
+    // Periksa file yang sudah ada sebelumnya untuk melanjutkan
+    int existingBytes = 0;
+    if (await saveFile.exists()) {
+      final len = await saveFile.length();
+      if (expectedTotalBytes != null &&
+          expectedTotalBytes > 0 &&
+          len >= expectedTotalBytes) {
+        // File sudah lengkap 100% di penyimpanan
+        onProgress(1.0, len, expectedTotalBytes);
+        return saveFile;
       }
+      existingBytes = len;
+    }
 
-      var currentUrl = downloadUrl;
-      HttpClientResponse? response;
+    int retryCount = 0;
+    const maxRetries = 3;
 
-      // Handle redirect chain (301, 302, 307, 308) seperti GitHub S3 AWS CDN
-      for (int i = 0; i < 6; i++) {
-        final request = await client.getUrl(Uri.parse(currentUrl));
-        request.headers.set(HttpHeaders.userAgentHeader, 'Mekaar-Chat-App');
-        request.headers.set(HttpHeaders.acceptHeader, '*/*');
-        request.followRedirects = false;
+    while (true) {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 20);
+      client.idleTimeout = const Duration(seconds: 35);
+      client.autoUncompress = false;
+      IOSink? sink;
 
-        final res = await request.close();
-        if (res.isRedirect ||
-            res.statusCode == HttpStatus.movedPermanently ||
-            res.statusCode == HttpStatus.found ||
-            res.statusCode == HttpStatus.seeOther ||
-            res.statusCode == HttpStatus.temporaryRedirect) {
-          final location = res.headers.value(HttpHeaders.locationHeader);
-          if (location != null && location.isNotEmpty) {
-            currentUrl = location;
-            continue;
+      try {
+        if (await saveFile.exists()) {
+          existingBytes = await saveFile.length();
+        } else {
+          existingBytes = 0;
+        }
+
+        var currentUrl = downloadUrl;
+        HttpClientResponse? response;
+
+        // Tangani redirect chain (301, 302, 307, 308) seperti GitHub S3 AWS CDN
+        for (int i = 0; i < 6; i++) {
+          final request = await client.getUrl(Uri.parse(currentUrl));
+          request.headers.set(HttpHeaders.userAgentHeader, 'Mekaar-Chat-App');
+          request.headers.set(HttpHeaders.acceptHeader, '*/*');
+          request.followRedirects = false;
+
+          // Kirim header Range jika sudah memiliki sebagian data
+          if (existingBytes > 0) {
+            request.headers
+                .set(HttpHeaders.rangeHeader, 'bytes=$existingBytes-');
+          }
+
+          final res = await request.close();
+          if (res.isRedirect ||
+              res.statusCode == HttpStatus.movedPermanently ||
+              res.statusCode == HttpStatus.found ||
+              res.statusCode == HttpStatus.seeOther ||
+              res.statusCode == HttpStatus.temporaryRedirect) {
+            final location = res.headers.value(HttpHeaders.locationHeader);
+            if (location != null && location.isNotEmpty) {
+              currentUrl = location;
+              continue;
+            }
+          }
+          response = res;
+          break;
+        }
+
+        if (response == null) {
+          throw Exception('Tidak mendapatkan respons dari server pembaruan.');
+        }
+
+        final statusCode = response.statusCode;
+
+        // Jika server mengembalikan 416 (Range Not Satisfiable), file mungkin sudah lengkap
+        if (statusCode == HttpStatus.requestedRangeNotSatisfiable &&
+            existingBytes > 0) {
+          onProgress(1.0, existingBytes, expectedTotalBytes ?? existingBytes);
+          return saveFile;
+        }
+
+        if (statusCode != HttpStatus.ok &&
+            statusCode != HttpStatus.partialContent) {
+          throw Exception('Gagal mengunduh file APK (HTTP $statusCode)');
+        }
+
+        final isPartial = statusCode == HttpStatus.partialContent;
+        final headerContentLength = response.contentLength;
+
+        // Kalkulasi total byte efektif
+        final int effectiveTotalBytes;
+        if (isPartial) {
+          effectiveTotalBytes = expectedTotalBytes ??
+              (headerContentLength > 0
+                  ? existingBytes + headerContentLength
+                  : existingBytes);
+        } else {
+          // Server mengirim dari awal
+          effectiveTotalBytes = headerContentLength > 0
+              ? headerContentLength
+              : (expectedTotalBytes ?? 0);
+          existingBytes = 0;
+        }
+
+        sink = saveFile.openWrite(
+            mode: isPartial ? FileMode.append : FileMode.write);
+        int receivedBytes = existingBytes;
+
+        if (effectiveTotalBytes > 0) {
+          final initialProgress =
+              (receivedBytes / effectiveTotalBytes).clamp(0.0, 1.0);
+          onProgress(initialProgress, receivedBytes, effectiveTotalBytes);
+        }
+
+        await for (final chunk in response) {
+          sink.add(chunk);
+          receivedBytes += chunk.length;
+          if (effectiveTotalBytes > 0) {
+            final progress =
+                (receivedBytes / effectiveTotalBytes).clamp(0.0, 1.0);
+            onProgress(progress, receivedBytes, effectiveTotalBytes);
+          } else {
+            onProgress(-1.0, receivedBytes, 0);
           }
         }
-        response = res;
-        break;
-      }
 
-      if (response == null || response.statusCode != 200) {
-        throw Exception('Gagal mengunduh file APK (HTTP ${response?.statusCode ?? 0})');
-      }
+        await sink.flush();
+        await sink.close();
+        sink = null;
 
-      final headerContentLength = response.contentLength;
-      final effectiveTotalBytes = headerContentLength > 0
-          ? headerContentLength
-          : (expectedTotalBytes ?? 0);
+        return saveFile;
+      } catch (e) {
+        try {
+          await sink?.close();
+        } catch (_) {}
+        sink = null;
 
-      int receivedBytes = 0;
-      final sink = saveFile.openWrite();
-
-      await for (final chunk in response) {
-        sink.add(chunk);
-        receivedBytes += chunk.length;
-        if (effectiveTotalBytes > 0) {
-          final progress = (receivedBytes / effectiveTotalBytes).clamp(0.0, 1.0);
-          onProgress(progress, receivedBytes, effectiveTotalBytes);
-        } else {
-          onProgress(-1.0, receivedBytes, 0);
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          // Tunggu sebentar lalu coba sambung ulang (auto-retry)
+          await Future<void>.delayed(Duration(milliseconds: 1000 * retryCount));
+          continue;
         }
+
+        final sanitized = _sanitizeErrorMessage(
+          e.toString(),
+          existingBytes,
+          expectedTotalBytes,
+        );
+        throw Exception(sanitized);
+      } finally {
+        client.close();
       }
-
-      await sink.flush();
-      await sink.close();
-
-      return saveFile;
-    } finally {
-      client.close();
     }
+  }
+
+  /// Membersihkan pesan error unduhan dari string URL teknis AWS yang panjang
+  String _sanitizeErrorMessage(
+    String rawError,
+    int downloadedBytes,
+    int? totalBytes,
+  ) {
+    final downloadedMb = (downloadedBytes / (1024 * 1024)).toStringAsFixed(1);
+    final totalMb = (totalBytes != null && totalBytes > 0)
+        ? '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
+        : 'ukuran penuh';
+
+    if (rawError.contains('Connection closed') ||
+        rawError.contains('SocketException') ||
+        rawError.contains('ClientException') ||
+        rawError.contains('TimeoutException') ||
+        rawError.contains('HttpException')) {
+      return 'Koneksi terputus saat mengunduh ($downloadedMb MB tersimpan dari $totalMb). Anda dapat melanjutkan unduhan kapan saja.';
+    }
+
+    final clean = rawError.replaceAll(RegExp(r'\?[^ ]+'), '');
+    return clean.replaceFirst('Exception: ', '').trim();
   }
 
   /// Membuka file APK untuk instalasi melalui Android Package Installer
@@ -334,6 +507,57 @@ class UpdateService {
         'installApk',
         {'filePath': filePath},
       );
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Memeriksa apakah aplikasi memiliki izin memasang APK tidak dikenal (Android 8.0+)
+  Future<bool> canRequestPackageInstalls() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final result =
+          await _installerChannel.invokeMethod<bool>('canRequestPackageInstalls');
+      return result ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Membuka pengaturan sistem untuk mengaktifkan izin pemasangan APK
+  Future<bool> openInstallPermissionSettings() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _installerChannel
+          .invokeMethod<bool>('openInstallPermissionSettings');
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Menyalin file APK ke folder Download publik Android sebagai fallback
+  Future<String?> exportToPublicDownloads(
+      String filePath, String fileName) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final result = await _installerChannel.invokeMethod<String>(
+        'exportToPublicDownloads',
+        {'filePath': filePath, 'fileName': fileName},
+      );
+      return result;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Membuka aplikasi Pengelola File / Download Manager sistem Android
+  Future<bool> openDownloadsFolder() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result =
+          await _installerChannel.invokeMethod<bool>('openDownloadsFolder');
       return result ?? false;
     } catch (_) {
       return false;
@@ -367,8 +591,10 @@ class UpdateService {
         : currentSemver.length;
 
     for (int i = 0; i < maxLen; i++) {
-      final lNum = i < latestSemver.length ? int.tryParse(latestSemver[i]) ?? 0 : 0;
-      final cNum = i < currentSemver.length ? int.tryParse(currentSemver[i]) ?? 0 : 0;
+      final lNum =
+          i < latestSemver.length ? int.tryParse(latestSemver[i]) ?? 0 : 0;
+      final cNum =
+          i < currentSemver.length ? int.tryParse(currentSemver[i]) ?? 0 : 0;
 
       if (lNum > cNum) return true;
       if (lNum < cNum) return false;
@@ -383,4 +609,86 @@ class UpdateService {
 
     return false;
   }
+
+  /// Mem-parsing catatan rilis mentah menjadi daftar item terstruktur ramah pengguna
+  List<ReleaseNoteItem> parseReleaseNotes(String rawNotes) {
+    final cleanNotes = rawNotes.trim();
+    final items = <ReleaseNoteItem>[];
+
+    if (cleanNotes.isNotEmpty) {
+      final lines = cleanNotes.split('\n');
+      for (final rawLine in lines) {
+        var line = rawLine.trim();
+        if (line.isEmpty) continue;
+
+        // Bersihkan header markdown dan tautan teknis repositori
+        if (line.startsWith('#') ||
+            line.toLowerCase().contains('full changelog') ||
+            line.toLowerCase().contains('compare/')) {
+          continue;
+        }
+
+        // Hapus bullet markdown
+        if (line.startsWith('- ') || line.startsWith('* ')) {
+          line = line.substring(2).trim();
+        }
+
+        if (line.isEmpty) continue;
+
+        // Deteksi kategori release
+        final lower = line.toLowerCase();
+        ReleaseCategory category = ReleaseCategory.general;
+        if (lower.startsWith('fix:') || lower.startsWith('fix(')) {
+          category = ReleaseCategory.fix;
+        } else if (lower.startsWith('feat:') || lower.startsWith('feat(')) {
+          category = ReleaseCategory.feat;
+        } else if (lower.startsWith('perf:') || lower.startsWith('perf(')) {
+          category = ReleaseCategory.perf;
+        } else if (lower.startsWith('ui:') ||
+            lower.startsWith('ui(') ||
+            lower.startsWith('style:') ||
+            lower.startsWith('style(')) {
+          category = ReleaseCategory.ui;
+        } else if (lower.contains('bug') || lower.contains('perbaikan')) {
+          category = ReleaseCategory.fix;
+        } else if (lower.contains('fitur baru') ||
+            lower.contains('fitur') ||
+            lower.contains('penambahan')) {
+          category = ReleaseCategory.feat;
+        } else if (lower.contains('kecepatan') || lower.contains('optimasi')) {
+          category = ReleaseCategory.perf;
+        } else if (lower.contains('tampilan') || lower.contains('desain')) {
+          category = ReleaseCategory.ui;
+        }
+
+        // Buang prefix conventional commit seperti "feat(chat): "
+        line = line.replaceFirst(RegExp(r'^[a-zA-Z]+(\([^\)]+\))?:\s*'), '');
+
+        items.add(ReleaseNoteItem(category: category, text: line));
+      }
+    }
+
+    if (items.isEmpty) {
+      items.add(
+        const ReleaseNoteItem(
+          category: ReleaseCategory.general,
+          text: 'Pembaruan stabilitas, performa, dan penguatan privasi MEKAAR.',
+        ),
+      );
+    }
+
+    return items;
+  }
+}
+
+enum ReleaseCategory { fix, feat, perf, ui, general }
+
+class ReleaseNoteItem {
+  final ReleaseCategory category;
+  final String text;
+
+  const ReleaseNoteItem({
+    required this.category,
+    required this.text,
+  });
 }

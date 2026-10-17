@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../data/services/update_service.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/typography.dart';
+import '../providers/update_download_provider.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_bottom_sheet.dart';
+import 'mekaar_snackbar.dart';
 
-/// MekaarUpdateBottomSheet — Bottom sheet terpusat untuk notifikasi rilis versi terbaru
-class MekaarUpdateBottomSheet extends StatelessWidget {
-  final AppUpdateInfo info;
-  final VoidCallback? onUpdate;
-  final VoidCallback? onLater;
+/// MekaarUpdateBottomSheet — Rangkaian Bottom Sheet terpusat untuk alur in-app update MEKAAR:
+/// 1. Notifikasi rilis pembaruan baru
+/// 2. Progres pengunduhan live dengan jeda/resume & opsi minimalkan
+/// 3. Prompt instalasi paket APK atau fallback ke folder unduhan
+class MekaarUpdateBottomSheet {
+  MekaarUpdateBottomSheet._();
 
-  const MekaarUpdateBottomSheet({
-    super.key,
-    required this.info,
-    this.onUpdate,
-    this.onLater,
-  });
-
-  /// Menampilkan Bottom Sheet notifikasi pembaruan secara modal
+  /// 1. Menampilkan Bottom Sheet notifikasi ketersediaan versi baru
   static Future<void> show({
     required BuildContext context,
     required AppUpdateInfo info,
@@ -32,11 +31,15 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
     await MekaarBottomSheet.show<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => MekaarUpdateBottomSheet(
+      builder: (sheetContext) => _UpdateNotificationSheet(
         info: info,
         onUpdate: () {
           Navigator.pop(sheetContext);
-          onUpdate?.call();
+          if (onUpdate != null) {
+            onUpdate();
+          } else {
+            showProgressSheet(context: context, info: info);
+          }
         },
         onLater: () {
           Navigator.pop(sheetContext);
@@ -46,16 +49,62 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
     );
   }
 
+  /// 2. Menampilkan Bottom Sheet pemantauan progres unduhan APK
+  static Future<void> showProgressSheet({
+    required BuildContext context,
+    required AppUpdateInfo info,
+  }) async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    await MekaarBottomSheet.show<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => _UpdateProgressSheet(info: info),
+    );
+  }
+
+  /// 3. Menampilkan Bottom Sheet prompt pemasangan saat unduhan selesai
+  static Future<void> showInstallSheet({
+    required BuildContext context,
+    required AppUpdateInfo info,
+  }) async {
+    HapticService.trigger(MekaarHapticIntent.success);
+
+    await MekaarBottomSheet.show<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => _UpdateInstallPromptSheet(info: info),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sheet 1: Notifikasi Rilis Pembaruan
+// ─────────────────────────────────────────────────────────────
+class _UpdateNotificationSheet extends ConsumerWidget {
+  final AppUpdateInfo info;
+  final VoidCallback onUpdate;
+  final VoidCallback onLater;
+
+  const _UpdateNotificationSheet({
+    required this.info,
+    required this.onUpdate,
+    required this.onLater,
+  });
+
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = MekaarColors.isDarkContext(context);
     final accentColor = MekaarColors.accentOf(context);
+    final downloadState = ref.watch(updateDownloadProvider);
+    final isAlreadyDownloaded = downloadState.isCompleted &&
+        downloadState.info?.latestVersion == info.latestVersion;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Header Ikon & Judul ──
+        // Header Ikon & Judul
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -98,7 +147,7 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // ── Info Metadata Badges (Ukuran & Arsitektur) ──
+        // Badges Ukuran & Arsitektur
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -123,7 +172,7 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
         ),
         const SizedBox(height: 14),
 
-        // ── Catatan Rilis (Release Notes) ──
+        // Catatan Rilis Terstruktur
         Text(
           'Catatan Rilis:',
           style: MekaarTypography.caption.copyWith(
@@ -132,33 +181,10 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxHeight: 140),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: MekaarColors.surface2Of(context),
-            borderRadius: BorderRadius.circular(MekaarRadius.md),
-            border: Border.all(
-              color: MekaarColors.border.withValues(alpha: isDark ? 0.1 : 0.06),
-            ),
-          ),
-          child: SingleChildScrollView(
-            child: Text(
-              info.releaseNotes.isNotEmpty
-                  ? info.releaseNotes
-                  : 'Pembaruan stabilitas, performa, dan penguatan privasi sistem MEKAAR.',
-              style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textSecondaryOf(context),
-                height: 1.4,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
+        _buildReleaseNotesContainer(context, isDark: isDark),
         const SizedBox(height: 20),
 
-        // ── Tombol Aksi: Nanti & Perbarui ──
+        // Tombol Aksi
         Row(
           children: [
             Expanded(
@@ -185,7 +211,9 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
               flex: 3,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
+                  backgroundColor: isAlreadyDownloaded
+                      ? MekaarColors.successTextOf(context)
+                      : accentColor,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   elevation: 0,
@@ -193,13 +221,29 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(MekaarRadius.md),
                   ),
                 ),
-                onPressed: onUpdate,
-                icon: const Icon(SolarIconsBold.download, size: 18),
+                onPressed: () {
+                  if (isAlreadyDownloaded) {
+                    Navigator.pop(context);
+                    MekaarUpdateBottomSheet.showInstallSheet(
+                      context: context,
+                      info: info,
+                    );
+                  } else {
+                    onUpdate();
+                  }
+                },
+                icon: Icon(
+                  isAlreadyDownloaded
+                      ? SolarIconsBold.checkCircle
+                      : SolarIconsBold.download,
+                  size: 18,
+                  color: isAlreadyDownloaded ? Colors.white : Colors.black,
+                ),
                 label: Text(
-                  'Perbarui',
+                  isAlreadyDownloaded ? 'Pasang Sekarang' : 'Perbarui',
                   style: MekaarTypography.bodyMD.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: isAlreadyDownloaded ? Colors.white : Colors.black,
                   ),
                 ),
               ),
@@ -207,6 +251,74 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildReleaseNotesContainer(BuildContext context,
+      {required bool isDark}) {
+    final updateService = UpdateService();
+    final items = updateService.parseReleaseNotes(info.releaseNotes);
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 140),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: MekaarColors.surface2Of(context),
+        borderRadius: BorderRadius.circular(MekaarRadius.md),
+        border: Border.all(
+          color: MekaarColors.border.withValues(alpha: isDark ? 0.1 : 0.06),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: items.map((item) {
+            final Color dotColor;
+            switch (item.category) {
+              case ReleaseCategory.fix:
+                dotColor = MekaarColors.sosCoral;
+              case ReleaseCategory.feat:
+                dotColor = MekaarColors.successTextOf(context);
+              case ReleaseCategory.perf:
+                dotColor = MekaarColors.warning;
+              case ReleaseCategory.ui:
+                dotColor = MekaarColors.blue;
+              case ReleaseCategory.general:
+                dotColor = MekaarColors.textSecondaryOf(context);
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 5),
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.text,
+                      style: MekaarTypography.bodySM.copyWith(
+                        color: MekaarColors.textSecondaryOf(context),
+                        fontSize: 12.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
@@ -240,6 +352,517 @@ class MekaarUpdateBottomSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sheet 2: Progres Pengunduhan dengan Jeda/Lanjut & Minimalkan
+// ─────────────────────────────────────────────────────────────
+class _UpdateProgressSheet extends ConsumerStatefulWidget {
+  final AppUpdateInfo info;
+
+  const _UpdateProgressSheet({required this.info});
+
+  @override
+  ConsumerState<_UpdateProgressSheet> createState() =>
+      _UpdateProgressSheetState();
+}
+
+class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final downloadState = ref.read(updateDownloadProvider);
+      ref.read(updateDownloadProvider.notifier).maximize();
+      if (!downloadState.isDownloading && !downloadState.isCompleted) {
+        ref.read(updateDownloadProvider.notifier).startDownload(widget.info);
+      }
+    });
+  }
+
+  Future<void> _openFallbackBrowser() async {
+    final target = widget.info.downloadUrl.isNotEmpty
+        ? widget.info.downloadUrl
+        : widget.info.htmlUrl;
+    try {
+      final uri = Uri.parse(target);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Tidak dapat membuka browser.');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final downloadState = ref.watch(updateDownloadProvider);
+    final isDownloading = downloadState.isDownloading;
+    final isPaused = downloadState.isPaused;
+    final isCompleted = downloadState.isCompleted;
+    final errorMessage = downloadState.errorMessage;
+    final statusMessage = downloadState.statusMessage.isNotEmpty
+        ? downloadState.statusMessage
+        : 'Menghubungi server rilis...';
+
+    final receivedMb =
+        (downloadState.receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+    final effectiveTotal = downloadState.totalBytes > 0
+        ? downloadState.totalBytes
+        : widget.info.downloadSizeBytes;
+    final totalMb = effectiveTotal > 0
+        ? (effectiveTotal / (1024 * 1024)).toStringAsFixed(1)
+        : '?';
+
+    final accentColor = isCompleted
+        ? MekaarColors.successTextOf(context)
+        : (errorMessage != null
+            ? MekaarColors.sosCoral
+            : (isPaused
+                ? MekaarColors.warning
+                : MekaarColors.accentOf(context)));
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header dengan tombol Minimalkan
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                  ),
+                  child: Icon(
+                    isCompleted
+                        ? SolarIconsBold.checkCircle
+                        : (errorMessage != null
+                            ? SolarIconsBold.dangerCircle
+                            : (isPaused
+                                ? SolarIconsBold.pause
+                                : SolarIconsBold.cloudDownload)),
+                    color: accentColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isCompleted ? 'Unduhan Selesai' : 'Mengunduh MEKAAR',
+                      style: MekaarTypography.bodyMD.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
+                    ),
+                    Text(
+                      'Versi ${widget.info.latestVersion}',
+                      style: MekaarTypography.caption.copyWith(
+                        color: MekaarColors.textSecondaryOf(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            IconButton(
+              tooltip: 'Minimalkan',
+              icon: Icon(
+                SolarIconsOutline.closeSquare,
+                size: 22,
+                color: MekaarColors.textSecondaryOf(context),
+              ),
+              onPressed: () {
+                ref.read(updateDownloadProvider.notifier).minimize();
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Progress Bar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: downloadState.progress > 0 ? downloadState.progress : null,
+            backgroundColor: MekaarColors.surface2Of(context),
+            valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+            minHeight: 8,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Keterangan Status & Byte Count
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                statusMessage,
+                style: MekaarTypography.caption.copyWith(
+                  color: errorMessage != null
+                      ? MekaarColors.sosCoral
+                      : (isPaused
+                          ? MekaarColors.warning
+                          : MekaarColors.textSecondaryOf(context)),
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              '$receivedMb / $totalMb MB',
+              style: MekaarTypography.caption.copyWith(
+                color: accentColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+
+        // Error Banner jika ada
+        if (errorMessage != null) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: MekaarColors.sosRed.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  SolarIconsBold.dangerCircle,
+                  color: MekaarColors.sosRed,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    errorMessage,
+                    style: MekaarTypography.caption.copyWith(
+                      color: MekaarColors.sosRed,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 20),
+
+        // Tombol Aksi Kontrol (Jeda / Lanjutkan / Minimalkan / Pasang)
+        if (isCompleted) ...[
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MekaarColors.successTextOf(context),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await MekaarUpdateBottomSheet.showInstallSheet(
+                context: context,
+                info: widget.info,
+              );
+            },
+            icon: const Icon(SolarIconsBold.rocket2, size: 18),
+            label: const Text(
+              'Pasang Sekarang 🚀',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton(
+              onPressed: () {
+                ref.read(updateDownloadProvider.notifier).minimize();
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Simpan & Pasang Nanti',
+                style: MekaarTypography.caption.copyWith(
+                  color: MekaarColors.textSecondaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ] else if (errorMessage != null) ...[
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _openFallbackBrowser,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    ),
+                  ),
+                  child: const Text('Buka Browser'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MekaarColors.accentOf(context),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    ),
+                  ),
+                  onPressed: () => ref
+                      .read(updateDownloadProvider.notifier)
+                      .startDownload(widget.info),
+                  icon: const Icon(SolarIconsOutline.restart, size: 16),
+                  label: const Text(
+                    'Lanjutkan',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          Row(
+            children: [
+              // Tombol Jeda / Lanjutkan
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    if (isDownloading) {
+                      ref
+                          .read(updateDownloadProvider.notifier)
+                          .pauseDownload();
+                    } else if (isPaused) {
+                      ref
+                          .read(updateDownloadProvider.notifier)
+                          .startDownload(widget.info);
+                    }
+                  },
+                  icon: Icon(
+                    isPaused
+                        ? SolarIconsBold.play
+                        : SolarIconsBold.pause,
+                    size: 16,
+                  ),
+                  label: Text(isPaused ? 'Lanjutkan' : 'Jeda'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Tombol Minimalkan
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MekaarColors.accentOf(context),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    ),
+                  ),
+                  onPressed: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    ref.read(updateDownloadProvider.notifier).minimize();
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(SolarIconsOutline.minimize, size: 16),
+                  label: const Text(
+                    'Minimalkan',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sheet 3: Prompt Instalasi Paket APK & Cadangan Folder Unduhan
+// ─────────────────────────────────────────────────────────────
+class _UpdateInstallPromptSheet extends ConsumerWidget {
+  final AppUpdateInfo info;
+
+  const _UpdateInstallPromptSheet({required this.info});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final downloadState = ref.watch(updateDownloadProvider);
+    final hasExported = downloadState.publicExportPath != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: MekaarColors.successTextOf(context).withValues(alpha: 0.16),
+            border: Border.all(
+              color:
+                  MekaarColors.successTextOf(context).withValues(alpha: 0.40),
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Icon(
+              SolarIconsBold.rocket2,
+              color: MekaarColors.successTextOf(context),
+              size: 26,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Pembaruan Siap Dipasang! 🚀',
+          style: MekaarTypography.headingSM.copyWith(
+            fontWeight: FontWeight.bold,
+            color: MekaarColors.textPrimaryOf(context),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Versi ${info.latestVersion} telah berhasil diunduh dan siap diperbarui ke perangkat Anda.',
+          style: MekaarTypography.bodySM.copyWith(
+            color: MekaarColors.textSecondaryOf(context),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (hasExported) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  SolarIconsOutline.folder,
+                  size: 16,
+                  color: MekaarColors.blue,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Salinan tersimpan di folder Download: ${downloadState.publicExportPath}',
+                    style: MekaarTypography.caption.copyWith(
+                      color: MekaarColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+
+        // Tombol Pasang Sekarang
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.successTextOf(context),
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(46),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+            ),
+          ),
+          onPressed: () async {
+            HapticService.trigger(MekaarHapticIntent.success);
+            final result = await ref
+                .read(updateDownloadProvider.notifier)
+                .triggerInstall();
+
+            if (!context.mounted) return;
+
+            if (result == InstallResult.success) {
+              Navigator.pop(context);
+            } else if (result == InstallResult.permissionRequired) {
+              MekaarSnackbar.info(
+                context,
+                'Silakan izinkan pemasangan aplikasi dari sumber ini pada pengaturan perangkat.',
+              );
+            } else {
+              MekaarSnackbar.error(
+                context,
+                'Gagal membuka installer otomatis. Anda dapat membuka file dari folder Unduhan.',
+              );
+            }
+          },
+          icon: const Icon(SolarIconsBold.shieldCheck, size: 18),
+          label: const Text(
+            'Pasang Sekarang',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Opsi Buka Folder Unduhan (Cadangan)
+        if (hasExported)
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+            ),
+            onPressed: () async {
+              await ref
+                  .read(updateDownloadProvider.notifier)
+                  .openDownloadsFolder();
+            },
+            icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
+            label: const Text('Buka Folder Unduhan'),
+          ),
+
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Nanti Saja',
+            style: MekaarTypography.caption.copyWith(
+              color: MekaarColors.textSecondaryOf(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

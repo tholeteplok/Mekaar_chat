@@ -65,6 +65,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
   String? _currentCallId;
   RealtimeChannel? _statusChannel;
   Timer? _callTimeoutTimer;
+  Timer? _callingHandshakeTimer;
   Timer? _statusPollingTimer;
   Timer? _durationTimer;
   DateTime? _connectedAt;
@@ -110,37 +111,50 @@ class _CallScreenState extends ConsumerState<CallScreen>
   void _handleStatusChange(String? newStatus) {
     if (newStatus == null || _isEnding || _isDisposed) return;
     if (newStatus == 'declined') {
+      _callingHandshakeTimer?.cancel();
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
       _durationTimer?.cancel();
       _finishCall('Panggilan ditolak');
     } else if (newStatus == 'busy') {
+      _callingHandshakeTimer?.cancel();
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
       _durationTimer?.cancel();
       _finishCall('Pengguna sedang dalam panggilan lain');
     } else if (newStatus == 'ended') {
+      _callingHandshakeTimer?.cancel();
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
       _durationTimer?.cancel();
       _finishCall('Panggilan berakhir');
     } else if (newStatus == 'missed') {
+      _callingHandshakeTimer?.cancel();
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
       _durationTimer?.cancel();
       _finishCall('Tidak dijawab');
     } else if (newStatus == 'failed') {
+      _callingHandshakeTimer?.cancel();
       _callTimeoutTimer?.cancel();
       _statusPollingTimer?.cancel();
       _durationTimer?.cancel();
       _finishCall('Koneksi panggilan gagal');
+    } else if (newStatus == 'calling') {
+      if (widget.isCaller && mounted && !_isConnected) {
+        setState(() {
+          _callStatus = 'Memanggil...';
+        });
+      }
     } else if (newStatus == 'ringing') {
+      _callingHandshakeTimer?.cancel();
       if (widget.isCaller && mounted && !_isConnected) {
         setState(() {
           _callStatus = 'Berdering...';
         });
       }
     } else if (newStatus == 'answered') {
+      _callingHandshakeTimer?.cancel();
       // Reset timeout: cancel timer lama 30 detik, mulai timer koneksi ICE 25 detik
       // agar ada cukup waktu untuk negosiasi SDP + ICE gathering setelah dijawab.
       _callTimeoutTimer?.cancel();
@@ -210,6 +224,25 @@ class _CallScreenState extends ConsumerState<CallScreen>
     });
   }
 
+  /// Timer handshake calling: jika penerima belum mengirimkan sinyal berdering (ACK)
+  /// dalam 15 detik, akhiri panggilan dengan status 'Penerima tidak dapat dihubungi'.
+  void _startCallingHandshakeTimer() {
+    _callingHandshakeTimer?.cancel();
+    if (!widget.isCaller) return;
+    _callingHandshakeTimer = Timer(const Duration(seconds: 15), () async {
+      if (!_isConnected && !_isEnding && !_isDisposed && _callStatus == 'Memanggil...') {
+        if (_currentCallId != null) {
+          try {
+            await ref
+                .read(callRepositoryProvider)
+                .updateCallStatus(_currentCallId!, 'missed');
+          } catch (_) {}
+        }
+        _finishCall('Penerima tidak dapat dihubungi');
+      }
+    });
+  }
+
   void _startCallTimeoutTimer() {
     _callTimeoutTimer?.cancel();
     _callTimeoutTimer = Timer(const Duration(seconds: 30), () async {
@@ -224,6 +257,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
         _finishCall('Tidak dijawab');
       }
     });
+    if (widget.isCaller) {
+      _startCallingHandshakeTimer();
+    }
   }
 
   /// Timer koneksi ICE — dimulai setelah panggilan dijawab.
@@ -322,7 +358,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       if (mounted) {
         setState(() {
           _mediaReady = true;
-          _callStatus = 'Menghubungkan...';
+          _callStatus = widget.isCaller ? 'Memanggil...' : 'Menghubungkan...';
           _statusIsError = false;
         });
       }
@@ -475,7 +511,10 @@ class _CallScreenState extends ConsumerState<CallScreen>
         }
       });
       final normalizedState = state.toLowerCase();
-      if (normalizedState == 'connected') {
+      if (normalizedState == 'ringing') {
+        _callingHandshakeTimer?.cancel();
+      } else if (normalizedState == 'connected') {
+        _callingHandshakeTimer?.cancel();
         _connectedAt ??= DateTime.now();
         _callTimeoutTimer?.cancel();
         _startDurationTimer();
@@ -613,6 +652,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
     _isEnding = true;
+    _callingHandshakeTimer?.cancel();
     _callTimeoutTimer?.cancel();
     _durationTimer?.cancel();
     if (_currentCallId != null) {
@@ -659,6 +699,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
     _isEnding = true;
+    _callingHandshakeTimer?.cancel();
     _callTimeoutTimer?.cancel();
     _durationTimer?.cancel();
     _cleanUp();
@@ -690,6 +731,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
     _isCleanedUp = true;
+    _callingHandshakeTimer?.cancel();
     _callTimeoutTimer?.cancel();
     _statusPollingTimer?.cancel();
     _durationTimer?.cancel();

@@ -11,10 +11,9 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
-import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mekaar_update_dialog.dart';
+import '../../../core/widgets/mekaar_update_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_crypto_donation_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
 import '../../../data/services/update_service.dart';
@@ -85,47 +84,9 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
   }
 
   void _showUpdateDialog(AppUpdateInfo info) {
-    final sizeText = info.formattedSize.isNotEmpty
-        ? '\nUkuran Paket: ${info.formattedSize}'
-        : '';
-    final abiText =
-        info.matchedAbi != 'universal' ? ' (${info.matchedAbi})' : '';
-
-    MekaarDialog.showConfirmation<void>(
-      context: context,
-      title: 'Pembaruan Tersedia 🚀',
-      message:
-          'Versi baru ${info.latestVersion}$abiText telah tersedia!$sizeText\n\n${info.releaseName}\n\nCatatan Rilis:\n${info.releaseNotes}',
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Nanti'),
-        ),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: MekaarColors.accentOf(context),
-            foregroundColor: MekaarColors.textOnBlue,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-            _startInAppUpdate(info);
-          },
-          icon: const Icon(SolarIconsOutline.download, size: 16),
-          label: Text(
-            info.formattedSize.isNotEmpty
-                ? 'Unduh (${info.formattedSize.split('·').first.trim()})'
-                : 'Unduh Sekarang',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _startInAppUpdate(AppUpdateInfo info) async {
-    await showInAppUpdateDialog(
+    MekaarUpdateBottomSheet.show(
       context: context,
       info: info,
-      onOpenUrl: _openUrl,
     );
   }
 

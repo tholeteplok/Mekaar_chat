@@ -54,12 +54,13 @@ class CallInvitationListener {
       return; // Abaikan jika kita bukan penerima panggilan ini
     }
 
+    final isValidStatus = status == 'calling' || status == 'ringing';
     if (callId == null ||
         roomId == null ||
         callerId == null ||
-        status != 'ringing') {
+        !isValidStatus) {
       _log.w(
-        '[CALL_INVITE] Diabaikan: payload tidak valid atau status bukan ringing '
+        '[CALL_INVITE] Diabaikan: payload tidak valid atau status bukan calling/ringing '
         '(callId=$callId, roomId=$roomId, callerId=$callerId, status=$status)',
       );
       return;

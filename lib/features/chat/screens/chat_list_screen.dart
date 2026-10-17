@@ -19,7 +19,6 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
-import '../../../core/widgets/mekaar_live_safety_pill.dart';
 import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
@@ -56,7 +55,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   bool _isSearchActive = false;
   late final TextEditingController _searchController;
   int _selectedTabIndex = 0;
-  final List<String> _tabs = ['Semua', 'Guardian', 'Arsip'];
+  final List<String> _tabs = ['Pesan', 'Guardian', 'Arsip'];
   String get _selectedTab => _tabs[_selectedTabIndex];
 
   // Cache memoization untuk filter room
@@ -693,7 +692,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             child: Column(
           children: [
             MekaarTabHeader(
-              title: 'Pesan',
+              title: 'Mekaar',
               isSearchActive: _isSearchActive,
               searchController: _searchController,
               onSearchChanged: (value) {
@@ -716,42 +715,46 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               },
               action: wasDuress
                   ? null
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MekaarLiveSafetyPill(
-                          activeGuardiansCount:
-                              activeGuardiansOf(ref.watch(guardianProvider))
-                                  .length,
-                          isE2eeActive: true,
-                          onTap: () =>
-                              Navigator.pushNamed(context, AppRoutes.guardian),
-                        ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          icon: MekaarNotificationDot(
-                            show: ref.watch(hasPendingIncomingGuardiansProvider),
-                            color: MekaarColors.warnAmber,
-                            offset: const Offset(0, -2),
-                            child: const Icon(
-                              SolarIconsOutline.shieldUser,
-                              color: MekaarColors.guardianTeal,
+                  : Consumer(
+                      builder: (context, ref, _) {
+                        final activeGuardians =
+                            activeGuardiansOf(ref.watch(guardianProvider));
+                        final hasPending =
+                            ref.watch(hasPendingIncomingGuardiansProvider);
+                        final activeCount = activeGuardians.length;
+
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: MekaarNotificationDot(
+                                badgeCount: activeCount > 0 ? activeCount : null,
+                                badgeColor: MekaarColors.primaryOf(context),
+                                show: hasPending,
+                                showDot: hasPending,
+                                color: MekaarColors.warnAmber,
+                                offset: const Offset(0, -2),
+                                child: const Icon(
+                                  SolarIconsOutline.shieldUser,
+                                  color: MekaarColors.guardianTeal,
+                                ),
+                              ),
+                              tooltip: 'Guardian Saya',
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, AppRoutes.guardian),
                             ),
-                          ),
-                          tooltip: 'Guardian Saya',
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.guardian),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            SolarIconsOutline.magnifier,
-                            color: MekaarColors.primaryOf(context),
-                          ),
-                          tooltip: 'Cari Chat',
-                          onPressed: () =>
-                              setState(() => _isSearchActive = true),
-                        ),
-                      ],
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.magnifier,
+                                color: MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: 'Cari Chat',
+                              onPressed: () =>
+                                  setState(() => _isSearchActive = true),
+                            ),
+                          ],
+                        );
+                      },
                     ),
             ),
             // Banner Private Vault Aktif (jika vault sedang terbuka)
@@ -961,7 +964,51 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     if (isCacheValid) {
       filtered = _cachedFiltered!;
     } else {
-      filtered = rooms.where((room) {
+      // 1. Unifikasi 1 Kontak = 1 Percakapan untuk direct chats (mencegah duplikasi entri seperti Thole normal vs guardian)
+      final Map<String, Map<String, dynamic>> unifiedByOtherUser = {};
+      final List<Map<String, dynamic>> nonDirectRooms = [];
+
+      for (final room in rooms) {
+        final otherUserId = room['otherUserId'] as String?;
+        final isGroup = room['isGroup'] as bool? ?? false;
+
+        if (isGroup || otherUserId == null || otherUserId.isEmpty) {
+          nonDirectRooms.add(room);
+        } else {
+          if (!unifiedByOtherUser.containsKey(otherUserId)) {
+            unifiedByOtherUser[otherUserId] = Map<String, dynamic>.from(room);
+          } else {
+            final existing = unifiedByOtherUser[otherUserId]!;
+            final existingTime = DateTime.tryParse(existing['timestamp'] as String? ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            final roomTime = DateTime.tryParse(room['timestamp'] as String? ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+
+            // Prioritaskan room dengan pesan & aktivitas paling mutakhir
+            final dominantRoom = roomTime.isAfter(existingTime) ? room : existing;
+            final isGuardian = (existing['isGuardian'] == true) || (room['isGuardian'] == true);
+            final totalUnread = (existing['unreadCount'] as int? ?? 0) + (room['unreadCount'] as int? ?? 0);
+            final isArchived = (existing['isArchived'] == true) && (room['isArchived'] == true);
+
+            final merged = Map<String, dynamic>.from(dominantRoom);
+            merged['isGuardian'] = isGuardian;
+            merged['unreadCount'] = totalUnread;
+            merged['isArchived'] = isArchived;
+            unifiedByOtherUser[otherUserId] = merged;
+          }
+        }
+      }
+
+      final unifiedRooms = [...unifiedByOtherUser.values, ...nonDirectRooms];
+      unifiedRooms.sort((a, b) {
+        final tA = DateTime.tryParse(a['timestamp'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final tB = DateTime.tryParse(b['timestamp'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        return tB.compareTo(tA);
+      });
+
+      filtered = unifiedRooms.where((room) {
         final roomId = room['id'] as String;
         final name = room['name'] as String;
         final username = room['otherUsername'] as String? ?? '';
@@ -987,12 +1034,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         if (!matchQuery) return false;
 
         if (_selectedTab == 'Guardian') {
-          return room['isGuardian'] as bool;
+          return (room['isGuardian'] as bool? ?? false) && !(room['isArchived'] as bool? ?? false);
         }
         if (_selectedTab == 'Arsip') {
           return room['isArchived'] as bool? ?? false;
         }
-        // Tab 'Semua' / 'All': exclude archived
+        // Tab 'Pesan' (inbox utama): tampilkan semua obrolan aktif yang tidak diarsipkan
         final isArchived = room['isArchived'] as bool? ?? false;
         return !isArchived;
       }).toList();
