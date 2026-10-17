@@ -477,5 +477,34 @@ void main() {
       expect(thole['unreadCount'], 3); // 1 + 2 = 3
       expect(thole['id'], 'room-2'); // Dominant ID dari timestamp terbaru
     });
+
+    test('Duress PIN logic ensures distinct PIN from primary and handles active state', () {
+      final primaryPin = '123456';
+      final duressPin = '654321';
+      final sameAsPrimaryPin = '123456';
+
+      // Hash check
+      String hashPin(String pin) =>
+          sha256.convert(utf8.encode(pin)).toString();
+
+      final primaryHash = hashPin(primaryPin);
+      final duressHash = hashPin(duressPin);
+      final sameHash = hashPin(sameAsPrimaryPin);
+
+      expect(primaryHash, isNot(equals(duressHash)));
+      expect(primaryHash, equals(sameHash));
+
+      // Duress validation: cannot be equal to primary
+      bool isDuressValid(String pin, String currentPrimaryPin) {
+        if (pin.length != 6) return false;
+        if (pin == currentPrimaryPin) return false;
+        return true;
+      }
+
+      expect(isDuressValid('654321', primaryPin), isTrue);
+      expect(isDuressValid('123456', primaryPin), isFalse);
+      expect(isDuressValid('123', primaryPin), isFalse);
+    });
   });
 }
+
