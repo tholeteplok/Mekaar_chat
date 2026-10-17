@@ -112,6 +112,14 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
 
     if (isAlreadyComplete) {
       final file = await _updateService.getUpdateFile(targetVersion);
+      String? publicExportPath = state.publicExportPath;
+      if (publicExportPath == null) {
+        try {
+          final fileName = 'Mekaar-v$targetVersion.apk';
+          publicExportPath =
+              await _updateService.exportToPublicDownloads(file.path, fileName);
+        } catch (_) {}
+      }
       state = state.copyWith(
         status: UpdateDownloadStatus.completed,
         info: updateInfo,
@@ -119,6 +127,7 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
         receivedBytes: expectedBytes > 0 ? expectedBytes : await file.length(),
         totalBytes: expectedBytes > 0 ? expectedBytes : await file.length(),
         downloadedFilePath: file.path,
+        publicExportPath: publicExportPath,
         statusMessage: 'Pembaruan siap dipasang',
         errorMessage: null,
       );
@@ -175,10 +184,21 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
         },
       );
 
+      String? publicExportPath = state.publicExportPath;
+      if (publicExportPath == null) {
+        try {
+          final ver = targetVersion;
+          final fileName = 'Mekaar-v$ver.apk';
+          publicExportPath =
+              await _updateService.exportToPublicDownloads(file.path, fileName);
+        } catch (_) {}
+      }
+
       state = state.copyWith(
         status: UpdateDownloadStatus.completed,
         progress: 1.0,
         downloadedFilePath: file.path,
+        publicExportPath: publicExportPath,
         statusMessage: 'Pembaruan siap dipasang',
         errorMessage: null,
       );
@@ -238,6 +258,17 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
     final file = File(path);
     if (!await file.exists()) return InstallResult.failed;
 
+    // Pastikan salinan publik ada di folder Download untuk akses manual pengguna
+    if (state.publicExportPath == null) {
+      final ver = state.info?.latestVersion ?? 'update';
+      final fileName = 'Mekaar-v$ver.apk';
+      final publicPath =
+          await _updateService.exportToPublicDownloads(path, fileName);
+      if (publicPath != null) {
+        state = state.copyWith(publicExportPath: publicPath);
+      }
+    }
+
     // Periksa izin instalasi aplikasi tidak dikenal
     final canInstall = await _updateService.canRequestPackageInstalls();
     if (!canInstall) {
@@ -251,15 +282,6 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
       return InstallResult.success;
     }
 
-    // Jika installer native gagal dibuka (misal restriksi vendor/OEM sistem),
-    // ekspor APK ke folder Download publik sebagai fallback cadangan
-    final ver = state.info?.latestVersion ?? 'update';
-    final fileName = 'Mekaar-v$ver.apk';
-    final publicPath =
-        await _updateService.exportToPublicDownloads(path, fileName);
-    if (publicPath != null) {
-      state = state.copyWith(publicExportPath: publicPath);
-    }
     return InstallResult.failed;
   }
 

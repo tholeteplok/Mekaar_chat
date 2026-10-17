@@ -248,40 +248,76 @@ class UpdateService {
     }
   }
 
-  /// Mendapatkan referensi File APK pembaruan di penyimpanan persisten aplikasi (/updates/)
-  Future<File> getUpdateFile(String version) async {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final updateDir = Directory('${docsDir.path}/updates');
+  /// Mendapatkan direktori penyimpanan berkas APK pembaruan
+  Future<Directory> _getUpdateDir() async {
+    Directory baseDir;
+    try {
+      baseDir = await getApplicationSupportDirectory();
+    } catch (_) {
+      baseDir = await getApplicationDocumentsDirectory();
+    }
+    final updateDir = Directory('${baseDir.path}/updates');
     if (!await updateDir.exists()) {
       await updateDir.create(recursive: true);
     }
+    return updateDir;
+  }
+
+  /// Mendapatkan referensi File APK pembaruan di penyimpanan persisten aplikasi (/updates/)
+  Future<File> getUpdateFile(String version) async {
     final sanitizedVer =
         _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    return File('${updateDir.path}/Mekaar-$sanitizedVer.apk');
+    final fileName = 'Mekaar-$sanitizedVer.apk';
+
+    final updateDir = await _getUpdateDir();
+    final primaryFile = File('${updateDir.path}/$fileName');
+    if (await primaryFile.exists()) {
+      return primaryFile;
+    }
+
+    // Periksa lokasi documents legacy jika berkas sudah ada sebelumnya
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final legacyFile = File('${docsDir.path}/updates/$fileName');
+      if (await legacyFile.exists()) {
+        return legacyFile;
+      }
+    } catch (_) {}
+
+    return primaryFile;
   }
 
   /// Membersihkan berkas APK versi lama di penyimpanan lokal
   Future<void> cleanupOldApkFiles(String currentKeepVersion) async {
-    try {
-      final docsDir = await getApplicationDocumentsDirectory();
-      final updateDir = Directory('${docsDir.path}/updates');
-      if (!await updateDir.exists()) return;
+    final sanitizedCurrent = _sanitizeVersion(currentKeepVersion)
+        .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    final currentFileName = 'Mekaar-$sanitizedCurrent.apk';
 
-      final sanitizedCurrent = _sanitizeVersion(currentKeepVersion)
-          .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-      final currentFileName = 'Mekaar-$sanitizedCurrent.apk';
-
-      final entities = updateDir.listSync();
-      for (final entity in entities) {
-        if (entity is File && entity.path.endsWith('.apk')) {
-          final fileName = entity.uri.pathSegments.last;
-          if (fileName != currentFileName) {
-            try {
-              entity.deleteSync();
-            } catch (_) {}
+    void cleanInDir(Directory dir) {
+      if (!dir.existsSync()) return;
+      try {
+        final entities = dir.listSync();
+        for (final entity in entities) {
+          if (entity is File && entity.path.endsWith('.apk')) {
+            final fileName = entity.uri.pathSegments.last;
+            if (fileName != currentFileName) {
+              try {
+                entity.deleteSync();
+              } catch (_) {}
+            }
           }
         }
-      }
+      } catch (_) {}
+    }
+
+    try {
+      final dir = await _getUpdateDir();
+      cleanInDir(dir);
+    } catch (_) {}
+
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      cleanInDir(Directory('${docsDir.path}/updates'));
     } catch (_) {}
   }
 

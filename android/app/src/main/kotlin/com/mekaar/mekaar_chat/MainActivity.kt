@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
+import android.util.Log
 import android.view.WindowManager
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -20,6 +21,7 @@ import java.io.FileInputStream
 
 class MainActivity : FlutterActivity() {
     private companion object {
+        const val TAG = "MainActivity"
         const val SECURITY_CHANNEL = "com.mekaar.mekaar_chat/security"
         const val INSTALLER_CHANNEL = "com.mekaar.mekaar_chat/installer"
         const val CAPTURE_CHANNEL = "com.mekaar.mekaar_chat/screen_capture"
@@ -117,11 +119,25 @@ class MainActivity : FlutterActivity() {
                 return
             }
 
-            val apkUri = FileProvider.getUriForFile(
-                applicationContext,
-                "${applicationContext.packageName}.fileprovider",
-                file
-            )
+            // Dapatkan URI file dari FileProvider dengan fallback otomatis ke cacheDir
+            val apkUri = try {
+                FileProvider.getUriForFile(
+                    applicationContext,
+                    "${applicationContext.packageName}.fileprovider",
+                    file
+                )
+            } catch (e: Exception) {
+                // Fallback: Jika path awal tidak terdaftar di FileProvider, salin ke cacheDir internal yang terdaftar di <cache-path>
+                val cacheDirUpdates = File(applicationContext.cacheDir, "updates")
+                if (!cacheDirUpdates.exists()) cacheDirUpdates.mkdirs()
+                val targetFile = File(cacheDirUpdates, file.name)
+                file.copyTo(targetFile, overwrite = true)
+                FileProvider.getUriForFile(
+                    applicationContext,
+                    "${applicationContext.packageName}.fileprovider",
+                    targetFile
+                )
+            }
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
@@ -129,15 +145,30 @@ class MainActivity : FlutterActivity() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
-            val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            // Berikan grantUriPermission eksplisit ke semua paket yang dapat menangani intent
+            val resInfoList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.queryIntentActivities(
+                    intent,
+                    PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong())
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            }
+
             for (resolveInfo in resInfoList) {
-                grantUriPermission(resolveInfo.activityInfo.packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                grantUriPermission(
+                    resolveInfo.activityInfo.packageName,
+                    apkUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
             }
 
             startActivity(intent)
             result.success(true)
         } catch (e: Exception) {
-            result.error("INSTALL_ERROR", e.message, null)
+            Log.e(TAG, "Gagal memasang APK dari $filePath", e)
+            result.error("INSTALL_ERROR", e.message ?: "Gagal menjalankan installer APK", null)
         }
     }
 

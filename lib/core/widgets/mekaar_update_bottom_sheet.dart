@@ -562,7 +562,7 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
 
         const SizedBox(height: 20),
 
-        // Tombol Aksi Kontrol (Jeda / Lanjutkan / Minimalkan / Pasang)
+        // Tombol Aksi Kontrol (Jeda / Lanjutkan / Minimalkan / Pasang / Buka Folder)
         if (isCompleted) ...[
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -574,11 +574,26 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
               ),
             ),
             onPressed: () async {
-              Navigator.pop(context);
-              await MekaarUpdateBottomSheet.showInstallSheet(
-                context: context,
-                info: widget.info,
-              );
+              HapticService.trigger(MekaarHapticIntent.success);
+              final result = await ref
+                  .read(updateDownloadProvider.notifier)
+                  .triggerInstall();
+
+              if (!context.mounted) return;
+
+              if (result == InstallResult.success) {
+                Navigator.pop(context);
+              } else if (result == InstallResult.permissionRequired) {
+                MekaarSnackbar.info(
+                  context,
+                  'Silakan izinkan pemasangan aplikasi dari sumber ini pada pengaturan perangkat.',
+                );
+              } else {
+                MekaarSnackbar.error(
+                  context,
+                  'Gagal membuka installer otomatis. Anda dapat membuka file dari folder Unduhan.',
+                );
+              }
             },
             icon: const Icon(SolarIconsBold.rocket2, size: 18),
             label: const Text(
@@ -587,6 +602,23 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
             ),
           ),
           const SizedBox(height: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+            ),
+            onPressed: () async {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              await ref
+                  .read(updateDownloadProvider.notifier)
+                  .openDownloadsFolder();
+            },
+            icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
+            label: const Text('Buka Folder Unduhan'),
+          ),
+          const SizedBox(height: 4),
           Center(
             child: TextButton(
               onPressed: () {
@@ -834,23 +866,23 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
 
-        // Opsi Buka Folder Unduhan (Cadangan)
-        if (hasExported)
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MekaarRadius.md),
-              ),
+        // Opsi Buka Folder Unduhan (Cadangan & Akses Manual)
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
             ),
-            onPressed: () async {
-              await ref
-                  .read(updateDownloadProvider.notifier)
-                  .openDownloadsFolder();
-            },
-            icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
-            label: const Text('Buka Folder Unduhan'),
           ),
+          onPressed: () async {
+            HapticService.trigger(MekaarHapticIntent.selection);
+            await ref
+                .read(updateDownloadProvider.notifier)
+                .openDownloadsFolder();
+          },
+          icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
+          label: const Text('Buka Folder Unduhan'),
+        ),
 
         TextButton(
           onPressed: () => Navigator.pop(context),
