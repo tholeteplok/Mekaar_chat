@@ -82,6 +82,17 @@ class MekaarValidators {
   }
 
   // ─────────────────────────────────────────
+  // UUID
+  // ─────────────────────────────────────────
+  static bool isValidUuid(String? value) {
+    if (value == null || value.trim().isEmpty || value == 'undefined' || value == 'null') {
+      return false;
+    }
+    final uuidRegex = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+    return uuidRegex.hasMatch(value.trim());
+  }
+
+  // ─────────────────────────────────────────
   // Required (generik)
   // ─────────────────────────────────────────
   static String? required(String? value, {String fieldName = 'Field ini'}) {

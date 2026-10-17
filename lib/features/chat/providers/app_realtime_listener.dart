@@ -108,11 +108,32 @@ class AppRealtimeListener {
           ),
           callback: passwordListener.handleProfileUpdated,
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            _log.i(
+              '[REALTIME][app_events_$userId] Status: SUBSCRIBED '
+              '(messages, calls, sos_sessions, profiles aktif).',
+            );
+          } else if (status == RealtimeSubscribeStatus.channelError) {
+            _log.e(
+              '[REALTIME][app_events_$userId] Status: CHANNEL_ERROR! '
+              'Gagal berlangganan channel: $error',
+            );
+          } else if (status == RealtimeSubscribeStatus.timedOut) {
+            _log.w(
+              '[REALTIME][app_events_$userId] Status: TIMED_OUT! '
+              'Timeout saat berlangganan channel: $error',
+            );
+          } else if (status == RealtimeSubscribeStatus.closed) {
+            _log.w('[REALTIME][app_events_$userId] Status: CLOSED (channel ditutup).');
+          } else {
+            _log.i('[REALTIME][app_events_$userId] Status: $status, error: $error');
+          }
+        });
 
     _log.i(
-      'AppRealtimeListener: channel global aktif '
-      '(messages, calls, sos_sessions, profiles).',
+      'AppRealtimeListener: mendaftarkan subscription channel global public:app_events_$userId '
+      '(menunggu konfirmasi websocket)...',
     );
   }
 

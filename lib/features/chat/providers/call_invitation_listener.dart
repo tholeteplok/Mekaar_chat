@@ -36,30 +36,61 @@ class CallInvitationListener {
     final status = newRow['status'] as String?;
 
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
-    if (currentUserId == null || receiverId != currentUserId) {
-      return; // Abaikan jika kita bukan penerima panggilan ini
-    }
+    _log.i(
+      '[CALL_INVITE] Menerima event INSERT calls: '
+      'callId=$callId, callerId=$callerId, receiverId=$receiverId, '
+      'status=$status, currentUserId=$currentUserId',
+    );
 
-    if (callId == null || roomId == null || callerId == null || status != 'ringing') {
+    if (currentUserId == null) {
+      _log.w('[CALL_INVITE] Diabaikan: currentUserId adalah null');
       return;
     }
 
-    _log.i('🔔 CallInvitationListener: Menerima panggilan masuk baru $callId dari $callerId');
+    if (receiverId != currentUserId) {
+      _log.d(
+        '[CALL_INVITE] Diabaikan: receiverId ($receiverId) != currentUserId ($currentUserId)',
+      );
+      return; // Abaikan jika kita bukan penerima panggilan ini
+    }
+
+    if (callId == null ||
+        roomId == null ||
+        callerId == null ||
+        status != 'ringing') {
+      _log.w(
+        '[CALL_INVITE] Diabaikan: payload tidak valid atau status bukan ringing '
+        '(callId=$callId, roomId=$roomId, callerId=$callerId, status=$status)',
+      );
+      return;
+    }
+
+    _log.i(
+      '🔔 [CALL_INVITE] Validasi lolos: Memproses panggilan masuk $callId dari $callerId',
+    );
 
     // Call Collision Guard: Jika user sedang aktif dalam panggilan lain, otomatis tolak dengan status 'busy'
     final activeCallId = _ref.read(activeCallIdProvider);
     if (activeCallId != null && activeCallId != callId) {
-      _log.w('User sedang sibuk dalam panggilan $activeCallId. Menolak panggilan masuk $callId (busy).');
+      _log.w(
+        '[CALL_INVITE] User sedang sibuk dalam panggilan $activeCallId. '
+        'Menolak panggilan masuk $callId (busy).',
+      );
       try {
         await _ref.read(callRepositoryProvider).updateCallStatus(callId, 'busy');
       } catch (e) {
-        _log.e('Gagal memperbarui status panggilan ke busy: $e');
+        _log.e('[CALL_INVITE] Gagal memperbarui status panggilan ke busy: $e');
       }
       return;
     }
 
     // Dedup: cek apakah sudah dinotifikasi dari jalur FCM
-    if (NotificationDedupService.isDuplicate('call_$callId')) return;
+    if (NotificationDedupService.isDuplicate('call_$callId')) {
+      _log.w(
+        '[CALL_INVITE] Diabaikan: Panggilan $callId sudah pernah diproses (dedup match).',
+      );
+      return;
+    }
     NotificationDedupService.markNotified('call_$callId');
 
     final repo = _ref.read(chatRepositoryProvider);
@@ -76,22 +107,13 @@ class CallInvitationListener {
                 'Seseorang';
         callerAvatarUrl = profile['avatar_url'] as String?;
       }
-    } catch (_) {}
+    } catch (e) {
+      _log.w('[CALL_INVITE] Gagal memuat profil pemanggil ($callerId): $e');
+    }
 
-    // Bunyikan ringtone
-    await NotificationService.showIncomingCallNotification(
-      callerName: callerName,
-      callType: callType,
-      roomId: roomId,
-      callId: callId,
-      callerId: callerId,
-      callerAvatarUrl: callerAvatarUrl,
-    );
-
-    // Buka layar panggilan masuk jika context tersedia
-    final context = AppNavigator.currentContext;
-    if (context != null && context.mounted) {
-      Navigator.of(context).push(
+    // 1. Tampilkan layar panggilan masuk langsung ke UI (decoupling dari notifikasi/audio)
+    void navigateToIncomingScreen(BuildContext ctx) {
+      Navigator.of(ctx).push(
         // PENGECAHAN TRANSISI: layar panggilan masuk sengaja memakai
         // MaterialPageRoute (platform-feel ala dialer OS).
         MaterialPageRoute(
@@ -106,6 +128,42 @@ class CallInvitationListener {
         ),
       );
     }
+
+    final context = AppNavigator.currentContext;
+    if (context != null && context.mounted) {
+      _log.i('[CALL_INVITE] Membuka IncomingCallScreen untuk callId=$callId');
+      navigateToIncomingScreen(context);
+    } else {
+      _log.w(
+        '[CALL_INVITE] PERINGATAN: AppNavigator.currentContext bernilai null atau unmounted! '
+        'Mencoba via addPostFrameCallback...',
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final retryContext = AppNavigator.currentContext;
+        if (retryContext != null && retryContext.mounted) {
+          _log.i(
+            '[CALL_INVITE] Membuka IncomingCallScreen (via post-frame retry) untuk callId=$callId',
+          );
+          navigateToIncomingScreen(retryContext);
+        } else {
+          _log.e(
+            '[CALL_INVITE] GAGAL TOTAL: Tidak ada context aktif untuk membuka IncomingCallScreen',
+          );
+        }
+      });
+    }
+
+    // 2. Bunyikan ringtone & tampilkan notifikasi secara terpisah (non-blocking agar kegagalan audio/notifikasi tidak membatalkan UI panggilan)
+    NotificationService.showIncomingCallNotification(
+      callerName: callerName,
+      callType: callType,
+      roomId: roomId,
+      callId: callId,
+      callerId: callerId,
+      callerAvatarUrl: callerAvatarUrl,
+    ).catchError((e) {
+      _log.e('[CALL_INVITE] Gagal menyalakan notifikasi/ringtone panggilan masuk: $e');
+    });
   }
 
   void dispose() {

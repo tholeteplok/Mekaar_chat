@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/validators.dart';
 
 class SupabaseService {
   static bool isInitialized = false;
@@ -33,5 +34,13 @@ class SupabaseService {
     return client.auth.currentUser;
   }
 
-  String? get currentUserId => currentUser?.id;
+  /// ID pengguna aktif saat ini.
+  /// Mengembalikan `null` jika pengguna belum login atau jika ID bernilai cacat (misal 'undefined').
+  String? get currentUserId {
+    final id = currentUser?.id;
+    if (id == null || !MekaarValidators.isValidUuid(id)) {
+      return null;
+    }
+    return id;
+  }
 }
