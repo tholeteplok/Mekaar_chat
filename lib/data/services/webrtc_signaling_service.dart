@@ -454,6 +454,7 @@ class WebRtcSignalingService {
   }
 
   void _handleConnectionState(RTCPeerConnectionState state) {
+    debugPrint('📡 [WebRTC ConnectionState] state=${state.name}');
     if (onCallStateChange == null) {
       return;
     }
@@ -478,6 +479,7 @@ class WebRtcSignalingService {
   }
 
   void _handleIceConnectionState(RTCIceConnectionState state) {
+    debugPrint('📡 [WebRTC IceConnectionState] state=${state.name}');
     if (onCallStateChange == null) {
       return;
     }

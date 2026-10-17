@@ -18,6 +18,7 @@ class WebRtcConfig {
           'stun:stun2.l.google.com:19302',
           'stun:stun3.l.google.com:19302',
           'stun:stun4.l.google.com:19302',
+          'stun:stun.cloudflare.com:3478',
         ],
       },
     ];
@@ -28,26 +29,6 @@ class WebRtcConfig {
         'username': _turnUsername,
         'credential': _turnCredential,
       });
-    } else {
-      // Fallback relay publik agar koneksi WebRTC tetap tembus meski di balik Wi-Fi AP Isolation
-      // atau Symmetric NAT tanpa konfigurasi --dart-define.
-      iceServers.addAll(const [
-        {
-          'urls': 'turn:openrelay.metered.ca:80',
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
-        {
-          'urls': 'turn:openrelay.metered.ca:443',
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
-        {
-          'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
-      ]);
     }
 
     return {

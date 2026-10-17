@@ -8,7 +8,6 @@ import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -122,12 +121,10 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
           .read(callRepositoryProvider)
           .updateCallStatus(widget.callId, 'answered');
     } catch (e) {
-      ref.read(activeCallIdProvider.notifier).state = null;
-      if (mounted) {
-        setState(() => _isResponding = false);
-        MekaarSnackbar.error(context, 'Gagal menjawab panggilan: $e');
-      }
-      return;
+      debugPrint(
+        '[CALL_ACCEPT] Peringatan: Gagal memperbarui status DB saat terima panggilan ($e). '
+        'Tetap melanjutkan ke CallScreen untuk inisialisasi WebRTC.',
+      );
     }
     unawaited(NotificationService.cancelIncomingCallNotification());
 
