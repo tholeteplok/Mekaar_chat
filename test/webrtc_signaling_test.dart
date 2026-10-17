@@ -129,5 +129,86 @@ void main() {
       service.onError?.call('tes-error');
       expect(captured, 'tes-error');
     });
+
+    test('extractSignalType memulihkan tipe asli saat Supabase SDK menimpa type menjadi broadcast', () {
+      // Kasus 1: Supabase SDK menimpa type = 'broadcast', signal_type = 'joined'
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+          'signal_type': 'joined',
+          'sender': 'user-1',
+        }),
+        'joined',
+      );
+
+      // Kasus 2: Sinyal offer, answer, candidate, device_ringing
+      for (final sig in ['offer', 'answer', 'candidate', 'device_ringing', 'caller_ready', 'hangup']) {
+        expect(
+          WebRtcSignalingService.extractSignalType({
+            'type': 'broadcast',
+            'signal_type': sig,
+          }),
+          sig,
+        );
+      }
+
+      // Kasus 3: Payload broadcast mentah tanpa signal_type menghasilkan null (tidak salah tangkap sebagai tipe sinyal)
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+        }),
+        isNull,
+      );
+
+      // Kasus 4: Fallback untuk pesan tanpa overwrite (type = 'offer' tanpa signal_type)
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'offer',
+        }),
+        'offer',
+      );
+
+      // Kasus 5: Smart payload sniffing (lawan bicara masih versi lama / sinyal ter-overwrite SDK)
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+          'data': {'type': 'offer', 'sdp': 'v=0...'},
+        }),
+        'offer',
+      );
+
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+          'data': {'type': 'answer', 'sdp': 'v=0...'},
+        }),
+        'answer',
+      );
+
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+          'data': {'candidate': 'candidate:1 1 UDP...', 'sdpMid': '0'},
+        }),
+        'candidate',
+      );
+
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+          'data': {'callId': 'call-123'},
+        }),
+        'device_ringing',
+      );
+
+      expect(
+        WebRtcSignalingService.extractSignalType({
+          'type': 'broadcast',
+          'data': <String, dynamic>{},
+        }),
+        isNull,
+      );
+    });
   });
 }
+

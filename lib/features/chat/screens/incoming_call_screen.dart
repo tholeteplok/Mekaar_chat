@@ -63,6 +63,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
             event: 'signal',
             payload: {
               'sender': myUserId,
+              'signal_type': 'device_ringing',
               'type': 'device_ringing',
               'data': {'callId': widget.callId},
             },
@@ -178,85 +179,109 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const SizedBox(height: 40),
-            // Header Info Panggilan
-            Column(
-              children: [
-                Avatar(
-                  initial: widget.callerName.isNotEmpty ? widget.callerName[0].toUpperCase() : 'U',
-                  imageUrl: widget.callerAvatarUrl,
-                  size: 110,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  widget.callerName,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isVideo ? SolarIconsOutline.videocamera : SolarIconsOutline.phone,
-                      color: MekaarColors.softCoral,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isVideo ? 'Panggilan Video Masuk...' : 'Panggilan Suara Masuk...',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxHeight < 550;
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SizedBox(height: isCompact ? 12 : 40),
+                      // Header Info Panggilan
+                      Column(
+                        children: [
+                          Avatar(
+                            initial: widget.callerName.isNotEmpty
+                                ? widget.callerName[0].toUpperCase()
+                                : 'U',
+                            imageUrl: widget.callerAvatarUrl,
+                            size: isCompact ? 68 : 110,
+                          ),
+                          SizedBox(height: isCompact ? 12 : 24),
+                          Text(
+                            widget.callerName,
+                            style: TextStyle(
+                              fontSize: isCompact ? 20 : 26,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isVideo
+                                    ? SolarIconsOutline.videocamera
+                                    : SolarIconsOutline.phone,
+                                color: MekaarColors.softCoral,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isVideo
+                                    ? 'Panggilan Video Masuk...'
+                                    : 'Panggilan Suara Masuk...',
+                                style: TextStyle(
+                                  fontSize: isCompact ? 14 : 16,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Geser ke atas untuk merespons',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white38,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Geser ke atas untuk merespons',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white38,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
 
-            // Tombol Slide Up Terima / Tolak Panggilan
-            Padding(
-              padding: const EdgeInsets.only(bottom: 50.0, left: 40.0, right: 40.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  // Slider Tolak (Geser ke atas)
-                  _SlideUpCallButton(
-                    label: 'Tolak',
-                    icon: SolarIconsBold.phone,
-                    color: MekaarColors.sosRed,
-                    onTrigger: _declineCall,
-                    disabled: _isResponding,
-                  ),
+                      // Tombol Slide Up Terima / Tolak Panggilan
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: isCompact ? 24.0 : 50.0,
+                          left: isCompact ? 24.0 : 40.0,
+                          right: isCompact ? 24.0 : 40.0,
+                          top: 16.0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            // Slider Tolak (Geser ke atas)
+                            _SlideUpCallButton(
+                              label: 'Tolak',
+                              icon: SolarIconsBold.phone,
+                              color: MekaarColors.sosRed,
+                              onTrigger: _declineCall,
+                              disabled: _isResponding,
+                            ),
 
-                  // Slider Terima (Geser ke atas)
-                  _SlideUpCallButton(
-                    label: 'Terima',
-                    icon: SolarIconsBold.phone,
-                    color: MekaarColors.safeTeal,
-                    onTrigger: _acceptCall,
-                    disabled: _isResponding,
+                            // Slider Terima (Geser ke atas)
+                            _SlideUpCallButton(
+                              label: 'Terima',
+                              icon: SolarIconsBold.phone,
+                              color: MekaarColors.safeTeal,
+                              onTrigger: _acceptCall,
+                              disabled: _isResponding,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

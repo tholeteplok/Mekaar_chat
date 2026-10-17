@@ -318,6 +318,41 @@ class WebRtcSignalingService {
     }
   }
 
+  /// Mengekstrak tipe sinyal WebRTC dengan aman.
+  /// Supabase SDK (realtime_client) menimpa `payload['type']` menjadi `'broadcast'`,
+  /// sehingga pengirim menyertakan `signal_type`. Sebagai lapisan pertahanan ganda
+  /// (resiliensi jika pengirim masih versi lama), fungsi ini juga memeriksa isi `data`.
+  static String? extractSignalType(Map<String, dynamic> payload) {
+    // 1. Prioritas utama: signal_type eksplisit yang dikirim oleh klien
+    final explicitType = payload['signal_type'] as String?;
+    if (explicitType != null && explicitType.isNotEmpty) {
+      return explicitType;
+    }
+
+    // 2. Fallback: payload['type'] jika bukan 'broadcast'
+    final rawType = payload['type'] as String?;
+    if (rawType != null && rawType != 'broadcast') {
+      return rawType;
+    }
+
+    // 3. Smart payload sniffing (resiliensi jika pengirim masih versi lama atau sinyal ter-overwrite SDK)
+    final data = payload['data'] as Map<String, dynamic>?;
+    if (data != null) {
+      final dataType = data['type'] as String?;
+      if (dataType == 'offer' || dataType == 'answer') {
+        return dataType;
+      }
+      if (data.containsKey('candidate')) {
+        return 'candidate';
+      }
+      if (data.containsKey('callId')) {
+        return 'device_ringing';
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _handleSignal(
     Map<String, dynamic> payload,
     String myUserId,
@@ -329,7 +364,7 @@ class WebRtcSignalingService {
         return;
       }
 
-      final type = payload['type'] as String?;
+      final type = extractSignalType(payload);
       final data = payload['data'] as Map<String, dynamic>?;
       debugPrint('📩 [WEBRTC_SIGNAL] Menerima sinyal type=$type dari sender=$sender');
 
@@ -516,7 +551,12 @@ class WebRtcSignalingService {
       debugPrint('📤 [WEBRTC_SIGNAL] Mengirim sinyal type=$type (sender: $senderId)');
       await channel.sendBroadcastMessage(
         event: 'signal',
-        payload: {'sender': senderId, 'type': type, 'data': data},
+        payload: {
+          'sender': senderId,
+          'signal_type': type,
+          'type': type,
+          'data': data,
+        },
       );
     } catch (error) {
       _emitError(error);

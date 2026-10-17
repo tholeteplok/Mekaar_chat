@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/call_model.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
 class CallRepository {
@@ -152,6 +153,16 @@ class CallRepository {
         .maybeSingle();
     if (response == null) return null;
     return Map<String, dynamic>.from(response);
+  }
+
+  /// Stream riwayat panggilan untuk room tertentu secara realtime
+  Stream<List<CallModel>> streamCalls(String roomId) {
+    return _client
+        .from('calls')
+        .stream(primaryKey: ['id'])
+        .eq('room_id', roomId)
+        .order('created_at', ascending: true)
+        .map((rows) => rows.map((r) => CallModel.fromJson(r)).toList());
   }
 }
 

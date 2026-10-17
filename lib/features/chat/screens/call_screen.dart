@@ -479,16 +479,19 @@ class _CallScreenState extends ConsumerState<CallScreen>
         _connectedAt ??= DateTime.now();
         _callTimeoutTimer?.cancel();
         _startDurationTimer();
-        if (_currentCallId != null) {
-          try {
+        if (_currentCallId != null && !widget.isCaller) {
+          unawaited(
             ref
                 .read(callRepositoryProvider)
                 .updateCallStatus(
                   _currentCallId!,
                   'answered',
                   startedAt: _connectedAt,
-                );
-          } catch (_) {}
+                )
+                .catchError((e) {
+                  debugPrint('[CALL_CONNECT] Peringatan update call: $e');
+                }),
+          );
         }
         NotificationService.cancelIncomingCallNotification();
         HapticService.trigger(MekaarHapticIntent.success);

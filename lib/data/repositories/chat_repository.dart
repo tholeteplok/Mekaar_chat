@@ -401,9 +401,7 @@ class ChatRepository {
                 // 2. Cek database lokal SQLite
                 final localMsg =
                     await LocalMessageDatabase.instance.getMessage(m.id);
-                if (localMsg != null &&
-                    localMsg.content.isNotEmpty &&
-                    localMsg.content != E2eeService.undecryptableText) {
+                if (localMsg != null && localMsg.content.isNotEmpty) {
                   _decryptedContentCache[m.id] = localMsg.content;
                   return m.copyWith(content: localMsg.content);
                 }
@@ -421,15 +419,20 @@ class ChatRepository {
                   _decryptedContentCache[m.id] = plain;
                   final decrypted = m.copyWith(content: plain);
 
-                  // Simpan ke SQLite bila dekripsi berhasil (bukan placeholder kegagalan)
-                  if (plain != E2eeService.undecryptableText) {
-                    unawaited(
-                      LocalMessageDatabase.instance.saveMessage(decrypted),
-                    );
-                  }
+                  // Simpan ke SQLite (baik teks biasa maupun undecryptableText)
+                  // agar tidak perlu diproses ulang berulang kali
+                  unawaited(
+                    LocalMessageDatabase.instance.saveMessage(decrypted),
+                  );
                   return decrypted;
                 } catch (_) {
-                  return m.copyWith(content: E2eeService.undecryptableText);
+                  final failed =
+                      m.copyWith(content: E2eeService.undecryptableText);
+                  _decryptedContentCache[m.id] = E2eeService.undecryptableText;
+                  unawaited(
+                    LocalMessageDatabase.instance.saveMessage(failed),
+                  );
+                  return failed;
                 }
               }
 

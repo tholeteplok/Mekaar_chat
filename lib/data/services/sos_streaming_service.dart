@@ -258,7 +258,8 @@ class SosStreamingService {
     final senderId = payload['sender_id'] as String?;
     if (senderId == myUserId) return; // Abaikan pesan sendiri
 
-    final type = payload['type'] as String?;
+    final type = (payload['signal_type'] as String?) ??
+        (payload['type'] != 'broadcast' ? payload['type'] as String? : null);
     final data = payload['data'] as Map<String, dynamic>? ?? {};
     final sessionId = payload['session_id'] as String? ?? '';
 
@@ -419,6 +420,7 @@ class SosStreamingService {
         payload: {
           'session_id': sessionId,
           'sender_id': myUserId,
+          'signal_type': type,
           'type': type,
           'data': data,
           'timestamp': DateTime.now().millisecondsSinceEpoch,

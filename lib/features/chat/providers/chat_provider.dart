@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:location/location.dart' as loc;
+import '../../../data/models/call_model.dart';
 import '../../../data/models/message_model.dart';
+import '../../../data/repositories/call_repository.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../data/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -109,6 +111,15 @@ final chatReconnectingProvider = StreamProvider.family<bool, String>((
 ) {
   final controller = ref.watch(_chatReconnectControllerProvider(roomId));
   return controller.stream;
+});
+
+/// Stream riwayat panggilan pada room tertentu secara realtime
+final chatCallsProvider = StreamProvider.family<List<CallModel>, String>((
+  ref,
+  roomId,
+) {
+  final repo = ref.watch(callRepositoryProvider);
+  return repo.streamCalls(roomId);
 });
 
 // ─────────────────────────────────────────

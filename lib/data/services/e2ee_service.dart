@@ -62,6 +62,9 @@ class E2eeService {
   SimpleKeyPair? _identity;
   String? _identityPublicB64;
   final Map<String, SecretKey> _roomKeys = {};
+  final Map<String, Completer<SecretKey?>> _roomKeyInflight = {};
+  final Map<String, DateTime> _lastForceRefreshAt = {};
+  static const Duration _rekeyCooldown = Duration(seconds: 30);
 
   /// True jika perangkat ini belum punya kunci lokal tapi ada backup di server.
   /// UI harus meminta PIN untuk memulihkan sebelum membiarkan user masuk chat.
@@ -299,88 +302,118 @@ class E2eeService {
   /// mengirim plaintext. Hanya return null bila status "belum ada kunci
   /// publik lawan" itu sendiri sudah dipastikan (bukan karena gagal query).
   Future<SecretKey?> _roomKey(String roomId, {bool forceRefresh = false}) async {
-    if (!forceRefresh) {
+    final now = DateTime.now();
+
+    if (forceRefresh) {
+      final lastRefresh = _lastForceRefreshAt[roomId];
+      if (lastRefresh != null && now.difference(lastRefresh) < _rekeyCooldown) {
+        final cached = _roomKeys[roomId];
+        if (cached != null) return cached;
+      }
+    } else {
       final cached = _roomKeys[roomId];
       if (cached != null) return cached;
-    } else {
-      _roomKeys.remove(roomId);
     }
 
-    await ensureIdentity();
-    final userId = _supabase.currentUserId;
-    final identity = _identity;
-    if (userId == null || identity == null) {
-      // Belum login / identitas lokal belum siap — ini kondisi sementara
-      // juga (identitas semestinya selalu ada untuk pengguna yang login),
-      // jadi diperlakukan sebagai kegagalan, bukan fallback plaintext.
-      throw E2eeUnavailableException('Identitas E2EE lokal belum siap');
+    // Single-Flight: Jika ada query _roomKey untuk roomId ini yang sedang berlangsung,
+    // gabungkan dan tunggu future yang sama (mencegah 50+ request paralel).
+    if (_roomKeyInflight.containsKey(roomId)) {
+      return _roomKeyInflight[roomId]!.future;
     }
 
-    // Room self_device tidak punya lawan — pakai kunci publik sendiri.
-    String peerId = userId;
-    try {
-      final peer = await _supabase.client
-          .from('room_participants')
-          .select('profile_id')
-          .eq('room_id', roomId)
-          .neq('profile_id', userId)
-          .maybeSingle();
-      if (peer != null) peerId = peer['profile_id'] as String;
-    } catch (e) {
-      throw E2eeUnavailableException(
-        'Gagal memuat data partisipan room',
-        e,
-      );
-    }
-
-    String? peerPubB64;
-    bool peerRowFound = false;
-    try {
-      final row = await _supabase.client
-          .from('public_profiles')
-          .select('e2ee_public_key')
-          .eq('id', peerId)
-          .maybeSingle();
-      peerRowFound = row != null;
-      peerPubB64 = row?['e2ee_public_key'] as String?;
-    } catch (e) {
-      throw E2eeUnavailableException(
-        'Gagal memuat kunci publik lawan bicara',
-        e,
-      );
-    }
-
-    if (!peerRowFound) {
-      // Query berhasil tapi baris lawan memang tidak ada (akun dihapus dsb).
-      // Ini status pasti, bukan kegagalan sementara — aman untuk fallback.
-      return null;
-    }
-    if (peerPubB64 == null || peerPubB64.isEmpty) {
-      // Query berhasil, lawan memang belum pernah mempublikasikan kunci
-      // (akun lama sebelum fitur E2EE ada). Fallback plaintext sah di sini.
-      return null;
-    }
+    final completer = Completer<SecretKey?>();
+    _roomKeyInflight[roomId] = completer;
 
     try {
-      final shared = await _x25519.sharedSecretKey(
-        keyPair: identity,
-        remotePublicKey: SimplePublicKey(
-          base64Decode(peerPubB64),
-          type: KeyPairType.x25519,
-        ),
-      );
+      if (forceRefresh) {
+        _roomKeys.remove(roomId);
+        _lastForceRefreshAt[roomId] = now;
+      }
 
-      final hkdf = Hkdf(hmac: Hmac(Sha256()), outputLength: 32);
-      final roomKey = await hkdf.deriveKey(
-        secretKey: shared,
-        info: utf8.encode('mekaar-room:$roomId'),
-      );
-      _roomKeys[roomId] = roomKey;
-      return roomKey;
-    } catch (e) {
-      // Kunci publik lawan ada tapi proses kriptografi gagal (format
-      // korup dsb) — ini kegagalan nyata, bukan "tidak ada kunci".
-      throw E2eeUnavailableException('Gagal menurunkan kunci room', e);
+      await ensureIdentity();
+      final userId = _supabase.currentUserId;
+      final identity = _identity;
+      if (userId == null || identity == null) {
+        // Belum login / identitas lokal belum siap — ini kondisi sementara
+        // juga (identitas semestinya selalu ada untuk pengguna yang login),
+        // jadi diperlakukan sebagai kegagalan, bukan fallback plaintext.
+        throw E2eeUnavailableException('Identitas E2EE lokal belum siap');
+      }
+
+      // Room self_device tidak punya lawan — pakai kunci publik sendiri.
+      String peerId = userId;
+      try {
+        final peer = await _supabase.client
+            .from('room_participants')
+            .select('profile_id')
+            .eq('room_id', roomId)
+            .neq('profile_id', userId)
+            .maybeSingle();
+        if (peer != null) peerId = peer['profile_id'] as String;
+      } catch (e) {
+        throw E2eeUnavailableException(
+          'Gagal memuat data partisipan room',
+          e,
+        );
+      }
+
+      String? peerPubB64;
+      bool peerRowFound = false;
+      try {
+        final row = await _supabase.client
+            .from('public_profiles')
+            .select('e2ee_public_key')
+            .eq('id', peerId)
+            .maybeSingle();
+        peerRowFound = row != null;
+        peerPubB64 = row?['e2ee_public_key'] as String?;
+      } catch (e) {
+        throw E2eeUnavailableException(
+          'Gagal memuat kunci publik lawan bicara',
+          e,
+        );
+      }
+
+      if (!peerRowFound) {
+        // Query berhasil tapi baris lawan memang tidak ada (akun dihapus dsb).
+        // Ini status pasti, bukan kegagalan sementara — aman untuk fallback.
+        completer.complete(null);
+        return null;
+      }
+      if (peerPubB64 == null || peerPubB64.isEmpty) {
+        // Query berhasil, lawan memang belum pernah mempublikasikan kunci
+        // (akun lama sebelum fitur E2EE ada). Fallback plaintext sah di sini.
+        completer.complete(null);
+        return null;
+      }
+
+      try {
+        final shared = await _x25519.sharedSecretKey(
+          keyPair: identity,
+          remotePublicKey: SimplePublicKey(
+            base64Decode(peerPubB64),
+            type: KeyPairType.x25519,
+          ),
+        );
+
+        final hkdf = Hkdf(hmac: Hmac(Sha256()), outputLength: 32);
+        final roomKey = await hkdf.deriveKey(
+          secretKey: shared,
+          info: utf8.encode('mekaar-room:$roomId'),
+        );
+        _roomKeys[roomId] = roomKey;
+        completer.complete(roomKey);
+        return roomKey;
+      } catch (e) {
+        // Kunci publik lawan ada tapi proses kriptografi gagal (format
+        // korup dsb) — ini kegagalan nyata, bukan "tidak ada kunci".
+        throw E2eeUnavailableException('Gagal menurunkan kunci room', e);
+      }
+    } catch (e, st) {
+      completer.completeError(e, st);
+      rethrow;
+    } finally {
+      _roomKeyInflight.remove(roomId);
     }
   }
 
@@ -469,17 +502,26 @@ class E2eeService {
             return utf8.decode(clear, allowMalformed: true);
           }
         } catch (e2) {
-          _logger.e(
-            'Pass 2 Auto-Rekeying juga gagal di room $roomId',
-            error: e2,
-          );
+          if (e2 is SecretBoxAuthenticationError) {
+            _logger.w(
+              'Pesan lama tidak cocok dengan kunci baru di room $roomId (MAC mismatch).',
+            );
+          } else {
+            _logger.w('Pass 2 Auto-Rekeying gagal di room $roomId: $e2');
+          }
         }
       } else {
-        _logger.e(
-          'decryptForRoom error in room $roomId',
-          error: e,
-          stackTrace: st,
-        );
+        if (e is SecretBoxAuthenticationError) {
+          _logger.w(
+            'Pesan lama tidak cocok dengan kunci saat ini di room $roomId (MAC mismatch).',
+          );
+        } else {
+          _logger.e(
+            'decryptForRoom error in room $roomId',
+            error: e,
+            stackTrace: st,
+          );
+        }
       }
       return undecryptableText;
     }

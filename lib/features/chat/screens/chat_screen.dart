@@ -41,6 +41,8 @@ import '../../../data/services/e2ee_service.dart';
 import '../../../data/models/chat_theme_model.dart';
 import '../../settings/providers/chat_theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../data/models/call_model.dart';
+import '../widgets/call_history_bubble.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -66,20 +68,34 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-enum _ChatItemKind { message, dateSeparator }
+enum _ChatItemKind { message, call, dateSeparator }
 
 class _ChatItemEntry {
   final _ChatItemKind kind;
   final Message? message;
+  final CallModel? call;
   final DateTime? date;
 
   const _ChatItemEntry.message(this.message)
     : kind = _ChatItemKind.message,
+      call = null,
+      date = null;
+
+  const _ChatItemEntry.call(this.call)
+    : kind = _ChatItemKind.call,
+      message = null,
       date = null;
 
   const _ChatItemEntry.dateSeparator(this.date)
     : kind = _ChatItemKind.dateSeparator,
-      message = null;
+      message = null,
+      call = null;
+
+  DateTime get timestamp {
+    if (kind == _ChatItemKind.message) return message!.createdAt;
+    if (kind == _ChatItemKind.call) return call!.createdAt;
+    return date ?? DateTime.now();
+  }
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen>
@@ -948,6 +964,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                       final pendingMessages = ref.watch(
                                         pendingMessagesProvider(widget.chatId),
                                       );
+                                      final callsAsync = ref.watch(
+                                        chatCallsProvider(widget.chatId),
+                                      );
+                                      final rawCalls =
+                                          callsAsync.valueOrNull ?? const [];
                                       final dbIds = {
                                         for (var m in rawDbMessages) m.id,
                                       };
@@ -959,12 +980,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                         ...activePending,
                                       ];
 
-                                      if (rawMessages.isEmpty) {
+                                      if (rawMessages.isEmpty &&
+                                          rawCalls.isEmpty) {
                                         return const MekaarStateView(
                                           pose: MikaPose.sleep,
                                           title: 'Belum Ada Pesan',
                                           message:
-                                              'Belum ada pesan. Kirim pesan pertama!',
+                                              'Belum ada pesan atau panggilan. Mulai percakapan pertama!',
                                         );
                                       }
 
@@ -981,19 +1003,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                                 )
                                                 .toList();
 
-                                      if (messages.isEmpty) {
+                                      final calls = _searchQuery.isEmpty
+                                          ? rawCalls
+                                          : rawCalls
+                                                .where(
+                                                  (c) =>
+                                                      c.callType
+                                                          .toLowerCase()
+                                                          .contains(
+                                                            _searchQuery
+                                                                .toLowerCase(),
+                                                          ) ||
+                                                      c
+                                                          .getDisplayStatus(
+                                                            c.callerId ==
+                                                                currentUserId,
+                                                          )
+                                                          .toLowerCase()
+                                                          .contains(
+                                                            _searchQuery
+                                                                .toLowerCase(),
+                                                          ),
+                                                )
+                                                .toList();
+
+                                      if (messages.isEmpty && calls.isEmpty) {
                                         return MekaarStateView(
                                           pose: MikaPose.confused,
                                           title: 'Tidak Ditemukan',
                                           message:
-                                              'Tidak ada pesan yang cocok dengan "$_searchQuery".',
+                                              'Tidak ada pesan atau panggilan yang cocok dengan "$_searchQuery".',
                                         );
                                       }
 
-                                      final reversed = messages.reversed
-                                          .toList();
                                       final itemEntries = _buildItemEntries(
-                                        reversed,
+                                        messages,
+                                        calls,
                                       );
                                       final messageMap = {
                                         for (var m in rawMessages) m.id: m,
@@ -1527,26 +1572,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
-  List<_ChatItemEntry> _buildItemEntries(List<Message> reversedMessages) {
+  List<_ChatItemEntry> _buildItemEntries(
+    List<Message> messages,
+    List<CallModel> calls,
+  ) {
+    // 1. Kumpulkan seluruh pesan dan panggilan
+    final combinedRaw = <_ChatItemEntry>[];
+    for (final m in messages) {
+      combinedRaw.add(_ChatItemEntry.message(m));
+    }
+    for (final c in calls) {
+      combinedRaw.add(_ChatItemEntry.call(c));
+    }
+
+    // 2. Urutkan berdasarkan timestamp descending (terbaru di index 0 karena reverse: true pada ListView)
+    combinedRaw.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    // 3. Sisipkan pemisah tanggal
     final entries = <_ChatItemEntry>[];
     DateTime? lastDate;
 
-    for (var i = 0; i < reversedMessages.length; i++) {
-      final msg = reversedMessages[i];
-      final localCreatedAt = msg.createdAt.toLocal();
-      final msgDate = DateTime(
+    for (var i = 0; i < combinedRaw.length; i++) {
+      final item = combinedRaw[i];
+      final localCreatedAt = item.timestamp.toLocal();
+      final itemDate = DateTime(
         localCreatedAt.year,
         localCreatedAt.month,
         localCreatedAt.day,
       );
 
       // Sisipkan pemisah tanggal jika hari berubah
-      if (lastDate == null || msgDate != lastDate) {
+      if (lastDate == null || itemDate != lastDate) {
         entries.add(_ChatItemEntry.dateSeparator(localCreatedAt));
-        lastDate = msgDate;
+        lastDate = itemDate;
       }
 
-      entries.add(_ChatItemEntry.message(msg));
+      entries.add(item);
     }
     return entries;
   }
@@ -1566,6 +1627,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         date: entry.date!,
         accentColor: roomThemeSpec?.secondaryAccentColor,
         textColor: roomThemeSpec?.textColor,
+      );
+    }
+
+    if (entry.kind == _ChatItemKind.call) {
+      final call = entry.call!;
+      final isMe = call.callerId == currentUserId;
+      return RepaintBoundary(
+        key: ValueKey('call_bubble_${call.id}'),
+        child: CallHistoryBubble(
+          call: call,
+          isMe: isMe,
+          onCallBack: () => _initiateCall(call.callType),
+        ),
       );
     }
 
