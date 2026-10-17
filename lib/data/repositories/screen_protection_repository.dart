@@ -92,7 +92,7 @@ class NativeScreenProtection {
   Stream<bool> get captureState => _captureChannel
       .receiveBroadcastStream()
       .map((event) => event == true)
-      .handleError((_) => true);
+      .handleError((_) => false);
 
   Future<void> setEnabled(bool enabled) async {
     try {

@@ -12,6 +12,7 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_badge.dart';
+import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_animated.dart';
@@ -44,6 +45,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     final whoAddedMe = wasDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
     final myGuardiansStatus = ref.watch(guardianLoadStatusProvider);
     final whoAddedMeStatus = ref.watch(whoAddedMeLoadStatusProvider);
+    final hasPendingIncoming = ref.watch(hasPendingIncomingGuardiansProvider);
 
     return DefaultTabController(
       length: 2,
@@ -83,9 +85,25 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                   fontWeight: FontWeight.bold,
                 ),
                 unselectedLabelStyle: MekaarTypography.labelMD,
-                tabs: const [
-                  Tab(text: 'Guardian Saya'),
-                  Tab(text: 'Menjaga Siapa'),
+                tabs: [
+                  const Tab(text: 'Guardian Saya'),
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Menjaga Siapa'),
+                        if (hasPendingIncoming) ...[
+                          const SizedBox(width: 6),
+                          MekaarNotificationDot.standalone(
+                            color: MekaarColors.warnAmber,
+                            size: 8.0,
+                            context: context,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

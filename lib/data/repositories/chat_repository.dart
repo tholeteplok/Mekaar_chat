@@ -5,6 +5,7 @@ import '../services/supabase_service.dart';
 import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
+import '../services/local_message_database.dart';
 import 'reconnect_policy.dart';
 
 class ChatRepository {
@@ -391,10 +392,23 @@ class ChatRepository {
           final decryptedMsgs = await Future.wait(
             msgs.map((m) async {
               if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
+                // 1. Cek cache in-memory RAM
                 final cached = _decryptedContentCache[m.id];
                 if (cached != null) {
                   return m.copyWith(content: cached);
                 }
+
+                // 2. Cek database lokal SQLite
+                final localMsg =
+                    await LocalMessageDatabase.instance.getMessage(m.id);
+                if (localMsg != null &&
+                    localMsg.content.isNotEmpty &&
+                    localMsg.content != E2eeService.undecryptableText) {
+                  _decryptedContentCache[m.id] = localMsg.content;
+                  return m.copyWith(content: localMsg.content);
+                }
+
+                // 3. Dekripsi kriptografis (pertama kali pesan diterima)
                 try {
                   final plain = await E2eeService.instance.decryptForRoom(
                     roomId,
@@ -405,11 +419,22 @@ class ChatRepository {
                     _decryptedContentCache.clear();
                   }
                   _decryptedContentCache[m.id] = plain;
-                  return m.copyWith(content: plain);
+                  final decrypted = m.copyWith(content: plain);
+
+                  // Simpan ke SQLite bila dekripsi berhasil (bukan placeholder kegagalan)
+                  if (plain != E2eeService.undecryptableText) {
+                    unawaited(
+                      LocalMessageDatabase.instance.saveMessage(decrypted),
+                    );
+                  }
+                  return decrypted;
                 } catch (_) {
                   return m.copyWith(content: E2eeService.undecryptableText);
                 }
               }
+
+              // Untuk pesan non-enkripsi / teks biasa / system
+              unawaited(LocalMessageDatabase.instance.saveMessage(m));
               return m;
             }),
           );
@@ -475,6 +500,33 @@ class ChatRepository {
               },
             );
       }
+
+      // 0ms Offline-First: Render riwayat dari SQLite lokal seketika
+      try {
+        final localMsgs =
+            await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
+        if (localMsgs.isNotEmpty && !controller.isClosed) {
+          final now = DateTime.now().toUtc();
+          final validLocal = localMsgs.where((m) {
+            if (historyClearedAt != null &&
+                !m.createdAt.isAfter(historyClearedAt)) {
+              return false;
+            }
+            if (m.isSilentDeleted || hiddenMsgIds.contains(m.id)) return false;
+            if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) {
+              return false;
+            }
+            return true;
+          }).toList();
+
+          for (final lm in validLocal) {
+            _decryptedContentCache[lm.id] = lm.content;
+          }
+          if (validLocal.isNotEmpty && !controller.isClosed) {
+            controller.add(validLocal);
+          }
+        }
+      } catch (_) {}
 
       await subscribe();
     }
@@ -542,7 +594,12 @@ class ChatRepository {
         .select()
         .single();
 
-    return Message.fromJson(response);
+    final sentMsg = Message.fromJson(response);
+    final plaintextMsg = sentMsg.copyWith(content: content);
+    _decryptedContentCache[sentMsg.id] = content;
+    unawaited(LocalMessageDatabase.instance.saveMessage(plaintextMsg));
+
+    return plaintextMsg;
   }
 
   /// Menandai pesan media sekali lihat (View Once) sebagai sudah dibuka di database Supabase
@@ -562,6 +619,7 @@ class ChatRepository {
   // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone
   Future<void> deleteMessageForEveryone(String messageId) async {
     _decryptedContentCache.remove(messageId);
+    unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
     try {
       // Try the new advanced RPC first
       await _supabaseService.client.rpc(
@@ -594,6 +652,7 @@ class ChatRepository {
   // Local delete: hides message for the current user only (like WhatsApp)
   Future<void> hideMessageForMe(String messageId) async {
     _decryptedContentCache.remove(messageId);
+    unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
     try {
@@ -808,6 +867,7 @@ class ChatRepository {
   /// Best-effort: called from client on chat open. The Supabase cron job
   /// (migration 17) performs the authoritative periodic purge.
   Future<int> purgeExpiredMessages() async {
+    unawaited(LocalMessageDatabase.instance.purgeExpiredMessages());
     try {
       final response = await _supabaseService.client.rpc(
         'purge_expired_messages',
@@ -849,6 +909,7 @@ class ChatRepository {
 
   /// Clear Chat History for current user in a room
   Future<void> clearChatHistory(String roomId) async {
+    unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
 
@@ -873,6 +934,7 @@ class ChatRepository {
 
   /// Soft delete Chat Room for current user (hides from list)
   Future<void> deleteChat(String roomId) async {
+    unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
 
@@ -991,6 +1053,7 @@ class ChatRepository {
   /// Eksekusi pembersihan riwayat chat sekarang (manual / timer terpicu).
   /// Memanggil RPC `execute_room_scheduled_wipe`.
   Future<int> executeRoomScheduledWipe(String roomId) async {
+    unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
     try {
       final result = await _supabaseService.client.rpc(
         'execute_room_scheduled_wipe',
@@ -1026,6 +1089,7 @@ class ChatRepository {
 
   /// Eksekusi penghapusan pesan saat keluar room (Burn on Exit).
   Future<void> executeRoomBurnOnExit(String roomId) async {
+    unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
     try {
       await _supabaseService.client.rpc(
         'execute_room_burn_on_exit',

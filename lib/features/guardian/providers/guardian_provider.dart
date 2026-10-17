@@ -147,3 +147,19 @@ final whoAddedMeProvider =
       final repo = ref.watch(guardianRepositoryProvider);
       return WhoAddedMeNotifier(repo, ref);
     });
+
+/// Provider jumlah undangan guardian masuk yang masih menunggu persetujuan (pending & !isExpired).
+final pendingIncomingGuardianCountProvider = Provider<int>((ref) {
+  final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+  if (wasDuress) return 0;
+  final whoAddedMe = ref.watch(whoAddedMeProvider);
+  return whoAddedMe
+      .where((g) => g.status == 'pending' && !g.isExpired)
+      .length;
+});
+
+/// Provider boolean helper untuk menampilkan indikator dot pada AppBar dan Tab Menjaga Siapa.
+final hasPendingIncomingGuardiansProvider = Provider<bool>((ref) {
+  return ref.watch(pendingIncomingGuardianCountProvider) > 0;
+});
+

@@ -174,7 +174,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _scrollController.addListener(_onScrollChanged);
     // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
     // untuk tidak memunculkan notif saat user sedang melihat percakapan.
-    ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
+      }
+    });
     _startPresenceHeartbeat();
 
     // Timer periodik pembersihan pesan kedaluwarsa (client guard)

@@ -20,6 +20,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_live_safety_pill.dart';
+import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
 import '../../../core/widgets/mika_animated.dart';
@@ -728,9 +729,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         ),
                         const SizedBox(width: 4),
                         IconButton(
-                          icon: const Icon(
-                            SolarIconsOutline.shieldUser,
-                            color: MekaarColors.guardianTeal,
+                          icon: MekaarNotificationDot(
+                            show: ref.watch(hasPendingIncomingGuardiansProvider),
+                            color: MekaarColors.warnAmber,
+                            offset: const Offset(0, -2),
+                            child: const Icon(
+                              SolarIconsOutline.shieldUser,
+                              color: MekaarColors.guardianTeal,
+                            ),
                           ),
                           tooltip: 'Guardian Saya',
                           onPressed: () =>

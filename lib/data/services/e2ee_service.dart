@@ -52,7 +52,9 @@ class E2eeService {
   static const String undecryptableText = '🔒 Pesan terenkripsi';
 
   final SupabaseService _supabase = SupabaseService();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
   final X25519 _x25519 = X25519();
   final Xchacha20 _cipher = Xchacha20.poly1305Aead();
 

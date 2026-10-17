@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/providers/auth_provider.dart' hide AuthState;
 import '../../auth/providers/password_change_alert_listener.dart';
+import '../../guardian/providers/guardian_provider.dart';
 import 'call_invitation_listener.dart';
 import 'message_notification_listener.dart';
 import 'sos_alert_listener.dart';
@@ -108,11 +109,31 @@ class AppRealtimeListener {
           ),
           callback: passwordListener.handleProfileUpdated,
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'guardians',
+          callback: (payload) {
+            final record = payload.newRecord.isNotEmpty
+                ? payload.newRecord
+                : payload.oldRecord;
+            final ownerId = record['owner_id'] as String?;
+            final guardianId = record['guardian_id'] as String?;
+            if (ownerId == userId || guardianId == userId) {
+              _log.i(
+                '[REALTIME] Perubahan relasi guardian terdeteksi '
+                '(event: ${payload.eventType.name}), memperbarui daftar guardian...',
+              );
+              _ref.read(whoAddedMeProvider.notifier).refresh();
+              _ref.read(guardianProvider.notifier).refreshGuardians();
+            }
+          },
+        )
         .subscribe((status, [error]) {
           if (status == RealtimeSubscribeStatus.subscribed) {
             _log.i(
               '[REALTIME][app_events_$userId] Status: SUBSCRIBED '
-              '(messages, calls, sos_sessions, profiles aktif).',
+              '(messages, calls, sos_sessions, profiles, guardians aktif).',
             );
           } else if (status == RealtimeSubscribeStatus.channelError) {
             _log.e(

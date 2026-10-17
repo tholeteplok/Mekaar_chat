@@ -7,6 +7,7 @@ import android.view.WindowManager
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
@@ -14,10 +15,22 @@ class MainActivity : FlutterActivity() {
     private companion object {
         const val SECURITY_CHANNEL = "com.mekaar.mekaar_chat/security"
         const val INSTALLER_CHANNEL = "com.mekaar.mekaar_chat/installer"
+        const val CAPTURE_CHANNEL = "com.mekaar.mekaar_chat/screen_capture"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CAPTURE_CHANNEL
+        ).setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                events?.success(false)
+            }
+
+            override fun onCancel(arguments: Any?) {}
+        })
+
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             SECURITY_CHANNEL

@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../services/e2ee_service.dart';
+import '../services/local_message_database.dart';
 import '../services/supabase_service.dart';
 import 'device_repository.dart';
 
@@ -423,6 +424,7 @@ class AuthRepository {
     } catch (_) {}
     try {
       E2eeService.instance.clearSession();
+      await LocalMessageDatabase.instance.clearAll();
     } catch (_) {}
 
     if (SupabaseService.isInitialized) {
