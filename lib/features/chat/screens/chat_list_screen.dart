@@ -938,6 +938,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     );
   }
 
+  DateTime _extractRoomTimestamp(dynamic timestamp) {
+    if (timestamp is DateTime) return timestamp;
+    if (timestamp is String) {
+      return DateTime.tryParse(timestamp) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   Widget _buildChatList(List<Map<String, dynamic>> rooms) {
     // Sembunyikan chat dengan pengguna yang diblokir oleh pengguna saat ini.
     final blockedIds = ref
@@ -979,10 +988,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             unifiedByOtherUser[otherUserId] = Map<String, dynamic>.from(room);
           } else {
             final existing = unifiedByOtherUser[otherUserId]!;
-            final existingTime = DateTime.tryParse(existing['timestamp'] as String? ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
-            final roomTime = DateTime.tryParse(room['timestamp'] as String? ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
+            final existingTime = _extractRoomTimestamp(existing['timestamp']);
+            final roomTime = _extractRoomTimestamp(room['timestamp']);
 
             // Prioritaskan room dengan pesan & aktivitas paling mutakhir
             final dominantRoom = roomTime.isAfter(existingTime) ? room : existing;
@@ -1001,10 +1008,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
       final unifiedRooms = [...unifiedByOtherUser.values, ...nonDirectRooms];
       unifiedRooms.sort((a, b) {
-        final tA = DateTime.tryParse(a['timestamp'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        final tB = DateTime.tryParse(b['timestamp'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
+        final tA = _extractRoomTimestamp(a['timestamp']);
+        final tB = _extractRoomTimestamp(b['timestamp']);
         return tB.compareTo(tA);
       });
 

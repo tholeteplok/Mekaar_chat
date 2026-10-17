@@ -398,12 +398,13 @@ void main() {
     });
 
     test('Unified Chat Deduplication logic merges duplicate rooms for same contact', () {
+      final now = DateTime.now();
       final rooms = [
         {
           'id': 'room-1',
           'otherUserId': 'user-thole',
           'name': 'Thole',
-          'timestamp': '2026-10-18T01:05:00Z',
+          'timestamp': now.subtract(const Duration(minutes: 15)), // DateTime!
           'unreadCount': 1,
           'isGuardian': false,
           'isArchived': false,
@@ -413,13 +414,22 @@ void main() {
           'id': 'room-2',
           'otherUserId': 'user-thole',
           'name': 'Thole',
-          'timestamp': '2026-10-18T01:20:00Z',
+          'timestamp': now, // DateTime!
           'unreadCount': 2,
           'isGuardian': true,
           'isArchived': false,
           'isGroup': false,
         },
       ];
+
+      DateTime extractRoomTimestamp(dynamic timestamp) {
+        if (timestamp is DateTime) return timestamp;
+        if (timestamp is String) {
+          return DateTime.tryParse(timestamp) ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+        }
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
 
       final Map<String, Map<String, dynamic>> unifiedByOtherUser = {};
       final List<Map<String, dynamic>> nonDirectRooms = [];
@@ -435,10 +445,8 @@ void main() {
             unifiedByOtherUser[otherUserId] = Map<String, dynamic>.from(room);
           } else {
             final existing = unifiedByOtherUser[otherUserId]!;
-            final existingTime = DateTime.tryParse(existing['timestamp'] as String? ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
-            final roomTime = DateTime.tryParse(room['timestamp'] as String? ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
+            final existingTime = extractRoomTimestamp(existing['timestamp']);
+            final roomTime = extractRoomTimestamp(room['timestamp']);
 
             final dominantRoom = roomTime.isAfter(existingTime) ? room : existing;
             final isGuardian = (existing['isGuardian'] == true) || (room['isGuardian'] == true);
@@ -455,6 +463,11 @@ void main() {
       }
 
       final unifiedRooms = [...unifiedByOtherUser.values, ...nonDirectRooms];
+      unifiedRooms.sort((a, b) {
+        final tA = extractRoomTimestamp(a['timestamp']);
+        final tB = extractRoomTimestamp(b['timestamp']);
+        return tB.compareTo(tA);
+      });
 
       // Verifikasi: Hanya ada 1 room Thole
       expect(unifiedRooms.length, 1);
@@ -462,7 +475,7 @@ void main() {
       expect(thole['otherUserId'], 'user-thole');
       expect(thole['isGuardian'], isTrue); // Tetap diakui sebagai Guardian
       expect(thole['unreadCount'], 3); // 1 + 2 = 3
-      expect(thole['id'], 'room-2'); // Dominant ID dari timestamp 01:20
+      expect(thole['id'], 'room-2'); // Dominant ID dari timestamp terbaru
     });
   });
 }
