@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,35 @@ import '../../features/chat/providers/emoji_pack_provider.dart';
 import '../utils/emoji_shortcode_parser.dart';
 import 'mekaar_snackbar.dart';
 
-// Helper function to download, decrypt, and cache E2EE media locally.
+/// In-memory cache untuk berkas media yang sudah selesai diunduh/didekripsi
+/// Menghindari I/O disk berulang dan menghilangkan kedipan (flickering) saat widget di-rebuild.
+final Map<String, File> _decryptedFileMemoryCache = <String, File>{};
+final Map<String, Future<File?>> _inFlightMediaFutures = <String, Future<File?>>{};
+
+/// Parser payload media cerdas: mengekstrak fileKeyB64 dan caption.
+/// Kompatibel 100% dengan pesan E2EE JSON baru maupun pesan lawas plain text / raw key.
+({String fileKeyB64, String caption}) _parseMediaPayload(Message message) {
+  final content = message.content.trim();
+  if (content.startsWith('{') && content.endsWith('}')) {
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is Map<String, dynamic>) {
+        return (
+          fileKeyB64: decoded['key'] as String? ?? '',
+          caption: decoded['caption'] as String? ?? '',
+        );
+      }
+    } catch (_) {}
+  }
+  // Fallback: pesan legacy
+  if (message.isEncrypted) {
+    return (fileKeyB64: message.content, caption: '');
+  } else {
+    return (fileKeyB64: '', caption: message.content);
+  }
+}
+
+// Helper function to download, decrypt, and cache E2EE media locally with memory caching.
 Future<File?> _getOrDecryptMedia({
   required String messageId,
   required String? url,
@@ -34,7 +63,56 @@ Future<File?> _getOrDecryptMedia({
 }) async {
   if (url == null || url.isEmpty) return null;
 
+  // 1. Cek memory cache tercepat (0ms delay)
+  final inMemory = _decryptedFileMemoryCache[messageId];
+  if (inMemory != null && inMemory.existsSync()) {
+    return inMemory;
+  }
+
+  // 2. Cegah request berulang yang sedang berjalan (in-flight deduplication)
+  if (_inFlightMediaFutures.containsKey(messageId)) {
+    return _inFlightMediaFutures[messageId]!;
+  }
+
+  final future = _doGetOrDecryptMedia(
+    messageId: messageId,
+    url: url,
+    isEncrypted: isEncrypted,
+    fileKeyB64: fileKeyB64,
+  );
+  _inFlightMediaFutures[messageId] = future;
+
   try {
+    final result = await future;
+    if (result != null) {
+      _decryptedFileMemoryCache[messageId] = result;
+    }
+    return result;
+  } finally {
+    _inFlightMediaFutures.remove(messageId);
+  }
+}
+
+Future<File?> _doGetOrDecryptMedia({
+  required String messageId,
+  required String? url,
+  required bool isEncrypted,
+  required String fileKeyB64,
+}) async {
+  if (url == null || url.isEmpty) return null;
+
+  try {
+    // Ekstrak effective key jika fileKeyB64 berupa JSON payload
+    String effectiveKey = fileKeyB64.trim();
+    if (effectiveKey.startsWith('{') && effectiveKey.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(effectiveKey);
+        if (decoded is Map<String, dynamic> && decoded['key'] != null) {
+          effectiveKey = decoded['key'] as String;
+        }
+      } catch (_) {}
+    }
+
     final tempDir = await getTemporaryDirectory();
     final uri = Uri.parse(url);
     final ext = uri.pathSegments.isNotEmpty
@@ -54,10 +132,10 @@ Future<File?> _getOrDecryptMedia({
 
     final bytes = await response.fold<List<int>>([], (a, b) => a..addAll(b));
 
-    if (isEncrypted && fileKeyB64.isNotEmpty) {
+    if (isEncrypted && effectiveKey.isNotEmpty) {
       final decryptedBytes = await E2eeService.instance.decryptMedia(
         bytes,
-        fileKeyB64,
+        effectiveKey,
       );
       await cachedFile.writeAsBytes(decryptedBytes);
     } else {
@@ -303,7 +381,6 @@ class ChatBubble extends ConsumerWidget {
         ? isSingleCustomEmoji(message.content)
         : false;
     final isOnlyEmoji = emojiCount > 0 || singleCustom;
-    final isFrameless = isOnlyEmoji || isSticker;
 
     // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
     final spec = ChatPresetResolver.getBubbleSpec(
@@ -311,6 +388,25 @@ class ChatBubble extends ConsumerWidget {
       context,
       isMe: isMe,
     );
+
+    // Deteksi gambar & payload caption cerdas
+    final isImage = message.type == MessageType.image && !isDeleted;
+    final mediaPayload = isImage
+        ? _parseMediaPayload(message)
+        : (fileKeyB64: '', caption: '');
+    final hasImageCaption = isImage && mediaPayload.caption.trim().isNotEmpty;
+    final hasReply = message.replyToId != null && !isDeleted;
+    final hasHeader = spec.headerWidget != null && !isDeleted;
+    final hasSenderName =
+        !isMe && senderName != null && senderName!.isNotEmpty && !isDeleted;
+    final isPureFramelessImage = isImage &&
+        !hasImageCaption &&
+        !hasReply &&
+        !hasHeader &&
+        !hasSenderName &&
+        !message.isViewOnce;
+
+    final isFrameless = isOnlyEmoji || isSticker || isPureFramelessImage;
 
     Color bubbleColor = spec.backgroundColor;
     Border? border = spec.border;
@@ -369,37 +465,51 @@ class ChatBubble extends ConsumerWidget {
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
-                padding: isOnlyEmoji
-                    ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
-                    : (isSticker
-                          ? const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            )
-                          : const EdgeInsets.only(
-                              left: 12,
-                              right: 10,
-                              top: 7,
-                              bottom: 6,
-                            )),
+                padding: isPureFramelessImage
+                    ? EdgeInsets.zero
+                    : (isImage && hasImageCaption
+                          ? EdgeInsets.zero
+                          : (isOnlyEmoji
+                                ? const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  )
+                                : (isSticker
+                                      ? const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                          vertical: 2,
+                                        )
+                                      : const EdgeInsets.only(
+                                          left: 12,
+                                          right: 10,
+                                          top: 7,
+                                          bottom: 6,
+                                        )))),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.76,
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? Color.alphaBlend(
-                          MekaarColors.blue.withValues(
-                            alpha: Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.22,
-                          ),
-                          bubbleColor,
-                        )
-                      : bubbleColor,
-                  gradient: isSelected ? null : bubbleGradient,
+                  color: isPureFramelessImage
+                      ? Colors.transparent
+                      : (isSelected
+                            ? Color.alphaBlend(
+                                MekaarColors.blue.withValues(
+                                  alpha: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? 0.35
+                                      : 0.22,
+                                ),
+                                bubbleColor,
+                              )
+                            : bubbleColor),
+                  gradient: (isPureFramelessImage || isSelected)
+                      ? null
+                      : bubbleGradient,
                   border: isSelected
-                      ? Border.all(color: MekaarColors.blue, width: 1.5)
-                      : border,
+                      ? Border.all(color: MekaarColors.blue, width: 2)
+                      : (isPureFramelessImage ? null : border),
                   borderRadius: radius,
-                  boxShadow: shadows,
+                  boxShadow: isPureFramelessImage ? null : shadows,
                 ),
                 child: Builder(
                   builder: (context) {
@@ -559,9 +669,17 @@ class ChatBubble extends ConsumerWidget {
                           fontFamily,
                           spec.textStyle,
                           isSticker: isSticker,
+                          borderRadius: radius,
+                          isPureFrameless: isPureFramelessImage,
+                          isSelected: isSelected,
+                          receiptStatus: receiptStatus,
+                          caption: mediaPayload.caption,
+                          metaWidget: buildTimestampWidget(),
                         ),
-                        const SizedBox(height: 2),
-                        buildTimestampWidget(),
+                        if (!isPureFramelessImage && !hasImageCaption) ...[
+                          const SizedBox(height: 2),
+                          buildTimestampWidget(),
+                        ],
                       ],
                     );
                   },
@@ -589,6 +707,12 @@ class ChatBubble extends ConsumerWidget {
     String? fontFamily,
     TextStyle? customTextStyle, {
     bool isSticker = false,
+    BorderRadius? borderRadius,
+    bool isPureFrameless = false,
+    bool isSelected = false,
+    ReadReceiptStatus? receiptStatus,
+    String caption = '',
+    Widget? metaWidget,
   }) {
     if (message.isDeleted) {
       return Row(
@@ -722,6 +846,13 @@ class ChatBubble extends ConsumerWidget {
           message: message,
           textColor: textColor,
           isSticker: isSticker,
+          isMe: isMe,
+          borderRadius: borderRadius ?? const BorderRadius.all(Radius.circular(16)),
+          isPureFrameless: isPureFrameless,
+          isSelected: isSelected,
+          receiptStatus: receiptStatus,
+          caption: caption,
+          metaWidget: metaWidget,
           onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
         );
 
@@ -836,6 +967,12 @@ class ChatBubble extends ConsumerWidget {
           return _ImageBubble(
             message: message,
             textColor: textColor,
+            isMe: isMe,
+            borderRadius: borderRadius ?? const BorderRadius.all(Radius.circular(16)),
+            isPureFrameless: false,
+            isSelected: isSelected,
+            receiptStatus: receiptStatus,
+            caption: caption,
             onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
           );
         }
@@ -885,8 +1022,9 @@ class ChatBubble extends ConsumerWidget {
       } else {
         switch (target.type) {
           case MessageType.image:
-            previewText = target.content.isNotEmpty
-                ? '📷 ${target.content}'
+            final imagePayload = _parseMediaPayload(target);
+            previewText = imagePayload.caption.isNotEmpty
+                ? '📷 ${imagePayload.caption}'
                 : '📷 Foto';
             break;
           case MessageType.voice:
@@ -1521,18 +1659,46 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
 }
 
 // Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka.
+// Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka
+// serta mendukung layout frameless dan caption ala Telegram & WhatsApp.
 class _ImageBubble extends ConsumerWidget {
   final Message message;
   final Color textColor;
   final bool isSticker;
+  final bool isMe;
+  final BorderRadius borderRadius;
+  final bool isPureFrameless;
+  final bool isSelected;
+  final ReadReceiptStatus? receiptStatus;
+  final String caption;
+  final Widget? metaWidget;
   final VoidCallback onViewOnceOpened;
 
   const _ImageBubble({
     required this.message,
     required this.textColor,
     this.isSticker = false,
+    this.isMe = false,
+    this.borderRadius = const BorderRadius.all(Radius.circular(16)),
+    this.isPureFrameless = false,
+    this.isSelected = false,
+    this.receiptStatus,
+    this.caption = '',
+    this.metaWidget,
     required this.onViewOnceOpened,
   });
+
+  void _openViewer(BuildContext context, File file, {File? tempFileToPurge}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullScreenImageViewer(
+          imageProvider: FileImage(file),
+          tempFileToPurge: tempFileToPurge,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1547,6 +1713,7 @@ class _ImageBubble extends ConsumerWidget {
           if (alreadyViewed) {
             return _viewOnceHidden(textColor);
           }
+          final payload = _parseMediaPayload(message);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1564,12 +1731,11 @@ class _ImageBubble extends ConsumerWidget {
                       messageId: message.id,
                       url: message.mediaUrl,
                       isEncrypted: message.isEncrypted,
-                      fileKeyB64: message.content,
+                      fileKeyB64: payload.fileKeyB64,
                     );
                     if (file != null && ctx.mounted) {
                       await Navigator.push(
                         ctx,
-                        // PENGECAHAN TRANSISI: viewer media fullscreen sengaja memakai MaterialPageRoute
                         MaterialPageRoute(
                           builder: (_) => _FullScreenImageViewer(
                             imageProvider: FileImage(file),
@@ -1612,10 +1778,10 @@ class _ImageBubble extends ConsumerWidget {
                   ),
                 ),
               ),
-              if (message.content.isNotEmpty && !message.isEncrypted) ...[
+              if (payload.caption.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
-                  message.content,
+                  payload.caption,
                   style: TextStyle(color: textColor, fontSize: 14),
                 ),
               ],
@@ -1625,24 +1791,40 @@ class _ImageBubble extends ConsumerWidget {
       );
     }
 
+    // 1. Cek memory cache sinkron: jika ada, render langsung tanpa FutureBuilder & tanpa kedipan!
+    final cached = _decryptedFileMemoryCache[message.id];
+    if (cached != null && cached.existsSync()) {
+      return _buildImageContent(context, cached);
+    }
+
+    // 2. Jika belum ada di memori RAM, muat via FutureBuilder sekali saja
+    final payload = _parseMediaPayload(message);
     return FutureBuilder<File?>(
       future: _getOrDecryptMedia(
         messageId: message.id,
         url: message.mediaUrl,
         isEncrypted: message.isEncrypted,
-        fileKeyB64: message.content,
+        fileKeyB64: payload.fileKeyB64,
       ),
       builder: (context, snapshot) {
         final file = snapshot.data;
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && file == null) {
           return SizedBox(
-            height: isSticker ? 140 : 180,
-            width: isSticker ? 140 : 220,
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
+            height: isSticker ? 140 : 200,
+            width: isSticker ? 140 : 240,
+            child: Center(
+              child: Container(
+                width: 32,
+                height: 32,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  shape: BoxShape.circle,
+                ),
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               ),
             ),
           );
@@ -1654,7 +1836,7 @@ class _ImageBubble extends ConsumerWidget {
             width: isSticker ? 120 : 220,
             decoration: BoxDecoration(
               color: MekaarColors.surface2Of(context),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: borderRadius,
             ),
             child: const Icon(
               MekaarIcons.brokenImage,
@@ -1663,68 +1845,164 @@ class _ImageBubble extends ConsumerWidget {
           );
         }
 
-        if (isSticker) {
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      _FullScreenImageViewer(imageProvider: FileImage(file)),
-                ),
-              );
-            },
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 180,
-                maxHeight: 180,
-                minWidth: 80,
-                minHeight: 80,
-              ),
-              child: Image.file(
+        return _buildImageContent(context, file);
+      },
+    );
+  }
+
+  Widget _buildImageContent(BuildContext context, File file) {
+    if (isSticker) {
+      return GestureDetector(
+        onTap: () => _openViewer(context, file),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 180,
+            maxHeight: 180,
+            minWidth: 80,
+            minHeight: 80,
+          ),
+          child: Image.file(
+            file,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
+      );
+    }
+
+    final bubbleWidth = MediaQuery.of(context).size.width * 0.76;
+
+    if (isPureFrameless) {
+      return GestureDetector(
+        onTap: () => _openViewer(context, file),
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Image.file(
                 file,
-                fit: BoxFit.contain,
+                width: bubbleWidth,
+                height: 220,
+                fit: BoxFit.cover,
                 filterQuality: FilterQuality.medium,
               ),
-            ),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  // PENGECAHAN TRANSISI: viewer media fullscreen sengaja
-                  // memakai MaterialPageRoute (lihat catatan design.md).
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        _FullScreenImageViewer(imageProvider: FileImage(file)),
+              if (isSelected)
+                Positioned.fill(
+                  child: Container(
+                    color: MekaarColors.blue.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.dark
+                          ? 0.35
+                          : 0.22,
+                    ),
                   ),
-                );
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  file,
-                  height: 180,
-                  width: 220,
-                  fit: BoxFit.cover,
+                ),
+              Positioned(
+                bottom: 6,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(MekaarRadius.pill),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (message.autoDeleteAt != null) ...[
+                        const SizedBox(width: 3),
+                        const Icon(
+                          MekaarIcons.timerOutlined,
+                          size: 9.5,
+                          color: Colors.white,
+                        ),
+                      ],
+                      if (isMe) ...[
+                        const SizedBox(width: 3),
+                        _ReadReceiptIcon(
+                          status: receiptStatus ?? ReadReceiptStatus.sent,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (message.content.isNotEmpty && !message.isEncrypted) ...[
-              const SizedBox(height: 6),
-              Text(
-                message.content,
-                style: TextStyle(color: textColor, fontSize: 14),
-              ),
             ],
-          ],
-        );
-      },
+          ),
+        ),
+      );
+    }
+
+    final hasCaption = caption.isNotEmpty;
+    return GestureDetector(
+      onTap: () => _openViewer(context, file),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.only(
+              topLeft: borderRadius.topLeft,
+              topRight: borderRadius.topRight,
+              bottomLeft: hasCaption ? Radius.zero : borderRadius.bottomLeft,
+              bottomRight: hasCaption ? Radius.zero : borderRadius.bottomRight,
+            ),
+            child: Stack(
+              children: [
+                Image.file(
+                  file,
+                  width: bubbleWidth,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                ),
+                if (isSelected)
+                  Positioned.fill(
+                    child: Container(
+                      color: MekaarColors.blue.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.35
+                            : 0.22,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (hasCaption)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 7, 10, 4),
+              child: Column(
+                crossAxisAlignment:
+                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    caption,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      height: 1.35,
+                    ),
+                  ),
+                  if (metaWidget != null) ...[
+                    const SizedBox(height: 2),
+                    metaWidget!,
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 

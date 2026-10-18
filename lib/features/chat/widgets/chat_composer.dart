@@ -26,6 +26,7 @@ import '../../../data/models/emoji_pack_model.dart';
 import '../providers/emoji_pack_provider.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
+import 'image_send_preview_sheet.dart';
 
 class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -34,7 +35,12 @@ class ChatComposer extends ConsumerStatefulWidget {
   final VoidCallback onSend;
   final VoidCallback onCancelReply;
   final VoidCallback? onCancelEdit;
-  final Future<void> Function(File file, MessageType type)? onSendMedia;
+  final Future<void> Function(
+    File file,
+    MessageType type, {
+    String? caption,
+    bool? isViewOnce,
+  })? onSendMedia;
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
   final bool enabled;
@@ -246,7 +252,29 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       if (picked == null || !mounted) return;
       setState(() => _isUploading = true);
       final compressed = await MediaCompressor.compressImage(File(picked.path));
-      await widget.onSendMedia!(compressed, MessageType.image);
+      if (!mounted) return;
+      setState(() => _isUploading = false);
+
+      final result = await Navigator.of(context).push<ImageSendResult>(
+        MaterialPageRoute(
+          builder: (_) => ImageSendPreviewSheet(
+            imageFile: compressed,
+            replyMessage: widget.replyMessage,
+            onCancelReply: widget.onCancelReply,
+            roomThemeSpec: widget.roomThemeSpec,
+          ),
+        ),
+      );
+
+      if (result == null || !mounted) return;
+
+      setState(() => _isUploading = true);
+      await widget.onSendMedia!(
+        result.file,
+        MessageType.image,
+        caption: result.caption,
+        isViewOnce: result.isViewOnce,
+      );
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isUploading = false);

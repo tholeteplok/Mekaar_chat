@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -397,9 +398,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final timeStr = '$hourStr:$minuteStr';
 
     if (isSameDay) {
-      return 'Terakhir dilihat hari ini pukul $timeStr';
+      return 'Terakhir dilihat $timeStr';
     } else if (isYesterday) {
-      return 'Terakhir dilihat kemarin pukul $timeStr';
+      return 'Terakhir kemarin $timeStr';
+    } else if (diff.inDays < 7) {
+      const days = [
+        'Senin',
+        'Selasa',
+        'Rabu',
+        'Kamis',
+        'Jumat',
+        'Sabtu',
+        'Minggu',
+      ];
+      final dayName = days[lastSeen.weekday - 1];
+      return 'Terakhir $dayName $timeStr';
     } else if (now.year == lastSeen.year) {
       const monthNames = [
         'Jan',
@@ -416,11 +429,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         'Des',
       ];
       final monthName = monthNames[lastSeen.month - 1];
-      return 'Terakhir dilihat ${lastSeen.day} $monthName pukul $timeStr';
+      return 'Terakhir ${lastSeen.day} $monthName';
     } else {
       final dayStr = lastSeen.day.toString().padLeft(2, '0');
       final monthStr = lastSeen.month.toString().padLeft(2, '0');
-      return 'Terakhir dilihat $dayStr/$monthStr/${lastSeen.year}';
+      final yearShort = lastSeen.year.toString().substring(2);
+      return 'Terakhir $dayStr/$monthStr/$yearShort';
     }
   }
 
@@ -592,7 +606,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  Future<void> _handleSendMedia(File file, MessageType type) async {
+  Future<void> _handleSendMedia(
+    File file,
+    MessageType type, {
+    String? caption,
+    bool? isViewOnce,
+  }) async {
     String? uploadedUrl;
     final uploader = MediaUploadService(Supabase.instance.client);
 
@@ -618,19 +637,41 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
 
       uploadedUrl = url;
-      final isViewOnceToSend = _isViewOnce;
+      final isViewOnceToSend = isViewOnce ?? _isViewOnce;
+
+      final trimmedCaption = caption?.trim();
+      String contentPayload;
+      if (fileKeyB64 != null && fileKeyB64.isNotEmpty) {
+        if (trimmedCaption != null && trimmedCaption.isNotEmpty) {
+          contentPayload = jsonEncode({
+            'key': fileKeyB64,
+            'caption': trimmedCaption,
+          });
+        } else {
+          contentPayload = fileKeyB64;
+        }
+      } else {
+        contentPayload = trimmedCaption ?? '';
+      }
+
+      final replyId = _replyMessage?.id;
 
       await ref
           .read(chatActionsProvider)
           .sendMessage(
             widget.chatId,
-            fileKeyB64 ?? '',
+            contentPayload,
             mediaUrl: url,
             type: type,
             isViewOnce: isViewOnceToSend,
+            replyToId: replyId,
             autoDeleteHours: _autoDeleteHours,
             scheduledWipeTargetAt: _scheduledWipeTargetAt,
           );
+
+      if (mounted && _replyMessage != null) {
+        setState(() => _replyMessage = null);
+      }
       _scrollToBottom();
     } catch (e) {
       // Cleanup uploaded media if message creation fails
