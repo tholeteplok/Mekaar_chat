@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -544,7 +545,8 @@ class UpdateService {
         {'filePath': filePath},
       );
       return result ?? false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[UpdateService] Gagal memanggil installApk: $e');
       return false;
     }
   }

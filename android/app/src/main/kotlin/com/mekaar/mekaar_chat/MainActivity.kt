@@ -127,7 +127,7 @@ class MainActivity : FlutterActivity() {
                     file
                 )
             } catch (e: Exception) {
-                // Fallback: Jika path awal tidak terdaftar di FileProvider, salin ke cacheDir internal yang terdaftar di <cache-path>
+                Log.w(TAG, "FileProvider getUriForFile fallback ke cacheDir: ${e.message}")
                 val cacheDirUpdates = File(applicationContext.cacheDir, "updates")
                 if (!cacheDirUpdates.exists()) cacheDirUpdates.mkdirs()
                 val targetFile = File(cacheDirUpdates, file.name)
@@ -143,6 +143,8 @@ class MainActivity : FlutterActivity() {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
             }
 
             // Berikan grantUriPermission eksplisit ke semua paket yang dapat menangani intent
@@ -157,11 +159,24 @@ class MainActivity : FlutterActivity() {
             }
 
             for (resolveInfo in resInfoList) {
-                grantUriPermission(
-                    resolveInfo.activityInfo.packageName,
-                    apkUri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
+                try {
+                    grantUriPermission(
+                        resolveInfo.activityInfo.packageName,
+                        apkUri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: Exception) {}
+            }
+
+            // Berikan izin eksplisit ke installer paket bawaan sistem Android (Google & AOSP)
+            val systemInstallers = listOf(
+                "com.google.android.packageinstaller",
+                "com.android.packageinstaller"
+            )
+            for (pkg in systemInstallers) {
+                try {
+                    grantUriPermission(pkg, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Exception) {}
             }
 
             startActivity(intent)
@@ -184,39 +199,71 @@ class MainActivity : FlutterActivity() {
 
             // 1. Simpan via MediaStore (Android 10 - 15+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
                 val resolver = applicationContext.contentResolver
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { out ->
-                        FileInputStream(sourceFile).use { input ->
-                            input.copyTo(out)
+
+                // Cek apakah berkas dengan nama dan ukuran yang sama sudah ada di MediaStore Downloads
+                val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.SIZE)
+                val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ?"
+                val selectionArgs = arrayOf(fileName)
+                val cursor = resolver.query(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    null
+                )
+
+                var alreadyExists = false
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val sizeIndex = it.getColumnIndex(MediaStore.Downloads.SIZE)
+                        if (sizeIndex != -1) {
+                            val existingSize = it.getLong(sizeIndex)
+                            if (existingSize == sourceFile.length()) {
+                                alreadyExists = true
+                                exportedPath = "Download/$fileName"
+                            }
                         }
                     }
-                    contentValues.clear()
-                    contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
-                    resolver.update(uri, contentValues, null, null)
-                    exportedPath = "Download/$fileName"
+                }
+
+                if (!alreadyExists) {
+                    val contentValues = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                        put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
+                        put(MediaStore.Downloads.IS_PENDING, 1)
+                    }
+                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    if (uri != null) {
+                        resolver.openOutputStream(uri)?.use { out ->
+                            FileInputStream(sourceFile).use { input ->
+                                input.copyTo(out)
+                            }
+                        }
+                        contentValues.clear()
+                        contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                        resolver.update(uri, contentValues, null, null)
+                        exportedPath = "Download/$fileName"
+                    }
                 }
             }
 
-            // 2. Fallback / Direct copy jika MediaStore tidak menghasilkan path
+            // 2. Fallback / Direct copy jika MediaStore tidak menghasilkan path (Android < 10)
             if (exportedPath == null) {
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 if (!downloadsDir.exists()) {
                     downloadsDir.mkdirs()
                 }
                 val destFile = File(downloadsDir, fileName)
-                sourceFile.copyTo(destFile, overwrite = true)
+                if (!destFile.exists() || destFile.length() != sourceFile.length()) {
+                    sourceFile.copyTo(destFile, overwrite = true)
+                }
                 exportedPath = destFile.absolutePath
             }
 
             result.success(exportedPath)
         } catch (e: Exception) {
+            Log.e(TAG, "Error exporting APK to public downloads", e)
             result.error("EXPORT_ERROR", e.message, null)
         }
     }

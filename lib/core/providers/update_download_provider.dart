@@ -112,14 +112,6 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
 
     if (isAlreadyComplete) {
       final file = await _updateService.getUpdateFile(targetVersion);
-      String? publicExportPath = state.publicExportPath;
-      if (publicExportPath == null) {
-        try {
-          final fileName = 'Mekaar-v$targetVersion.apk';
-          publicExportPath =
-              await _updateService.exportToPublicDownloads(file.path, fileName);
-        } catch (_) {}
-      }
       state = state.copyWith(
         status: UpdateDownloadStatus.completed,
         info: updateInfo,
@@ -127,7 +119,6 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
         receivedBytes: expectedBytes > 0 ? expectedBytes : await file.length(),
         totalBytes: expectedBytes > 0 ? expectedBytes : await file.length(),
         downloadedFilePath: file.path,
-        publicExportPath: publicExportPath,
         statusMessage: 'Pembaruan siap dipasang',
         errorMessage: null,
       );
@@ -184,21 +175,10 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
         },
       );
 
-      String? publicExportPath = state.publicExportPath;
-      if (publicExportPath == null) {
-        try {
-          final ver = targetVersion;
-          final fileName = 'Mekaar-v$ver.apk';
-          publicExportPath =
-              await _updateService.exportToPublicDownloads(file.path, fileName);
-        } catch (_) {}
-      }
-
       state = state.copyWith(
         status: UpdateDownloadStatus.completed,
         progress: 1.0,
         downloadedFilePath: file.path,
-        publicExportPath: publicExportPath,
         statusMessage: 'Pembaruan siap dipasang',
         errorMessage: null,
       );
@@ -258,7 +238,21 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
     final file = File(path);
     if (!await file.exists()) return InstallResult.failed;
 
-    // Pastikan salinan publik ada di folder Download untuk akses manual pengguna
+    // Periksa izin instalasi aplikasi tidak dikenal
+    final canInstall = await _updateService.canRequestPackageInstalls();
+    if (!canInstall) {
+      await _updateService.openInstallPermissionSettings();
+      return InstallResult.permissionRequired;
+    }
+
+    // Jalankan installer native Android langsung tanpa menduplikasi berkas
+    final success = await _updateService.installApk(path);
+    if (success) {
+      return InstallResult.success;
+    }
+
+    // Fallback: Jika installer native gagal dibuka langsung di perangkat ini,
+    // sediakan salinan di folder Download agar pengguna tetap dapat memasang manual.
     if (state.publicExportPath == null) {
       final ver = state.info?.latestVersion ?? 'update';
       final fileName = 'Mekaar-v$ver.apk';
@@ -269,24 +263,21 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
       }
     }
 
-    // Periksa izin instalasi aplikasi tidak dikenal
-    final canInstall = await _updateService.canRequestPackageInstalls();
-    if (!canInstall) {
-      await _updateService.openInstallPermissionSettings();
-      return InstallResult.permissionRequired;
-    }
-
-    // Jalankan installer native Android langsung
-    final success = await _updateService.installApk(path);
-    if (success) {
-      return InstallResult.success;
-    }
-
     return InstallResult.failed;
   }
 
-  /// Membuka folder Download publik sistem Android
+  /// Membuka folder Download publik sistem Android dan memastikan file telah tersedia
   Future<bool> openDownloadsFolder() async {
+    final path = state.downloadedFilePath;
+    if (path != null && state.publicExportPath == null) {
+      final ver = state.info?.latestVersion ?? 'update';
+      final fileName = 'Mekaar-v$ver.apk';
+      final publicPath =
+          await _updateService.exportToPublicDownloads(path, fileName);
+      if (publicPath != null) {
+        state = state.copyWith(publicExportPath: publicPath);
+      }
+    }
     return _updateService.openDownloadsFolder();
   }
 
