@@ -356,9 +356,11 @@ class ChatBubble extends ConsumerWidget {
                               horizontal: 4,
                               vertical: 2,
                             )
-                          : const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
+                          : const EdgeInsets.only(
+                              left: 12,
+                              right: 10,
+                              top: 7,
+                              bottom: 6,
                             )),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.76,
@@ -370,154 +372,170 @@ class ChatBubble extends ConsumerWidget {
                   borderRadius: radius,
                   boxShadow: shadows,
                 ),
-                child: Column(
-                  crossAxisAlignment: isMe
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (spec.headerWidget != null && !isDeleted)
-                      spec.headerWidget!,
-                    if (!isMe &&
-                        senderName != null &&
-                        senderName!.isNotEmpty &&
-                        !isDeleted) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          senderName!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.blue,
+                child: Builder(
+                  builder: (context) {
+                    final metaColor = isOnlyEmoji
+                        ? MekaarColors.textMutedOf(context)
+                        : (isMe
+                              ? textColor.withValues(alpha: 0.7)
+                              : MekaarColors.textMutedOf(context));
+
+                    Widget buildTimestampWidget() {
+                      if (isSticker && !isDeleted) {
+                        return Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
                           ),
-                        ),
-                      ),
-                    ],
-                    // Reply preview
-                    if (message.replyToId != null && !isDeleted)
-                      _buildQuotedReplyBox(context),
-                    // Main content
-                    _buildContentWidget(
-                      context,
-                      textColor,
-                      fontFamily,
-                      spec.textStyle,
-                      isSticker: isSticker,
-                    ),
-                    const SizedBox(height: 4),
-                    // Timestamp + edited + read receipt
-                    Builder(
-                      builder: (context) {
-                        if (isSticker && !isDeleted) {
-                          return Container(
-                            margin: const EdgeInsets.only(top: 2),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.38),
+                            borderRadius: BorderRadius.circular(
+                              MekaarRadius.pill,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.38),
-                              borderRadius: BorderRadius.circular(
-                                MekaarRadius.pill,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (message.isEncrypted) ...[
-                                  const Icon(
-                                    MekaarIcons.lockOutline,
-                                    size: 9.5,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: 3),
-                                ],
-                                Text(
-                                  DateFormat(
-                                    'HH:mm',
-                                  ).format(message.createdAt.toLocal()),
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                if (message.autoDeleteAt != null) ...[
-                                  const SizedBox(width: 3),
-                                  const Icon(
-                                    MekaarIcons.timerOutlined,
-                                    size: 9.5,
-                                    color: Colors.white,
-                                  ),
-                                ],
-                                if (isMe) ...[
-                                  const SizedBox(width: 4),
-                                  _ReadReceiptIcon(
-                                    status: receiptStatus,
-                                    color: Colors.white,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        }
-
-                        final metaColor = isOnlyEmoji
-                            ? MekaarColors.textMutedOf(context)
-                            : (isMe
-                                  ? textColor.withValues(alpha: 0.7)
-                                  : MekaarColors.textMutedOf(context));
-
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            if (message.isEdited && !isDeleted) ...[
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               Text(
-                                'diedit ',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontStyle: FontStyle.italic,
-                                  color: metaColor,
+                                DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
                                 ),
                               ),
+                              if (message.autoDeleteAt != null) ...[
+                                const SizedBox(width: 3),
+                                const Icon(
+                                  MekaarIcons.timerOutlined,
+                                  size: 9.5,
+                                  color: Colors.white,
+                                ),
+                              ],
+                              if (isMe) ...[
+                                const SizedBox(width: 4),
+                                _ReadReceiptIcon(
+                                  status: receiptStatus,
+                                  color: Colors.white,
+                                ),
+                              ],
                             ],
-                            if (message.isEncrypted && !isDeleted) ...[
-                              Icon(
-                                MekaarIcons.lockOutline,
-                                size: 11,
-                                color: metaColor,
-                              ),
-                              const SizedBox(width: 3),
-                            ],
-                            Text(
-                              DateFormat(
-                                'HH:mm',
-                              ).format(message.createdAt.toLocal()),
-                              style: TextStyle(fontSize: 10, color: metaColor),
-                            ),
-                            if (message.autoDeleteAt != null && !isDeleted) ...[
-                              const SizedBox(width: 4),
-                              Icon(
-                                MekaarIcons.timerOutlined,
-                                size: 11,
-                                color: metaColor,
-                              ),
-                            ],
-                            // Read receipt icon (only for sent messages)
-                            if (isMe && !isDeleted) ...[
-                              const SizedBox(width: 4),
-                              _ReadReceiptIcon(
-                                status: receiptStatus,
-                                color: metaColor,
-                              ),
-                            ],
-                          ],
+                          ),
                         );
-                      },
-                    ),
-                  ],
+                      }
+
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (message.isEdited && !isDeleted) ...[
+                            Text(
+                              'diedit ',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontStyle: FontStyle.italic,
+                                color: metaColor,
+                              ),
+                            ),
+                          ],
+                          Text(
+                            DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: metaColor,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          if (message.autoDeleteAt != null && !isDeleted) ...[
+                            const SizedBox(width: 3),
+                            Icon(
+                              MekaarIcons.timerOutlined,
+                              size: 10,
+                              color: metaColor,
+                            ),
+                          ],
+                          if (isMe && !isDeleted) ...[
+                            const SizedBox(width: 3),
+                            _ReadReceiptIcon(
+                              status: receiptStatus,
+                              color: metaColor,
+                            ),
+                          ],
+                        ],
+                      );
+                    }
+
+                    // Mode Inline ala WhatsApp: jika pesan teks biasa tanpa kutipan balas,
+                    // teks dan waktu mengalir berdampingan dalam satu baris.
+                    final isNormalText = message.type == MessageType.text &&
+                        !isOnlyEmoji &&
+                        !isSticker &&
+                        !isDeleted &&
+                        message.replyToId == null &&
+                        spec.headerWidget == null &&
+                        (isMe || senderName == null || senderName!.isEmpty);
+
+                    if (isNormalText) {
+                      return Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.end,
+                        spacing: 8,
+                        runSpacing: 2,
+                        children: [
+                          _buildContentWidget(
+                            context,
+                            textColor,
+                            fontFamily,
+                            spec.textStyle,
+                            isSticker: isSticker,
+                          ),
+                          buildTimestampWidget(),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (spec.headerWidget != null && !isDeleted)
+                          spec.headerWidget!,
+                        if (!isMe &&
+                            senderName != null &&
+                            senderName!.isNotEmpty &&
+                            !isDeleted) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              senderName!,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
+                        // Reply preview
+                        if (message.replyToId != null && !isDeleted)
+                          _buildQuotedReplyBox(context),
+                        // Main content
+                        _buildContentWidget(
+                          context,
+                          textColor,
+                          fontFamily,
+                          spec.textStyle,
+                          isSticker: isSticker,
+                        ),
+                        const SizedBox(height: 2),
+                        buildTimestampWidget(),
+                      ],
+                    );
+                  },
                 ),
               ),
               // Emoji reactions strip below bubble
@@ -943,8 +961,8 @@ class _ReadReceiptIcon extends StatelessWidget {
       case ReadReceiptStatus.read:
         return const Icon(
           MekaarIcons.doneAll,
-          size: 11,
-          color: MekaarColors.sosCoral,
+          size: 12,
+          color: Color(0xFF34B7F1), // Biru standar pesan sudah dibaca
         );
     }
   }

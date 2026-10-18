@@ -872,7 +872,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final actions = ref.read(chatActionsProvider);
 
     final topAreaHeight =
-        MediaQuery.of(context).padding.top + kToolbarHeight + 16.0;
+        MediaQuery.of(context).padding.top + kToolbarHeight + 6.0;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return PopScope(
@@ -1322,7 +1322,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     builder: (context, lastSeen, _) {
                       final isOnline = _isCurrentlyOnline(lastSeen);
                       return CustomAppBar(
-                        isFloating: true,
+                        isMaterialHeader: true,
                         title: widget.chatName,
                         avatarInitial: widget.chatAvatar,
                         avatarUrl: widget.chatAvatarUrl,
@@ -1362,7 +1362,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     )
                                   : null),
                         actions: [
-                          // Actions Popup Menu (High-Contrast Frosted Glass)
+                          // 1. Panggilan Video Langsung
+                          IconButton(
+                            icon: Icon(
+                              SolarIconsOutline.videocamera,
+                              color: roomThemeSpec.iconColor,
+                              size: 22,
+                            ),
+                            tooltip: 'Panggilan Video',
+                            onPressed: () => _initiateCall('video'),
+                          ),
+                          // 2. Panggilan Suara Langsung
+                          IconButton(
+                            icon: Icon(
+                              SolarIconsOutline.phoneRounded,
+                              color: roomThemeSpec.iconColor,
+                              size: 22,
+                            ),
+                            tooltip: 'Panggilan Suara',
+                            onPressed: () => _initiateCall('voice'),
+                          ),
+                          // 3. Actions Popup Menu (High-Contrast Frosted Glass)
                           PopupMenuButton<String>(
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
@@ -1379,7 +1399,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             padding: EdgeInsets.zero,
                             icon: Icon(
                               SolarIconsOutline.menuDots,
-                              color: roomThemeSpec.primaryAccentColor,
+                              color: roomThemeSpec.iconColor,
                             ),
                             onSelected: (value) async {
                               if (value == 'search') {

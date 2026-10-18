@@ -963,30 +963,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // ── Container 1 (Kiri): Tombol Lampiran 📎 ──
-                    if (!_isEditMode) ...[
-                      MekaarGlassBlurContainer(
-                        isFloating: true,
-                        shape: BoxShape.circle,
-                        width: 48,
-                        height: 48,
-                        border: glassBorder,
-                        customColor: glassBg,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            SolarIconsOutline.paperclip,
-                            color: secondaryAccent,
-                            size: 22,
-                          ),
-                          onPressed: widget.enabled ? _showAttachmentSheet : null,
-                          tooltip: 'Lampiran',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-
-                    // ── Container 2 (Tengah): Input Teks + Emoji 😀 ──
+                    // ── Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ 😀 Emoji | Input Teks | 📎 Lampiran ] ──
                     Expanded(
                       child: MekaarGlassBlurContainer(
                         isFloating: true,
@@ -995,7 +972,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                           maxHeight: 130,
                         ),
                         borderRadius: BorderRadius.circular(24),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                         border: glassBorder,
                         customColor: glassBg,
                         child: Row(
@@ -1006,7 +983,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                 padding: const EdgeInsets.only(bottom: 2),
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                                  constraints: const BoxConstraints.tightFor(width: 40, height: 44),
                                   icon: Icon(
                                     MekaarIcons.smile,
                                     color: _showEmojiPicker
@@ -1049,7 +1026,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   enabledBorder: InputBorder.none,
                                   fillColor: Colors.transparent,
                                   contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
+                                    horizontal: 6,
                                     vertical: 10,
                                   ),
                                   isDense: true,
@@ -1062,6 +1039,21 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                 onTap: closeEmojiPicker,
                               ),
                             ),
+                            if (!_isEditMode)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(width: 40, height: 44),
+                                  icon: Icon(
+                                    SolarIconsOutline.paperclip,
+                                    color: secondaryAccent,
+                                    size: 22,
+                                  ),
+                                  onPressed: widget.enabled ? _showAttachmentSheet : null,
+                                  tooltip: 'Lampiran',
+                                ),
+                              ),
                           ],
                         ),
                       ),

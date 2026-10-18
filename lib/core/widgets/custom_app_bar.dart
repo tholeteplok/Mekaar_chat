@@ -23,6 +23,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onAvatarTap;
   final bool enableGlassBlur;
   final bool isFloating;
+  final bool isMaterialHeader;
   final BoxBorder? glassBorder;
   final Color? glassBackgroundColor;
   final Color? iconColor;
@@ -43,6 +44,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onAvatarTap,
     this.enableGlassBlur = true,
     this.isFloating = false,
+    this.isMaterialHeader = false,
     this.glassBorder,
     this.glassBackgroundColor,
     this.iconColor,
@@ -54,11 +56,133 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final canPop = Navigator.canPop(context);
 
+    if (isMaterialHeader) {
+      return _buildMaterialHeader(context, canPop);
+    }
+
     if (isFloating) {
       return _buildFloating(context, canPop);
     }
 
     return _buildStandard(context, canPop);
+  }
+
+  // ── Mode Material Header: Full-Width Solid Surface untuk ChatScreen ───────
+  Widget _buildMaterialHeader(BuildContext context, bool canPop) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = glassBackgroundColor ?? MekaarColors.surfaceOf(context);
+
+    return Container(
+      padding: EdgeInsets.only(top: topPadding),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        border: Border(
+          bottom: BorderSide(
+            color: MekaarColors.borderOf(context).withValues(alpha: isDark ? 0.3 : 0.1),
+            width: 1.0,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: kToolbarHeight,
+        child: Row(
+          children: [
+            if (canPop)
+              IconButton(
+                icon: Icon(
+                  MekaarIcons.arrowBackIosNew,
+                  size: 20,
+                  color: iconColor ?? MekaarColors.textPrimaryOf(context),
+                ),
+                onPressed: onBackPress ?? () => Navigator.pop(context),
+                tooltip: 'Kembali',
+              )
+            else
+              const SizedBox(width: 16),
+
+            if (avatarInitial != null || avatarUrl != null) ...[
+              GestureDetector(
+                onTap: onAvatarTap,
+                child: Avatar(
+                  initial: avatarInitial,
+                  imageUrl: avatarUrl,
+                  size: 38,
+                  isGuardian: isGuardian,
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+
+            Expanded(
+              child: InkWell(
+                onTap: onAvatarTap,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: textColor ?? MekaarColors.textPrimaryOf(context),
+                            letterSpacing: -0.2,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (showOnlineIndicator || subtitle != null) ...[
+                      const SizedBox(height: 1),
+                      Row(
+                        children: [
+                          if (showOnlineIndicator) ...[
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isOnline
+                                    ? MekaarColors.success
+                                    : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Flexible(
+                            child: Text(
+                              subtitle ?? (isOnline ? 'Online' : 'Offline'),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                color: isOnline && showOnlineIndicator
+                                    ? MekaarColors.success
+                                    : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            if (actions != null && actions!.isNotEmpty) ...actions!,
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Mode Floating: 3 Floating Glass Containers ──────────────────────────
