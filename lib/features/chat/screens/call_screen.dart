@@ -377,7 +377,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
           if (_currentCallId != null && mounted) {
             ref.read(activeCallIdProvider.notifier).state = _currentCallId!;
           }
-        } catch (e) {
+        } catch (e, st) {
+          debugPrint('[CallScreen] createCall error: $e\n$st');
           _finishCall('Gagal terhubung ke panggilan');
           return;
         }

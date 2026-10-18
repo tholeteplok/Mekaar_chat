@@ -112,6 +112,28 @@ Future<void> _initializeSecondaryServices() async {
           logger.w('Gagal memproses trip notification action: $e');
         }
       },
+      onCallAction: (route, {required accept}) async {
+        if (accept) {
+          _handleNotificationRoute(route);
+        } else {
+          final callId = route.callId;
+          if (callId != null && callId.isNotEmpty) {
+            try {
+              final client = SupabaseService().client;
+              await client
+                  .from('calls')
+                  .update({
+                    'status': 'declined',
+                    'ended_at': DateTime.now().toIso8601String(),
+                    'updated_at': DateTime.now().toIso8601String(),
+                  })
+                  .eq('id', callId);
+            } catch (e) {
+              logger.w('Gagal tolak panggilan dari notification action: $e');
+            }
+          }
+        }
+      },
     );
 
     // Cek apakah app cold-started dari tap local notification

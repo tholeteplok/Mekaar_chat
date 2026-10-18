@@ -6,6 +6,7 @@ import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
 import '../services/local_message_database.dart';
+import '../services/push_notification_service.dart';
 import 'reconnect_policy.dart';
 
 class ChatRepository {
@@ -633,6 +634,14 @@ class ChatRepository {
     final plaintextMsg = sentMsg.copyWith(content: content);
     _decryptedContentCache[sentMsg.id] = content;
     unawaited(LocalMessageDatabase.instance.saveMessage(plaintextMsg));
+
+    // Dual-dispatch fallback push notification ke penerima pesan
+    unawaited(
+      PushNotificationService.dispatchPushFallback(
+        type: 'message',
+        record: response,
+      ),
+    );
 
     return plaintextMsg;
   }

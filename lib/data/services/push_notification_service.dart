@@ -35,12 +35,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       await NotificationService.showIncomingCallNotification(
         callerName: callerName,
         callType: callType,
+        roomId: data['roomId'] as String?,
+        callId: data['callId'] as String?,
+        callerId: data['callerId'] as String?,
+        callerAvatarUrl: data['callerAvatarUrl'] as String?,
         route: NotificationRoute(
           type: NotificationRouteType.call,
           roomId: data['roomId'] as String?,
           callId: data['callId'] as String?,
           callerId: data['callerId'] as String?,
           callerName: callerName,
+          callerAvatarUrl: data['callerAvatarUrl'] as String?,
           callType: callType,
         ),
       );
@@ -214,15 +219,57 @@ class PushNotificationService {
     }
   }
 
+  /// Mengirim push notifikasi cadangan via Supabase Edge Function 'send-push-notification'.
+  /// Dipanggil dari client saat mengirim pesan / panggilan agar penerima tetap
+  /// menerima notifikasi meskipun webhook database belum/tidak terkonfigurasi.
+  static Future<void> dispatchPushFallback({
+    required String type,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final client = SupabaseService().client;
+      if (client.auth.currentUser == null) return;
+
+      final tableName = type == 'call' ? 'calls' : 'messages';
+      final payload = {
+        'type': 'INSERT',
+        'table': tableName,
+        'schema': 'public',
+        'record': record,
+      };
+
+      // Panggil Edge Function 'send-push-notification'
+      final response = await client.functions.invoke(
+        'send-push-notification',
+        body: payload,
+      );
+
+      _logger.d('Push fallback dispatch status ($type): ${response.status}');
+    } catch (e) {
+      // Fallback diam: tidak memblokir alur utama jika Edge Function offline / belum dideploy
+      _logger.d('Push fallback dispatch dilewati: $e');
+    }
+  }
+
   static Future<void> updateFcmTokenInSupabase(String token) async {
     try {
       final client = SupabaseService().client;
-      if (client.auth.currentUser != null) {
-        // Registrasi device + FCM token ke tabel user_devices
-        // (fallback ke update_fcm_token jika migrasi 72 belum tersedia)
+      final userId = client.auth.currentUser?.id;
+      if (userId != null) {
+        // 1. Registrasi device + FCM token ke tabel user_devices
         final repo = DeviceRepository(client);
         await repo.registerDevice(fcmToken: token);
-        _logger.i('FCM token registered via DeviceRepository (length: ${token.length})');
+
+        // 2. Direct fallback update ke profiles.fcm_token untuk memastikan
+        // query Edge Function selalu menemukan token penerima
+        try {
+          await client.from('profiles').update({
+            'fcm_token': token,
+            'fcm_token_updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', userId);
+        } catch (_) {}
+
+        _logger.i('FCM token registered via DeviceRepository & profiles (length: ${token.length})');
       }
     } catch (e) {
       _logger.w('Gagal menyimpan token FCM ke Supabase: $e');

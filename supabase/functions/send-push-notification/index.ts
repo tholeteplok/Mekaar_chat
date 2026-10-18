@@ -369,8 +369,8 @@ Deno.serve(async (req: Request) => {
     if (payload.table === "calls") {
       const call = payload.record as CallRecord;
 
-      // Hanya kirim push untuk status 'ringing'
-      if (call.status !== "ringing") {
+      // Izinkan status 'ringing' dan 'calling'
+      if (call.status !== "ringing" && call.status !== "calling") {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -411,10 +411,10 @@ Deno.serve(async (req: Request) => {
         callResults.push(
           messaging.send({
             token: dt.token,
-            notification: {
-              title: callLabel,
-              body: callerName,
-            },
+            // PENTING: Untuk Android panggilan masuk, kirim data-only high-priority payload
+            // agar OS Android tidak mengintersepnya sebagai notifikasi tray statis,
+            // melainkan membangunkan _firebaseMessagingBackgroundHandler untuk memicu
+            // nada dering panggilan dan fullScreenIntent di layar terkunci.
             data: {
               type: "call",
               roomId: call.room_id,
@@ -427,14 +427,14 @@ Deno.serve(async (req: Request) => {
             },
             android: {
               priority: "high",
-              notification: {
-                channelId: "mekaar_call_channel",
-                sound: "default",
-              },
             },
             apns: {
               payload: {
                 aps: {
+                  alert: {
+                    title: callLabel,
+                    body: callerName,
+                  },
                   sound: "default",
                   "content-available": 1,
                 },

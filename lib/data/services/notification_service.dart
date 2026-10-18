@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import '../services/supabase_service.dart';
@@ -109,6 +110,8 @@ class NotificationRoute {
 
 class NotificationService {
   static const int incomingCallNotificationId = 7001;
+  static const String actionCallAccept = 'call_accept';
+  static const String actionCallDecline = 'call_decline';
   static final Logger _logger = Logger();
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -130,6 +133,9 @@ class NotificationService {
   static Function(String tripId, {required bool arrived, int? snoozeMinutes})?
       _onTripAction;
 
+  /// Callback khusus saat pengguna menekan tombol aksi "Jawab" atau "Tolak" pada notifikasi panggilan masuk.
+  static Function(NotificationRoute route, {required bool accept})? _onCallAction;
+
   /// Prefix payload untuk membedakan notifikasi trip dari notifikasi chat biasa.
   static const String _tripPayloadPrefix = 'trip:';
 
@@ -138,10 +144,12 @@ class NotificationService {
     Function(String tripId)? onTripNotificationTap,
     Function(String tripId, {required bool arrived, int? snoozeMinutes})?
         onTripAction,
+    Function(NotificationRoute route, {required bool accept})? onCallAction,
   }) async {
     _onNotificationTap = onNotificationTap;
     _onTripNotificationTap = onTripNotificationTap;
     _onTripAction = onTripAction;
+    _onCallAction = onCallAction;
     try {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings(
@@ -154,9 +162,60 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse: _onDidReceiveNotificationResponse,
       );
+      await _createNotificationChannels();
       _logger.i("Notification Service Initialized (Flutter Local Notifications)");
     } catch (e) {
       _logger.w("Notification Service: Gagal inisialisasi native driver (fallback aktif): $e");
+    }
+  }
+
+  /// Mendaftarkan Android Notification Channels secara eksplisit agar sistem OS
+  /// memberikan prioritas tinggi, getaran, dan suara saat aplikasi di background/ditutup.
+  static Future<void> _createNotificationChannels() async {
+    final androidImpl = _localNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl == null) return;
+
+    try {
+      // 1. Channel Panggilan Masuk (Max Importance, bergetar berulang)
+      await androidImpl.createNotificationChannel(
+        AndroidNotificationChannel(
+          'mekaar_call_channel',
+          'Panggilan MEKAAR',
+          description: 'Saluran panggilan suara dan video masuk',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 1000, 1000, 1000, 1000]),
+        ),
+      );
+
+      // 2. Channel Pesan Masuk (High Importance, suara & getar default)
+      await androidImpl.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'mekaar_message_channel',
+          'Pesan MEKAAR',
+          description: 'Saluran notifikasi pesan masuk',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+
+      // 3. Channel Darurat SOS (Max Importance)
+      await androidImpl.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'mekaar_sos_channel',
+          'Darurat & SOS MEKAAR',
+          description: 'Saluran peringatan darurat dan SOS',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+    } catch (e) {
+      _logger.w('Gagal membuat notification channels Android: $e');
     }
   }
 
@@ -164,6 +223,21 @@ class NotificationService {
   static void _onDidReceiveNotificationResponse(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
+
+    // Tangani aksi panggilan "Jawab" atau "Tolak" langsung dari notification tray
+    if (response.actionId == actionCallAccept ||
+        response.actionId == actionCallDecline) {
+      final route = NotificationRoute.fromPayload(payload);
+      if (route != null) {
+        final isAccept = response.actionId == actionCallAccept;
+        _logger.i(
+          'Call notification action: ${isAccept ? "Accept" : "Decline"}, callId: ${route.callId}',
+        );
+        cancelIncomingCallNotification();
+        _onCallAction?.call(route, accept: isAccept);
+        return;
+      }
+    }
 
     if (payload.startsWith(_tripPayloadPrefix)) {
       final tripId = payload.substring(_tripPayloadPrefix.length);
@@ -216,9 +290,15 @@ class NotificationService {
         channelDescription: 'Saluran notifikasi pesan masuk',
         importance: Importance.high,
         priority: Priority.high,
-        playSound: false,
+        playSound: true,
+        enableVibration: true,
+        category: AndroidNotificationCategory.message,
       ),
-      iOS: DarwinNotificationDetails(presentSound: false),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
     await _localNotificationsPlugin.show(
       DateTime.now().microsecondsSinceEpoch.remainder(1 << 31),
@@ -297,7 +377,7 @@ class NotificationService {
     NotificationRoute? route,
   }) async {
     await AlarmService.startCallRingtone();
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
         'mekaar_call_channel',
         'Panggilan MEKAAR',
@@ -307,10 +387,31 @@ class NotificationService {
         category: AndroidNotificationCategory.call,
         ongoing: true,
         autoCancel: false,
-        playSound: false,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 1000, 1000, 1000]),
         fullScreenIntent: true,
+        actions: const [
+          AndroidNotificationAction(
+            actionCallAccept,
+            'Jawab',
+            showsUserInterface: true,
+            cancelNotification: true,
+          ),
+          AndroidNotificationAction(
+            actionCallDecline,
+            'Tolak',
+            showsUserInterface: false,
+            cancelNotification: true,
+          ),
+        ],
       ),
-      iOS: DarwinNotificationDetails(presentSound: false),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        categoryIdentifier: 'incoming_call',
+      ),
     );
     await _localNotificationsPlugin.show(
       incomingCallNotificationId,

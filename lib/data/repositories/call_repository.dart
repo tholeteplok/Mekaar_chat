@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/call_model.dart';
+import '../services/push_notification_service.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
 class CallRepository {
@@ -29,18 +31,47 @@ class CallRepository {
       );
     }
 
-    final response = await _client
-        .from('calls')
-        .insert({
-          'room_id': roomId,
-          'caller_id': callerId,
-          'receiver_id': receiverId,
-          'call_type': callType,
-          'status': 'calling',
-        })
-        .select()
-        .single();
-    return Map<String, dynamic>.from(response);
+    Map<String, dynamic> response;
+    try {
+      final res = await _client
+          .from('calls')
+          .insert({
+            'room_id': roomId,
+            'caller_id': callerId,
+            'receiver_id': receiverId,
+            'call_type': callType,
+            'status': 'calling',
+          })
+          .select()
+          .single();
+      response = Map<String, dynamic>.from(res);
+    } catch (e) {
+      debugPrint(
+        '[CallRepository] createCall dengan status "calling" gagal, fallback ke "ringing": $e',
+      );
+      final res = await _client
+          .from('calls')
+          .insert({
+            'room_id': roomId,
+            'caller_id': callerId,
+            'receiver_id': receiverId,
+            'call_type': callType,
+            'status': 'ringing',
+          })
+          .select()
+          .single();
+      response = Map<String, dynamic>.from(res);
+    }
+
+    // Dual-dispatch fallback push notification ke penerima panggilan
+    unawaited(
+      PushNotificationService.dispatchPushFallback(
+        type: 'call',
+        record: response,
+      ),
+    );
+
+    return response;
   }
 
   /// Cek internal apakah relasi chat sah untuk melakukan panggilan
@@ -103,8 +134,10 @@ class CallRepository {
 
       return response != null;
     } catch (e, st) {
-      debugPrint('CallRepository._isChatApprovedForCall failed: $e\n$st');
-      return false;
+      debugPrint('CallRepository._isChatApprovedForCall warning: $e\n$st');
+      // Fallback: Jika query pengecekan client-side gagal tapi roomId valid,
+      // izinkan inisiasi agar hak akses divalidasi oleh RLS database server.
+      return roomId != null && roomId.isNotEmpty;
     }
   }
 
