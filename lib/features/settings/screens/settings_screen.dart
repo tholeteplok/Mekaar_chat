@@ -122,9 +122,7 @@ class SettingsScreen extends ConsumerWidget {
               SettingsSwitchTile(
                 icon: SolarIconsOutline.eyeClosed,
                 iconColor: MekaarColors.purpleLight,
-                title: 'Sembunyikan Cuplikan Pesan (Stealth)',
-                subtitle:
-                    'Samarkan pratinjau pesan di daftar obrolan dengan titik-titik (••••••••)',
+                title: 'Sembunyikan Cuplikan Pesan',
                 value: ref.watch(stealthChatPreviewProvider),
                 onChanged: (value) => ref
                     .read(stealthChatPreviewProvider.notifier)
@@ -142,7 +140,7 @@ class SettingsScreen extends ConsumerWidget {
               SettingsNavTile(
                 icon: SolarIconsOutline.radar2,
                 iconColor: MekaarColors.guardianTeal,
-                title: 'Teman Sekitar (Proximity)',
+                title: 'Teman Sekitar',
                 valueText: ref.watch(nearbyFriendsProvider).isEnabled
                     ? (ref.watch(nearbyFriendsProvider).visibilityMode ==
                               'everyone'
@@ -154,7 +152,7 @@ class SettingsScreen extends ConsumerWidget {
               SettingsNavTile(
                 icon: SolarIconsOutline.mapPoint,
                 iconColor: MekaarColors.guardianTeal,
-                title: 'Mekaar Beacon (Auto Check-In)',
+                title: 'Auto Check-In',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
               ),
             ],

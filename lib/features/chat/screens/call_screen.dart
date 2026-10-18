@@ -650,6 +650,33 @@ class _CallScreenState extends ConsumerState<CallScreen>
     }
   }
 
+  Future<void> _switchCamera() async {
+    if (!_mediaReady || _isEnding || !_isVideoCall) return;
+    final videoTracks = _signaling?.localStream?.getVideoTracks() ?? [];
+    if (videoTracks.isEmpty) return;
+    try {
+      await Helper.switchCamera(videoTracks.first);
+      if (mounted) {
+        HapticService.trigger(MekaarHapticIntent.selection);
+      }
+    } catch (e) {
+      debugPrint('[CallScreen] Gagal membalikkan kamera: $e');
+    }
+  }
+
+  void _onCameraButtonTapped() {
+    if (!_mediaReady || _isEnding) return;
+    if (_isVideoCall) {
+      _toggleVideo();
+    } else {
+      HapticService.trigger(MekaarHapticIntent.selection);
+      MekaarSnackbar.info(
+        context,
+        'Panggilan ini adalah panggilan suara. Untuk berbagi kamera, mulai panggilan video.',
+      );
+    }
+  }
+
   Future<void> _hangup() async {
     if (_isEnding) {
       return;
@@ -907,7 +934,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 ],
               ),
             ),
-            if (_isVideoCall && _isVideoOn && _localRenderer.srcObject != null)
+            if (_isVideoCall && _isVideoOn && _localRenderer.srcObject != null) ...[
               Positioned(
                 top: 50,
                 right: 20,
@@ -922,52 +949,97 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   ),
                 ),
               ),
-            Positioned(
-              bottom: 60,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _controlButton(
-                    icon: _isSpeakerOn
-                        ? MekaarIcons.volumeUp
-                        : MekaarIcons.volumeDown,
-                    color: _isSpeakerOn ? Colors.white : Colors.white24,
-                    iconColor: _isSpeakerOn ? Colors.black : Colors.white,
-                    onTap: _mediaReady && !_isEnding ? _toggleSpeaker : null,
-                    tooltip: _isSpeakerOn
-                        ? 'Matikan Speaker'
-                        : 'Nyalakan Speaker',
-                  ),
-                  if (_isVideoCall)
-                    _controlButton(
-                      icon: _isVideoOn
-                          ? MekaarIcons.videocam
-                          : MekaarIcons.videocamOff,
-                      color: _isVideoOn ? Colors.white : Colors.white24,
-                      iconColor: _isVideoOn ? Colors.black : Colors.white,
-                      onTap: _mediaReady && !_isEnding ? _toggleVideo : null,
-                      tooltip: _isVideoOn
-                          ? 'Matikan Kamera'
-                          : 'Nyalakan Kamera',
+              Positioned(
+                top: 50,
+                left: 20,
+                child: SafeArea(
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.38),
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: _switchCamera,
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: Icon(
+                            MekaarIcons.cameraRotate,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ),
                     ),
-                  _controlButton(
-                    icon: _isMuted ? MekaarIcons.micOff : MekaarIcons.mic,
-                    color: _isMuted ? Colors.white : Colors.white24,
-                    iconColor: _isMuted ? Colors.black : Colors.white,
-                    onTap: _mediaReady && !_isEnding ? _toggleMute : null,
-                    tooltip: _isMuted ? 'Nyalakan Mikrofon' : 'Mute Mikrofon',
                   ),
-                  _controlButton(
-                    icon: MekaarIcons.callEnd,
-                    color: MekaarColors.sosRed,
-                    iconColor: Colors.white,
-                    onTap: _isEnding ? null : _hangup,
-                    tooltip: 'Akhiri Panggilan',
-                    size: 64,
+                ),
+              ),
+            ],
+            Positioned(
+              bottom: 40,
+              left: 20,
+              right: 20,
+              child: SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      width: 1,
+                    ),
                   ),
-                ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // 1. Output Audio (Speaker / Earpiece)
+                      _controlButton(
+                        icon: _isSpeakerOn
+                            ? MekaarIcons.speakerOn
+                            : MekaarIcons.speakerOff,
+                        label: _isSpeakerOn ? 'Speaker' : 'Earpiece',
+                        isActive: _isSpeakerOn,
+                        onTap: _mediaReady && !_isEnding ? _toggleSpeaker : null,
+                        tooltip: _isSpeakerOn
+                            ? 'Beralih ke Earpiece'
+                            : 'Nyalakan Speaker',
+                      ),
+                      // 2. Kamera
+                      _controlButton(
+                        icon: (_isVideoCall && !_isVideoOn)
+                            ? MekaarIcons.videocamOff
+                            : MekaarIcons.videocam,
+                        label: _isVideoCall
+                            ? (_isVideoOn ? 'Kamera' : 'Kamera Mati')
+                            : 'Kamera',
+                        isActive: _isVideoCall && _isVideoOn,
+                        isAlert: _isVideoCall && !_isVideoOn,
+                        onTap: _mediaReady && !_isEnding ? _onCameraButtonTapped : null,
+                        tooltip: _isVideoCall
+                            ? (_isVideoOn ? 'Matikan Kamera' : 'Nyalakan Kamera')
+                            : 'Kamera Tidak Tersedia',
+                      ),
+                      // 3. Mikrofon
+                      _controlButton(
+                        icon: _isMuted ? MekaarIcons.micOff : MekaarIcons.mic,
+                        label: _isMuted ? 'Bisu' : 'Mikrofon',
+                        isAlert: _isMuted,
+                        onTap: _mediaReady && !_isEnding ? _toggleMute : null,
+                        tooltip: _isMuted ? 'Nyalakan Mikrofon' : 'Bisukan Mikrofon',
+                      ),
+                      // 4. Akhiri Panggilan
+                      _controlButton(
+                        icon: MekaarIcons.callEnd,
+                        label: 'Akhiri',
+                        backgroundColor: MekaarColors.sosRed,
+                        iconColor: Colors.white,
+                        onTap: _isEnding ? null : _hangup,
+                        tooltip: 'Akhiri Panggilan',
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -978,34 +1050,72 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   Widget _controlButton({
     required IconData icon,
-    required Color color,
-    required Color iconColor,
+    required String label,
     required VoidCallback? onTap,
+    bool isActive = false,
+    bool isAlert = false,
+    Color? backgroundColor,
+    Color? iconColor,
     String? tooltip,
     double size = 52,
   }) {
+    final effectiveBgColor = backgroundColor ??
+        (isAlert
+            ? Colors.white
+            : isActive
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.18));
+    final effectiveIconColor = iconColor ??
+        (isAlert
+            ? MekaarColors.sosRed
+            : isActive
+                ? Colors.black87
+                : Colors.white);
+
     return Semantics(
-      label: tooltip,
+      label: tooltip ?? label,
       button: true,
       enabled: onTap != null,
       child: Tooltip(
-        message: tooltip ?? '',
+        message: tooltip ?? label,
         child: Opacity(
-          opacity: onTap == null ? 0.4 : 1,
-          child: Material(
-            color: Colors.transparent,
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: Ink(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onTap,
-                child: Center(
-                  child: Icon(icon, color: iconColor, size: size * 0.5),
-                ),
+          opacity: onTap == null ? 0.4 : 1.0,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: effectiveBgColor,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        icon,
+                        color: effectiveIconColor,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isAlert ? MekaarColors.sosRed : Colors.white70,
+                      letterSpacing: 0.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ),

@@ -82,25 +82,34 @@ class MekaarIcons {
   /// Video kamera
   static const videocam = SolarIconsOutline.videocamera;
 
-  /// Video kamera mati
-  static const videocamOff = SolarIconsOutline.videocamera; // tidak ada off, pakai yang sama? Atau kita cari alternatif. Nanti kita sesuaikan.
+  /// Video kamera mati / nonaktif
+  static const videocamOff = SolarIconsBold.videocamera;
+
+  /// Balik kamera depan / belakang (flip camera)
+  static const cameraRotate = SolarIconsOutline.cameraRotate;
 
   /// Panggilan telepon
   static const phone = SolarIconsOutline.phoneRounded;
 
   /// Akhiri panggilan
-  static const callEnd = SolarIconsOutline.endCall;
+  static const callEnd = SolarIconsBold.endCall;
 
   /// Mikrofon
   static const mic = SolarIconsOutline.microphone;
 
-  /// Mikrofon mati
-  static const micOff = SolarIconsOutline.microphone; // tidak ada off, kita pakai yang sama? Nanti disesuaikan.
+  /// Mikrofon mati / bisu (mute)
+  static const micOff = SolarIconsBold.muted;
 
-  /// Volume keras
+  /// Speaker aktif (loudspeaker)
+  static const speakerOn = SolarIconsBold.volumeLoud;
+
+  /// Speaker telinga (earpiece)
+  static const speakerOff = SolarIconsOutline.volumeSmall;
+
+  /// Volume keras (legacy alias)
   static const volumeUp = SolarIconsOutline.volumeLoud;
 
-  /// Volume pelan
+  /// Volume pelan (legacy alias)
   static const volumeDown = SolarIconsOutline.volumeSmall;
 
   /// Putar

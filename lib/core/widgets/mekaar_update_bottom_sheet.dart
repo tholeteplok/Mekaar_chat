@@ -597,7 +597,7 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
             },
             icon: const Icon(SolarIconsBold.rocket2, size: 18),
             label: const Text(
-              'Pasang Sekarang 🚀',
+              'Pasang Sekarang',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
