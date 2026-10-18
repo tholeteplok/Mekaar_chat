@@ -45,8 +45,34 @@ class SoundPreferenceSection extends StatelessWidget {
     this.onEnabledChanged,
   });
 
+  String _resolveCustomName(String path) {
+    try {
+      final fileName = path.split('/').last.split(r'\').last;
+      final baseName = fileName.contains('.')
+          ? fileName.substring(0, fileName.lastIndexOf('.'))
+          : fileName;
+      final cleanName = baseName.replaceAll(RegExp(r'_\d{10,}$'), '');
+      return cleanName.isNotEmpty ? '$cleanName (Kustom)' : 'Nada Perangkat (Kustom)';
+    } catch (_) {
+      return 'Nada Perangkat (Kustom)';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isCustomSelected = selectedPath.isNotEmpty &&
+        !options.any((option) => option.path == selectedPath);
+
+    final displayOptions = isCustomSelected
+        ? [
+            ...options,
+            SoundOption(
+              _resolveCustomName(selectedPath),
+              selectedPath,
+            ),
+          ]
+        : options;
+
     return Semantics(
       container: true,
       label: title,
@@ -89,7 +115,7 @@ class SoundPreferenceSection extends StatelessWidget {
               duration: MekaarMotion.fast,
               child: Column(
                 children: [
-                  for (final option in options)
+                  for (final option in displayOptions)
                     _SoundTile(
                       option: option,
                       selected: selectedPath == option.path,

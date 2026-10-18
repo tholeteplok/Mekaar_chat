@@ -115,6 +115,11 @@ class AlarmService {
 
   static Source _sourceFor(String path, String fallback) {
     if (path.startsWith('sounds/')) return AssetSource(path);
+    if (path.startsWith('content://') ||
+        path.startsWith('http://') ||
+        path.startsWith('https://')) {
+      return UrlSource(path);
+    }
     return File(path).existsSync()
         ? DeviceFileSource(path)
         : AssetSource(fallback);

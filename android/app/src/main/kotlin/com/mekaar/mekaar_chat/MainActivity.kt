@@ -1,9 +1,11 @@
 package com.mekaar.mekaar_chat
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -11,6 +13,7 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -26,7 +29,11 @@ class MainActivity : FlutterActivity() {
         const val INSTALLER_CHANNEL = "com.mekaar.mekaar_chat/installer"
         const val CAPTURE_CHANNEL = "com.mekaar.mekaar_chat/screen_capture"
         const val WAKELOCK_CHANNEL = "com.mekaar.mekaar_chat/wakelock"
+        const val RINGTONE_CHANNEL = "com.mekaar.mekaar_chat/ringtone_picker"
+        const val REQUEST_CODE_RINGTONE_PICKER = 2001
     }
+
+    private var pendingRingtoneResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -106,6 +113,51 @@ class MainActivity : FlutterActivity() {
                 }
                 "openDownloadsFolder" -> {
                     openDownloadsFolder(result)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            RINGTONE_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "pickRingtone" -> {
+                    if (pendingRingtoneResult != null) {
+                        result.error("ALREADY_ACTIVE", "Pemilihan ringtone sedang berlangsung", null)
+                        return@setMethodCallHandler
+                    }
+                    pendingRingtoneResult = result
+
+                    val typeArg = call.argument<String>("type")
+                    val ringtoneType = when (typeArg) {
+                        "ringtone" -> RingtoneManager.TYPE_RINGTONE
+                        "alarm" -> RingtoneManager.TYPE_ALARM
+                        else -> RingtoneManager.TYPE_NOTIFICATION
+                    }
+                    val pickerTitle = call.argument<String>("title") ?: "Pilih Nada Suara"
+                    val currentUri = call.argument<String>("currentUri")
+
+                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, ringtoneType)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, pickerTitle)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                        if (!currentUri.isNullOrEmpty()) {
+                            try {
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(currentUri))
+                            } catch (_: Exception) {}
+                        }
+                    }
+
+                    try {
+                        startActivityForResult(intent, REQUEST_CODE_RINGTONE_PICKER)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Gagal membuka pemilih ringtone", e)
+                        pendingRingtoneResult?.error("PICKER_ERROR", e.message, null)
+                        pendingRingtoneResult = null
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -310,5 +362,77 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {
             result.success(false)
         }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_RINGTONE_PICKER) {
+            val result = pendingRingtoneResult
+            pendingRingtoneResult = null
+
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                }
+
+                if (uri != null) {
+                    try {
+                        val ringtone = RingtoneManager.getRingtone(applicationContext, uri)
+                        val title = ringtone?.getTitle(applicationContext) ?: "Ringtone Perangkat"
+                        val localPath = copyRingtoneToInternalStorage(uri, title)
+                        result?.success(mapOf(
+                            "path" to localPath,
+                            "title" to title,
+                            "uri" to uri.toString()
+                        ))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Gagal menyalin ringtone ke penyimpanan internal: ${e.message}", e)
+                        result?.success(mapOf(
+                            "path" to uri.toString(),
+                            "title" to "Ringtone Perangkat",
+                            "uri" to uri.toString()
+                        ))
+                    }
+                } else {
+                    result?.success(null)
+                }
+            } else {
+                result?.success(null)
+            }
+        }
+    }
+
+    private fun copyRingtoneToInternalStorage(uri: Uri, title: String): String {
+        val sanitizedTitle = title.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val soundsDir = File(applicationContext.filesDir, "custom_sounds").apply {
+            if (!exists()) mkdirs()
+        }
+
+        val mimeType = applicationContext.contentResolver.getType(uri)
+        val extFromMime = if (mimeType != null) {
+            MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+        } else null
+
+        val ext = when {
+            !extFromMime.isNullOrEmpty() -> extFromMime
+            mimeType?.contains("ogg") == true -> "ogg"
+            mimeType?.contains("mp3") == true -> "mp3"
+            mimeType?.contains("wav") == true -> "wav"
+            mimeType?.contains("flac") == true -> "flac"
+            mimeType?.contains("aac") == true -> "aac"
+            else -> "m4a"
+        }
+
+        val targetFile = File(soundsDir, "${sanitizedTitle}_${System.currentTimeMillis()}.$ext")
+        applicationContext.contentResolver.openInputStream(uri)?.use { input ->
+            targetFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: throw IllegalStateException("Tidak dapat membaca stream audio dari URI: $uri")
+
+        return targetFile.absolutePath
     }
 }

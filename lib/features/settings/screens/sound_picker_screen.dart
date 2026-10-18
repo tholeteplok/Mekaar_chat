@@ -1,8 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
+import '../../../data/services/ringtone_picker_service.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -58,15 +58,22 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
     super.dispose();
   }
 
-  Future<void> _pickCustomFile(void Function(String) onSelected) async {
+  Future<void> _pickDeviceSound({
+    required RingtoneType type,
+    required String title,
+    required void Function(String) onSelected,
+  }) async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.audio);
-      if (result != null && result.files.single.path != null) {
-        onSelected(result.files.single.path!);
+      final result = await RingtonePickerService.pickRingtone(
+        type: type,
+        title: title,
+      );
+      if (result != null && result.path.isNotEmpty) {
+        onSelected(result.path);
       }
     } catch (e) {
       if (!mounted) return;
-      MekaarSnackbar.error(context, 'Gagal memilih file: $e');
+      MekaarSnackbar.error(context, 'Gagal memilih nada suara: $e');
     }
   }
 
@@ -85,7 +92,11 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
         
         final Source source = path.startsWith('sounds/')
             ? AssetSource(path)
-            : DeviceFileSource(path);
+            : (path.startsWith('http://') ||
+                    path.startsWith('https://') ||
+                    path.startsWith('content://'))
+                ? UrlSource(path)
+                : DeviceFileSource(path);
             
         await _previewPlayer.play(source);
         setState(() {
@@ -133,8 +144,10 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                             .read(notificationPreferencesProvider.notifier)
                             .updateMessageSound(path),
                         onPreview: _togglePreview,
-                        onPickCustom: () => _pickCustomFile(
-                          (path) => ref
+                        onPickCustom: () => _pickDeviceSound(
+                          type: RingtoneType.notification,
+                          title: 'Pilih Nada Pesan',
+                          onSelected: (path) => ref
                               .read(notificationPreferencesProvider.notifier)
                               .updateMessageSound(path),
                         ),
@@ -156,8 +169,10 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                             .read(notificationPreferencesProvider.notifier)
                             .updateCallSound(path),
                         onPreview: _togglePreview,
-                        onPickCustom: () => _pickCustomFile(
-                          (path) => ref
+                        onPickCustom: () => _pickDeviceSound(
+                          type: RingtoneType.ringtone,
+                          title: 'Pilih Nada Panggilan',
+                          onSelected: (path) => ref
                               .read(notificationPreferencesProvider.notifier)
                               .updateCallSound(path),
                         ),
@@ -179,8 +194,10 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                             .read(notificationPreferencesProvider.notifier)
                             .updateSosSound(path),
                         onPreview: _togglePreview,
-                        onPickCustom: () => _pickCustomFile(
-                          (path) => ref
+                        onPickCustom: () => _pickDeviceSound(
+                          type: RingtoneType.alarm,
+                          title: 'Pilih Nada Alarm Darurat',
+                          onSelected: (path) => ref
                               .read(notificationPreferencesProvider.notifier)
                               .updateSosSound(path),
                         ),
