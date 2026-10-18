@@ -78,9 +78,7 @@ class CallHistoryBubble extends StatelessWidget {
       statusIcon = SolarIconsOutline.phoneRounded;
     }
 
-    final title = isVideo
-        ? (isMe ? 'Panggilan Video Keluar' : 'Panggilan Video Masuk')
-        : (isMe ? 'Panggilan Suara Keluar' : 'Panggilan Suara Masuk');
+    final title = isVideo ? 'Panggilan video' : 'Panggilan suara';
 
     final timeStr = DateFormat('HH:mm').format(call.createdAt.toLocal());
 
@@ -95,146 +93,129 @@ class CallHistoryBubble extends StatelessWidget {
         ? MekaarColors.blue.withValues(alpha: isDark ? 0.4 : 0.25)
         : (isDark ? MekaarColors.borderDark : MekaarColors.borderLight);
 
+    final borderRadius = BorderRadius.only(
+      topLeft: const Radius.circular(16),
+      topRight: const Radius.circular(16),
+      bottomLeft: Radius.circular(isMe ? 16 : 4),
+      bottomRight: Radius.circular(isMe ? 4 : 16),
+    );
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-          minWidth: 220,
+          maxWidth: MediaQuery.of(context).size.width * 0.76,
         ),
         decoration: BoxDecoration(
           color: bubbleBg,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 16),
-          ),
+          borderRadius: borderRadius,
           border: Border.all(color: bubbleBorder, width: 1),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Icon badge dengan warna status
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.14),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        isVideo ? MekaarIcons.videocam : MekaarIcons.phone,
-                        size: 20,
-                        color: statusColor,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: borderRadius,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              onCallBack?.call();
+            },
+            child: Tooltip(
+              message: 'Ketuk untuk memanggil balik',
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: 10,
+                  right: 10,
+                  top: 7,
+                  bottom: 6,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Badge icon bulat dengan warna status (36x36)
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.16),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          isVideo ? MekaarIcons.videocam : MekaarIcons.phone,
+                          size: 18,
+                          color: statusColor,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Judul dan status
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: MekaarColors.textPrimaryOf(context),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              statusIcon,
-                              size: 13,
-                              color: statusColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                statusText,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: statusColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Divider(
-                height: 1,
-                thickness: 0.5,
-                color: isDark ? MekaarColors.borderDark : MekaarColors.borderLight,
-              ),
-              const SizedBox(height: 6),
-              // Footer: Tombol Panggil Balik & Timestamp
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Tombol Panggil Balik
-                  InkWell(
-                    onTap: () {
-                      HapticService.trigger(MekaarHapticIntent.selection);
-                      onCallBack?.call();
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      child: Row(
+                    const SizedBox(width: 10),
+                    // Kolom teks: Judul & Subtitle status / durasi
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            isVideo ? MekaarIcons.videocam : MekaarIcons.phone,
-                            size: 14,
-                            color: MekaarColors.blue,
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'Panggil Balik',
+                          Text(
+                            title,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: MekaarColors.blue,
+                              color: MekaarColors.textPrimaryOf(context),
+                              letterSpacing: -0.1,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                statusIcon,
+                                size: 12,
+                                color: statusColor,
+                              ),
+                              const SizedBox(width: 3.5),
+                              Flexible(
+                                child: Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: statusColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  Text(
-                    timeStr,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: MekaarColors.textSecondaryOf(context),
+                    const SizedBox(width: 12),
+                    // Jam (Timestamp) menempel di kanan bawah
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isMe
+                                ? MekaarColors.textSecondaryOf(context)
+                                : MekaarColors.textMutedOf(context),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
