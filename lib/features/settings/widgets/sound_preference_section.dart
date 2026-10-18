@@ -125,7 +125,7 @@ class SoundPreferenceSection extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Pilih file kustom dari HP',
+                              'Pilih dari perangkat',
                               style: MekaarTypography.bodyMD.copyWith(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w600,

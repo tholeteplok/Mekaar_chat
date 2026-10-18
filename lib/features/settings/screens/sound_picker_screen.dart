@@ -28,16 +28,16 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
   bool _isPlayingPreview = false;
 
   final List<SoundOption> _messageSounds = const [
-    SoundOption('Chime Default', NotificationPreferences.defaultMessageSound),
-    SoundOption('Playful Pop', 'sounds/normal_playful.mp3'),
+    SoundOption('Konfirmasi Halus', NotificationPreferences.defaultMessageSound),
+    SoundOption('Pop Ceria', NotificationPreferences.alternateMessageSound),
   ];
   final List<SoundOption> _callSounds = const [
-    SoundOption('Playful Ring', NotificationPreferences.defaultCallSound),
-    SoundOption('Chime Ring', NotificationPreferences.defaultMessageSound),
+    SoundOption('Dering Melodi', NotificationPreferences.defaultCallSound),
+    SoundOption('Konfirmasi Dering', NotificationPreferences.alternateCallSound),
   ];
   final List<SoundOption> _sosSounds = const [
-    SoundOption('Sirine Darurat', NotificationPreferences.defaultSosSound),
-    SoundOption('Klakson Ambulans', 'sounds/sos_klaxon.mp3'),
+    SoundOption('Alarm Peringatan', NotificationPreferences.defaultSosSound),
+    SoundOption('Sirine Taktis', NotificationPreferences.alternateSosSound),
   ];
 
   @override
