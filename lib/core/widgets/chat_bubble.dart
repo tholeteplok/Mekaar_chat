@@ -14,6 +14,7 @@ import '../routes/app_routes.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_bottom_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import '../../data/models/chat_theme_model.dart';
 import '../../features/settings/providers/chat_theme_provider.dart';
 import '../theme/chat_preset_resolver.dart';
@@ -22,6 +23,7 @@ import '../../data/repositories/screen_protection_repository.dart';
 import '../../features/chat/providers/chat_provider.dart';
 import '../../features/chat/providers/emoji_pack_provider.dart';
 import '../utils/emoji_shortcode_parser.dart';
+import 'mekaar_snackbar.dart';
 
 // Helper function to download, decrypt, and cache E2EE media locally.
 Future<File?> _getOrDecryptMedia({
@@ -136,6 +138,11 @@ class ChatBubble extends ConsumerWidget {
   // Pesan yang dibalas & nama pengirimnya (untuk tampilan kutipan balas)
   final Message? replyToMessage;
   final String? replyToSenderName;
+  // Multi-select context properties
+  final bool isSelected;
+  final bool isSelectionMode;
+  final VoidCallback? onSelectionTap;
+  final VoidCallback? onSelectionLongPress;
 
   const ChatBubble({
     super.key,
@@ -156,6 +163,10 @@ class ChatBubble extends ConsumerWidget {
     this.senderName,
     this.replyToMessage,
     this.replyToSenderName,
+    this.isSelected = false,
+    this.isSelectionMode = false,
+    this.onSelectionTap,
+    this.onSelectionLongPress,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
@@ -335,8 +346,17 @@ class ChatBubble extends ConsumerWidget {
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: GestureDetector(
-          onLongPress: !isDeleted ? () => _showContextMenu(context) : null,
-          onDoubleTap: (!isDeleted && onReact != null)
+          onTap: isSelectionMode ? onSelectionTap : null,
+          onLongPress: !isDeleted
+              ? () {
+                  if (onSelectionLongPress != null) {
+                    onSelectionLongPress!();
+                  } else {
+                    _showContextMenu(context);
+                  }
+                }
+              : null,
+          onDoubleTap: (!isDeleted && onReact != null && !isSelectionMode)
               ? () {
                   HapticService.trigger(MekaarHapticIntent.selection);
                   onReact!(message, '❤️');
@@ -366,9 +386,18 @@ class ChatBubble extends ConsumerWidget {
                   maxWidth: MediaQuery.of(context).size.width * 0.76,
                 ),
                 decoration: BoxDecoration(
-                  color: bubbleColor,
-                  gradient: bubbleGradient,
-                  border: border,
+                  color: isSelected
+                      ? Color.alphaBlend(
+                          MekaarColors.blue.withValues(
+                            alpha: Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.22,
+                          ),
+                          bubbleColor,
+                        )
+                      : bubbleColor,
+                  gradient: isSelected ? null : bubbleGradient,
+                  border: isSelected
+                      ? Border.all(color: MekaarColors.blue, width: 1.5)
+                      : border,
                   borderRadius: radius,
                   boxShadow: shadows,
                 ),
@@ -1075,6 +1104,18 @@ class _MessageContextMenu extends StatelessWidget {
             ),
           ],
           // Action buttons
+          if (message.type == MessageType.text && !message.isDeleted && message.content.isNotEmpty)
+            _menuItem(
+              context,
+              icon: MekaarIcons.copy,
+              label: 'Salin Teks',
+              onTap: () {
+                Navigator.pop(context);
+                Clipboard.setData(ClipboardData(text: message.content));
+                HapticService.trigger(MekaarHapticIntent.selection);
+                MekaarSnackbar.success(context, 'Pesan disalin');
+              },
+            ),
           if (onReply != null)
             _menuItem(
               context,

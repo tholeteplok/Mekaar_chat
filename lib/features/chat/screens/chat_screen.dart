@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:location/location.dart' as loc;
@@ -113,6 +114,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   bool _isEmojiPickerOpen = false;
   Message? _replyMessage;
   Message? _editingMessage;
+  final Set<String> _selectedMessageIds = <String>{};
+  String? _reactionAnchorMessageId;
+  bool get _isSelectionMode => _selectedMessageIds.isNotEmpty;
+
+  void _clearSelection() {
+    setState(() {
+      _selectedMessageIds.clear();
+      _reactionAnchorMessageId = null;
+    });
+  }
+
+  void _toggleMessageSelection(String messageId) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+        if (_selectedMessageIds.length != 1) {
+          _reactionAnchorMessageId = null;
+        } else {
+          _reactionAnchorMessageId = _selectedMessageIds.first;
+        }
+      } else {
+        _selectedMessageIds.add(messageId);
+        _reactionAnchorMessageId = null;
+      }
+    });
+  }
+
+  void _handleMessageLongPress(String messageId) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      if (!_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.add(messageId);
+      }
+      if (_selectedMessageIds.length == 1) {
+        _reactionAnchorMessageId = messageId;
+      } else {
+        _reactionAnchorMessageId = null;
+      }
+    });
+  }
   DateTime? _otherLastRead;
   final ValueNotifier<DateTime?> _otherLastSeenNotifier =
       ValueNotifier<DateTime?>(null);
@@ -732,6 +774,480 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
+  void _replyToSelectedMessage(List<Message> allMessages) {
+    if (_selectedMessageIds.length != 1) return;
+    final msgId = _selectedMessageIds.first;
+    Message? targetMsg;
+    for (final m in allMessages) {
+      if (m.id == msgId) {
+        targetMsg = m;
+        break;
+      }
+    }
+    if (targetMsg == null) return;
+    setState(() {
+      _replyMessage = targetMsg;
+      _editingMessage = null;
+    });
+    _clearSelection();
+  }
+
+  void _copySelectedMessages(List<Message> allMessages) {
+    final selectedMsgs = allMessages
+        .where((m) => _selectedMessageIds.contains(m.id))
+        .toList();
+    // Urutkan kronologis dari paling awal ke paling baru
+    selectedMsgs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    final textPieces = selectedMsgs
+        .where(
+          (m) =>
+              m.type == MessageType.text &&
+              !m.isDeleted &&
+              m.content.trim().isNotEmpty,
+        )
+        .map((m) => m.content)
+        .toList();
+
+    if (textPieces.isEmpty) {
+      MekaarSnackbar.info(context, 'Tidak ada teks yang dapat disalin.');
+      _clearSelection();
+      return;
+    }
+
+    Clipboard.setData(ClipboardData(text: textPieces.join('\n\n')));
+    HapticService.trigger(MekaarHapticIntent.selection);
+    MekaarSnackbar.success(
+      context,
+      textPieces.length == 1
+          ? 'Pesan disalin'
+          : '${textPieces.length} pesan disalin',
+    );
+    _clearSelection();
+  }
+
+  void _confirmDeleteSelectedMessages(List<Message> allMessages) {
+    final currentUserId = ref.read(authProvider).user?.id;
+    final selectedMsgs = allMessages
+        .where((m) => _selectedMessageIds.contains(m.id))
+        .toList();
+    if (selectedMsgs.isEmpty) return;
+
+    final canDeleteForEveryone = selectedMsgs.any(
+      (m) => m.senderId == currentUserId,
+    );
+    final isSingle = selectedMsgs.length == 1;
+    final title =
+        isSingle ? 'Hapus pesan?' : 'Hapus ${selectedMsgs.length} pesan?';
+
+    bool deleteForEveryone = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final textPrimary = MekaarColors.textPrimaryOf(ctx);
+            final textSecondary = MekaarColors.textSecondaryOf(ctx);
+
+            return AlertDialog(
+              backgroundColor: MekaarColors.surfaceOf(ctx),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.lg),
+              ),
+              title: Text(
+                title,
+                style: TextStyle(
+                  color: textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pesan yang dipilih akan dihapus dari obrolan ini.',
+                    style: TextStyle(
+                      color: textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (canDeleteForEveryone) ...[
+                    const SizedBox(height: 12),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                      onTap: () {
+                        setDialogState(() {
+                          deleteForEveryone = !deleteForEveryone;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: deleteForEveryone,
+                                activeColor: MekaarColors.sosRed,
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    deleteForEveryone = val ?? false;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Hapus juga untuk ${widget.isGroup ? 'semua anggota' : widget.chatName}',
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: Text(
+                    'Batal',
+                    style: TextStyle(color: textSecondary),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    final actions = ref.read(chatActionsProvider);
+                    final toProcess = List<Message>.from(selectedMsgs);
+                    _clearSelection();
+
+                    for (final msg in toProcess) {
+                      if (deleteForEveryone && msg.senderId == currentUserId) {
+                        await actions.deleteMessageForEveryone(msg.id);
+                      } else {
+                        await actions.hideMessageForMe(
+                          msg.id,
+                          roomId: widget.chatId,
+                        );
+                      }
+                    }
+
+                    if (mounted) {
+                      MekaarSnackbar.success(
+                        context,
+                        deleteForEveryone
+                            ? 'Pesan dihapus untuk semua orang'
+                            : 'Pesan dihapus untuk Anda',
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Hapus',
+                    style: TextStyle(
+                      color: MekaarColors.sosRed,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _forwardSelectedMessages(
+    List<Message> allMessages, {
+    required RoomForwardingProtection? forwardingProtection,
+  }) {
+    if (forwardingProtection?.effective ?? false) {
+      MekaarSnackbar.warning(
+        context,
+        'Penerusan pesan dibatasi di obrolan ini.',
+      );
+      return;
+    }
+
+    final selectedMsgs = allMessages
+        .where((m) => _selectedMessageIds.contains(m.id))
+        .toList();
+    selectedMsgs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    final actions = ref.read(chatActionsProvider);
+    final forwardableMsgs = selectedMsgs
+        .where((m) => actions.canForward(m, forwardingProtectionActive: false))
+        .toList();
+
+    if (forwardableMsgs.isEmpty) {
+      MekaarSnackbar.warning(
+        context,
+        'Pesan yang dipilih tidak dapat diteruskan.',
+      );
+      return;
+    }
+
+    final rooms = ref.read(chatRoomsProvider).value ?? [];
+    final targets = rooms.where((r) => r['id'] != widget.chatId).toList();
+    final hasTargets = targets.isNotEmpty;
+
+    MekaarBottomSheet.show(
+      context: context,
+      title: 'Teruskan ke',
+      builder: (ctx) => hasTargets
+          ? ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: targets.map((room) {
+                final name = room['name'] as String? ?? 'User';
+                final avatar = room['avatar'] as String? ?? '';
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Text(
+                      avatar.isNotEmpty ? avatar : name[0],
+                      style: TextStyle(
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
+                    ),
+                  ),
+                  title: Text(name),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    // Verifikasi ulang filter privasi secara segar
+                    final currentForwarding = ref
+                        .read(
+                          roomForwardingProtectionProvider(widget.chatId),
+                        )
+                        .valueOrNull;
+                    if (currentForwarding?.effective ?? false) {
+                      if (context.mounted) {
+                        MekaarSnackbar.warning(
+                          context,
+                          'Penerusan pesan dibatasi di obrolan ini.',
+                        );
+                      }
+                      return;
+                    }
+
+                    _clearSelection();
+                    int successCount = 0;
+                    for (final msg in forwardableMsgs) {
+                      if (!actions.canForward(
+                        msg,
+                        forwardingProtectionActive:
+                            currentForwarding?.effective ?? false,
+                      )) {
+                        continue;
+                      }
+                      try {
+                        await actions.forwardMessage(
+                          msg,
+                          room['id'] as String,
+                        );
+                        successCount++;
+                      } catch (_) {}
+                    }
+
+                    if (mounted) {
+                      if (successCount > 0) {
+                        MekaarSnackbar.success(
+                          context,
+                          successCount == 1
+                              ? 'Pesan diteruskan ke $name'
+                              : '$successCount pesan diteruskan ke $name',
+                        );
+                      } else {
+                        MekaarSnackbar.error(context, 'Gagal meneruskan pesan.');
+                      }
+                    }
+                  },
+                );
+              }).toList(),
+            )
+          : const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Tidak ada chat lain untuk meneruskan pesan.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildFloatingReactionPill(Message msg, bool isMe) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6, left: 16, right: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E222A) : Colors.white,
+          borderRadius: BorderRadius.circular(MekaarRadius.pill),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.08),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: emojis.map((emoji) {
+            return InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                _handleReactToMessage(msg, emoji);
+                _clearSelection();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 4,
+                ),
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 20),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionAppBar(
+    BuildContext context, {
+    required ChatRoomThemeSpec roomThemeSpec,
+    required RoomForwardingProtection? forwardingProtection,
+    required List<Message> rawMessages,
+  }) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor =
+        roomThemeSpec.glassBackgroundColor ?? MekaarColors.surfaceOf(context);
+    final textPrimary = roomThemeSpec.textColor;
+    final iconColor = roomThemeSpec.iconColor;
+
+    final selectedCount = _selectedMessageIds.length;
+    final isSingle = selectedCount == 1;
+    final isForwardProtected = forwardingProtection?.effective ?? false;
+
+    return Container(
+      padding: EdgeInsets.only(top: topPadding),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        border: Border(
+          bottom: BorderSide(
+            color: MekaarColors.borderOf(
+              context,
+            ).withValues(alpha: isDark ? 0.3 : 0.1),
+            width: 1.0,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: kToolbarHeight,
+        child: Row(
+          children: [
+            IconButton(
+              icon: Icon(
+                SolarIconsOutline.closeCircle,
+                size: 22,
+                color: iconColor,
+              ),
+              tooltip: 'Batal',
+              onPressed: _clearSelection,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$selectedCount dipilih',
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            if (isSingle)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.reply,
+                  size: 22,
+                  color: iconColor,
+                ),
+                tooltip: 'Balas',
+                onPressed: () => _replyToSelectedMessage(rawMessages),
+              ),
+            IconButton(
+              icon: Icon(
+                SolarIconsOutline.copy,
+                size: 22,
+                color: iconColor,
+              ),
+              tooltip: 'Salin',
+              onPressed: () => _copySelectedMessages(rawMessages),
+            ),
+            if (!isForwardProtected)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.forward,
+                  size: 22,
+                  color: iconColor,
+                ),
+                tooltip: 'Teruskan',
+                onPressed: () => _forwardSelectedMessages(
+                  rawMessages,
+                  forwardingProtection: forwardingProtection,
+                ),
+              ),
+            IconButton(
+              icon: Icon(
+                SolarIconsOutline.trashBinTrash,
+                size: 22,
+                color: MekaarColors.sosRed,
+              ),
+              tooltip: 'Hapus',
+              onPressed: () => _confirmDeleteSelectedMessages(rawMessages),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _scheduleWipeTimer() {
     _scheduledWipeTimer?.cancel();
     if (_scheduledWipeMode == 'off' || _scheduledWipeTargetAt == null) return;
@@ -876,12 +1392,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return PopScope(
-      canPop: !_isEmojiPickerOpen,
+      canPop: !_isEmojiPickerOpen && !_isSelectionMode,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isEmojiPickerOpen) {
-          _composerKey.currentState?.closeEmojiPicker();
-          setState(() => _isEmojiPickerOpen = false);
-          return;
+        if (!didPop) {
+          if (_isSelectionMode) {
+            _clearSelection();
+            return;
+          }
+          if (_isEmojiPickerOpen) {
+            _composerKey.currentState?.closeEmojiPicker();
+            setState(() => _isEmojiPickerOpen = false);
+            return;
+          }
         }
         if (didPop && _burnOnExit) {
           _triggerBurnOnExit();
@@ -1230,6 +1752,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     chatPref,
                     context,
                   );
+
+                  if (_isSelectionMode) {
+                    final forwardingProtection = ref
+                        .watch(roomForwardingProtectionProvider(widget.chatId))
+                        .valueOrNull;
+
+                    final messagesStream = ref.watch(
+                      chatMessagesProvider(widget.chatId),
+                    );
+                    final rawDbMessages =
+                        messagesStream.valueOrNull ?? const [];
+                    final pendingMessages = ref.watch(
+                      pendingMessagesProvider(widget.chatId),
+                    );
+                    final dbIds = {for (var m in rawDbMessages) m.id};
+                    final activePending = pendingMessages
+                        .where((p) => !dbIds.contains(p.id))
+                        .toList();
+                    final rawMessages = [...rawDbMessages, ...activePending];
+
+                    return _buildSelectionAppBar(
+                      context,
+                      roomThemeSpec: roomThemeSpec,
+                      forwardingProtection: forwardingProtection,
+                      rawMessages: rawMessages,
+                    );
+                  }
 
                   final isDark = MekaarColors.isDarkContext(context);
                   final frostedBg = isDark
@@ -1680,9 +2229,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
     }
 
+    final isSelected = _selectedMessageIds.contains(msg.id);
+
     final bubble = ChatBubble(
       message: msg,
       isMe: isMe,
+      isSelected: isSelected,
+      isSelectionMode: _isSelectionMode,
+      onSelectionTap: () => _toggleMessageSelection(msg.id),
+      onSelectionLongPress: () => _handleMessageLongPress(msg.id),
       canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
       canUnsend:
           isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
@@ -1722,16 +2277,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       onReact: (reactMsg, emoji) => _handleReactToMessage(reactMsg, emoji),
     );
 
+    final showFloatingReactions =
+        isSelected && _reactionAnchorMessageId == msg.id;
+
+    final bubbleWithPill = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        if (showFloatingReactions) _buildFloatingReactionPill(msg, isMe),
+        bubble,
+      ],
+    );
+
     // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeToReply
     return RepaintBoundary(
       key: ValueKey('bubble_${msg.id}'),
-      child: _SwipeToReplyWrapper(
-        onReply: () => setState(() {
-          _replyMessage = msg;
-          _editingMessage = null;
-        }),
-        child: bubble,
-      ),
+      child: _isSelectionMode
+          ? bubbleWithPill
+          : _SwipeToReplyWrapper(
+              onReply: () => setState(() {
+                _replyMessage = msg;
+                _editingMessage = null;
+              }),
+              child: bubbleWithPill,
+            ),
     );
   }
 
