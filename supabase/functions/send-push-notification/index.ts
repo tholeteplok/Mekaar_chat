@@ -25,9 +25,9 @@
 // Deploy:
 //   supabase functions deploy send-push-notification
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { initializeApp, cert, type App } from "https://esm.sh/firebase-admin@12/app";
-import { getMessaging } from "https://esm.sh/firebase-admin@12/messaging";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { initializeApp, cert, type App } from "npm:firebase-admin@^12/app";
+import { getMessaging } from "npm:firebase-admin@^12/messaging";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
