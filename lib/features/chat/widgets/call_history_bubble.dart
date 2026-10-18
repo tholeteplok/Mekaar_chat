@@ -13,12 +13,20 @@ class CallHistoryBubble extends StatelessWidget {
   final CallModel call;
   final bool isMe;
   final VoidCallback? onCallBack;
+  final bool isSelected;
+  final bool isSelectionMode;
+  final VoidCallback? onSelectionTap;
+  final VoidCallback? onSelectionLongPress;
 
   const CallHistoryBubble({
     super.key,
     required this.call,
     required this.isMe,
     this.onCallBack,
+    this.isSelected = false,
+    this.isSelectionMode = false,
+    this.onSelectionTap,
+    this.onSelectionLongPress,
   });
 
   @override
@@ -100,6 +108,19 @@ class CallHistoryBubble extends StatelessWidget {
       bottomRight: Radius.circular(isMe ? 4 : 16),
     );
 
+    final effectiveBg = isSelected
+        ? Color.alphaBlend(
+            MekaarColors.blue.withValues(
+              alpha: isDark ? 0.35 : 0.22,
+            ),
+            bubbleBg,
+          )
+        : bubbleBg;
+
+    final effectiveBorder = isSelected
+        ? Border.all(color: MekaarColors.blue, width: 1.5)
+        : Border.all(color: bubbleBorder, width: 1);
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -108,9 +129,9 @@ class CallHistoryBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.76,
         ),
         decoration: BoxDecoration(
-          color: bubbleBg,
+          color: effectiveBg,
           borderRadius: borderRadius,
-          border: Border.all(color: bubbleBorder, width: 1),
+          border: effectiveBorder,
         ),
         child: Material(
           color: Colors.transparent,
@@ -118,11 +139,21 @@ class CallHistoryBubble extends StatelessWidget {
           child: InkWell(
             borderRadius: borderRadius,
             onTap: () {
-              HapticService.trigger(MekaarHapticIntent.selection);
-              onCallBack?.call();
+              if (isSelectionMode) {
+                onSelectionTap?.call();
+              } else {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                onCallBack?.call();
+              }
             },
+            onLongPress: onSelectionLongPress != null
+                ? () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    onSelectionLongPress!();
+                  }
+                : null,
             child: Tooltip(
-              message: 'Ketuk untuk memanggil balik',
+              message: isSelectionMode ? '' : 'Ketuk untuk memanggil balik',
               child: Padding(
                 padding: const EdgeInsets.only(
                   left: 10,

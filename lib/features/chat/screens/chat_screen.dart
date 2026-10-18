@@ -115,12 +115,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Message? _replyMessage;
   Message? _editingMessage;
   final Set<String> _selectedMessageIds = <String>{};
+  final Set<String> _selectedCallIds = <String>{};
+  Set<String> _hiddenCallIds = <String>{};
   String? _reactionAnchorMessageId;
-  bool get _isSelectionMode => _selectedMessageIds.isNotEmpty;
+
+  bool get _isSelectionMode =>
+      _selectedMessageIds.isNotEmpty || _selectedCallIds.isNotEmpty;
+
+  int get _totalSelectedCount =>
+      _selectedMessageIds.length + _selectedCallIds.length;
 
   void _clearSelection() {
     setState(() {
       _selectedMessageIds.clear();
+      _selectedCallIds.clear();
       _reactionAnchorMessageId = null;
     });
   }
@@ -130,7 +138,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     setState(() {
       if (_selectedMessageIds.contains(messageId)) {
         _selectedMessageIds.remove(messageId);
-        if (_selectedMessageIds.length != 1) {
+        if (_totalSelectedCount != 1 || _selectedCallIds.isNotEmpty) {
           _reactionAnchorMessageId = null;
         } else {
           _reactionAnchorMessageId = _selectedMessageIds.first;
@@ -148,12 +156,59 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (!_selectedMessageIds.contains(messageId)) {
         _selectedMessageIds.add(messageId);
       }
-      if (_selectedMessageIds.length == 1) {
+      if (_totalSelectedCount == 1) {
         _reactionAnchorMessageId = messageId;
       } else {
         _reactionAnchorMessageId = null;
       }
     });
+  }
+
+  void _toggleCallSelection(String callId) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      if (_selectedCallIds.contains(callId)) {
+        _selectedCallIds.remove(callId);
+      } else {
+        _selectedCallIds.add(callId);
+      }
+      _reactionAnchorMessageId = null;
+    });
+  }
+
+  void _handleCallLongPress(String callId) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      if (!_selectedCallIds.contains(callId)) {
+        _selectedCallIds.add(callId);
+      }
+      _reactionAnchorMessageId = null;
+    });
+  }
+
+  Future<void> _loadHiddenCalls() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list =
+          prefs.getStringList('hidden_call_ids_${widget.chatId}') ?? [];
+      if (mounted && list.isNotEmpty) {
+        setState(() => _hiddenCallIds = list.toSet());
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _hideSelectedCalls(Set<String> callIds) async {
+    if (callIds.isEmpty) return;
+    setState(() {
+      _hiddenCallIds.addAll(callIds);
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'hidden_call_ids_${widget.chatId}',
+        _hiddenCallIds.toList(),
+      );
+    } catch (_) {}
   }
   DateTime? _otherLastRead;
   final ValueNotifier<DateTime?> _otherLastSeenNotifier =
@@ -238,6 +293,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
     });
     _startPresenceHeartbeat();
+    _loadHiddenCalls();
 
     // Timer periodik pembersihan pesan kedaluwarsa (client guard)
     _purgeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -826,19 +882,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _clearSelection();
   }
 
-  void _confirmDeleteSelectedMessages(List<Message> allMessages) {
+  void _confirmDeleteSelectedItems(List<Message> allMessages) {
     final currentUserId = ref.read(authProvider).user?.id;
     final selectedMsgs = allMessages
         .where((m) => _selectedMessageIds.contains(m.id))
         .toList();
-    if (selectedMsgs.isEmpty) return;
+    final selectedCallIdsCopy = Set<String>.from(_selectedCallIds);
+
+    if (selectedMsgs.isEmpty && selectedCallIdsCopy.isEmpty) return;
 
     final canDeleteForEveryone = selectedMsgs.any(
       (m) => m.senderId == currentUserId,
     );
-    final isSingle = selectedMsgs.length == 1;
-    final title =
-        isSingle ? 'Hapus pesan?' : 'Hapus ${selectedMsgs.length} pesan?';
+    final totalCount = selectedMsgs.length + selectedCallIdsCopy.length;
+    final isSingle = totalCount == 1;
+    final title = isSingle ? 'Hapus item obrolan?' : 'Hapus $totalCount item?';
 
     bool deleteForEveryone = false;
 
@@ -868,7 +926,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Pesan yang dipilih akan dihapus dari obrolan ini.',
+                    'Item yang dipilih akan dihapus dari obrolan ini.',
                     style: TextStyle(
                       color: textSecondary,
                       fontSize: 14,
@@ -929,10 +987,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   onPressed: () async {
                     Navigator.pop(dialogCtx);
                     final actions = ref.read(chatActionsProvider);
-                    final toProcess = List<Message>.from(selectedMsgs);
+                    final toProcessMsgs = List<Message>.from(selectedMsgs);
+                    final toProcessCalls = Set<String>.from(selectedCallIdsCopy);
                     _clearSelection();
 
-                    for (final msg in toProcess) {
+                    // 1. Proses penghapusan pesan
+                    for (final msg in toProcessMsgs) {
                       if (deleteForEveryone && msg.senderId == currentUserId) {
                         await actions.deleteMessageForEveryone(msg.id);
                       } else {
@@ -943,12 +1003,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       }
                     }
 
+                    // 2. Proses penyembunyian/penghapusan riwayat panggilan
+                    if (toProcessCalls.isNotEmpty) {
+                      await _hideSelectedCalls(toProcessCalls);
+                    }
+
                     if (mounted) {
                       MekaarSnackbar.success(
                         context,
                         deleteForEveryone
-                            ? 'Pesan dihapus untuk semua orang'
-                            : 'Pesan dihapus untuk Anda',
+                            ? 'Item obrolan dihapus untuk semua orang'
+                            : 'Item obrolan dihapus untuk Anda',
                       );
                     }
                   },
@@ -1153,9 +1218,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final textPrimary = roomThemeSpec.textColor;
     final iconColor = roomThemeSpec.iconColor;
 
-    final selectedCount = _selectedMessageIds.length;
+    final selectedCount = _totalSelectedCount;
     final isSingle = selectedCount == 1;
     final isForwardProtected = forwardingProtection?.effective ?? false;
+
+    final canReply = isSingle && _selectedMessageIds.length == 1;
+    final hasCopyableText = rawMessages.any(
+      (m) =>
+          _selectedMessageIds.contains(m.id) &&
+          m.type == MessageType.text &&
+          !m.isDeleted &&
+          m.content.trim().isNotEmpty,
+    );
+    final canForward = !isForwardProtected &&
+        _selectedCallIds.isEmpty &&
+        _selectedMessageIds.isNotEmpty;
 
     return Container(
       padding: EdgeInsets.only(top: topPadding),
@@ -1200,7 +1277,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
             const Spacer(),
-            if (isSingle)
+            if (canReply)
               IconButton(
                 icon: Icon(
                   SolarIconsOutline.reply,
@@ -1210,16 +1287,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 tooltip: 'Balas',
                 onPressed: () => _replyToSelectedMessage(rawMessages),
               ),
-            IconButton(
-              icon: Icon(
-                SolarIconsOutline.copy,
-                size: 22,
-                color: iconColor,
+            if (hasCopyableText)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.copy,
+                  size: 22,
+                  color: iconColor,
+                ),
+                tooltip: 'Salin',
+                onPressed: () => _copySelectedMessages(rawMessages),
               ),
-              tooltip: 'Salin',
-              onPressed: () => _copySelectedMessages(rawMessages),
-            ),
-            if (!isForwardProtected)
+            if (canForward)
               IconButton(
                 icon: Icon(
                   SolarIconsOutline.forward,
@@ -1239,7 +1317,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 color: MekaarColors.sosRed,
               ),
               tooltip: 'Hapus',
-              onPressed: () => _confirmDeleteSelectedMessages(rawMessages),
+              onPressed: () => _confirmDeleteSelectedItems(rawMessages),
             ),
             const SizedBox(width: 4),
           ],
@@ -1489,8 +1567,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                       final callsAsync = ref.watch(
                                         chatCallsProvider(widget.chatId),
                                       );
-                                      final rawCalls =
+                                      final rawCallsUnfiltered =
                                           callsAsync.valueOrNull ?? const [];
+                                      final rawCalls = _hiddenCallIds.isEmpty
+                                          ? rawCallsUnfiltered
+                                          : rawCallsUnfiltered
+                                              .where(
+                                                (c) => !_hiddenCallIds
+                                                    .contains(c.id),
+                                              )
+                                              .toList();
                                       final dbIds = {
                                         for (var m in rawDbMessages) m.id,
                                       };
@@ -2202,11 +2288,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (entry.kind == _ChatItemKind.call) {
       final call = entry.call!;
       final isMe = call.callerId == currentUserId;
+      final isSelected = _selectedCallIds.contains(call.id);
       return RepaintBoundary(
         key: ValueKey('call_bubble_${call.id}'),
         child: CallHistoryBubble(
           call: call,
           isMe: isMe,
+          isSelected: isSelected,
+          isSelectionMode: _isSelectionMode,
+          onSelectionTap: () => _toggleCallSelection(call.id),
+          onSelectionLongPress: () => _handleCallLongPress(call.id),
           onCallBack: () => _initiateCall(call.callType),
         ),
       );
