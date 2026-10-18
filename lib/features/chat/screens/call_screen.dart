@@ -11,6 +11,7 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
+import '../../../data/services/wakelock_service.dart';
 import '../providers/screen_protection_provider.dart';
 import '../providers/call_state_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -106,6 +107,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
     _loadAvatar();
     _initializeCall();
+    unawaited(WakelockService.enable());
   }
 
   void _handleStatusChange(String? newStatus) {
@@ -800,6 +802,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       _remoteRenderer.dispose();
       _remoteRendererInitialized = false;
     }
+    unawaited(WakelockService.disable());
     super.dispose();
   }
 

@@ -15,6 +15,9 @@ import 'package:mekaar_chat/data/models/call_model.dart';
 import 'package:mekaar_chat/core/theme/chat_preset_resolver.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 import 'package:mekaar_chat/features/settings/providers/privacy_provider.dart';
+import 'package:mekaar_chat/data/services/wakelock_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   group('Mekaar Data Models Unit Tests', () {
@@ -558,6 +561,42 @@ void main() {
       // Stealth mode (Opsi C aktif)
       expect(resolvePreview(activeRoom, isStealth: true), '••••••••');
       expect(resolvePreview(emptyRoom, isStealth: true), 'Mulai percakapan...');
+    });
+  });
+
+  group('WakelockService Unit Tests', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('com.mekaar.mekaar_chat/wakelock');
+    final log = <String>[];
+
+    setUp(() {
+      log.clear();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        log.add(methodCall.method);
+        return true;
+      });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('enable calls native enable method on Android', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      await WakelockService.enable();
+      expect(log, contains('enable'));
+      expect(WakelockService.isEnabled, true);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    test('disable calls native disable method on Android', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      await WakelockService.disable();
+      expect(log, contains('disable'));
+      expect(WakelockService.isEnabled, false);
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 }

@@ -10,6 +10,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/wakelock_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/call_state_provider.dart';
 
@@ -44,6 +45,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(WakelockService.enable());
     _watchCallCancelledByCaller();
     _broadcastDeviceRinging();
     _markCallRingingInDb();
@@ -178,6 +180,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
     _statusChannel?.unsubscribe();
     _signalingChannel?.unsubscribe();
     NotificationService.cancelIncomingCallNotification();
+    unawaited(WakelockService.disable());
     super.dispose();
   }
 

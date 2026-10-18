@@ -25,6 +25,7 @@ class MainActivity : FlutterActivity() {
         const val SECURITY_CHANNEL = "com.mekaar.mekaar_chat/security"
         const val INSTALLER_CHANNEL = "com.mekaar.mekaar_chat/installer"
         const val CAPTURE_CHANNEL = "com.mekaar.mekaar_chat/screen_capture"
+        const val WAKELOCK_CHANNEL = "com.mekaar.mekaar_chat/wakelock"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -47,6 +48,17 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "enableSecureFlag" -> updateSecureFlag(enabled = true, result)
                 "disableSecureFlag" -> updateSecureFlag(enabled = false, result)
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            WAKELOCK_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "enable" -> updateWakelock(enabled = true, result)
+                "disable" -> updateWakelock(enabled = false, result)
                 else -> result.notImplemented()
             }
         }
@@ -108,6 +120,17 @@ class MainActivity : FlutterActivity() {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
             result.success(null)
+        }
+    }
+
+    private fun updateWakelock(enabled: Boolean, result: MethodChannel.Result) {
+        runOnUiThread {
+            if (enabled) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+            result.success(true)
         }
     }
 
