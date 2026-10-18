@@ -119,6 +119,17 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (value) =>
                     ref.read(readReceiptsProvider.notifier).setEnabled(value),
               ),
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.eyeClosed,
+                iconColor: MekaarColors.purpleLight,
+                title: 'Sembunyikan Cuplikan Pesan (Stealth)',
+                subtitle:
+                    'Samarkan pratinjau pesan di daftar obrolan dengan titik-titik (••••••••)',
+                value: ref.watch(stealthChatPreviewProvider),
+                onChanged: (value) => ref
+                    .read(stealthChatPreviewProvider.notifier)
+                    .setEnabled(value),
+              ),
               SettingsNavTile(
                 icon: SolarIconsOutline.shieldUser,
                 title: 'Proteksi Undangan Chat',

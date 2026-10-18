@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -104,4 +105,41 @@ final chatInvitationModeProvider =
     StateNotifierProvider<ChatInvitationModeNotifier, String>((ref) {
   final repo = ref.watch(authRepositoryPrivacyProvider);
   return ChatInvitationModeNotifier(repo, ref);
+});
+
+/// Provider untuk mengontrol fitur Sembunyikan Cuplikan Pesan (Stealth Preview).
+/// Mengganti cuplikan teks di daftar obrolan dengan titik-titik (••••••••) demi privasi dari intipan orang lain.
+class StealthChatPreviewNotifier extends StateNotifier<bool> {
+  static const String key = 'stealth_chat_preview';
+  final SharedPreferences? _prefs;
+
+  StealthChatPreviewNotifier([this._prefs]) : super(false) {
+    if (_prefs != null) {
+      state = _prefs.getBool(key) ?? false;
+    } else {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(key) ?? false;
+  }
+
+  Future<void> toggle() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    state = !state;
+    await prefs.setBool(key, state);
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    state = enabled;
+    await prefs.setBool(key, enabled);
+  }
+}
+
+final stealthChatPreviewProvider =
+    StateNotifierProvider<StealthChatPreviewNotifier, bool>((ref) {
+  return StealthChatPreviewNotifier();
 });

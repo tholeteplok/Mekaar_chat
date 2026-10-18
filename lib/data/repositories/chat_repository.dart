@@ -162,19 +162,48 @@ class ChatRepository {
           .maybeSingle();
 
       String lastMessageText = 'Mulai percakapan...';
-      DateTime lastMessageTime = DateTime.now();
+      DateTime? lastMessageTime;
+
+      // Cek apakah pesan terakhir sudah terdekripsi di database lokal (0ms, offline-first)
+      Message? localLastMsg;
+      try {
+        final localMsgs =
+            await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
+        if (localMsgs.isNotEmpty) {
+          localLastMsg = localMsgs.last;
+        }
+      } catch (_) {}
 
       if (lastMsgResponse != null) {
         final lastMsg = Message.fromJson(lastMsgResponse);
         final bool isUnreadFromOther =
             unreadCount > 0 && lastMsg.senderId != userId;
+        lastMessageTime = lastMsg.createdAt;
+
         if (lastMsg.isDeleted) {
           lastMessageText = 'Pesan telah dihapus';
+        } else if (localLastMsg != null && localLastMsg.content.isNotEmpty) {
+          // Tampilkan teks bersih yang sudah terdekripsi di perangkat lokal (Signal-grade)
+          if (localLastMsg.type == MessageType.image) {
+            lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
+          } else if (localLastMsg.type == MessageType.voice) {
+            lastMessageText = isUnreadFromOther
+                ? '🎤 Pesan suara baru'
+                : '🎤 Pesan Suara';
+          } else if (localLastMsg.type == MessageType.location) {
+            lastMessageText = isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
+          } else if (localLastMsg.type == MessageType.system) {
+            lastMessageText = localLastMsg.content;
+          } else {
+            lastMessageText = replaceCustomEmojiTokens(
+              localLastMsg.content,
+              (_) => '[emoji]',
+            );
+          }
         } else if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty) {
-          // Tampilkan label aman tanpa membebani isolate utama dengan puluhan dekripsi paralel
-          lastMessageText = isUnreadFromOther
-              ? '🔒 Pesan baru'
-              : '🔒 Pesan terenkripsi';
+          // Jika pesan masih mentah dari cloud & belum terdekripsi di memori lokal:
+          // Hilangkan icon gembok dan teks kaku. Gunakan "Pesan baru" atau titik-titik samar.
+          lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
         } else if (lastMsg.type == MessageType.image) {
           lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
         } else if (lastMsg.type == MessageType.voice) {
@@ -191,7 +220,6 @@ class ChatRepository {
             (_) => '[emoji]',
           );
         }
-        lastMessageTime = lastMsg.createdAt;
       }
 
       return {
@@ -216,11 +244,15 @@ class ChatRepository {
     final results = await Future.wait(roomFutures);
     final roomsList = results.whereType<Map<String, dynamic>>().toList();
 
-    // Sort by last message time
-    roomsList.sort(
-      (a, b) =>
-          (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime),
-    );
+    // Sort by last message time, placing rooms with no messages at the bottom
+    roomsList.sort((a, b) {
+      final aTime = a['timestamp'] as DateTime?;
+      final bTime = b['timestamp'] as DateTime?;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
     return roomsList;
   }
 

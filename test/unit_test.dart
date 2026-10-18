@@ -14,6 +14,7 @@ import 'package:mekaar_chat/data/models/chat_theme_model.dart';
 import 'package:mekaar_chat/data/models/call_model.dart';
 import 'package:mekaar_chat/core/theme/chat_preset_resolver.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
+import 'package:mekaar_chat/features/settings/providers/privacy_provider.dart';
 
 void main() {
   group('Mekaar Data Models Unit Tests', () {
@@ -504,6 +505,59 @@ void main() {
       expect(isDuressValid('654321', primaryPin), isTrue);
       expect(isDuressValid('123456', primaryPin), isFalse);
       expect(isDuressValid('123', primaryPin), isFalse);
+    });
+
+    test('StealthChatPreviewNotifier toggles and loads persistence correctly', () async {
+      SharedPreferences.setMockInitialValues({'stealth_chat_preview': false});
+      final prefs = await SharedPreferences.getInstance();
+
+      final notifier = StealthChatPreviewNotifier(prefs);
+      expect(notifier.state, isFalse);
+
+      await notifier.toggle();
+      expect(notifier.state, isTrue);
+      expect(prefs.getBool('stealth_chat_preview'), isTrue);
+
+      await notifier.setEnabled(false);
+      expect(notifier.state, isFalse);
+      expect(prefs.getBool('stealth_chat_preview'), isFalse);
+    });
+
+    test('Chat preview resolution hides timestamp for empty rooms and masks in stealth mode', () {
+      // 1. Room tanpa pesan: timestamp harus null dan preview default
+      final emptyRoom = <String, dynamic>{
+        'id': 'room-01',
+        'name': 'Kontak Baru',
+        'lastMessage': 'Mulai percakapan...',
+        'timestamp': null,
+      };
+
+      expect(emptyRoom['timestamp'], isNull);
+      expect(emptyRoom['lastMessage'], 'Mulai percakapan...');
+
+      // 2. Room dengan pesan terdekripsi normal
+      final activeRoom = <String, dynamic>{
+        'id': 'room-02',
+        'name': 'Thole',
+        'lastMessage': 'Halo, bagaimana kabarmu?',
+        'timestamp': DateTime(2026, 10, 18, 1, 20),
+      };
+
+      String resolvePreview(Map<String, dynamic> room, {required bool isStealth}) {
+        final hasMessages = room['timestamp'] != null;
+        if (isStealth && hasMessages) {
+          return '••••••••';
+        }
+        return room['lastMessage'] as String? ?? 'Mulai percakapan...';
+      }
+
+      // Normal mode (Opsi A / Signal-grade)
+      expect(resolvePreview(activeRoom, isStealth: false), 'Halo, bagaimana kabarmu?');
+      expect(resolvePreview(emptyRoom, isStealth: false), 'Mulai percakapan...');
+
+      // Stealth mode (Opsi C aktif)
+      expect(resolvePreview(activeRoom, isStealth: true), '••••••••');
+      expect(resolvePreview(emptyRoom, isStealth: true), 'Mulai percakapan...');
     });
   });
 }

@@ -9,6 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/utils/emoji_shortcode_parser.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../settings/providers/privacy_provider.dart';
 import '../providers/chat_provider.dart';
 
 class ChatListTile extends StatelessWidget {
@@ -39,7 +40,7 @@ class ChatListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isGuardian = room['isGuardian'] as bool? ?? false;
     final isGroup = room['isGroup'] as bool? ?? false;
-    final timestamp = room['timestamp'] as DateTime? ?? DateTime.now();
+    final timestamp = room['timestamp'] as DateTime?;
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final name = room['name'] as String? ?? 'User';
     final isMuted = room['isMuted'] as bool? ?? false;
@@ -83,18 +84,20 @@ class ChatListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(width: MekaarSpacing.sm),
-                      Text(
-                        _formatTimestamp(timestamp),
-                        style: MekaarTypography.bodySM.copyWith(
-                          color: unreadCount > 0
-                              ? MekaarColors.accentOf(context)
-                              : MekaarColors.textMutedOf(context),
-                          fontWeight: unreadCount > 0
-                              ? FontWeight.w700
-                              : FontWeight.w400,
+                      if (timestamp != null) ...[
+                        SizedBox(width: MekaarSpacing.sm),
+                        Text(
+                          _formatTimestamp(timestamp),
+                          style: MekaarTypography.bodySM.copyWith(
+                            color: unreadCount > 0
+                                ? MekaarColors.accentOf(context)
+                                : MekaarColors.textMutedOf(context),
+                            fontWeight: unreadCount > 0
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: MekaarSpacing.xs),
@@ -139,17 +142,27 @@ class ChatListTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               );
                             }
+
+                            final isStealth = ref.watch(stealthChatPreviewProvider);
                             final rawLastMsg = room['lastMessage'] as String?;
-                            final displayLastMsg = rawLastMsg != null
-                                ? replaceCustomEmojiTokens(
-                                    rawLastMsg, (_) => '[emoji]')
-                                : 'Mulai percakapan...';
+                            final hasMessages = timestamp != null;
+
+                            final displayLastMsg = (isStealth && hasMessages)
+                                ? '••••••••'
+                                : (rawLastMsg != null
+                                    ? replaceCustomEmojiTokens(
+                                        rawLastMsg, (_) => '[emoji]')
+                                    : 'Mulai percakapan...');
+
+                            final isDots = displayLastMsg == '••••••••';
+
                             return Text(
                               displayLastMsg,
                               style: MekaarTypography.labelLG.copyWith(
                                 fontWeight: unreadCount > 0
                                     ? FontWeight.w600
                                     : FontWeight.w400,
+                                letterSpacing: isDots ? 2.0 : null,
                                 color: unreadCount > 0
                                     ? MekaarColors.textPrimaryOf(context)
                                     : MekaarColors.textMutedOf(context),
