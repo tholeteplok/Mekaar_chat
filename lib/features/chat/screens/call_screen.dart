@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -14,6 +15,7 @@ import '../../../data/services/webrtc_signaling_service.dart';
 import '../../../data/services/wakelock_service.dart';
 import '../providers/screen_protection_provider.dart';
 import '../providers/call_state_provider.dart';
+import '../widgets/call_e2ee_badge.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/constants/icons.dart';
@@ -849,23 +851,21 @@ class _CallScreenState extends ConsumerState<CallScreen>
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            if (protection?.effective ?? true)
-              Align(
-                alignment: Alignment.topCenter,
-                child: SafeArea(
-                  child: ScreenProtectionStatusBadge(
-                    label: protection?.statusLabel ?? 'Proteksi ruang aktif',
-                  ),
-                ),
-              ),
+            // 1. Lapisan Background (Stream video penuh atau Background Blur Dinamis)
             if (_isVideoCall && _remoteRenderer.srcObject != null)
               Positioned.fill(
                 child: RTCVideoView(
                   _remoteRenderer,
                   objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                 ),
+              )
+            else
+              Positioned.fill(
+                child: _buildCallBackground(),
               ),
-            if (_isVideoCall)
+
+            // Gradient overlay halus jika video aktif
+            if (_isVideoCall && _remoteRenderer.srcObject != null)
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -881,62 +881,112 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   ),
                 ),
               ),
+
+            // 2. Bar Atas: E2EE Emoji Badge & Screen Protection Badge
             Positioned(
-              top: 80,
-              left: 0,
-              right: 0,
-              child: Column(
-                children: [
-                  if (!_isVideoCall) ...[
-                    Avatar(
-                      initial: widget.chatName.isNotEmpty
-                          ? widget.chatName[0].toUpperCase()
-                          : 'U',
-                      imageUrl: _avatarUrl,
-                      size: 100,
+              top: 8,
+              left: 16,
+              right: 16,
+              child: SafeArea(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CallE2eeBadge(
+                      callId: _currentCallId ?? widget.roomId,
+                      myUserId: _myUserId ?? '',
+                      remoteUserId: widget.isCaller
+                          ? widget.receiverId
+                          : widget.callerId,
+                      chatName: widget.chatName,
                     ),
-                    const SizedBox(height: 20),
-                  ],
-                  Text(
-                    widget.chatName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_statusIsError) ...[
-                        const Icon(
-                          MekaarIcons.errorOutline,
-                          color: MekaarColors.sosRed,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
+                    if (protection?.effective ?? true)
                       Flexible(
-                        child: Text(
-                          _displayCallStatus,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _statusIsError
-                                ? MekaarColors.sosRed
-                                : Colors.white70,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: ScreenProtectionStatusBadge(
+                            label: protection?.statusLabel ?? 'Proteksi aktif',
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+
+            // 3. Konten Utama: Avatar, Status, Nama (Hanya tampil jika bukan video penuh)
+            if (!_isVideoCall || _remoteRenderer.srcObject == null)
+              Positioned(
+                top: 110,
+                left: 20,
+                right: 20,
+                child: Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 28,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Avatar(
+                        initial: widget.chatName.isNotEmpty
+                            ? widget.chatName[0].toUpperCase()
+                            : 'U',
+                        imageUrl: _avatarUrl,
+                        size: 110,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_statusIsError) ...[
+                          const Icon(
+                            MekaarIcons.errorOutline,
+                            color: MekaarColors.sosRed,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(
+                          child: Text(
+                            _displayCallStatus,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: _statusIsError
+                                  ? MekaarColors.sosRed
+                                  : Colors.white70,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.chatName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // 4. Video PiP & Flip Camera
             if (_isVideoCall && _isVideoOn && _localRenderer.srcObject != null) ...[
               Positioned(
-                top: 50,
+                top: 75,
                 right: 20,
                 width: 120,
                 height: 160,
@@ -950,7 +1000,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 ),
               ),
               Positioned(
-                top: 50,
+                top: 75,
                 left: 20,
                 child: SafeArea(
                   child: Material(
@@ -1045,6 +1095,64 @@ class _CallScreenState extends ConsumerState<CallScreen>
           ],
         ),
       ),
+    );
+  }
+
+  /// Menghasilkan latar belakang dinamis dengan Gaussian blur tinggi pada avatar kontak
+  /// dan ambient dark vignette overlay sesuai estetika referensi modern.
+  Widget _buildCallBackground() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 1. Ambient gradient dasar yang elegan (slate-800 ke deep dark)
+        Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.3),
+              radius: 1.3,
+              colors: [
+                Color(0xFF1E293B), // slate-800
+                Color(0xFF0F172A), // slate-900
+                Color(0xFF050811), // deep slate dark
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Avatar blur jika gambar tersedia
+        if (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
+              child: Transform.scale(
+                scale: 1.25,
+                child: Image.network(
+                  _avatarUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+
+        // 3. Vignette gelap bertingkat untuk keterbacaan tipografi optimal
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.black.withValues(alpha: 0.5),
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.black.withValues(alpha: 0.8),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

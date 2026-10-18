@@ -16,6 +16,7 @@ import 'package:mekaar_chat/core/theme/chat_preset_resolver.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 import 'package:mekaar_chat/features/settings/providers/privacy_provider.dart';
 import 'package:mekaar_chat/data/services/wakelock_service.dart';
+import 'package:mekaar_chat/core/utils/call_e2ee_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -597,6 +598,54 @@ void main() {
       expect(log, contains('disable'));
       expect(WakelockService.isEnabled, false);
       debugDefaultTargetPlatformOverride = null;
+    });
+  });
+
+  group('CallE2eeHelper Unit Tests', () {
+    test('produces exactly 4 emojis deterministically', () {
+      final emojis1 = CallE2eeHelper.getCallEmojis(
+        callId: 'call-abc-123',
+        userId1: 'user-alice',
+        userId2: 'user-bob',
+      );
+      final emojis2 = CallE2eeHelper.getCallEmojis(
+        callId: 'call-abc-123',
+        userId1: 'user-alice',
+        userId2: 'user-bob',
+      );
+
+      expect(emojis1.length, 4);
+      expect(emojis1, equals(emojis2));
+    });
+
+    test('is symmetric regardless of userId order', () {
+      final fromCaller = CallE2eeHelper.getCallEmojis(
+        callId: 'call-abc-123',
+        userId1: 'user-alice',
+        userId2: 'user-bob',
+      );
+      final fromCallee = CallE2eeHelper.getCallEmojis(
+        callId: 'call-abc-123',
+        userId1: 'user-bob',
+        userId2: 'user-alice',
+      );
+
+      expect(fromCaller, equals(fromCallee));
+    });
+
+    test('different calls produce different emoji sets', () {
+      final call1 = CallE2eeHelper.getCallEmojis(
+        callId: 'call-room-1',
+        userId1: 'user-alice',
+        userId2: 'user-bob',
+      );
+      final call2 = CallE2eeHelper.getCallEmojis(
+        callId: 'call-room-2',
+        userId1: 'user-alice',
+        userId2: 'user-bob',
+      );
+
+      expect(call1, isNot(equals(call2)));
     });
   });
 }
