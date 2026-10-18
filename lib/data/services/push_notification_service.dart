@@ -126,11 +126,13 @@ class PushNotificationService {
       // Mengatasi skenario: fresh install → buka app → login → token belum teregistrasi
       try {
         SupabaseService().client.auth.onAuthStateChange.listen((data) async {
-          if (data.event == AuthChangeEvent.signedIn) {
+          if (data.event == AuthChangeEvent.signedIn ||
+              data.event == AuthChangeEvent.initialSession ||
+              data.event == AuthChangeEvent.tokenRefreshed) {
             final token = await _messaging?.getToken();
             if (token != null) {
               await updateFcmTokenInSupabase(token);
-              _logger.i('FCM token re-registered after sign-in');
+              _logger.i('FCM token registered on auth event: ${data.event.name}');
             }
           }
         });

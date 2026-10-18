@@ -204,21 +204,10 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Gunakan anon key + user's auth header jika ada,
-    // atau service_role untuk webhook internal
-    const authHeader = req.headers.get("Authorization");
-    const apiKey = req.headers.get("apikey");
-
-    let supabaseClient;
-    if (authHeader && apiKey) {
-      // Dipanggil dari client (authenticated)
-      supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-    } else {
-      // Dipanggil dari pg_net webhook (internal)
-      supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    }
+    // Edge Function bertindak sebagai backend terpercaya (privileged service).
+    // Selalu gunakan service_role key agar dapat mengambil fcm_token penerima
+    // dari tabel user_devices dan profiles tanpa terhalang RLS (Row Level Security).
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: WebhookPayload = await req.json();
 
@@ -411,10 +400,13 @@ Deno.serve(async (req: Request) => {
         callResults.push(
           messaging.send({
             token: dt.token,
-            // PENTING: Untuk Android panggilan masuk, kirim data-only high-priority payload
-            // agar OS Android tidak mengintersepnya sebagai notifikasi tray statis,
-            // melainkan membangunkan _firebaseMessagingBackgroundHandler untuk memicu
-            // nada dering panggilan dan fullScreenIntent di layar terkunci.
+            // Hybrid payload: Sertakan notification block agar OS agresif (seperti Xiaomi/MIUI)
+            // tetap menampilkan banner notifikasi di tray/lockscreen sekalipun background handler
+            // dibatasi oleh sistem manajemen baterai OEM.
+            notification: {
+              title: callLabel,
+              body: `${callerName} memanggil Anda`,
+            },
             data: {
               type: "call",
               roomId: call.room_id,
@@ -427,6 +419,11 @@ Deno.serve(async (req: Request) => {
             },
             android: {
               priority: "high",
+              notification: {
+                channelId: "mekaar_call_channel",
+                sound: "default",
+                priority: "max",
+              },
             },
             apns: {
               payload: {
