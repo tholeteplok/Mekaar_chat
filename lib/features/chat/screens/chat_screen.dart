@@ -923,6 +923,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _clearSelection();
   }
 
+  void _confirmDeleteSingleMessage(Message msg) {
+    _selectedMessageIds.clear();
+    _selectedCallIds.clear();
+    _selectedMessageIds.add(msg.id);
+    _confirmDeleteSelectedItems([msg]);
+  }
+
+  void _confirmDeleteSingleCall(CallModel call) {
+    _selectedMessageIds.clear();
+    _selectedCallIds.clear();
+    _selectedCallIds.add(call.id);
+    _confirmDeleteSelectedItems([]);
+  }
+
   void _confirmDeleteSelectedItems(List<Message> allMessages) {
     final currentUserId = ref.read(authProvider).user?.id;
     final selectedMsgs = allMessages
@@ -1071,7 +1085,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           },
         );
       },
-    );
+    ).then((_) {
+      if (mounted && !_isSelectionMode) {
+        _clearSelection();
+      }
+    });
   }
 
   void _forwardSelectedMessages(
@@ -2330,17 +2348,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       final call = entry.call!;
       final isMe = call.callerId == currentUserId;
       final isSelected = _selectedCallIds.contains(call.id);
+      final callWidget = CallHistoryBubble(
+        call: call,
+        isMe: isMe,
+        isSelected: isSelected,
+        isSelectionMode: _isSelectionMode,
+        onSelectionTap: () => _toggleCallSelection(call.id),
+        onSelectionLongPress: () => _handleCallLongPress(call.id),
+        onCallBack: () => _initiateCall(call.callType),
+      );
+
       return RepaintBoundary(
         key: ValueKey('call_bubble_${call.id}'),
-        child: CallHistoryBubble(
-          call: call,
-          isMe: isMe,
-          isSelected: isSelected,
-          isSelectionMode: _isSelectionMode,
-          onSelectionTap: () => _toggleCallSelection(call.id),
-          onSelectionLongPress: () => _handleCallLongPress(call.id),
-          onCallBack: () => _initiateCall(call.callType),
-        ),
+        child: _isSelectionMode
+            ? callWidget
+            : _SwipeActionWrapper(
+                onDelete: () => _confirmDeleteSingleCall(call),
+                child: callWidget,
+              ),
       );
     }
 
@@ -2422,16 +2447,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ],
     );
 
-    // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeToReply
+    // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeActionWrapper
     return RepaintBoundary(
       key: ValueKey('bubble_${msg.id}'),
       child: _isSelectionMode
           ? bubbleWithPill
-          : _SwipeToReplyWrapper(
+          : _SwipeActionWrapper(
               onReply: () => setState(() {
                 _replyMessage = msg;
                 _editingMessage = null;
               }),
+              onDelete: () => _confirmDeleteSingleMessage(msg),
               child: bubbleWithPill,
             ),
     );
@@ -2442,23 +2468,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 }
 
-/// Gesture wrapper untuk swipe-to-reply pada bubble chat berbasis GestureDetector + Transform.
-/// Geser bubble ke kanan untuk memicu balasan dengan pegas kembali halus dan getaran haptic.
-class _SwipeToReplyWrapper extends StatefulWidget {
+/// Gesture wrapper untuk aksi swipe pada bubble chat:
+/// - Geser ke kanan 1x untuk memicu balasan (reply).
+/// - Geser ke kiri 2x (dalam jendela 2.0 detik) untuk memicu dialog hapus.
+class _SwipeActionWrapper extends StatefulWidget {
   final Widget child;
-  final VoidCallback onReply;
+  final VoidCallback? onReply;
+  final VoidCallback? onDelete;
 
-  const _SwipeToReplyWrapper({required this.child, required this.onReply});
+  const _SwipeActionWrapper({
+    required this.child,
+    this.onReply,
+    this.onDelete,
+  });
 
   @override
-  State<_SwipeToReplyWrapper> createState() => _SwipeToReplyWrapperState();
+  State<_SwipeActionWrapper> createState() => _SwipeActionWrapperState();
 }
 
-class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
+class _SwipeActionWrapperState extends State<_SwipeActionWrapper>
     with SingleTickerProviderStateMixin {
   late final AnimationController _recoilController;
   double _dragOffset = 0.0;
-  bool _thresholdReached = false;
+  bool _rightThresholdReached = false;
+  bool _leftThresholdReached = false;
+  int _leftSwipeCount = 0;
+  Timer? _leftSwipeTimer;
+
+  static const double _actionThreshold = 48.0;
+  static const double _maxDragDistance = 72.0;
+  static const Duration _doubleSwipeWindow = Duration(milliseconds: 2000);
 
   @override
   void initState() {
@@ -2471,30 +2510,75 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
 
   @override
   void dispose() {
+    _leftSwipeTimer?.cancel();
     _recoilController.dispose();
     super.dispose();
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     final delta = details.primaryDelta ?? 0.0;
-    if (delta > 0 || _dragOffset > 0) {
+
+    // 1. Geser ke kanan (Reply)
+    if ((delta > 0 || _dragOffset > 0) && _dragOffset >= 0 && widget.onReply != null) {
       setState(() {
-        _dragOffset = (_dragOffset + delta).clamp(0.0, 72.0);
-        if (_dragOffset >= 48.0 && !_thresholdReached) {
-          _thresholdReached = true;
+        _dragOffset = (_dragOffset + delta).clamp(0.0, _maxDragDistance);
+        if (_dragOffset >= _actionThreshold && !_rightThresholdReached) {
+          _rightThresholdReached = true;
           HapticService.trigger(MekaarHapticIntent.selection);
+        }
+      });
+      return;
+    }
+
+    // 2. Geser ke kiri (Delete)
+    if ((delta < 0 || _dragOffset < 0) && _dragOffset <= 0 && widget.onDelete != null) {
+      setState(() {
+        _dragOffset = (_dragOffset + delta).clamp(-_maxDragDistance, 0.0);
+        if (_dragOffset <= -_actionThreshold && !_leftThresholdReached) {
+          _leftThresholdReached = true;
+          HapticService.trigger(
+            _leftSwipeCount == 1
+                ? MekaarHapticIntent.destructive
+                : MekaarHapticIntent.selection,
+          );
         }
       });
     }
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    if (_thresholdReached) {
-      widget.onReply();
+    // 1. Tangani swipe kanan (Reply)
+    if (_rightThresholdReached) {
+      _resetLeftSwipe();
+      widget.onReply?.call();
     }
-    _thresholdReached = false;
+    _rightThresholdReached = false;
 
-    if (_dragOffset > 0) {
+    // 2. Tangani swipe kiri (Delete 2x)
+    if (_leftThresholdReached) {
+      if (_leftSwipeCount == 0) {
+        // Geseran pertama: catat dan aktifkan jendela 2.0 detik
+        setState(() {
+          _leftSwipeCount = 1;
+        });
+        _leftSwipeTimer?.cancel();
+        _leftSwipeTimer = Timer(_doubleSwipeWindow, () {
+          if (mounted) {
+            setState(() {
+              _leftSwipeCount = 0;
+            });
+          }
+        });
+      } else if (_leftSwipeCount == 1) {
+        // Geseran kedua: konfirmasi hapus!
+        _resetLeftSwipe();
+        widget.onDelete?.call();
+      }
+    }
+    _leftThresholdReached = false;
+
+    // Animasi recoil kembali ke posisi netral (0.0)
+    if (_dragOffset != 0.0) {
       final startOffset = _dragOffset;
       final anim = Tween<double>(begin: startOffset, end: 0.0).animate(
         CurvedAnimation(parent: _recoilController, curve: Curves.easeOutCubic),
@@ -2508,6 +2592,18 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
     }
   }
 
+  void _resetLeftSwipe() {
+    _leftSwipeTimer?.cancel();
+    _leftSwipeTimer = null;
+    if (_leftSwipeCount != 0 && mounted) {
+      setState(() {
+        _leftSwipeCount = 0;
+      });
+    } else {
+      _leftSwipeCount = 0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -2515,16 +2611,17 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
       onHorizontalDragUpdate: _onHorizontalDragUpdate,
       onHorizontalDragEnd: _onHorizontalDragEnd,
       child: Stack(
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         children: [
-          if (_dragOffset > 6)
-            Padding(
-              padding: const EdgeInsets.only(left: 14),
+          // Ikon Reply di sisi kiri (saat digeser ke kanan)
+          if (_dragOffset > 6 && widget.onReply != null)
+            Positioned(
+              left: 14,
               child: Opacity(
-                opacity: (_dragOffset / 48.0).clamp(0.0, 1.0),
+                opacity: (_dragOffset / _actionThreshold).clamp(0.0, 1.0),
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: MekaarColors.guardianTeal.withValues(alpha: 0.16),
                     shape: BoxShape.circle,
@@ -2539,6 +2636,74 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper>
                 ),
               ),
             ),
+
+          // Ikon Hapus di sisi kanan (saat digeser ke kiri)
+          if (_dragOffset < -6 && widget.onDelete != null)
+            Positioned(
+              right: 14,
+              child: Opacity(
+                opacity: (-_dragOffset / _actionThreshold).clamp(0.0, 1.0),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: MekaarColors.sosRed.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                    border: _leftSwipeCount == 1
+                        ? Border.all(color: MekaarColors.sosRed, width: 1.5)
+                        : null,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      SolarIconsOutline.trashBinTrash,
+                      color: MekaarColors.sosRed,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Petunjuk visual saat geseran pertama aktif (menunggu geseran kedua)
+          if (_leftSwipeCount == 1 && _dragOffset.abs() < 6 && widget.onDelete != null)
+            Positioned(
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: MekaarColors.sosRed.withValues(alpha: 0.90),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: MekaarColors.sosRed.withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      SolarIconsBold.trashBinMinimalistic,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Geser 1x lagi',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Bubble utama yang digeser
           Transform.translate(
             offset: Offset(_dragOffset, 0),
             child: widget.child,
