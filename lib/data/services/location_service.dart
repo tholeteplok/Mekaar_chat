@@ -9,18 +9,32 @@ class LocationService {
     return _locationInstance!;
   }
 
+  /// Memeriksa apakah izin lokasi berstatus ditolak permanen
+  static Future<bool> isLocationPermanentlyDenied() async {
+    try {
+      final status = await Permission.location.status;
+      return status.isPermanentlyDenied;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Request location permission
-  static Future<bool> requestPermission() async {
+  // [allowOpenSettings] default false agar tidak membajak layar secara otomatis (terutama saat alur darurat SOS)
+  static Future<bool> requestPermission({bool allowOpenSettings = false}) async {
     try {
       final status = await Permission.location.request();
       if (status.isGranted) return true;
 
-      // Jika user sudah permanently deny, arahkan ke Settings
+      // Jika user sudah permanently deny, arahkan ke Settings HANYA jika diizinkan eksplisit
       if (status.isPermanentlyDenied) {
-        await openAppSettings();
-        // Cek lagi setelah user kembali dari settings
-        final recheckStatus = await Permission.location.status;
-        return recheckStatus.isGranted;
+        if (allowOpenSettings) {
+          await openAppSettings();
+          // Cek lagi setelah user kembali dari settings
+          final recheckStatus = await Permission.location.status;
+          return recheckStatus.isGranted;
+        }
+        return false;
       }
 
       // Fallback to location package's request
@@ -32,9 +46,9 @@ class LocationService {
   }
 
   // Get current device coordinates with timeout and service check
-  static Future<loc.LocationData?> getCurrentLocation() async {
+  static Future<loc.LocationData?> getCurrentLocation({bool allowOpenSettings = false}) async {
     try {
-      final hasPermission = await requestPermission();
+      final hasPermission = await requestPermission(allowOpenSettings: allowOpenSettings);
       if (!hasPermission) return null;
 
       final serviceEnabled = await _location.serviceEnabled();

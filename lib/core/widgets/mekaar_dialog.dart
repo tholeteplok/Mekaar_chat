@@ -119,6 +119,32 @@ class MekaarDialog extends StatelessWidget {
     return shouldContinue ?? false;
   }
 
+  /// Dialog peringatan 1-tap saat izin lokasi ditolak permanen pada pemicuan SOS
+  static Future<bool> showLocationPermissionDeniedWarning({
+    required BuildContext context,
+  }) async {
+    final shouldContinue = await showConfirmation<bool>(
+      context: context,
+      barrierDismissible: false,
+      isDestructive: true,
+      icon: Icon(
+        MekaarIcons.locationPin,
+        color: Theme.of(context).colorScheme.error,
+      ),
+      title: 'Izin Lokasi Tidak Aktif',
+      message:
+          'Izin lokasi dinonaktifkan di perangkat ini sehingga koordinat GPS tidak dapat dilacak secara langsung oleh wali darurat Anda. '
+          'Perekaman audio darurat dan status SOS akan tetap berjalan.',
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Mengerti & Lanjutkan SOS'),
+        ),
+      ],
+    );
+    return shouldContinue ?? true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;

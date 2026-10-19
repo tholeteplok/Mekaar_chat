@@ -18,6 +18,7 @@ import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/chat_date_separator.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
@@ -1525,8 +1526,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final actions = ref.read(chatActionsProvider);
 
     final topAreaHeight =
-        MediaQuery.of(context).padding.top + kToolbarHeight + 6.0;
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+        MediaQuery.paddingOf(context).top + kToolbarHeight + 6.0;
 
     return PopScope(
       canPop: !_isEmojiPickerOpen && !_isSelectionMode,
@@ -1610,9 +1610,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           children: [
                             // Stale-while-revalidate: selama masih ada data
                             // termuat, jangan collapse ke error view — tampilkan
-                            // badge tipis non-blocking saat menyambung ulang.
+                            // banner statis 'Mode Offline' saat menyambung ulang / offline.
                             if (messagesStream.hasValue && reconnecting)
-                              const ReconnectingBadge(),
+                              MekaarBanner.offlineMode(),
                             Expanded(
                               child: Builder(
                                 builder: (context) {
@@ -1714,44 +1714,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                       final emojiInset = _isEmojiPickerOpen
                                           ? 270.0
                                           : 0.0;
-                                      return ListView.builder(
-                                        controller: _scrollController,
-                                        reverse: true,
-                                        // Padding bawah memberi ruang untuk composer floating + inset keyboard + panel emoji
-                                        padding: EdgeInsets.only(
-                                          top: 8,
-                                          bottom:
-                                              130 + keyboardHeight + emojiInset,
-                                        ),
-                                        itemCount: itemEntries.length,
-                                        itemBuilder: (context, index) {
-                                          return _buildLazyMessageItem(
-                                            itemEntries[index],
-                                            currentUserId,
-                                            actions,
-                                            messageMap,
-                                            forwardingProtection:
-                                                forwardingProtection,
-                                            roomThemeSpec: roomThemeSpec,
-                                            showReadReceipts:
-                                                readReceiptsEnabled,
+                                      return Builder(
+                                        builder: (context) {
+                                          final keyboardHeight =
+                                              MediaQuery.viewInsetsOf(context)
+                                                  .bottom;
+                                          return ListView.builder(
+                                            controller: _scrollController,
+                                            reverse: true,
+                                            // Padding bawah memberi ruang untuk composer floating + inset keyboard + panel emoji
+                                            padding: EdgeInsets.only(
+                                              top: 8,
+                                              bottom:
+                                                  130 + keyboardHeight + emojiInset,
+                                            ),
+                                            itemCount: itemEntries.length,
+                                            itemBuilder: (context, index) {
+                                              return _buildLazyMessageItem(
+                                                itemEntries[index],
+                                                currentUserId,
+                                                actions,
+                                                messageMap,
+                                                forwardingProtection:
+                                                    forwardingProtection,
+                                                roomThemeSpec: roomThemeSpec,
+                                                showReadReceipts:
+                                                    readReceiptsEnabled,
+                                              );
+                                            },
                                           );
                                         },
                                       );
                                     case ChatMessagesUiMode.error:
+                                      final isNetworkErr =
+                                          ErrorResolver.isNetworkError(
+                                        messagesStream.error,
+                                      );
                                       return MekaarStateView(
-                                        pose: ErrorResolver.resolvePose(
-                                          messagesStream.error,
-                                        ),
-                                        title: 'Gagal Memuat',
-                                        message: ErrorResolver.resolve(
-                                          messagesStream.error,
-                                        ),
+                                        pose: isNetworkErr
+                                            ? MikaPose.confused
+                                            : ErrorResolver.resolvePose(
+                                                messagesStream.error,
+                                              ),
+                                        title: isNetworkErr
+                                            ? 'Mode Offline'
+                                            : 'Gagal Memuat',
+                                        message: isNetworkErr
+                                            ? 'Tidak ada koneksi internet dan belum ada riwayat obrolan tersimpan untuk obrolan ini.'
+                                            : ErrorResolver.resolve(
+                                                messagesStream.error,
+                                              ),
                                         actionLabel: 'Coba Lagi',
                                         onAction: () => ref.invalidate(
                                           chatMessagesProvider(widget.chatId),
                                         ),
-                                        icon: SolarIconsOutline.refresh,
+                                        icon: isNetworkErr
+                                            ? SolarIconsOutline.cloudCross
+                                            : SolarIconsOutline.refresh,
                                       );
                                     case ChatMessagesUiMode.loading:
                                       return const MekaarStateView(
@@ -1773,6 +1792,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           );
                           if (!isTyping) return const SizedBox.shrink();
                           final emojiInset = _isEmojiPickerOpen ? 270.0 : 0.0;
+                          final keyboardHeight =
+                              MediaQuery.viewInsetsOf(context).bottom;
                           return Padding(
                             padding: EdgeInsets.only(
                               bottom: 84 + keyboardHeight + emojiInset,
@@ -1793,7 +1814,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             Positioned(
               left: 0,
               right: 0,
-              bottom: MediaQuery.of(context).viewInsets.bottom,
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
               child: Consumer(
                 builder: (context, ref, _) {
                   final chatPref =
@@ -1844,7 +1865,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               left: 0,
               right: 0,
               bottom:
-                  MediaQuery.of(context).viewInsets.bottom +
+                  MediaQuery.viewInsetsOf(context).bottom +
                   120 +
                   (_isEmojiPickerOpen ? 270.0 : 0.0),
               child: Center(

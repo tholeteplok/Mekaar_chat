@@ -8,6 +8,24 @@ import '../widgets/mika_illustration.dart';
 /// dengan tetap menyertakan kode alias error ringkas (misal: `[ERR_TIMEOUT]`)
 /// untuk mempermudah developer melakukan penelusuran masalah (debugging).
 class ErrorResolver {
+  /// Memeriksa apakah error disebabkan oleh koneksi jaringan/offline
+  static bool isNetworkError(dynamic error) {
+    if (error == null) return false;
+    final errStr = error.toString().toLowerCase();
+    return error is SocketException ||
+        error is TimeoutException ||
+        errStr.contains('timedout') ||
+        errStr.contains('timeout') ||
+        errStr.contains('socketexception') ||
+        errStr.contains('failed host lookup') ||
+        errStr.contains('network is unreachable') ||
+        errStr.contains('connection refused') ||
+        errStr.contains('connection reset') ||
+        errStr.contains('clientexception') ||
+        errStr.contains('realtimesubscribeexception') ||
+        errStr.contains('network');
+  }
+
   /// Mengubah objek error teknis menjadi pesan yang mudah dipahami pengguna awam.
   ///
   /// Contoh:

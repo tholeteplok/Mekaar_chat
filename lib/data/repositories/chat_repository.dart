@@ -364,10 +364,57 @@ class ChatRepository {
     StreamSubscription? streamSubscription;
     Timer? retryTimer;
     var retryAttempt = 0;
+    bool hasEmittedData = false;
+    final Map<String, Message> messagePool = {};
 
     const reconnectPolicy = ReconnectPolicy();
 
+    // Helper untuk memancarkan cache dari SQLite lokal seketika
+    Future<void> emitLocalCache({
+      DateTime? historyCleared,
+      Set<String>? hiddenIds,
+    }) async {
+      try {
+        final localMsgs =
+            await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
+        if (localMsgs.isNotEmpty && !controller.isClosed) {
+          final now = DateTime.now().toUtc();
+          final validLocal = localMsgs.where((m) {
+            if (historyCleared != null &&
+                !m.createdAt.isAfter(historyCleared)) {
+              return false;
+            }
+            if (m.isSilentDeleted ||
+                (hiddenIds != null && hiddenIds.contains(m.id))) {
+              return false;
+            }
+            if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) {
+              return false;
+            }
+            return true;
+          }).toList();
+
+          for (final lm in validLocal) {
+            _decryptedContentCache[lm.id] = lm.content;
+            messagePool[lm.id] = lm;
+          }
+          if (validLocal.isNotEmpty && !controller.isClosed) {
+            hasEmittedData = true;
+            final sorted = messagePool.values.toList()
+              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            controller.add(sorted);
+          }
+        }
+      } catch (_) {}
+    }
+
     Future<void> initStream() async {
+      // 0ms Offline-First: Render riwayat dari SQLite lokal seketika tanpa menunggu query jaringan
+      await emitLocalCache();
+
+      // Guard: jangan lanjutkan jika stream sudah di-cancel
+      if (controller.isClosed) return;
+
       DateTime? historyClearedAt;
       try {
         final p = await _supabaseService.client
@@ -375,7 +422,8 @@ class ChatRepository {
             .select('history_cleared_at')
             .eq('room_id', roomId)
             .eq('profile_id', userId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         if (p != null && p['history_cleared_at'] != null) {
           historyClearedAt = DateTime.parse(p['history_cleared_at'] as String);
           final now = DateTime.now().toUtc();
@@ -390,12 +438,21 @@ class ChatRepository {
         final hiddenData = await _supabaseService.client
             .from('hidden_messages')
             .select('message_id')
-            .eq('profile_id', userId);
+            .eq('profile_id', userId)
+            .timeout(const Duration(seconds: 4));
 
         for (var row in hiddenData) {
           hiddenMsgIds.add(row['message_id'] as String);
         }
       } catch (_) {}
+
+      // Perbarui tampilan cache lokal jika filter jaringan berhasil didapatkan
+      if (historyClearedAt != null || hiddenMsgIds.isNotEmpty) {
+        await emitLocalCache(
+          historyCleared: historyClearedAt,
+          hiddenIds: hiddenMsgIds,
+        );
+      }
 
       // Guard: jangan subscribe jika stream sudah di-cancel (race condition)
       if (controller.isClosed) return;
@@ -475,8 +532,15 @@ class ChatRepository {
             }),
           );
 
+          for (final dm in decryptedMsgs) {
+            messagePool[dm.id] = dm;
+          }
+
           if (!controller.isClosed) {
-            controller.add(decryptedMsgs);
+            hasEmittedData = true;
+            final sorted = messagePool.values.toList()
+              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            controller.add(sorted);
           }
         } finally {
           isProcessing = false;
@@ -489,80 +553,78 @@ class ChatRepository {
         }
       }
 
-      Future<void> subscribe() async {
-        // Cancel subscription lama (kalau ada) sebelum subscribe ulang
+      late Future<void> Function() subscribe;
+
+      void handleStreamError(dynamic err) {
+        if (controller.isClosed) return;
+
+        // Tandai stream sedang menyambung ulang / offline
+        onReconnectChange?.call(true);
+
+        // Coba subscribe ulang dengan backoff
+        if (retryAttempt < reconnectPolicy.maxAttempts) {
+          retryAttempt++;
+          final delay = reconnectPolicy.delayForAttempt(retryAttempt);
+          retryTimer?.cancel();
+          retryTimer = Timer(delay, () {
+            if (!controller.isClosed) {
+              subscribe();
+            }
+          });
+        } else {
+          // Jika data lokal sudah pernah dipancarkan ke controller,
+          // JANGAN lemparkan controller.addError(err) karena akan merusak
+          // tampilan obrolan lokal pengguna dan menggantinya dengan error screen.
+          // Cukup pertahankan mode reconnecting/offline dan coba lagi berkala.
+          if (hasEmittedData) {
+            retryTimer?.cancel();
+            retryTimer = Timer(const Duration(seconds: 15), () {
+              if (!controller.isClosed) {
+                subscribe();
+              }
+            });
+          } else {
+            onReconnectChange?.call(false);
+            controller.addError(err);
+          }
+        }
+      }
+
+      subscribe = () async {
+        // Cancel subscription lama sebelum subscribe ulang
         await streamSubscription?.cancel();
         streamSubscription = null;
 
-        // Start stream listening ONLY after historyClearedAt is retrieved (fixes race condition)
-        streamSubscription = _supabaseService.client
-            .from('messages')
-            .stream(primaryKey: ['id'])
-            .eq('room_id', roomId)
-            .order('created_at', ascending: true)
-            .listen(
-              (maps) {
-                // Data pertama dari re-subscribe = koneksi sudah pulih
-                if (retryAttempt > 0) {
-                  retryAttempt = 0;
-                  onReconnectChange?.call(false);
-                }
-                if (isProcessing) {
-                  pendingBatch = maps;
-                  return;
-                }
-                isProcessing = true;
-                processBatch(maps);
-              },
-              onError: (err) {
-                if (controller.isClosed) return;
-
-                // Jangan langsung menyerah: coba subscribe ulang dengan backoff.
-                // Data terakhir yang sukses tetap dipegang controller selama retry.
-                if (retryAttempt < reconnectPolicy.maxAttempts) {
-                  retryAttempt++;
-                  onReconnectChange?.call(true);
-                  final delay = reconnectPolicy.delayForAttempt(retryAttempt);
-                  retryTimer?.cancel();
-                  retryTimer = Timer(delay, () {
-                    if (!controller.isClosed) {
-                      subscribe();
-                    }
-                  });
-                } else {
-                  onReconnectChange?.call(false);
-                  controller.addError(err);
-                }
-              },
-            );
-      }
-
-      // 0ms Offline-First: Render riwayat dari SQLite lokal seketika
-      try {
-        final localMsgs =
-            await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
-        if (localMsgs.isNotEmpty && !controller.isClosed) {
-          final now = DateTime.now().toUtc();
-          final validLocal = localMsgs.where((m) {
-            if (historyClearedAt != null &&
-                !m.createdAt.isAfter(historyClearedAt)) {
-              return false;
-            }
-            if (m.isSilentDeleted || hiddenMsgIds.contains(m.id)) return false;
-            if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) {
-              return false;
-            }
-            return true;
-          }).toList();
-
-          for (final lm in validLocal) {
-            _decryptedContentCache[lm.id] = lm.content;
-          }
-          if (validLocal.isNotEmpty && !controller.isClosed) {
-            controller.add(validLocal);
-          }
+        try {
+          // P1: Local-First Active Window — batasi stream ke 100 pesan terbaru
+          // agar Supabase Realtime tidak mengirim ribuan baris data pada setiap mutasi
+          streamSubscription = _supabaseService.client
+              .from('messages')
+              .stream(primaryKey: ['id'])
+              .eq('room_id', roomId)
+              .order('created_at', ascending: false)
+              .limit(100)
+              .listen(
+                (maps) {
+                  if (retryAttempt > 0) {
+                    retryAttempt = 0;
+                    onReconnectChange?.call(false);
+                  }
+                  if (isProcessing) {
+                    pendingBatch = maps;
+                    return;
+                  }
+                  isProcessing = true;
+                  processBatch(maps);
+                },
+                onError: (err) {
+                  handleStreamError(err);
+                },
+              );
+        } catch (e) {
+          handleStreamError(e);
         }
-      } catch (_) {}
+      };
 
       await subscribe();
     }

@@ -32,6 +32,7 @@ class SOSState {
   final bool isVideoStreaming;
   final int elapsedSeconds;
   final bool micPermissionDenied; // true jika mic gagal diakses
+  final bool locationPermissionDenied; // true jika izin lokasi ditolak permanen
   final bool needsInactivityAck; // prompt "Apakah Anda Aman?" sebelum auto-end
 
   SOSState({
@@ -43,6 +44,7 @@ class SOSState {
     this.isVideoStreaming = false,
     this.elapsedSeconds = 0,
     this.micPermissionDenied = false,
+    this.locationPermissionDenied = false,
     this.needsInactivityAck = false,
   });
 
@@ -57,6 +59,7 @@ class SOSState {
     bool? isVideoStreaming,
     int? elapsedSeconds,
     bool? micPermissionDenied,
+    bool? locationPermissionDenied,
     bool? needsInactivityAck,
     bool clearActiveSession = false,
     bool clearMessage = false,
@@ -72,6 +75,8 @@ class SOSState {
       isVideoStreaming: isVideoStreaming ?? this.isVideoStreaming,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       micPermissionDenied: micPermissionDenied ?? this.micPermissionDenied,
+      locationPermissionDenied:
+          locationPermissionDenied ?? this.locationPermissionDenied,
       needsInactivityAck: needsInactivityAck ?? this.needsInactivityAck,
     );
   }
@@ -359,18 +364,22 @@ class SOSNotifier extends StateNotifier<SOSState> {
       }
     }
 
+    final isLocationDenied =
+        await LocationService.isLocationPermanentlyDenied();
+
     state = SOSState(
       status: SOSStatus.active,
       activeSession: session,
-      isGpsStreaming: gps,
+      isGpsStreaming: gps && !isLocationDenied,
       isAudioStreaming: audioStarted,
       isVideoStreaming: video,
       micPermissionDenied: micDenied,
+      locationPermissionDenied: isLocationDenied,
     );
 
     _startSessionTimers(session.id);
     try {
-      if (gps) {
+      if (gps && !isLocationDenied) {
         _startLocationStreaming(session.id);
       }
       _startAccelerometerWatch();
@@ -454,8 +463,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
   /// Mulai streaming GPS ke Supabase location_pings
   void _startLocationStreaming(String sessionId) {
     _locationSubscription?.cancel();
-    // Kirim lokasi pertama segera
-    LocationService.getCurrentLocation().then((locData) {
+    // Kirim lokasi pertama segera tanpa membuka Settings OS
+    LocationService.getCurrentLocation(allowOpenSettings: false).then((locData) {
       if (state.status == SOSStatus.active &&
           state.activeSession?.id == sessionId &&
           locData != null &&
@@ -467,6 +476,12 @@ class SOSNotifier extends StateNotifier<SOSState> {
           locData.longitude!,
           accuracy: locData.accuracy,
         );
+      } else if (locData == null) {
+        LocationService.isLocationPermanentlyDenied().then((denied) {
+          if (denied && mounted) {
+            state = state.copyWith(locationPermissionDenied: true);
+          }
+        });
       }
     }).catchError((e) {
       debugPrint('Location first ping non-fatal error: $e');

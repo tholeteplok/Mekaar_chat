@@ -25,6 +25,7 @@ class SOSActiveScreen extends ConsumerStatefulWidget {
 
 class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   bool _allowPop = false;
+  bool _hasShownLocationWarning = false;
 
   @override
   void initState() {
@@ -38,6 +39,11 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
         ref
             .read(sosProvider.notifier)
             .activateSOS(gps: true, mic: true, video: false);
+      } else if (sosState.locationPermissionDenied &&
+          !_hasShownLocationWarning &&
+          mounted) {
+        _hasShownLocationWarning = true;
+        MekaarDialog.showLocationPermissionDeniedWarning(context: context);
       }
     });
   }
@@ -95,6 +101,16 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(
+      sosProvider.select((s) => s.locationPermissionDenied),
+      (prev, next) {
+        if (next && !_hasShownLocationWarning && mounted) {
+          _hasShownLocationWarning = true;
+          MekaarDialog.showLocationPermissionDeniedWarning(context: context);
+        }
+      },
+    );
+
     final sosState = ref.watch(sosProvider);
     final activeGuardians = activeGuardiansOf(
       ref.watch(guardianProvider),
@@ -124,7 +140,11 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
         'SOS tercatat aktif. Tidak ada Guardian aktif yang terhubung ke akun Anda. Tambahkan Guardian setelah Anda berada di tempat aman.',
       SOSStatus.active =>
         'SOS tercatat aktif. Guardian yang terhubung: ${activeGuardians.join(', ')}. '
-            '${sosState.isGpsStreaming ? 'Lokasi perangkat dibagikan.' : 'Lokasi perangkat tidak dibagikan.'} '
+            '${sosState.isGpsStreaming
+                ? 'Lokasi perangkat dibagikan.'
+                : sosState.locationPermissionDenied
+                    ? 'Lokasi tidak tersedia karena izin lokasi ditolak.'
+                    : 'Lokasi perangkat tidak dibagikan.'} '
             '${sosState.isAudioStreaming
                 ? 'Audio perangkat dibagikan.'
                 : sosState.micPermissionDenied
@@ -218,23 +238,50 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       height: 1.5,
                     ),
                   ),
-                  if (isActive && sosState.micPermissionDenied) ...[
+                  if (isActive &&
+                      (sosState.micPermissionDenied ||
+                          sosState.locationPermissionDenied)) ...[
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.warnAmber,
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        'Izin Mikrofon Ditolak',
-                        style: MekaarTypography.labelLG.copyWith(
-                          color: MekaarColors.textOnYellow,
-                        ),
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        if (sosState.locationPermissionDenied)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.warnAmber,
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              'Izin Lokasi Ditolak',
+                              style: MekaarTypography.labelLG.copyWith(
+                                color: MekaarColors.textOnYellow,
+                              ),
+                            ),
+                          ),
+                        if (sosState.micPermissionDenied)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.warnAmber,
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              'Izin Mikrofon Ditolak',
+                              style: MekaarTypography.labelLG.copyWith(
+                                color: MekaarColors.textOnYellow,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                   if (isActive) ...[

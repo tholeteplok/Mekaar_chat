@@ -164,11 +164,18 @@ class TypingNotifier extends StateNotifier<bool> {
   final Ref _ref;
   final String _roomId;
   RealtimeChannel? _channel;
+  Timer? _subscribeDebounceTimer;
   Timer? _debounceTimer;
   Timer? _hideTimer;
 
   TypingNotifier(this._ref, this._roomId) : super(false) {
-    _subscribe();
+    // P2: Jeda langganan 300 ms agar perpindahan cepat antar-room tidak
+    // membuat dangling WebSocket handshake atau lonjakan koneksi ke Supabase
+    _subscribeDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _subscribe();
+      }
+    });
   }
 
   void _subscribe() {
@@ -231,9 +238,13 @@ class TypingNotifier extends StateNotifier<bool> {
 
   @override
   void dispose() {
+    _subscribeDebounceTimer?.cancel();
     _debounceTimer?.cancel();
     _hideTimer?.cancel();
-    _channel?.unsubscribe();
+    try {
+      _channel?.unsubscribe();
+    } catch (_) {}
+    _channel = null;
     super.dispose();
   }
 }
