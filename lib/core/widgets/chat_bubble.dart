@@ -876,6 +876,7 @@ class ChatBubble extends ConsumerWidget {
           caption: caption,
           metaWidget: metaWidget,
           onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
+          onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
         );
 
       case MessageType.voice:
@@ -996,6 +997,7 @@ class ChatBubble extends ConsumerWidget {
             receiptStatus: receiptStatus,
             caption: caption,
             onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
+            onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
           );
         }
         return Stack(
@@ -1649,10 +1651,12 @@ class _VoiceBubblePlayerState extends ConsumerState<_VoiceBubblePlayer> {
 class _FullScreenImageViewer extends StatefulWidget {
   final ImageProvider imageProvider;
   final File? tempFileToPurge;
+  final VoidCallback? onSaveToVault;
 
   const _FullScreenImageViewer({
     required this.imageProvider,
     this.tempFileToPurge,
+    this.onSaveToVault,
   });
 
   @override
@@ -1686,6 +1690,14 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          if (widget.onSaveToVault != null)
+            IconButton(
+              icon: const Icon(SolarIconsOutline.safeSquare),
+              tooltip: 'Simpan ke Brankas',
+              onPressed: widget.onSaveToVault,
+            ),
+        ],
       ),
       body: PhotoView(
         imageProvider: widget.imageProvider,
@@ -1712,6 +1724,7 @@ class _ImageBubble extends ConsumerWidget {
   final String caption;
   final Widget? metaWidget;
   final VoidCallback onViewOnceOpened;
+  final VoidCallback? onSaveToVault;
 
   const _ImageBubble({
     required this.message,
@@ -1725,6 +1738,7 @@ class _ImageBubble extends ConsumerWidget {
     this.caption = '',
     this.metaWidget,
     required this.onViewOnceOpened,
+    this.onSaveToVault,
   });
 
   void _openViewer(BuildContext context, File file, {File? tempFileToPurge}) {
@@ -1734,6 +1748,7 @@ class _ImageBubble extends ConsumerWidget {
         builder: (_) => _FullScreenImageViewer(
           imageProvider: FileImage(file),
           tempFileToPurge: tempFileToPurge,
+          onSaveToVault: onSaveToVault,
         ),
       ),
     );

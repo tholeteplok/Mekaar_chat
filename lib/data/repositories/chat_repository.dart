@@ -44,10 +44,28 @@ class ChatRepository {
     }
   }
 
+  Future<Set<String>> _getHiddenMessageIds(String userId) async {
+    try {
+      final hiddenData = await _supabaseService.client
+          .from('hidden_messages')
+          .select('message_id')
+          .eq('profile_id', userId)
+          .timeout(const Duration(seconds: 4));
+
+      return (hiddenData as List)
+          .map((row) => row['message_id'] as String)
+          .toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
   // Get active chat rooms for current user
   Future<List<Map<String, dynamic>>> getRooms() async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return [];
+
+    final hiddenMsgIds = await _getHiddenMessageIds(userId);
 
     // Get rooms the current user participates in, filtering out deleted rooms
     final roomsResponse = await _supabaseService.client
@@ -169,11 +187,13 @@ class ChatRepository {
         }
       } catch (_) {}
 
-      // Get last message in the room after history_cleared_at
+      // Ambil pesan aktif (belum dihapus) terakhir setelah history_cleared_at
       var lastMsgQuery = _supabaseService.client
           .from('messages')
           .select()
-          .eq('room_id', roomId);
+          .eq('room_id', roomId)
+          .eq('is_deleted', false)
+          .eq('is_silent_deleted', false);
 
       if (historyClearedAt != null) {
         lastMsgQuery = lastMsgQuery.gt(
@@ -182,67 +202,85 @@ class ChatRepository {
         );
       }
 
-      final lastMsgResponse = await lastMsgQuery
+      final lastMsgResponseList = await lastMsgQuery
           .order('created_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
+          .limit(10);
+
+      Map<String, dynamic>? activeRemoteMsgJson;
+      for (final row in lastMsgResponseList) {
+        final id = row['id'] as String?;
+        if (id != null && !hiddenMsgIds.contains(id)) {
+          activeRemoteMsgJson = row;
+          break;
+        }
+      }
 
       String lastMessageText = 'Mulai percakapan...';
       DateTime? lastMessageTime;
 
-      // Cek apakah pesan terakhir sudah terdekripsi di database lokal (0ms, offline-first)
+      // Cek apakah pesan aktif terakhir sudah terdekripsi di database lokal (0ms, offline-first)
       Message? localLastMsg;
       try {
         final localMsgs =
             await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
-        if (localMsgs.isNotEmpty) {
-          localLastMsg = localMsgs.last;
+        final activeLocalMsgs = localMsgs
+            .where((m) =>
+                !m.isDeleted &&
+                !m.isSilentDeleted &&
+                !hiddenMsgIds.contains(m.id))
+            .toList();
+        if (activeLocalMsgs.isNotEmpty) {
+          localLastMsg = activeLocalMsgs.last;
         }
       } catch (_) {}
 
-      if (lastMsgResponse != null) {
-        final lastMsg = Message.fromJson(lastMsgResponse);
-        final bool isUnreadFromOther =
-            unreadCount > 0 && lastMsg.senderId != userId;
-        lastMessageTime = lastMsg.createdAt;
+      // Tentukan pesan aktif paling mutakhir antara lokal dan remote
+      Message? chosenMsg;
+      if (localLastMsg != null && activeRemoteMsgJson != null) {
+        final remoteTime = DateTime.tryParse(
+          activeRemoteMsgJson['created_at'] as String? ?? '',
+        );
+        if (remoteTime != null && remoteTime.isAfter(localLastMsg.createdAt)) {
+          chosenMsg = Message.fromJson(activeRemoteMsgJson);
+        } else {
+          chosenMsg = localLastMsg;
+        }
+      } else if (localLastMsg != null) {
+        chosenMsg = localLastMsg;
+      } else if (activeRemoteMsgJson != null) {
+        chosenMsg = Message.fromJson(activeRemoteMsgJson);
+      }
 
-        if (lastMsg.isDeleted) {
-          lastMessageText = 'Pesan telah dihapus';
-        } else if (localLastMsg != null && localLastMsg.content.isNotEmpty) {
-          // Tampilkan teks bersih yang sudah terdekripsi di perangkat lokal (Signal-grade)
-          if (localLastMsg.type == MessageType.image) {
-            lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
-          } else if (localLastMsg.type == MessageType.voice) {
-            lastMessageText = isUnreadFromOther
-                ? '🎤 Pesan suara baru'
-                : '🎤 Pesan Suara';
-          } else if (localLastMsg.type == MessageType.location) {
-            lastMessageText = isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
-          } else if (localLastMsg.type == MessageType.system) {
-            lastMessageText = localLastMsg.content;
-          } else {
-            lastMessageText = replaceCustomEmojiTokens(
-              localLastMsg.content,
-              (_) => '[emoji]',
-            );
-          }
-        } else if (lastMsg.isEncrypted && lastMsg.content.isNotEmpty) {
-          // Jika pesan masih mentah dari cloud & belum terdekripsi di memori lokal:
-          // Hilangkan icon gembok dan teks kaku. Gunakan "Pesan baru" atau titik-titik samar.
-          lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
-        } else if (lastMsg.type == MessageType.image) {
+      if (chosenMsg != null) {
+        final bool isUnreadFromOther =
+            unreadCount > 0 && chosenMsg.senderId != userId;
+        lastMessageTime = chosenMsg.createdAt;
+
+        // Gunakan pesan lokal yang sudah terdekripsi jika ID-nya cocok
+        final contentSource =
+            (localLastMsg != null && localLastMsg.id == chosenMsg.id)
+                ? localLastMsg
+                : chosenMsg;
+
+        if (contentSource.type == MessageType.image) {
           lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
-        } else if (lastMsg.type == MessageType.voice) {
+        } else if (contentSource.type == MessageType.video) {
+          lastMessageText = isUnreadFromOther ? '🎥 Video baru' : '🎥 Video';
+        } else if (contentSource.type == MessageType.voice) {
           lastMessageText = isUnreadFromOther
               ? '🎤 Pesan suara baru'
               : '🎤 Pesan Suara';
-        } else if (lastMsg.type == MessageType.location) {
+        } else if (contentSource.type == MessageType.location) {
           lastMessageText = isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
-        } else if (lastMsg.type == MessageType.system) {
-          lastMessageText = lastMsg.content;
+        } else if (contentSource.type == MessageType.system) {
+          lastMessageText = contentSource.content;
+        } else if (contentSource.isEncrypted &&
+            contentSource.content.isNotEmpty &&
+            contentSource != localLastMsg) {
+          lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
         } else {
           lastMessageText = replaceCustomEmojiTokens(
-            lastMsg.content,
+            contentSource.content,
             (_) => '[emoji]',
           );
         }

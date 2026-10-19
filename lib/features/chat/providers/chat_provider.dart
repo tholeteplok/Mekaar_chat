@@ -316,6 +316,7 @@ class ChatActionsNotifier {
 
   Future<void> deleteMessageForEveryone(String messageId, {String? roomId}) async {
     await _chatRepository.deleteMessageForEveryone(messageId, roomId: roomId);
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> hideMessageForMe(String messageId, {String? roomId}) async {
@@ -323,6 +324,7 @@ class ChatActionsNotifier {
     if (roomId != null) {
       _ref.invalidate(chatMessagesProvider(roomId));
     }
+    _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> forwardMessage(Message message, String roomId) async {

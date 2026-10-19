@@ -879,6 +879,80 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
+  Future<void> _handleSaveSelectedToVault(List<Message> savableMessages) async {
+    if (savableMessages.isEmpty) return;
+
+    if (!LocalVaultDatabase.instance.isUnlocked) {
+      final verified = await MekaarPinVerificationSheet.verify(
+        context,
+        title: 'Buka Brankas Berkas',
+        subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
+      );
+      if (!verified || !mounted) return;
+    }
+
+    if (!mounted) return;
+    MekaarSnackbar.info(
+      context,
+      savableMessages.length == 1
+          ? 'Menyimpan berkas ke Brankas...'
+          : 'Menyimpan ${savableMessages.length} berkas ke Brankas...',
+    );
+
+    int savedCount = 0;
+    final vaultRepo = ref.read(vaultRepositoryProvider);
+
+    for (final msg in savableMessages) {
+      final mediaUrl = msg.mediaUrl;
+      if (mediaUrl == null || mediaUrl.isEmpty) continue;
+
+      try {
+        final payload = parseMediaPayload(msg);
+        final file = await getOrDecryptMedia(
+          messageId: msg.id,
+          url: mediaUrl,
+          isEncrypted: msg.isEncrypted,
+          fileKeyB64:
+              payload.fileKeyB64.isNotEmpty ? payload.fileKeyB64 : msg.content,
+        );
+
+        if (file != null && await file.exists()) {
+          final senderName = widget.isGroup
+              ? (_participantNames[msg.senderId] ?? widget.chatName)
+              : widget.chatName;
+
+          await vaultRepo.saveMediaToVault(
+            sourceFile: file,
+            originalMessageId: msg.id,
+            customFileName: null,
+            senderName: senderName,
+            senderId: msg.senderId,
+            roomId: widget.chatId,
+          );
+          savedCount++;
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    _clearSelection();
+
+    if (savedCount > 0) {
+      HapticService.trigger(MekaarHapticIntent.success);
+      MekaarSnackbar.success(
+        context,
+        savedCount == 1
+            ? 'Berkas berhasil disimpan ke Brankas Berkas'
+            : '$savedCount berkas berhasil disimpan ke Brankas Berkas',
+      );
+    } else {
+      MekaarSnackbar.error(
+        context,
+        'Gagal memproses dan menyimpan berkas ke Brankas Berkas.',
+      );
+    }
+  }
+
   void _handleForwardMessage(Message msg) {
     final rooms = ref.read(chatRoomsProvider).value ?? [];
     final targets = rooms.where((r) => r['id'] != widget.chatId).toList();
@@ -1365,6 +1439,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         _selectedCallIds.isEmpty &&
         _selectedMessageIds.isNotEmpty;
 
+    final savableMediaMessages = rawMessages.where(
+      (m) =>
+          _selectedMessageIds.contains(m.id) &&
+          !m.isDeleted &&
+          !m.isSilentDeleted &&
+          (m.type == MessageType.image ||
+              m.type == MessageType.video ||
+              m.type == MessageType.voice ||
+              (m.mediaUrl != null && m.mediaUrl!.isNotEmpty)),
+    ).toList();
+    final canSaveToVault =
+        savableMediaMessages.isNotEmpty && _selectedCallIds.isEmpty;
+
     return Container(
       padding: EdgeInsets.only(top: topPadding),
       decoration: BoxDecoration(
@@ -1440,6 +1527,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   rawMessages,
                   forwardingProtection: forwardingProtection,
                 ),
+              ),
+            if (canSaveToVault)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.safeSquare,
+                  size: 22,
+                  color: iconColor,
+                ),
+                tooltip: 'Simpan ke Brankas',
+                onPressed: () =>
+                    _handleSaveSelectedToVault(savableMediaMessages),
               ),
             IconButton(
               icon: Icon(
