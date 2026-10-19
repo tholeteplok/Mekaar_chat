@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -322,6 +323,127 @@ class UpdateService {
     } catch (_) {}
   }
 
+  /// Menghapus file APK unduhan versi tertentu dari penyimpanan aplikasi
+  Future<bool> deleteDownloadedApk(String version) async {
+    try {
+      final saveFile = await getUpdateFile(version);
+      if (await saveFile.exists()) {
+        await saveFile.delete();
+      }
+    } catch (_) {}
+
+    // Periksa lokasi documents legacy
+    try {
+      final sanitizedVer = _sanitizeVersion(version)
+          .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final fileName = 'Mekaar-$sanitizedVer.apk';
+      final docsDir = await getApplicationDocumentsDirectory();
+      final legacyFile = File('${docsDir.path}/updates/$fileName');
+      if (await legacyFile.exists()) {
+        await legacyFile.delete();
+      }
+    } catch (_) {}
+
+    // Periksa cache fallback
+    try {
+      final baseDir = await getApplicationSupportDirectory();
+      final cacheUpdates = Directory('${baseDir.path}/updates');
+      if (await cacheUpdates.exists()) {
+        final files = cacheUpdates.listSync();
+        for (final f in files) {
+          if (f is File && f.path.contains(version)) {
+            try {
+              await f.delete();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+
+    return true;
+  }
+
+  /// Memeriksa 4 byte pertama berkas untuk signature ZIP (PK\x03\x04)
+  Future<bool> _hasValidZipHeader(File file) async {
+    try {
+      if (!await file.exists() || await file.length() < 4) return false;
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        final header = await raf.read(4);
+        return header.length >= 4 &&
+            header[0] == 0x50 &&
+            header[1] == 0x4B &&
+            header[2] == 0x03 &&
+            header[3] == 0x04;
+      } finally {
+        await raf.close();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Memverifikasi integritas berkas APK (ZIP Magic Header, EOCD Footer, dan Android PackageParser)
+  Future<bool> verifyApkFile(File file, {int? expectedBytes}) async {
+    try {
+      if (!await file.exists()) return false;
+      final len = await file.length();
+      // File APK minimal 1 MB
+      if (len < 1024 * 1024) return false;
+      if (expectedBytes != null && expectedBytes > 0 && len < expectedBytes) {
+        return false;
+      }
+
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        // 1. Verifikasi Local File Header ZIP (PK\x03\x04)
+        final header = await raf.read(4);
+        if (header.length < 4 ||
+            header[0] != 0x50 ||
+            header[1] != 0x4B ||
+            header[2] != 0x03 ||
+            header[3] != 0x04) {
+          return false;
+        }
+
+        // 2. Verifikasi End of Central Directory Record ZIP (PK\x05\x06) pada 65 KB terakhir
+        final searchLen = math.min(len, 65557);
+        await raf.setPosition(len - searchLen);
+        final tail = await raf.read(searchLen);
+        bool hasEocd = false;
+        for (int i = 0; i <= tail.length - 4; i++) {
+          if (tail[i] == 0x50 &&
+              tail[i + 1] == 0x4B &&
+              tail[i + 2] == 0x05 &&
+              tail[i + 3] == 0x06) {
+            hasEocd = true;
+            break;
+          }
+        }
+        if (!hasEocd) return false;
+      } finally {
+        await raf.close();
+      }
+
+      // 3. Verifikasi Android PackageParser via native method channel
+      if (Platform.isAndroid) {
+        try {
+          final isNativeValid = await _installerChannel.invokeMethod<bool>(
+            'verifyApk',
+            {'filePath': file.path},
+          );
+          if (isNativeValid == false) {
+            return false;
+          }
+        } catch (_) {}
+      }
+
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Memeriksa berapa byte file APK yang sudah tersimpan di penyimpanan persisten untuk versi tertentu
   Future<int> getDownloadedApkBytes(String version) async {
     try {
@@ -335,16 +457,30 @@ class UpdateService {
     }
   }
 
-  /// Memeriksa apakah file APK untuk versi tertentu sudah selesai diunduh 100%
+  /// Memeriksa apakah file APK untuk versi tertentu sudah selesai diunduh 100% dan terverifikasi valid
   Future<bool> isApkFullyDownloaded(String version, int expectedBytes) async {
     try {
       final saveFile = await getUpdateFile(version);
       if (!await saveFile.exists()) return false;
       final len = await saveFile.length();
-      if (expectedBytes > 0) {
-        return len >= expectedBytes;
+      if (expectedBytes > 0 && len < expectedBytes) {
+        return false;
       }
-      return len > 0;
+      if (len < 1024 * 1024) {
+        await deleteDownloadedApk(version);
+        return false;
+      }
+
+      // Verifikasi integritas berkas APK
+      final isValid =
+          await verifyApkFile(saveFile, expectedBytes: expectedBytes);
+      if (!isValid) {
+        debugPrint(
+            '[UpdateService] Berkas APK $version corrupt, otomatis menghapus cache...');
+        await deleteDownloadedApk(version);
+        return false;
+      }
+      return true;
     } catch (_) {
       return false;
     }
@@ -369,11 +505,31 @@ class UpdateService {
       if (expectedTotalBytes != null &&
           expectedTotalBytes > 0 &&
           len >= expectedTotalBytes) {
-        // File sudah lengkap 100% di penyimpanan
-        onProgress(1.0, len, expectedTotalBytes);
-        return saveFile;
+        final isValid =
+            await verifyApkFile(saveFile, expectedBytes: expectedTotalBytes);
+        if (isValid) {
+          // File sudah lengkap 100% dan valid di penyimpanan
+          onProgress(1.0, len, expectedTotalBytes);
+          return saveFile;
+        } else {
+          // Berkas lama corrupt, hapus dan mulai baru dari byte 0
+          await deleteDownloadedApk(version);
+          existingBytes = 0;
+        }
+      } else {
+        // Cek apakah data awal yang sudah ada valid ZIP header PK\x03\x04
+        if (len >= 4) {
+          final isHeaderValid = await _hasValidZipHeader(saveFile);
+          if (!isHeaderValid) {
+            await deleteDownloadedApk(version);
+            existingBytes = 0;
+          } else {
+            existingBytes = len;
+          }
+        } else {
+          existingBytes = len;
+        }
       }
-      existingBytes = len;
     }
 
     int retryCount = 0;
@@ -486,6 +642,24 @@ class UpdateService {
         await sink.flush();
         await sink.close();
         sink = null;
+
+        // Validasi kelengkapan byte unduhan
+        if (effectiveTotalBytes > 0 && receivedBytes < effectiveTotalBytes) {
+          throw Exception(
+              'Unduhan terputus sebelum selesai ($receivedBytes dari $effectiveTotalBytes bytes)');
+        }
+
+        // Verifikasi integritas file yang baru selesai diunduh
+        final isValid = await verifyApkFile(
+          saveFile,
+          expectedBytes: expectedTotalBytes ?? effectiveTotalBytes,
+        );
+        if (!isValid) {
+          await deleteDownloadedApk(version);
+          throw Exception(
+            'Berkas unduhan corrupt atau tidak lengkap. Cache telah dibersihkan, silakan unduh ulang.',
+          );
+        }
 
         return saveFile;
       } catch (e) {

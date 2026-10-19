@@ -16,6 +16,7 @@ enum InstallResult {
   success,
   permissionRequired,
   failed,
+  corruptApk,
 }
 
 class UpdateDownloadState {
@@ -238,6 +239,26 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
     final file = File(path);
     if (!await file.exists()) return InstallResult.failed;
 
+    final ver = state.info?.latestVersion ?? '';
+
+    // Verifikasi integritas berkas APK sebelum menjalankan installer native
+    final isValid = await _updateService.verifyApkFile(
+      file,
+      expectedBytes: state.totalBytes > 0 ? state.totalBytes : null,
+    );
+    if (!isValid) {
+      if (ver.isNotEmpty) {
+        await _updateService.deleteDownloadedApk(ver);
+      }
+      state = state.copyWith(
+        status: UpdateDownloadStatus.error,
+        errorMessage:
+            'Berkas unduhan rusak atau tidak lengkap. Cache telah dibersihkan.',
+        statusMessage: 'Berkas rusak',
+      );
+      return InstallResult.corruptApk;
+    }
+
     // Periksa izin instalasi aplikasi tidak dikenal
     final canInstall = await _updateService.canRequestPackageInstalls();
     if (!canInstall) {
@@ -251,11 +272,25 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
       return InstallResult.success;
     }
 
+    // Periksa kembali apakah gagal karena verifikasi Android menolak paket
+    final isValidAfterFail = await _updateService.verifyApkFile(file);
+    if (!isValidAfterFail) {
+      if (ver.isNotEmpty) {
+        await _updateService.deleteDownloadedApk(ver);
+      }
+      state = state.copyWith(
+        status: UpdateDownloadStatus.error,
+        errorMessage:
+            'Berkas APK tidak kompatibel atau rusak. Cache telah dibersihkan.',
+        statusMessage: 'Gagal dipasang',
+      );
+      return InstallResult.corruptApk;
+    }
+
     // Fallback: Jika installer native gagal dibuka langsung di perangkat ini,
     // sediakan salinan di folder Download agar pengguna tetap dapat memasang manual.
     if (state.publicExportPath == null) {
-      final ver = state.info?.latestVersion ?? 'update';
-      final fileName = 'Mekaar-v$ver.apk';
+      final fileName = 'Mekaar-v${ver.isNotEmpty ? ver : 'update'}.apk';
       final publicPath =
           await _updateService.exportToPublicDownloads(path, fileName);
       if (publicPath != null) {
@@ -264,6 +299,34 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
     }
 
     return InstallResult.failed;
+  }
+
+  /// Menghapus cache APK dan mereset status unduhan (menghilangkan floating pill)
+  Future<void> deleteCacheAndReset() async {
+    _pauseRequested = true;
+    final ver = state.info?.latestVersion;
+    if (ver != null && ver.isNotEmpty) {
+      await _updateService.deleteDownloadedApk(ver);
+    }
+    state = const UpdateDownloadState();
+  }
+
+  /// Menghapus cache APK lama dan mengunduh ulang dari awal (0%)
+  Future<void> deleteAndRetryDownload(AppUpdateInfo updateInfo) async {
+    _pauseRequested = true;
+    final ver = updateInfo.latestVersion;
+    if (ver.isNotEmpty) {
+      await _updateService.deleteDownloadedApk(ver);
+    }
+    state = UpdateDownloadState(
+      status: UpdateDownloadStatus.idle,
+      info: updateInfo,
+      progress: 0.0,
+      receivedBytes: 0,
+      totalBytes: updateInfo.downloadSizeBytes,
+      isMinimized: state.isMinimized,
+    );
+    await startDownload(updateInfo);
   }
 
   /// Membuka folder Download publik sistem Android dan memastikan file telah tersedia
@@ -281,7 +344,7 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
     return _updateService.openDownloadsFolder();
   }
 
-  /// Membatalkan atau mereset unduhan
+  /// Membatalkan atau mereset unduhan dan menyembunyikan floating pill
   void dismiss() {
     _pauseRequested = true;
     state = const UpdateDownloadState();

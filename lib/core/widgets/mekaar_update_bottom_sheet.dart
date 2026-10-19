@@ -588,6 +588,11 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                   context,
                   'Silakan izinkan pemasangan aplikasi dari sumber ini pada pengaturan perangkat.',
                 );
+              } else if (result == InstallResult.corruptApk) {
+                MekaarSnackbar.error(
+                  context,
+                  'Berkas unduhan corrupt atau tidak lengkap. Cache telah dibersihkan.',
+                );
               } else {
                 MekaarSnackbar.error(
                   context,
@@ -600,6 +605,27 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
               'Pasang Sekarang',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              foregroundColor: MekaarColors.sosCoral,
+              side: BorderSide(
+                color: MekaarColors.sosCoral.withValues(alpha: 0.35),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+            ),
+            onPressed: () async {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              await ref
+                  .read(updateDownloadProvider.notifier)
+                  .deleteAndRetryDownload(widget.info);
+            },
+            icon: const Icon(SolarIconsOutline.restart, size: 16),
+            label: const Text('Unduh Ulang (Hapus Cache)'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
@@ -619,26 +645,74 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
             label: const Text('Buka Folder Unduhan'),
           ),
           const SizedBox(height: 4),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                ref.read(updateDownloadProvider.notifier).minimize();
-                Navigator.pop(context);
-              },
-              child: Text(
-                'Simpan & Pasang Nanti',
-                style: MekaarTypography.caption.copyWith(
-                  color: MekaarColors.textSecondaryOf(context),
-                  fontWeight: FontWeight.w600,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () async {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  Navigator.pop(context);
+                  await ref
+                      .read(updateDownloadProvider.notifier)
+                      .deleteCacheAndReset();
+                },
+                child: Text(
+                  'Hapus Berkas & Tutup',
+                  style: MekaarTypography.caption.copyWith(
+                    color: MekaarColors.sosCoral,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: MekaarColors.textSecondaryOf(context),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  ref.read(updateDownloadProvider.notifier).minimize();
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  'Pasang Nanti',
+                  style: MekaarTypography.caption.copyWith(
+                    color: MekaarColors.textSecondaryOf(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ] else if (errorMessage != null) ...[
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MekaarColors.accentOf(context),
+              foregroundColor: Colors.black,
+              minimumSize: const Size.fromHeight(46),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+            ),
+            onPressed: () => ref
+                .read(updateDownloadProvider.notifier)
+                .deleteAndRetryDownload(widget.info),
+            icon: const Icon(SolarIconsOutline.restart, size: 18),
+            label: const Text(
+              'Unduh Ulang dari Awal',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
+                child: OutlinedButton.icon(
                   onPressed: _openFallbackBrowser,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -646,29 +720,32 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                       borderRadius: BorderRadius.circular(MekaarRadius.md),
                     ),
                   ),
-                  child: const Text('Buka Browser'),
+                  icon: const Icon(SolarIconsOutline.global, size: 16),
+                  label: const Text('Buka Browser'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.accentOf(context),
-                    foregroundColor: Colors.black,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    Navigator.pop(context);
+                    await ref
+                        .read(updateDownloadProvider.notifier)
+                        .deleteCacheAndReset();
+                  },
+                  style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
+                    foregroundColor: MekaarColors.sosCoral,
+                    side: BorderSide(
+                      color: MekaarColors.sosCoral.withValues(alpha: 0.35),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(MekaarRadius.md),
                     ),
                   ),
-                  onPressed: () => ref
-                      .read(updateDownloadProvider.notifier)
-                      .startDownload(widget.info),
-                  icon: const Icon(SolarIconsOutline.restart, size: 16),
-                  label: const Text(
-                    'Lanjutkan',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  icon: const Icon(SolarIconsOutline.trashBinTrash, size: 16),
+                  label: const Text('Hapus & Tutup'),
                 ),
               ),
             ],
@@ -732,6 +809,30 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: TextButton.icon(
+              onPressed: () async {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                Navigator.pop(context);
+                await ref
+                    .read(updateDownloadProvider.notifier)
+                    .deleteCacheAndReset();
+              },
+              icon: const Icon(
+                SolarIconsOutline.trashBinTrash,
+                size: 14,
+                color: MekaarColors.sosCoral,
+              ),
+              label: Text(
+                'Batalkan & Hapus Unduhan',
+                style: MekaarTypography.caption.copyWith(
+                  color: MekaarColors.sosCoral,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
         ],
       ],
@@ -851,6 +952,12 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
                 context,
                 'Silakan izinkan pemasangan aplikasi dari sumber ini pada pengaturan perangkat.',
               );
+            } else if (result == InstallResult.corruptApk) {
+              Navigator.pop(context);
+              MekaarSnackbar.error(
+                context,
+                'Berkas unduhan rusak atau tidak kompatibel. Cache telah dibersihkan, silakan unduh ulang.',
+              );
             } else {
               MekaarSnackbar.error(
                 context,
@@ -863,6 +970,36 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
             'Pasang Sekarang',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
+        ),
+        const SizedBox(height: 8),
+
+        // Opsi Unduh Ulang & Hapus Cache
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            foregroundColor: MekaarColors.sosCoral,
+            side: BorderSide(
+              color: MekaarColors.sosCoral.withValues(alpha: 0.35),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+            ),
+          ),
+          onPressed: () async {
+            HapticService.trigger(MekaarHapticIntent.selection);
+            Navigator.pop(context);
+            await ref
+                .read(updateDownloadProvider.notifier)
+                .deleteAndRetryDownload(info);
+            if (context.mounted) {
+              MekaarUpdateBottomSheet.showProgressSheet(
+                context: context,
+                info: info,
+              );
+            }
+          },
+          icon: const Icon(SolarIconsOutline.restart, size: 16),
+          label: const Text('Unduh Ulang (Hapus Cache)'),
         ),
         const SizedBox(height: 8),
 
@@ -883,16 +1020,50 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
           icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
           label: const Text('Buka Folder Unduhan'),
         ),
+        const SizedBox(height: 6),
 
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            'Nanti Saja',
-            style: MekaarTypography.caption.copyWith(
-              color: MekaarColors.textSecondaryOf(context),
-              fontWeight: FontWeight.w600,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: () async {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                Navigator.pop(context);
+                await ref
+                    .read(updateDownloadProvider.notifier)
+                    .deleteCacheAndReset();
+              },
+              child: Text(
+                'Hapus Berkas & Tutup',
+                style: MekaarTypography.caption.copyWith(
+                  color: MekaarColors.sosCoral,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
+            Container(
+              width: 4,
+              height: 4,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: MekaarColors.textSecondaryOf(context),
+                shape: BoxShape.circle,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ref.read(updateDownloadProvider.notifier).minimize();
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Pasang Nanti',
+                style: MekaarTypography.caption.copyWith(
+                  color: MekaarColors.textSecondaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

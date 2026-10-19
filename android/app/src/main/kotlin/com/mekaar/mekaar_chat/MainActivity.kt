@@ -114,6 +114,14 @@ class MainActivity : FlutterActivity() {
                 "openDownloadsFolder" -> {
                     openDownloadsFolder(result)
                 }
+                "verifyApk" -> {
+                    val filePath = call.argument<String>("filePath")
+                    if (filePath != null) {
+                        verifyApk(filePath, result)
+                    } else {
+                        result.error("INVALID_PATH", "File path cannot be null", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -186,11 +194,44 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun verifyApk(filePath: String, result: MethodChannel.Result) {
+        try {
+            val file = File(filePath)
+            if (!file.exists() || file.length() < 1024 * 1024) {
+                result.success(false)
+                return
+            }
+            val pkgInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageArchiveInfo(filePath, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageArchiveInfo(filePath, 0)
+            }
+            result.success(pkgInfo != null)
+        } catch (e: Exception) {
+            Log.w(TAG, "Gagal memverifikasi APK di $filePath", e)
+            result.success(false)
+        }
+    }
+
     private fun installApk(filePath: String, result: MethodChannel.Result) {
         try {
             val file = File(filePath)
             if (!file.exists()) {
                 result.error("FILE_NOT_FOUND", "APK file does not exist at $filePath", null)
+                return
+            }
+
+            // Validasi integritas APK sebelum memicu installer sistem
+            val pkgInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageArchiveInfo(filePath, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageArchiveInfo(filePath, 0)
+            }
+            if (pkgInfo == null) {
+                Log.e(TAG, "Berkas APK korup atau tidak dapat diparsing oleh Android: $filePath")
+                result.error("PARSE_ERROR", "Berkas APK korup atau tidak lengkap (gagal diparsing Android)", null)
                 return
             }
 
