@@ -23,7 +23,7 @@ import mobile_scanner
 import package_info_plus
 import record_darwin
 import shared_preferences_foundation
-import sqflite_darwin
+import sqflite_sqlcipher
 import url_launcher_macos
 import video_compress
 
@@ -46,7 +46,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
   RecordPlugin.register(with: registry.registrar(forPlugin: "RecordPlugin"))
   SharedPreferencesPlugin.register(with: registry.registrar(forPlugin: "SharedPreferencesPlugin"))
-  SqflitePlugin.register(with: registry.registrar(forPlugin: "SqflitePlugin"))
+  SqfliteSqlCipherPlugin.register(with: registry.registrar(forPlugin: "SqfliteSqlCipherPlugin"))
   UrlLauncherPlugin.register(with: registry.registrar(forPlugin: "UrlLauncherPlugin"))
   VideoCompressPlugin.register(with: registry.registrar(forPlugin: "VideoCompressPlugin"))
 }

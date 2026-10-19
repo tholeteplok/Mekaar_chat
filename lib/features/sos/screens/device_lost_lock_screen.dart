@@ -8,7 +8,6 @@ import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/alarm_service.dart';
 import '../providers/device_lost_provider.dart';
 
@@ -209,11 +208,20 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
                 icon: SolarIconsBold.shieldWarning,
               ),
               const SizedBox(height: 32),
-              // Mascot Illustration
-              const MikaIllustration(
-                pose: MikaPose.huft,
-                size: 130,
-                semanticLabel: 'Ponsel dalam mode hilang',
+              // Icon Badge
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: MekaarColors.sosCoral.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  SolarIconsOutline.shieldWarning,
+                  size: 36,
+                  color: MekaarColors.sosCoral,
+                ),
               ),
               const SizedBox(height: 28),
               // Main Message Card

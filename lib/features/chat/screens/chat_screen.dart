@@ -46,6 +46,9 @@ import '../../settings/providers/chat_theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/call_model.dart';
 import '../widgets/call_history_bubble.dart';
+import '../providers/vault_provider.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
+import '../../../data/services/local_vault_database.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -292,6 +295,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
+        ref
+            .read(e2eeRoomStatusProvider(widget.chatId).notifier)
+            .configureForRoom(isGroup: widget.isGroup);
       }
     });
     _startPresenceHeartbeat();
@@ -792,11 +798,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ),
         TextButton(
           onPressed: () async {
+            Navigator.pop(context);
             await ref
                 .read(chatActionsProvider)
-                .deleteMessageForEveryone(msg.id);
-            if (!mounted) return;
-            Navigator.pop(context);
+                .deleteMessageForEveryone(msg.id, roomId: widget.chatId);
           },
           child: const Text(
             'Tarik Pesan',
@@ -809,6 +814,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   void _handleReactToMessage(Message msg, String emoji) {
     ref.read(chatActionsProvider).reactToMessage(msg.id, emoji);
+  }
+
+  Future<void> _handleSaveToVault(Message msg) async {
+    final mediaUrl = msg.mediaUrl;
+    if (mediaUrl == null || mediaUrl.isEmpty) {
+      MekaarSnackbar.error(context, 'Tidak ada berkas yang dapat disimpan.');
+      return;
+    }
+
+    MekaarSnackbar.info(context, 'Menyimpan berkas ke Brankas...');
+
+    try {
+      final payload = parseMediaPayload(msg);
+      final file = await getOrDecryptMedia(
+        messageId: msg.id,
+        url: mediaUrl,
+        isEncrypted: msg.isEncrypted,
+        fileKeyB64:
+            payload.fileKeyB64.isNotEmpty ? payload.fileKeyB64 : msg.content,
+      );
+
+      if (file == null || !await file.exists()) {
+        if (!mounted) return;
+        MekaarSnackbar.error(context, 'Gagal memproses berkas media.');
+        return;
+      }
+
+      if (!mounted) return;
+      if (!LocalVaultDatabase.instance.isUnlocked) {
+        final verified = await MekaarPinVerificationSheet.verify(
+          context,
+          title: 'Buka Brankas Berkas',
+          subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
+        );
+        if (!verified || !mounted) return;
+      }
+
+      final senderName = widget.isGroup
+          ? (_participantNames[msg.senderId] ?? widget.chatName)
+          : widget.chatName;
+
+      await ref.read(vaultRepositoryProvider).saveMediaToVault(
+            sourceFile: file,
+            originalMessageId: msg.id,
+            customFileName: null,
+            senderName: senderName,
+            senderId: msg.senderId,
+            roomId: widget.chatId,
+          );
+
+      if (!mounted) return;
+      HapticService.trigger(MekaarHapticIntent.success);
+      MekaarSnackbar.success(
+        context,
+        'Berkas berhasil disimpan ke Brankas Berkas',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      MekaarSnackbar.error(
+        context,
+        'Gagal menyimpan ke Brankas: $e',
+      );
+    }
   }
 
   void _handleForwardMessage(Message msg) {
@@ -1050,7 +1118,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     // 1. Proses penghapusan pesan
                     for (final msg in toProcessMsgs) {
                       if (deleteForEveryone && msg.senderId == currentUserId) {
-                        await actions.deleteMessageForEveryone(msg.id);
+                        await actions.deleteMessageForEveryone(
+                          msg.id,
+                          roomId: widget.chatId,
+                        );
                       } else {
                         await actions.hideMessageForMe(
                           msg.id,
@@ -1827,14 +1898,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   final e2eeStatus = ref.watch(
                     e2eeRoomStatusProvider(widget.chatId),
                   );
-                  final isE2eeReady = e2eeStatus == E2eeRoomStatus.ready;
+                  final isComposerEnabled =
+                      widget.isGroup || (e2eeStatus == E2eeRoomStatus.ready);
 
                   return ChatComposer(
                     key: _composerKey,
                     controller: _textController,
                     replyMessage: _replyMessage,
                     editingMessage: _editingMessage,
-                    enabled: isE2eeReady,
+                    enabled: isComposerEnabled,
                     roomThemeSpec: roomThemeSpec,
                     onEmojiPanelVisibilityChanged: (isOpen) {
                       if (_isEmojiPickerOpen != isOpen) {
@@ -2044,9 +2116,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         isGuardian: widget.isGuardian,
                         showOnlineIndicator: true,
                         isOnline: isOnline || isTyping,
-                        subtitle: isTyping
-                            ? 'sedang mengetik...'
-                            : _formatPresenceSubtitle(lastSeen),
+                        subtitle: widget.isGroup
+                            ? '${_participantNames.isNotEmpty ? '${_participantNames.length} anggota • ' : ''}Enkripsi Server'
+                            : (isTyping
+                                ? 'sedang mengetik...'
+                                : _formatPresenceSubtitle(lastSeen)),
                         glassBorder: roomThemeSpec.glassBorder,
                         glassBackgroundColor:
                             roomThemeSpec.glassBackgroundColor,
@@ -2453,6 +2527,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           ? null
           : (forwardMsg) => _handleForwardMessage(forwardMsg),
       onReact: (reactMsg, emoji) => _handleReactToMessage(reactMsg, emoji),
+      onSaveToVault: (saveMsg) => _handleSaveToVault(saveMsg),
     );
 
     final showFloatingReactions =

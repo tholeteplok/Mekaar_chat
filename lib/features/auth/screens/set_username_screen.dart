@@ -119,8 +119,8 @@ class _SetUsernameScreenState extends ConsumerState<SetUsernameScreen> {
                 const Spacer(),
                 const Center(
                   child: MikaIllustration(
-                    pose: MikaPose.happy,
-                    size: 110,
+                    type: MikaIllustrationType.onboardingWelcome,
+                    size: 140,
                   ),
                 ),
                 const SizedBox(height: MekaarSpacing.lg),

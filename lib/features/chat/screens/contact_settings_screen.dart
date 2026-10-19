@@ -489,7 +489,6 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   child: CustomCard(
                     margin: EdgeInsets.zero,
                     padding: const EdgeInsets.all(16),
-                    useSketchBorder: true,
                     borderRadius: MekaarRadius.card,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,7 +577,6 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   child: CustomCard(
                     margin: EdgeInsets.zero,
                     padding: EdgeInsets.zero,
-                    useSketchBorder: true,
                     borderRadius: MekaarRadius.card,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(MekaarRadius.card),
@@ -832,7 +830,6 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   child: CustomCard(
                     margin: EdgeInsets.zero,
                     padding: EdgeInsets.zero,
-                    useSketchBorder: true,
                     borderRadius: MekaarRadius.card,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(MekaarRadius.card),

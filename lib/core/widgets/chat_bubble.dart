@@ -24,7 +24,23 @@ import '../../data/repositories/screen_protection_repository.dart';
 import '../../features/chat/providers/chat_provider.dart';
 import '../../features/chat/providers/emoji_pack_provider.dart';
 import '../utils/emoji_shortcode_parser.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'mekaar_snackbar.dart';
+
+/// Helper publik untuk mendapatkan atau mendekripsi file media pesan
+Future<File?> getOrDecryptMedia({
+  required String messageId,
+  required String? url,
+  required bool isEncrypted,
+  required String fileKeyB64,
+}) =>
+    _getOrDecryptMedia(
+      messageId: messageId,
+      url: url,
+      isEncrypted: isEncrypted,
+      fileKeyB64: fileKeyB64,
+    );
+
 
 /// In-memory cache untuk berkas media yang sudah selesai diunduh/didekripsi
 /// Menghindari I/O disk berulang dan menghilangkan kedipan (flickering) saat widget di-rebuild.
@@ -33,7 +49,7 @@ final Map<String, Future<File?>> _inFlightMediaFutures = <String, Future<File?>>
 
 /// Parser payload media cerdas: mengekstrak fileKeyB64 dan caption.
 /// Kompatibel 100% dengan pesan E2EE JSON baru maupun pesan lawas plain text / raw key.
-({String fileKeyB64, String caption}) _parseMediaPayload(Message message) {
+({String fileKeyB64, String caption}) parseMediaPayload(Message message) {
   final content = message.content.trim();
   if (content.startsWith('{') && content.endsWith('}')) {
     try {
@@ -53,6 +69,9 @@ final Map<String, Future<File?>> _inFlightMediaFutures = <String, Future<File?>>
     return (fileKeyB64: '', caption: message.content);
   }
 }
+
+({String fileKeyB64, String caption}) _parseMediaPayload(Message message) =>
+    parseMediaPayload(message);
 
 // Helper function to download, decrypt, and cache E2EE media locally with memory caching.
 Future<File?> _getOrDecryptMedia({
@@ -221,6 +240,7 @@ class ChatBubble extends ConsumerWidget {
   final bool isSelectionMode;
   final VoidCallback? onSelectionTap;
   final VoidCallback? onSelectionLongPress;
+  final Function(Message)? onSaveToVault;
 
   const ChatBubble({
     super.key,
@@ -236,6 +256,7 @@ class ChatBubble extends ConsumerWidget {
     this.onReact,
     this.onUnsend,
     this.canUnsend = false,
+    this.onSaveToVault,
     this.otherLastReadAt,
     this.showReadReceipts = true,
     this.senderName,
@@ -320,6 +341,7 @@ class ChatBubble extends ConsumerWidget {
         onDelete: onDelete,
         onUnsend: onUnsend,
         onReact: onReact,
+        onSaveToVault: onSaveToVault,
       ),
     );
   }
@@ -1188,6 +1210,7 @@ class _MessageContextMenu extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onUnsend;
   final Function(Message, String)? onReact;
+  final Function(Message)? onSaveToVault;
   final bool canUnsend;
 
   const _MessageContextMenu({
@@ -1203,6 +1226,7 @@ class _MessageContextMenu extends StatelessWidget {
     this.onDelete,
     this.onUnsend,
     this.onReact,
+    this.onSaveToVault,
   });
 
   @override
@@ -1252,6 +1276,21 @@ class _MessageContextMenu extends StatelessWidget {
                 Clipboard.setData(ClipboardData(text: message.content));
                 HapticService.trigger(MekaarHapticIntent.selection);
                 MekaarSnackbar.success(context, 'Pesan disalin');
+              },
+            ),
+          if (onSaveToVault != null &&
+              !message.isDeleted &&
+              (message.type == MessageType.image ||
+                  message.type == MessageType.video ||
+                  message.type == MessageType.voice ||
+                  (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)))
+            _menuItem(
+              context,
+              icon: SolarIconsOutline.safeSquare,
+              label: 'Simpan ke Brankas',
+              onTap: () {
+                Navigator.pop(context);
+                onSaveToVault!(message);
               },
             ),
           if (onReply != null)
@@ -2324,7 +2363,8 @@ class _AnimatedPresetBubbleEntranceState
           child: widget.child,
         );
 
-      // 12. Dynamic Time: Standard fade 0->1 + slide 8px dari bawah 200ms
+      // 12. Mekaar Clean: Standard fade 0->1 + slide 8px dari bawah 200ms
+      case EntranceType.mekaarFadeSlide:
       case EntranceType.dynamicTimeFadeSlide:
         return SlideTransition(
           position: Tween<Offset>(

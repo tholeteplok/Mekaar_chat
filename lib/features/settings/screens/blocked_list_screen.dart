@@ -40,13 +40,13 @@ class BlockedListScreen extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const MikaIllustration(
-                            pose: MikaPose.shield,
-                            size: 110,
-                            semanticLabel: 'Tidak ada pengguna diblokir',
+                            type: MikaIllustrationType.emptyBlocked,
+                            size: 160,
+                            semanticLabel: 'Tidak ada kontak diblokir',
                           ),
                           const SizedBox(height: MekaarSpacing.lg),
                           Text(
-                            'Tidak ada pengguna diblokir',
+                            'Tidak Ada Kontak Diblokir',
                             style: MekaarTypography.headingMD.copyWith(
                               color: MekaarColors.textPrimaryOf(context),
                               fontWeight: FontWeight.bold,
@@ -148,7 +148,11 @@ class BlockedListScreen extends ConsumerWidget {
                   message: 'Sedang mengambil daftar pengguna yang Anda blokir...',
                 ),
                 error: (err, _) => MekaarStateView(
-                  pose: ErrorResolver.resolvePose(err),
+                  illustration: ErrorResolver.resolveIllustration(err),
+                  stateIcon: ErrorResolver.resolveIllustration(err) == null
+                      ? ErrorResolver.resolveIcon(err)
+                      : null,
+                  stateIconColor: ErrorResolver.resolveIconColor(err, context),
                   title: 'Gagal Memuat Daftar Blokir',
                   message: ErrorResolver.resolve(err),
                   actionLabel: 'Coba Lagi',

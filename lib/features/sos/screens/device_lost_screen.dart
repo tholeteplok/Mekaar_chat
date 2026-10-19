@@ -229,10 +229,20 @@ class _DeviceLostScreenState extends ConsumerState<DeviceLostScreen> {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const MikaIllustration(
-                                      pose: MikaPose.huft,
-                                      size: 90,
-                                      semanticLabel: 'Gagal memuat lokasi',
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        color: MekaarColors.sosCoral
+                                            .withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        SolarIconsOutline.mapPointRemove,
+                                        size: 32,
+                                        color: MekaarColors.sosCoral,
+                                      ),
                                     ),
                                     const SizedBox(height: 12),
                                     Text(

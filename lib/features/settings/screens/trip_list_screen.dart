@@ -55,10 +55,10 @@ class TripListScreen extends ConsumerWidget {
         data: (trips) {
           if (trips.isEmpty) {
             return MekaarStateView(
-              pose: MikaPose.pin,
-              title: 'Belum Ada Rute Perjalanan',
-              message: 'Tambahkan rute perjalanan (contoh: Pulang Kerja) untuk mengabari Guardian secara otomatis saat Anda tiba di tujuan.',
-              actionLabel: 'Tambah Rute Baru',
+              illustration: MikaIllustrationType.emptyAutoCheckin,
+              title: 'Belum Ada Jadwal Check-In',
+              message: 'Buat jadwal perjalanan agar Guardian memantau keselamatan Anda dan menerima notifikasi saat Anda tiba di tujuan.',
+              actionLabel: '+ Buat Jadwal Perjalanan',
               onAction: () async {
                 await Navigator.pushNamed(context, AppRoutes.addTrip);
                 ref.invalidate(userTripsProvider);
@@ -149,7 +149,11 @@ class TripListScreen extends ConsumerWidget {
           layout: MekaarStateLayout.centered,
         ),
         error: (err, _) => MekaarStateView(
-          pose: ErrorResolver.resolvePose(err),
+          illustration: ErrorResolver.resolveIllustration(err),
+          stateIcon: ErrorResolver.resolveIllustration(err) == null
+              ? ErrorResolver.resolveIcon(err)
+              : null,
+          stateIconColor: ErrorResolver.resolveIconColor(err, context),
           title: 'Gagal Memuat Rute',
           message: ErrorResolver.resolve(err),
           actionLabel: 'Coba Lagi',

@@ -21,6 +21,10 @@ final logger = Logger();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Sanitasi Forensik: Matikan seluruh output log console pada build produksi (Release Mode)
+  // guna mencegah kebocoran pesan terdekripsi, token, dan metadata via Android logcat atau USB debugging.
+  Logger.level = kReleaseMode ? Level.off : Level.debug;
+
   // Inisialisasi format tanggal lokal (Indonesia) untuk intl
   await initializeDateFormatting('id_ID', null);
 

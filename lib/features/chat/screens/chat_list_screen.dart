@@ -22,7 +22,6 @@ import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
-import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
@@ -40,6 +39,7 @@ import '../widgets/send_chat_invite_dialog.dart';
 import '../../../core/widgets/mekaar_update_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_update_dialog.dart';
 import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../data/services/update_service.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -55,7 +55,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   bool _isSearchActive = false;
   late final TextEditingController _searchController;
   int _selectedTabIndex = 0;
-  final List<String> _tabs = ['Pesan', 'Guardian', 'Arsip'];
+  final List<String> _tabs = ['Pesan', 'Guardian'];
   String get _selectedTab => _tabs[_selectedTabIndex];
 
   // Cache memoization untuk filter room
@@ -752,6 +752,91 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               onPressed: () =>
                                   setState(() => _isSearchActive = true),
                             ),
+                            PopupMenuButton<String>(
+                              icon: Icon(
+                                SolarIconsOutline.menuDotsCircle,
+                                color: MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: 'Menu Rahasia & Arsip',
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              color: MekaarColors.surfaceOf(context),
+                              onSelected: (value) async {
+                                if (value == 'vault') {
+                                  final verified =
+                                      await MekaarPinVerificationSheet.verify(
+                                    context,
+                                    title: 'Buka Brankas Berkas',
+                                    subtitle:
+                                        'Masukkan PIN untuk mengakses berkas rahasia',
+                                  );
+                                  if (verified && context.mounted) {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.vault,
+                                    );
+                                  }
+                                } else if (value == 'archive') {
+                                  final verified =
+                                      await MekaarPinVerificationSheet.verify(
+                                    context,
+                                    title: 'Buka Arsip Percakapan',
+                                    subtitle:
+                                        'Masukkan PIN untuk mengakses obrolan terarsip',
+                                  );
+                                  if (verified && context.mounted) {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.archivedChats,
+                                    );
+                                  }
+                                }
+                              },
+                              itemBuilder: (ctx) => [
+                                PopupMenuItem<String>(
+                                  value: 'vault',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        SolarIconsOutline.safeSquare,
+                                        color: MekaarColors.primaryOf(context),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Brankas Berkas',
+                                        style: MekaarTypography.bodyMD.copyWith(
+                                          color: MekaarColors.textPrimaryOf(context),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem<String>(
+                                  value: 'archive',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        SolarIconsOutline.archiveCheck,
+                                        color: MekaarColors.primaryOf(context),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Arsip Percakapan',
+                                        style: MekaarTypography.bodyMD.copyWith(
+                                          color: MekaarColors.textPrimaryOf(context),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         );
                       },
@@ -866,7 +951,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   loading: () => const ChatListSkeleton(),
                   error: (err, stack) => Center(
                     child: MekaarStateView(
-                      pose: ErrorResolver.resolvePose(err),
+                      illustration: ErrorResolver.resolveIllustration(err),
+                      stateIcon: ErrorResolver.resolveIllustration(err) == null
+                          ? ErrorResolver.resolveIcon(err)
+                          : null,
+                      stateIconColor:
+                          ErrorResolver.resolveIconColor(err, context),
                       title: 'Gagal Memuat Chat',
                       message: ErrorResolver.resolve(err),
                       actionLabel: 'Coba Lagi',
@@ -1039,10 +1129,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         if (!matchQuery) return false;
 
         if (_selectedTab == 'Guardian') {
-          return (room['isGuardian'] as bool? ?? false) && !(room['isArchived'] as bool? ?? false);
-        }
-        if (_selectedTab == 'Arsip') {
-          return room['isArchived'] as bool? ?? false;
+          return (room['isGuardian'] as bool? ?? false) &&
+              !(room['isArchived'] as bool? ?? false);
         }
         // Tab 'Pesan' (inbox utama): tampilkan semua obrolan aktif yang tidak diarsipkan
         final isArchived = room['isArchived'] as bool? ?? false;
@@ -1062,29 +1150,31 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       final hasSearch = _searchQuery.trim().isNotEmpty;
       final isGuardianFilter = _selectedTab == 'Guardian';
       final isArchiveFilter = _selectedTab == 'Arsip';
-      final MikaPose emptyPose = hasSearch
-          ? MikaPose.confused
+      final MikaIllustrationType emptyIllustration = hasSearch
+          ? MikaIllustrationType.emptySearch
           : isGuardianFilter
-              ? MikaPose.shield
-              : MikaPose.sleep;
+              ? MikaIllustrationType.emptyGuardian
+              : isArchiveFilter
+                  ? MikaIllustrationType.emptyArchive
+                  : MikaIllustrationType.emptyChat;
 
       return _EmptyChats(
         onStart: _showNewChatDialog,
-        pose: emptyPose,
+        illustration: emptyIllustration,
         title: hasSearch
-            ? 'Chat tidak ditemukan'
+            ? 'Tidak Ditemukan'
             : isGuardianFilter
-            ? 'Belum ada chat Guardian'
+            ? 'Belum Ada Chat Guardian'
             : isArchiveFilter
-            ? 'Tidak ada chat diarsipkan'
-            : 'Belum ada obrolan',
+            ? 'Arsip Bersih'
+            : 'Belum Ada Obrolan',
         message: hasSearch
-            ? 'Tidak ada chat yang cocok dengan "${_searchQuery.trim()}".'
+            ? 'Tidak ada percakapan yang cocok dengan "${_searchQuery.trim()}".'
             : isGuardianFilter
-            ? 'Chat dengan Guardian akan muncul di filter ini.'
+            ? 'Chat dengan Guardian tepercaya akan muncul di filter ini.'
             : isArchiveFilter
-            ? 'Chat yang diarsipkan akan muncul di sini.'
-            : 'Mulai percakapan pertamamu dengan teman atau Guardian.',
+            ? 'Belum ada obrolan yang diarsipkan.'
+            : 'Mulai obrolan baru dengan kontak atau bagikan kode QR.',
         showStartButton: !hasSearch && !isGuardianFilter && !isArchiveFilter,
       );
     }
@@ -1098,7 +1188,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         CustomCard(
           margin: EdgeInsets.zero,
           padding: EdgeInsets.zero,
-          useSketchBorder: true,
           borderRadius: MekaarRadius.card,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(MekaarRadius.card),
@@ -1159,14 +1248,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
 class _EmptyChats extends StatelessWidget {
   final VoidCallback onStart;
-  final MikaPose pose;
+  final MikaIllustrationType illustration;
   final String title;
   final String message;
   final bool showStartButton;
 
   const _EmptyChats({
     required this.onStart,
-    this.pose = MikaPose.sleep,
+    this.illustration = MikaIllustrationType.emptyChat,
     required this.title,
     required this.message,
     required this.showStartButton,
@@ -1177,14 +1266,14 @@ class _EmptyChats extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 110),
       children: [
-        const SizedBox(height: 80),
+        const SizedBox(height: 60),
         Center(
           child: Column(
             children: [
-              MikaAnimated(
-                pose: pose,
-                size: 120,
-                semanticLabel: 'Mika menyapa dari layar kosong',
+              MikaIllustration(
+                type: illustration,
+                size: 160,
+                semanticLabel: title,
               ),
               const SizedBox(height: MekaarSpacing.xl),
               Text(title, style: MekaarTypography.headingMD),
@@ -1201,8 +1290,8 @@ class _EmptyChats extends StatelessWidget {
                 const SizedBox(height: MekaarSpacing.xl),
                 ElevatedButton.icon(
                   onPressed: onStart,
-                  icon: const Icon(SolarIconsOutline.chatSquare, size: 18),
-                  label: const Text('Mulai obrolan'),
+                  icon: const Icon(SolarIconsOutline.pen, size: 18),
+                  label: const Text('Mulai Chat Baru'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,

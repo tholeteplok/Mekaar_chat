@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
-import '../constants/time_palette.dart';
+import '../constants/theme_preference.dart';
 
 /// Ambil jam & menit dari waktu lokal device.
 TimeOfDay nowLocal() {

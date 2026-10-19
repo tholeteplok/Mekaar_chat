@@ -23,8 +23,6 @@ abstract class AppColors {
   static const Color borderLight = Color(0xFFDCE7F5);
   static const Color borderDark = Color(0xFF25395B);
   static const Color charcoal = Color(0xFF262626);
-  static const Color sketchCharcoal = Color(0xFF000000);
-  static const Color sketchGrey = Color(0xFFCBD5E1);
 }
 
 /// MekaarColors — Kelas utilitas warna MEKAAR dengan kompatibilitas dan context-aware helpers.
@@ -37,8 +35,6 @@ class MekaarColors {
   static const Color green = AppColors.green;
   static const Color lightBlue = AppColors.lightBlue;
   static const Color charcoal = AppColors.charcoal;
-  static const Color sketchCharcoal = AppColors.sketchCharcoal;
-  static const Color sketchGrey = AppColors.sketchGrey;
 
   // ── Brand Aliases ──
   static const Color brandPrimary = AppColors.blue;

@@ -6,7 +6,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/utils/totp.dart';
 import '../providers/two_fa_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -184,10 +183,19 @@ class _TwoFactorSetupScreenState extends ConsumerState<TwoFactorSetupScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const MikaIllustration(
-              pose: MikaPose.shield,
-              size: 150,
-              semanticLabel: 'Verifikasi 2 Langkah aktif',
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: MekaarColors.safeTeal.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                SolarIconsOutline.shieldCheck,
+                size: 36,
+                color: MekaarColors.safeTeal,
+              ),
             ),
             const SizedBox(height: MekaarSpacing.lg),
             Text(

@@ -6,7 +6,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/theme_resolver.dart';
-import '../../../core/constants/time_palette.dart';
+import '../../../core/constants/theme_preference.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
@@ -57,7 +57,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             const SizedBox(height: MekaarSpacing.xl),
 
             // ── 2. Mode Tema Utama ──
-            Text('MODE TEMA & ATMOSFER WAKTU', style: MekaarTypography.overline),
+            Text('MODE TEMA', style: MekaarTypography.overline),
             const SizedBox(height: MekaarSpacing.sm),
             _buildThemePreferenceSelector(context, ref, currentPref),
 

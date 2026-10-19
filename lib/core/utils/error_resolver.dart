@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../constants/colors.dart';
 import '../widgets/mika_illustration.dart';
 
 /// ErrorResolver — Resolusi pesan error teknis menjadi bahasa manusia yang ramah,
@@ -149,4 +152,73 @@ class ErrorResolver {
 
     return MikaPose.huft; // 24 (Default network/timeout/general error)
   }
+
+  /// Menentukan ikon Solar terpusat berdasarkan jenis error teknis
+  static IconData resolveIcon(dynamic error) {
+    if (error == null) return SolarIconsOutline.dangerCircle;
+    final errStr = error.toString().toLowerCase();
+
+    if (isNetworkError(error)) {
+      return SolarIconsOutline.cloudCross;
+    }
+    if (errStr.contains('permission') ||
+        errStr.contains('izin') ||
+        errStr.contains('denied') ||
+        errStr.contains('403') ||
+        errStr.contains('forbidden')) {
+      return SolarIconsOutline.lock;
+    }
+    if (errStr.contains('authexception') ||
+        errStr.contains('unauthorized') ||
+        errStr.contains('401') ||
+        errStr.contains('sesi') ||
+        errStr.contains('auth')) {
+      return SolarIconsOutline.userCross;
+    }
+    if (error is PostgrestException ||
+        errStr.contains('postgrestexception') ||
+        errStr.contains('500') ||
+        errStr.contains('502') ||
+        errStr.contains('503') ||
+        errStr.contains('database') ||
+        errStr.contains('server')) {
+      return SolarIconsOutline.serverSquare;
+    }
+    if (errStr.contains('e2ee') ||
+        errStr.contains('crypto') ||
+        errStr.contains('dekripsi') ||
+        errStr.contains('enkripsi')) {
+      return SolarIconsOutline.shieldCross;
+    }
+
+    return SolarIconsOutline.dangerCircle;
+  }
+
+  /// Menentukan warna semantik untuk ikon error (sosCoral / warnAmber)
+  static Color resolveIconColor(dynamic error, BuildContext context) {
+    if (error == null) return MekaarColors.sosCoral;
+    final errStr = error.toString().toLowerCase();
+
+    if (isNetworkError(error)) {
+      return MekaarColors.warnAmber;
+    }
+    if (errStr.contains('auth') ||
+        errStr.contains('sesi') ||
+        errStr.contains('401') ||
+        errStr.contains('unauthorized')) {
+      return MekaarColors.warnAmber;
+    }
+
+    return MekaarColors.sosCoral;
+  }
+
+  /// Mengembalikan ilustrasi WebP khusus jika cocok (misal: offline jaringan),
+  /// atau null jika lebih tepat menggunakan badge icon Solar.
+  static MikaIllustrationType? resolveIllustration(dynamic error) {
+    if (isNetworkError(error)) {
+      return MikaIllustrationType.emptyOffline;
+    }
+    return null;
+  }
 }
+

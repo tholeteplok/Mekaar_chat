@@ -1,6 +1,5 @@
 /// Enum tipe wallpaper obrolan (7 Preset Inti + Custom).
 enum WallpaperType {
-  dynamicTime,
   solidColor,
   comicHalftone,
   neumorphicCanvas,
@@ -10,6 +9,7 @@ enum WallpaperType {
   solarpunkCanvas,
   customImage,
   // Alias / Legacy types untuk kompatibilitas riwayat preferensi lama
+  dynamicTime,
   neonGrid,
   isometricGrid,
   retroY2KCanvas,
@@ -39,7 +39,7 @@ enum ChatBubbleStyle {
 
 /// Enum palet warna gelembung pengirim & penerima.
 enum ChatBubbleColorPreset {
-  defaultTime,
+  mekaarClean,
   comicPop,
   neumorphicSoft,
   glassmorphismTint,
@@ -47,6 +47,7 @@ enum ChatBubbleColorPreset {
   roseGold,
   solarpunkSage,
   // Alias / Legacy colors
+  defaultTime,
   cyberpunkNeon,
   emeraldTeal,
   purpleDream,
@@ -109,7 +110,7 @@ class ChatThemePreference {
     this.wallpaperType = WallpaperType.solidColor,
     this.wallpaperValue,
     this.bubbleStyle = ChatBubbleStyle.modernPill,
-    this.bubbleColorPreset = ChatBubbleColorPreset.defaultTime,
+    this.bubbleColorPreset = ChatBubbleColorPreset.mekaarClean,
     this.textScale = 1.0,
     this.useCustomBubbleColors = false,
     this.outgoingColor1,
@@ -202,7 +203,7 @@ class ChatThemePreference {
       ),
       bubbleColorPreset: ChatBubbleColorPreset.values.firstWhere(
         (e) => e.name == json['bubbleColorPreset'],
-        orElse: () => ChatBubbleColorPreset.defaultTime,
+        orElse: () => ChatBubbleColorPreset.mekaarClean,
       ),
       textScale: (json['textScale'] as num?)?.toDouble() ?? 1.0,
       useCustomBubbleColors: json['useCustomBubbleColors'] as bool? ?? false,
@@ -218,7 +219,7 @@ class ChatThemePreference {
     preset: ChatThemePreset.mekaar,
     wallpaperType: WallpaperType.solidColor,
     bubbleStyle: ChatBubbleStyle.modernPill,
-    bubbleColorPreset: ChatBubbleColorPreset.defaultTime,
+    bubbleColorPreset: ChatBubbleColorPreset.mekaarClean,
     textScale: 1.0,
   );
   static const dynamicTime = mekaar;

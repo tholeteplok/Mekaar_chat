@@ -20,24 +20,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<({String title, String desc, MikaPose pose})> _slides = [
+  final List<({String title, String desc, MikaIllustrationType illustration})> _slides = [
     (
-      title: 'Apa itu MEKAAR?',
+      title: 'Selamat Datang di MEKAAR',
       desc:
-          'Aplikasi perlindungan darurat: chat pribadi terenkripsi, tombol SOS satu ketukan, dan pelacakan lokasi saat Anda benar-benar dalam bahaya.',
-      pose: MikaPose.hi,
+          'Aplikasi obrolan pribadi dengan perlindungan keselamatan terintegrasi, tombol SOS satu sentuhan, dan privasi penuh.',
+      illustration: MikaIllustrationType.onboardingWelcome,
     ),
     (
-      title: 'Tambahkan Guardian Anda',
+      title: 'Guardian Tepercaya',
       desc:
-          'Guardian tidak bisa mengintai Anda. Izin GPS dan audio hanya aktif saat Anda menekan SOS, lalu aksesnya tercatat di Riwayat SOS.',
-      pose: MikaPose.love,
+          'Guardian adalah pelindung Anda. Akses lokasi GPS dan audio hanya aktif saat Anda menekan tombol SOS darurat.',
+      illustration: MikaIllustrationType.onboardingGuardian,
     ),
     (
-      title: 'Kunci dengan PIN 6 digit',
+      title: 'PIN & Brankas Rahasia',
       desc:
-          'Lindungi aplikasi dengan PIN 6 digit. SOS tetap bisa diakses saat aplikasi terkunci, dan 5 kali salah PIN akan mengunci aplikasi selama 30 menit.',
-      pose: MikaPose.shield,
+          'Lindungi aplikasi dengan PIN 6 digit dan simpan berkas penting Anda di Brankas terenkripsi aman.',
+      illustration: MikaIllustrationType.onboardingSecurity,
+    ),
+    (
+      title: 'Privasi Penuh di Tanganmu',
+      desc:
+          'Semua pesan diamankan dengan enkripsi end-to-end tanpa pelacakan data. Anda memegang kendali sepenuhnya.',
+      illustration: MikaIllustrationType.onboardingSuccess,
     ),
   ];
 
@@ -100,11 +106,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           MikaIllustration(
-                            key: ValueKey(slide.pose),
-                            pose: slide.pose,
-                            size: 170,
+                            key: ValueKey(slide.illustration),
+                            type: slide.illustration,
+                            size: 180,
                             semanticLabel: 'Ilustrasi ${slide.title}',
-                            animate: true,
                           ),
                           const SizedBox(height: MekaarSpacing.section),
                           SingleChildScrollView(
@@ -160,7 +165,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     onPressed: _nextPage,
                     icon: const Icon(SolarIconsOutline.altArrowRight),
                     label: Text(
-                      _currentPage == _slides.length - 1 ? 'Mulai' : 'Lanjut',
+                      _currentPage == _slides.length - 1
+                          ? 'Mulai Sekarang'
+                          : 'Lanjut',
                     ),
                   ),
                 ],

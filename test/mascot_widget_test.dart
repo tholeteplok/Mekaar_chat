@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:mekaar_chat/core/widgets/mika_animated.dart';
 import 'package:mekaar_chat/core/widgets/mika_illustration.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_state_view.dart';
 
+String _getAssetName(ImageProvider provider) {
+  if (provider is ResizeImage) {
+    return (provider.imageProvider as AssetImage).assetName;
+  }
+  return (provider as AssetImage).assetName;
+}
+
 void main() {
   group('MikaIllustration', () {
-    testWidgets('renders Image.asset with correct asset path', (
+    testWidgets('renders Image.asset with correct WebP asset path', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
@@ -22,9 +30,26 @@ void main() {
       );
 
       final image = tester.widget<Image>(find.byType(Image));
-      final provider = image.image as AssetImage;
-      expect(provider.assetName, 'assets/mascot/mika_light/mika_0.png');
+      expect(_getAssetName(image.image), 'assets/illustrations/il_onboarding_welcome.webp');
       expect(find.bySemanticsLabel('Mika menyapa'), findsOneWidget);
+    });
+
+    testWidgets('renders directly with MikaIllustrationType', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MikaIllustration(
+              type: MikaIllustrationType.emptyChat,
+              size: 160,
+            ),
+          ),
+        ),
+      );
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(_getAssetName(image.image), 'assets/illustrations/il_empty_chat.webp');
     });
 
     testWidgets('excludes semantics when no label is provided', (
@@ -39,23 +64,6 @@ void main() {
       final image = tester.widget<Image>(find.byType(Image));
       expect(image.excludeFromSemantics, isTrue);
     });
-
-    testWidgets('does not animate when reduce motion is enabled', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: MediaQuery(
-            data: const MediaQueryData(disableAnimations: true),
-            child: const Scaffold(
-              body: MikaIllustration(pose: MikaPose.happy, animate: true),
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(TweenAnimationBuilder<double>), findsNothing);
-    });
   });
 
   group('MekaarStateView', () {
@@ -66,7 +74,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: MekaarStateView(
-              pose: MikaPose.phone,
+              illustration: MikaIllustrationType.emptyChat,
               title: 'Belum ada obrolan',
               message: 'Mulai percakapan pertamamu.',
             ),
@@ -87,7 +95,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: MekaarStateView(
-              pose: MikaPose.ask,
+              illustration: MikaIllustrationType.emptySearch,
               title: 'Kosong',
               message: 'Pesan kosong.',
               actionLabel: 'Mulai',
@@ -108,7 +116,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: MekaarStateView(
-              pose: MikaPose.hide,
+              illustration: MikaIllustrationType.emptyBlocked,
               title: 'Tidak ada yang diblokir',
               message: 'Pesan privasi.',
               layout: MekaarStateLayout.edge,
@@ -119,6 +127,27 @@ void main() {
 
       expect(find.byType(Stack), findsWidgets);
       expect(find.text('Tidak ada yang diblokir'), findsOneWidget);
+    });
+
+    testWidgets('renders circular icon badge in error mode when stateIcon is set', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MekaarStateView(
+              stateIcon: SolarIconsOutline.cloudCross,
+              title: 'Tidak Ada Koneksi',
+              message: 'Periksa sambungan internet.',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Tidak Ada Koneksi'), findsOneWidget);
+      expect(find.text('Periksa sambungan internet.'), findsOneWidget);
+      expect(find.byIcon(SolarIconsOutline.cloudCross), findsOneWidget);
+      expect(find.byType(MikaIllustration), findsNothing);
     });
   });
 }

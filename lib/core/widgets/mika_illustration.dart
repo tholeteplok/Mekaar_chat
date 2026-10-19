@@ -1,8 +1,30 @@
 import 'package:flutter/material.dart';
-import '../constants/motion.dart';
 
-/// Spesifikasi konfigurasi posisi, skala, alignment, dan semantic per ekspresi Mika.
-/// Memungkinkan fine-tuning posisi visual untuk setiap ekspresi maskot secara terpusat.
+/// Enum tipe ilustrasi terstandarisasi untuk MEKAAR (WebP 512px Optimized).
+enum MikaIllustrationType {
+  // Empty states (10 Layar)
+  emptyArchive('assets/illustrations/il_empty_archive.webp'),
+  emptyChat('assets/illustrations/il_empty_chat.webp'),
+  emptyContacts('assets/illustrations/il_empty_contacts.webp'),
+  emptyGuardian('assets/illustrations/il_empty_guardian.webp'),
+  emptyVault('assets/illustrations/il_empty_vault.webp'),
+  emptyAutoCheckin('assets/illustrations/il_empty_autocheckin.webp'),
+  emptySosHistory('assets/illustrations/il_empty_sos_history.webp'),
+  emptyBlocked('assets/illustrations/il_empty_blocked.webp'),
+  emptySearch('assets/illustrations/il_empty_search.webp'),
+  emptyOffline('assets/illustrations/il_empty_offline.webp'),
+
+  // Onboarding (4 Layar)
+  onboardingWelcome('assets/illustrations/il_onboarding_welcome.webp'),
+  onboardingGuardian('assets/illustrations/il_onboarding_guardian.webp'),
+  onboardingSecurity('assets/illustrations/il_onboarding_security.webp'),
+  onboardingSuccess('assets/illustrations/il_onboarding_success.webp');
+
+  final String assetPath;
+  const MikaIllustrationType(this.assetPath);
+}
+
+/// Spesifikasi konfigurasi legacy per ekspresi Mika (backward-compatibility).
 class MikaPoseSpec {
   final int index;
   final Offset offset;
@@ -18,78 +40,72 @@ class MikaPoseSpec {
     required this.semanticDescription,
   });
 
-  /// Path aset dinamis berbasis tema gelap/terang
-  String assetPath({required bool isDark}) {
-    final folder = isDark ? 'mika_dark' : 'mika_light';
-    final fileName = isDark ? 'mika_dark_$index.png' : 'mika_$index.png';
-    return 'assets/mascot/$folder/$fileName';
-  }
+  /// Path aset universal (WebP)
+  String assetPath({required bool isDark}) =>
+      MikaPose.fromIndex(index).illustrationType.assetPath;
 }
 
-/// Enum pose/ekspresi maskot Mika (terdiri dari 25 ekspresi baru adaptif tema).
-/// Mempertahankan nama-nama alias lama untuk backward compatibility penuh 100%.
+/// Enum pose/ekspresi maskot Mika untuk kompatibilitas penuh.
+/// Setiap pose dipetakan ke aset scene WebP terdekat.
 enum MikaPose {
-  // ── Backward Compatible / Legacy Aliases ──
-  neutral(MikaPoseSpec(index: 1, semanticDescription: 'Mika tenang')),
-  happy(MikaPoseSpec(index: 3, semanticDescription: 'Mika tersenyum gembira')),
-  hi(MikaPoseSpec(index: 0, semanticDescription: 'Mika melambaikan tangan')),
-  ok(MikaPoseSpec(index: 17, semanticDescription: 'Mika mengacungkan jempol')),
-  love(MikaPoseSpec(index: 2, semanticDescription: 'Mika memberi finger heart cinta')),
-  ask(MikaPoseSpec(index: 9, semanticDescription: 'Mika sedang berpikir')),
-  huft(MikaPoseSpec(index: 24, semanticDescription: 'Mika menghela napas lelah')),
-  hide(MikaPoseSpec(index: 21, semanticDescription: 'Mika canggung')),
-  phone(MikaPoseSpec(index: 18, semanticDescription: 'Mika memberi isyarat OK')),
-  shield(MikaPoseSpec(index: 12, semanticDescription: 'Mika siap menjaga')),
-  pin(MikaPoseSpec(index: 16, semanticDescription: 'Mika berkacamata keren')),
-  sleep(MikaPoseSpec(index: 7, semanticDescription: 'Mika tertidur lelap')),
-  welcome(MikaPoseSpec(index: 20, semanticDescription: 'Mika menyambut hangat')),
-  key(MikaPoseSpec(index: 16, semanticDescription: 'Mika berkacamata hitam')),
+  neutral(MikaPoseSpec(index: 1, semanticDescription: 'Mika tenang'), MikaIllustrationType.emptyChat),
+  happy(MikaPoseSpec(index: 3, semanticDescription: 'Mika tersenyum gembira'), MikaIllustrationType.onboardingSuccess),
+  hi(MikaPoseSpec(index: 0, semanticDescription: 'Mika melambaikan tangan'), MikaIllustrationType.onboardingWelcome),
+  ok(MikaPoseSpec(index: 17, semanticDescription: 'Mika mengacungkan jempol'), MikaIllustrationType.onboardingSuccess),
+  love(MikaPoseSpec(index: 2, semanticDescription: 'Mika memberi finger heart cinta'), MikaIllustrationType.onboardingWelcome),
+  ask(MikaPoseSpec(index: 9, semanticDescription: 'Mika sedang berpikir'), MikaIllustrationType.emptySearch),
+  huft(MikaPoseSpec(index: 24, semanticDescription: 'Mika menghela napas lelah'), MikaIllustrationType.emptyOffline),
+  hide(MikaPoseSpec(index: 21, semanticDescription: 'Mika canggung'), MikaIllustrationType.emptyVault),
+  phone(MikaPoseSpec(index: 18, semanticDescription: 'Mika memberi isyarat OK'), MikaIllustrationType.emptyContacts),
+  shield(MikaPoseSpec(index: 12, semanticDescription: 'Mika siap menjaga'), MikaIllustrationType.emptyGuardian),
+  pin(MikaPoseSpec(index: 16, semanticDescription: 'Mika berkacamata keren'), MikaIllustrationType.onboardingSecurity),
+  sleep(MikaPoseSpec(index: 7, semanticDescription: 'Mika tertidur lelap'), MikaIllustrationType.emptySosHistory),
+  welcome(MikaPoseSpec(index: 20, semanticDescription: 'Mika menyambut hangat'), MikaIllustrationType.onboardingWelcome),
+  key(MikaPoseSpec(index: 16, semanticDescription: 'Mika berkacamata hitam'), MikaIllustrationType.emptyVault),
 
-  // ── New Descriptive Named Expressions ──
-  wave(MikaPoseSpec(index: 0, semanticDescription: 'Mika melambaikan tangan')),
-  fingerHeart(MikaPoseSpec(index: 2, semanticDescription: 'Mika finger heart')),
-  laugh(MikaPoseSpec(index: 3, semanticDescription: 'Mika tertawa lepas')),
-  surprised(MikaPoseSpec(index: 4, semanticDescription: 'Mika terkejut')),
-  alert(MikaPoseSpec(index: 4, semanticDescription: 'Mika waspada')),
-  angry(MikaPoseSpec(index: 5, semanticDescription: 'Mika marah')),
-  frown(MikaPoseSpec(index: 5, semanticDescription: 'Mika cemberut')),
-  shocked(MikaPoseSpec(index: 6, semanticDescription: 'Mika panik dan kaget')),
-  panic(MikaPoseSpec(index: 6, semanticDescription: 'Mika panik')),
-  playful(MikaPoseSpec(index: 8, semanticDescription: 'Mika menjulurkan lidah')),
-  tongue(MikaPoseSpec(index: 8, semanticDescription: 'Mika melet')),
-  thinking(MikaPoseSpec(index: 9, semanticDescription: 'Mika berpikir')),
-  sad(MikaPoseSpec(index: 10, semanticDescription: 'Mika sedih')),
-  crying(MikaPoseSpec(index: 10, semanticDescription: 'Mika menangis')),
-  bawling(MikaPoseSpec(index: 11, semanticDescription: 'Mika menangis kencang')),
-  cryingLoud(MikaPoseSpec(index: 11, semanticDescription: 'Mika menangis keras')),
-  ready(MikaPoseSpec(index: 12, semanticDescription: 'Mika siap sedia')),
-  cheer(MikaPoseSpec(index: 12, semanticDescription: 'Mika bersemangat')),
-  pout(MikaPoseSpec(index: 13, semanticDescription: 'Mika menggembungkan pipi')),
-  touched(MikaPoseSpec(index: 14, semanticDescription: 'Mika terharu')),
-  grateful(MikaPoseSpec(index: 14, semanticDescription: 'Mika bersyukur')),
-  celebrate(MikaPoseSpec(index: 15, offset: Offset(0, 2), scale: 1.02, semanticDescription: 'Mika bersorak')),
-  yay(MikaPoseSpec(index: 15, offset: Offset(0, 2), scale: 1.02, semanticDescription: 'Mika merayakan gembira')),
-  cool(MikaPoseSpec(index: 16, semanticDescription: 'Mika keren')),
-  thumbsUp(MikaPoseSpec(index: 17, semanticDescription: 'Mika jempol')),
-  handOk(MikaPoseSpec(index: 18, semanticDescription: 'Mika tangan OK')),
-  party(MikaPoseSpec(index: 19, offset: Offset(0, 2), scale: 1.02, semanticDescription: 'Mika berpesta')),
-  pray(MikaPoseSpec(index: 20, semanticDescription: 'Mika menangkupkan tangan')),
-  please(MikaPoseSpec(index: 20, semanticDescription: 'Mika memohon')),
-  awkward(MikaPoseSpec(index: 21, semanticDescription: 'Mika berkeringat canggung')),
-  worried(MikaPoseSpec(index: 21, semanticDescription: 'Mika cemas')),
-  confused(MikaPoseSpec(index: 22, semanticDescription: 'Mika bingung')),
-  question(MikaPoseSpec(index: 22, semanticDescription: 'Mika bertanya-tanya')),
-  heartEyes(MikaPoseSpec(index: 23, semanticDescription: 'Mika mata hati')),
-  sigh(MikaPoseSpec(index: 24, semanticDescription: 'Mika menghela napas'));
+  wave(MikaPoseSpec(index: 0, semanticDescription: 'Mika melambaikan tangan'), MikaIllustrationType.onboardingWelcome),
+  fingerHeart(MikaPoseSpec(index: 2, semanticDescription: 'Mika finger heart'), MikaIllustrationType.onboardingWelcome),
+  laugh(MikaPoseSpec(index: 3, semanticDescription: 'Mika tertawa lepas'), MikaIllustrationType.onboardingSuccess),
+  surprised(MikaPoseSpec(index: 4, semanticDescription: 'Mika terkejut'), MikaIllustrationType.emptySearch),
+  alert(MikaPoseSpec(index: 4, semanticDescription: 'Mika waspada'), MikaIllustrationType.emptyGuardian),
+  angry(MikaPoseSpec(index: 5, semanticDescription: 'Mika marah'), MikaIllustrationType.emptyBlocked),
+  frown(MikaPoseSpec(index: 5, semanticDescription: 'Mika cemberut'), MikaIllustrationType.emptyBlocked),
+  shocked(MikaPoseSpec(index: 6, semanticDescription: 'Mika panik dan kaget'), MikaIllustrationType.emptyOffline),
+  panic(MikaPoseSpec(index: 6, semanticDescription: 'Mika panik'), MikaIllustrationType.emptyOffline),
+  playful(MikaPoseSpec(index: 8, semanticDescription: 'Mika menjulurkan lidah'), MikaIllustrationType.emptyChat),
+  tongue(MikaPoseSpec(index: 8, semanticDescription: 'Mika melet'), MikaIllustrationType.emptyChat),
+  thinking(MikaPoseSpec(index: 9, semanticDescription: 'Mika berpikir'), MikaIllustrationType.emptySearch),
+  sad(MikaPoseSpec(index: 10, semanticDescription: 'Mika sedih'), MikaIllustrationType.emptyOffline),
+  crying(MikaPoseSpec(index: 10, semanticDescription: 'Mika menangis'), MikaIllustrationType.emptyOffline),
+  bawling(MikaPoseSpec(index: 11, semanticDescription: 'Mika menangis kencang'), MikaIllustrationType.emptyOffline),
+  cryingLoud(MikaPoseSpec(index: 11, semanticDescription: 'Mika menangis keras'), MikaIllustrationType.emptyOffline),
+  ready(MikaPoseSpec(index: 12, semanticDescription: 'Mika siap sedia'), MikaIllustrationType.emptyGuardian),
+  cheer(MikaPoseSpec(index: 12, semanticDescription: 'Mika bersemangat'), MikaIllustrationType.onboardingSuccess),
+  pout(MikaPoseSpec(index: 13, semanticDescription: 'Mika menggembungkan pipi'), MikaIllustrationType.emptySearch),
+  touched(MikaPoseSpec(index: 14, semanticDescription: 'Mika terharu'), MikaIllustrationType.onboardingWelcome),
+  grateful(MikaPoseSpec(index: 14, semanticDescription: 'Mika bersyukur'), MikaIllustrationType.onboardingWelcome),
+  celebrate(MikaPoseSpec(index: 15, semanticDescription: 'Mika bersorak'), MikaIllustrationType.onboardingSuccess),
+  yay(MikaPoseSpec(index: 15, semanticDescription: 'Mika merayakan gembira'), MikaIllustrationType.onboardingSuccess),
+  cool(MikaPoseSpec(index: 16, semanticDescription: 'Mika keren'), MikaIllustrationType.onboardingSecurity),
+  thumbsUp(MikaPoseSpec(index: 17, semanticDescription: 'Mika jempol'), MikaIllustrationType.onboardingSuccess),
+  handOk(MikaPoseSpec(index: 18, semanticDescription: 'Mika tangan OK'), MikaIllustrationType.emptyContacts),
+  party(MikaPoseSpec(index: 19, semanticDescription: 'Mika berpesta'), MikaIllustrationType.onboardingSuccess),
+  pray(MikaPoseSpec(index: 20, semanticDescription: 'Mika menangkupkan tangan'), MikaIllustrationType.onboardingWelcome),
+  please(MikaPoseSpec(index: 20, semanticDescription: 'Mika memohon'), MikaIllustrationType.onboardingWelcome),
+  awkward(MikaPoseSpec(index: 21, semanticDescription: 'Mika berkeringat canggung'), MikaIllustrationType.emptySearch),
+  worried(MikaPoseSpec(index: 21, semanticDescription: 'Mika cemas'), MikaIllustrationType.emptyOffline),
+  confused(MikaPoseSpec(index: 22, semanticDescription: 'Mika bingung'), MikaIllustrationType.emptySearch),
+  question(MikaPoseSpec(index: 22, semanticDescription: 'Mika bertanya-tanya'), MikaIllustrationType.emptySearch),
+  heartEyes(MikaPoseSpec(index: 23, semanticDescription: 'Mika mata hati'), MikaIllustrationType.onboardingWelcome),
+  sigh(MikaPoseSpec(index: 24, semanticDescription: 'Mika menghela napas'), MikaIllustrationType.emptyOffline);
 
-  const MikaPose(this.spec);
+  const MikaPose(this.spec, this.illustrationType);
 
   final MikaPoseSpec spec;
+  final MikaIllustrationType illustrationType;
 
-  /// Index file mika_X.png (0 - 24)
   int get poseIndex => spec.index;
 
-  /// Helper untuk mendapatkan pose dari index (0-24)
   static MikaPose fromIndex(int index) {
     return switch (index) {
       0 => MikaPose.wave,
@@ -121,87 +137,52 @@ enum MikaPose {
     };
   }
 
-  /// Path aset statis default (Light mode) untuk backward compatibility
-  String get assetPath => spec.assetPath(isDark: false);
-
-  /// Path aset adaptif tema berbasis BuildContext
-  String resolveAssetPath(BuildContext context, {bool? isDarkOverride}) {
-    final isDark = isDarkOverride ?? (Theme.of(context).brightness == Brightness.dark);
-    return spec.assetPath(isDark: isDark);
-  }
+  String get assetPath => illustrationType.assetPath;
+  String resolveAssetPath(BuildContext context, {bool? isDarkOverride}) =>
+      illustrationType.assetPath;
 }
 
-/// Widget ilustrasi maskot Mika yang otomatis menyesuaikan tema (Light/Dark)
-/// dan menerapkan transformasi offset/skala terpusat.
+/// Widget ilustrasi terpusat MEKAAR.
+/// Mendukung tipe scene terstandarisasi [MikaIllustrationType] dan kompatibilitas [MikaPose].
 class MikaIllustration extends StatelessWidget {
-  const MikaIllustration({
-    super.key,
-    required this.pose,
-    this.size = 120,
-    this.alignment = Alignment.center,
-    this.fit = BoxFit.contain,
-    this.semanticLabel,
-    this.animate = false,
-    this.isDarkOverride,
-    this.customOffset,
-    this.customScale,
-  });
-
-  final MikaPose pose;
+  final MikaIllustrationType type;
+  final MikaPose? _pose;
   final double size;
   final Alignment alignment;
   final BoxFit fit;
   final String? semanticLabel;
-  final bool animate;
-  final bool? isDarkOverride;
-  final Offset? customOffset;
-  final double? customScale;
+
+  const MikaIllustration({
+    super.key,
+    this.type = MikaIllustrationType.emptyChat,
+    MikaPose? pose,
+    this.size = 180,
+    this.alignment = Alignment.center,
+    this.fit = BoxFit.contain,
+    this.semanticLabel,
+    bool animate = false,
+    bool? isDarkOverride,
+    Offset? customOffset,
+    double? customScale,
+  }) : _pose = pose;
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final isDark = isDarkOverride ?? (Theme.of(context).brightness == Brightness.dark);
-    final spec = pose.spec;
-    final finalOffset = customOffset ?? spec.offset;
-    final finalScale = customScale ?? spec.scale;
-
-    Widget imageWidget = SizedBox(
+    final effectiveType = _pose != null ? _pose.illustrationType : type;
+    return SizedBox(
       width: size,
       height: size,
       child: Image.asset(
-        spec.assetPath(isDark: isDark),
+        effectiveType.assetPath,
+        width: size,
+        height: size,
+        cacheWidth: 512,
         fit: fit,
         alignment: alignment,
+        filterQuality: FilterQuality.medium,
         excludeFromSemantics: semanticLabel == null,
-        semanticLabel: semanticLabel ?? spec.semanticDescription,
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-      ),
-    );
-
-    // Terapkan penyesuaian posisi (offset) dan skala (scale) terpusat
-    if (finalOffset != Offset.zero || finalScale != 1.0) {
-      imageWidget = Transform.translate(
-        offset: finalOffset,
-        child: Transform.scale(
-          scale: finalScale,
-          child: imageWidget,
-        ),
-      );
-    }
-
-    if (!animate || reduceMotion) return imageWidget;
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: MekaarMotion.slow,
-      curve: Curves.easeOutCubic,
-      child: imageWidget,
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: Transform.translate(
-          offset: Offset(0, 14 * (1 - value)),
-          child: child,
-        ),
+        semanticLabel: semanticLabel,
+        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
       ),
     );
   }

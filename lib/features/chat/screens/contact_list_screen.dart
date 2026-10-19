@@ -157,7 +157,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         message: 'Sedang mengambil daftar kontak Anda...',
       ),
       error: (err, stack) => MekaarStateView(
-        pose: ErrorResolver.resolvePose(err),
+        illustration: ErrorResolver.resolveIllustration(err),
+        stateIcon: ErrorResolver.resolveIllustration(err) == null
+            ? ErrorResolver.resolveIcon(err)
+            : null,
+        stateIconColor: ErrorResolver.resolveIconColor(err, context),
         title: 'Gagal Memuat Kontak',
         message: ErrorResolver.resolve(err),
         actionLabel: 'Coba Lagi',
@@ -368,7 +372,6 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         CustomCard(
           margin: EdgeInsets.zero,
           padding: EdgeInsets.zero,
-          useSketchBorder: true,
           borderRadius: MekaarRadius.card,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(MekaarRadius.card),
@@ -595,31 +598,43 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             MikaIllustration(
-              pose: hasFilter ? MikaPose.confused : MikaPose.ask,
-              size: 140,
-              animate: true,
+              type: hasFilter
+                  ? MikaIllustrationType.emptySearch
+                  : MikaIllustrationType.emptyContacts,
+              size: 160,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
-              hasFilter ? 'Kontak Tidak Ditemukan' : 'Belum Ada Kontak',
-              style: MekaarTypography.bodyMD.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+              hasFilter ? 'Kontak Tidak Ditemukan' : 'Kontak Masih Kosong',
+              style: MekaarTypography.headingMD.copyWith(
                 color: MekaarColors.textPrimaryOf(context),
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               hasFilter
-                  ? 'Coba cari dengan kata kunci lain.'
-                  : 'Mulai kirim pesan di tab Pesan untuk menambahkan kontak ke daftar Anda.',
-              style: MekaarTypography.bodySM.copyWith(
-                fontSize: 13.5,
+                  ? 'Tidak ada kontak yang cocok dengan kata kunci pencarian.'
+                  : 'Tambahkan teman baru untuk mulai berkirim pesan aman.',
+              style: MekaarTypography.bodyMD.copyWith(
                 color: MekaarColors.textSecondaryOf(context),
               ),
               textAlign: TextAlign.center,
             ),
+            if (!hasFilter) ...[
+              const SizedBox(height: MekaarSpacing.xl),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.contactQrScan);
+                },
+                icon: const Icon(SolarIconsOutline.qrCode, size: 18),
+                label: const Text('Pindai Kode QR'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+            ],
           ],
         ),
       ),

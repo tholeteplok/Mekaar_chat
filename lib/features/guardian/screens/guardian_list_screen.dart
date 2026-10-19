@@ -15,7 +15,6 @@ import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/mika_animated.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/guardian_provider.dart';
@@ -188,21 +187,24 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          MikaAnimated(
-                            pose: MikaPose.shield,
-                            size: 110,
+                          const MikaIllustration(
+                            type: MikaIllustrationType.emptyGuardian,
+                            size: 160,
                             semanticLabel: 'Belum ada guardian',
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Belum ada guardian terdaftar.',
-                            style: MekaarTypography.headingSM,
+                            'Belum Ada Guardian',
+                            style: MekaarTypography.headingMD,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tekan tombol di atas untuk menambah.',
-                            style: MekaarTypography.bodyMD,
-                            textAlign: TextAlign.center,
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              'Tambahkan kontak tepercaya sebagai pelindung darurat Anda.',
+                              style: MekaarTypography.bodyMD,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                       ),
@@ -246,17 +248,25 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    MikaAnimated(
-                      pose: MikaPose.shield,
-                      size: 110,
+                    const MikaIllustration(
+                      type: MikaIllustrationType.emptyGuardian,
+                      size: 160,
                       semanticLabel: 'Belum ada yang menambahkan Anda',
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Belum ada yang menambahkan Anda sebagai Guardian.',
-                      textAlign: TextAlign.center,
-                      style: MekaarTypography.bodyMD.copyWith(
-                        color: MekaarColors.textMutedOf(context),
+                      'Belum Ada Yang Menjaga',
+                      style: MekaarTypography.headingMD,
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        'Belum ada kontak yang menambahkan Anda sebagai Guardian mereka.',
+                        textAlign: TextAlign.center,
+                        style: MekaarTypography.bodyMD.copyWith(
+                          color: MekaarColors.textSecondaryOf(context),
+                        ),
                       ),
                     ),
                   ],
@@ -497,25 +507,13 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
 
   Widget _buildLoadError(Future<void> Function() onRetry) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            SolarIconsOutline.dangerTriangle,
-            size: 36,
-            color: MekaarColors.textMutedOf(context),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Daftar Guardian tidak dapat dimuat.',
-            textAlign: TextAlign.center,
-            style: MekaarTypography.bodyMD.copyWith(
-              color: MekaarColors.textMutedOf(context),
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton(onPressed: onRetry, child: const Text('Coba Lagi')),
-        ],
+      child: MekaarStateView(
+        stateIcon: SolarIconsOutline.serverSquare,
+        stateIconColor: MekaarColors.warnAmber,
+        title: 'Gagal Memuat Guardian',
+        message: 'Daftar Guardian tidak dapat dimuat. Silakan periksa jaringan Anda lalu coba lagi.',
+        actionLabel: 'Coba Lagi',
+        onAction: () => onRetry(),
       ),
     );
   }

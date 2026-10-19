@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/emoji_shortcode_parser.dart';
 import '../services/supabase_service.dart';
@@ -17,7 +19,30 @@ class ChatRepository {
   /// Realtime stream memancarkan batch pembaruan.
   final Map<String, String> _decryptedContentCache = {};
 
+  /// Registry stream controller dan message pool per room yang sedang aktif di layar.
+  /// Memungkinkan eviksi optimistik 0ms saat pesan dihapus oleh pengguna.
+  final Map<String, StreamController<List<Message>>> _activeRoomControllers = {};
+  final Map<String, Map<String, Message>> _activeRoomMessagePools = {};
+
   ChatRepository(this._supabaseService);
+
+  /// Eviksi lokal seketika (0ms optimistic deletion) dari memori RAM, database lokal, dan UI stream.
+  void evictMessageLocally(String roomId, String messageId) {
+    _decryptedContentCache.remove(messageId);
+    unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
+
+    final pool = _activeRoomMessagePools[roomId];
+    final controller = _activeRoomControllers[roomId];
+
+    if (pool != null && pool.containsKey(messageId)) {
+      pool.remove(messageId);
+      if (controller != null && !controller.isClosed) {
+        final sorted = pool.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        controller.add(sorted);
+      }
+    }
+  }
 
   // Get active chat rooms for current user
   Future<List<Map<String, dynamic>>> getRooms() async {
@@ -367,6 +392,9 @@ class ChatRepository {
     bool hasEmittedData = false;
     final Map<String, Message> messagePool = {};
 
+    _activeRoomControllers[roomId] = controller;
+    _activeRoomMessagePools[roomId] = messagePool;
+
     const reconnectPolicy = ReconnectPolicy();
 
     // Helper untuk memancarkan cache dari SQLite lokal seketika
@@ -462,16 +490,29 @@ class ChatRepository {
 
       Future<void> processBatch(List<Map<String, dynamic>> maps) async {
         try {
-          var msgs = maps.map((map) => Message.fromJson(map)).toList();
-          if (historyClearedAt != null) {
-            msgs = msgs
-                .where((m) => m.createdAt.isAfter(historyClearedAt!))
-                .toList();
+          final now = DateTime.now().toUtc();
+          final rawMsgs = maps.map((map) => Message.fromJson(map)).toList();
+
+          // Eviksi pesan yang di-silent delete, disembunyikan, atau kedaluwarsa dari messagePool
+          for (final m in rawMsgs) {
+            final isExpired =
+                m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now);
+            final isHidden = hiddenMsgIds.contains(m.id);
+            final isHistoryCleared = historyClearedAt != null &&
+                !m.createdAt.isAfter(historyClearedAt);
+
+            if (m.isSilentDeleted || isHidden || isExpired || isHistoryCleared) {
+              messagePool.remove(m.id);
+              _decryptedContentCache.remove(m.id);
+              unawaited(LocalMessageDatabase.instance.deleteMessage(m.id));
+            }
           }
 
-          // Filter out silent_deleted, hidden (dari cache in-memory), dan expired messages
-          final now = DateTime.now().toUtc();
-          msgs = msgs.where((m) {
+          var msgs = rawMsgs.where((m) {
+            if (historyClearedAt != null &&
+                !m.createdAt.isAfter(historyClearedAt)) {
+              return false;
+            }
             if (m.isSilentDeleted || hiddenMsgIds.contains(m.id)) return false;
             if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now)) {
               return false;
@@ -632,6 +673,10 @@ class ChatRepository {
     controller.onCancel = () {
       retryTimer?.cancel();
       streamSubscription?.cancel();
+      if (_activeRoomControllers[roomId] == controller) {
+        _activeRoomControllers.remove(roomId);
+        _activeRoomMessagePools.remove(roomId);
+      }
     };
 
     initStream();
@@ -723,9 +768,13 @@ class ChatRepository {
   }
 
   // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone
-  Future<void> deleteMessageForEveryone(String messageId) async {
-    _decryptedContentCache.remove(messageId);
-    unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
+  Future<void> deleteMessageForEveryone(String messageId, {String? roomId}) async {
+    if (roomId != null) {
+      evictMessageLocally(roomId, messageId);
+    } else {
+      _decryptedContentCache.remove(messageId);
+      unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
+    }
     try {
       // Try the new advanced RPC first
       await _supabaseService.client.rpc(
@@ -756,9 +805,13 @@ class ChatRepository {
   }
 
   // Local delete: hides message for the current user only (like WhatsApp)
-  Future<void> hideMessageForMe(String messageId) async {
-    _decryptedContentCache.remove(messageId);
-    unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
+  Future<void> hideMessageForMe(String messageId, {String? roomId}) async {
+    if (roomId != null) {
+      evictMessageLocally(roomId, messageId);
+    } else {
+      _decryptedContentCache.remove(messageId);
+      unawaited(LocalMessageDatabase.instance.deleteMessage(messageId));
+    }
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
     try {
@@ -1194,13 +1247,42 @@ class ChatRepository {
   }
 
   /// Eksekusi penghapusan pesan saat keluar room (Burn on Exit).
+  /// Menghapus jejak lokal (memori, SQLite, file cache OS) dan riwayat di server.
   Future<void> executeRoomBurnOnExit(String roomId) async {
+    // 1. Bersihkan cache in-memory agar gelembung pesan tidak tersisa di RAM
+    _decryptedContentCache.clear();
+
+    // 2. Bersihkan baris pesan dari database lokal SQLCipher
     unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
+
+    // 3. Bersihkan file media/audio sementara di cache OS
+    unawaited(_cleanupTemporaryCache());
+
+    // 4. Perintahkan backend Supabase untuk menghapus pesan di server
     try {
       await _supabaseService.client.rpc(
         'execute_room_burn_on_exit',
         params: {'p_room_id': roomId},
       );
+    } catch (_) {}
+  }
+
+  /// Membersihkan file temporer gambar dan audio rekaman agar tidak meninggalkan jejak forensik.
+  Future<void> _cleanupTemporaryCache() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        final entities = tempDir.listSync();
+        for (final entity in entities) {
+          try {
+            if (entity is File) {
+              await entity.delete();
+            } else if (entity is Directory) {
+              await entity.delete(recursive: true);
+            }
+          } catch (_) {}
+        }
+      }
     } catch (_) {}
   }
 

@@ -314,12 +314,12 @@ class ChatActionsNotifier {
     await _chatRepository.reactToMessage(messageId, emoji);
   }
 
-  Future<void> deleteMessageForEveryone(String messageId) async {
-    await _chatRepository.deleteMessageForEveryone(messageId);
+  Future<void> deleteMessageForEveryone(String messageId, {String? roomId}) async {
+    await _chatRepository.deleteMessageForEveryone(messageId, roomId: roomId);
   }
 
   Future<void> hideMessageForMe(String messageId, {String? roomId}) async {
-    await _chatRepository.hideMessageForMe(messageId);
+    await _chatRepository.hideMessageForMe(messageId, roomId: roomId);
     if (roomId != null) {
       _ref.invalidate(chatMessagesProvider(roomId));
     }

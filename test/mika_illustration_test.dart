@@ -1,19 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:mekaar_chat/core/widgets/mika_illustration.dart';
 import 'package:mekaar_chat/core/widgets/mika_animated.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_state_view.dart';
 
+String _getAssetName(ImageProvider provider) {
+  if (provider is ResizeImage) {
+    return (provider.imageProvider as AssetImage).assetName;
+  }
+  return (provider as AssetImage).assetName;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('MikaIllustration & MikaPose Unit Tests', () {
-    test('Semua 25 index ekspresi (0..24) terpetakan dengan benar', () {
+  group('MikaIllustrationType Tests', () {
+    test('Semua 14 tipe ilustrasi WebP terdaftar dengan path yang valid', () {
+      expect(MikaIllustrationType.values.length, equals(14));
+      for (final type in MikaIllustrationType.values) {
+        expect(type.assetPath, startsWith('assets/illustrations/il_'));
+        expect(type.assetPath, endsWith('.webp'));
+      }
+    });
+
+    test('10 Empty states dan 4 Onboarding types terpetakan presisi', () {
+      expect(MikaIllustrationType.emptyArchive.assetPath, 'assets/illustrations/il_empty_archive.webp');
+      expect(MikaIllustrationType.emptyChat.assetPath, 'assets/illustrations/il_empty_chat.webp');
+      expect(MikaIllustrationType.emptyContacts.assetPath, 'assets/illustrations/il_empty_contacts.webp');
+      expect(MikaIllustrationType.emptyGuardian.assetPath, 'assets/illustrations/il_empty_guardian.webp');
+      expect(MikaIllustrationType.emptyVault.assetPath, 'assets/illustrations/il_empty_vault.webp');
+      expect(MikaIllustrationType.emptyAutoCheckin.assetPath, 'assets/illustrations/il_empty_autocheckin.webp');
+      expect(MikaIllustrationType.emptySosHistory.assetPath, 'assets/illustrations/il_empty_sos_history.webp');
+      expect(MikaIllustrationType.emptyBlocked.assetPath, 'assets/illustrations/il_empty_blocked.webp');
+      expect(MikaIllustrationType.emptySearch.assetPath, 'assets/illustrations/il_empty_search.webp');
+      expect(MikaIllustrationType.emptyOffline.assetPath, 'assets/illustrations/il_empty_offline.webp');
+
+      expect(MikaIllustrationType.onboardingWelcome.assetPath, 'assets/illustrations/il_onboarding_welcome.webp');
+      expect(MikaIllustrationType.onboardingGuardian.assetPath, 'assets/illustrations/il_onboarding_guardian.webp');
+      expect(MikaIllustrationType.onboardingSecurity.assetPath, 'assets/illustrations/il_onboarding_security.webp');
+      expect(MikaIllustrationType.onboardingSuccess.assetPath, 'assets/illustrations/il_onboarding_success.webp');
+    });
+  });
+
+  group('MikaPose Backward-Compatibility Tests', () {
+    test('Semua 25 index ekspresi (0..24) terpetakan dengan benar ke WebP', () {
       for (int i = 0; i <= 24; i++) {
         final pose = MikaPose.fromIndex(i);
         expect(pose.poseIndex, equals(i));
-        expect(pose.spec.assetPath(isDark: false), contains('mika_light/mika_$i.png'));
-        expect(pose.spec.assetPath(isDark: true), contains('mika_dark/mika_dark_$i.png'));
+        expect(pose.spec.assetPath(isDark: false), startsWith('assets/illustrations/il_'));
+        expect(pose.spec.assetPath(isDark: true), startsWith('assets/illustrations/il_'));
       }
     });
 
@@ -33,35 +69,28 @@ void main() {
       expect(MikaPose.welcome.poseIndex, equals(20));
       expect(MikaPose.key.poseIndex, equals(16));
     });
-
-    test('Ekspresi baru terdefinisi dengan tepat', () {
-      expect(MikaPose.surprised.poseIndex, equals(4));
-      expect(MikaPose.angry.poseIndex, equals(5));
-      expect(MikaPose.shocked.poseIndex, equals(6));
-      expect(MikaPose.playful.poseIndex, equals(8));
-      expect(MikaPose.sad.poseIndex, equals(10));
-      expect(MikaPose.bawling.poseIndex, equals(11));
-      expect(MikaPose.pout.poseIndex, equals(13));
-      expect(MikaPose.touched.poseIndex, equals(14));
-      expect(MikaPose.celebrate.poseIndex, equals(15));
-      expect(MikaPose.cool.poseIndex, equals(16));
-      expect(MikaPose.thumbsUp.poseIndex, equals(17));
-      expect(MikaPose.handOk.poseIndex, equals(18));
-      expect(MikaPose.party.poseIndex, equals(19));
-      expect(MikaPose.pray.poseIndex, equals(20));
-      expect(MikaPose.awkward.poseIndex, equals(21));
-      expect(MikaPose.confused.poseIndex, equals(22));
-      expect(MikaPose.heartEyes.poseIndex, equals(23));
-      expect(MikaPose.sigh.poseIndex, equals(24));
-    });
   });
 
-  group('MikaIllustration Widget & Theme Resolution Tests', () {
-    testWidgets('Render MikaIllustration dalam Light Mode memuat mika_light', (tester) async {
+  group('MikaIllustration Widget & MekaarStateView Tests', () {
+    testWidgets('Render MikaIllustration langsung dengan MikaIllustrationType', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.light(),
-          home: const Scaffold(
+        const MaterialApp(
+          home: Scaffold(
+            body: MikaIllustration(type: MikaIllustrationType.emptyChat),
+          ),
+        ),
+      );
+
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
+      final image = tester.widget<Image>(imageFinder);
+      expect(_getAssetName(image.image), equals('assets/illustrations/il_empty_chat.webp'));
+    });
+
+    testWidgets('Render MikaIllustration via MikaPose fallback', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
             body: MikaIllustration(pose: MikaPose.happy),
           ),
         ),
@@ -70,79 +99,56 @@ void main() {
       final imageFinder = find.byType(Image);
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
-      final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_light/mika_3.png'));
+      expect(_getAssetName(image.image), equals('assets/illustrations/il_onboarding_success.webp'));
     });
 
-    testWidgets('Render MikaIllustration dalam Dark Mode memuat mika_dark', (tester) async {
+    testWidgets('MekaarStateView merender ilustrasi dan teks', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark(),
-          home: const Scaffold(
-            body: MikaIllustration(pose: MikaPose.happy),
-          ),
-        ),
-      );
-
-      final imageFinder = find.byType(Image);
-      expect(imageFinder, findsOneWidget);
-      final image = tester.widget<Image>(imageFinder);
-      final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_dark_3.png'));
-    });
-
-    testWidgets('MikaIllustration dengan isDarkOverride bekerja independen dari Theme', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.light(),
-          home: const Scaffold(
-            body: MikaIllustration(
-              pose: MikaPose.shield,
-              isDarkOverride: true,
-            ),
-          ),
-        ),
-      );
-
-      final imageFinder = find.byType(Image);
-      expect(imageFinder, findsOneWidget);
-      final image = tester.widget<Image>(imageFinder);
-      final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_dark_12.png'));
-    });
-
-    testWidgets('MekaarStateView meneruskan pose dan adaptif tema', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark(),
-          home: const Scaffold(
+        const MaterialApp(
+          home: Scaffold(
             body: MekaarStateView(
-              pose: MikaPose.huft,
-              title: 'Gagal Memuat',
+              illustration: MikaIllustrationType.emptyOffline,
+              title: 'Offline',
               message: 'Terjadi kesalahan pada jaringan.',
             ),
           ),
         ),
       );
 
-      expect(find.text('Gagal Memuat'), findsOneWidget);
+      expect(find.text('Offline'), findsOneWidget);
       expect(find.text('Terjadi kesalahan pada jaringan.'), findsOneWidget);
 
       final imageFinder = find.byType(Image);
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
-      final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_dark/mika_dark_24.png'));
+      expect(_getAssetName(image.image), equals('assets/illustrations/il_empty_offline.webp'));
     });
 
-    testWidgets('MikaAnimated merender pose adaptif tema dengan animasi breathing', (tester) async {
+    testWidgets('MekaarStateView merender icon badge saat stateIcon diset', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.light(),
-          home: const Scaffold(
+        const MaterialApp(
+          home: Scaffold(
+            body: MekaarStateView(
+              stateIcon: SolarIconsOutline.serverSquare,
+              title: 'Server Error',
+              message: 'Gagal memproses data.',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Server Error'), findsOneWidget);
+      expect(find.text('Gagal memproses data.'), findsOneWidget);
+      expect(find.byIcon(SolarIconsOutline.serverSquare), findsOneWidget);
+      expect(find.byType(MikaIllustration), findsNothing);
+    });
+
+    testWidgets('MikaAnimated merender wrapper MikaIllustration dengan tepat', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
             body: MikaAnimated(
-              pose: MikaPose.celebrate,
-              idle: true,
+              illustration: MikaIllustrationType.onboardingSuccess,
             ),
           ),
         ),
@@ -151,8 +157,7 @@ void main() {
       final imageFinder = find.byType(Image);
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
-      final assetImage = image.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/mascot/mika_light/mika_15.png'));
+      expect(_getAssetName(image.image), equals('assets/illustrations/il_onboarding_success.webp'));
     });
   });
 }

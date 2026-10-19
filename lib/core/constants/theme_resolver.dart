@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'colors.dart';
 import 'themes.dart';
-import 'time_palette.dart';
+import 'theme_preference.dart';
 import '../utils/time_theme_helper.dart';
 
 /// Resolver terpusat untuk keputusan tema Core UI (3-mode: Light / Dark / Auto).

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../providers/auth_provider.dart';
 
 /// Layar Pembekuan Akun (*Account Suspended Screen*)
@@ -38,10 +38,20 @@ class AccountSuspendedScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(),
-              // Mika Illustration — Prihatin / Sedih
-              const MikaIllustration(
-                pose: MikaPose.huft,
-                size: 140,
+              // Badge Ikon Suspensi Terpusat
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: MekaarColors.sosCoral.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  SolarIconsOutline.shieldCross,
+                  size: 36,
+                  color: MekaarColors.sosCoral,
+                ),
               ),
               const SizedBox(height: 24),
               // Judul Pembekuan

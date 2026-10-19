@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:logger/logger.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../models/message_model.dart';
+import 'database_key_service.dart';
 
-/// Database lokal SQLite untuk persistensi pesan yang sudah didekripsi.
+/// Database lokal SQLite terenkripsi (SQLCipher AES-256) untuk persistensi pesan yang sudah didekripsi.
 ///
 /// Menyediakan akses offline 0ms ke riwayat obrolan, mengeliminasi kebutuhan
 /// untuk mendekripsi ulang setiap pesan dari cloud server saat aplikasi dibuka kembali,
-/// dan mencegah pesan berubah menjadi 'Pesan terenkripsi' jika proses dimatikan.
+/// dan mencegah kebocoran forensik fisik (at-rest) jika perangkat di-root atau di-ekstrak via ADB.
 class LocalMessageDatabase {
   LocalMessageDatabase._();
   static final LocalMessageDatabase instance = LocalMessageDatabase._();
@@ -32,54 +34,129 @@ class LocalMessageDatabase {
     try {
       final dbPath = await getDatabasesPath();
       final path = '$dbPath/$_dbFileName';
+      final key = await DatabaseKeyService.instance.getMessageDatabaseKey();
+
+      // Cek dan migrasikan jika file lokal masih berupa database SQLite plaintext legacy
+      await _checkAndMigrateLegacyPlaintextDb(path, key);
 
       _db = await openDatabase(
         path,
+        password: key,
         version: _dbVersion,
-        onCreate: (db, version) async {
-          await db.execute('''
-            CREATE TABLE $_tableName (
-              id TEXT PRIMARY KEY,
-              room_id TEXT NOT NULL,
-              sender_id TEXT NOT NULL,
-              content TEXT NOT NULL,
-              media_url TEXT,
-              msg_type TEXT NOT NULL,
-              is_view_once INTEGER NOT NULL DEFAULT 0,
-              is_opened INTEGER NOT NULL DEFAULT 0,
-              opened_at TEXT,
-              reply_to_id TEXT,
-              is_deleted INTEGER NOT NULL DEFAULT 0,
-              is_silent_deleted INTEGER NOT NULL DEFAULT 0,
-              auto_delete_at TEXT,
-              edited_at TEXT,
-              reactions TEXT NOT NULL DEFAULT '{}',
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL,
-              is_encrypted INTEGER NOT NULL DEFAULT 0
-            )
-          ''');
-
-          await db.execute('''
-            CREATE INDEX IF NOT EXISTS idx_local_messages_room_created
-            ON $_tableName (room_id, created_at ASC)
-          ''');
-
-          await db.execute('''
-            CREATE INDEX IF NOT EXISTS idx_local_messages_auto_delete
-            ON $_tableName (auto_delete_at)
-          ''');
-        },
+        onCreate: _onCreate,
       );
 
       _dbInitCompleter!.complete(_db!);
       return _db!;
     } catch (e, st) {
-      _logger.e('Gagal menginisialisasi LocalMessageDatabase: $e', error: e, stackTrace: st);
+      _logger.e('Gagal menginisialisasi LocalMessageDatabase SQLCipher: $e', error: e, stackTrace: st);
       _dbInitCompleter?.completeError(e, st);
       rethrow;
     } finally {
       _dbInitCompleter = null;
+    }
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE $_tableName (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        media_url TEXT,
+        msg_type TEXT NOT NULL,
+        is_view_once INTEGER NOT NULL DEFAULT 0,
+        is_opened INTEGER NOT NULL DEFAULT 0,
+        opened_at TEXT,
+        reply_to_id TEXT,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        is_silent_deleted INTEGER NOT NULL DEFAULT 0,
+        auto_delete_at TEXT,
+        edited_at TEXT,
+        reactions TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        is_encrypted INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_local_messages_room_created
+      ON $_tableName (room_id, created_at ASC)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_local_messages_auto_delete
+      ON $_tableName (auto_delete_at)
+    ''');
+  }
+
+  /// Memeriksa apakah file lokal masih berformat SQLite teks polos (legacy).
+  /// Jika ya, migrasikan datanya ke database SQLCipher terenkripsi, lalu musnahkan file lama.
+  Future<void> _checkAndMigrateLegacyPlaintextDb(String path, String key) async {
+    final file = File(path);
+    if (!await file.exists()) return;
+
+    try {
+      final raf = await file.open(mode: FileMode.read);
+      final headerBytes = await raf.read(16);
+      await raf.close();
+
+      // SQLite plaintext magic header adalah "SQLite format 3\x00"
+      const sqliteMagic = [
+        0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66,
+        0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00,
+      ];
+
+      bool isLegacyPlaintext = true;
+      if (headerBytes.length >= 16) {
+        for (int i = 0; i < 16; i++) {
+          if (headerBytes[i] != sqliteMagic[i]) {
+            isLegacyPlaintext = false;
+            break;
+          }
+        }
+      } else {
+        isLegacyPlaintext = false;
+      }
+
+      if (!isLegacyPlaintext) return;
+
+      _logger.w('⚠️ Terdeteksi database pesan lama (plaintext). Memulai auto-migrasi ke SQLCipher...');
+      final legacyPath = '$path.legacy_plaintext';
+      await file.rename(legacyPath);
+
+      // Buka legacy DB tanpa password
+      final legacyDb = await openDatabase(legacyPath);
+      List<Map<String, dynamic>> rows = [];
+      try {
+        rows = await legacyDb.query(_tableName);
+      } catch (_) {}
+      await legacyDb.close();
+
+      // Buat database terenkripsi baru
+      final encryptedDb = await openDatabase(
+        path,
+        password: key,
+        version: _dbVersion,
+        onCreate: _onCreate,
+      );
+
+      if (rows.isNotEmpty) {
+        final batch = encryptedDb.batch();
+        for (final row in rows) {
+          batch.insert(_tableName, row, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      }
+      await encryptedDb.close();
+
+      // Musnahkan file legacy secara forensik
+      await DatabaseKeyService.instance.shredFile(File(legacyPath));
+      _logger.i('✅ Auto-migrasi ke SQLCipher selesai. File plaintext lama telah dimusnahkan secara forensik.');
+    } catch (e, st) {
+      _logger.e('Gagal melakukan migrasi database pesan legacy: $e', error: e, stackTrace: st);
     }
   }
 

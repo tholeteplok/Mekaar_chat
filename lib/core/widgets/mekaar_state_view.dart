@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
+import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/typography.dart';
 import 'mika_animated.dart';
@@ -10,13 +11,17 @@ enum MekaarStateLayout { centered, edge }
 class MekaarStateView extends StatelessWidget {
   const MekaarStateView({
     super.key,
-    required this.pose,
+    this.illustration,
+    this.pose,
+    this.stateIcon,
+    this.stateIconColor,
+    this.stateIconBackgroundColor,
     required this.title,
     required this.message,
     this.actionLabel,
     this.onAction,
     this.layout = MekaarStateLayout.centered,
-    this.illustrationSize = 112,
+    this.illustrationSize = 160,
     this.semanticLabel,
     this.icon = SolarIconsOutline.refresh,
     this.reaction,
@@ -25,7 +30,11 @@ class MekaarStateView extends StatelessWidget {
     this.customScale,
   });
 
-  final MikaPose pose;
+  final MikaIllustrationType? illustration;
+  final MikaPose? pose;
+  final IconData? stateIcon;
+  final Color? stateIconColor;
+  final Color? stateIconBackgroundColor;
   final String title;
   final String message;
   final String? actionLabel;
@@ -70,15 +79,36 @@ class MekaarStateView extends StatelessWidget {
       ],
     );
 
-    final mika = MikaAnimated(
-      pose: pose,
-      size: illustrationSize,
-      semanticLabel: semanticLabel,
-      reaction: reaction,
-      isDarkOverride: isDarkOverride,
-      customOffset: customOffset,
-      customScale: customScale,
-    );
+    final Widget visual;
+    if (stateIcon != null) {
+      final color = stateIconColor ?? MekaarColors.sosCoral;
+      final bgColor = stateIconBackgroundColor ?? color.withValues(alpha: 0.12);
+      visual = Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          color: bgColor,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          stateIcon,
+          size: 36,
+          color: color,
+        ),
+      );
+    } else {
+      visual = MikaAnimated(
+        illustration: illustration,
+        pose: pose,
+        size: illustrationSize,
+        semanticLabel: semanticLabel,
+        reaction: reaction,
+        isDarkOverride: isDarkOverride,
+        customOffset: customOffset,
+        customScale: customScale,
+      );
+    }
 
     if (isEdge) {
       return LayoutBuilder(
@@ -99,7 +129,7 @@ class MekaarStateView extends StatelessWidget {
               Positioned(
                 right: -illustrationSize * 0.2,
                 bottom: -illustrationSize * 0.12,
-                child: mika,
+                child: visual,
               ),
             ],
           ),
@@ -127,7 +157,7 @@ class MekaarStateView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  mika,
+                  visual,
                   const SizedBox(height: MekaarSpacing.lg),
                   text,
                 ],

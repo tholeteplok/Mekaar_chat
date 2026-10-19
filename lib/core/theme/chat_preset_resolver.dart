@@ -17,6 +17,7 @@ enum EntranceType {
   solarpunkGrowth,
   neonFlickerGlow,
   comicPopElastic,
+  mekaarFadeSlide,
   dynamicTimeFadeSlide,
   fireflySlowGlow,
   diaryWritingSlideLeft,
@@ -160,7 +161,7 @@ class ChatPresetResolver {
         return const BubbleEntranceSpec(
           duration: Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          type: EntranceType.dynamicTimeFadeSlide,
+          type: EntranceType.mekaarFadeSlide,
         );
     }
   }
@@ -1038,20 +1039,20 @@ class ChatPresetResolver {
                 file,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  return _buildDynamicTimeWallpaper(context);
+                  return _buildMekaarCleanWallpaper(context);
                 },
               ),
             );
           }
         }
-        return _buildDynamicTimeWallpaper(context);
+        return _buildMekaarCleanWallpaper(context);
       case WallpaperType.dynamicTime:
       default:
-        return _buildDynamicTimeWallpaper(context);
+        return _buildMekaarCleanWallpaper(context);
     }
   }
 
-  static Widget _buildDynamicTimeWallpaper(BuildContext context) {
+  static Widget _buildMekaarCleanWallpaper(BuildContext context) {
     return Positioned.fill(
       child: Container(
         color: Theme.of(context).scaffoldBackgroundColor,

@@ -8,6 +8,7 @@ enum E2eeRoomStatus {
   ready,
   peerMissingKey,
   needsRestore,
+  groupServerEncrypted,
 }
 
 class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
@@ -17,7 +18,20 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
     initializeRoomSecurity();
   }
 
-  Future<void> initializeRoomSecurity() async {
+  void configureForRoom({required bool isGroup}) {
+    if (isGroup) {
+      state = E2eeRoomStatus.groupServerEncrypted;
+    } else if (state == E2eeRoomStatus.groupServerEncrypted || state == E2eeRoomStatus.preparing) {
+      initializeRoomSecurity();
+    }
+  }
+
+  Future<void> initializeRoomSecurity({bool isGroup = false}) async {
+    if (isGroup) {
+      state = E2eeRoomStatus.groupServerEncrypted;
+      return;
+    }
+
     state = E2eeRoomStatus.preparing;
 
     // Jeda singkat tahap 1 agar banner animasi terlihat tenang oleh pengguna
@@ -52,8 +66,8 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
     state = E2eeRoomStatus.ready;
   }
 
-  void retry() {
-    initializeRoomSecurity();
+  void retry({bool isGroup = false}) {
+    initializeRoomSecurity(isGroup: isGroup);
   }
 }
 

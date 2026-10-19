@@ -13,6 +13,8 @@ import '../../../core/widgets/sos_button.dart';
 import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/services/database_key_service.dart';
+import '../../../data/services/local_vault_database.dart';
 import '../providers/auth_provider.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
@@ -176,6 +178,21 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
           final authState = ref.read(authProvider);
           final wasDuress = authState.lastUnlockWasDuress;
+
+          try {
+            final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
+              _pin,
+              isDuress: wasDuress,
+            );
+            DatabaseKeyService.instance.setActiveVaultKey(
+              vaultKey,
+              isDuress: wasDuress,
+            );
+            await LocalVaultDatabase.instance.openVault(
+              key: vaultKey,
+              isDuress: wasDuress,
+            );
+          } catch (_) {}
 
           if (authState.e2eeNeedsRestore && !wasDuress) {
             await _showE2eeRestoreDialog();

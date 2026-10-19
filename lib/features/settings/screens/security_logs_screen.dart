@@ -8,6 +8,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../providers/log_provider.dart';
 import '../../../data/models/security_log_model.dart';
 import '../widgets/settings_tiles.dart';
@@ -155,23 +156,15 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: MekaarColors.surface2Of(context),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                SolarIconsOutline.history,
-                                size: 40,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
+                            const MikaIllustration(
+                              type: MikaIllustrationType.emptySosHistory,
+                              size: 160,
+                              semanticLabel: 'Situasi Aman & Terkendali',
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Belum ada riwayat SOS',
-                              style: MekaarTypography.headingSM.copyWith(
+                              'Situasi Aman & Terkendali',
+                              style: MekaarTypography.headingMD.copyWith(
                                 color: MekaarColors.textPrimaryOf(context),
                               ),
                             ),
@@ -179,9 +172,9 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 32),
                               child: Text(
-                                'Aktivitas pengaktifan SOS atau penonaktifan darurat akan dicatat di sini secara permanen.',
+                                'Belum ada riwayat pemicuan sinyal darurat atau insiden keamanan. Catatan darurat akan disimpan di sini secara aman.',
                                 textAlign: TextAlign.center,
-                                style: MekaarTypography.bodySM.copyWith(
+                                style: MekaarTypography.bodyMD.copyWith(
                                   color: MekaarColors.textSecondaryOf(context),
                                 ),
                               ),

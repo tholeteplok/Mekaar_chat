@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/theme_resolver.dart';
-import '../constants/time_palette.dart';
+import '../constants/theme_preference.dart';
 import 'font_provider.dart';
 import 'time_tick_provider.dart';
 

@@ -48,6 +48,8 @@ import 'package:mekaar_chat/features/chat/screens/contact_settings_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/create_group_select_members_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/create_group_details_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/group_details_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/vault_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/archived_chats_screen.dart';
 import '../constants/motion.dart';
 
 /// MekaarPageRoute — Transisi halaman terpusat.
@@ -145,9 +147,17 @@ class AppRoutes {
   static const String chatRequests = '/chat/requests';
   static const String about = '/settings/about';
   static const String connectedDevices = '/settings/devices';
+  static const String vault = '/chat/vault';
+  static const String archivedChats = '/chat/archived';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case AppRoutes.vault:
+        return MekaarPageRoute(builder: (_) => const VaultScreen());
+
+      case AppRoutes.archivedChats:
+        return MekaarPageRoute(builder: (_) => const ArchivedChatsScreen());
+
       case AppRoutes.chatRequests:
         return MekaarPageRoute(builder: (_) => const ChatRequestsScreen());
       case AppRoutes.accountSuspended:

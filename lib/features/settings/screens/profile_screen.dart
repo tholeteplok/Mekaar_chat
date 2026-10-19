@@ -408,7 +408,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      useSketchBorder: true,
                       borderRadius: MekaarRadius.card,
                       child: Column(
                         children: [
@@ -518,7 +517,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           horizontal: 16,
                           vertical: 10,
                         ),
-                        useSketchBorder: true,
                         borderRadius: MekaarRadius.card,
                         child: Row(
                           children: [

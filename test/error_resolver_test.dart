@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:mekaar_chat/core/utils/error_resolver.dart';
 import 'package:mekaar_chat/core/widgets/mika_illustration.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -98,5 +99,23 @@ void main() {
       // 7. Retry berulang -> angry (5)
       expect(ErrorResolver.resolvePose('Gagal setelah retry berulang'), equals(MikaPose.angry));
     });
+
+    test('ErrorResolver.resolveIcon returns clean semantic Solar icons', () {
+      expect(ErrorResolver.resolveIcon(TimeoutException('Timed out')), equals(SolarIconsOutline.cloudCross));
+      expect(ErrorResolver.resolveIcon(const SocketException('No route to host')), equals(SolarIconsOutline.cloudCross));
+      expect(ErrorResolver.resolveIcon(const AuthException('Unauthorized')), equals(SolarIconsOutline.userCross));
+      expect(ErrorResolver.resolveIcon(const PostgrestException(message: 'error')), equals(SolarIconsOutline.serverSquare));
+      expect(ErrorResolver.resolveIcon('Gagal dekripsi pesan E2EE'), equals(SolarIconsOutline.shieldCross));
+      expect(ErrorResolver.resolveIcon('Permission denied'), equals(SolarIconsOutline.lock));
+      expect(ErrorResolver.resolveIcon(Exception('Unknown issue')), equals(SolarIconsOutline.dangerCircle));
+    });
+
+    test('ErrorResolver.resolveIllustration returns emptyOffline for network errors, null otherwise', () {
+      expect(ErrorResolver.resolveIllustration(TimeoutException('Timed out')), equals(MikaIllustrationType.emptyOffline));
+      expect(ErrorResolver.resolveIllustration(const SocketException('error')), equals(MikaIllustrationType.emptyOffline));
+      expect(ErrorResolver.resolveIllustration(const AuthException('401')), isNull);
+      expect(ErrorResolver.resolveIllustration(Exception('Other')), isNull);
+    });
   });
 }
+

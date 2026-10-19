@@ -11,7 +11,6 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../providers/connected_devices_provider.dart';
 import '../widgets/settings_tiles.dart';
 import '../../../data/models/user_device.dart';
@@ -67,10 +66,19 @@ class _ConnectedDevicesScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const MikaIllustration(
-              pose: MikaPose.neutral,
-              size: 110,
-              semanticLabel: 'Tidak ada perangkat terdaftar',
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: MekaarColors.primaryOf(context).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                SolarIconsOutline.laptop,
+                size: 36,
+                color: MekaarColors.primaryOf(context),
+              ),
             ),
             const SizedBox(height: MekaarSpacing.lg),
             Text(

@@ -57,9 +57,10 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
   }
 
   void _checkAutoDismiss() {
-    if (widget.status == E2eeRoomStatus.ready) {
+    if (widget.status == E2eeRoomStatus.ready ||
+        widget.status == E2eeRoomStatus.groupServerEncrypted) {
       _dismissTimer?.cancel();
-      _dismissTimer = Timer(const Duration(milliseconds: 1800), () {
+      _dismissTimer = Timer(const Duration(milliseconds: 2200), () {
         if (mounted) {
           setState(() => _dismissed = true);
         }
@@ -100,6 +101,12 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
         iconData = SolarIconsBold.checkCircle;
         accentColor = MekaarColors.safeTextOf(context);
         message = 'Mekaar Aegis: Percakapan terlindungi E2EE';
+        showSpinner = false;
+        break;
+      case E2eeRoomStatus.groupServerEncrypted:
+        iconData = SolarIconsOutline.shieldCheck;
+        accentColor = MekaarColors.textSecondaryOf(context);
+        message = 'Obrolan Grup: Dilindungi Enkripsi Server & Transport';
         showSpinner = false;
         break;
       case E2eeRoomStatus.peerMissingKey:
