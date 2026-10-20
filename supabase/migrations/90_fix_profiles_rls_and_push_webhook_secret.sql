@@ -15,6 +15,7 @@ DROP POLICY IF EXISTS "Authenticated can read any public profile" ON public.prof
 DROP POLICY IF EXISTS "Authenticated users can read active user profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can only read own profile" ON public.profiles;
 
 -- 2. Pasang policy ketat: User HANYA bisa SELECT baris miliknya sendiri
 -- Menutup celah ekstraksi massal pin_hash, duress_pin_hash, two_fa_secret, e2ee_key_backup
@@ -56,8 +57,9 @@ GRANT SELECT ON public.public_profiles TO anon;
 -- ============================================================================
 
 -- 1. Inisialisasi shared secret di tabel public.app_config jika belum ada
+-- Menggunakan generator random acak kriptografis 64 hex (setara 32 bytes) dari fungsi native Postgres
 INSERT INTO public.app_config (key, value)
-VALUES ('push_webhook_secret', 'mk_sec_' || encode(gen_random_bytes(32), 'hex'))
+VALUES ('push_webhook_secret', 'mk_sec_' || replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))
 ON CONFLICT (key) DO NOTHING;
 
 -- 2. Perbarui trigger function notify_push_webhook() agar mengirim x-webhook-secret
