@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
@@ -45,6 +46,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   final List<String> _tabs = ['A-Z', 'Baru Ditambahkan'];
   bool _isGridView = false;
   static const String _gridPrefKey = 'contact_list_is_grid_view';
+  bool _awaitingLocationPermissionForNearby = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -115,6 +117,24 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       // Auto-sync lokasi & teman sekitar saat aplikasi dibuka kembali
       if (ref.read(nearbyFriendsProvider).isEnabled) {
         ref.read(nearbyFriendsProvider.notifier).refreshNearby();
+      } else if (_awaitingLocationPermissionForNearby) {
+        _awaitingLocationPermissionForNearby = false;
+        _checkAndAutoResumeNearby();
+      }
+    }
+  }
+
+  Future<void> _checkAndAutoResumeNearby() async {
+    final isGranted = await Permission.location.isGranted;
+    if (isGranted && mounted) {
+      final success = await ref
+          .read(nearbyFriendsProvider.notifier)
+          .toggleSharing(true);
+      if (success && mounted) {
+        MekaarSnackbar.success(
+          context,
+          'Izin lokasi aktif. Teman Sekitar berhasil diaktifkan!',
+        );
       }
     }
   }
@@ -337,7 +357,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 if (!_isSearchActive &&
                     !wasDuress &&
                     (nearbyState.isEnabled || showNearbyPreview))
-                  NearbyFriendsCanvas(collapseProgress: _collapseProgress),
+                  NearbyFriendsCanvas(
+                    collapseProgress: _collapseProgress,
+                    onSettingsOpened: () {
+                      _awaitingLocationPermissionForNearby = true;
+                    },
+                  ),
 
                 const SizedBox(height: 4),
                 Expanded(

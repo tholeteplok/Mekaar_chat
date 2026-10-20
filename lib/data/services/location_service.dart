@@ -19,10 +19,31 @@ class LocationService {
     }
   }
 
+  /// Memeriksa apakah GPS/Layanan Lokasi perangkat sedang aktif
+  static Future<bool> isServiceEnabled() async {
+    try {
+      return await _location.serviceEnabled();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Meminta sistem OS untuk mengaktifkan GPS perangkat jika mati
+  static Future<bool> requestService() async {
+    try {
+      return await _location.requestService();
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Request location permission
   // [allowOpenSettings] default false agar tidak membajak layar secara otomatis (terutama saat alur darurat SOS)
   static Future<bool> requestPermission({bool allowOpenSettings = false}) async {
     try {
+      final currentStatus = await Permission.location.status;
+      if (currentStatus.isGranted) return true;
+
       final status = await Permission.location.request();
       if (status.isGranted) return true;
 

@@ -18,6 +18,7 @@ import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
 import '../providers/notification_preferences_provider.dart';
 import '../../chat/providers/nearby_friends_provider.dart';
+import '../../chat/utils/nearby_permission_helper.dart';
 import '../widgets/settings_tiles.dart';
 import '../widgets/account_snippet_card.dart';
 
@@ -515,13 +516,14 @@ class SettingsScreen extends ConsumerWidget {
                         ? null
                         : (value) async {
                             HapticService.trigger(MekaarHapticIntent.selection);
-                            final success = await sheetRef
-                                .read(nearbyFriendsProvider.notifier)
-                                .toggleSharing(value);
-                            if (!success && ctx.mounted) {
-                              MekaarSnackbar.error(
+                            if (!value) {
+                              await sheetRef
+                                  .read(nearbyFriendsProvider.notifier)
+                                  .toggleSharing(false);
+                            } else {
+                              await NearbyPermissionHelper.activateWithPermissionCheck(
                                 ctx,
-                                'Izin lokasi diperlukan untuk mengaktifkan fitur ini.',
+                                sheetRef,
                               );
                             }
                           },

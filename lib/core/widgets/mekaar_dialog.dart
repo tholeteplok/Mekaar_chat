@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
+import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/icons.dart';
 
@@ -143,6 +145,56 @@ class MekaarDialog extends StatelessWidget {
       ],
     );
     return shouldContinue ?? true;
+  }
+
+  /// Dialog mitigasi sentralisasi untuk mengarahkan pengguna ke Pengaturan HP saat izin lokasi ditolak permanen
+  static Future<bool> showLocationPermissionRequiredDialog({
+    required BuildContext context,
+    String title = 'Izin Lokasi Diperlukan',
+    String message =
+        'Fitur Teman Sekitar membutuhkan akses lokasi untuk mendeteksi jarak kasar secara aman dan anonim. '
+        'Karena izin sebelumnya dinonaktifkan di perangkat ini, silakan aktifkan izin lokasi di Pengaturan Aplikasi.',
+    String confirmLabel = 'Buka Pengaturan',
+    String cancelLabel = 'Nanti Saja',
+  }) async {
+    final confirmed = await showConfirmation<bool>(
+      context: context,
+      barrierDismissible: true,
+      icon: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: MekaarColors.guardianTeal.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          SolarIconsOutline.mapPointWave,
+          color: MekaarColors.guardianTeal,
+          size: 28,
+        ),
+      ),
+      title: title,
+      message: message,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            cancelLabel,
+            style: TextStyle(
+              color: MekaarColors.textSecondaryOf(context),
+            ),
+          ),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: MekaarColors.guardianTeal,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    );
+    return confirmed ?? false;
   }
 
   @override

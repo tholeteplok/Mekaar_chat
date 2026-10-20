@@ -11,6 +11,7 @@ import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -97,6 +98,19 @@ class _ChatThemeSettingsScreenState
         // ── 1. Header Terpusat (SettingsTopBar) ──
         const SettingsTopBar(title: 'Tema & Wallpaper Chat'),
 
+        // ── 2. Kartu Live Preview Statis (Fixed / Pinned di Atas) ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+          child: _buildLivePreviewCard(
+            context,
+            chatPref,
+            cardBg,
+            cardBorderColor,
+            textPrimary,
+            textSecondary,
+          ),
+        ),
+
         // ── Content Scrollable ──
         Expanded(
           child: SingleChildScrollView(
@@ -104,18 +118,6 @@ class _ChatThemeSettingsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── 2. Kartu Live Preview ──
-                _buildLivePreviewCard(
-                  context,
-                  chatPref,
-                  cardBg,
-                  cardBorderColor,
-                  textPrimary,
-                  textSecondary,
-                ),
-
-                const SizedBox(height: 20),
-
                 // ── 3. PRESET UTAMA — 1 KLIK (Border 2px brand.blue) ──
                 Text(
                   'PRESET UTAMA — 1 KLIK',
@@ -135,9 +137,9 @@ class _ChatThemeSettingsScreenState
                   textSecondary,
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // ── 4. KUSTOMISASI LANJUTAN (Border 1px standar) ──
+                // ── 4. KUSTOMISASI LANJUTAN (3 Kartu Tematik Terpadu) ──
                 Text(
                   'KUSTOMISASI LANJUTAN',
                   style: TextStyle(
@@ -149,64 +151,89 @@ class _ChatThemeSettingsScreenState
                 ),
                 const SizedBox(height: 8),
 
-                // Card A: Wallpaper Canvas
-                _buildOptionRowCard(
-                  context: context,
-                  icon: SolarIconsOutline.palette,
-                  title: 'Wallpaper canvas',
-                  value: _getWallpaperLabel(chatPref.wallpaperType),
-                  cardBg: cardBg,
-                  borderColor: cardBorderColor,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  onTap: () => _showWallpaperPicker(context, chatPref),
+                // Kartu 1: Wallpaper & Latar Chat
+                Container(
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cardBorderColor, width: 1.0),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildOptionTile(
+                        context: context,
+                        icon: SolarIconsOutline.palette,
+                        title: 'Wallpaper canvas',
+                        value: _getWallpaperLabel(chatPref.wallpaperType),
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(14),
+                          topRight: Radius.circular(14),
+                        ),
+                        onTap: () => _showWallpaperPicker(context, chatPref),
+                      ),
+                      const MekaarCardDivider(
+                        indent: 42,
+                        endIndent: 14,
+                      ),
+                      _buildOptionTile(
+                        context: context,
+                        icon: SolarIconsOutline.gallery,
+                        title: 'Pilih foto dari galeri',
+                        trailingIcon: SolarIconsOutline.altArrowRight,
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(14),
+                          bottomRight: Radius.circular(14),
+                        ),
+                        onTap: _pickImageFromGallery,
+                      ),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                // Card B: Gaya Gelembung Pesan
-                _buildOptionRowCard(
-                  context: context,
-                  icon: SolarIconsOutline.chatRoundCheck,
-                  title: 'Gaya gelembung pesan',
-                  value: _getBubbleStyleLabel(chatPref.bubbleStyle),
-                  cardBg: cardBg,
-                  borderColor: cardBorderColor,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  onTap: () => _showBubbleStylePicker(context, chatPref),
+                // Kartu 2: Gelembung Pesan (Gaya + Warna)
+                Container(
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cardBorderColor, width: 1.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildOptionTile(
+                        context: context,
+                        icon: SolarIconsOutline.chatRoundCheck,
+                        title: 'Gaya gelembung pesan',
+                        value: _getBubbleStyleLabel(chatPref.bubbleStyle),
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(14),
+                          topRight: Radius.circular(14),
+                        ),
+                        onTap: () => _showBubbleStylePicker(context, chatPref),
+                      ),
+                      const MekaarCardDivider(fullWidth: true),
+                      _buildBubbleColorContent(
+                        context,
+                        chatPref,
+                        cardBorderColor,
+                        textPrimary,
+                        textSecondary,
+                      ),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                // Card C: Warna Gelembung Pesan
-                _buildBubbleColorCard(
-                  context,
-                  chatPref,
-                  cardBg,
-                  cardBorderColor,
-                  textPrimary,
-                  textSecondary,
-                ),
-
-                const SizedBox(height: 8),
-
-                // Card D: Pilih Foto dari Galeri
-                _buildOptionRowCard(
-                  context: context,
-                  icon: SolarIconsOutline.gallery,
-                  title: 'Pilih foto dari galeri',
-                  trailingIcon: SolarIconsOutline.altArrowRight,
-                  cardBg: cardBg,
-                  borderColor: cardBorderColor,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  onTap: _pickImageFromGallery,
-                ),
-
-                const SizedBox(height: 8),
-
-                // Card E: Ukuran Teks Chat Slider
+                // Kartu 3: Ukuran Teks Chat Slider
                 _buildTextScaleCard(
                   context,
                   chatPref,
@@ -282,6 +309,10 @@ class _ChatThemeSettingsScreenState
         ChatPresetResolver.getRoomThemeSpec(pref, context);
     final isDark = MekaarColors.isDarkContext(context);
 
+    final headerIconColor = roomThemeSpec.iconColor;
+    final headerTextColor = roomThemeSpec.textColor;
+    final headerSubtitleColor = roomThemeSpec.subtitleColor;
+
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -291,45 +322,82 @@ class _ChatThemeSettingsScreenState
       padding: const EdgeInsets.all(10),
       child: Column(
         children: [
-          // Mini Header Toolbar
+          // Mini Header Toolbar (Posisi Ikon Sama Persis dengan ChatScreen)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Sisi Kiri: Back Arrow + Mini Avatar + Nama + Online Subtitle
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       SolarIconsOutline.arrowLeft,
-                      size: 16,
-                      color: AppColors.blue,
+                      size: 18,
+                      color: headerIconColor,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Pratinjau tema',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: textPrimary,
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.blue,
                       ),
+                      child: const Center(
+                        child: Text(
+                          'M',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pratinjau tema',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: headerTextColor,
+                          ),
+                        ),
+                        Text(
+                          'Online',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: headerSubtitleColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                // Sisi Kanan: Video Call + Voice Call + Vertical Menu Dots (Sama persis dengan ChatScreen)
                 Row(
                   children: [
-                    const Icon(
-                      SolarIconsOutline.phone,
-                      size: 16,
-                      color: AppColors.blue,
+                    Icon(
+                      SolarIconsOutline.videocamera,
+                      size: 18,
+                      color: headerIconColor,
                     ),
-                    const SizedBox(width: 12),
-                    const RotatedBox(
-                      quarterTurns: 1,
-                      child: Icon(
-                        SolarIconsOutline.menuDots,
-                        size: 16,
-                        color: AppColors.blue,
-                      ),
+                    const SizedBox(width: 10),
+                    Icon(
+                      SolarIconsOutline.phoneRounded,
+                      size: 18,
+                      color: headerIconColor,
+                    ),
+                    const SizedBox(width: 10),
+                    Icon(
+                      SolarIconsOutline.menuDots,
+                      size: 18,
+                      color: headerIconColor,
                     ),
                   ],
                 ),
@@ -426,22 +494,16 @@ class _ChatThemeSettingsScreenState
             ),
           ),
 
-          // Mini Composer Input Bar
+          // Mini Composer Input Bar (Posisi Ikon Sama Persis dengan ChatComposer)
           Padding(
-            padding: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.only(top: 8),
             child: Row(
               children: [
-                Icon(
-                  SolarIconsOutline.paperclip,
-                  size: 16,
-                  color: textPrimary.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 10,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
                       color: isDark
@@ -449,19 +511,36 @@ class _ChatThemeSettingsScreenState
                           : MekaarColors.composerPillLight,
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(
-                      'Ketik pesan…',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: textPrimary.withValues(alpha: 0.5),
-                      ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          SolarIconsOutline.smileCircle,
+                          size: 18,
+                          color: textSecondary.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Ketik pesan…',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textPrimary.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          SolarIconsOutline.paperclip,
+                          size: 18,
+                          color: textSecondary.withValues(alpha: 0.7),
+                        ),
+                      ],
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: roomThemeSpec.primaryAccentColor,
@@ -469,7 +548,7 @@ class _ChatThemeSettingsScreenState
                   child: const Center(
                     child: Icon(
                       SolarIconsOutline.plain,
-                      size: 14,
+                      size: 15,
                       color: Colors.white,
                     ),
                   ),
@@ -559,32 +638,26 @@ class _ChatThemeSettingsScreenState
     );
   }
 
-  /// ── Row Card Generic untuk Kustomisasi Lanjutan ──
-  Widget _buildOptionRowCard({
+  /// ── Row Tile untuk Item di dalam Kartu Kustomisasi ──
+  Widget _buildOptionTile({
     required BuildContext context,
     required IconData icon,
     required String title,
     String? value,
     IconData trailingIcon = SolarIconsOutline.altArrowDown,
-    required Color cardBg,
-    required Color borderColor,
     required Color textPrimary,
     required Color textSecondary,
+    BorderRadius? borderRadius,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
+      borderRadius: borderRadius,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 1.0),
-        ),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: AppColors.blue),
+            Icon(icon, size: 18, color: AppColors.blue),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -617,11 +690,10 @@ class _ChatThemeSettingsScreenState
     );
   }
 
-  /// ── Card Warna Gelembung Pesan ──
-  Widget _buildBubbleColorCard(
+  /// ── Konten Warna Gelembung Pesan di dalam Kartu Terpadu ──
+  Widget _buildBubbleColorContent(
     BuildContext context,
     ChatThemePreference pref,
-    Color cardBg,
     Color borderColor,
     Color textPrimary,
     Color textSecondary,
@@ -644,13 +716,8 @@ class _ChatThemeSettingsScreenState
       return Color(cleaned.length == 6 ? 0xFF000000 | val : val);
     }
 
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor, width: 1.0),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

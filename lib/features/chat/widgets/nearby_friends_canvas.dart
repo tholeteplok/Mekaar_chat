@@ -14,13 +14,16 @@ import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
 import 'nearby_orbital_canvas.dart';
 import 'nearby_teaser_card.dart';
+import '../utils/nearby_permission_helper.dart';
 
 class NearbyFriendsCanvas extends ConsumerWidget {
   final double collapseProgress;
+  final VoidCallback? onSettingsOpened;
 
   const NearbyFriendsCanvas({
     super.key,
     this.collapseProgress = 0.0,
+    this.onSettingsOpened,
   });
 
   Future<void> _handleFriendTap(
@@ -131,9 +134,11 @@ class NearbyFriendsCanvas extends ConsumerWidget {
         collapseProgress: collapseProgress,
         canvasHeight: dynamicHeight,
         onActivate: () async {
-          await ref
-              .read(nearbyFriendsProvider.notifier)
-              .toggleSharing(true);
+          await NearbyPermissionHelper.activateWithPermissionCheck(
+            context,
+            ref,
+            onSettingsOpened: onSettingsOpened,
+          );
         },
       );
     }
