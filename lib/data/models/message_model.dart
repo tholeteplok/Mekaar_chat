@@ -1,4 +1,6 @@
-enum MessageType { text, image, voice, video, system, location }
+import 'dart:convert';
+
+enum MessageType { text, image, voice, video, system, location, file }
 
 class Message {
   final String id;
@@ -163,5 +165,72 @@ class Message {
       isEncrypted: isEncrypted ?? this.isEncrypted,
       isSending: isSending ?? this.isSending,
     );
+  }
+
+  /// Metadata lampiran berkas jika pesan bertipe [MessageType.file].
+  FileAttachmentMeta? get fileMeta =>
+      type == MessageType.file ? FileAttachmentMeta.fromContent(content) : null;
+}
+
+/// Metadata terenkripsi untuk lampiran berkas dokumen pada pesan chat.
+class FileAttachmentMeta {
+  final String fileName;
+  final int fileSize;
+  final String? mimeType;
+  final String? keyB64;
+  final String? caption;
+
+  const FileAttachmentMeta({
+    required this.fileName,
+    required this.fileSize,
+    this.mimeType,
+    this.keyB64,
+    this.caption,
+  });
+
+  factory FileAttachmentMeta.fromContent(String content, {String? fallbackName}) {
+    final trimmed = content.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        final map = jsonDecode(trimmed) as Map<String, dynamic>;
+        return FileAttachmentMeta(
+          fileName: map['file_name'] as String? ?? fallbackName ?? 'Berkas Dokumen',
+          fileSize: (map['file_size'] as num?)?.toInt() ?? 0,
+          mimeType: map['mime_type'] as String?,
+          keyB64: map['key'] as String?,
+          caption: map['caption'] as String?,
+        );
+      } catch (_) {}
+    }
+    return FileAttachmentMeta(
+      fileName: fallbackName ?? 'Berkas Dokumen',
+      fileSize: 0,
+      caption: trimmed.isNotEmpty ? trimmed : null,
+    );
+  }
+
+  String toContentJson() {
+    return jsonEncode({
+      if (keyB64 != null) 'key': keyB64,
+      'file_name': fileName,
+      'file_size': fileSize,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (caption != null && caption!.trim().isNotEmpty) 'caption': caption!.trim(),
+    });
+  }
+
+  String get formattedFileSize {
+    if (fileSize <= 0) return '';
+    if (fileSize < 1024) return '$fileSize B';
+    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String get fileExtension {
+    final dotIdx = fileName.lastIndexOf('.');
+    if (dotIdx != -1 && dotIdx < fileName.length - 1) {
+      return fileName.substring(dotIdx + 1).toUpperCase();
+    }
+    return 'FILE';
   }
 }

@@ -9,18 +9,22 @@ import 'e2ee_service.dart';
 class MediaUploadService {
   final SupabaseClient _client;
 
+  /// Batas ukuran maksimal berkas: 15 MB
+  /// Disesuaikan dengan batas kuota penyimpanan (1 GB) dan bandwidth egress (2 GB/bulan) Supabase Free Tier.
+  static const int maxFileSizeBytes = 15 * 1024 * 1024;
+
   MediaUploadService(this._client);
 
   /// Uploads [file] to chat-media bucket under [roomId] folder.
   /// Returns the public URL of the uploaded file.
   Future<String> uploadChatMedia(File file, String roomId) async {
     final length = await file.length();
-    if (length > 50 * 1024 * 1024) {
-      throw Exception('Ukuran file melebihi batas maksimal 50 MB.');
+    if (length > maxFileSizeBytes) {
+      throw Exception('Ukuran file melebihi batas maksimal 15 MB (keterbatasan kuota Supabase gratis).');
     }
 
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-    final ext = _extensionFromMime(mimeType);
+    final ext = _extensionFromFileOrMime(file.path, mimeType);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final userId = _client.auth.currentUser?.id ?? 'anon';
     final storagePath = '$roomId/${userId}_$timestamp$ext';
@@ -39,11 +43,11 @@ class MediaUploadService {
   /// Returns the public URL and the Base64-encoded secret key used for encryption.
   Future<({String url, String keyB64})> uploadEncryptedChatMedia(File file, String roomId) async {
     final length = await file.length();
-    if (length > 50 * 1024 * 1024) {
-      throw Exception('Ukuran file melebihi batas maksimal 50 MB.');
+    if (length > maxFileSizeBytes) {
+      throw Exception('Ukuran file melebihi batas maksimal 15 MB (keterbatasan kuota Supabase gratis).');
     }
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-    final ext = _extensionFromMime(mimeType);
+    final ext = _extensionFromFileOrMime(file.path, mimeType);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final userId = _client.auth.currentUser?.id ?? 'anon';
     final storagePath = '$roomId/${userId}_$timestamp$ext';
@@ -72,6 +76,17 @@ class MediaUploadService {
         .createSignedUrl(storagePath, expiresInSeconds);
   }
 
+  String _extensionFromFileOrMime(String filePath, String mimeType) {
+    final dotIdx = filePath.lastIndexOf('.');
+    if (dotIdx != -1 && dotIdx < filePath.length - 1) {
+      final ext = filePath.substring(dotIdx).toLowerCase();
+      if (!ext.contains(' ') && ext.length <= 10) {
+        return ext;
+      }
+    }
+    return _extensionFromMime(mimeType);
+  }
+
   String _extensionFromMime(String mimeType) {
     if (mimeType.startsWith('image/jpeg')) { return '.jpg'; }
     if (mimeType.startsWith('image/png')) { return '.png'; }
@@ -83,6 +98,15 @@ class MediaUploadService {
     if (mimeType.startsWith('audio/wav')) { return '.wav'; }
     if (mimeType.startsWith('audio/m4a') ||
         mimeType.startsWith('audio/x-m4a')) { return '.m4a'; }
+    if (mimeType.contains('pdf')) { return '.pdf'; }
+    if (mimeType.contains('word') || mimeType.contains('document')) { return '.docx'; }
+    if (mimeType.contains('excel') || mimeType.contains('sheet')) { return '.xlsx'; }
+    if (mimeType.contains('presentation') || mimeType.contains('powerpoint')) { return '.pptx'; }
+    if (mimeType.contains('text/plain')) { return '.txt'; }
+    if (mimeType.contains('csv')) { return '.csv'; }
+    if (mimeType.contains('zip')) { return '.zip'; }
+    if (mimeType.contains('x-rar')) { return '.rar'; }
+    if (mimeType.contains('7z')) { return '.7z'; }
     return '';
   }
 

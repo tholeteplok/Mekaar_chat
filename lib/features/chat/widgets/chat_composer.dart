@@ -26,7 +26,9 @@ import '../../../data/models/emoji_pack_model.dart';
 import '../providers/emoji_pack_provider.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
+import 'package:file_picker/file_picker.dart';
 import 'image_send_preview_sheet.dart';
+import 'document_send_preview_sheet.dart';
 
 class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -295,6 +297,69 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     }
   }
 
+  Future<void> _pickDocument() async {
+    if (widget.onSendMedia == null) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+      final pickedPath = result.files.single.path;
+      if (pickedPath == null) return;
+
+      final file = File(pickedPath);
+      if (!await file.exists()) return;
+
+      final fileSize = await file.length();
+      // Batas 15 MB (Keterbatasan Paket Supabase Free Tier)
+      const maxDocBytes = 15 * 1024 * 1024;
+      if (fileSize > maxDocBytes) {
+        if (mounted) {
+          MekaarSnackbar.error(
+            context,
+            'Ukuran berkas melebihi batas maksimal 15 MB (paket gratis Supabase).',
+          );
+        }
+        return;
+      }
+
+      final fileName = result.files.single.name;
+
+      if (!mounted) return;
+
+      // Buka lembar pratinjau dokumen sebelum dikirim
+      final sendResult = await Navigator.of(context).push<DocumentSendResult>(
+        MaterialPageRoute(
+          builder: (ctx) => DocumentSendPreviewSheet(
+            file: file,
+            fileName: fileName,
+            fileSize: fileSize,
+            replyMessage: widget.replyMessage,
+            onCancelReply: widget.onCancelReply,
+            roomThemeSpec: widget.roomThemeSpec,
+          ),
+        ),
+      );
+
+      if (sendResult == null || !mounted) return;
+
+      setState(() => _isUploading = true);
+      await widget.onSendMedia!(
+        sendResult.file,
+        MessageType.file,
+        caption: sendResult.caption,
+      );
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal memilih berkas: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
   void _showAttachmentSheet() {
     HapticService.trigger(MekaarHapticIntent.selection);
     MekaarBottomSheet.show(
@@ -306,6 +371,17 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
           _attachItem(
             ctx,
             step: 0,
+            icon: SolarIconsOutline.documentText,
+            label: 'Dokumen / Berkas',
+            color: AppColors.blue,
+            onTap: () {
+              Navigator.pop(ctx);
+              _pickDocument();
+            },
+          ),
+          _attachItem(
+            ctx,
+            step: 1,
             icon: SolarIconsOutline.gallery,
             label: 'Pilih dari Galeri',
             color: MekaarColors.info,

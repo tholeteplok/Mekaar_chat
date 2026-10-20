@@ -26,6 +26,7 @@ import '../../features/chat/providers/emoji_pack_provider.dart';
 import '../utils/emoji_shortcode_parser.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'mekaar_snackbar.dart';
+import '../../data/services/file_export_service.dart';
 
 /// Helper publik untuk mendapatkan atau mendekripsi file media pesan
 Future<File?> getOrDecryptMedia({
@@ -863,6 +864,14 @@ class ChatBubble extends ConsumerWidget {
               ),
         );
 
+      case MessageType.file:
+        return _FileBubbleCard(
+          message: message,
+          isMe: isMe,
+          textColor: textColor,
+          onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
+        );
+
       case MessageType.image:
         return _ImageBubble(
           message: message,
@@ -1068,6 +1077,11 @@ class ChatBubble extends ConsumerWidget {
             break;
           case MessageType.video:
             previewText = '🎥 Video';
+            break;
+          case MessageType.file:
+            final fMeta = target.fileMeta;
+            final fName = fMeta?.fileName ?? 'Dokumen';
+            previewText = '📄 $fName';
             break;
           case MessageType.text:
             previewText = target.content.isNotEmpty ? target.content : 'Pesan';
@@ -1280,11 +1294,46 @@ class _MessageContextMenu extends StatelessWidget {
                 MekaarSnackbar.success(context, 'Pesan disalin');
               },
             ),
+          if (!message.isDeleted &&
+              (message.type == MessageType.file ||
+                  (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)))
+            _menuItem(
+              context,
+              icon: SolarIconsOutline.inboxIn,
+              label: 'Unduh ke Download/Mekaar',
+              onTap: () async {
+                Navigator.pop(context);
+                MekaarSnackbar.info(context, 'Mengunduh dan mengekspor berkas...');
+                final localFile = await FileExportService.resolveOrDownloadFile(message);
+                if (!context.mounted) return;
+                if (localFile != null) {
+                  final meta = message.fileMeta;
+                  final fileName = meta?.fileName ?? localFile.path.split(Platform.pathSeparator).last;
+                  final exported = await FileExportService.exportToMekaarDownloads(
+                    file: localFile,
+                    fileName: fileName,
+                    mimeType: meta?.mimeType,
+                  );
+                  if (!context.mounted) return;
+                  if (exported != null) {
+                    HapticService.trigger(MekaarHapticIntent.success);
+                    MekaarSnackbar.success(
+                      context,
+                      'Berkas berhasil disimpan di $exported',
+                    );
+                    return;
+                  }
+                }
+                HapticService.trigger(MekaarHapticIntent.warning);
+                MekaarSnackbar.error(context, 'Gagal mengunduh berkas');
+              },
+            ),
           if (onSaveToVault != null &&
               !message.isDeleted &&
               (message.type == MessageType.image ||
                   message.type == MessageType.video ||
                   message.type == MessageType.voice ||
+                  message.type == MessageType.file ||
                   (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)))
             _menuItem(
               context,
@@ -2530,6 +2579,246 @@ class _RichEmojiContent extends StatelessWidget {
     }
     return RichText(
       text: TextSpan(style: baseStyle, children: spans),
+    );
+  }
+}
+
+
+/// Kartu tampilan gelembung berkas/dokumen terenkripsi pada pesan chat.
+class _FileBubbleCard extends StatefulWidget {
+  final Message message;
+  final bool isMe;
+  final Color textColor;
+  final VoidCallback? onSaveToVault;
+
+  const _FileBubbleCard({
+    required this.message,
+    required this.isMe,
+    required this.textColor,
+    this.onSaveToVault,
+  });
+
+  @override
+  State<_FileBubbleCard> createState() => _FileBubbleCardState();
+}
+
+class _FileBubbleCardState extends State<_FileBubbleCard> {
+  bool _isDownloading = false;
+  File? _cachedFile;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLocalCache();
+  }
+
+  Future<void> _checkLocalCache() async {
+    final meta = widget.message.fileMeta;
+    final fileName = meta?.fileName ?? 'dokumen';
+    final tempDir = await getTemporaryDirectory();
+    final safeFileName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final file = File('${tempDir.path}/mekaar_file_${widget.message.id}_$safeFileName');
+    if (await file.exists() && await file.length() > 0) {
+      if (mounted) setState(() => _cachedFile = file);
+    }
+  }
+
+  Future<void> _handleTap() async {
+    if (_isDownloading) return;
+
+    if (_cachedFile != null) {
+      final meta = widget.message.fileMeta;
+      final opened = await FileExportService.openFileWithChooser(
+        file: _cachedFile!,
+        mimeType: meta?.mimeType,
+      );
+      if (!opened && mounted) {
+        MekaarSnackbar.info(context, 'Tidak ada aplikasi yang dapat membuka berkas ini.');
+      }
+      return;
+    }
+
+    setState(() => _isDownloading = true);
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    final file = await FileExportService.resolveOrDownloadFile(widget.message);
+    if (!mounted) return;
+    setState(() {
+      _isDownloading = false;
+      _cachedFile = file;
+    });
+
+    if (file != null) {
+      final meta = widget.message.fileMeta;
+      await FileExportService.openFileWithChooser(
+        file: file,
+        mimeType: meta?.mimeType,
+      );
+    } else {
+      MekaarSnackbar.error(context, 'Gagal mengunduh berkas.');
+    }
+  }
+
+  ({IconData icon, Color color}) _resolveFileTypeStyle(String ext) {
+    final cleanExt = ext.toLowerCase();
+    if (cleanExt == 'pdf') {
+      return (icon: SolarIconsBold.fileText, color: MekaarColors.sosRed);
+    }
+    if (['doc', 'docx', 'txt', 'rtf', 'odt'].contains(cleanExt)) {
+      return (icon: SolarIconsBold.documentText, color: AppColors.blue);
+    }
+    if (['xls', 'xlsx', 'csv', 'ods'].contains(cleanExt)) {
+      return (icon: SolarIconsBold.documentAdd, color: MekaarColors.guardianTeal);
+    }
+    if (['ppt', 'pptx', 'odp'].contains(cleanExt)) {
+      return (icon: SolarIconsBold.presentationGraph, color: Colors.deepOrange);
+    }
+    if (['zip', 'rar', '7z', 'tar', 'gz'].contains(cleanExt)) {
+      return (icon: SolarIconsBold.archive, color: Colors.amber.shade800);
+    }
+    return (icon: SolarIconsBold.file, color: MekaarColors.info);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = widget.message.fileMeta ??
+        FileAttachmentMeta(
+          fileName: 'Berkas Dokumen',
+          fileSize: 0,
+        );
+
+    final style = _resolveFileTypeStyle(meta.fileExtension);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = widget.isMe
+        ? Colors.black.withValues(alpha: 0.1)
+        : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.04));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: _handleTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: widget.textColor.withValues(alpha: 0.15),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: style.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    style.icon,
+                    color: style.color,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        meta.fileName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: widget.textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: style.color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              meta.fileExtension,
+                              style: TextStyle(
+                                color: style.color,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (meta.formattedFileSize.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              meta.formattedFileSize,
+                              style: TextStyle(
+                                color: widget.textColor.withValues(alpha: 0.7),
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: widget.textColor.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: _isDownloading
+                      ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(widget.textColor),
+                          ),
+                        )
+                      : Icon(
+                          _cachedFile != null
+                              ? SolarIconsOutline.eye
+                              : SolarIconsOutline.download,
+                          color: widget.textColor,
+                          size: 18,
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (meta.caption != null && meta.caption!.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              meta.caption!,
+              style: TextStyle(
+                color: widget.textColor,
+                fontSize: 14,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

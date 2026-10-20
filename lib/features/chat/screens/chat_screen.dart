@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:location/location.dart' as loc;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mime/mime.dart';
+import '../../../data/services/file_export_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
@@ -648,7 +650,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
       final trimmedCaption = caption?.trim();
       String contentPayload;
-      if (fileKeyB64 != null && fileKeyB64.isNotEmpty) {
+      if (type == MessageType.file) {
+        final originalFileName = file.path.split(Platform.pathSeparator).last;
+        final fileSize = await file.length();
+        final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+        contentPayload = FileAttachmentMeta(
+          fileName: originalFileName,
+          fileSize: fileSize,
+          mimeType: mimeType,
+          keyB64: fileKeyB64,
+          caption: trimmedCaption,
+        ).toContentJson();
+      } else if (fileKeyB64 != null && fileKeyB64.isNotEmpty) {
         if (trimmedCaption != null && trimmedCaption.isNotEmpty) {
           contentPayload = jsonEncode({
             'key': fileKeyB64,
@@ -875,6 +888,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       MekaarSnackbar.error(
         context,
         'Gagal menyimpan ke Brankas: $e',
+      );
+    }
+  }
+
+  Future<void> _handleDownloadSelectedFiles(List<Message> downloadableMessages) async {
+    _clearSelection();
+    if (downloadableMessages.isEmpty) return;
+
+    MekaarSnackbar.info(
+      context,
+      downloadableMessages.length == 1
+          ? 'Mengunduh dan mendekripsi berkas...'
+          : 'Mengunduh dan mendekripsi ${downloadableMessages.length} berkas...',
+    );
+
+    int successCount = 0;
+    String? lastExportedPath;
+
+    for (final msg in downloadableMessages) {
+      try {
+        final localFile = await FileExportService.resolveOrDownloadFile(msg);
+        if (localFile != null) {
+          final meta = msg.fileMeta;
+          final fileName = meta?.fileName ?? localFile.path.split(Platform.pathSeparator).last;
+          final exported = await FileExportService.exportToMekaarDownloads(
+            file: localFile,
+            fileName: fileName,
+            mimeType: meta?.mimeType,
+          );
+          if (exported != null) {
+            successCount++;
+            lastExportedPath = exported;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    if (successCount > 0) {
+      HapticService.trigger(MekaarHapticIntent.success);
+      MekaarSnackbar.success(
+        context,
+        successCount == 1
+            ? 'Berkas berhasil disimpan di $lastExportedPath'
+            : '$successCount berkas berhasil disimpan di folder Download/Mekaar/',
+      );
+    } else {
+      HapticService.trigger(MekaarHapticIntent.warning);
+      MekaarSnackbar.error(
+        context,
+        'Gagal mengunduh berkas. Pastikan koneksi internet stabil.',
       );
     }
   }
@@ -1447,10 +1512,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           (m.type == MessageType.image ||
               m.type == MessageType.video ||
               m.type == MessageType.voice ||
+              m.type == MessageType.file ||
               (m.mediaUrl != null && m.mediaUrl!.isNotEmpty)),
     ).toList();
     final canSaveToVault =
         savableMediaMessages.isNotEmpty && _selectedCallIds.isEmpty;
+
+    final downloadableFileMessages = rawMessages.where(
+      (m) =>
+          _selectedMessageIds.contains(m.id) &&
+          !m.isDeleted &&
+          !m.isSilentDeleted &&
+          (m.type == MessageType.file ||
+              m.type == MessageType.image ||
+              m.type == MessageType.video ||
+              m.type == MessageType.voice) &&
+          m.mediaUrl != null &&
+          m.mediaUrl!.isNotEmpty,
+    ).toList();
+    final canDownload =
+        downloadableFileMessages.isNotEmpty && _selectedCallIds.isEmpty;
 
     return Container(
       padding: EdgeInsets.only(top: topPadding),
@@ -1527,6 +1608,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   rawMessages,
                   forwardingProtection: forwardingProtection,
                 ),
+              ),
+            if (canDownload)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.inboxIn,
+                  size: 22,
+                  color: iconColor,
+                ),
+                tooltip: 'Unduh ke Download/Mekaar',
+                onPressed: () =>
+                    _handleDownloadSelectedFiles(downloadableFileMessages),
               ),
             if (canSaveToVault)
               IconButton(

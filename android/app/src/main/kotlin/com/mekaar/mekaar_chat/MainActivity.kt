@@ -114,6 +114,25 @@ class MainActivity : FlutterActivity() {
                 "openDownloadsFolder" -> {
                     openDownloadsFolder(result)
                 }
+                "exportFileToMekaarDownloads" -> {
+                    val filePath = call.argument<String>("filePath")
+                    val fileName = call.argument<String>("fileName") ?: "berkas"
+                    val mimeType = call.argument<String>("mimeType")
+                    if (filePath != null) {
+                        exportFileToMekaarDownloads(filePath, fileName, mimeType, result)
+                    } else {
+                        result.error("INVALID_PATH", "File path cannot be null", null)
+                    }
+                }
+                "openFileWithChooser" -> {
+                    val filePath = call.argument<String>("filePath")
+                    val mimeType = call.argument<String>("mimeType")
+                    if (filePath != null) {
+                        openFileWithChooser(filePath, mimeType, result)
+                    } else {
+                        result.error("INVALID_PATH", "File path cannot be null", null)
+                    }
+                }
                 "verifyApk" -> {
                     val filePath = call.argument<String>("filePath")
                     if (filePath != null) {
@@ -402,6 +421,102 @@ class MainActivity : FlutterActivity() {
             }
         } catch (_: Exception) {
             result.success(false)
+        }
+    }
+
+    private fun exportFileToMekaarDownloads(
+        filePath: String,
+        fileName: String,
+        mimeType: String?,
+        result: MethodChannel.Result
+    ) {
+        try {
+            val sourceFile = File(filePath)
+            if (!sourceFile.exists()) {
+                result.error("FILE_NOT_FOUND", "Source file not found at $filePath", null)
+                return
+            }
+
+            var exportedPath: String? = null
+            val resolvedMime = mimeType ?: "application/octet-stream"
+
+            // 1. Simpan via MediaStore (Android 10 - 15+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = applicationContext.contentResolver
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, resolvedMime)
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Mekaar")
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    resolver.openOutputStream(uri)?.use { out ->
+                        FileInputStream(sourceFile).use { input ->
+                            input.copyTo(out)
+                        }
+                    }
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                    resolver.update(uri, contentValues, null, null)
+                    exportedPath = "Download/Mekaar/$fileName"
+                }
+            }
+
+            // 2. Fallback untuk Android < 10
+            if (exportedPath == null) {
+                val mekaarDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    "Mekaar"
+                )
+                if (!mekaarDir.exists()) {
+                    mekaarDir.mkdirs()
+                }
+                val destFile = File(mekaarDir, fileName)
+                sourceFile.copyTo(destFile, overwrite = true)
+                exportedPath = destFile.absolutePath
+            }
+
+            result.success(exportedPath)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error exporting file to Mekaar downloads", e)
+            result.error("EXPORT_ERROR", e.message, null)
+        }
+    }
+
+    private fun openFileWithChooser(
+        filePath: String,
+        mimeType: String?,
+        result: MethodChannel.Result
+    ) {
+        try {
+            val file = File(filePath)
+            if (!file.exists()) {
+                result.error("FILE_NOT_FOUND", "File not found at $filePath", null)
+                return
+            }
+
+            val uri = FileProvider.getUriForFile(
+                applicationContext,
+                "${applicationContext.packageName}.fileprovider",
+                file
+            )
+
+            val resolvedMime = mimeType ?: "application/octet-stream"
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, resolvedMime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            val chooser = Intent.createChooser(intent, "Buka Berkas Dengan").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(chooser)
+            result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error opening file with chooser", e)
+            result.error("OPEN_FILE_ERROR", e.message, null)
         }
     }
 
