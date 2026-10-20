@@ -21,6 +21,18 @@ void main() {
       expect(updateService.isNewerVersion('1.0.10', '1.0.9'), isTrue);
     });
 
+    test('Deteksi versi baru pada rollover transisi (max 99)', () {
+      // Patch rollover ke minor berikutnya (v1.1.99 -> v1.2.0)
+      expect(updateService.isNewerVersion('1.2.0', '1.1.99'), isTrue);
+      expect(updateService.isNewerVersion('v1.2.0', 'v1.1.99'), isTrue);
+      expect(updateService.isNewerVersion('1.1.99', '1.2.0'), isFalse);
+
+      // Minor rollover ke major berikutnya (v1.99.99 -> v2.0.0)
+      expect(updateService.isNewerVersion('2.0.0', '1.99.99'), isTrue);
+      expect(updateService.isNewerVersion('v2.0.0', 'v1.99.99'), isTrue);
+      expect(updateService.isNewerVersion('1.99.99', '2.0.0'), isFalse);
+    });
+
     test('Versi lama atau sama menghasilkan false', () {
       expect(updateService.isNewerVersion('1.0.0', '1.0.0'), isFalse);
       expect(updateService.isNewerVersion('v1.0.0', '1.0.0+1'), isFalse);

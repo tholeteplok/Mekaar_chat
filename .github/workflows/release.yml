@@ -55,18 +55,36 @@ jobs:
             MINOR=${MINOR:-0}
             PATCH=${PATCH:-0}
 
+            NEW_MAJOR=$MAJOR
+            NEW_MINOR=$MINOR
+            NEW_PATCH=$PATCH
+
             if [ "$COMMIT_COUNT" -ge 6 ]; then
-              # Jika commit >= 6: bump minor (+0.1.0)
+              # Jika commit >= 6: bump minor (+0.1.0) dan reset patch ke 0
               NEW_MINOR=$((MINOR + 1))
-              NEW_PATCH=$PATCH
-              NEW_VERSION="v${MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
+              NEW_PATCH=0
             elif [ "$COMMIT_COUNT" -gt 0 ]; then
               # Jika commit 1-5: bump patch (+0.0.1)
               NEW_PATCH=$((PATCH + 1))
-              NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
-            else
+            fi
+
+            # Rollover Max 99: jika patch >= 100, naikkan minor dan reset patch ke 0
+            if [ "$NEW_PATCH" -ge 100 ]; then
+              NEW_MINOR=$((NEW_MINOR + 1))
+              NEW_PATCH=0
+            fi
+
+            # Rollover Max 99: jika minor >= 100, naikkan major dan reset minor ke 0
+            if [ "$NEW_MINOR" -ge 100 ]; then
+              NEW_MAJOR=$((NEW_MAJOR + 1))
+              NEW_MINOR=0
+            fi
+
+            if [ "$COMMIT_COUNT" -eq 0 ]; then
               # Tidak ada commit baru, pertahankan tag lama
               NEW_VERSION="$LATEST_TAG"
+            else
+              NEW_VERSION="v${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
             fi
           fi
 
