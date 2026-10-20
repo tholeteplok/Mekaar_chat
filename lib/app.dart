@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/routes/app_routes.dart';
 import 'core/constants/themes.dart';
+import 'core/constants/typography.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/font_provider.dart';
 import 'core/widgets/screen_protection_widgets.dart';
@@ -33,6 +34,7 @@ class MekaarApp extends ConsumerWidget {
     final themeMode = ref.watch(resolvedThemeModeProvider);
     final fontFamily =
         ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
+    MekaarTypography.fontFamily = fontFamily;
 
     return MaterialApp(
       navigatorKey: AppNavigator.navigatorKey,

@@ -26,6 +26,7 @@ import '../../features/chat/providers/emoji_pack_provider.dart';
 import '../utils/emoji_shortcode_parser.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/typography.dart';
+import '../providers/font_provider.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'mekaar_snackbar.dart';
 import '../../data/services/file_export_service.dart';
@@ -445,11 +446,15 @@ class ChatBubble extends ConsumerWidget {
         : false;
     final isOnlyEmoji = emojiCount > 0 || singleCustom;
 
+    final activeFontFamily = ref.watch(fontFamilyProvider).valueOrNull ??
+        MekaarTypography.fontFamily;
+
     // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
     final spec = ChatPresetResolver.getBubbleSpec(
       chatPref,
       context,
       isMe: isMe,
+      fontFamily: activeFontFamily,
     );
 
     // Deteksi gambar & payload caption cerdas
@@ -477,7 +482,7 @@ class ChatBubble extends ConsumerWidget {
     BorderRadius radius = spec.borderRadius;
     List<BoxShadow>? shadows = spec.boxShadow;
     Color textColor = spec.textColor;
-    String? fontFamily = spec.fontFamily ?? MekaarTypography.fontFamily;
+    String? fontFamily = spec.fontFamily ?? activeFontFamily;
 
     if (isDeleted) {
       bubbleColor = MekaarColors.surface3Of(context);

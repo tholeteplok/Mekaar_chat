@@ -244,6 +244,78 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     }
   }
 
+  Future<void> _pickMediaFromGallery() async {
+    if (widget.onSendMedia == null) return;
+    try {
+      final picked = await _picker.pickMedia(
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (picked == null || !mounted) return;
+
+      final path = picked.path.toLowerCase();
+      final mime = picked.mimeType?.toLowerCase() ?? '';
+      final isVideo = mime.startsWith('video/') ||
+          path.endsWith('.mp4') ||
+          path.endsWith('.mov') ||
+          path.endsWith('.m4v') ||
+          path.endsWith('.avi') ||
+          path.endsWith('.mkv') ||
+          path.endsWith('.webm') ||
+          path.endsWith('.3gp');
+
+      if (isVideo) {
+        setState(() => _isUploading = true);
+        final compressed = await MediaCompressor.compressVideo(File(picked.path));
+
+        // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
+        const maxVideoBytes = 15 * 1024 * 1024;
+        final videoSize = await compressed.length();
+        if (videoSize > maxVideoBytes) {
+          if (mounted) {
+            MekaarSnackbar.error(
+              context,
+              'Ukuran video (${(videoSize / (1024 * 1024)).toStringAsFixed(1)} MB) melebihi batas maksimal 15 MB (paket gratis Supabase).',
+            );
+          }
+          return;
+        }
+
+        await widget.onSendMedia!(compressed, MessageType.video);
+      } else {
+        setState(() => _isUploading = true);
+        final compressed = await MediaCompressor.compressImage(File(picked.path));
+        if (!mounted) return;
+        setState(() => _isUploading = false);
+
+        final result = await Navigator.of(context).push<ImageSendResult>(
+          MaterialPageRoute(
+            builder: (_) => ImageSendPreviewSheet(
+              imageFile: compressed,
+              replyMessage: widget.replyMessage,
+              onCancelReply: widget.onCancelReply,
+              roomThemeSpec: widget.roomThemeSpec,
+            ),
+          ),
+        );
+
+        if (result == null || !mounted) return;
+
+        setState(() => _isUploading = true);
+        await widget.onSendMedia!(
+          result.file,
+          MessageType.image,
+          caption: result.caption,
+          isViewOnce: result.isViewOnce,
+        );
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     if (widget.onSendMedia == null) return;
     try {
@@ -376,6 +448,44 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     }
   }
 
+  void _showCameraOptionSheet(BuildContext parentContext) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    MekaarBottomSheet.show(
+      context: parentContext,
+      showDragHandle: true,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _attachItem(
+              sheetCtx,
+              step: 0,
+              icon: SolarIconsOutline.camera,
+              label: 'Ambil Foto',
+              color: MekaarColors.guardianTeal,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            _attachItem(
+              sheetCtx,
+              step: 1,
+              icon: SolarIconsOutline.videocamera,
+              label: 'Rekam Video',
+              color: MekaarColors.pink,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _pickVideo(ImageSource.camera);
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAttachmentSheet() {
     HapticService.trigger(MekaarHapticIntent.selection);
     MekaarBottomSheet.show(
@@ -403,45 +513,23 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             color: MekaarColors.info,
             onTap: () {
               Navigator.pop(ctx);
-              _pickImage(ImageSource.gallery);
-            },
-          ),
-          _attachItem(
-            ctx,
-            step: 1,
-            icon: SolarIconsOutline.camera,
-            label: 'Ambil Foto',
-            color: MekaarColors.guardianTeal,
-            onTap: () {
-              Navigator.pop(ctx);
-              _pickImage(ImageSource.camera);
+              _pickMediaFromGallery();
             },
           ),
           _attachItem(
             ctx,
             step: 2,
-            icon: SolarIconsOutline.videoLibrary,
-            label: 'Pilih dari Galeri Video',
-            color: MekaarColors.purple,
+            icon: SolarIconsOutline.camera,
+            label: 'Ambil Foto / Video',
+            color: MekaarColors.guardianTeal,
             onTap: () {
               Navigator.pop(ctx);
-              _pickVideo(ImageSource.gallery);
+              _showCameraOptionSheet(context);
             },
           ),
           _attachItem(
             ctx,
             step: 3,
-            icon: SolarIconsOutline.videocamera,
-            label: 'Rekam Video',
-            color: MekaarColors.pink,
-            onTap: () {
-              Navigator.pop(ctx);
-              _pickVideo(ImageSource.camera);
-            },
-          ),
-          _attachItem(
-            ctx,
-            step: 4,
             icon: SolarIconsOutline.mapPoint,
             label: 'Bagikan Lokasi',
             color: AppColors.blue,
@@ -453,7 +541,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
           if (widget.onShareLiveLocation != null)
             _attachItem(
               ctx,
-              step: 5,
+              step: 4,
               icon: SolarIconsOutline.gps,
               label: 'Lokasi Live',
               color: MekaarColors.guardianTeal,

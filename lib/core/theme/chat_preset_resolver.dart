@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/chat_theme_model.dart';
 import '../constants/colors.dart';
 import '../constants/shadows.dart';
+import '../constants/typography.dart';
 
 /// Tipe animasi masuk signature per preset tema.
 enum EntranceType {
@@ -172,9 +173,13 @@ class ChatPresetResolver {
     BuildContext context, {
     required bool isMe,
     double baseFontSize = 16.0,
+    String? fontFamily,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fontSize = baseFontSize * pref.textScale;
+    final activeFont = (fontFamily != null && fontFamily.isNotEmpty)
+        ? fontFamily
+        : MekaarTypography.fontFamily;
 
     // Helper untuk meresolusi TextStyle sesuai Preset Font
     TextStyle resolveTextStyle(Color textColor) {
@@ -191,7 +196,8 @@ class ChatPresetResolver {
             );
           case ChatThemePreset.neuro:
           case ChatThemePreset.neumorphism:
-            return GoogleFonts.plusJakartaSans(
+            return GoogleFonts.getFont(
+              activeFont,
               color: textColor,
               fontSize: fontSize,
               height: 1.4,
@@ -254,7 +260,8 @@ class ChatPresetResolver {
           case ChatThemePreset.mekaar:
           case ChatThemePreset.dynamicTime:
           case ChatThemePreset.custom:
-            return GoogleFonts.plusJakartaSans(
+            return GoogleFonts.getFont(
+              activeFont,
               color: textColor,
               fontSize: fontSize,
               height: 1.4,
@@ -262,6 +269,7 @@ class ChatPresetResolver {
         }
       } catch (_) {
         return TextStyle(
+          fontFamily: activeFont,
           color: textColor,
           fontSize: fontSize,
           height: 1.4,
@@ -313,6 +321,7 @@ class ChatPresetResolver {
             ),
           ],
           textColor: txtColor,
+          fontFamily: activeFont,
           textStyle: resolveTextStyle(txtColor),
         );
       }
@@ -753,6 +762,7 @@ class ChatPresetResolver {
           bottomRight: Radius.circular(4),
         ),
         textColor: AppColors.textOnBlue,
+        fontFamily: activeFont,
         textStyle: resolveTextStyle(AppColors.textOnBlue),
       );
     } else {
@@ -771,6 +781,7 @@ class ChatPresetResolver {
         ),
         boxShadow: MekaarShadows.bubble,
         textColor: txt,
+        fontFamily: activeFont,
         textStyle: resolveTextStyle(txt),
       );
     }
