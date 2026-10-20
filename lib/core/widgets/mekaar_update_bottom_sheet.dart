@@ -879,7 +879,7 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          'Pembaruan Siap Dipasang! 🚀',
+          'Pembaruan Siap Dipasang!',
           style: MekaarTypography.headingSM.copyWith(
             fontWeight: FontWeight.bold,
             color: MekaarColors.textPrimaryOf(context),

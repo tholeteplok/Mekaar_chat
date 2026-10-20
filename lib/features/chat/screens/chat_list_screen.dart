@@ -55,7 +55,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   bool _isSearchActive = false;
   late final TextEditingController _searchController;
   int _selectedTabIndex = 0;
-  final List<String> _tabs = ['Pesan', 'Guardian'];
+  final List<String> _tabs = ['Semua', 'Guardian'];
   String get _selectedTab => _tabs[_selectedTabIndex];
 
   // Cache memoization untuk filter room

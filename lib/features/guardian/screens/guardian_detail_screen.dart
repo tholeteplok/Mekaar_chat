@@ -152,30 +152,56 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     );
   }
 
-  Future<void> _toggleBlock() async {
-    final guardianUserId = widget.guardian.guardianId;
-    if (guardianUserId.isEmpty) return;
-    final notifier = ref.read(blockProvider.notifier);
-    final blocked = await ref.read(blockRepositoryProvider).isBlocked(guardianUserId);
-    try {
-      if (blocked) {
-        await notifier.unblockUser(guardianUserId);
-        if (mounted) {
-          MekaarSnackbar.success(context, 'Guardian dibuka blokirnya.');
+  Future<void> _confirmBlockGuardian() async {
+    final confirmed = await MekaarDialog.showConfirmation<bool>(
+      context: context,
+      title: 'Blokir Guardian?',
+      message:
+          'Hubungan dengan ${widget.guardian.name} akan diputus, dihapus dari daftar Guardian, dan kontak ini akan diblokir total dari mengirim pesan maupun undangan.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Blokir Total',
+            style: TextStyle(
+              color: MekaarColors.sosRed,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final guardianUserId = widget.guardian.guardianId;
+        // 1. Putus & Hapus Guardian
+        await ref
+            .read(guardianProvider.notifier)
+            .removeGuardian(widget.guardian.id);
+        // 2. Blokir Akun Pengguna
+        if (guardianUserId.isNotEmpty) {
+          await ref.read(blockProvider.notifier).blockUser(guardianUserId);
         }
-      } else {
-        await notifier.blockUser(guardianUserId);
         if (mounted) {
-          MekaarSnackbar.success(context, 'Guardian berhasil diblokir.');
+          MekaarSnackbar.success(
+            context,
+            '${widget.guardian.name} telah diputus dan diblokir total.',
+          );
+          Navigator.pop(context);
         }
-      }
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
-        );
+      } catch (e) {
+        if (mounted) {
+          MekaarSnackbar.error(
+            context,
+            'Gagal memblokir: ${e.toString().replaceAll('Exception: ', '')}',
+          );
+        }
       }
     }
   }
@@ -194,34 +220,46 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             icon: const Icon(SolarIconsOutline.menuDotsCircle),
             tooltip: 'Menu Opsi Guardian',
             onSelected: (value) {
-              if (value == 'remove') {
-                _removeGuardian();
-              } else if (value == 'break') {
+              if (value == 'break') {
                 _confirmBreakGuardian();
+              } else if (value == 'remove') {
+                _removeGuardian();
+              } else if (value == 'block') {
+                _confirmBlockGuardian();
               }
             },
             itemBuilder: (ctx) => [
+              if (!isPending && !isExpired)
+                const PopupMenuItem(
+                  value: 'break',
+                  child: Row(
+                    children: [
+                      Icon(SolarIconsOutline.linkBroken, size: 18, color: MekaarColors.warnAmber),
+                      SizedBox(width: 10),
+                      Text('Putus Paksa (Putuskan Izin)'),
+                    ],
+                  ),
+                ),
               const PopupMenuItem(
                 value: 'remove',
                 child: Row(
                   children: [
                     Icon(SolarIconsOutline.trashBinMinimalistic, size: 18, color: MekaarColors.sosRed),
                     SizedBox(width: 10),
-                    Text('Hapus Guardian', style: TextStyle(color: MekaarColors.sosRed)),
+                    Text('Hapus Guardian (Putus + Hapus)', style: TextStyle(color: MekaarColors.sosRed)),
                   ],
                 ),
               ),
-              if (!isPending && !isExpired)
-                const PopupMenuItem(
-                  value: 'break',
-                  child: Row(
-                    children: [
-                      Icon(SolarIconsOutline.linkBroken, size: 18, color: MekaarColors.sosRed),
-                      SizedBox(width: 10),
-                      Text('Putus Paksa (24 Jam)', style: TextStyle(color: MekaarColors.sosRed)),
-                    ],
-                  ),
+              const PopupMenuItem(
+                value: 'block',
+                child: Row(
+                  children: [
+                    Icon(SolarIconsOutline.userBlock, size: 18, color: MekaarColors.sosRed),
+                    SizedBox(width: 10),
+                    Text('Blokir Guardian (Putus + Hapus + Blokir)', style: TextStyle(color: MekaarColors.sosRed)),
+                  ],
                 ),
+              ),
             ],
           ),
         ],
@@ -264,46 +302,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Block / Unblock ──
-            FutureBuilder<bool>(
-              future: ref
-                  .read(blockRepositoryProvider)
-                  .isBlocked(widget.guardian.guardianId),
-              builder: (context, snapshot) {
-                final isBlocked = snapshot.data ?? false;
-                return CustomCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      isBlocked
-                          ? SolarIconsOutline.userBlock
-                          : SolarIconsOutline.userMinus,
-                      color: isBlocked
-                          ? MekaarColors.sosRed
-                          : MekaarColors.textSecondaryOf(context),
-                    ),
-                    title: Text(
-                      isBlocked ? 'Buka Blokir Guardian' : 'Blokir Guardian',
-                      style: MekaarTypography.labelLG.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isBlocked ? MekaarColors.sosRed : null,
-                      ),
-                    ),
-                    subtitle: Text(
-                      isBlocked
-                          ? 'Izinkan guardian ini menghubungi Anda kembali.'
-                          : 'Hentikan guardian ini mengirim pesan atau undangan.',
-                      style: MekaarTypography.bodySM,
-                    ),
-                    onTap: _toggleBlock,
-                  ),
-                );
-              },
             ),
 
             const SizedBox(height: 16),

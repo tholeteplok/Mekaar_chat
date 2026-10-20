@@ -11,7 +11,6 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
-import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
@@ -114,7 +113,7 @@ class SettingsScreen extends ConsumerWidget {
               SettingsSwitchTile(
                 icon: SolarIconsOutline.checkCircle,
                 iconColor: MekaarColors.lime,
-                title: 'Bukti Baca (Read Receipt)',
+                title: 'Bukti Baca Pesan',
                 value: ref.watch(readReceiptsProvider),
                 onChanged: (value) =>
                     ref.read(readReceiptsProvider.notifier).setEnabled(value),
@@ -172,32 +171,6 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Keamanan'),
-        Builder(
-          builder: (context) {
-            final safeColor = MekaarColors.safeTextOf(context);
-            return MekaarBanner(
-              color: safeColor,
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              icon: SolarIconsBold.shieldCheck,
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mekaar Aegis Protocol',
-                    style: MekaarTypography.labelLG.copyWith(color: safeColor),
-                  ),
-                  Text(
-                    'Enkripsi ujung-ke-ujung & proteksi privasi aktif',
-                    style: MekaarTypography.bodySM.copyWith(
-                      color: MekaarColors.textSecondaryOf(context),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -234,7 +207,7 @@ class SettingsScreen extends ConsumerWidget {
                 SettingsNavTile(
                   icon: SolarIconsOutline.shieldKeyhole,
                   iconColor: MekaarColors.guardianTeal,
-                  title: 'Verifikasi 2 Langkah',
+                  title: 'Verifikasi 2 Langkah (2FA)',
                   valueText: ref.watch(twoFaProvider) ? 'Aktif' : 'Nonaktif',
                   onTap: () => _handleTwoFactor(context, ref),
                 ),
