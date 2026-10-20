@@ -229,6 +229,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Timer? _purgeTimer;
   Timer? _scheduledWipeTimer;
 
+  String _getSenderDisplayName(Message? msg) {
+    if (msg == null) return '';
+    final myId = ref.read(authProvider).user?.id ?? Supabase.instance.client.auth.currentUser?.id;
+    if (msg.senderId == myId) return 'Anda';
+    if (!widget.isGroup) return widget.chatName;
+    return _participantNames[msg.senderId] ?? 'Anggota';
+  }
+
   Future<void> _loadGroupParticipants() async {
     try {
       final repo = ref.read(chatRepositoryProvider);
@@ -2095,6 +2103,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     key: _composerKey,
                     controller: _textController,
                     replyMessage: _replyMessage,
+                    replySenderName: _getSenderDisplayName(_replyMessage),
                     editingMessage: _editingMessage,
                     enabled: isComposerEnabled,
                     roomThemeSpec: roomThemeSpec,
@@ -2588,11 +2597,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     combinedRaw.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     // 3. Sisipkan pemisah tanggal
+    // Pada ListView(reverse: true), index yang lebih tinggi dirender di posisi ATAS layar.
+    // Karena combinedRaw diurutkan descending (terbaru ke terlama), pesan-pesan suatu hari
+    // harus ditambahkan terlebih dahulu (index lebih rendah), lalu pemisah tanggal ditambahkan
+    // setelah pesan terakhir hari itu (index lebih tinggi), sehingga pemisah tanggal
+    // secara visual konsisten tampil di ATAS rentetan pesan pada hari tersebut.
     final entries = <_ChatItemEntry>[];
-    DateTime? lastDate;
 
     for (var i = 0; i < combinedRaw.length; i++) {
       final item = combinedRaw[i];
+      entries.add(item);
+
       final localCreatedAt = item.timestamp.toLocal();
       final itemDate = DateTime(
         localCreatedAt.year,
@@ -2600,13 +2615,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         localCreatedAt.day,
       );
 
-      // Sisipkan pemisah tanggal jika hari berubah
-      if (lastDate == null || itemDate != lastDate) {
+      final isLastItem = i == combinedRaw.length - 1;
+      if (isLastItem) {
         entries.add(_ChatItemEntry.dateSeparator(localCreatedAt));
-        lastDate = itemDate;
+      } else {
+        final nextLocalCreatedAt = combinedRaw[i + 1].timestamp.toLocal();
+        final nextItemDate = DateTime(
+          nextLocalCreatedAt.year,
+          nextLocalCreatedAt.month,
+          nextLocalCreatedAt.day,
+        );
+        if (itemDate != nextItemDate) {
+          entries.add(_ChatItemEntry.dateSeparator(localCreatedAt));
+        }
       }
-
-      entries.add(item);
     }
     return entries;
   }
@@ -2663,11 +2685,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (msg.replyToId != null) {
       replyToMsg = messageMap[msg.replyToId];
       if (replyToMsg != null) {
-        if (replyToMsg.senderId == currentUserId) {
-          replyToSender = 'Anda';
-        } else {
-          replyToSender = _participantNames[replyToMsg.senderId] ?? 'Pengirim';
-        }
+        replyToSender = _getSenderDisplayName(replyToMsg);
       }
     }
 

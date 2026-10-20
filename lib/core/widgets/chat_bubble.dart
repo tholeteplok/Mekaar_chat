@@ -24,9 +24,49 @@ import '../../data/repositories/screen_protection_repository.dart';
 import '../../features/chat/providers/chat_provider.dart';
 import '../../features/chat/providers/emoji_pack_provider.dart';
 import '../utils/emoji_shortcode_parser.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../constants/typography.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'mekaar_snackbar.dart';
 import '../../data/services/file_export_service.dart';
+
+/// Helper terpusat untuk me-resolve TextStyle pada bubble chat yang menjamin
+/// penggunaan font aktif (dari preferensi pengguna atau tema bubble khusus)
+/// melalui runtime loader GoogleFonts.
+TextStyle resolveBubbleTextStyle({
+  required Color color,
+  double fontSize = 16,
+  FontWeight fontWeight = FontWeight.w400,
+  double height = 1.4,
+  String? fontFamily,
+  FontStyle? fontStyle,
+  TextDecoration? decoration,
+}) {
+  final activeFont = (fontFamily != null && fontFamily.isNotEmpty)
+      ? fontFamily
+      : MekaarTypography.fontFamily;
+  try {
+    return GoogleFonts.getFont(
+      activeFont,
+      color: color,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      height: height,
+      fontStyle: fontStyle,
+      decoration: decoration,
+    );
+  } catch (_) {
+    return TextStyle(
+      fontFamily: activeFont,
+      color: color,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      height: height,
+      fontStyle: fontStyle,
+      decoration: decoration,
+    );
+  }
+}
 
 /// Helper publik untuk mendapatkan atau mendekripsi file media pesan
 Future<File?> getOrDecryptMedia({
@@ -437,7 +477,7 @@ class ChatBubble extends ConsumerWidget {
     BorderRadius radius = spec.borderRadius;
     List<BoxShadow>? shadows = spec.boxShadow;
     Color textColor = spec.textColor;
-    String? fontFamily = spec.fontFamily;
+    String? fontFamily = spec.fontFamily ?? MekaarTypography.fontFamily;
 
     if (isDeleted) {
       bubbleColor = MekaarColors.surface3Of(context);
@@ -595,19 +635,21 @@ class ChatBubble extends ConsumerWidget {
                           if (message.isEdited && !isDeleted) ...[
                             Text(
                               'diedit ',
-                              style: TextStyle(
+                              style: resolveBubbleTextStyle(
                                 fontSize: 10,
                                 fontStyle: FontStyle.italic,
                                 color: metaColor,
+                                fontFamily: fontFamily,
                               ),
                             ),
                           ],
                           Text(
                             DateFormat('HH:mm').format(message.createdAt.toLocal()),
-                            style: TextStyle(
+                            style: resolveBubbleTextStyle(
                               fontSize: 10.5,
                               color: metaColor,
                               fontWeight: FontWeight.w400,
+                              fontFamily: fontFamily,
                             ),
                           ),
                           if (message.autoDeleteAt != null && !isDeleted) ...[
@@ -674,17 +716,18 @@ class ChatBubble extends ConsumerWidget {
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Text(
                               senderName!,
-                              style: const TextStyle(
+                              style: resolveBubbleTextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.blue,
+                                fontFamily: fontFamily,
                               ),
                             ),
                           ),
                         ],
                         // Reply preview
                         if (message.replyToId != null && !isDeleted)
-                          _buildQuotedReplyBox(context),
+                          _buildQuotedReplyBox(context, fontFamily),
                         // Main content
                         _buildContentWidget(
                           context,
@@ -745,10 +788,11 @@ class ChatBubble extends ConsumerWidget {
           const SizedBox(width: 6),
           Text(
             'Pesan telah dihapus',
-            style: TextStyle(
+            style: resolveBubbleTextStyle(
               color: textColor,
               fontStyle: FontStyle.italic,
               fontSize: 13,
+              fontFamily: fontFamily,
             ),
           ),
         ],
@@ -844,7 +888,7 @@ class ChatBubble extends ConsumerWidget {
             content: message.content,
             baseStyle:
                 customTextStyle ??
-                TextStyle(
+                resolveBubbleTextStyle(
                   color: textColor,
                   fontSize: 16,
                   height: 1.4,
@@ -856,7 +900,7 @@ class ChatBubble extends ConsumerWidget {
           message.content,
           style:
               customTextStyle ??
-              TextStyle(
+              resolveBubbleTextStyle(
                 color: textColor,
                 fontSize: 16,
                 height: 1.4,
@@ -869,6 +913,7 @@ class ChatBubble extends ConsumerWidget {
           message: message,
           isMe: isMe,
           textColor: textColor,
+          fontFamily: fontFamily,
           onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
         );
 
@@ -1044,7 +1089,7 @@ class ChatBubble extends ConsumerWidget {
     }
   }
 
-  Widget _buildQuotedReplyBox(BuildContext context) {
+  Widget _buildQuotedReplyBox(BuildContext context, [String? fontFamily]) {
     String senderTitle = replyToSenderName ?? 'Pengirim';
     String previewText = 'Pesan yang dibalas';
 
@@ -1124,10 +1169,11 @@ class ChatBubble extends ConsumerWidget {
         children: [
           Text(
             senderTitle,
-            style: TextStyle(
+            style: resolveBubbleTextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
               color: titleColor,
+              fontFamily: fontFamily,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1135,7 +1181,11 @@ class ChatBubble extends ConsumerWidget {
           const SizedBox(height: 2),
           Text(
             previewText,
-            style: TextStyle(fontSize: 11, color: bodyColor),
+            style: resolveBubbleTextStyle(
+              fontSize: 11,
+              color: bodyColor,
+              fontFamily: fontFamily,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -2589,12 +2639,14 @@ class _FileBubbleCard extends StatefulWidget {
   final Message message;
   final bool isMe;
   final Color textColor;
+  final String? fontFamily;
   final VoidCallback? onSaveToVault;
 
   const _FileBubbleCard({
     required this.message,
     required this.isMe,
     required this.textColor,
+    this.fontFamily,
     this.onSaveToVault,
   });
 
@@ -2638,6 +2690,16 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
       return;
     }
 
+    final isExpired = _cachedFile == null &&
+        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
+    if (isExpired) {
+      MekaarSnackbar.warning(
+        context,
+        'Berkas di server telah kedaluwarsa (> 30 hari) sesuai batas retensi Supabase.',
+      );
+      return;
+    }
+
     setState(() => _isDownloading = true);
     HapticService.trigger(MekaarHapticIntent.selection);
 
@@ -2655,7 +2717,14 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
         mimeType: meta?.mimeType,
       );
     } else {
-      MekaarSnackbar.error(context, 'Gagal mengunduh berkas.');
+      if (DateTime.now().difference(widget.message.createdAt).inDays >= 30) {
+        MekaarSnackbar.warning(
+          context,
+          'Berkas tidak ditemukan atau telah kedaluwarsa di server (> 30 hari).',
+        );
+      } else {
+        MekaarSnackbar.error(context, 'Gagal mengunduh berkas.');
+      }
     }
   }
 
@@ -2686,6 +2755,9 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
           fileName: 'Berkas Dokumen',
           fileSize: 0,
         );
+
+    final isExpired = _cachedFile == null &&
+        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
 
     final style = _resolveFileTypeStyle(meta.fileExtension);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -2736,11 +2808,12 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
                         meta.fileName,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: resolveBubbleTextStyle(
                           color: widget.textColor,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           height: 1.25,
+                          fontFamily: widget.fontFamily,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -2754,20 +2827,37 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
                             ),
                             child: Text(
                               meta.fileExtension,
-                              style: TextStyle(
-                                color: style.color,
+                              style: resolveBubbleTextStyle(
+                                color: isExpired ? Colors.amber.shade800 : style.color,
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w700,
+                                fontFamily: widget.fontFamily,
                               ),
                             ),
                           ),
-                          if (meta.formattedFileSize.isNotEmpty) ...[
+                          if (isExpired) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Kedaluwarsa di server',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: resolveBubbleTextStyle(
+                                  color: Colors.amber.shade800,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: widget.fontFamily,
+                                ),
+                              ),
+                            ),
+                          ] else if (meta.formattedFileSize.isNotEmpty) ...[
                             const SizedBox(width: 6),
                             Text(
                               meta.formattedFileSize,
-                              style: TextStyle(
+                              style: resolveBubbleTextStyle(
                                 color: widget.textColor.withValues(alpha: 0.7),
                                 fontSize: 11.5,
+                                fontFamily: widget.fontFamily,
                               ),
                             ),
                           ],
@@ -2795,8 +2885,12 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
                       : Icon(
                           _cachedFile != null
                               ? SolarIconsOutline.eye
-                              : SolarIconsOutline.download,
-                          color: widget.textColor,
+                              : (isExpired
+                                  ? SolarIconsOutline.clockCircle
+                                  : SolarIconsOutline.download),
+                          color: isExpired && _cachedFile == null
+                              ? Colors.amber.shade800
+                              : widget.textColor,
                           size: 18,
                         ),
                 ),
@@ -2810,10 +2904,11 @@ class _FileBubbleCardState extends State<_FileBubbleCard> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               meta.caption!,
-              style: TextStyle(
+              style: resolveBubbleTextStyle(
                 color: widget.textColor,
                 fontSize: 14,
                 height: 1.35,
+                fontFamily: widget.fontFamily,
               ),
             ),
           ),

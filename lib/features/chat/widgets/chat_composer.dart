@@ -33,6 +33,7 @@ import 'document_send_preview_sheet.dart';
 class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
   final Message? replyMessage;
+  final String? replySenderName;
   final Message? editingMessage; // non-null when in edit mode
   final VoidCallback onSend;
   final VoidCallback onCancelReply;
@@ -53,6 +54,7 @@ class ChatComposer extends ConsumerStatefulWidget {
     super.key,
     required this.controller,
     required this.replyMessage,
+    this.replySenderName,
     required this.onSend,
     required this.onCancelReply,
     this.editingMessage,
@@ -290,6 +292,20 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       if (picked == null || !mounted) return;
       setState(() => _isUploading = true);
       final compressed = await MediaCompressor.compressVideo(File(picked.path));
+
+      // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
+      const maxVideoBytes = 15 * 1024 * 1024;
+      final videoSize = await compressed.length();
+      if (videoSize > maxVideoBytes) {
+        if (mounted) {
+          MekaarSnackbar.error(
+            context,
+            'Ukuran video (${(videoSize / (1024 * 1024)).toStringAsFixed(1)} MB) melebihi batas maksimal 15 MB (paket gratis Supabase).',
+          );
+        }
+        return;
+      }
+
       await widget.onSendMedia!(compressed, MessageType.video);
     } catch (_) {
     } finally {
@@ -936,6 +952,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                 customColor: glassBg,
                 child: _ReplyPreview(
                   message: widget.replyMessage!,
+                  senderName: widget.replySenderName,
                   onCancel: widget.onCancelReply,
                 ),
               ),
@@ -1260,12 +1277,43 @@ class _BlinkingDotState extends State<_BlinkingDot>
 // ─────────────────────────────────────────
 class _ReplyPreview extends StatelessWidget {
   final Message message;
+  final String? senderName;
   final VoidCallback onCancel;
 
-  const _ReplyPreview({required this.message, required this.onCancel});
+  const _ReplyPreview({
+    required this.message,
+    this.senderName,
+    required this.onCancel,
+  });
+
+  String _formatPreviewText() {
+    if (message.isDeleted) return '🚫 Pesan telah dihapus';
+    switch (message.type) {
+      case MessageType.image:
+        return '📷 Foto';
+      case MessageType.video:
+        return '🎥 Video';
+      case MessageType.voice:
+        return '🎙️ Pesan Suara';
+      case MessageType.file:
+        final fName = message.fileMeta?.fileName ?? 'Berkas / Dokumen';
+        return '📄 $fName';
+      case MessageType.location:
+        return '📍 Lokasi Terbagikan';
+      case MessageType.system:
+        return '🛡️ Informasi Sistem';
+      case MessageType.text:
+        return message.content.isNotEmpty ? message.content : 'Pesan';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final prefix = (senderName != null && senderName!.isNotEmpty)
+        ? 'Membalas $senderName: '
+        : 'Membalas: ';
+    final previewBody = _formatPreviewText();
+
     return GestureDetector(
       onVerticalDragEnd: (details) {
         if (details.primaryVelocity != null && details.primaryVelocity! > 100) {
@@ -1288,14 +1336,25 @@ class _ReplyPreview extends StatelessWidget {
             ),
             const SizedBox(width: MekaarSpacing.sm),
             Expanded(
-              child: Text(
-                'Membalas: ${message.content}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: MekaarColors.textSecondaryOf(context),
-                ),
+              child: RichText(
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: MekaarColors.textSecondaryOf(context),
+                    fontFamily: MekaarTypography.fontFamily,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: prefix,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(
+                      text: previewBody,
+                    ),
+                  ],
+                ),
               ),
             ),
             IconButton(
