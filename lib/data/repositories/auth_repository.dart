@@ -51,7 +51,7 @@ class AuthRepository {
   Future<bool> isUsernameAvailable(String username) async {
     try {
       final res = await _supabaseService.client
-          .from('profiles')
+          .from('public_profiles')
           .select('id')
           .eq('username', username)
           .maybeSingle();

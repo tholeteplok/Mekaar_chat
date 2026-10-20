@@ -112,7 +112,7 @@ class CallRepository {
 
       // 3. Cek mode proteksi target user
       final profileResponse = await _client
-          .from('profiles')
+          .from('public_profiles')
           .select('chat_invitation_mode')
           .eq('id', otherUserId)
           .maybeSingle();

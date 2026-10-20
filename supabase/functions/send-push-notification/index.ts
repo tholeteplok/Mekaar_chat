@@ -197,6 +197,24 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // ── 0. Validasi Webhook Secret (Mencegah Pemalsuan Notifikasi / Spoofing) ──
+  const expectedSecret = Deno.env.get("PUSH_WEBHOOK_SECRET");
+  if (expectedSecret) {
+    const incomingSecret =
+      req.headers.get("x-webhook-secret") ||
+      req.headers.get("x-push-webhook-secret");
+    if (!incomingSecret || incomingSecret !== expectedSecret) {
+      console.warn("⛔ Unauthorized push notification invocation: Invalid or missing webhook secret.");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid webhook secret" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+  }
+
   try {
     // Webhook dari pg_net dikirim tanpa Authorization header,
     // jadi kita pakai service_role key untuk akses Supabase.

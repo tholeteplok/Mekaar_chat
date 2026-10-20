@@ -17,13 +17,16 @@ class TripRepository {
 
     final response = await _supabaseService.client
         .from('user_trips')
-        .select('*, trip_guardians(*, profiles(display_name, username))')
+        .select('*, trip_guardians(*)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    return (response as List<dynamic>)
-        .map((json) => UserTrip.fromJson(json as Map<String, dynamic>))
+    final rawTrips = (response as List<dynamic>)
+        .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
+    await _enrichTripGuardians(rawTrips);
+
+    return rawTrips.map((json) => UserTrip.fromJson(json)).toList();
   }
 
   /// Khusus dipakai TripMonitorService: hanya trip AKTIF milik pengguna
@@ -34,13 +37,16 @@ class TripRepository {
 
     final response = await _supabaseService.client
         .from('user_trips')
-        .select('*, trip_guardians(*, profiles(display_name, username))')
+        .select('*, trip_guardians(*)')
         .eq('user_id', userId)
         .eq('is_active', true);
 
-    return (response as List<dynamic>)
-        .map((json) => UserTrip.fromJson(json as Map<String, dynamic>))
+    final rawTrips = (response as List<dynamic>)
+        .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
+    await _enrichTripGuardians(rawTrips);
+
+    return rawTrips.map((json) => UserTrip.fromJson(json)).toList();
   }
 
   Future<UserTrip> createTrip({
@@ -96,11 +102,14 @@ class TripRepository {
           .insert(guardiansData);
     }
 
-    final fullTrip = await _supabaseService.client
+    final fullTripRaw = await _supabaseService.client
         .from('user_trips')
-        .select('*, trip_guardians(*, profiles(display_name, username))')
+        .select('*, trip_guardians(*)')
         .eq('id', tripId)
         .single();
+
+    final fullTrip = Map<String, dynamic>.from(fullTripRaw);
+    await _enrichTripGuardians([fullTrip]);
 
     return UserTrip.fromJson(fullTrip);
   }
@@ -121,12 +130,62 @@ class TripRepository {
 
   /// Ambil satu trip (dipakai TripMonitorService & layar konfirmasi)
   Future<UserTrip?> getTripById(String tripId) async {
-    final res = await _supabaseService.client
+    final resRaw = await _supabaseService.client
         .from('user_trips')
-        .select('*, trip_guardians(*, profiles(display_name, username))')
+        .select('*, trip_guardians(*)')
         .eq('id', tripId)
         .maybeSingle();
-    return res != null ? UserTrip.fromJson(res) : null;
+    if (resRaw == null) return null;
+
+    final res = Map<String, dynamic>.from(resRaw);
+    await _enrichTripGuardians([res]);
+    return UserTrip.fromJson(res);
+  }
+
+  /// Memperkaya data trip_guardians dengan nama & username dari public_profiles
+  /// (menghindari ketergantungan join langsung ke tabel profiles yang dilindungi RLS ketat).
+  Future<void> _enrichTripGuardians(List<Map<String, dynamic>> trips) async {
+    final guardianIds = <String>{};
+    for (final trip in trips) {
+      final guardians = trip['trip_guardians'];
+      if (guardians is List) {
+        for (final g in guardians) {
+          if (g is Map && g['guardian_id'] is String) {
+            guardianIds.add(g['guardian_id'] as String);
+          }
+        }
+      }
+    }
+
+    if (guardianIds.isEmpty) return;
+
+    try {
+      final profiles = await _supabaseService.client
+          .from('public_profiles')
+          .select('id, username, display_name')
+          .inFilter('id', guardianIds.toList());
+
+      final byId = <String, Map<String, dynamic>>{
+        for (final p in profiles as List)
+          (p as Map)['id'] as String: Map<String, dynamic>.from(p),
+      };
+
+      for (final trip in trips) {
+        final guardians = trip['trip_guardians'];
+        if (guardians is List) {
+          for (final g in guardians) {
+            if (g is Map && g['guardian_id'] is String) {
+              final profile = byId[g['guardian_id']];
+              if (profile != null) {
+                g['profiles'] = profile;
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Best effort, biarkan profiles null jika gagal
+    }
   }
 
   /// Update status siklus HARI INI
