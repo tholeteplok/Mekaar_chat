@@ -9,6 +9,7 @@ import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
 import 'emoji_pack_provider.dart';
 import 'private_vault_provider.dart';
+import '../../settings/providers/privacy_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'app_realtime_listener.dart';
 
@@ -41,6 +42,7 @@ class MessageNotificationListener {
     final content = newRow['content'] as String? ?? '';
     final isDeleted = newRow['is_deleted'] as bool? ?? false;
     final isEncrypted = newRow['is_encrypted'] as bool? ?? false;
+    final msgType = newRow['msg_type'] as String? ?? 'text';
 
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
     if (roomId == null || senderId == null || currentUserId == null) return;
@@ -73,7 +75,7 @@ class MessageNotificationListener {
       NotificationDedupService.markNotified('msg_$messageId');
     }
 
-    _notify(roomId, senderId, content, isEncrypted);
+    _notify(roomId, senderId, content, isEncrypted, msgType: msgType);
   }
 
   /// Dipanggil saat ada perubahan pesan (update/soft-delete) di tabel messages
@@ -103,6 +105,36 @@ class MessageNotificationListener {
     return true;
   }
 
+  /// Format cuplikan isi notifikasi sesuai tipe pesan dan setelan privasi
+  static String formatNotificationBody({
+    required String msgType,
+    required String content,
+    bool isEncrypted = false,
+    bool isStealthPreview = false,
+  }) {
+    if (isEncrypted) {
+      return '🔒 Pesan terenkripsi';
+    }
+    if (isStealthPreview) {
+      return '••••••••';
+    }
+    switch (msgType) {
+      case 'image':
+        return '📷 Foto';
+      case 'voice':
+        return '🎤 Pesan suara';
+      case 'video':
+        return '🎬 Video';
+      case 'file':
+        return '📎 Dokumen';
+      case 'location':
+        return '📍 Lokasi';
+      default:
+        final cleaned = replaceCustomEmojiTokens(content, (_) => '[emoji]');
+        return cleaned.isNotEmpty ? cleaned : 'Pesan baru';
+    }
+  }
+
   final Map<String, String> _senderNameCache = {};
   final Map<String, ({bool isMuted, DateTime? mutedUntil, DateTime cachedAt})> _roomMuteCache = {};
 
@@ -110,8 +142,9 @@ class MessageNotificationListener {
     String roomId,
     String senderId,
     String content,
-    bool isEncrypted,
-  ) async {
+    bool isEncrypted, {
+    String msgType = 'text',
+  }) async {
     // Cek apakah room di-mute oleh user (dengan cache in-memory)
     if (await _isRoomMuted(roomId)) return;
 
@@ -134,25 +167,36 @@ class MessageNotificationListener {
     // Cek apakah room disembunyikan dalam Private Contact Vault
     final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId);
     final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
+    final isStealthPreview = _ref.read(stealthChatPreviewProvider);
 
     final String finalTitle;
     final String finalBody;
 
     if (isHidden && !isVaultUnlocked) {
-      // Masking total: Jangan bocorkan nama pengirim maupun isi pesan
-      finalTitle = 'Pemberitahuan Sistem';
-      finalBody = 'Anda menerima pesan baru';
+      // Masking total ala WhatsApp Locked Chat:
+      // Tampilkan nama brand & teks netral tanpa membocorkan pengirim/isi pesan
+      finalTitle = 'MEKAAR';
+      finalBody = 'Pesan baru masuk';
     } else {
       finalTitle = senderName;
-      finalBody = isEncrypted
-          ? '🔒 Pesan terenkripsi'
-          : replaceCustomEmojiTokens(content, (_) => '[emoji]');
+      finalBody = formatNotificationBody(
+        msgType: msgType,
+        content: content,
+        isEncrypted: isEncrypted,
+        isStealthPreview: isStealthPreview,
+      );
     }
 
     await NotificationService.showMessageNotification(
       title: finalTitle,
       body: finalBody,
       roomId: roomId,
+      route: NotificationRoute(
+        type: NotificationRouteType.message,
+        roomId: roomId,
+        chatName: (isHidden && !isVaultUnlocked) ? null : senderName,
+        otherUserId: (isHidden && !isVaultUnlocked) ? null : senderId,
+      ),
     );
   }
 

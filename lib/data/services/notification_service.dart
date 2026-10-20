@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import '../services/supabase_service.dart';
@@ -279,11 +280,17 @@ class NotificationService {
     required String body,
     String? roomId,
     NotificationRoute? route,
+    String? groupKey,
   }) async {
     AlarmService.playMessageSound();
     await HapticService.trigger(MekaarHapticIntent.success);
 
-    const details = NotificationDetails(
+    final resolvedGroupKey = groupKey ?? 'mekaar_chat_${roomId ?? "general"}';
+    final notificationId = roomId != null
+        ? (roomId.hashCode & 0x7FFFFFFF)
+        : DateTime.now().microsecondsSinceEpoch.remainder(1 << 31);
+
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
         'mekaar_message_channel',
         'Pesan MEKAAR',
@@ -293,15 +300,23 @@ class NotificationService {
         playSound: true,
         enableVibration: true,
         category: AndroidNotificationCategory.message,
+        groupKey: resolvedGroupKey,
+        tag: roomId,
+        color: const Color(0xFF007AFF),
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: 'MEKAAR',
+        ),
       ),
-      iOS: DarwinNotificationDetails(
+      iOS: const DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
       ),
     );
     await _localNotificationsPlugin.show(
-      DateTime.now().microsecondsSinceEpoch.remainder(1 << 31),
+      notificationId,
       title,
       body,
       details,

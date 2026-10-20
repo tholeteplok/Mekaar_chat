@@ -8,6 +8,7 @@ import 'notification_service.dart';
 import 'supabase_service.dart';
 import 'notification_dedup_service.dart';
 import '../repositories/device_repository.dart';
+import '../repositories/private_contact_repository.dart';
 import 'device_command_handler.dart';
 
 /// Top-level background message handler dipanggil oleh Firebase Messaging OS
@@ -64,13 +65,31 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     } else if (type == 'device_command') {
       await DeviceCommandHandler.handle(data);
     } else {
+      String finalTitle = title;
+      String finalBody = body;
+      bool isVaultRoom = false;
+
+      if (roomId != null && roomId.isNotEmpty) {
+        try {
+          final hiddenRooms =
+              await PrivateContactRepository().getHiddenRoomIds();
+          if (hiddenRooms.contains(roomId)) {
+            isVaultRoom = true;
+            finalTitle = 'MEKAAR';
+            finalBody = 'Pesan baru masuk';
+          }
+        } catch (_) {}
+      }
+
       await NotificationService.showMessageNotification(
-        title: title,
-        body: body,
+        title: finalTitle,
+        body: finalBody,
         roomId: roomId,
         route: NotificationRoute(
           type: NotificationRouteType.message,
           roomId: roomId,
+          chatName: isVaultRoom ? null : (data['senderName'] as String?),
+          otherUserId: isVaultRoom ? null : (data['senderId'] as String?),
         ),
       );
     }
@@ -141,7 +160,7 @@ class PushNotificationService {
       }
 
       // Penanganan pesan saat aplikasi aktif di layar (Foreground)
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
         final data = message.data;
         final type = data['type'] as String? ?? 'message';
         final title = data['title'] as String? ?? 'Pesan Baru';
@@ -188,13 +207,31 @@ class PushNotificationService {
         } else if (type == 'device_command') {
           DeviceCommandHandler.handle(data);
         } else {
+          String finalTitle = title;
+          String finalBody = body;
+          bool isVaultRoom = false;
+
+          if (roomId != null && roomId.isNotEmpty) {
+            try {
+              final hiddenRooms =
+                  await PrivateContactRepository().getHiddenRoomIds();
+              if (hiddenRooms.contains(roomId)) {
+                isVaultRoom = true;
+                finalTitle = 'MEKAAR';
+                finalBody = 'Pesan baru masuk';
+              }
+            } catch (_) {}
+          }
+
           NotificationService.showMessageNotification(
-            title: title,
-            body: body,
+            title: finalTitle,
+            body: finalBody,
             roomId: roomId,
             route: NotificationRoute(
               type: NotificationRouteType.message,
               roomId: roomId,
+              chatName: isVaultRoom ? null : (data['senderName'] as String?),
+              otherUserId: isVaultRoom ? null : (data['senderId'] as String?),
             ),
           );
         }

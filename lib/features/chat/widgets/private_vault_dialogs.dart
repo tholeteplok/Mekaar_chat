@@ -204,4 +204,135 @@ class PrivateVaultDialogs {
 
     return result ?? false;
   }
+
+  /// Dialog verifikasi kode rahasia vault untuk membuka obrolan tersembunyi
+  static Future<bool> showUnlockPasscodeDialog(BuildContext context) async {
+    final codeController = TextEditingController();
+    String? errorMessage;
+    bool obscureCode = true;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return MekaarDialog(
+              icon: const Icon(
+                SolarIconsBold.shieldKeyhole,
+                color: MekaarColors.guardianTeal,
+                size: 28,
+              ),
+              title: 'Buka Private Vault',
+              message:
+                  'Masukkan kode rahasia untuk membuka percakapan tersembunyi.',
+              customContent: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: codeController,
+                    obscureText: obscureCode,
+                    autofocus: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      hintText: 'Kode rahasia vault',
+                      errorText: errorMessage,
+                      filled: true,
+                      fillColor: MekaarColors.surface2Of(dialogCtx),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(MekaarRadius.md),
+                        borderSide: BorderSide(
+                          color: MekaarColors.borderOf(dialogCtx),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(MekaarRadius.md),
+                        borderSide: BorderSide(
+                          color: MekaarColors.borderOf(dialogCtx),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(MekaarRadius.md),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue,
+                          width: 2,
+                        ),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureCode
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setDialogState(() => obscureCode = !obscureCode),
+                        tooltip: obscureCode
+                            ? 'Tampilkan kode'
+                            : 'Sembunyikan kode',
+                      ),
+                    ),
+                    onSubmitted: (val) async {
+                      final repo = PrivateContactRepository();
+                      final isMatch = await repo.verifyPasscode(val.trim());
+                      if (isMatch) {
+                        HapticService.trigger(MekaarHapticIntent.success);
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx, true);
+                      } else {
+                        HapticService.trigger(MekaarHapticIntent.warning);
+                        setDialogState(() {
+                          errorMessage = 'Kode rahasia tidak cocok';
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx, false),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MekaarColors.guardianTeal,
+                    foregroundColor: MekaarColors.textOnTeal,
+                  ),
+                  onPressed: () async {
+                    final code = codeController.text.trim();
+                    if (code.isEmpty) {
+                      setDialogState(() {
+                        errorMessage = 'Masukkan kode rahasia Anda';
+                      });
+                      return;
+                    }
+
+                    final repo = PrivateContactRepository();
+                    final isMatch = await repo.verifyPasscode(code);
+                    if (isMatch) {
+                      HapticService.trigger(MekaarHapticIntent.success);
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx, true);
+                      }
+                    } else {
+                      HapticService.trigger(MekaarHapticIntent.warning);
+                      setDialogState(() {
+                        errorMessage = 'Kode rahasia tidak cocok';
+                      });
+                    }
+                  },
+                  child: const Text('Buka'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result ?? false;
+  }
 }

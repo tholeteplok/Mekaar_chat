@@ -13,6 +13,9 @@ import 'package:mekaar_chat/features/chat/providers/message_notification_listene
 import 'package:mekaar_chat/features/chat/screens/incoming_call_screen.dart';
 import 'package:mekaar_chat/data/repositories/trip_repository.dart';
 import 'package:mekaar_chat/data/services/deep_link_service.dart';
+import 'package:mekaar_chat/data/repositories/private_contact_repository.dart';
+import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
+import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 
@@ -155,7 +158,7 @@ Future<void> _initializeSecondaryServices() async {
 ///
 /// `message` → buka chat room; `call` → buka layar panggilan masuk;
 /// `sos` → buka viewer SOS guardian (bukan SOSActiveScreen sisi korban).
-void _handleNotificationRoute(NotificationRoute route) {
+void _handleNotificationRoute(NotificationRoute route) async {
   final context = AppNavigator.currentContext;
   if (context == null || !context.mounted) return;
 
@@ -163,17 +166,62 @@ void _handleNotificationRoute(NotificationRoute route) {
     case NotificationRouteType.message:
       final roomId = route.roomId;
       if (roomId == null || roomId.isEmpty) return;
-      Navigator.pushNamed(
-        context,
-        AppRoutes.chat,
-        arguments: {
-          'chatId': roomId,
-          'chatName': route.chatName,
-          'chatAvatarUrl': route.chatAvatarUrl,
-          'isGuardian': route.isGuardian,
-          'otherUserId': route.otherUserId,
-        },
-      );
+
+      // ── Mitigasi Privasi Kontak Vault (Tersembunyi) ──
+      try {
+        final hiddenRooms =
+            await PrivateContactRepository().getHiddenRoomIds();
+        if (!context.mounted) return;
+        if (hiddenRooms.contains(roomId)) {
+          bool isUnlocked = false;
+          try {
+            final container = ProviderScope.containerOf(context, listen: false);
+            isUnlocked = container.read(privateVaultUnlockedProvider);
+          } catch (_) {}
+
+          if (!isUnlocked) {
+            // Arahkan ke layar utama dan minta PIN Vault terlebih dahulu
+            Navigator.of(context).popUntil((r) => r.isFirst);
+            final unlocked =
+                await PrivateVaultDialogs.showUnlockPasscodeDialog(context);
+            if (!context.mounted) return;
+            if (unlocked) {
+              try {
+                final container =
+                    ProviderScope.containerOf(context, listen: false);
+                container.read(privateVaultUnlockedProvider.notifier).state =
+                    true;
+              } catch (_) {}
+              Navigator.pushNamed(
+                context,
+                AppRoutes.chat,
+                arguments: {
+                  'chatId': roomId,
+                  'chatName': route.chatName,
+                  'chatAvatarUrl': route.chatAvatarUrl,
+                  'isGuardian': route.isGuardian,
+                  'otherUserId': route.otherUserId,
+                },
+              );
+            }
+            return;
+          }
+        }
+      } catch (_) {}
+
+      if (context.mounted) {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.chat,
+          arguments: {
+            'chatId': roomId,
+            'chatName': route.chatName,
+            'chatAvatarUrl': route.chatAvatarUrl,
+            'isGuardian': route.isGuardian,
+            'otherUserId': route.otherUserId,
+          },
+        );
+      }
     case NotificationRouteType.call:
       final callId = route.callId;
       final roomId = route.roomId;

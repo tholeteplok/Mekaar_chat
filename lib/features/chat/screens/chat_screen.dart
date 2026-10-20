@@ -1916,8 +1916,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                         ...activePending,
                                       ];
 
+                                      final isTyping = ref.watch(
+                                        typingStateProvider(widget.chatId),
+                                      );
+
                                       if (rawMessages.isEmpty &&
                                           rawCalls.isEmpty) {
+                                        if (isTyping) {
+                                          return ListView(
+                                            controller: _scrollController,
+                                            reverse: true,
+                                            padding: const EdgeInsets.only(
+                                              top: 8,
+                                              bottom: 130,
+                                            ),
+                                            children: [
+                                              Padding(
+                                                padding: const EdgeInsets.only(bottom: 6),
+                                                child: Align(
+                                                  alignment: Alignment.centerLeft,
+                                                  child: TypingIndicator(
+                                                    dotColor: roomThemeSpec.primaryAccentColor,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }
                                         return const MekaarStateView(
                                           pose: MikaPose.sleep,
                                           title: 'Belum Ada Pesan',
@@ -1997,10 +2022,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                               bottom:
                                                   130 + keyboardHeight + emojiInset,
                                             ),
-                                            itemCount: itemEntries.length,
+                                            itemCount: itemEntries.length +
+                                                (isTyping ? 1 : 0),
                                             itemBuilder: (context, index) {
+                                              if (isTyping && index == 0) {
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(
+                                                    bottom: 4,
+                                                  ),
+                                                  child: Align(
+                                                    alignment: Alignment.centerLeft,
+                                                    child: TypingIndicator(
+                                                      dotColor: roomThemeSpec
+                                                          .primaryAccentColor,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                              final entryIndex =
+                                                  isTyping ? index - 1 : index;
                                               return _buildLazyMessageItem(
-                                                itemEntries[index],
+                                                itemEntries[entryIndex],
                                                 currentUserId,
                                                 actions,
                                                 messageMap,
@@ -2054,25 +2096,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           ],
                         ),
                       ),
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final isTyping = ref.watch(
-                            typingStateProvider(widget.chatId),
-                          );
-                          if (!isTyping) return const SizedBox.shrink();
-                          final emojiInset = _isEmojiPickerOpen ? 270.0 : 0.0;
-                          final keyboardHeight =
-                              MediaQuery.viewInsetsOf(context).bottom;
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: 84 + keyboardHeight + emojiInset,
-                            ),
-                            child: const TypingIndicator(
-                              dotColor: AppColors.blue,
-                            ),
-                          );
-                        },
-                      ),
+
                     ],
                   );
                 },
