@@ -108,6 +108,50 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     }
   }
 
+  void _confirmBreakGuardian() {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Putus Paksa Guardian?',
+      message:
+          'Hubungan dengan ${widget.guardian.name} akan diputus secara instan dan ia diblokir mengirim undangan selama 24 jam.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            try {
+              await ref
+                  .read(guardianProvider.notifier)
+                  .breakGuardian(widget.guardian.id);
+              if (mounted) {
+                MekaarSnackbar.success(
+                  context,
+                  'Hubungan dengan ${widget.guardian.name} diputus secara paksa.',
+                );
+                Navigator.pop(context);
+              }
+            } catch (e) {
+              if (mounted) {
+                MekaarSnackbar.error(
+                  context,
+                  'Gagal memutus hubungan: ${e.toString().replaceAll('Exception: ', '')}',
+                );
+              }
+            }
+          },
+          child: const Text(
+            'Putus Paksa',
+            style: TextStyle(color: MekaarColors.sosRed),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _toggleBlock() async {
     final guardianUserId = widget.guardian.guardianId;
     if (guardianUserId.isEmpty) return;
@@ -146,9 +190,39 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
       appBar: CustomAppBar(
         title: 'Detail Guardian',
         actions: [
-          IconButton(
-            icon: const Icon(SolarIconsOutline.trashBinMinimalistic, color: MekaarColors.sosRed),
-            onPressed: _removeGuardian,
+          PopupMenuButton<String>(
+            icon: const Icon(SolarIconsOutline.menuDotsCircle),
+            tooltip: 'Menu Opsi Guardian',
+            onSelected: (value) {
+              if (value == 'remove') {
+                _removeGuardian();
+              } else if (value == 'break') {
+                _confirmBreakGuardian();
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'remove',
+                child: Row(
+                  children: [
+                    Icon(SolarIconsOutline.trashBinMinimalistic, size: 18, color: MekaarColors.sosRed),
+                    SizedBox(width: 10),
+                    Text('Hapus Guardian', style: TextStyle(color: MekaarColors.sosRed)),
+                  ],
+                ),
+              ),
+              if (!isPending && !isExpired)
+                const PopupMenuItem(
+                  value: 'break',
+                  child: Row(
+                    children: [
+                      Icon(SolarIconsOutline.linkBroken, size: 18, color: MekaarColors.sosRed),
+                      SizedBox(width: 10),
+                      Text('Putus Paksa (24 Jam)', style: TextStyle(color: MekaarColors.sosRed)),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ],
       ),

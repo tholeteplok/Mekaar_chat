@@ -54,6 +54,13 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           title: 'Sistem Guardian',
           subtitle: 'Saling menjaga dalam situasi darurat',
           actions: [
+            if (myGuardians.isNotEmpty)
+              IconButton(
+                icon: const Icon(SolarIconsOutline.userPlus),
+                tooltip: 'Tambah Guardian Baru',
+                onPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.guardianAdd),
+              ),
             IconButton(
               icon: const Icon(SolarIconsOutline.gps),
               tooltip: 'Lacak Guardian',
@@ -124,107 +131,89 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     List<Guardian> guardians,
     GuardianLoadStatus status,
   ) {
-    final isDark = MekaarColors.isDarkContext(context);
-    final accentColor = MekaarColors.accentOf(context);
-
     return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Add Guardian Button
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, AppRoutes.guardianAdd),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: isDark ? 0.08 : 0.04),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: isDark ? 0.45 : 0.35),
-                  width: 1.5,
-                  style: BorderStyle.solid,
-                ),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    SolarIconsBold.addCircle,
-                    color: accentColor,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Tambah Guardian Baru',
-                    style: MekaarTypography.labelLG.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: status == GuardianLoadStatus.loading
-                ? const MekaarStateView(
-                    pose: MikaPose.neutral,
-                    title: 'Memuat Guardian',
-                    message: 'Sedang mengambil daftar Guardian Anda...',
-                    layout: MekaarStateLayout.centered,
-                  )
-                : status == GuardianLoadStatus.error
-                ? _buildLoadError(
-                    () =>
-                        ref.read(guardianProvider.notifier).refreshGuardians(),
-                  )
-                : guardians.isEmpty
-                ? AnimatedAppear(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const MikaIllustration(
-                            type: MikaIllustrationType.emptyGuardian,
-                            size: 160,
-                            semanticLabel: 'Belum ada guardian',
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Belum Ada Guardian',
-                            style: MekaarTypography.headingMD,
-                          ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Text(
-                              'Tambahkan kontak tepercaya sebagai pelindung darurat Anda.',
-                              style: MekaarTypography.bodyMD,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+      child: status == GuardianLoadStatus.loading
+          ? const MekaarStateView(
+              pose: MikaPose.neutral,
+              title: 'Memuat Guardian',
+              message: 'Sedang mengambil daftar Guardian Anda...',
+              layout: MekaarStateLayout.centered,
+            )
+          : status == GuardianLoadStatus.error
+          ? _buildLoadError(
+              () =>
+                  ref.read(guardianProvider.notifier).refreshGuardians(),
+            )
+          : guardians.isEmpty
+          ? AnimatedAppear(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const MikaIllustration(
+                        type: MikaIllustrationType.emptyGuardian,
+                        size: 160,
+                        semanticLabel: 'Belum ada guardian',
                       ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: guardians.length,
-                    itemBuilder: (context, index) {
-                      final guardian = guardians[index];
-                      return AnimatedAppear(
-                        delay: Duration(
-                          milliseconds: (index * 40).clamp(0, 240),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Belum Ada Guardian',
+                        style: MekaarTypography.headingMD,
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          'Tambahkan kontak tepercaya sebagai pelindung darurat Anda.',
+                          style: MekaarTypography.bodyMD,
+                          textAlign: TextAlign.center,
                         ),
-                        child: _buildGuardianCard(guardian, true),
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, AppRoutes.guardianAdd),
+                        icon: const Icon(SolarIconsBold.addCircle, size: 20),
+                        label: Text(
+                          'Tambah Guardian Baru',
+                          style: MekaarTypography.labelLG.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 14,
+                          ),
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                        ),
+                      ),
+                    ],
                   ),
-          ),
-        ],
-      ),
+                ),
+              ),
+            )
+          : ListView.builder(
+              itemCount: guardians.length,
+              itemBuilder: (context, index) {
+                final guardian = guardians[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AnimatedAppear(
+                    delay: Duration(
+                      milliseconds: (index * 40).clamp(0, 240),
+                    ),
+                    child: _buildGuardianCard(guardian, true),
+                  ),
+                );
+              },
+            ),
     );
   }
 
@@ -277,9 +266,12 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
               itemCount: list.length,
               itemBuilder: (context, index) {
                 final guardian = list[index];
-                return AnimatedAppear(
-                  delay: Duration(milliseconds: (index * 40).clamp(0, 240)),
-                  child: _buildGuardianCard(guardian, false),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AnimatedAppear(
+                    delay: Duration(milliseconds: (index * 40).clamp(0, 240)),
+                    child: _buildGuardianCard(guardian, false),
+                  ),
                 );
               },
             ),
@@ -299,102 +291,126 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
             )
           : null,
       child: CustomCard(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Avatar(
-              initial: guardian.name.isNotEmpty ? guardian.name[0] : 'U',
-              size: 46,
-              isGuardian: guardian.status == 'active',
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            // ── 1. Header: Avatar + Nama + Status Badge + Arrow ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Avatar(
+                  initial: guardian.name.isNotEmpty ? guardian.name[0] : 'U',
+                  size: 44,
+                  isGuardian: guardian.status == 'active',
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text(
-                          guardian.name,
-                          style: MekaarTypography.headingSM,
+                      Text(
+                        guardian.name,
+                        style: MekaarTypography.headingSM,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (guardian.email.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          guardian.email,
+                          style: MekaarTypography.bodySM.copyWith(
+                            color: MekaarColors.textMutedOf(context),
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      if (isPending)
-                        _buildBadge(
-                          'Menunggu Persetujuan',
-                          MekaarColors.warning,
-                          MekaarColors.warningLight,
-                        )
-                      else if (isExpired)
-                        _buildBadge(
-                          'Kadaluarsa',
-                          MekaarColors.sosRed,
-                          MekaarColors.sosLight,
-                        )
-                      else
-                        _buildBadge(
-                          'Aktif',
-                          MekaarColors.success,
-                          MekaarColors.successLight,
-                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(guardian.email, style: MekaarTypography.bodySM),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildPermissionChip(
-                        'GPS',
-                        guardian.permissions['gps'] ?? false,
-                      ),
-                      const SizedBox(width: 6),
-                      _buildPermissionChip(
-                        'Audio',
-                        guardian.permissions['mic'] ?? false,
-                      ),
-                      const Spacer(),
-                      if (!isPending && !isExpired)
-                        Text(
-                          '${guardian.daysRemaining} hari lagi',
-                          style: MekaarTypography.labelSM.copyWith(
-                            color: guardian.daysRemaining <= 3
-                                ? MekaarColors.warning
-                                : MekaarColors.successTextOf(context),
-                          ),
-                        ),
-                    ],
+                ),
+                const SizedBox(width: 8),
+                if (isPending)
+                  _buildBadge(
+                    'Menunggu Persetujuan',
+                    MekaarColors.warning,
+                    MekaarColors.warningLight,
+                  )
+                else if (isExpired)
+                  _buildBadge(
+                    'Kadaluarsa',
+                    MekaarColors.sosRed,
+                    MekaarColors.sosLight,
+                  )
+                else
+                  _buildBadge(
+                    'Aktif',
+                    MekaarColors.success,
+                    MekaarColors.successLight,
+                  ),
+                if (isMyGuardian) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    SolarIconsOutline.altArrowRight,
+                    color: MekaarColors.textMutedOf(context),
+                    size: 16,
                   ),
                 ],
-              ),
+              ],
             ),
-            if (isMyGuardian) ...[
-              IconButton(
-                icon: const Icon(
-                  SolarIconsOutline.linkBroken,
-                  color: MekaarColors.sosRed,
+
+            const SizedBox(height: 12),
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: MekaarColors.borderOf(context).withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 10),
+
+            // ── 2. Footer: Permissions & Remaining Time / Actions ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildPermissionChip(
+                  'GPS',
+                  guardian.permissions['gps'] ?? false,
                 ),
-                tooltip: 'Putus Paksa Guardian',
-                onPressed: (!isPending && !isExpired)
-                    ? () => _confirmBreakGuardian(guardian)
-                    : null,
-              ),
-              Icon(
-                SolarIconsOutline.altArrowRight,
-                color: MekaarColors.textMutedOf(context),
-                size: 18,
-              ),
-            ] else if (isPending) ...[
-              // Accept/Reject request
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                const SizedBox(width: 6),
+                _buildPermissionChip(
+                  'Audio',
+                  guardian.permissions['mic'] ?? false,
+                ),
+                const Spacer(),
+                if (!isPending && !isExpired)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        SolarIconsOutline.clockCircle,
+                        size: 13,
+                        color: guardian.daysRemaining <= 3
+                            ? MekaarColors.warning
+                            : MekaarColors.successTextOf(context),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${guardian.daysRemaining} hari lagi',
+                        style: MekaarTypography.labelSM.copyWith(
+                          color: guardian.daysRemaining <= 3
+                              ? MekaarColors.warning
+                              : MekaarColors.successTextOf(context),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (!isMyGuardian && isPending) ...[
                   IconButton(
+                    visualDensity: VisualDensity.compact,
                     icon: const Icon(
                       SolarIconsOutline.checkCircle,
                       color: MekaarColors.success,
+                      size: 22,
                     ),
                     tooltip: 'Terima undangan Guardian',
                     onPressed: () async {
@@ -412,63 +428,23 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       }
                     },
                   ),
+                  const SizedBox(width: 2),
                   IconButton(
+                    visualDensity: VisualDensity.compact,
                     icon: const Icon(
                       SolarIconsOutline.closeCircle,
                       color: MekaarColors.sosRed,
+                      size: 22,
                     ),
                     tooltip: 'Tolak undangan Guardian',
                     onPressed: () => _confirmRejectGuardian(guardian),
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  void _confirmBreakGuardian(Guardian guardian) {
-    MekaarDialog.showConfirmation<void>(
-      context: context,
-      title: 'Putus Paksa Guardian?',
-      message:
-          'Hubungan dengan ${guardian.name} akan diputus secara instan dan ia diblokir mengirim undangan selama 24 jam.',
-      isDestructive: true,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            try {
-              await ref
-                  .read(guardianProvider.notifier)
-                  .breakGuardian(guardian.id);
-              if (mounted) {
-                MekaarSnackbar.success(
-                  context,
-                  'Hubungan dengan ${guardian.name} diputus.',
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                MekaarSnackbar.error(
-                  context,
-                  'Gagal memutus hubungan: ${ErrorResolver.resolve(e)}',
-                );
-              }
-            }
-          },
-          child: const Text(
-            'Putus Paksa',
-            style: TextStyle(color: MekaarColors.sosRed),
-          ),
-        ),
-      ],
     );
   }
 
