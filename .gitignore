@@ -1,3 +1,6 @@
+# Temporary screenshots staging
+.docs/screenshot/
+
 # Miscellaneous
 *.class
 *.log
