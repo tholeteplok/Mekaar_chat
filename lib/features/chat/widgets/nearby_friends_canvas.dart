@@ -8,6 +8,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
@@ -103,7 +104,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(nearbyFriendsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final showPreview = ref.watch(nearbyPreviewPreferenceProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
@@ -130,18 +131,73 @@ class NearbyFriendsCanvas extends ConsumerWidget {
       return true;
     }).toList();
 
-    // ── 1. State Nonaktif: Tampilkan Teaser Card Interaktif ──
+    // ── 1. State Nonaktif: Tampilkan Teaser Card Interaktif (jika preview on) atau Empty State Mika (jika preview off) ──
     if (!state.isEnabled) {
-      return NearbyTeaserCard(
-        collapseProgress: collapseProgress,
-        canvasHeight: dynamicHeight,
-        onActivate: () async {
-          await NearbyPermissionHelper.activateWithPermissionCheck(
-            context,
-            ref,
-            onSettingsOpened: onSettingsOpened,
-          );
-        },
+      if (showPreview) {
+        return NearbyTeaserCard(
+          collapseProgress: collapseProgress,
+          canvasHeight: dynamicHeight,
+          onActivate: () async {
+            await NearbyPermissionHelper.activateWithPermissionCheck(
+              context,
+              ref,
+              onSettingsOpened: onSettingsOpened,
+            );
+          },
+        );
+      }
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 16),
+              const MikaIllustration(
+                type: MikaIllustrationType.emptyContacts,
+                size: 160,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Teman Sekitar Dinonaktifkan',
+                style: MekaarTypography.headingMD.copyWith(
+                  color: MekaarColors.textPrimaryOf(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Aktifkan fitur ini untuk mendeteksi teman atau kontak yang berada di sekitar Anda secara aman.',
+                style: MekaarTypography.bodyMD.copyWith(
+                  color: MekaarColors.textSecondaryOf(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                icon: const Icon(SolarIconsOutline.radar2, size: 18),
+                label: const Text('Aktifkan Teman Sekitar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MekaarColors.guardianTeal,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  await NearbyPermissionHelper.activateWithPermissionCheck(
+                    context,
+                    ref,
+                    onSettingsOpened: onSettingsOpened,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -236,45 +292,58 @@ class NearbyFriendsCanvas extends ConsumerWidget {
 
           // Canvas Body
           if (displayList.isEmpty && !state.isLoading) ...[
-            // Empty State
+            // Empty State (Selaras dengan Kontak Kosong)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Center(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark
-                            ? Colors.white10
-                            : Colors.black.withValues(alpha: 0.04),
-                      ),
-                      child: Icon(
-                        SolarIconsOutline.userHands,
-                        size: 24,
-                        color: MekaarColors.textMutedOf(context),
-                      ),
+                    const SizedBox(height: 12),
+                    const MikaIllustration(
+                      type: MikaIllustrationType.emptyContacts,
+                      size: 160,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 20),
                     Text(
                       state.visibilityMode == 'contacts_only'
-                          ? 'Belum ada kontak di sekitar'
-                          : 'Belum ada teman di sekitar',
-                      style: MekaarTypography.bodySM.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.5,
+                          ? 'Belum Ada Kontak di Sekitar'
+                          : 'Belum Ada Teman di Sekitar',
+                      style: MekaarTypography.headingMD.copyWith(
                         color: MekaarColors.textPrimaryOf(context),
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 8),
                     Text(
-                      'Jarak diperbarui otomatis saat aktif di radius < 10 km',
-                      style: MekaarTypography.caption.copyWith(
-                        color: MekaarColors.textMutedOf(context),
-                        fontSize: 11,
+                      state.visibilityMode == 'contacts_only'
+                          ? 'Tidak ada kontak Anda yang aktif dalam radius < 10 km. Jarak akan diperbarui otomatis saat mereka daring.'
+                          : 'Belum ada pengguna di sekitar Anda dalam radius < 10 km. Jarak akan diperbarui otomatis saat mereka daring.',
+                      style: MekaarTypography.bodyMD.copyWith(
+                        color: MekaarColors.textSecondaryOf(context),
                       ),
                       textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      icon: const Icon(SolarIconsOutline.restart, size: 18),
+                      label: const Text('Pindai Ulang'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: MekaarColors.guardianTeal,
+                        side:
+                            const BorderSide(color: MekaarColors.guardianTeal),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        shape: const StadiumBorder(),
+                      ),
+                      onPressed: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        ref
+                            .read(nearbyFriendsProvider.notifier)
+                            .refreshNearby(force: true);
+                      },
                     ),
                   ],
                 ),

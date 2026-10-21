@@ -31,6 +31,7 @@ import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
+import '../widgets/private_vault_active_banner.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
@@ -843,67 +844,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     ),
             ),
             // Banner Private Vault Aktif (jika vault sedang terbuka)
-            Consumer(
-              builder: (context, ref, _) {
-                final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
-                if (!isVaultUnlocked) return const SizedBox.shrink();
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: Builder(builder: (context) {
-                    final safeColor = MekaarColors.safeTextOf(context);
-                    return MekaarBanner(
-                      color: safeColor,
-                      margin: EdgeInsets.zero,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      icon: SolarIconsBold.shieldKeyhole,
-                      content: Text(
-                        'Vault Obrolan Terbuka (Sesi Aktif)',
-                        style: TextStyle(
-                          color: MekaarColors.textPrimaryOf(context),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      action: InkWell(
-                        onTap: () {
-                          HapticService.trigger(MekaarHapticIntent.selection);
-                          ref.read(privateVaultUnlockedProvider.notifier).state = false;
-                          MekaarSnackbar.info(context, 'Vault Obrolan Terkunci');
-                        },
-                        borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                        child: Container(
-                          constraints: const BoxConstraints(
-                            minHeight: 44,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: MekaarColors.guardianTeal,
-                            borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(SolarIconsOutline.lock, color: MekaarColors.textOnTeal, size: 14),
-                              SizedBox(width: 4),
-                              Text(
-                                'Kunci',
-                                style: TextStyle(
-                                  color: MekaarColors.textOnTeal,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                );
-              },
-            ),
+            const PrivateVaultActiveBanner(),
             // Chat Requests Banner (jika ada permintaan pending)
             StreamBuilder<int>(
               stream: ref.watch(chatRequestRepositoryProvider).streamPendingRequestsCount(),

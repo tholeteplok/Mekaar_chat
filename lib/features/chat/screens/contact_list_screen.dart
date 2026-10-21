@@ -16,7 +16,6 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
-import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/repositories/private_contact_repository.dart';
@@ -26,6 +25,7 @@ import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/nearby_friends_canvas.dart';
+import '../widgets/private_vault_active_banner.dart';
 
 class ContactListScreen extends ConsumerStatefulWidget {
   const ContactListScreen({super.key});
@@ -303,56 +303,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         ),
                 ),
                 // Banner Private Vault Aktif (jika vault sedang terbuka)
-                if (isVaultUnlocked)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 6,
-                    ),
-                    child: MekaarBanner(
-                      color: MekaarColors.accentOf(context),
-                      margin: EdgeInsets.zero,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      icon: SolarIconsOutline.eye,
-                      content: Text(
-                        'Private Vault Terbuka',
-                        style: MekaarTypography.bodySM.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: MekaarColors.accentOf(context),
-                        ),
-                      ),
-                      action: TextButton.icon(
-                        onPressed: () {
-                          HapticService.trigger(MekaarHapticIntent.selection);
-                          ref
-                                  .read(privateVaultUnlockedProvider.notifier)
-                                  .state =
-                              false;
-                          MekaarSnackbar.info(context, 'Private Vault Dikunci');
-                        },
-                        icon: Icon(
-                          SolarIconsOutline.lock,
-                          size: 16,
-                          color: MekaarColors.accentOf(context),
-                        ),
-                        label: Text(
-                          'Kunci',
-                          style: TextStyle(
-                            color: MekaarColors.accentOf(context),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: const Size(44, 44),
-                        ),
-                      ),
-                    ),
-                  ),
+                const PrivateVaultActiveBanner(),
                 const SizedBox(height: 6),
                 // Tab Atas Utama: ['Semua Kontak', 'Teman Sekitar']
                 MekaarSlidingSegmentBar(

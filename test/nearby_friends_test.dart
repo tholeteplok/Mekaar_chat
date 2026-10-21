@@ -77,6 +77,16 @@ class FakeHiddenRoomIdsNotifier extends StateNotifier<Set<String>>
   bool isHidden(String roomId) => state.contains(roomId);
 }
 
+class FakeNearbyPreviewPreferenceNotifier extends StateNotifier<bool>
+    implements NearbyPreviewPreferenceNotifier {
+  FakeNearbyPreviewPreferenceNotifier(super.initialState);
+
+  @override
+  Future<void> setVisible(bool visible) async {
+    state = visible;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -247,6 +257,42 @@ void main() {
       },
     );
 
+    testWidgets(
+      'Saat fitur disabled dan preview off, menampilkan empty state Mika Teman Sekitar Dinonaktifkan',
+      (tester) async {
+        final fakeRepo = FakeNearbyRepository();
+        await fakeRepo.updatePreferences(enabled: false);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              nearbyRepositoryProvider.overrideWithValue(fakeRepo),
+              nearbyFriendsProvider.overrideWith(
+                (ref) => NearbyFriendsNotifier(
+                  fakeRepo,
+                  requestPermission: () async => true,
+                  getLocation: () async =>
+                      (latitude: -6.2088, longitude: 106.8456),
+                ),
+              ),
+              nearbyPreviewPreferenceProvider.overrideWith(
+                (ref) => FakeNearbyPreviewPreferenceNotifier(false),
+              ),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: NearbyFriendsCanvas()),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(find.text('Teman Sekitar Dinonaktifkan'), findsOneWidget);
+        expect(find.text('Aktifkan Teman Sekitar'), findsOneWidget);
+      },
+    );
+
     testWidgets('Saat fitur enabled dan kosong, menampilkan empty state', (
       tester,
     ) async {
@@ -277,7 +323,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Teman Sekitar'), findsOneWidget);
-      expect(find.text('Belum ada teman di sekitar'), findsOneWidget);
+      expect(find.text('Belum Ada Teman di Sekitar'), findsOneWidget);
+      expect(find.text('Pindai Ulang'), findsOneWidget);
     });
 
     testWidgets(
