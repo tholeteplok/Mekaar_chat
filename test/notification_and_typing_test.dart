@@ -1,3 +1,7 @@
+import 'package:mekaar_chat/data/models/device_lost_model.dart';
+import 'package:mekaar_chat/data/models/sos_session_model.dart';
+import 'package:mekaar_chat/data/services/update_service.dart';
+import 'package:mekaar_chat/core/widgets/mekaar_update_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -327,6 +331,132 @@ void main() {
       // Pastikan nama asli muncul
       expect(find.text('Teman Biasa'), findsOneWidget);
       expect(find.text('Kontak Terlindungi'), findsNothing);
+    });
+  });
+
+  group('Update Ready-To-Install Modal Tests', () {
+    testWidgets('Sheet siap pasang merender 2 baris: Pasang Sekarang, Buka Unduhan, dan Hapus Berkas', (tester) async {
+      const dummyInfo = AppUpdateInfo(
+        hasUpdate: true,
+        currentVersion: '1.2.2',
+        latestVersion: '1.2.3',
+        releaseName: 'Mekaar 1.2.3',
+        releaseNotes: 'Catatan rilis',
+        downloadUrl: 'https://example.com/update.apk',
+        htmlUrl: 'https://example.com',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Builder(
+              builder: (ctx) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () {
+                    MekaarUpdateBottomSheet.showInstallSheet(
+                      context: ctx,
+                      info: dummyInfo,
+                    );
+                  },
+                  child: const Text('Open Sheet'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Buka bottom sheet
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      // Verifikasi tombol baris 1 (Pasang Sekarang)
+      expect(find.text('Pasang Sekarang'), findsOneWidget);
+
+      // Verifikasi tombol baris 2 (Buka Unduhan & Hapus Berkas berjejer)
+      expect(find.text('Buka Unduhan'), findsOneWidget);
+      expect(find.text('Hapus Berkas'), findsOneWidget);
+
+      // Verifikasi tombol yang dihapus tidak ada lagi
+      expect(find.text('Unduh Ulang (Hapus Cache)'), findsNothing);
+      expect(find.text('Hapus Berkas & Tutup'), findsNothing);
+      expect(find.text('Pasang Nanti'), findsNothing);
+      expect(find.text('Tutup'), findsNothing);
+    });
+  });
+
+  group('SOS Session Schema Alignment Tests', () {
+    test('SOSSession memetakan mic_enabled dan started_at secara presisi sesuai skema Supabase', () {
+      final now = DateTime.now();
+      final session = SOSSession(
+        id: 'sos-123',
+        userId: 'user-abc',
+        startedAt: now,
+        status: 'active',
+        gpsEnabled: true,
+        micEnabled: true,
+        videoEnabled: false,
+        createdAt: now,
+      );
+
+      final json = session.toJson();
+      expect(json['mic_enabled'], isTrue);
+      expect(json.containsKey('audio_enabled'), isFalse);
+      expect(json['started_at'], equals(now.toIso8601String()));
+      expect(json['status'], equals('active'));
+
+      final parsed = SOSSession.fromJson({
+        'id': 'sos-123',
+        'user_id': 'user-abc',
+        'started_at': now.toIso8601String(),
+        'status': 'active',
+        'gps_enabled': true,
+        'mic_enabled': true,
+        'video_enabled': false,
+        'created_at': now.toIso8601String(),
+      });
+
+      expect(parsed.micEnabled, isTrue);
+      expect(parsed.startedAt, equals(DateTime.parse(now.toIso8601String())));
+    });
+  });
+
+  group('Device Lost State & Server Time RPC Tests', () {
+    test('DeviceLostState memetakan recovery_contact, lock_message, dan status lock secara presisi', () {
+      final now = DateTime.now();
+      const state = DeviceLostState(
+        isLocked: true,
+        lockMessage: 'Ponsel ini hilang. Hubungi nomor darurat.',
+        recoveryContact: '+6281234567890',
+      );
+
+      final json = state.toJson();
+      expect(json['is_locked'], isTrue);
+      expect(json['lock_message'], 'Ponsel ini hilang. Hubungi nomor darurat.');
+      expect(json['recovery_contact'], '+6281234567890');
+
+      final parsed = DeviceLostState.fromJson({
+        'is_locked': true,
+        'lock_message': 'Ponsel ini hilang. Hubungi nomor darurat.',
+        'recovery_contact': '+6281234567890',
+        'locked_at': now.toIso8601String(),
+      });
+
+      expect(parsed.isLocked, isTrue);
+      expect(parsed.recoveryContact, '+6281234567890');
+      expect(parsed.lockedAt, isNotNull);
+    });
+
+    test('Parser RPC get_server_time mampu memparsing format ISO8601 UTC server', () {
+      const serverTimeStr = '2026-10-21T14:24:00.123456+00:00';
+      final parsed = DateTime.parse(serverTimeStr).toUtc();
+
+      expect(parsed.isUtc, isTrue);
+      expect(parsed.year, 2026);
+      expect(parsed.month, 10);
+      expect(parsed.day, 21);
+      expect(parsed.hour, 14);
+      expect(parsed.minute, 24);
     });
   });
 }

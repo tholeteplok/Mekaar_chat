@@ -265,7 +265,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
         mic: data['mic'] as bool,
         video: data['video'] as bool,
       );
-    } catch (_) {
+    } catch (e) {
+      _logger.w('_flushPendingSOS: gagal memproses antrean SOS tertunda: $e');
       // Tetap queued; timer akan mencoba lagi saat koneksi tersedia.
     }
   }
@@ -323,7 +324,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
     SOSSession session;
     try {
       session = await _sosRepository.startSOS(gps: gps, mic: mic, video: video);
-    } catch (_) {
+    } catch (e, stack) {
+      _logger.e('activateSOS: gagal memulai sesi SOS di server: $e', error: e, stackTrace: stack);
       // Offline / tidak ada sinyal: simpan ke antrean lokal, kirim saat sinyal kembali.
       final queued = await _enqueuePendingSOS(gps, mic, video, DateTime.now());
       if (queued) {

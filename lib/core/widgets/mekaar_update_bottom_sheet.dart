@@ -971,95 +971,66 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
-        // Opsi Unduh Ulang & Hapus Cache
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(44),
-            foregroundColor: MekaarColors.sosCoral,
-            side: BorderSide(
-              color: MekaarColors.sosCoral.withValues(alpha: 0.35),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(MekaarRadius.md),
-            ),
-          ),
-          onPressed: () async {
-            HapticService.trigger(MekaarHapticIntent.selection);
-            Navigator.pop(context);
-            await ref
-                .read(updateDownloadProvider.notifier)
-                .deleteAndRetryDownload(info);
-            if (context.mounted) {
-              MekaarUpdateBottomSheet.showProgressSheet(
-                context: context,
-                info: info,
-              );
-            }
-          },
-          icon: const Icon(SolarIconsOutline.restart, size: 16),
-          label: const Text('Unduh Ulang (Hapus Cache)'),
-        ),
-        const SizedBox(height: 8),
-
-        // Opsi Buka Folder Unduhan (Cadangan & Akses Manual)
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(44),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(MekaarRadius.md),
-            ),
-          ),
-          onPressed: () async {
-            HapticService.trigger(MekaarHapticIntent.selection);
-            await ref
-                .read(updateDownloadProvider.notifier)
-                .openDownloadsFolder();
-          },
-          icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
-          label: const Text('Buka Folder Unduhan'),
-        ),
-        const SizedBox(height: 6),
-
+        // Baris 2: Buka Unduhan & Hapus Berkas (Outlined Berjejer)
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextButton(
-              onPressed: () async {
-                HapticService.trigger(MekaarHapticIntent.selection);
-                Navigator.pop(context);
-                await ref
-                    .read(updateDownloadProvider.notifier)
-                    .deleteCacheAndReset();
-              },
-              child: Text(
-                'Hapus Berkas & Tutup',
-                style: MekaarTypography.caption.copyWith(
-                  color: MekaarColors.sosCoral,
-                  fontWeight: FontWeight.w600,
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  ),
+                ),
+                onPressed: () async {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  await ref
+                      .read(updateDownloadProvider.notifier)
+                      .openDownloadsFolder();
+                },
+                icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
+                label: const Text(
+                  'Buka Unduhan',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
-            Container(
-              width: 4,
-              height: 4,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: MekaarColors.textSecondaryOf(context),
-                shape: BoxShape.circle,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                ref.read(updateDownloadProvider.notifier).minimize();
-                Navigator.pop(context);
-              },
-              child: Text(
-                'Pasang Nanti',
-                style: MekaarTypography.caption.copyWith(
-                  color: MekaarColors.textSecondaryOf(context),
-                  fontWeight: FontWeight.w600,
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  foregroundColor: MekaarColors.sosCoral,
+                  side: BorderSide(
+                    color: MekaarColors.sosCoral.withValues(alpha: 0.35),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  ),
+                ),
+                onPressed: () async {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  final rootNav = Navigator.of(context, rootNavigator: true);
+                  final scaffoldCtx = rootNav.context;
+                  Navigator.pop(context);
+                  await ref
+                      .read(updateDownloadProvider.notifier)
+                      .deleteCacheAndReset();
+                  if (scaffoldCtx.mounted) {
+                    MekaarSnackbar.info(
+                      scaffoldCtx,
+                      'Berkas unduhan dan cache berhasil dihapus',
+                    );
+                  }
+                },
+                icon: const Icon(SolarIconsOutline.trashBinTrash, size: 16),
+                label: const Text(
+                  'Hapus Berkas',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),

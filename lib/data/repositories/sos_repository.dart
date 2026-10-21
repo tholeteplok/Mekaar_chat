@@ -27,13 +27,15 @@ class SOSRepository {
       return SOSSession.fromJson(active);
     }
 
+    final now = DateTime.now().toIso8601String();
     final response = await _supabaseService.client
         .from('sos_sessions')
         .insert({
           'user_id': userId,
           'status': 'active',
+          'started_at': now,
           'gps_enabled': gps,
-          'audio_enabled': mic,
+          'mic_enabled': mic,
           'video_enabled': video,
         })
         .select()
