@@ -13,6 +13,7 @@ import '../../settings/providers/privacy_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'app_realtime_listener.dart';
 import 'call_invitation_listener.dart';
+import 'sos_alert_listener.dart';
 
 /// Listener terpusat untuk notifikasi pesan masuk (Opsi A dari Implementation Plan).
 ///
@@ -282,6 +283,7 @@ class _NotificationListenerHostState
     // Cek antrian panggilan offline saat cold start
     Future.microtask(() {
       ref.read(callInvitationListenerProvider).checkPendingCallsOnResume();
+      ref.read(sosAlertListenerProvider).checkActiveSOSOnResume();
       ref.read(emojiCatalogProvider.future);
       ref.read(installedPacksProvider);
     });
@@ -294,6 +296,8 @@ class _NotificationListenerHostState
       ref.read(appRealtimeListenerProvider).reconnectIfNeeded();
       // 2. Periksa antrian panggilan offline (mitigasi app tertutup / background dibunuh OS)
       ref.read(callInvitationListenerProvider).checkPendingCallsOnResume();
+      // 2b. Periksa apakah ada SOS darurat aktif dari orang yang dijaga
+      ref.read(sosAlertListenerProvider).checkActiveSOSOnResume();
       // 3. Refresh chat rooms agar badge unread & pesan terkini ter-update
       ref.read(chatRoomsProvider.notifier).refreshRooms();
     }

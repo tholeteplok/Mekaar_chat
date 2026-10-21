@@ -1,5 +1,6 @@
 # Temporary screenshots staging
 .docs/screenshot/
+.serena/
 
 # Miscellaneous
 *.class

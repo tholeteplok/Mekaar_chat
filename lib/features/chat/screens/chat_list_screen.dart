@@ -32,6 +32,7 @@ import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
 import '../widgets/private_vault_active_banner.dart';
+import '../../guardian/widgets/guardian_sos_alert_banner.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
@@ -216,6 +217,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _triggerSOS() async {
+    final isSosActive = ref.read(sosProvider).status == SOSStatus.active ||
+        ref.read(sosProvider).status == SOSStatus.queuedOffline;
+    if (isSosActive) {
+      Navigator.pushNamed(context, AppRoutes.sosActive);
+      return;
+    }
+
     if (_isCheckingSOSGuardians) return;
     _isCheckingSOSGuardians = true;
 
@@ -858,6 +866,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       },
                     ),
             ),
+            // Banner Darurat SOS untuk Guardian (jika orang yang dijaga dalam bahaya)
+            const GuardianSOSAlertBanner(),
             // Banner Private Vault Aktif (jika vault sedang terbuka)
             const PrivateVaultActiveBanner(),
             // Chat Requests Banner (jika ada permintaan pending)

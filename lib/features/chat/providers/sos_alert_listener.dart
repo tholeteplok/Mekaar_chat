@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../guardian/widgets/guardian_sos_alert_banner.dart';
 import 'chat_provider.dart';
 
 /// Listener Realtime untuk mendeteksi SOS baru dari user yang dijaga.
@@ -64,7 +65,13 @@ class SOSAlertListener {
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
     if (currentUserId == null || userId == currentUserId) return;
 
-    if (_cachedOwnerIds != null && !_cachedOwnerIds!.contains(userId)) return;
+    if (_cachedOwnerIds == null || !_cachedOwnerIds!.contains(userId)) {
+      // Fallback query untuk memastikan relasi guardian tidak terlewat karena cache dingin/stale
+      await _loadOwnerIds(currentUserId);
+      if (_cachedOwnerIds == null || !_cachedOwnerIds!.contains(userId)) {
+        return;
+      }
+    }
 
     // Dedup: cek apakah sudah dinotifikasi dari jalur FCM
     if (NotificationDedupService.isDuplicate('sos_$sessionId')) return;
@@ -84,6 +91,9 @@ class SOSAlertListener {
       // Fallback ke nama default.
     }
 
+    // Trigger update banner darurat di UI Guardian
+    _ref.invalidate(activeGuardedSessionsProvider);
+
     await NotificationService.showLocalSOSNotification(
       title: '🆘 DARURAT — $victimName',
       body: 'Butuh bantuan segera! Tap untuk melihat lokasi.',
@@ -94,6 +104,60 @@ class SOSAlertListener {
         'victimName': victimName,
       },
     );
+  }
+
+  /// Memeriksa apakah ada sesi SOS aktif dari orang yang kita jaga saat app di-resume.
+  Future<void> checkActiveSOSOnResume() async {
+    if (_disposed) return;
+    final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
+    if (currentUserId == null) return;
+
+    try {
+      await _loadOwnerIds(currentUserId);
+      if (_cachedOwnerIds == null || _cachedOwnerIds!.isEmpty) return;
+
+      final client = _ref.read(supabaseServiceProvider).client;
+      final activeSessions = await client
+          .from('sos_sessions')
+          .select('id, user_id, status')
+          .eq('status', 'active')
+          .inFilter('user_id', _cachedOwnerIds!);
+
+      for (final row in (activeSessions as List)) {
+        final sessionId = row['id'] as String?;
+        final userId = row['user_id'] as String?;
+        if (sessionId == null || userId == null) continue;
+
+        if (NotificationDedupService.isDuplicate('sos_$sessionId')) continue;
+        NotificationDedupService.markNotified('sos_$sessionId');
+
+        String victimName = 'Seseorang';
+        try {
+          final profile =
+              await _ref.read(chatRepositoryProvider).searchProfileById(userId);
+          if (profile != null) {
+            victimName = (profile['full_name'] as String?) ??
+                (profile['username'] as String?) ??
+                'Seseorang';
+          }
+        } catch (_) {}
+
+        _ref.invalidate(activeGuardedSessionsProvider);
+
+        await NotificationService.showLocalSOSNotification(
+          title: '🆘 DARURAT — $victimName',
+          body: 'Butuh bantuan segera! Tap untuk melihat lokasi.',
+          data: {
+            'role': 'guardian',
+            'sessionId': sessionId,
+            'userId': userId,
+            'victimName': victimName,
+          },
+        );
+      }
+    } catch (e) {
+      _log.w('SOSAlertListener: checkActiveSOSOnResume gagal: $e');
+    }
   }
 
   void dispose() {

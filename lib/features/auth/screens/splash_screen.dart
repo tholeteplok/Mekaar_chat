@@ -76,6 +76,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
 
+      // 0b. Active SOS Lockdown Check (Bypass normal navigation straight to SOSActiveScreen)
+      try {
+        final activeSos = await ref.read(sosRepositoryProvider).getActiveSOS();
+        if (activeSos != null) {
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(context, AppRoutes.sosActive);
+          return;
+        }
+      } catch (_) {}
+
       // 1. Suspension Lockout Check (dengan SOS immunity guard)
       if (authState.profile?.isSuspended == true) {
         try {
