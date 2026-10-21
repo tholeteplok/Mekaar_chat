@@ -1213,16 +1213,16 @@ class _ReadReceiptIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case ReadReceiptStatus.pending:
-        return Icon(MekaarIcons.timerOutlined, size: 11, color: color);
+        return Icon(MekaarIcons.timerOutlined, size: 12, color: color);
       case ReadReceiptStatus.sent:
-        return Icon(MekaarIcons.check, size: 11, color: color);
+        return Icon(MekaarIcons.receiptSent, size: 15, color: color);
       case ReadReceiptStatus.delivered:
-        return Icon(MekaarIcons.doneAll, size: 11, color: color);
+        return Icon(MekaarIcons.receiptDelivered, size: 15, color: color);
       case ReadReceiptStatus.read:
         return const Icon(
-          MekaarIcons.doneAll,
-          size: 12,
-          color: Color(0xFF34B7F1), // Biru standar pesan sudah dibaca
+          MekaarIcons.receiptRead,
+          size: 15,
+          color: MekaarColors.readReceiptGreen,
         );
     }
   }

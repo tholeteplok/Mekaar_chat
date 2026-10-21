@@ -2,19 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/routes/app_routes.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_badge.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
-import '../providers/guardian_provider.dart';
-import '../../settings/providers/block_provider.dart';
 import '../../../data/models/guardian_model.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../chat/providers/chat_provider.dart';
+import '../../settings/providers/block_provider.dart';
+import '../providers/guardian_provider.dart';
 
 class GuardianDetailScreen extends ConsumerStatefulWidget {
   final Guardian guardian;
@@ -32,6 +38,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   late bool _videoEnabled;
   late String _storageOption;
   bool _isSaving = false;
+  String? _avatarUrl;
 
   @override
   void initState() {
@@ -40,6 +47,118 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     _micEnabled = widget.guardian.permissions['mic'] ?? false;
     _videoEnabled = widget.guardian.permissions['video'] ?? false;
     _storageOption = widget.guardian.storageOption;
+    _loadPeerProfile();
+  }
+
+  String _getPeerUserId(String? currentUserId) {
+    if (widget.guardian.guardianId.isNotEmpty &&
+        widget.guardian.guardianId != currentUserId) {
+      return widget.guardian.guardianId;
+    }
+    if (widget.guardian.ownerId.isNotEmpty &&
+        widget.guardian.ownerId != currentUserId) {
+      return widget.guardian.ownerId;
+    }
+    return widget.guardian.guardianId;
+  }
+
+  Future<void> _loadPeerProfile() async {
+    try {
+      final currentUserId = ref.read(authProvider).user?.id;
+      final peerId = _getPeerUserId(currentUserId);
+      if (peerId.isNotEmpty) {
+        final profileRow = await ref
+            .read(supabaseServiceProvider)
+            .client
+            .from('public_profiles')
+            .select('avatar_url')
+            .eq('id', peerId)
+            .maybeSingle();
+        if (profileRow != null && mounted) {
+          setState(() {
+            _avatarUrl = profileRow['avatar_url'] as String?;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _openChat() async {
+    final currentUserId = ref.read(authProvider).user?.id;
+    final peerId = _getPeerUserId(currentUserId);
+    if (peerId.isEmpty) {
+      MekaarSnackbar.error(context, 'Tidak dapat menemukan kontak obrolan.');
+      return;
+    }
+
+    try {
+      final roomId = await ref.read(chatRepositoryProvider).createRoom(
+        peerId,
+        'guardian',
+      );
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        AppRoutes.chat,
+        arguments: {
+          'chatId': roomId,
+          'chatName': widget.guardian.name,
+          'chatAvatar': widget.guardian.name.isNotEmpty
+              ? widget.guardian.name[0]
+              : 'U',
+          'chatAvatarUrl': _avatarUrl,
+          'isGuardian': true,
+          'otherUserId': peerId,
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(
+          context,
+          'Gagal membuka obrolan: ${e.toString().replaceAll('Exception: ', '')}',
+        );
+      }
+    }
+  }
+
+  Future<void> _initiateCall() async {
+    final currentUserId = ref.read(authProvider).user?.id;
+    final peerId = _getPeerUserId(currentUserId);
+    if (currentUserId == null || peerId.isEmpty) {
+      MekaarSnackbar.error(context, 'Panggilan tidak tersedia.');
+      return;
+    }
+
+    try {
+      final roomId = await ref.read(chatRepositoryProvider).createRoom(
+        peerId,
+        'guardian',
+      );
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        AppRoutes.call,
+        arguments: {
+          'roomId': roomId,
+          'chatName': widget.guardian.name,
+          'callerId': currentUserId,
+          'receiverId': peerId,
+          'isCaller': true,
+          'callType': 'voice',
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(
+          context,
+          'Gagal memulai panggilan: ${e.toString().replaceAll('Exception: ', '')}',
+        );
+      }
+    }
+  }
+
+  void _trackGuardian() {
+    Navigator.pushNamed(context, AppRoutes.guardianTracking);
   }
 
   Future<void> _savePermissions() async {
@@ -67,7 +186,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   }
 
   Future<void> _initiateSwap() async {
-    // Navigasi ke swap screen
     Navigator.pushNamed(
       context,
       '/guardian/swap',
@@ -179,7 +297,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
     if (confirmed == true && mounted) {
       try {
-        final guardianUserId = widget.guardian.guardianId;
+        final currentUserId = ref.read(authProvider).user?.id;
+        final guardianUserId = _getPeerUserId(currentUserId);
         // 1. Putus & Hapus Guardian
         await ref
             .read(guardianProvider.notifier)
@@ -204,6 +323,74 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         }
       }
     }
+  }
+
+  Widget _buildActionHubItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? iconColor,
+    bool isActive = false,
+  }) {
+    final isDark = MekaarColors.isDarkContext(context);
+    final glassBg = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.65);
+    final glassBorder = Border.all(
+      color: isDark
+          ? Colors.white.withValues(alpha: 0.14)
+          : Colors.black.withValues(alpha: 0.07),
+      width: 1.0,
+    );
+
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MekaarGlassBlurContainer(
+            isFloating: true,
+            height: 52,
+            borderRadius: BorderRadius.circular(MekaarRadius.lg),
+            padding: EdgeInsets.zero,
+            border: glassBorder,
+            customColor: isActive
+                ? MekaarColors.guardianTeal.withValues(alpha: 0.20)
+                : glassBg,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(MekaarRadius.lg),
+              onTap: () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                onTap();
+              },
+              child: Center(
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: iconColor ??
+                      (isActive
+                          ? MekaarColors.guardianTeal
+                          : MekaarColors.textPrimaryOf(context)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: MekaarTypography.labelSM.copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: isActive
+                  ? MekaarColors.guardianTeal
+                  : MekaarColors.textSecondaryOf(context),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -234,7 +421,11 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   value: 'break',
                   child: Row(
                     children: [
-                      Icon(SolarIconsOutline.linkBroken, size: 18, color: MekaarColors.warnAmber),
+                      Icon(
+                        SolarIconsOutline.linkBroken,
+                        size: 18,
+                        color: MekaarColors.warnAmber,
+                      ),
                       SizedBox(width: 10),
                       Text('Putus Paksa (Putuskan Izin)'),
                     ],
@@ -244,9 +435,16 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 value: 'remove',
                 child: Row(
                   children: [
-                    Icon(SolarIconsOutline.trashBinMinimalistic, size: 18, color: MekaarColors.sosRed),
+                    Icon(
+                      SolarIconsOutline.trashBinMinimalistic,
+                      size: 18,
+                      color: MekaarColors.sosRed,
+                    ),
                     SizedBox(width: 10),
-                    Text('Hapus Guardian (Putus + Hapus)', style: TextStyle(color: MekaarColors.sosRed)),
+                    Text(
+                      'Hapus Guardian',
+                      style: TextStyle(color: MekaarColors.sosRed),
+                    ),
                   ],
                 ),
               ),
@@ -254,9 +452,16 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 value: 'block',
                 child: Row(
                   children: [
-                    Icon(SolarIconsOutline.userBlock, size: 18, color: MekaarColors.sosRed),
+                    Icon(
+                      SolarIconsOutline.userBlock,
+                      size: 18,
+                      color: MekaarColors.sosRed,
+                    ),
                     SizedBox(width: 10),
-                    Text('Blokir Guardian (Putus + Hapus + Blokir)', style: TextStyle(color: MekaarColors.sosRed)),
+                    Text(
+                      'Blokir Guardian',
+                      style: TextStyle(color: MekaarColors.sosRed),
+                    ),
                   ],
                 ),
               ),
@@ -265,245 +470,367 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Profile Card ──
-            CustomCard(
-              padding: const EdgeInsets.all(20),
-              child: Row(
+            // ── 1. Header Profil (Avatar Besar di Tengah, Nama, Email, Badge) ──
+            Center(
+              child: Column(
                 children: [
                   Avatar(
                     initial: widget.guardian.name.isNotEmpty
                         ? widget.guardian.name[0]
                         : 'U',
-                    size: 56,
+                    imageUrl: _avatarUrl,
+                    size: 88,
                     isGuardian: widget.guardian.status == 'active',
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.guardian.name,
-                          style: MekaarTypography.headingSM,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.guardian.email,
-                          style: MekaarTypography.bodySM,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildStatusBadge(isPending, isExpired),
-                      ],
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.guardian.name,
+                    style: MekaarTypography.headingMD.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.2,
                     ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.guardian.email.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.guardian.email,
+                      style: MekaarTypography.bodySM.copyWith(
+                        color: MekaarColors.textMutedOf(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _buildStatusBadge(isPending, isExpired),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── 2. Quick Action Hub (4 Tombol Frosted Glass) ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  _buildActionHubItem(
+                    icon: SolarIconsOutline.chatRoundDots,
+                    label: 'Obrolan',
+                    onTap: _openChat,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildActionHubItem(
+                    icon: SolarIconsOutline.phone,
+                    label: 'Panggilan',
+                    onTap: _initiateCall,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildActionHubItem(
+                    icon: SolarIconsOutline.mapPointWave,
+                    label: 'Lacak GPS',
+                    onTap: _trackGuardian,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildActionHubItem(
+                    icon: SolarIconsOutline.refresh,
+                    label: 'Tukar Posisi',
+                    onTap: _initiateSwap,
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 16),
-
-            // ── Expiry Info ──
-            if (!isPending && !isExpired)
-              CustomCard(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    MekaarIconBadge(
-                        icon: SolarIconsOutline.stopwatch,
-                        color: MekaarColors.success,
-                        backgroundColor: MekaarColors.successLight,
-                      ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            // ── 3. Detail Konten Pengaturan ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Expiry Info Card ──
+                  if (!isPending && !isExpired) ...[
+                    CustomCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
                         children: [
-                          Text(
-                            'Izin Berakhir',
-                            style: MekaarTypography.labelLG,
+                          const MekaarIconBadge(
+                            icon: SolarIconsOutline.stopwatch,
+                            color: MekaarColors.success,
+                            backgroundColor: MekaarColors.successLight,
                           ),
-                          Text(
-                            '${widget.guardian.daysRemaining} hari lagi — perlu diperbarui agar tetap aktif.',
-                            style: MekaarTypography.bodySM,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Izin Berakhir',
+                                  style: MekaarTypography.labelLG,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${widget.guardian.daysRemaining} hari lagi — perlu diperbarui agar tetap aktif.',
+                                  style: MekaarTypography.bodySM,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
                   ],
-                ),
-              ),
 
-            if (isExpired)
-              CustomCard(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    MekaarIconBadge(
-                        icon: SolarIconsOutline.danger,
-                        color: MekaarColors.sosRed,
-                        backgroundColor: MekaarColors.sosLight,
+                  if (isExpired) ...[
+                    CustomCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const MekaarIconBadge(
+                            icon: SolarIconsOutline.danger,
+                            color: MekaarColors.sosRed,
+                            backgroundColor: MekaarColors.sosLight,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Izin guardian ini sudah kadaluarsa. Simpan ulang untuk mengaktifkan kembali.',
+                              style: MekaarTypography.bodySM.copyWith(
+                                color: MekaarColors.sosRed,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Izin guardian ini sudah kadaluarsa. Simpan ulang untuk mengaktifkan kembali.',
-                        style: MekaarTypography.bodySM.copyWith(
-                          color: MekaarColors.sosRed,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // ── Izin Keamanan Section ──
+                  Text(
+                    'IZIN KEAMANAN (HANYA AKTIF SAAT SOS)',
+                    style: MekaarTypography.overline,
+                  ),
+                  const SizedBox(height: 10),
+                  CustomCard(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      children: [
+                        SwitchListTile(
+                          activeThumbColor:
+                              Theme.of(context).colorScheme.primary,
+                          activeTrackColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.4),
+                          secondary: MekaarIconBadge(
+                            icon: SolarIconsOutline.mapPoint,
+                            color: _gpsEnabled
+                                ? MekaarColors.info
+                                : MekaarColors.textMutedOf(context),
+                            backgroundColor: _gpsEnabled
+                                ? MekaarColors.infoLight
+                                : MekaarColors.surface2Of(context),
+                          ),
+                          title: Text(
+                            'Lacak Lokasi GPS',
+                            style: MekaarTypography.labelLG,
+                          ),
+                          subtitle: Text(
+                            'Koordinat real-time dikirim ke guardian saat SOS.',
+                            style: MekaarTypography.bodySM,
+                          ),
+                          value: _gpsEnabled,
+                          onChanged: (v) => setState(() => _gpsEnabled = v),
                         ),
-                      ),
+                        const MekaarCardDivider(),
+                        SwitchListTile(
+                          activeThumbColor:
+                              Theme.of(context).colorScheme.primary,
+                          activeTrackColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.4),
+                          secondary: MekaarIconBadge(
+                            icon: SolarIconsOutline.microphone,
+                            color: _micEnabled
+                                ? MekaarColors.guardianTeal
+                                : MekaarColors.textMutedOf(context),
+                            backgroundColor: _micEnabled
+                                ? MekaarColors.guardianLight
+                                : MekaarColors.surface2Of(context),
+                          ),
+                          title: Text(
+                            'Akses Mikrofon',
+                            style: MekaarTypography.labelLG,
+                          ),
+                          subtitle: Text(
+                            'Guardian mendengar audio sekitar perangkat saat SOS.',
+                            style: MekaarTypography.bodySM,
+                          ),
+                          value: _micEnabled,
+                          onChanged: (v) => setState(() => _micEnabled = v),
+                        ),
+                        const MekaarCardDivider(),
+                        SwitchListTile(
+                          activeThumbColor:
+                              Theme.of(context).colorScheme.primary,
+                          activeTrackColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.4),
+                          secondary: MekaarIconBadge(
+                            icon: SolarIconsOutline.videocamera,
+                            color: _videoEnabled
+                                ? MekaarColors.guardianTeal
+                                : MekaarColors.textMutedOf(context),
+                            backgroundColor: _videoEnabled
+                                ? MekaarColors.guardianLight
+                                : MekaarColors.surface2Of(context),
+                          ),
+                          title: Text(
+                            'Akses Kamera (Video Darurat)',
+                            style: MekaarTypography.labelLG,
+                          ),
+                          subtitle: Text(
+                            'Anda dapat mengirim video darurat ke guardian saat SOS aktif.',
+                            style: MekaarTypography.bodySM,
+                          ),
+                          value: _videoEnabled,
+                          onChanged: (v) => setState(() => _videoEnabled = v),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-            const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-            // ── Permissions Section ──
-            Text(
-              'IZIN KEAMANAN (HANYA AKTIF SAAT SOS)',
-              style: MekaarTypography.overline,
-            ),
-            const SizedBox(height: 12),
-            CustomCard(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    activeThumbColor: Theme.of(context).colorScheme.primary,
-                    activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                    secondary: MekaarIconBadge(
-                        icon: SolarIconsOutline.mapPoint,
-                        color: _gpsEnabled
-                            ? MekaarColors.info
-                            : MekaarColors.textMutedOf(context),
-                        backgroundColor: _gpsEnabled
-                            ? MekaarColors.infoLight
-                            : MekaarColors.surface2Of(context),
-                      ),
-                    title: Text(
-                      'Lacak Lokasi GPS',
-                      style: MekaarTypography.labelLG,
-                    ),
-                    subtitle: Text(
-                      'Koordinat real-time dikirim ke guardian saat SOS.',
-                      style: MekaarTypography.bodySM,
-                    ),
-                    value: _gpsEnabled,
-                    onChanged: (v) => setState(() => _gpsEnabled = v),
+                  // ── Storage Option Section ──
+                  Text(
+                    'OPSI PENYIMPANAN REKAMAN',
+                    style: MekaarTypography.overline,
                   ),
-                  const MekaarCardDivider(),
-                  SwitchListTile(
-                    activeThumbColor: Theme.of(context).colorScheme.primary,
-                    activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                    secondary: MekaarIconBadge(
-                        icon: SolarIconsOutline.microphone,
-                        color: _micEnabled
-                            ? MekaarColors.guardianTeal
-                            : MekaarColors.textMutedOf(context),
-                        backgroundColor: _micEnabled
-                            ? MekaarColors.guardianLight
-                            : MekaarColors.surface2Of(context),
+                  const SizedBox(height: 10),
+                  _buildStorageOptions(),
+
+                  const SizedBox(height: 32),
+
+                  // ── Primary Action Button ──
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _savePermissions,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        shape: const StadiumBorder(),
+                        elevation: 0,
                       ),
-                    title: Text(
-                      'Akses Mikrofon',
-                      style: MekaarTypography.labelLG,
+                      child: _isSaving
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Simpan Perubahan',
+                              style: MekaarTypography.buttonLG.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
                     ),
-                    subtitle: Text(
-                      'Guardian mendengar audio sekitar perangkat saat SOS.',
-                      style: MekaarTypography.bodySM,
-                    ),
-                    value: _micEnabled,
-                    onChanged: (v) => setState(() => _micEnabled = v),
                   ),
-                  const MekaarCardDivider(),
-                  SwitchListTile(
-                    activeThumbColor: Theme.of(context).colorScheme.primary,
-                    activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                    secondary: MekaarIconBadge(
-                        icon: SolarIconsOutline.videocamera,
-                        color: _videoEnabled
-                            ? MekaarColors.guardianTeal
-                            : MekaarColors.textMutedOf(context),
-                        backgroundColor: _videoEnabled
-                            ? MekaarColors.guardianLight
-                            : MekaarColors.surface2Of(context),
-                      ),
-                    title: Text(
-                      'Akses Kamera (Video Darurat)',
-                      style: MekaarTypography.labelLG,
+
+                  const SizedBox(height: 32),
+
+                  // ── 4. Tindakan & Zona Bahaya (Grouped Destructive Card) ──
+                  Text(
+                    'TINDAKAN & ZONA BAHAYA',
+                    style: MekaarTypography.overline.copyWith(
+                      color: MekaarColors.sosRed,
                     ),
-                    subtitle: Text(
-                      'Anda dapat mengirim video darurat ke guardian saat SOS aktif.',
-                      style: MekaarTypography.bodySM,
-                    ),
-                    value: _videoEnabled,
-                    onChanged: (v) => setState(() => _videoEnabled = v),
                   ),
+                  const SizedBox(height: 10),
+                  CustomCard(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      children: [
+                        if (!isPending && !isExpired) ...[
+                          ListTile(
+                            leading: const MekaarIconBadge(
+                              icon: SolarIconsOutline.linkBroken,
+                              color: MekaarColors.warning,
+                              backgroundColor: MekaarColors.warningLight,
+                            ),
+                            title: Text(
+                              'Putus Paksa',
+                              style: MekaarTypography.labelLG.copyWith(
+                                color: MekaarColors.warning,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Putus hubungan instan dan blokir undangan selama 24 jam.',
+                              style: MekaarTypography.bodySM,
+                            ),
+                            onTap: _confirmBreakGuardian,
+                          ),
+                          const MekaarCardDivider(),
+                        ],
+                        ListTile(
+                          leading: const MekaarIconBadge(
+                            icon: SolarIconsOutline.trashBinMinimalistic,
+                            color: MekaarColors.sosRed,
+                            backgroundColor: MekaarColors.sosLight,
+                          ),
+                          title: Text(
+                            'Hapus Guardian',
+                            style: MekaarTypography.labelLG.copyWith(
+                              color: MekaarColors.sosRed,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Cabut semua izin dan hapus dari daftar guardian.',
+                            style: MekaarTypography.bodySM,
+                          ),
+                          onTap: _removeGuardian,
+                        ),
+                        const MekaarCardDivider(),
+                        ListTile(
+                          leading: const MekaarIconBadge(
+                            icon: SolarIconsOutline.userBlock,
+                            color: MekaarColors.sosRed,
+                            backgroundColor: MekaarColors.sosLight,
+                          ),
+                          title: Text(
+                            'Blokir Guardian',
+                            style: MekaarTypography.labelLG.copyWith(
+                              color: MekaarColors.sosRed,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Putus hubungan, hapus dari daftar, dan blokir total kontak.',
+                            style: MekaarTypography.bodySM,
+                          ),
+                          onTap: _confirmBlockGuardian,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── Storage Option Section ──
-            Text('OPSI PENYIMPANAN REKAMAN', style: MekaarTypography.overline),
-            const SizedBox(height: 12),
-            _buildStorageOptions(),
-
-            const SizedBox(height: 32),
-
-            // ── Actions ──
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _savePermissions,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  shape: const StadiumBorder(),
-                ),
-                child: _isSaving
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        'Simpan Perubahan',
-                        style: MekaarTypography.buttonLG.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: OutlinedButton.icon(
-                icon: Icon(
-                  SolarIconsOutline.refresh,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                label: Text(
-                  'Tukar Posisi (Saling Menjaga)',
-                  style: MekaarTypography.buttonMD.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Theme.of(context).colorScheme.primary),
-                  shape: const StadiumBorder(),
-                ),
-                onPressed: _initiateSwap,
               ),
             ),
           ],
@@ -524,12 +851,39 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         color: MekaarColors.sosRed,
       );
     }
-    return Builder(builder: (context) {
-      return MekaarBadge(
-        label: 'Aktif',
-        color: MekaarColors.successTextOf(context),
-      );
-    });
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: MekaarColors.safeTextOf(context),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            'Guardian Aktif',
+            style: TextStyle(
+              color: MekaarColors.safeTextOf(context),
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStorageOptions() {
@@ -561,7 +915,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     ];
 
     return CustomCard(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         children: options.asMap().entries.map((entry) {
           final index = entry.key;

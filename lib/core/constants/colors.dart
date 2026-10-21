@@ -125,6 +125,9 @@ class MekaarColors {
   static const Color guardianLight = Color(0xFFE6FFFA);
   static const Color success = Color(0xFF10B981);
 
+  /// Warna hijau terang kontras untuk status bukti baca (centang ganda terbaca ala WhatsApp).
+  static const Color readReceiptGreen = Color(0xFF25D366);
+
   /// Tinta hijau gelap untuk teks status online/aktif di permukaan terang.
   static const Color successInk = Color(0xFF047857);
   static Color successTextOf(BuildContext c) =>

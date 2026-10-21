@@ -16,6 +16,8 @@ import 'package:mekaar_chat/data/services/deep_link_service.dart';
 import 'package:mekaar_chat/data/repositories/private_contact_repository.dart';
 import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
 import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 
@@ -23,6 +25,12 @@ final logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Aktifkan Android Photo Picker bawaan OS (Galeri visual foto & video modern)
+  final imagePickerPlatform = ImagePickerPlatform.instance;
+  if (imagePickerPlatform is ImagePickerAndroid) {
+    imagePickerPlatform.useAndroidPhotoPicker = true;
+  }
 
   // Sanitasi Forensik: Matikan seluruh output log console pada build produksi (Release Mode)
   // guna mencegah kebocoran pesan terdekripsi, token, dan metadata via Android logcat atau USB debugging.

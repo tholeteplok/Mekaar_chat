@@ -42,8 +42,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   String _searchQuery = '';
   bool _isSearchActive = false;
   double _collapseProgress = 0.0;
-  int _selectedTabIndex = 0;
-  final List<String> _tabs = ['A-Z', 'Baru Ditambahkan'];
+  int _selectedMainTabIndex = 0;
+  final List<String> _mainTabs = const ['Semua Kontak', 'Teman Sekitar'];
+  int _selectedSortIndex = 0;
+  final List<String> _sortTabs = const ['A-Z', 'Baru Ditambahkan'];
+
   bool _isGridView = false;
   static const String _gridPrefKey = 'contact_list_is_grid_view';
   bool _awaitingLocationPermissionForNearby = false;
@@ -167,7 +170,6 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final currentUserId = ref.watch(supabaseServiceProvider).currentUserId;
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
-    final showNearbyPreview = ref.watch(nearbyPreviewPreferenceProvider);
     final nearbyState = ref.watch(nearbyFriendsProvider);
 
     return roomsAsync.when(
@@ -224,7 +226,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         }).toList();
 
         // 5. Urutkan berdasarkan tab pill filter aktif
-        if (_selectedTabIndex == 0) {
+        if (_selectedSortIndex == 0) {
           // A-Z: Urutkan secara alfabetis berdasarkan nama
           filteredContacts.sort(
             (a, b) => (a['name'] as String).toLowerCase().compareTo(
@@ -351,27 +353,119 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       ),
                     ),
                   ),
-                // Teman Sekitar (Proximity Floating Canvas)
-                // Hanya tampil jika: tidak sedang mencari, bukan duress,
-                // dan (fitur sudah aktif / isEnabled ATAU preferensi preview diizinkan pengguna)
-                if (!_isSearchActive &&
-                    !wasDuress &&
-                    (nearbyState.isEnabled || showNearbyPreview))
-                  NearbyFriendsCanvas(
-                    collapseProgress: _collapseProgress,
-                    onSettingsOpened: () {
-                      _awaitingLocationPermissionForNearby = true;
-                    },
+                const SizedBox(height: 6),
+                // Tab Atas Utama: ['Semua Kontak', 'Teman Sekitar']
+                MekaarSlidingSegmentBar(
+                  tabs: _mainTabs,
+                  selectedIndex: _selectedMainTabIndex,
+                  onTabSelected: (index) {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    setState(() => _selectedMainTabIndex = index);
+                  },
+                ),
+                // Baris Kontrol Luar Kartu (Identik & Simetris)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
                   ),
-
-                const SizedBox(height: 4),
+                  child: Row(
+                    children: [
+                      if (_selectedMainTabIndex == 0) ...[
+                        MekaarSlidingSegmentBar(
+                          tabs: _sortTabs,
+                          selectedIndex: _selectedSortIndex,
+                          onTabSelected: (index) {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            setState(() => _selectedSortIndex = index);
+                          },
+                          height: 32,
+                          width: 175,
+                          margin: EdgeInsets.zero,
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(
+                            _isGridView
+                                ? SolarIconsOutline.list
+                                : SolarIconsOutline.menuDotsSquare,
+                            color: MekaarColors.primaryOf(context),
+                            size: 20,
+                          ),
+                          tooltip: _isGridView
+                              ? 'Tampilan Daftar'
+                              : 'Tampilan Grid',
+                          onPressed: _toggleViewMode,
+                        ),
+                      ] else ...[
+                        MekaarSlidingSegmentBar(
+                          tabs: const ['Semua', 'Kontak'],
+                          selectedIndex:
+                              nearbyState.visibilityMode == 'everyone' ? 0 : 1,
+                          onTabSelected: (index) {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            ref
+                                .read(nearbyFriendsProvider.notifier)
+                                .setVisibilityMode(
+                                  index == 0 ? 'everyone' : 'contacts_only',
+                                );
+                          },
+                          height: 32,
+                          width: 175,
+                          margin: EdgeInsets.zero,
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: nearbyState.isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: MekaarColors.guardianTeal,
+                                  ),
+                                )
+                              : Icon(
+                                  SolarIconsOutline.restart,
+                                  color: MekaarColors.primaryOf(context),
+                                  size: 20,
+                                ),
+                          tooltip: 'Sinkronisasi Teman Sekitar',
+                          onPressed: nearbyState.isLoading
+                              ? null
+                              : () {
+                                  HapticService.trigger(
+                                    MekaarHapticIntent.selection,
+                                  );
+                                  ref
+                                      .read(nearbyFriendsProvider.notifier)
+                                      .refreshNearby(force: true);
+                                },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Expanded(
-                  child: filteredContacts.isEmpty
-                      ? _buildEmptyState()
-                      : _buildContactsCard(
-                          filteredContacts,
-                          hiddenRoomIds,
-                          isVaultUnlocked,
+                  child: _selectedMainTabIndex == 0
+                      ? (filteredContacts.isEmpty
+                          ? _buildEmptyState()
+                          : _buildContactsCard(
+                              filteredContacts,
+                              hiddenRoomIds,
+                              isVaultUnlocked,
+                            ))
+                      : SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: 110),
+                          child: NearbyFriendsCanvas(
+                            collapseProgress: 0.0,
+                            showInternalHeader: false,
+                            onSettingsOpened: () {
+                              _awaitingLocationPermissionForNearby = true;
+                            },
+                          ),
                         ),
                 ),
               ],
@@ -400,99 +494,17 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           borderRadius: MekaarRadius.card,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(MekaarRadius.card),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header Seksi Kontak di dalam Kartu ──
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-                  child: Row(
-                    children: [
-                      Icon(
-                        SolarIconsBold.usersGroupRounded,
-                        color: MekaarColors.primaryOf(context),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Kontak',
-                        style: MekaarTypography.bodyMD.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: MekaarColors.primaryOf(
-                            context,
-                          ).withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                        ),
-                        child: Text(
-                          '${contacts.length}',
-                          style: MekaarTypography.caption.copyWith(
-                            color: MekaarColors.primaryOf(context),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      // Filter A-Z / Baru Ditambahkan
-                      MekaarSlidingSegmentBar(
-                        tabs: _tabs,
-                        selectedIndex: _selectedTabIndex,
-                        onTabSelected: (index) =>
-                            setState(() => _selectedTabIndex = index),
-                        height: 28,
-                        width: 155,
-                        margin: EdgeInsets.zero,
-                      ),
-                      SizedBox(width: 4),
-                      // Toggle Tampilan List / Grid
-                      IconButton(
-                        icon: Icon(
-                          _isGridView
-                              ? SolarIconsOutline.list
-                              : SolarIconsOutline.menuDotsSquare,
-                          color: MekaarColors.primaryOf(context),
-                          size: 18,
-                        ),
-                        tooltip: _isGridView
-                            ? 'Tampilan Daftar'
-                            : 'Tampilan Grid',
-                        onPressed: _toggleViewMode,
-                      ),
-                    ],
+            child: _isGridView
+                ? _buildContactsGridContent(
+                    contacts,
+                    hiddenRoomIds,
+                    isVaultUnlocked,
+                  )
+                : _buildContactsListContent(
+                    contacts,
+                    hiddenRoomIds,
+                    isVaultUnlocked,
                   ),
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: MekaarColors.cardBorderOf(
-                    context,
-                  ).withValues(alpha: 0.5),
-                ),
-                // ── Body Kartu (Grid vs List) ──
-                _isGridView
-                    ? _buildContactsGridContent(
-                        contacts,
-                        hiddenRoomIds,
-                        isVaultUnlocked,
-                      )
-                    : _buildContactsListContent(
-                        contacts,
-                        hiddenRoomIds,
-                        isVaultUnlocked,
-                      ),
-              ],
-            ),
           ),
         ),
       ],

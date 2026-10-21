@@ -12,8 +12,8 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_badge.dart';
-import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -27,14 +27,31 @@ class GuardianListScreen extends ConsumerStatefulWidget {
   ConsumerState<GuardianListScreen> createState() => _GuardianListScreenState();
 }
 
-class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
+class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _selectedTabIndex = 0;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      if (_selectedTabIndex != _tabController.index) {
+        setState(() => _selectedTabIndex = _tabController.index);
+      }
+    });
     Future.microtask(() {
       ref.read(guardianProvider.notifier).refreshGuardians();
       ref.read(whoAddedMeProvider.notifier).refresh();
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -44,85 +61,52 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     final whoAddedMe = wasDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
     final myGuardiansStatus = ref.watch(guardianLoadStatusProvider);
     final whoAddedMeStatus = ref.watch(whoAddedMeLoadStatusProvider);
-    final hasPendingIncoming = ref.watch(hasPendingIncomingGuardiansProvider);
+    final pendingCount = ref.watch(pendingIncomingGuardianCountProvider);
 
-    return DefaultTabController(
-      length: 2,
-      child: MekaarScaffold(
-        flat: true,
-        appBar: CustomAppBar(
-          title: 'Sistem Guardian',
-          subtitle: 'Saling menjaga dalam situasi darurat',
-          actions: [
-            if (myGuardians.isNotEmpty)
-              IconButton(
-                icon: const Icon(SolarIconsOutline.userPlus),
-                tooltip: 'Tambah Guardian Baru',
-                onPressed: () =>
-                    Navigator.pushNamed(context, AppRoutes.guardianAdd),
-              ),
+    return MekaarScaffold(
+      flat: true,
+      appBar: CustomAppBar(
+        title: 'Sistem Guardian',
+        subtitle: 'Saling menjaga dalam situasi darurat',
+        actions: [
+          if (myGuardians.isNotEmpty)
             IconButton(
-              icon: const Icon(SolarIconsOutline.gps),
-              tooltip: 'Lacak Guardian',
+              icon: const Icon(SolarIconsOutline.userPlus),
+              tooltip: 'Tambah Guardian Baru',
               onPressed: () =>
-                  Navigator.pushNamed(context, AppRoutes.guardianTracking),
+                  Navigator.pushNamed(context, AppRoutes.guardianAdd),
             ),
-          ],
-        ),
-        body: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: MekaarColors.surface2Of(context),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: TabBar(
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                indicator: BoxDecoration(
-                  color: AppColors.blue,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: MekaarColors.textSecondaryOf(context),
-                labelStyle: MekaarTypography.labelMD.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-                unselectedLabelStyle: MekaarTypography.labelMD,
-                tabs: [
-                  const Tab(text: 'Guardian Saya'),
-                  Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Menjaga Siapa'),
-                        if (hasPendingIncoming) ...[
-                          const SizedBox(width: 6),
-                          MekaarNotificationDot.standalone(
-                            color: MekaarColors.warnAmber,
-                            size: 8.0,
-                            context: context,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          IconButton(
+            icon: const Icon(SolarIconsOutline.gps),
+            tooltip: 'Lacak Guardian',
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.guardianTracking),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          const SizedBox(height: 6),
+          MekaarSlidingSegmentBar(
+            tabs: const ['Dijaga', 'Menjaga'],
+            selectedIndex: _selectedTabIndex,
+            badges: pendingCount > 0 ? {1: pendingCount} : null,
+            onTabSelected: (index) {
+              setState(() => _selectedTabIndex = index);
+              _tabController.animateTo(index);
+            },
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildMyGuardiansTab(myGuardians, myGuardiansStatus),
+                _buildWhoAddedMeTab(whoAddedMe, whoAddedMeStatus),
+              ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildMyGuardiansTab(myGuardians, myGuardiansStatus),
-                  _buildWhoAddedMeTab(whoAddedMe, whoAddedMeStatus),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

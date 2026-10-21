@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 /// MekaarIcons — sumber tunggal ikon brand MEKAAR.
@@ -37,13 +38,22 @@ class MekaarIcons {
   /// Tutup / hapus
   static const close = SolarIconsOutline.closeCircle;
 
+  // ============ Bukti Baca (Read Receipts) ============
+  /// Ikon ceklis tunggal pesan terkirim
+  static const receiptSent = Icons.check;
+
+  /// Ikon ceklis ganda pesan tersampaikan (delivered)
+  static const receiptDelivered = Icons.done_all;
+
+  /// Ikon ceklis ganda pesan telah dibaca (read)
+  static const receiptRead = Icons.done_all;
+
   /// Ceklis (konfirmasi, selesai)
   static const check = SolarIconsOutline.checkCircle;
 
-  /// Ceklis ganda (sudah dibaca)
-  static const doneAll = SolarIconsOutline.doubleAltArrowDown; // tidak ada doneAll, pakai doubleAltArrowDown sebagai pengganti (atau kita bisa pakai Bold, tapi kita pilih yang paling mendekati)
-  // Ternyata tidak ada doneAll di Solar. Alternatif: gunakan checkCircle atau verifiedCheck. Untuk status "dibaca", pakai verifiedCheck.
-  static const read = SolarIconsOutline.verifiedCheck;
+  /// Ceklis ganda (sudah dibaca / delivered)
+  static const doneAll = Icons.done_all;
+  static const read = Icons.done_all;
 
   /// Arsip
   static const archive = SolarIconsOutline.archive;

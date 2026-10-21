@@ -125,6 +125,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final Set<String> _selectedCallIds = <String>{};
   Set<String> _hiddenCallIds = <String>{};
   String? _reactionAnchorMessageId;
+  bool _isMuted = false;
 
   bool get _isSelectionMode =>
       _selectedMessageIds.isNotEmpty || _selectedCallIds.isNotEmpty;
@@ -352,6 +353,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             prefs.getBool('room_view_once_${widget.chatId}') ?? false;
       } catch (_) {}
 
+      // Muat preferensi bisukan notifikasi per-room
+      bool loadedMuted = false;
+      try {
+        final participantPrefs = await repo.getRoomPreferences(widget.chatId);
+        loadedMuted = participantPrefs?.isMuted ?? false;
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _autoDeleteHours = roomAutoDelete;
@@ -359,6 +367,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         _scheduledWipeMode = loadedWipeMode;
         _scheduledWipeTargetAt = loadedWipeTarget;
         _isViewOnce = savedViewOnce;
+        _isMuted = loadedMuted;
       });
 
       // Jadwalkan pembersihan terjadwal secara presisi (tanpa polling baterai)
@@ -1720,6 +1729,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
+  Future<void> _toggleMute() async {
+    final targetMuted = !_isMuted;
+    setState(() => _isMuted = targetMuted);
+    HapticService.trigger(MekaarHapticIntent.selection);
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .updateRoomMute(widget.chatId, targetMuted);
+      ref.read(chatRoomsProvider.notifier).refreshRooms();
+      if (mounted) {
+        MekaarSnackbar.info(
+          context,
+          targetMuted
+              ? 'Notifikasi obrolan dibisukan'
+              : 'Notifikasi obrolan diaktifkan',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isMuted = !targetMuted);
+        MekaarSnackbar.error(
+          context,
+          'Gagal mengubah status bisukan: ${ErrorResolver.resolve(e)}',
+        );
+      }
+    }
+  }
+
   void _confirmClearHistory() {
     MekaarDialog.showConfirmation<void>(
       context: context,
@@ -2416,10 +2453,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             onSelected: (value) async {
                               if (value == 'search') {
                                 setState(() => _isSearching = true);
-                              } else if (value == 'voice') {
-                                _initiateCall('voice');
-                              } else if (value == 'video') {
-                                _initiateCall('video');
+                              } else if (value == 'mute') {
+                                _toggleMute();
                               } else if (value == 'theme') {
                                 Navigator.pushNamed(
                                   context,
@@ -2462,38 +2497,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 ),
                               ),
                               PopupMenuItem<String>(
-                                value: 'voice',
+                                value: 'mute',
                                 child: Row(
                                   children: [
                                     Icon(
-                                      SolarIconsOutline.phone,
+                                      _isMuted
+                                          ? SolarIconsOutline.volumeLoud
+                                          : SolarIconsOutline.volumeCross,
                                       size: 20,
                                       color: textPrimary,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Panggilan Suara',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'video',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      SolarIconsOutline.videocamera,
-                                      size: 20,
-                                      color: textPrimary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Panggilan Video',
+                                      _isMuted
+                                          ? 'Bunyikan Notifikasi'
+                                          : 'Bisukan Notifikasi',
                                       style: TextStyle(
                                         color: textPrimary,
                                         fontSize: 14,

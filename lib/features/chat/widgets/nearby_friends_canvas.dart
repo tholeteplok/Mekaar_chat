@@ -19,11 +19,13 @@ import '../utils/nearby_permission_helper.dart';
 class NearbyFriendsCanvas extends ConsumerWidget {
   final double collapseProgress;
   final VoidCallback? onSettingsOpened;
+  final bool showInternalHeader;
 
   const NearbyFriendsCanvas({
     super.key,
     this.collapseProgress = 0.0,
     this.onSettingsOpened,
+    this.showInternalHeader = true,
   });
 
   Future<void> _handleFriendTap(
@@ -170,65 +172,67 @@ class NearbyFriendsCanvas extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header Section: Teman Sekitar
-          Row(
-            children: [
-              const Icon(
-                SolarIconsBold.radar2,
-                color: MekaarColors.guardianTeal,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Teman Sekitar',
-                style: MekaarTypography.bodyMD.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+          if (showInternalHeader) ...[
+            // Header Section: Teman Sekitar
+            Row(
+              children: [
+                const Icon(
+                  SolarIconsBold.radar2,
+                  color: MekaarColors.guardianTeal,
+                  size: 18,
                 ),
-              ),
-              const Spacer(),
-              // Filter Segmen: [Semua] [Kontak]
-              MekaarSlidingSegmentBar(
-                tabs: const ['Semua', 'Kontak'],
-                selectedIndex: state.visibilityMode == 'everyone' ? 0 : 1,
-                onTabSelected: (index) {
-                  ref
-                      .read(nearbyFriendsProvider.notifier)
-                      .setVisibilityMode(
-                          index == 0 ? 'everyone' : 'contacts_only');
-                },
-                height: 28,
-                width: 135,
-                margin: EdgeInsets.zero,
-                activeColor: MekaarColors.guardianTeal,
-              ),
-              const SizedBox(width: 6),
-              // Refresh Action
-              IconButton(
-                onPressed: state.isLoading
-                    ? null
-                    : () => ref
+                const SizedBox(width: 8),
+                Text(
+                  'Teman Sekitar',
+                  style: MekaarTypography.bodyMD.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                // Filter Segmen: [Semua] [Kontak]
+                MekaarSlidingSegmentBar(
+                  tabs: const ['Semua', 'Kontak'],
+                  selectedIndex: state.visibilityMode == 'everyone' ? 0 : 1,
+                  onTabSelected: (index) {
+                    ref
                         .read(nearbyFriendsProvider.notifier)
-                        .refreshNearby(force: true),
-                icon: state.isLoading
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: MekaarColors.guardianTeal,
+                        .setVisibilityMode(
+                            index == 0 ? 'everyone' : 'contacts_only');
+                  },
+                  height: 28,
+                  width: 135,
+                  margin: EdgeInsets.zero,
+                  activeColor: MekaarColors.guardianTeal,
+                ),
+                const SizedBox(width: 6),
+                // Refresh Action
+                IconButton(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => ref
+                          .read(nearbyFriendsProvider.notifier)
+                          .refreshNearby(force: true),
+                  icon: state.isLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: MekaarColors.guardianTeal,
+                          ),
+                        )
+                      : Icon(
+                          SolarIconsOutline.refreshCircle,
+                          size: 18,
+                          color: MekaarColors.textMutedOf(context),
                         ),
-                      )
-                    : Icon(
-                        SolarIconsOutline.refreshCircle,
-                        size: 18,
-                        color: MekaarColors.textMutedOf(context),
-                      ),
-                padding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
 
           // Canvas Body
           if (displayList.isEmpty && !state.isLoading) ...[
@@ -281,7 +285,9 @@ class NearbyFriendsCanvas extends ConsumerWidget {
             NearbyOrbitalCanvas(
               items: orbitalItems,
               collapseProgress: collapseProgress,
-              height: (dynamicHeight - 44).clamp(120.0, 320.0),
+              height: showInternalHeader
+                  ? (dynamicHeight - 44).clamp(120.0, 320.0)
+                  : dynamicHeight.clamp(200.0, 360.0),
               isPreview: false,
             ),
           ],
