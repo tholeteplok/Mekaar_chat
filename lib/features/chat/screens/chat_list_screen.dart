@@ -55,6 +55,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   String _searchQuery = '';
   bool _isSearchActive = false;
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
+  Timer? _searchDebounceTimer;
   int _selectedTabIndex = 0;
   final List<String> _tabs = ['Semua', 'Guardian'];
   String get _selectedTab => _tabs[_selectedTabIndex];
@@ -100,6 +102,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
     Future.microtask(() {
       ref.read(chatRoomsProvider.notifier).refreshRooms();
       _checkAndRequestPermissions();
@@ -143,6 +146,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _vaultDebounceTimer?.cancel();
+    _searchDebounceTimer?.cancel();
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -417,8 +422,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   void _confirmDeleteRoom(Map<String, dynamic> room) {
     MekaarDialog.showConfirmation<void>(
       context: context,
-      title: 'Hapus Chat?',
-      message: 'Obrolan akan hilang dari daftar chat Anda.',
+      title: 'Hapus Chat dari Daftar Anda?',
+      message:
+          'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Rekan obrolan tetap dapat melihat percakapan ini.',
       isDestructive: true,
       actions: [
         TextButton(
@@ -434,7 +440,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             Navigator.pop(context);
             await ref.read(chatActionsProvider).deleteChat(room['id'] as String);
           },
-          child: const Text('Hapus'),
+          child: const Text('Hapus (Hanya Saya)'),
         ),
       ],
     );
@@ -693,11 +699,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             child: Column(
           children: [
             MekaarTabHeader(
+              key: const ValueKey('chat_list_tab_header'),
               title: 'Mekaar',
               isSearchActive: _isSearchActive,
               searchController: _searchController,
+              searchFocusNode: _searchFocusNode,
               onSearchChanged: (value) {
-                setState(() => _searchQuery = value);
+                _searchDebounceTimer?.cancel();
+                _searchDebounceTimer =
+                    Timer(const Duration(milliseconds: 180), () {
+                  if (mounted && _searchQuery != value) {
+                    setState(() => _searchQuery = value);
+                  }
+                });
                 _vaultDebounceTimer?.cancel();
                 if (value.trim().length >= 4) {
                   _vaultDebounceTimer =
@@ -707,6 +721,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 }
               },
               onSearchClosed: () {
+                _searchDebounceTimer?.cancel();
                 _vaultDebounceTimer?.cancel();
                 setState(() {
                   _isSearchActive = false;
@@ -846,10 +861,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             // Banner Private Vault Aktif (jika vault sedang terbuka)
             const PrivateVaultActiveBanner(),
             // Chat Requests Banner (jika ada permintaan pending)
-            StreamBuilder<int>(
-              stream: ref.watch(chatRequestRepositoryProvider).streamPendingRequestsCount(),
-              builder: (context, snapshot) {
-                final count = snapshot.data ?? 0;
+            Consumer(
+              builder: (context, ref, _) {
+                final count =
+                    ref.watch(pendingRequestsCountStreamProvider).valueOrNull ??
+                        0;
                 if (count == 0) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),

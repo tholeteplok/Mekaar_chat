@@ -1206,10 +1206,12 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                               ),
                             Expanded(
                               child: TextField(
+                                key: const ValueKey('chat_composer_text_field'),
                                 controller: widget.controller,
                                 focusNode: _focusNode,
                                 enabled: widget.enabled,
                                 keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
                                 minLines: 1,
                                 maxLines: 5,
                                 textCapitalization: TextCapitalization.sentences,

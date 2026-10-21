@@ -303,9 +303,9 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     if (!_burnOnExit) {
       final confirmed = await MekaarDialog.showConfirmation<bool>(
         context: context,
-        title: 'Aktifkan Hapus Saat Keluar?',
+        title: 'Aktifkan Hapus Saat Keluar? (Kedua Pihak)',
         message:
-            'Seluruh riwayat pesan (kirim & terima) dalam ruangan ini akan otomatis terhapus seketika saat Anda meninggalkan layar obrolan.\n\nApakah Anda yakin ingin mengaktifkannya?',
+            'Saat Anda atau rekan obrolan meninggalkan layar ini, seluruh riwayat pesan akan langsung hangus dan dimusnahkan secara permanen untuk kedua belah pihak di perangkat maupun server.\n\nApakah Anda yakin ingin mengaktifkannya?',
         isDestructive: true,
         actions: [
           TextButton(
@@ -337,7 +337,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
         MekaarSnackbar.success(
           context,
           newValue
-              ? 'Hapus Saat Keluar Aktif: Pesan otomatis terhapus saat Anda keluar.'
+              ? 'Hapus Saat Keluar Aktif: Pesan hangus untuk kedua pihak saat layar ditutup.'
               : 'Hapus Saat Keluar Dinonaktifkan.',
         );
       }
@@ -457,13 +457,17 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 onChanged: (_) => _toggleViewOnce(),
               ),
 
-              // Section 2: Penghapusan Otomatis (Self-Destruct)
-              _buildSectionHeader('PENGHAPUSAN OTOMATIS'),
+              // Section 2: Penghapusan Otomatis (Kedua Pihak)
+              _buildSectionHeader(
+                'PENGHAPUSAN OTOMATIS (KEDUA PIHAK)',
+                description:
+                    'Fitur di bawah ini tersinkronisasi dan menghapus pesan di perangkat Anda maupun rekan.',
+              ),
               _buildNavTile(
                 icon: _autoDeleteHours > 0 ? SolarIconsBold.history : SolarIconsOutline.history,
                 iconColor: _autoDeleteHours > 0 ? primaryColor : MekaarColors.textMutedOf(context),
                 title: 'Pesan Menghilang',
-                subtitle: 'Hapus pesan setelah jangka waktu tertentu',
+                subtitle: 'Pesan baru otomatis terhapus untuk kedua pihak setelah batas waktu',
                 statusText: _autoDeleteLabel(),
                 onTap: _showAutoDeleteOptions,
               ),
@@ -471,7 +475,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 icon: _scheduledWipeMode != 'off' ? SolarIconsBold.clockCircle : SolarIconsOutline.clockCircle,
                 iconColor: _scheduledWipeMode != 'off' ? primaryColor : MekaarColors.textMutedOf(context),
                 title: 'Pembersihan Terjadwal',
-                subtitle: 'Hapus pesan secara berkala pada jam tertentu',
+                subtitle: 'Musnahkan riwayat pesan untuk kedua pihak secara berkala pada jam tertentu',
                 statusText: _scheduledWipeLabel(),
                 onTap: _showScheduledWipeOptions,
               ),
@@ -479,7 +483,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 icon: _burnOnExit ? SolarIconsBold.fire : SolarIconsOutline.fire,
                 iconColor: _burnOnExit ? MekaarColors.sosRed : MekaarColors.textMutedOf(context),
                 title: 'Hapus Saat Keluar (Burn on Exit)',
-                subtitle: 'Hapus seluruh percakapan seketika saat meninggalkan layar chat',
+                subtitle: 'Hanguskan riwayat obrolan untuk kedua pihak seketika saat meninggalkan layar',
                 value: _burnOnExit,
                 onChanged: (_) => _toggleBurnOnExit(),
               ),
@@ -500,17 +504,33 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, {String? description}) {
     return Padding(
       padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 6),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-          color: MekaarColors.textMutedOf(context),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: MekaarColors.textMutedOf(context),
+            ),
+          ),
+          if (description != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 12,
+                color: MekaarColors.textSecondaryOf(context),
+                height: 1.3,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

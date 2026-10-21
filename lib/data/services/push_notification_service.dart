@@ -31,22 +31,37 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final roomId = data['roomId'] as String?;
 
     if (type == 'call') {
-      final callerName = data['callerName'] as String? ?? 'Seseorang';
+      String callerName = data['callerName'] as String? ?? 'Seseorang';
+      String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
       final callType = data['callType'] as String? ?? 'voice';
+      bool isVaultRoom = false;
+
+      if (roomId != null && roomId.isNotEmpty) {
+        try {
+          final hiddenRooms =
+              await PrivateContactRepository().getHiddenRoomIds();
+          if (hiddenRooms.contains(roomId)) {
+            isVaultRoom = true;
+            callerName = 'MEKAAR';
+            callerAvatarUrl = null;
+          }
+        } catch (_) {}
+      }
+
       await NotificationService.showIncomingCallNotification(
         callerName: callerName,
         callType: callType,
-        roomId: data['roomId'] as String?,
+        roomId: roomId,
         callId: data['callId'] as String?,
-        callerId: data['callerId'] as String?,
-        callerAvatarUrl: data['callerAvatarUrl'] as String?,
+        callerId: isVaultRoom ? null : (data['callerId'] as String?),
+        callerAvatarUrl: callerAvatarUrl,
         route: NotificationRoute(
           type: NotificationRouteType.call,
-          roomId: data['roomId'] as String?,
+          roomId: roomId,
           callId: data['callId'] as String?,
-          callerId: data['callerId'] as String?,
+          callerId: isVaultRoom ? null : (data['callerId'] as String?),
           callerName: callerName,
-          callerAvatarUrl: data['callerAvatarUrl'] as String?,
+          callerAvatarUrl: callerAvatarUrl,
           callType: callType,
         ),
       );
@@ -178,17 +193,37 @@ class PushNotificationService {
         }
 
         if (type == 'call') {
-          final callerName = data['callerName'] as String? ?? 'Seseorang';
+          String callerName = data['callerName'] as String? ?? 'Seseorang';
+          String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
           final callType = data['callType'] as String? ?? 'voice';
+          bool isVaultRoom = false;
+
+          if (roomId != null && roomId.isNotEmpty) {
+            try {
+              final hiddenRooms =
+                  await PrivateContactRepository().getHiddenRoomIds();
+              if (hiddenRooms.contains(roomId)) {
+                isVaultRoom = true;
+                callerName = 'MEKAAR';
+                callerAvatarUrl = null;
+              }
+            } catch (_) {}
+          }
+
           NotificationService.showIncomingCallNotification(
             callerName: callerName,
             callType: callType,
+            roomId: roomId,
+            callId: data['callId'] as String?,
+            callerId: isVaultRoom ? null : (data['callerId'] as String?),
+            callerAvatarUrl: callerAvatarUrl,
             route: NotificationRoute(
               type: NotificationRouteType.call,
-              roomId: data['roomId'] as String?,
+              roomId: roomId,
               callId: data['callId'] as String?,
-              callerId: data['callerId'] as String?,
+              callerId: isVaultRoom ? null : (data['callerId'] as String?),
               callerName: callerName,
+              callerAvatarUrl: callerAvatarUrl,
               callType: callType,
             ),
           );

@@ -9,6 +9,9 @@ import 'package:mekaar_chat/features/chat/providers/message_notification_listene
 import 'package:mekaar_chat/features/chat/widgets/typing_indicator.dart';
 import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
 import 'package:mekaar_chat/features/chat/widgets/nearby_friends_canvas.dart';
+import 'package:mekaar_chat/data/services/notification_service.dart';
+import 'package:mekaar_chat/features/chat/screens/incoming_call_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
   group('MessageNotificationListener.formatNotificationBody Tests', () {
@@ -204,6 +207,126 @@ void main() {
 
       expect(sortWidth, equals(nearbyWidth));
       expect(sortHeight, equals(nearbyHeight));
+    });
+  });
+
+  group('Realtime Call Queue & Notification Tests', () {
+    test('NotificationRoute mendukung serialisasi & deserialisasi tipe call dan message', () {
+      const route = NotificationRoute(
+        type: NotificationRouteType.call,
+        callId: 'test-call-123',
+        roomId: 'test-room-123',
+        callerId: 'user-456',
+        callerName: 'Budi',
+        callType: 'voice',
+      );
+
+      final payload = route.encodePayload();
+      final decoded = NotificationRoute.fromPayload(payload);
+
+      expect(decoded, isNotNull);
+      expect(decoded!.type, NotificationRouteType.call);
+      expect(decoded.callId, 'test-call-123');
+      expect(decoded.callerName, 'Budi');
+      expect(decoded.callType, 'voice');
+    });
+
+    test('MessageNotificationListener.shouldNotify mencegah echo dan room aktif', () {
+      // 1. Pesan dari diri sendiri -> Jangan notif
+      expect(
+        MessageNotificationListener.shouldNotify(
+          currentUserId: 'me',
+          senderId: 'me',
+          roomId: 'room1',
+          activeRoomId: null,
+          isDeleted: false,
+        ),
+        isFalse,
+      );
+
+      // 2. User sedang membuka room yang sama -> Jangan notif
+      expect(
+        MessageNotificationListener.shouldNotify(
+          currentUserId: 'me',
+          senderId: 'other',
+          roomId: 'room1',
+          activeRoomId: 'room1',
+          isDeleted: false,
+        ),
+        isFalse,
+      );
+
+      // 3. User membuka room lain atau sedang di luar chat -> Munculkan notif
+      expect(
+        MessageNotificationListener.shouldNotify(
+          currentUserId: 'me',
+          senderId: 'other',
+          roomId: 'room1',
+          activeRoomId: 'room2',
+          isDeleted: false,
+        ),
+        isTrue,
+      );
+
+      // 4. Pesan dihapus -> Jangan notif
+      expect(
+        MessageNotificationListener.shouldNotify(
+          currentUserId: 'me',
+          senderId: 'other',
+          roomId: 'room1',
+          activeRoomId: null,
+          isDeleted: true,
+        ),
+        isFalse,
+      );
+    });
+
+    testWidgets('IncomingCallScreen merender mode privasi saat isVaultLocked bernilai true', (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: IncomingCallScreen(
+              callId: 'call-1',
+              roomId: 'room-1',
+              callerId: 'user-secret',
+              callerName: 'Rahasia Budi',
+              callerAvatarUrl: 'https://example.com/budi.jpg',
+              callType: 'voice',
+              isVaultLocked: true,
+            ),
+          ),
+        ),
+      );
+
+      // Pastikan nama asli tidak muncul
+      expect(find.text('Rahasia Budi'), findsNothing);
+      // Pastikan label tersamarkan muncul
+      expect(find.text('Panggilan Masuk'), findsOneWidget);
+      expect(find.text('Kontak Terlindungi'), findsOneWidget);
+      // Pastikan ikon perisai gembok ada
+      expect(find.byIcon(SolarIconsBold.shieldKeyhole), findsOneWidget);
+    });
+
+    testWidgets('IncomingCallScreen merender nama asli saat isVaultLocked bernilai false', (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: IncomingCallScreen(
+              callId: 'call-2',
+              roomId: 'room-2',
+              callerId: 'user-normal',
+              callerName: 'Teman Biasa',
+              callerAvatarUrl: null,
+              callType: 'voice',
+              isVaultLocked: false,
+            ),
+          ),
+        ),
+      );
+
+      // Pastikan nama asli muncul
+      expect(find.text('Teman Biasa'), findsOneWidget);
+      expect(find.text('Kontak Terlindungi'), findsNothing);
     });
   });
 }

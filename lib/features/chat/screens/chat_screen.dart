@@ -113,6 +113,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  late final FocusNode _inChatSearchFocusNode;
+  Timer? _searchDebounceTimer;
   bool _isSearching = false;
   String _searchQuery = '';
   bool _isViewOnce = false;
@@ -298,6 +300,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void initState() {
     super.initState();
+    _inChatSearchFocusNode = FocusNode();
     WidgetsBinding.instance.addObserver(this);
     _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScrollChanged);
@@ -485,6 +488,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (ref.read(activeRoomIdProvider) == widget.chatId) {
       ref.read(activeRoomIdProvider.notifier).state = null;
     }
+    _searchDebounceTimer?.cancel();
+    _inChatSearchFocusNode.dispose();
     _otherLastSeenNotifier.dispose();
     _textController.dispose();
     _searchController.dispose();
@@ -1760,10 +1765,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void _confirmClearHistory() {
     MekaarDialog.showConfirmation<void>(
       context: context,
-      title: 'Bersihkan Riwayat?',
+      title: 'Bersihkan Riwayat di Perangkat Ini?',
       message: widget.isGuardian
-          ? 'Seluruh riwayat chat akan dibersihkan dari tampilan Anda, namun log percakapan tetap diarsipkan demi kepatuhan Room Guardian.'
-          : 'Seluruh riwayat chat di ruangan ini akan dibersihkan untuk Anda.',
+          ? 'Seluruh riwayat chat akan dibersihkan dari tampilan Anda saja, namun log percakapan tetap diarsipkan demi kepatuhan Room Guardian.'
+          : 'Semua pesan di ruangan ini hanya akan dibersihkan dari tampilan Anda. Rekan obrolan tetap dapat melihat riwayat percakapan di perangkat mereka.',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -1774,10 +1779,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             Navigator.pop(context); // Close dialog
             await ref.read(chatActionsProvider).clearChatHistory(widget.chatId);
             if (!mounted) return;
-            MekaarSnackbar.success(context, 'Riwayat obrolan dibersihkan.');
+            MekaarSnackbar.success(context, 'Riwayat obrolan dibersihkan untuk perangkat ini.');
           },
           child: const Text(
-            'Bersihkan',
+            'Bersihkan (Hanya Saya)',
             style: TextStyle(color: MekaarColors.sosRed),
           ),
         ),
@@ -1788,9 +1793,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void _confirmDeleteChat() {
     MekaarDialog.showConfirmation<void>(
       context: context,
-      title: 'Hapus Chat?',
+      title: 'Hapus Percakapan dari Daftar Anda?',
       message:
-          'Apakah Anda yakin ingin menghapus seluruh obrolan ini? Obrolan akan hilang dari daftar chat Anda.',
+          'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Percakapan di sisi rekan obrolan tidak akan terhapus.',
       isDestructive: true,
       actions: [
         TextButton(
@@ -1805,7 +1810,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             Navigator.pop(context); // Exit chat room to ChatListScreen
           },
           child: const Text(
-            'Hapus',
+            'Hapus (Hanya Saya)',
             style: TextStyle(color: MekaarColors.sosRed),
           ),
         ),
@@ -2310,6 +2315,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 size: 20,
                               ),
                               onPressed: () {
+                                _searchDebounceTimer?.cancel();
+                                _inChatSearchFocusNode.unfocus();
                                 setState(() {
                                   _isSearching = false;
                                   _searchQuery = '';
@@ -2319,8 +2326,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             ),
                             Expanded(
                               child: TextField(
+                                key: const ValueKey('in_chat_search_input'),
                                 controller: _searchController,
-                                autofocus: true,
+                                focusNode: _inChatSearchFocusNode,
+                                textInputAction: TextInputAction.search,
                                 style: TextStyle(
                                   color: textPrimary,
                                   fontSize: 14,
@@ -2338,7 +2347,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                   ),
                                 ),
                                 onChanged: (val) {
-                                  setState(() => _searchQuery = val.trim());
+                                  _searchDebounceTimer?.cancel();
+                                  _searchDebounceTimer = Timer(
+                                    const Duration(milliseconds: 180),
+                                    () {
+                                      if (mounted && _searchQuery != val.trim()) {
+                                        setState(() => _searchQuery = val.trim());
+                                      }
+                                    },
+                                  );
                                 },
                               ),
                             ),
@@ -2453,6 +2470,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             onSelected: (value) async {
                               if (value == 'search') {
                                 setState(() => _isSearching = true);
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted &&
+                                      _inChatSearchFocusNode.canRequestFocus) {
+                                    _inChatSearchFocusNode.requestFocus();
+                                  }
+                                });
                               } else if (value == 'mute') {
                                 _toggleMute();
                               } else if (value == 'theme') {
@@ -2575,7 +2598,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Bersihkan Obrolan',
+                                      'Bersihkan Riwayat (Hanya Saya)',
                                       style: TextStyle(
                                         color: textPrimary,
                                         fontSize: 14,
@@ -2596,7 +2619,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Hapus Chat',
+                                      'Hapus Obrolan (Hanya Saya)',
                                       style: TextStyle(
                                         color: MekaarColors.sosRed,
                                         fontSize: 14,

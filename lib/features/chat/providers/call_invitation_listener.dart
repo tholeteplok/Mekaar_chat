@@ -9,6 +9,7 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import 'chat_provider.dart';
 import 'call_state_provider.dart';
+import 'private_vault_provider.dart';
 import '../screens/incoming_call_screen.dart';
 
 /// Listener terpusat untuk mendeteksi undangan panggilan masuk secara realtime.
@@ -24,10 +25,15 @@ class CallInvitationListener {
   CallInvitationListener(this._ref);
 
   /// Dipanggil oleh `AppRealtimeListener` saat ada INSERT di tabel calls.
-  void handleInsertCall(PostgresChangePayload payload) async {
+  void handleInsertCall(PostgresChangePayload payload) {
+    if (_disposed) return;
+    processIncomingCallRecord(payload.newRecord);
+  }
+
+  /// Memproses data panggilan masuk baik dari realtime listener maupun recovery queue
+  Future<void> processIncomingCallRecord(Map<String, dynamic> newRow) async {
     if (_disposed) return;
 
-    final newRow = payload.newRecord;
     final callId = newRow['id'] as String?;
     final roomId = newRow['room_id'] as String?;
     final callerId = newRow['caller_id'] as String?;
@@ -37,7 +43,7 @@ class CallInvitationListener {
 
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
     _log.i(
-      '[CALL_INVITE] Menerima event INSERT calls: '
+      '[CALL_INVITE] Menerima record calls: '
       'callId=$callId, callerId=$callerId, receiverId=$receiverId, '
       'status=$status, currentUserId=$currentUserId',
     );
@@ -85,7 +91,7 @@ class CallInvitationListener {
       return;
     }
 
-    // Dedup: cek apakah sudah dinotifikasi dari jalur FCM
+    // Dedup: cek apakah sudah dinotifikasi dari jalur FCM atau Realtime sebelumnya
     if (NotificationDedupService.isDuplicate('call_$callId')) {
       _log.w(
         '[CALL_INVITE] Diabaikan: Panggilan $callId sudah pernah diproses (dedup match).',
@@ -112,6 +118,11 @@ class CallInvitationListener {
       _log.w('[CALL_INVITE] Gagal memuat profil pemanggil ($callerId): $e');
     }
 
+    // Cek apakah room termasuk kontak Private Vault yang sedang terkunci
+    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId);
+    final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
+    final isVaultLocked = isHidden && !isVaultUnlocked;
+
     // 1. Tampilkan layar panggilan masuk langsung ke UI (decoupling dari notifikasi/audio)
     void navigateToIncomingScreen(BuildContext ctx) {
       Navigator.of(ctx).push(
@@ -125,6 +136,7 @@ class CallInvitationListener {
             callerName: callerName,
             callerAvatarUrl: callerAvatarUrl,
             callType: callType,
+            isVaultLocked: isVaultLocked,
           ),
         ),
       );
@@ -132,7 +144,7 @@ class CallInvitationListener {
 
     final context = AppNavigator.currentContext;
     if (context != null && context.mounted) {
-      _log.i('[CALL_INVITE] Membuka IncomingCallScreen untuk callId=$callId');
+      _log.i('[CALL_INVITE] Membuka IncomingCallScreen untuk callId=$callId (isVaultLocked: $isVaultLocked)');
       navigateToIncomingScreen(context);
     } else {
       _log.w(
@@ -143,7 +155,7 @@ class CallInvitationListener {
         final retryContext = AppNavigator.currentContext;
         if (retryContext != null && retryContext.mounted) {
           _log.i(
-            '[CALL_INVITE] Membuka IncomingCallScreen (via post-frame retry) untuk callId=$callId',
+            '[CALL_INVITE] Membuka IncomingCallScreen (via post-frame retry) untuk callId=$callId (isVaultLocked: $isVaultLocked)',
           );
           navigateToIncomingScreen(retryContext);
         } else {
@@ -154,17 +166,86 @@ class CallInvitationListener {
       });
     }
 
-    // 2. Bunyikan ringtone & tampilkan notifikasi secara terpisah (non-blocking agar kegagalan audio/notifikasi tidak membatalkan UI panggilan)
+    // 2. Bunyikan ringtone & tampilkan notifikasi secara terpisah (disamarkan jika vault terkunci)
+    final notificationCallerName = isVaultLocked ? 'MEKAAR' : callerName;
+    final notificationAvatarUrl = isVaultLocked ? null : callerAvatarUrl;
+
     NotificationService.showIncomingCallNotification(
-      callerName: callerName,
+      callerName: notificationCallerName,
       callType: callType,
       roomId: roomId,
       callId: callId,
       callerId: callerId,
-      callerAvatarUrl: callerAvatarUrl,
+      callerAvatarUrl: notificationAvatarUrl,
     ).catchError((e) {
       _log.e('[CALL_INVITE] Gagal menyalakan notifikasi/ringtone panggilan masuk: $e');
     });
+  }
+
+  /// Memeriksa panggilan masuk yang tertunda atau panggilan tak terjawab saat aplikasi
+  /// dibuka kembali (mitigasi ketika aplikasi tertutup/dimatikan OS).
+  Future<void> checkPendingCallsOnResume() async {
+    if (_disposed) return;
+    final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
+    if (currentUserId == null) return;
+
+    try {
+      final callRepo = _ref.read(callRepositoryProvider);
+
+      // 1. Cek apakah ada panggilan yang masih berdering (dalam window 45 detik)
+      final pendingCall = await callRepo.getPendingIncomingCall(currentUserId);
+      if (pendingCall != null) {
+        final callId = pendingCall['id'] as String?;
+        if (callId != null &&
+            !NotificationDedupService.isDuplicate('call_$callId')) {
+          _log.i('[CALL_RESUME] Menemukan panggilan tertunda yang masih aktif: $callId');
+          await processIncomingCallRecord(pendingCall);
+          return;
+        }
+      }
+
+      // 2. Cek apakah ada panggilan tak terjawab yang terjadi saat offline
+      final missedCalls = await callRepo.getRecentMissedCalls(currentUserId);
+      for (final missed in missedCalls) {
+        final callId = missed['id'] as String?;
+        final callerId = missed['caller_id'] as String?;
+        final roomId = missed['room_id'] as String?;
+        final callType = missed['call_type'] as String? ?? 'voice';
+        if (callId == null || callerId == null) continue;
+
+        if (!NotificationDedupService.isDuplicate('missed_$callId')) {
+          NotificationDedupService.markNotified('missed_$callId');
+
+          final chatRepo = _ref.read(chatRepositoryProvider);
+          String callerName = 'Seseorang';
+          try {
+            final profile = await chatRepo.searchProfileById(callerId);
+            if (profile != null) {
+              callerName = (profile['display_name'] as String?)?.isNotEmpty == true
+                  ? profile['display_name'] as String
+                  : (profile['full_name'] as String?) ??
+                      (profile['username'] as String?) ??
+                      'Seseorang';
+            }
+          } catch (_) {}
+
+          final isHidden = roomId != null &&
+              _ref.read(hiddenRoomIdsProvider).contains(roomId);
+          final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
+          final isVaultLocked = isHidden && !isVaultUnlocked;
+
+          await NotificationService.showMissedCallNotification(
+            callerName: isVaultLocked ? 'MEKAAR' : callerName,
+            callType: callType,
+            roomId: roomId,
+            callId: callId,
+            callerId: isVaultLocked ? null : callerId,
+          );
+        }
+      }
+    } catch (e) {
+      _log.w('[CALL_RESUME] Gagal memeriksa antrian panggilan offline: $e');
+    }
   }
 
   void dispose() {

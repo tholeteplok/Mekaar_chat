@@ -197,6 +197,54 @@ class CallRepository {
     return Map<String, dynamic>.from(response);
   }
 
+  /// Ambil panggilan aktif terbaru yang ditujukan ke receiverId (dalam kurun waktu tertentu, default 45 detik)
+  Future<Map<String, dynamic>?> getPendingIncomingCall(
+    String receiverId, {
+    Duration window = const Duration(seconds: 45),
+  }) async {
+    final threshold =
+        DateTime.now().toUtc().subtract(window).toIso8601String();
+    try {
+      final response = await _client
+          .from('calls')
+          .select()
+          .eq('receiver_id', receiverId)
+          .inFilter('status', ['calling', 'ringing'])
+          .gte('created_at', threshold)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (response == null) return null;
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      debugPrint('[CallRepository] getPendingIncomingCall gagal: $e');
+      return null;
+    }
+  }
+
+  /// Ambil riwayat panggilan tak terjawab terbaru yang terjadi dalam kurun waktu tertentu (offline mitigation)
+  Future<List<Map<String, dynamic>>> getRecentMissedCalls(
+    String receiverId, {
+    Duration window = const Duration(minutes: 10),
+  }) async {
+    final threshold =
+        DateTime.now().toUtc().subtract(window).toIso8601String();
+    try {
+      final response = await _client
+          .from('calls')
+          .select()
+          .eq('receiver_id', receiverId)
+          .eq('status', 'missed')
+          .gte('created_at', threshold)
+          .order('created_at', ascending: false)
+          .limit(5);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('[CallRepository] getRecentMissedCalls gagal: $e');
+      return [];
+    }
+  }
+
   /// Stream riwayat panggilan untuk room tertentu secara realtime
   Stream<List<CallModel>> streamCalls(String roomId) {
     return _client

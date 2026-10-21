@@ -182,17 +182,42 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Pembersihan Terjadwal',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Pembersihan Terjadwal',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: MekaarColors.textPrimaryOf(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: brandAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Kedua Pihak',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: brandAccent,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Hapus seluruh pesan room pada jam tertentu',
+                      'Hapus seluruh pesan untuk kedua pihak pada jam tertentu',
                       style: TextStyle(
                         fontSize: 13,
                         color: MekaarColors.textSecondaryOf(context),
@@ -203,7 +228,41 @@ class _ScheduledWipeBottomSheetState extends State<ScheduledWipeBottomSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
+
+          // Info Banner Penegasan Bilateral
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: brandAccent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: brandAccent.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  SolarIconsOutline.usersGroupTwoRounded,
+                  size: 16,
+                  color: brandAccent,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Pembersihan ini berlaku bilateral: menghapus riwayat pesan secara permanen dari server dan kedua perangkat peserta.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: MekaarColors.textSecondaryOf(context),
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
 
           // Card Pemilih Jam (Time Display & Selector)
           PressableScale(

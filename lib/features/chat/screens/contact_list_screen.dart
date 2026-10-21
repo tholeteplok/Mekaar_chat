@@ -37,8 +37,10 @@ class ContactListScreen extends ConsumerStatefulWidget {
 class _ContactListScreenState extends ConsumerState<ContactListScreen>
     with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
   late final ScrollController _contactsScrollController;
   Timer? _vaultDebounceTimer;
+  Timer? _searchDebounceTimer;
   String _searchQuery = '';
   bool _isSearchActive = false;
   double _collapseProgress = 0.0;
@@ -59,6 +61,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
     _contactsScrollController = ScrollController();
     _contactsScrollController.addListener(_onContactsScroll);
     _loadViewPreference();
@@ -102,8 +105,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _vaultDebounceTimer?.cancel();
+    _searchDebounceTimer?.cancel();
     _contactsScrollController.removeListener(_onContactsScroll);
     _contactsScrollController.dispose();
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -250,13 +255,21 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 MekaarTabHeader(
+                  key: const ValueKey('contact_list_tab_header'),
                   title: 'Kontak',
                   isSearchActive: _isSearchActive,
                   searchController: _searchController,
+                  searchFocusNode: _searchFocusNode,
                   searchHint: 'Cari nama, username, atau email...',
                   onSearchChanged: (val) {
-                    setState(() {
-                      _searchQuery = val.trim();
+                    _searchDebounceTimer?.cancel();
+                    _searchDebounceTimer =
+                        Timer(const Duration(milliseconds: 180), () {
+                      if (mounted && _searchQuery != val.trim()) {
+                        setState(() {
+                          _searchQuery = val.trim();
+                        });
+                      }
                     });
                     _vaultDebounceTimer?.cancel();
                     if (val.trim().length >= 4) {
@@ -269,6 +282,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     }
                   },
                   onSearchClosed: () {
+                    _searchDebounceTimer?.cancel();
                     _vaultDebounceTimer?.cancel();
                     setState(() {
                       _isSearchActive = false;

@@ -5,14 +5,18 @@ import '../constants/dimensions.dart';
 
 class MekaarSearchField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String hintText;
   final String? errorText;
 
   const MekaarSearchField({
     super.key,
     this.onChanged,
+    this.onSubmitted,
     this.controller,
+    this.focusNode,
     this.hintText = 'Cari...',
     this.errorText,
   });
@@ -54,12 +58,12 @@ class MekaarSearchField extends StatelessWidget {
           const SizedBox(width: MekaarSpacing.md),
           Expanded(
             child: TextField(
+              key: const ValueKey('mekaar_search_field_input'),
               controller: controller,
+              focusNode: focusNode,
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
-              onSubmitted: (_) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
+              onSubmitted: onSubmitted,
               style: TextStyle(
                 color: MekaarColors.textPrimaryOf(context),
                 fontSize: 14,

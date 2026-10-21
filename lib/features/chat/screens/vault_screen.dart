@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,8 @@ class VaultScreen extends ConsumerStatefulWidget {
 
 class _VaultScreenState extends ConsumerState<VaultScreen> {
   final TextEditingController _searchController = TextEditingController();
+  late final FocusNode _searchFocusNode;
+  Timer? _searchDebounceTimer;
   bool _isSearchActive = false;
   String _searchQuery = '';
   AudioPlayer? _audioPlayer;
@@ -43,19 +46,30 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      final query = _searchController.text.trim();
-      if (query != _searchQuery) {
-        setState(() => _searchQuery = query);
-        ref.read(vaultItemsProvider.notifier).loadItems(query: query);
+    _searchFocusNode = FocusNode();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        final query = _searchController.text.trim();
+        if (query != _searchQuery) {
+          setState(() => _searchQuery = query);
+          ref.read(vaultItemsProvider.notifier).loadItems(query: query);
+        }
       }
     });
   }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
+    _searchFocusNode.dispose();
     _audioPlayer?.stop();
     _audioPlayer?.dispose();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     LocalVaultDatabase.instance.close();
     DatabaseKeyService.instance.lockVault();
@@ -204,9 +218,17 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               setState(() {
                 _isSearchActive = !_isSearchActive;
                 if (!_isSearchActive) {
+                  _searchDebounceTimer?.cancel();
+                  _searchFocusNode.unfocus();
                   _searchController.clear();
                   _searchQuery = '';
                   ref.read(vaultItemsProvider.notifier).loadItems(query: '');
+                } else {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && _searchFocusNode.canRequestFocus) {
+                      _searchFocusNode.requestFocus();
+                    }
+                  });
                 }
               });
             },
@@ -220,8 +242,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: TextField(
+                key: const ValueKey('vault_search_input'),
                 controller: _searchController,
-                autofocus: true,
+                focusNode: _searchFocusNode,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: 'Cari nama berkas atau pengirim...',
                   prefixIcon: const Icon(SolarIconsOutline.magnifier),

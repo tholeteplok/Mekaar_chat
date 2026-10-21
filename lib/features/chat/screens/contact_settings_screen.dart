@@ -841,16 +841,22 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               SolarIconsOutline.trashBinTrash,
                               color: MekaarColors.sosRed,
                             ),
-                            title: const Text('Hapus Chat'),
+                            title: const Text('Hapus Chat (Hanya Saya)'),
+                            subtitle: const Text('Hapus dari daftar chat Anda; obrolan rekan tidak terhapus'),
                             titleTextStyle: const TextStyle(
                               color: MekaarColors.sosRed,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            subtitleTextStyle: TextStyle(
+                              fontSize: 12,
+                              color: MekaarColors.textSecondaryOf(context),
                             ),
                             onTap: () {
                               MekaarDialog.showConfirmation<void>(
                                 context: context,
-                                title: 'Hapus Chat?',
+                                title: 'Hapus Chat dari Daftar Anda?',
                                 message:
-                                    'Obrolan akan hilang dari daftar chat Anda.',
+                                    'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Rekan obrolan tetap dapat melihat percakapan ini.',
                                 isDestructive: true,
                                 actions: [
                                   TextButton(
@@ -871,7 +877,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                         Navigator.of(context).pop();
                                       }
                                     },
-                                    child: const Text('Hapus'),
+                                    child: const Text('Hapus (Hanya Saya)'),
                                   ),
                                 ],
                               );

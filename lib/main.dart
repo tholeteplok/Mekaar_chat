@@ -90,6 +90,7 @@ void main() async {
 }
 
 Future<void> _initializeSecondaryServices() async {
+  // 1. Inisialisasi Deep Link Service secara independen
   try {
     await DeepLinkService.initialize();
 
@@ -101,7 +102,12 @@ Future<void> _initializeSecondaryServices() async {
         }
       }
     });
+  } catch (e) {
+    logger.w('DeepLinkService initialization non-fatal error: $e');
+  }
 
+  // 2. Inisialisasi Notification Service lokal & channel Android
+  try {
     await NotificationService.initialize(
       onNotificationTap: _handleNotificationRoute,
       onTripNotificationTap: (tripId) {
@@ -153,12 +159,17 @@ Future<void> _initializeSecondaryServices() async {
 
     // Cek apakah app cold-started dari tap local notification
     await NotificationService.handleAppLaunchNotification();
+  } catch (e) {
+    logger.w('NotificationService initialization non-fatal error: $e');
+  }
 
+  // 3. Inisialisasi Push Notification FCM
+  try {
     await PushNotificationService.initialize(
       onNotificationClick: _handleNotificationRoute,
     );
   } catch (e) {
-    logger.w('Notifikasi initialization non-fatal error: $e');
+    logger.w('PushNotificationService initialization non-fatal error: $e');
   }
 }
 
@@ -235,6 +246,23 @@ void _handleNotificationRoute(NotificationRoute route) async {
       final roomId = route.roomId;
       final callerId = route.callerId;
       if (callId == null || roomId == null || callerId == null) return;
+
+      bool isVaultLocked = false;
+      try {
+        final container = ProviderScope.containerOf(context, listen: false);
+        final hiddenRooms =
+            await PrivateContactRepository().getHiddenRoomIds();
+        if (hiddenRooms.contains(roomId)) {
+          bool isUnlocked = false;
+          try {
+            isUnlocked = container.read(privateVaultUnlockedProvider);
+          } catch (_) {}
+          isVaultLocked = !isUnlocked;
+        }
+      } catch (_) {}
+
+      if (!context.mounted) return;
+
       // PENGECAHAN TRANSISI: layar panggilan masuk sengaja memakai
       // MaterialPageRoute (platform-feel slide-up ala dialer OS), bukan
       // MekaarPageRoute fade. Jangan diubah tanpa revisi design.md.
@@ -244,9 +272,12 @@ void _handleNotificationRoute(NotificationRoute route) async {
             callId: callId,
             roomId: roomId,
             callerId: callerId,
-            callerName: route.callerName ?? 'Seseorang',
-            callerAvatarUrl: route.callerAvatarUrl,
+            callerName: isVaultLocked
+                ? 'Panggilan Masuk'
+                : (route.callerName ?? 'Seseorang'),
+            callerAvatarUrl: isVaultLocked ? null : route.callerAvatarUrl,
             callType: route.callType ?? 'voice',
+            isVaultLocked: isVaultLocked,
           ),
         ),
       );

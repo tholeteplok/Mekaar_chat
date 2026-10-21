@@ -12,6 +12,7 @@ import 'private_vault_provider.dart';
 import '../../settings/providers/privacy_provider.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import 'app_realtime_listener.dart';
+import 'call_invitation_listener.dart';
 
 /// Listener terpusat untuk notifikasi pesan masuk (Opsi A dari Implementation Plan).
 ///
@@ -268,19 +269,40 @@ class NotificationListenerHost extends ConsumerStatefulWidget {
 }
 
 class _NotificationListenerHostState
-    extends ConsumerState<NotificationListenerHost> {
+    extends ConsumerState<NotificationListenerHost>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Pastikan tidak ada room "aktif" tersisa dari sesi sebelumnya.
     ref.read(activeRoomIdProvider.notifier).state = null;
     ref.read(appRealtimeListenerProvider).start();
     ref.read(tripMonitorSchedulerProvider).start();
-    // Pre-warm katalog emoji dan verifikasi pack lokal di disk
+    // Cek antrian panggilan offline saat cold start
     Future.microtask(() {
+      ref.read(callInvitationListenerProvider).checkPendingCallsOnResume();
       ref.read(emojiCatalogProvider.future);
       ref.read(installedPacksProvider);
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 1. Pulihkan koneksi realtime channel jika sempat terputus/closed saat background
+      ref.read(appRealtimeListenerProvider).reconnectIfNeeded();
+      // 2. Periksa antrian panggilan offline (mitigasi app tertutup / background dibunuh OS)
+      ref.read(callInvitationListenerProvider).checkPendingCallsOnResume();
+      // 3. Refresh chat rooms agar badge unread & pesan terkini ter-update
+      ref.read(chatRoomsProvider.notifier).refreshRooms();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override

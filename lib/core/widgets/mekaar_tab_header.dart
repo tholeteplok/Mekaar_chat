@@ -17,6 +17,7 @@ class MekaarTabHeader extends StatefulWidget {
     this.action,
     this.isSearchActive = false,
     this.searchController,
+    this.searchFocusNode,
     this.onSearchChanged,
     this.onSearchClosed,
     this.searchHint = 'Cari chat atau teman...',
@@ -27,6 +28,7 @@ class MekaarTabHeader extends StatefulWidget {
   final Widget? action;
   final bool isSearchActive;
   final TextEditingController? searchController;
+  final FocusNode? searchFocusNode;
   final ValueChanged<String>? onSearchChanged;
   final VoidCallback? onSearchClosed;
   final String? searchHint;
@@ -36,12 +38,17 @@ class MekaarTabHeader extends StatefulWidget {
 }
 
 class _MekaarTabHeaderState extends State<MekaarTabHeader> {
-  late final FocusNode _searchFocusNode;
+  FocusNode? _internalSearchFocusNode;
+
+  FocusNode get _effectiveFocusNode =>
+      widget.searchFocusNode ?? (_internalSearchFocusNode ??= FocusNode());
 
   @override
   void initState() {
     super.initState();
-    _searchFocusNode = FocusNode();
+    if (widget.searchFocusNode == null) {
+      _internalSearchFocusNode = FocusNode();
+    }
   }
 
   @override
@@ -49,14 +56,16 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
     super.didUpdateWidget(oldWidget);
     if (widget.isSearchActive && !oldWidget.isSearchActive) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _searchFocusNode.requestFocus();
+        if (mounted && _effectiveFocusNode.canRequestFocus) {
+          _effectiveFocusNode.requestFocus();
+        }
       });
     }
   }
 
   @override
   void dispose() {
-    _searchFocusNode.dispose();
+    _internalSearchFocusNode?.dispose();
     super.dispose();
   }
 
@@ -87,9 +96,11 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              focusNode: _searchFocusNode,
+              key: const ValueKey('mekaar_tab_header_search_input'),
+              focusNode: _effectiveFocusNode,
               controller: widget.searchController,
               onChanged: widget.onSearchChanged,
+              textInputAction: TextInputAction.search,
               style: MekaarTypography.bodyMD.copyWith(
                 color: MekaarColors.textPrimaryOf(context),
                 fontWeight: FontWeight.w600,
@@ -112,29 +123,35 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
               ),
             ),
           ),
-          if (widget.searchController != null &&
-              widget.searchController!.text.isNotEmpty)
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                widget.searchController!.clear();
-                widget.onSearchChanged?.call('');
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Icon(
-                  SolarIconsOutline.closeCircle,
-                  color: MekaarColors.textSecondaryOf(context),
-                  size: 20,
+          AnimatedOpacity(
+            opacity: (widget.searchController?.text.isNotEmpty ?? false) ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeInOut,
+            child: IgnorePointer(
+              ignoring: !(widget.searchController?.text.isNotEmpty ?? false),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  widget.searchController?.clear();
+                  widget.onSearchChanged?.call('');
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Icon(
+                    SolarIconsOutline.closeCircle,
+                    color: MekaarColors.textSecondaryOf(context),
+                    size: 20,
+                  ),
                 ),
               ),
             ),
+          ),
           const SizedBox(width: 4),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
               HapticService.trigger(MekaarHapticIntent.selection);
-              _searchFocusNode.unfocus();
+              _effectiveFocusNode.unfocus();
               widget.onSearchClosed?.call();
             },
             child: Padding(

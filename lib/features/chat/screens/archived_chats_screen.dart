@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -30,21 +31,35 @@ class ArchivedChatsScreen extends ConsumerStatefulWidget {
 
 class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  late final FocusNode _searchFocusNode;
+  Timer? _searchDebounceTimer;
   bool _isSearchActive = false;
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim().toLowerCase();
-      });
+    _searchFocusNode = FocusNode();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) {
+        final q = _searchController.text.trim().toLowerCase();
+        if (_searchQuery != q) {
+          setState(() => _searchQuery = q);
+        }
+      }
     });
   }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
+    _searchFocusNode.dispose();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -67,8 +82,9 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
     HapticService.trigger(MekaarHapticIntent.warning);
     MekaarDialog.showConfirmation<void>(
       context: context,
-      title: 'Hapus Chat?',
-      message: 'Obrolan ini akan dihapus permanen dari daftar pesan Anda.',
+      title: 'Hapus Chat dari Arsip Anda?',
+      message:
+          'Obrolan ini hanya akan dihapus dari arsip pesan Anda. Rekan obrolan tetap dapat melihat percakapan ini.',
       isDestructive: true,
       actions: [
         TextButton(
@@ -84,10 +100,10 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
             Navigator.pop(context);
             await ref.read(chatActionsProvider).deleteChat(room['id'] as String);
             if (!mounted) return;
-            MekaarSnackbar.success(context, 'Obrolan berhasil dihapus');
+            MekaarSnackbar.success(context, 'Obrolan berhasil dihapus dari arsip');
             ref.read(chatRoomsProvider.notifier).refreshRooms();
           },
-          child: const Text('Hapus'),
+          child: const Text('Hapus (Hanya Saya)'),
         ),
       ],
     );
@@ -161,8 +177,16 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
               setState(() {
                 _isSearchActive = !_isSearchActive;
                 if (!_isSearchActive) {
+                  _searchDebounceTimer?.cancel();
+                  _searchFocusNode.unfocus();
                   _searchController.clear();
                   _searchQuery = '';
+                } else {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && _searchFocusNode.canRequestFocus) {
+                      _searchFocusNode.requestFocus();
+                    }
+                  });
                 }
               });
             },
@@ -175,8 +199,10 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: TextField(
+                key: const ValueKey('archived_chats_search_input'),
                 controller: _searchController,
-                autofocus: true,
+                focusNode: _searchFocusNode,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: 'Cari dalam arsip percakapan...',
                   prefixIcon: const Icon(SolarIconsOutline.magnifier),

@@ -164,6 +164,13 @@ class NotificationService {
         onDidReceiveNotificationResponse: _onDidReceiveNotificationResponse,
       );
       await _createNotificationChannels();
+
+      // Minta izin notifikasi runtime Android 13+ (POST_NOTIFICATIONS)
+      final androidImpl = _localNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.requestNotificationsPermission();
+
       _logger.i("Notification Service Initialized (Flutter Local Notifications)");
     } catch (e) {
       _logger.w("Notification Service: Gagal inisialisasi native driver (fallback aktif): $e");
@@ -285,10 +292,8 @@ class NotificationService {
     AlarmService.playMessageSound();
     await HapticService.trigger(MekaarHapticIntent.success);
 
-    final resolvedGroupKey = groupKey ?? 'mekaar_chat_${roomId ?? "general"}';
-    final notificationId = roomId != null
-        ? (roomId.hashCode & 0x7FFFFFFF)
-        : DateTime.now().microsecondsSinceEpoch.remainder(1 << 31);
+    final notificationId =
+        DateTime.now().microsecondsSinceEpoch.remainder(1 << 31);
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -300,8 +305,6 @@ class NotificationService {
         playSound: true,
         enableVibration: true,
         category: AndroidNotificationCategory.message,
-        groupKey: resolvedGroupKey,
-        tag: roomId,
         color: const Color(0xFF007AFF),
         styleInformation: BigTextStyleInformation(
           body,
@@ -315,18 +318,74 @@ class NotificationService {
         presentSound: true,
       ),
     );
-    await _localNotificationsPlugin.show(
-      notificationId,
-      title,
-      body,
-      details,
-      payload: (route ??
-              NotificationRoute(
-                type: NotificationRouteType.message,
-                roomId: roomId,
-              ))
-          .encodePayload(),
+
+    try {
+      await _localNotificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        details,
+        payload: (route ??
+                NotificationRoute(
+                  type: NotificationRouteType.message,
+                  roomId: roomId,
+                ))
+            .encodePayload(),
+      );
+    } catch (e) {
+      _logger.e("NotificationService: Gagal menampilkan notifikasi pesan: $e");
+    }
+  }
+
+  static Future<void> showMissedCallNotification({
+    required String callerName,
+    required String callType,
+    String? roomId,
+    String? callId,
+    String? callerId,
+  }) async {
+    await HapticService.trigger(MekaarHapticIntent.warning);
+
+    final notificationId =
+        DateTime.now().microsecondsSinceEpoch.remainder(1 << 31);
+
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'mekaar_message_channel',
+        'Pesan MEKAAR',
+        channelDescription: 'Saluran notifikasi pesan dan panggilan masuk',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        category: AndroidNotificationCategory.missedCall,
+        color: const Color(0xFFFF3B30),
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
+
+    try {
+      await _localNotificationsPlugin.show(
+        notificationId,
+        'Panggilan Tak Terjawab',
+        '$callerName mencoba menghubungi Anda (${callType == "video" ? "Video" : "Suara"})',
+        details,
+        payload: NotificationRoute(
+          type: NotificationRouteType.message,
+          roomId: roomId,
+          chatName: callerName,
+          otherUserId: callerId,
+        ).encodePayload(),
+      );
+    } catch (e) {
+      _logger.e(
+        "NotificationService: Gagal menampilkan notifikasi panggilan tak terjawab: $e",
+      );
+    }
   }
 
   static Future<void> showNormalNotification({

@@ -228,3 +228,8 @@ final chatRequestRepositoryProvider = Provider<ChatRequestRepository>((ref) {
   final blockRepository = ref.watch(blockRepositoryProvider);
   return ChatRequestRepository(supabaseService, blockRepository);
 });
+
+final pendingRequestsCountStreamProvider = StreamProvider.autoDispose<int>((ref) {
+  final repo = ref.watch(chatRequestRepositoryProvider);
+  return repo.streamPendingRequestsCount();
+});

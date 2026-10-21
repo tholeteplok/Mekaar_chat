@@ -13,6 +13,8 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/wakelock_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/call_state_provider.dart';
+import '../providers/private_vault_provider.dart';
+import '../widgets/private_vault_dialogs.dart';
 
 class IncomingCallScreen extends ConsumerStatefulWidget {
   final String callId;
@@ -21,6 +23,7 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
   final String callerName;
   final String? callerAvatarUrl;
   final String callType;
+  final bool isVaultLocked;
 
   const IncomingCallScreen({
     super.key,
@@ -30,6 +33,7 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
     required this.callerName,
     this.callerAvatarUrl,
     required this.callType,
+    this.isVaultLocked = false,
   });
 
   @override
@@ -41,11 +45,17 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
   RealtimeChannel? _signalingChannel;
   Timer? _ringingBroadcastTimer;
   bool _isResponding = false;
+  bool _isVaultUnlockedLocally = false;
+
+  bool get _effectiveVaultLocked =>
+      widget.isVaultLocked && !_isVaultUnlockedLocally;
 
   @override
   void initState() {
     super.initState();
-    unawaited(WakelockService.enable());
+    try {
+      unawaited(WakelockService.enable());
+    } catch (_) {}
     _watchCallCancelledByCaller();
     _broadcastDeviceRinging();
     _markCallRingingInDb();
@@ -95,33 +105,54 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
 
   /// Memantau jika penelepon membatalkan panggilan sebelum direspons
   void _watchCallCancelledByCaller() {
-    final client = ref.read(supabaseServiceProvider).client;
-    _statusChannel = client
-        .channel('public:calls:status:${widget.callId}')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'calls',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: widget.callId,
-          ),
-          callback: (payload) {
-            final newStatus = payload.newRecord['status'] as String?;
-            if (newStatus == 'missed' || newStatus == 'ended' || newStatus == 'failed') {
-              if (mounted) {
-                NotificationService.cancelIncomingCallNotification();
-                Navigator.of(context).pop();
+    try {
+      final client = ref.read(supabaseServiceProvider).client;
+      _statusChannel = client
+          .channel('public:calls:status:${widget.callId}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'calls',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: widget.callId,
+            ),
+            callback: (payload) {
+              final newStatus = payload.newRecord['status'] as String?;
+              if (newStatus == 'missed' ||
+                  newStatus == 'ended' ||
+                  newStatus == 'failed') {
+                if (mounted) {
+                  NotificationService.cancelIncomingCallNotification();
+                  Navigator.of(context).pop();
+                }
               }
-            }
-          },
-        )
-        .subscribe();
+            },
+          )
+          .subscribe();
+    } catch (_) {}
   }
 
   Future<void> _acceptCall() async {
     if (_isResponding) return;
+
+    // Jika kontak panggilan berada di vault dan sedang terkunci, minta PIN terlebih dahulu
+    if (_effectiveVaultLocked) {
+      final unlocked =
+          await PrivateVaultDialogs.showUnlockPasscodeDialog(context);
+      if (!mounted) return;
+      if (!unlocked) {
+        return; // Pengguna membatalkan atau PIN salah
+      }
+      setState(() {
+        _isVaultUnlockedLocally = true;
+      });
+      try {
+        ref.read(privateVaultUnlockedProvider.notifier).state = true;
+      } catch (_) {}
+    }
+
     setState(() => _isResponding = true);
     HapticService.trigger(MekaarHapticIntent.success);
 
@@ -206,22 +237,80 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                       // Header Info Panggilan
                       Column(
                         children: [
-                          Avatar(
-                            initial: widget.callerName.isNotEmpty
-                                ? widget.callerName[0].toUpperCase()
-                                : 'U',
-                            imageUrl: widget.callerAvatarUrl,
-                            size: isCompact ? 68 : 110,
-                          ),
+                          if (_effectiveVaultLocked)
+                            Container(
+                              width: isCompact ? 68 : 110,
+                              height: isCompact ? 68 : 110,
+                              decoration: BoxDecoration(
+                                color: MekaarColors.guardianTeal
+                                    .withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: MekaarColors.guardianTeal
+                                      .withValues(alpha: 0.4),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  SolarIconsBold.shieldKeyhole,
+                                  size: isCompact ? 32 : 52,
+                                  color: MekaarColors.guardianTeal,
+                                ),
+                              ),
+                            )
+                          else
+                            Avatar(
+                              initial: widget.callerName.isNotEmpty
+                                  ? widget.callerName[0].toUpperCase()
+                                  : 'U',
+                              imageUrl: widget.callerAvatarUrl,
+                              size: isCompact ? 68 : 110,
+                            ),
                           SizedBox(height: isCompact ? 12 : 24),
                           Text(
-                            widget.callerName,
+                            _effectiveVaultLocked
+                                ? 'Panggilan Masuk'
+                                : widget.callerName,
                             style: TextStyle(
                               fontSize: isCompact ? 20 : 26,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
+                          if (_effectiveVaultLocked) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.guardianTeal
+                                    .withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    SolarIconsBold.lockPassword,
+                                    color: MekaarColors.guardianTeal,
+                                    size: 13,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Kontak Terlindungi',
+                                    style: TextStyle(
+                                      color: MekaarColors.guardianTeal,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,

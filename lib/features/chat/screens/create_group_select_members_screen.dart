@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -27,7 +28,24 @@ class _CreateGroupSelectMembersScreenState
     extends ConsumerState<CreateGroupSelectMembersScreen> {
   final Set<String> _selectedUserIds = {};
   final Map<String, Map<String, dynamic>> _selectedUserProfiles = {};
+  final TextEditingController _searchController = TextEditingController();
+  late final FocusNode _searchFocusNode;
+  Timer? _searchDebounceTimer;
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounceTimer?.cancel();
+    _searchFocusNode.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _toggleMember(String userId, Map<String, dynamic> profile) {
     HapticService.trigger(MekaarHapticIntent.selection);
@@ -164,8 +182,18 @@ class _CreateGroupSelectMembersScreenState
           Padding(
             padding: const EdgeInsets.all(MekaarSpacing.md),
             child: MekaarSearchField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
               hintText: 'Cari kontak...',
-              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              onChanged: (val) {
+                _searchDebounceTimer?.cancel();
+                _searchDebounceTimer =
+                    Timer(const Duration(milliseconds: 180), () {
+                  if (mounted && _searchQuery != val.toLowerCase()) {
+                    setState(() => _searchQuery = val.toLowerCase());
+                  }
+                });
+              },
             ),
           ),
 
