@@ -73,6 +73,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   Set<String>? _lastHiddenIds;
   Set<String>? _lastHiddenContactIds;
   Set<String>? _lastVaultedContactIds;
+  Set<int>? _lastUnlockedSlots;
   bool? _lastVaultUnlocked;
 
   int _computeRoomsSignature(List<Map<String, dynamic>> rooms) {
@@ -162,7 +163,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       // Auto-relock vault seketika saat aplikasi diminimize atau background
-      if (ref.read(privateVaultUnlockedProvider)) {
+      if (ref.read(privateVaultUnlockedProvider) ||
+          ref.read(unlockedVaultSlotsProvider).isNotEmpty) {
+        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
         ref.read(privateVaultUnlockedProvider.notifier).state = false;
       }
     }
@@ -171,8 +174,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   Future<void> _checkVaultPasscode(String query) async {
     if (query.trim().isEmpty) return;
     final repo = ref.read(privateContactRepositoryProvider);
-    final isMatch = await repo.verifyPasscode(query.trim());
-    if (isMatch && mounted) {
+    final matchedSlot = await repo.checkAnySlotPasscode(query.trim());
+    if (matchedSlot != null && mounted) {
       _searchController.clear();
       setState(() {
         _searchQuery = '';
@@ -180,11 +183,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       });
       FocusScope.of(context).unfocus();
       HapticService.trigger(MekaarHapticIntent.success);
+      ref.read(unlockedVaultSlotsProvider.notifier).state = {matchedSlot};
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
-      MekaarSnackbar.success(
-        context,
-        'Koleksi Obrolan Tersembunyi Dibuka',
-      );
+      final slotName = await repo.getSlotName(matchedSlot);
+      if (mounted) {
+        MekaarSnackbar.success(
+          context,
+          '$slotName Terbuka',
+        );
+      }
     }
   }
 
@@ -1011,8 +1018,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
     final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
     final vaultedContactIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
+    final vaultedContactsSlotMap = {
+      for (var c in contactsList.where((c) => c.isVaulted)) c.contactUserId: c.vaultSlot
+    };
 
     // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
     final roomsSignature = _computeRoomsSignature(rooms);
@@ -1024,6 +1035,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         setEquals(_lastHiddenIds, hiddenRoomIds) &&
         setEquals(_lastHiddenContactIds, hiddenContactUserIds) &&
         setEquals(_lastVaultedContactIds, vaultedContactIds) &&
+        setEquals(_lastUnlockedSlots, unlockedSlots) &&
         _lastVaultUnlocked == isVaultUnlocked;
 
     final List<Map<String, dynamic>> filtered;
@@ -1082,11 +1094,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           return false;
         }
 
-        // 2. Cloaking Private Vault: Sembunyikan obrolan jika vault terkunci (berdasarkan roomId atau contactUserId)
-        final isDirectHidden = otherUserId != null &&
-            (hiddenContactUserIds.contains(otherUserId) || vaultedContactIds.contains(otherUserId));
+        // 2. Cloaking Private Vault terisolasi: Sembunyikan obrolan jika slot vault kontak belum dibuka
+        if (otherUserId != null && vaultedContactsSlotMap.containsKey(otherUserId)) {
+          final slot = vaultedContactsSlotMap[otherUserId]!;
+          if (!unlockedSlots.contains(slot)) return false;
+        } else if (otherUserId != null && hiddenContactUserIds.contains(otherUserId)) {
+          if (!isVaultUnlocked) return false;
+        }
         final isRoomHidden = hiddenRoomIds.contains(roomId);
-        if (!isVaultUnlocked && (isDirectHidden || isRoomHidden)) {
+        if (!isVaultUnlocked && isRoomHidden) {
           return false;
         }
 
@@ -1115,6 +1131,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       _lastHiddenIds = Set<String>.from(hiddenRoomIds);
       _lastHiddenContactIds = Set<String>.from(hiddenContactUserIds);
       _lastVaultedContactIds = Set<String>.from(vaultedContactIds);
+      _lastUnlockedSlots = Set<int>.from(unlockedSlots);
       _lastVaultUnlocked = isVaultUnlocked;
     }
 

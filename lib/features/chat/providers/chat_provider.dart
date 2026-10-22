@@ -104,7 +104,7 @@ class ChatRoomsNotifier
 
     final updatedRoom = Map<String, dynamic>.from(existingRoom);
     updatedRoom['lastMessage'] = previewText;
-    updatedRoom['timestamp'] = timestamp.toIso8601String();
+    updatedRoom['timestamp'] = timestamp;
     updatedRoom['unreadCount'] = newUnread;
 
     final newList = List<Map<String, dynamic>>.from(currentList);

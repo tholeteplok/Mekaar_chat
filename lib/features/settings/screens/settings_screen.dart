@@ -87,6 +87,13 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             children: [
+              SettingsNavTile(
+                icon: SolarIconsBold.shieldKeyhole,
+                iconColor: MekaarColors.guardianTeal,
+                title: 'Vault Kontak & Privasi Lanjutan',
+                subtitle: 'Kelola profil vault terisolasi, notifikasi & cuplikan pesan',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.contactVaultSettings),
+              ),
               SettingsSwitchTile(
                 icon: SolarIconsOutline.screenShare,
                 iconColor: MekaarColors.guardianTeal,

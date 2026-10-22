@@ -132,8 +132,12 @@ class ContactRepository {
     });
   }
 
-  /// Memperbarui status vault kontak di cloud (Supabase)
-  Future<void> updateContactVaultStatus(String contactUserId, bool isVaulted) async {
+  /// Memperbarui status vault & slot kontak di cloud (Supabase)
+  Future<void> updateContactVaultStatus(
+    String contactUserId,
+    bool isVaulted, {
+    int vaultSlot = 1,
+  }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return;
 
@@ -143,6 +147,7 @@ class ContactRepository {
         params: {
           'p_contact_user_id': contactUserId,
           'p_is_vaulted': isVaulted,
+          'p_vault_slot': vaultSlot,
         },
       );
     } catch (_) {
@@ -152,10 +157,40 @@ class ContactRepository {
             .from('user_contacts')
             .update({
               'is_vaulted': isVaulted,
+              'vault_slot': vaultSlot,
               'updated_at': DateTime.now().toUtc().toIso8601String(),
             })
             .eq('user_id', userId)
             .eq('contact_user_id', contactUserId);
+      } catch (_) {}
+    }
+  }
+
+  /// Menghapus slot vault terpilih (mengeluarkan seluruh kontak di slot tersebut dari vault)
+  Future<void> deleteVaultSlot(int vaultSlot) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      await _supabaseService.client.rpc(
+        'delete_vault_slot',
+        params: {
+          'p_vault_slot': vaultSlot,
+        },
+      );
+    } catch (_) {
+      // Fallback update langsung ke tabel jika RPC belum diaplikasikan
+      try {
+        await _supabaseService.client
+            .from('user_contacts')
+            .update({
+              'is_vaulted': false,
+              'vault_slot': 1,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('user_id', userId)
+            .eq('vault_slot', vaultSlot)
+            .eq('is_vaulted', true);
       } catch (_) {}
     }
   }
@@ -199,15 +234,23 @@ class ContactsNotifier extends StateNotifier<AsyncValue<List<ContactItem>>> {
   }
 
   /// Memperbarui status vault kontak secara optimistik di state lokal dan cloud
-  Future<void> updateVaultStatus(String contactUserId, bool isVaulted) async {
+  Future<void> updateVaultStatus(
+    String contactUserId,
+    bool isVaulted, {
+    int vaultSlot = 1,
+  }) async {
     state = state.whenData((list) => list.map((item) {
       if (item.contactUserId == contactUserId) {
-        return item.copyWith(isVaulted: isVaulted);
+        return item.copyWith(isVaulted: isVaulted, vaultSlot: vaultSlot);
       }
       return item;
     }).toList());
 
-    await _repo.updateContactVaultStatus(contactUserId, isVaulted);
+    await _repo.updateContactVaultStatus(
+      contactUserId,
+      isVaulted,
+      vaultSlot: vaultSlot,
+    );
   }
 
   /// Menghapus kontak dan otomatis merefresh state kontak serta kamar chat

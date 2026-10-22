@@ -140,7 +140,7 @@ void main() {
       expect(updatedList.first['id'], equals('room_2')); // Naik ke index 0
       expect(updatedList.first['lastMessage'], equals('Halo pesan baru dari Bob!'));
       expect(updatedList.first['unreadCount'], equals(3)); // 2 + 1 = 3
-      expect(updatedList.first['timestamp'], equals(now.toIso8601String()));
+      expect(updatedList.first['timestamp'], equals(now));
     });
 
     test('updateLastMessageLocally tidak menambah unreadCount jika user sedang di dalam room',

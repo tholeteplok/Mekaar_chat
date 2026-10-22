@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 
+/// State set slot vault mana saja yang saat ini sedang terbuka di sesi memori (RAM).
+/// Nilai ini SELALU reset ke kosong saat aplikasi di-minimize / background.
+final unlockedVaultSlotsProvider = StateProvider<Set<int>>((ref) => <int>{});
+
 /// State boolean apakah Private Vault saat ini sedang terbuka di sesi memori (RAM).
 /// Nilai ini SELALU reset ke false saat aplikasi di-minimize / background.
 final privateVaultUnlockedProvider = StateProvider<bool>((ref) => false);

@@ -38,7 +38,10 @@ class ChatListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isGuardian = room['isGuardian'] as bool? ?? false;
     final isGroup = room['isGroup'] as bool? ?? false;
-    final timestamp = room['timestamp'] as DateTime?;
+    final rawTimestamp = room['timestamp'];
+    final DateTime? timestamp = rawTimestamp is DateTime
+        ? rawTimestamp
+        : (rawTimestamp is String ? DateTime.tryParse(rawTimestamp) : null);
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final name = room['name'] as String? ?? 'User';
     final isMuted = room['isMuted'] as bool? ?? false;

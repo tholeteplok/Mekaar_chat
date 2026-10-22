@@ -36,10 +36,10 @@ class PrivateVaultDialogs {
 
     // Sinkronkan ke cloud Supabase agar status vault tetap terlindungi saat uninstall / clear data
     try {
-      await ref.read(userContactsProvider.notifier).updateVaultStatus(contactUserId, isHiddenNow);
+      await ref.read(userContactsProvider.notifier).updateVaultStatus(contactUserId, isHiddenNow, vaultSlot: 1);
     } catch (_) {
       try {
-        await ref.read(contactRepositoryProvider).updateContactVaultStatus(contactUserId, isHiddenNow);
+        await ref.read(contactRepositoryProvider).updateContactVaultStatus(contactUserId, isHiddenNow, vaultSlot: 1);
       } catch (_) {}
     }
 
@@ -123,16 +123,20 @@ class PrivateVaultDialogs {
     }
   }
 
-  /// Dialog pembuatan kode rahasia vault pertama kali
+  /// Dialog pembuatan / reset kode rahasia vault (mendukung slot 1..3)
   static Future<bool> showSetPasscodeDialog(
     BuildContext context,
-    WidgetRef ref,
-  ) async {
+    WidgetRef ref, {
+    int slot = 1,
+    String? slotName,
+    bool isResetFlow = false,
+  }) async {
     final codeController = TextEditingController();
     final confirmController = TextEditingController();
     String? errorMessage;
     bool obscureCode = true;
     bool obscureConfirm = true;
+    final displayName = slotName ?? 'Profil $slot';
 
     final result = await showDialog<bool>(
       context: context,
@@ -173,9 +177,9 @@ class PrivateVaultDialogs {
                 color: MekaarColors.guardianTeal,
                 size: 28,
               ),
-              title: 'Atur PIN Private Vault',
+              title: isResetFlow ? 'Reset PIN $displayName' : 'Atur PIN $displayName',
               message:
-                  'Tentukan PIN akses rahasia untuk membuka kontak & obrolan tersembunyi.\nPIN ini dapat Anda masukkan pada kolom pencarian (Search Bar) atau menu kontak.',
+                  'Tentukan PIN akses rahasia untuk membuka $displayName.\nPIN ini dapat Anda masukkan pada kolom pencarian (Search Bar) untuk membuka kontak di profil ini secara terisolasi.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +266,7 @@ class PrivateVaultDialogs {
                     }
 
                     final repo = ref.read(privateContactRepositoryProvider);
-                    await repo.setPasscode(code);
+                    await repo.setSlotPasscode(slot, code);
                     ref.invalidate(privateVaultPasscodeSetProvider);
 
                     if (dialogCtx.mounted) {
@@ -280,6 +284,7 @@ class PrivateVaultDialogs {
 
     final isSuccess = result ?? false;
     if (isSuccess) {
+      ref.read(unlockedVaultSlotsProvider.notifier).update((s) => {...s, slot});
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
     }
     return isSuccess;
@@ -288,21 +293,36 @@ class PrivateVaultDialogs {
   /// Dialog mengubah PIN akses vault yang sudah ada
   static Future<bool> showChangePasscodeDialog(
     BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final unlocked = await showUnlockPasscodeDialog(context, ref);
+    WidgetRef ref, {
+    int slot = 1,
+    String? slotName,
+  }) async {
+    final unlocked = await showUnlockPasscodeDialog(
+      context,
+      ref,
+      slot,
+      slotName,
+    );
     if (!unlocked || !context.mounted) return false;
-    return await showSetPasscodeDialog(context, ref);
+    return await showSetPasscodeDialog(
+      context,
+      ref,
+      slot: slot,
+      slotName: slotName,
+    );
   }
 
-  /// Dialog verifikasi kode rahasia vault untuk membuka obrolan tersembunyi
+  /// Dialog verifikasi kode rahasia vault untuk membuka kontak/obrolan tersembunyi
   static Future<bool> showUnlockPasscodeDialog(
     BuildContext context, [
     WidgetRef? ref,
+    int slot = 1,
+    String? slotName,
   ]) async {
     final codeController = TextEditingController();
     String? errorMessage;
     bool obscureCode = true;
+    final displayName = slotName ?? 'Profil $slot';
 
     final result = await showDialog<bool>(
       context: context,
@@ -316,9 +336,9 @@ class PrivateVaultDialogs {
                 color: MekaarColors.guardianTeal,
                 size: 28,
               ),
-              title: 'Buka Private Vault',
+              title: 'Buka $displayName',
               message:
-                  'Masukkan PIN akses rahasia untuk membuka kontak & obrolan tersembunyi.',
+                  'Masukkan PIN akses rahasia untuk membuka $displayName.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +352,7 @@ class PrivateVaultDialogs {
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: InputDecoration(
-                      hintText: 'PIN akses vault',
+                      hintText: 'PIN akses $displayName',
                       errorText: errorMessage,
                       filled: true,
                       fillColor: MekaarColors.surface2Of(dialogCtx),
@@ -370,8 +390,10 @@ class PrivateVaultDialogs {
                       ),
                     ),
                     onSubmitted: (val) async {
-                      final repo = PrivateContactRepository();
-                      final isMatch = await repo.verifyPasscode(val.trim());
+                      final repo = ref != null
+                          ? ref.read(privateContactRepositoryProvider)
+                          : PrivateContactRepository();
+                      final isMatch = await repo.verifySlotPasscode(slot, val.trim());
                       if (isMatch) {
                         HapticService.trigger(MekaarHapticIntent.success);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx, true);
@@ -404,8 +426,10 @@ class PrivateVaultDialogs {
                       return;
                     }
 
-                    final repo = PrivateContactRepository();
-                    final isMatch = await repo.verifyPasscode(code);
+                    final repo = ref != null
+                        ? ref.read(privateContactRepositoryProvider)
+                        : PrivateContactRepository();
+                    final isMatch = await repo.verifySlotPasscode(slot, code);
                     if (isMatch) {
                       HapticService.trigger(MekaarHapticIntent.success);
                       if (dialogCtx.mounted) {
@@ -429,6 +453,7 @@ class PrivateVaultDialogs {
 
     final isSuccess = result ?? false;
     if (isSuccess && ref != null) {
+      ref.read(unlockedVaultSlotsProvider.notifier).update((s) => {...s, slot});
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
     }
     return isSuccess;

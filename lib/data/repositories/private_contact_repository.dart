@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final privateContactRepositoryProvider =
     Provider<PrivateContactRepository>((ref) {
@@ -16,6 +17,7 @@ class PrivateContactRepository {
   static const String _saltKey = 'mekaar_private_vault_salt';
   static const String _hiddenRoomsKey = 'mekaar_private_vault_hidden_rooms';
   static const String _hiddenContactsKey = 'mekaar_private_vault_hidden_contacts';
+  static const String _slotNamePrefix = 'mekaar_vault_slot_name_';
 
   String? _cachedSalt;
   String? _cachedHash;
@@ -113,6 +115,133 @@ class PrivateContactRepository {
     } catch (_) {
       return false;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Multi-Slot (Slot 1, 2, 3) Support
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  String _slotPasscodeKey(int slot) {
+    if (slot == 1) return _passcodeKey;
+    return '${_passcodeKey}_$slot';
+  }
+
+  String _slotSaltKey(int slot) {
+    if (slot == 1) return _saltKey;
+    return '${_saltKey}_$slot';
+  }
+
+  Future<String> _getOrCreateSlotSalt(int slot) async {
+    if (slot == 1) return _getOrCreateSalt();
+    final key = _slotSaltKey(slot);
+    try {
+      var salt = await _secureStorage.read(key: key);
+      if (salt == null || salt.isEmpty) {
+        salt = _generateSalt();
+        await _secureStorage.write(key: key, value: salt);
+      }
+      return salt;
+    } catch (_) {
+      return _generateSalt();
+    }
+  }
+
+  /// Memeriksa apakah slot memiliki kode akses terdaftar
+  Future<bool> hasSlotPasscode(int slot) async {
+    if (slot == 1) return hasPasscode();
+    try {
+      final hash = await _secureStorage.read(key: _slotPasscodeKey(slot));
+      return hash != null && hash.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Mengatur kode akses baru untuk slot tertentu
+  Future<void> setSlotPasscode(int slot, String code) async {
+    if (slot == 1) {
+      await setPasscode(code);
+      return;
+    }
+    final salt = await _getOrCreateSlotSalt(slot);
+    final hash = _hashWithSalt(code, salt);
+    await _secureStorage.write(key: _slotPasscodeKey(slot), value: hash);
+  }
+
+  /// Verifikasi kode akses slot tertentu
+  Future<bool> verifySlotPasscode(int slot, String code) async {
+    if (slot == 1) return verifyPasscode(code);
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return false;
+    try {
+      final salt = await _getOrCreateSlotSalt(slot);
+      final savedHash = await _secureStorage.read(key: _slotPasscodeKey(slot));
+      if (savedHash == null || savedHash.isEmpty) return false;
+      return savedHash == _hashWithSalt(trimmed, salt);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Memeriksa apakah input teks cocok dengan salah satu kode akses slot (1..3).
+  /// Mengembalikan nomor slot yang cocok, atau null jika tidak cocok satupun.
+  Future<int?> checkAnySlotPasscode(String code) async {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return null;
+    for (int slot = 1; slot <= 3; slot++) {
+      if (await hasSlotPasscode(slot)) {
+        if (await verifySlotPasscode(slot, trimmed)) {
+          return slot;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Menghapus kode akses slot (khusus slot 2 atau 3 saat slot dihapus)
+  Future<void> deleteSlotPasscode(int slot) async {
+    try {
+      await _secureStorage.delete(key: _slotPasscodeKey(slot));
+      await _secureStorage.delete(key: _slotSaltKey(slot));
+      if (slot == 1) {
+        _cachedHash = null;
+      }
+    } catch (_) {}
+  }
+
+  /// Mendapatkan nama profil slot dari preferensi lokal
+  Future<String> getSlotName(int slot) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('$_slotNamePrefix$slot');
+      if (name != null && name.trim().isNotEmpty) {
+        return name.trim();
+      }
+    } catch (_) {}
+    return 'Profil $slot';
+  }
+
+  /// Mengubah nama profil slot
+  Future<void> setSlotName(int slot, String name) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('$_slotNamePrefix$slot', name.trim());
+    } catch (_) {}
+  }
+
+  /// Mengembalikan daftar nomor slot yang aktif (memiliki passcode)
+  Future<List<int>> getActiveSlots() async {
+    final active = <int>[];
+    for (int slot = 1; slot <= 3; slot++) {
+      if (await hasSlotPasscode(slot)) {
+        active.add(slot);
+      }
+    }
+    // Jika belum ada satupun, kembalikan slot 1 sebagai default placeholder
+    if (active.isEmpty) {
+      active.add(1);
+    }
+    return active;
   }
 
   /// Dapatkan daftar seluruh ID ruang obrolan yang disembunyikan

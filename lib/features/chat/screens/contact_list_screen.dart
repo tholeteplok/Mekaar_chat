@@ -121,7 +121,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       // Auto-relock vault seketika saat aplikasi diminimize atau background
-      if (ref.read(privateVaultUnlockedProvider)) {
+      if (ref.read(privateVaultUnlockedProvider) ||
+          ref.read(unlockedVaultSlotsProvider).isNotEmpty) {
+        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
         ref.read(privateVaultUnlockedProvider.notifier).state = false;
       }
     } else if (state == AppLifecycleState.resumed) {
@@ -153,19 +155,23 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   Future<void> _checkVaultPasscode(String query) async {
     if (query.trim().isEmpty) return;
     final repo = ref.read(privateContactRepositoryProvider);
-    final isMatch = await repo.verifyPasscode(query.trim());
-    if (isMatch && mounted) {
+    final matchedSlot = await repo.checkAnySlotPasscode(query.trim());
+    if (matchedSlot != null && mounted) {
       _searchController.clear();
       setState(() {
         _searchQuery = '';
       });
       FocusScope.of(context).unfocus();
       HapticService.trigger(MekaarHapticIntent.success);
+      ref.read(unlockedVaultSlotsProvider.notifier).state = {matchedSlot};
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
-      MekaarSnackbar.success(
-        context,
-        'Koleksi Kontak & Obrolan Tersembunyi Dibuka',
-      );
+      final slotName = await repo.getSlotName(matchedSlot);
+      if (mounted) {
+        MekaarSnackbar.success(
+          context,
+          '$slotName Terbuka',
+        );
+      }
     }
   }
 
@@ -176,6 +182,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final wasDuress = authState.lastUnlockWasDuress;
     final contactsAsync = ref.watch(userContactsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final nearbyState = ref.watch(nearbyFriendsProvider);
@@ -200,11 +207,14 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       data: (items) {
         final allContacts = wasDuress ? <ContactItem>[] : items;
 
-        // Filter berdasarkan vault cloaking & pencarian
+        // Filter berdasarkan vault cloaking terisolasi & pencarian
         final filteredContacts = allContacts.where((contact) {
-          // Cloaking Private Vault: sembunyikan kontak jika vault terkunci
-          if (!isVaultUnlocked && (contact.isVaulted || hiddenContactUserIds.contains(contact.contactUserId))) {
-            return false;
+          // Cloaking Private Vault: sembunyikan kontak jika slot vault kontak terkait belum dibuka
+          if (contact.isVaulted) {
+            final isSlotOpen = unlockedSlots.contains(contact.vaultSlot);
+            if (!isSlotOpen) return false;
+          } else if (hiddenContactUserIds.contains(contact.contactUserId)) {
+            if (!isVaultUnlocked) return false;
           }
 
           final name = contact.effectiveName.toLowerCase();
@@ -303,12 +313,15 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                 } else if (value == 'unlock') {
                                   await PrivateVaultDialogs.showUnlockPasscodeDialog(context, ref);
                                 } else if (value == 'lock') {
+                                  ref.read(unlockedVaultSlotsProvider.notifier).state = {};
                                   ref.read(privateVaultUnlockedProvider.notifier).state = false;
                                   if (context.mounted) {
                                     MekaarSnackbar.info(context, 'Private Vault telah dikunci kembali');
                                   }
                                 } else if (value == 'change') {
                                   await PrivateVaultDialogs.showChangePasscodeDialog(context, ref);
+                                } else if (value == 'settings') {
+                                  Navigator.pushNamed(context, AppRoutes.contactVaultSettings);
                                 }
                               },
                               itemBuilder: (ctx) {
@@ -355,6 +368,16 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                           Icon(SolarIconsOutline.keySquare, size: 20, color: AppColors.blue),
                                           SizedBox(width: 12),
                                           Text('Ubah PIN Vault'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'settings',
+                                      child: Row(
+                                        children: [
+                                          Icon(SolarIconsOutline.settings, size: 20, color: MekaarColors.guardianTeal),
+                                          SizedBox(width: 12),
+                                          Text('Pengaturan Profil Vault'),
                                         ],
                                       ),
                                     ),

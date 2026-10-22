@@ -11,6 +11,7 @@ class ContactItem {
   final DateTime createdAt;
   final bool isGuardian;
   final bool isVaulted;
+  final int vaultSlot;
   final String? roomId;
 
   const ContactItem({
@@ -26,6 +27,7 @@ class ContactItem {
     required this.createdAt,
     this.isGuardian = false,
     this.isVaulted = false,
+    this.vaultSlot = 1,
     this.roomId,
   });
 
@@ -68,6 +70,7 @@ class ContactItem {
           : DateTime.now(),
       isGuardian: isGuardian,
       isVaulted: json['is_vaulted'] as bool? ?? false,
+      vaultSlot: (json['vault_slot'] as num?)?.toInt() ?? 1,
       roomId: roomId,
     );
   }
@@ -85,6 +88,7 @@ class ContactItem {
     DateTime? createdAt,
     bool? isGuardian,
     bool? isVaulted,
+    int? vaultSlot,
     String? roomId,
   }) {
     return ContactItem(
@@ -100,6 +104,7 @@ class ContactItem {
       createdAt: createdAt ?? this.createdAt,
       isGuardian: isGuardian ?? this.isGuardian,
       isVaulted: isVaulted ?? this.isVaulted,
+      vaultSlot: vaultSlot ?? this.vaultSlot,
       roomId: roomId ?? this.roomId,
     );
   }
