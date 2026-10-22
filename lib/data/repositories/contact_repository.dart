@@ -41,7 +41,7 @@ class ContactRepository {
       try {
         final fallback = await _supabaseService.client
             .from('user_contacts')
-            .select('id, contact_user_id, alias_name, created_at')
+            .select('id, contact_user_id, alias_name, is_vaulted, created_at')
             .eq('user_id', userId)
             .order('created_at', ascending: false);
 
@@ -64,6 +64,7 @@ class ContactRepository {
               avatarUrl: profile['avatar_url'] as String?,
               bio: profile['bio'] as String?,
               aliasName: row['alias_name'] as String?,
+              isVaulted: row['is_vaulted'] as bool? ?? false,
               createdAt: row['created_at'] != null
                   ? DateTime.parse(row['created_at'] as String)
                   : DateTime.now(),
@@ -125,6 +126,34 @@ class ContactRepository {
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
   }
+
+  /// Memperbarui status vault kontak di cloud (Supabase)
+  Future<void> updateContactVaultStatus(String contactUserId, bool isVaulted) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      await _supabaseService.client.rpc(
+        'set_contact_vault_status',
+        params: {
+          'p_contact_user_id': contactUserId,
+          'p_is_vaulted': isVaulted,
+        },
+      );
+    } catch (_) {
+      // Fallback update langsung ke tabel jika RPC belum diaplikasikan
+      try {
+        await _supabaseService.client
+            .from('user_contacts')
+            .update({
+              'is_vaulted': isVaulted,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('user_id', userId)
+            .eq('contact_user_id', contactUserId);
+      } catch (_) {}
+    }
+  }
 }
 
 /// Provider StateNotifier untuk mengelola daftar kontak
@@ -143,11 +172,37 @@ class ContactsNotifier extends StateNotifier<AsyncValue<List<ContactItem>>> {
     try {
       final items = await _repo.getContacts();
       state = AsyncValue.data(items);
+
+      // Sinkronisasi status fail-safe ke storage lokal (anti-leak saat install ulang / clear data)
+      final vaultedContactIds = items
+          .where((item) => item.isVaulted)
+          .map((item) => item.contactUserId)
+          .toSet();
+      if (vaultedContactIds.isNotEmpty) {
+        final hiddenNotifier = _ref.read(hiddenContactUserIdsProvider.notifier);
+        for (final cid in vaultedContactIds) {
+          if (!hiddenNotifier.isHidden(cid)) {
+            await hiddenNotifier.hideContact(cid);
+          }
+        }
+      }
     } catch (e, st) {
       if (!state.hasValue) {
         state = AsyncValue.error(e, st);
       }
     }
+  }
+
+  /// Memperbarui status vault kontak secara optimistik di state lokal dan cloud
+  Future<void> updateVaultStatus(String contactUserId, bool isVaulted) async {
+    state = state.whenData((list) => list.map((item) {
+      if (item.contactUserId == contactUserId) {
+        return item.copyWith(isVaulted: isVaulted);
+      }
+      return item;
+    }).toList());
+
+    await _repo.updateContactVaultStatus(contactUserId, isVaulted);
   }
 
   /// Menghapus kontak dan otomatis merefresh state kontak serta kamar chat

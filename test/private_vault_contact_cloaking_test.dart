@@ -211,7 +211,7 @@ void main() {
       const isVaultUnlocked = false;
 
       bool canDirectOpenChat(ContactItem contact) {
-        final isVaulted = hiddenContacts.contains(contact.contactUserId);
+        final isVaulted = contact.isVaulted || hiddenContacts.contains(contact.contactUserId);
         if (isVaulted && !isVaultUnlocked) {
           return false; // Ditolak: Wajib verifikasi passcode vault terlebih dahulu
         }
@@ -220,6 +220,51 @@ void main() {
 
       expect(canDirectOpenChat(contactA), isTrue);
       expect(canDirectOpenChat(contactB), isFalse);
+    });
+
+    test('Skenario Reinstall / Hapus Data: Kontak isVaulted tetap tersembunyi walau storage lokal kosong', () {
+      // Simulasikan storage lokal kosong setelah uninstall / hapus data
+      final Set<String> emptyLocalHiddenContacts = {};
+      const isVaultUnlocked = false;
+
+      final vaultedContactFromCloud = ContactItem(
+        id: 'c_cloud_vaulted',
+        contactUserId: 'user_vaulted_cloud',
+        username: 'charlie',
+        displayName: 'Charlie Secret',
+        isVaulted: true, // Dari kolom is_vaulted di database cloud
+        createdAt: DateTime.now(),
+      );
+
+      final contactList = [contactA, vaultedContactFromCloud];
+
+      final filtered = contactList.where((contact) {
+        if (!isVaultUnlocked && (contact.isVaulted || emptyLocalHiddenContacts.contains(contact.contactUserId))) {
+          return false;
+        }
+        return true;
+      }).toList();
+
+      // Charlie Secret tetap tersembunyi dan tidak bocor ke publik!
+      expect(filtered.length, 1);
+      expect(filtered.first.contactUserId, 'user_public');
+      expect(filtered.any((c) => c.contactUserId == 'user_vaulted_cloud'), isFalse);
+    });
+
+    test('Masking Push Notification memeriksa roomId dan senderId/callerId', () {
+      final hiddenRooms = {'room_hidden_999'};
+      final hiddenContacts = {'user_hidden_target'};
+
+      bool shouldMaskPush({String? roomId, String? senderOrCallerId}) {
+        if (roomId != null && hiddenRooms.contains(roomId)) return true;
+        if (senderOrCallerId != null && hiddenContacts.contains(senderOrCallerId)) return true;
+        return false;
+      }
+
+      // Notifikasi dari kontak tersembunyi meskipun direct room ID berbeda / belum termigrasi
+      expect(shouldMaskPush(roomId: 'other_room', senderOrCallerId: 'user_hidden_target'), isTrue);
+      expect(shouldMaskPush(roomId: 'room_hidden_999', senderOrCallerId: 'user_regular'), isTrue);
+      expect(shouldMaskPush(roomId: 'normal_room', senderOrCallerId: 'user_public'), isFalse);
     });
   });
 }

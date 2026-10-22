@@ -10,6 +10,7 @@ class ContactItem {
   final String? aliasName;
   final DateTime createdAt;
   final bool isGuardian;
+  final bool isVaulted;
   final String? roomId;
 
   const ContactItem({
@@ -24,6 +25,7 @@ class ContactItem {
     this.aliasName,
     required this.createdAt,
     this.isGuardian = false,
+    this.isVaulted = false,
     this.roomId,
   });
 
@@ -65,6 +67,7 @@ class ContactItem {
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
       isGuardian: isGuardian,
+      isVaulted: json['is_vaulted'] as bool? ?? false,
       roomId: roomId,
     );
   }
@@ -81,6 +84,7 @@ class ContactItem {
     String? aliasName,
     DateTime? createdAt,
     bool? isGuardian,
+    bool? isVaulted,
     String? roomId,
   }) {
     return ContactItem(
@@ -95,6 +99,7 @@ class ContactItem {
       aliasName: aliasName ?? this.aliasName,
       createdAt: createdAt ?? this.createdAt,
       isGuardian: isGuardian ?? this.isGuardian,
+      isVaulted: isVaulted ?? this.isVaulted,
       roomId: roomId ?? this.roomId,
     );
   }

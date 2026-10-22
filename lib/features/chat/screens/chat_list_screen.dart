@@ -33,6 +33,8 @@ import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
 import '../widgets/private_vault_active_banner.dart';
 import '../../guardian/widgets/guardian_sos_alert_banner.dart';
+import '../../../data/models/contact_model.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
@@ -70,6 +72,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   Set<String>? _lastBlockedIds;
   Set<String>? _lastHiddenIds;
   Set<String>? _lastHiddenContactIds;
+  Set<String>? _lastVaultedContactIds;
   bool? _lastVaultUnlocked;
 
   int _computeRoomsSignature(List<Map<String, dynamic>> rooms) {
@@ -281,10 +284,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final isGuardian = room['isGuardian'] as bool? ?? false;
     final isMuted = room['isMuted'] as bool? ?? false;
     final unreadCount = room['unreadCount'] as int? ?? 0;
-    final hiddenRooms = ref.read(hiddenRoomIdsProvider);
-    final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
-    final isHidden = hiddenRooms.contains(roomId) ||
-        (otherUserId != null && hiddenUsers.contains(otherUserId));
 
     MekaarBottomSheet.show(
       context: context,
@@ -367,23 +366,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             },
           ),
 
-          // 4. Sembunyikan ke Private Vault
-          ListTile(
-            leading: const Icon(SolarIconsOutline.shieldKeyhole, color: MekaarColors.guardianTeal),
-            title: Text(isHidden ? 'Tampilkan Obrolan' : 'Sembunyikan ke Private Vault'),
-            onTap: () {
-              Navigator.pop(sheetCtx);
-              PrivateVaultDialogs.toggleRoomHiddenWithAuth(
-                context,
-                ref,
-                roomId: roomId,
-                chatName: chatName,
-                otherUserId: otherUserId,
-              );
-            },
-          ),
-
-          // 5. Info Kontak & Pengaturan
+          // 4. Info Kontak & Pengaturan
           ListTile(
             leading: const Icon(SolarIconsOutline.infoCircle, color: AppColors.blue),
             title: const Text('Info Kontak & Pengaturan'),
@@ -615,6 +598,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       });
                                     }
                                     return;
+                                  }
+
+                                  // Proteksi Private Vault: jika user tujuan disembunyikan & vault terkunci, verifikasi PIN terlebih dahulu
+                                  if (!stateCtx.mounted) return;
+                                  final targetUserId = profile['id'] as String;
+                                  final isTargetVaulted = ref.read(hiddenContactUserIdsProvider).contains(targetUserId) ||
+                                      (ref.read(userContactsProvider).value?.any((c) => c.contactUserId == targetUserId && c.isVaulted) ?? false);
+                                  final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
+
+                                  if (isTargetVaulted && !isVaultUnlocked) {
+                                    final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(stateCtx, ref);
+                                    if (!unlocked || !stateCtx.mounted) return;
                                   }
 
                                   // Create or get chat room
@@ -1020,6 +1015,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+    final vaultedContactIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
 
     // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
     final roomsSignature = _computeRoomsSignature(rooms);
@@ -1030,6 +1027,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         setEquals(_lastBlockedIds, blockedIds) &&
         setEquals(_lastHiddenIds, hiddenRoomIds) &&
         setEquals(_lastHiddenContactIds, hiddenContactUserIds) &&
+        setEquals(_lastVaultedContactIds, vaultedContactIds) &&
         _lastVaultUnlocked == isVaultUnlocked;
 
     final List<Map<String, dynamic>> filtered;
@@ -1089,7 +1087,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         }
 
         // 2. Cloaking Private Vault: Sembunyikan obrolan jika vault terkunci (berdasarkan roomId atau contactUserId)
-        final isDirectHidden = otherUserId != null && hiddenContactUserIds.contains(otherUserId);
+        final isDirectHidden = otherUserId != null &&
+            (hiddenContactUserIds.contains(otherUserId) || vaultedContactIds.contains(otherUserId));
         final isRoomHidden = hiddenRoomIds.contains(roomId);
         if (!isVaultUnlocked && (isDirectHidden || isRoomHidden)) {
           return false;
@@ -1119,6 +1118,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       _lastBlockedIds = Set<String>.from(blockedIds);
       _lastHiddenIds = Set<String>.from(hiddenRoomIds);
       _lastHiddenContactIds = Set<String>.from(hiddenContactUserIds);
+      _lastVaultedContactIds = Set<String>.from(vaultedContactIds);
       _lastVaultUnlocked = isVaultUnlocked;
     }
 
@@ -1184,7 +1184,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 final roomId = room['id'] as String;
                 final otherUserId = room['otherUserId'] as String?;
                 final isHidden = hiddenRoomIds.contains(roomId) ||
-                    (otherUserId != null && hiddenContactUserIds.contains(otherUserId));
+                    (otherUserId != null &&
+                        (hiddenContactUserIds.contains(otherUserId) ||
+                            vaultedContactIds.contains(otherUserId)));
 
                 return ChatListTile(
                   room: room,

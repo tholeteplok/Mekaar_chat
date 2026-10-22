@@ -203,7 +203,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         // Filter berdasarkan vault cloaking & pencarian
         final filteredContacts = allContacts.where((contact) {
           // Cloaking Private Vault: sembunyikan kontak jika vault terkunci
-          if (!isVaultUnlocked && hiddenContactUserIds.contains(contact.contactUserId)) {
+          if (!isVaultUnlocked && (contact.isVaulted || hiddenContactUserIds.contains(contact.contactUserId))) {
             return false;
           }
 
@@ -283,6 +283,84 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                               tooltip: 'Kode QR & Pindai',
                               onPressed: () =>
                                   Navigator.pushNamed(context, AppRoutes.myQr),
+                            ),
+                            PopupMenuButton<String>(
+                              icon: Icon(
+                                isVaultUnlocked
+                                    ? SolarIconsBold.shieldKeyhole
+                                    : SolarIconsOutline.shieldKeyhole,
+                                color: isVaultUnlocked
+                                    ? MekaarColors.guardianTeal
+                                    : MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: 'Private Vault',
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(MekaarRadius.md),
+                              ),
+                              onSelected: (value) async {
+                                if (value == 'setup') {
+                                  await PrivateVaultDialogs.showSetPasscodeDialog(context, ref);
+                                } else if (value == 'unlock') {
+                                  await PrivateVaultDialogs.showUnlockPasscodeDialog(context, ref);
+                                } else if (value == 'lock') {
+                                  ref.read(privateVaultUnlockedProvider.notifier).state = false;
+                                  if (context.mounted) {
+                                    MekaarSnackbar.info(context, 'Private Vault telah dikunci kembali');
+                                  }
+                                } else if (value == 'change') {
+                                  await PrivateVaultDialogs.showChangePasscodeDialog(context, ref);
+                                }
+                              },
+                              itemBuilder: (ctx) {
+                                final hasPasscode = ref.read(privateVaultPasscodeSetProvider).value ?? false;
+                                return [
+                                  if (!hasPasscode)
+                                    const PopupMenuItem(
+                                      value: 'setup',
+                                      child: Row(
+                                        children: [
+                                          Icon(SolarIconsOutline.shieldKeyhole, size: 20, color: MekaarColors.guardianTeal),
+                                          SizedBox(width: 12),
+                                          Text('Atur PIN Vault'),
+                                        ],
+                                      ),
+                                    )
+                                  else ...[
+                                    if (!isVaultUnlocked)
+                                      const PopupMenuItem(
+                                        value: 'unlock',
+                                        child: Row(
+                                          children: [
+                                            Icon(SolarIconsOutline.lockUnlocked, size: 20, color: MekaarColors.guardianTeal),
+                                            SizedBox(width: 12),
+                                            Text('Buka Private Vault'),
+                                          ],
+                                        ),
+                                      )
+                                    else
+                                      const PopupMenuItem(
+                                        value: 'lock',
+                                        child: Row(
+                                          children: [
+                                            Icon(SolarIconsOutline.lock, size: 20, color: MekaarColors.warnAmber),
+                                            SizedBox(width: 12),
+                                            Text('Kunci Kembali Vault'),
+                                          ],
+                                        ),
+                                      ),
+                                    const PopupMenuItem(
+                                      value: 'change',
+                                      child: Row(
+                                        children: [
+                                          Icon(SolarIconsOutline.keySquare, size: 20, color: AppColors.blue),
+                                          SizedBox(width: 12),
+                                          Text('Ubah PIN Vault'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ];
+                              },
                             ),
                             IconButton(
                               icon: Icon(
@@ -426,7 +504,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
     final hiddenRooms = ref.read(hiddenRoomIdsProvider);
     final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
-    final isContactVaulted = hiddenUsers.contains(contact.contactUserId) ||
+    final isContactVaulted = contact.isVaulted ||
+        hiddenUsers.contains(contact.contactUserId) ||
         (contact.roomId != null && hiddenRooms.contains(contact.roomId));
 
     if (isContactVaulted && !isVaultUnlocked) {
@@ -562,7 +641,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           final name = contact.effectiveName;
           final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
           final isGuardian = contact.isGuardian;
-          final isHidden = hiddenContactUserIds.contains(contact.contactUserId) ||
+          final isHidden = contact.isVaulted ||
+              hiddenContactUserIds.contains(contact.contactUserId) ||
               (contact.roomId != null && hiddenRoomIds.contains(contact.roomId));
           final username = contact.username;
           final email = contact.email ?? '';
@@ -721,7 +801,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         final name = contact.effectiveName;
         final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
         final isGuardian = contact.isGuardian;
-        final isHidden = hiddenContactUserIds.contains(contact.contactUserId) ||
+        final isHidden = contact.isVaulted ||
+            hiddenContactUserIds.contains(contact.contactUserId) ||
             (contact.roomId != null && hiddenRoomIds.contains(contact.roomId));
         final username = contact.username;
         final email = contact.email ?? '';
@@ -946,7 +1027,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final isGuardian = contact.isGuardian;
     final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
     final hiddenRooms = ref.read(hiddenRoomIdsProvider);
-    final isHidden = hiddenUsers.contains(contact.contactUserId) ||
+    final isHidden = contact.isVaulted ||
+        hiddenUsers.contains(contact.contactUserId) ||
         (contact.roomId != null && hiddenRooms.contains(contact.roomId));
 
     MekaarBottomSheet.show(

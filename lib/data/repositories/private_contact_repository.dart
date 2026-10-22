@@ -201,6 +201,19 @@ class PrivateContactRepository {
     return !isHidden;
   }
 
+  /// Memastikan contactUserId tersimpan ke daftar tersembunyi
+  Future<void> hideContact(String contactUserId) async {
+    final currentSet = await getHiddenContactUserIds();
+    if (!currentSet.contains(contactUserId)) {
+      currentSet.add(contactUserId);
+      _cachedHiddenContactUserIds = Set<String>.from(currentSet);
+      try {
+        final jsonStr = jsonEncode(currentSet.toList());
+        await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+      } catch (_) {}
+    }
+  }
+
   /// Hapus contactUserId dari daftar tersembunyi (misal saat kontak dihapus permanen)
   Future<void> removeHiddenContact(String contactUserId) async {
     final currentSet = await getHiddenContactUserIds();

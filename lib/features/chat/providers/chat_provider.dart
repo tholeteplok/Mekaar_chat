@@ -6,6 +6,7 @@ import '../../../data/models/call_model.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/repositories/chat_repository.dart';
+import '../../../data/repositories/private_contact_repository.dart';
 import '../../../data/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -40,6 +41,19 @@ class ChatRoomsNotifier
       }
       final rooms = await _chatRepository.getRooms();
       state = AsyncValue.data(rooms);
+
+      // Migrasi transparan legacy: petakan hiddenRoomIds ke hiddenContactUserIds jika ada
+      final roomToUserIdMap = <String, String>{};
+      for (final r in rooms) {
+        final rId = r['id'] as String?;
+        final uId = r['otherUserId'] as String?;
+        if (rId != null && uId != null && uId.isNotEmpty) {
+          roomToUserIdMap[rId] = uId;
+        }
+      }
+      if (roomToUserIdMap.isNotEmpty) {
+        unawaited(PrivateContactRepository().migrateLegacyHiddenRoomsToContacts(roomToUserIdMap));
+      }
     } catch (e, stack) {
       if (!state.hasValue) {
         state = AsyncValue.error(e, stack);

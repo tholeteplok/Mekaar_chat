@@ -34,19 +34,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       String callerName = data['callerName'] as String? ?? 'Seseorang';
       String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
       final callType = data['callType'] as String? ?? 'voice';
+      final callerId = data['callerId'] as String?;
       bool isVaultRoom = false;
 
-      if (roomId != null && roomId.isNotEmpty) {
-        try {
-          final hiddenRooms =
-              await PrivateContactRepository().getHiddenRoomIds();
-          if (hiddenRooms.contains(roomId)) {
-            isVaultRoom = true;
-            callerName = 'MEKAAR';
-            callerAvatarUrl = null;
-          }
-        } catch (_) {}
-      }
+      try {
+        final hiddenRooms =
+            await PrivateContactRepository().getHiddenRoomIds();
+        final hiddenContacts =
+            await PrivateContactRepository().getHiddenContactUserIds();
+        if ((roomId != null && roomId.isNotEmpty && hiddenRooms.contains(roomId)) ||
+            (callerId != null && callerId.isNotEmpty && hiddenContacts.contains(callerId))) {
+          isVaultRoom = true;
+          callerName = 'MEKAAR';
+          callerAvatarUrl = null;
+        }
+      } catch (_) {}
 
       await NotificationService.showIncomingCallNotification(
         callerName: callerName,
@@ -82,19 +84,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     } else {
       String finalTitle = title;
       String finalBody = body;
+      final senderId = data['senderId'] as String?;
       bool isVaultRoom = false;
 
-      if (roomId != null && roomId.isNotEmpty) {
-        try {
-          final hiddenRooms =
-              await PrivateContactRepository().getHiddenRoomIds();
-          if (hiddenRooms.contains(roomId)) {
-            isVaultRoom = true;
-            finalTitle = 'MEKAAR';
-            finalBody = 'Pesan baru masuk';
-          }
-        } catch (_) {}
-      }
+      try {
+        final hiddenRooms =
+            await PrivateContactRepository().getHiddenRoomIds();
+        final hiddenContacts =
+            await PrivateContactRepository().getHiddenContactUserIds();
+        if ((roomId != null && roomId.isNotEmpty && hiddenRooms.contains(roomId)) ||
+            (senderId != null && senderId.isNotEmpty && hiddenContacts.contains(senderId))) {
+          isVaultRoom = true;
+          finalTitle = 'MEKAAR';
+          finalBody = 'Pesan baru masuk';
+        }
+      } catch (_) {}
 
       await NotificationService.showMessageNotification(
         title: finalTitle,
@@ -196,19 +200,21 @@ class PushNotificationService {
           String callerName = data['callerName'] as String? ?? 'Seseorang';
           String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
           final callType = data['callType'] as String? ?? 'voice';
+          final callerId = data['callerId'] as String?;
           bool isVaultRoom = false;
 
-          if (roomId != null && roomId.isNotEmpty) {
-            try {
-              final hiddenRooms =
-                  await PrivateContactRepository().getHiddenRoomIds();
-              if (hiddenRooms.contains(roomId)) {
-                isVaultRoom = true;
-                callerName = 'MEKAAR';
-                callerAvatarUrl = null;
-              }
-            } catch (_) {}
-          }
+          try {
+            final hiddenRooms =
+                await PrivateContactRepository().getHiddenRoomIds();
+            final hiddenContacts =
+                await PrivateContactRepository().getHiddenContactUserIds();
+            if ((roomId != null && roomId.isNotEmpty && hiddenRooms.contains(roomId)) ||
+                (callerId != null && callerId.isNotEmpty && hiddenContacts.contains(callerId))) {
+              isVaultRoom = true;
+              callerName = 'MEKAAR';
+              callerAvatarUrl = null;
+            }
+          } catch (_) {}
 
           NotificationService.showIncomingCallNotification(
             callerName: callerName,
@@ -244,19 +250,21 @@ class PushNotificationService {
         } else {
           String finalTitle = title;
           String finalBody = body;
+          final senderId = data['senderId'] as String?;
           bool isVaultRoom = false;
 
-          if (roomId != null && roomId.isNotEmpty) {
-            try {
-              final hiddenRooms =
-                  await PrivateContactRepository().getHiddenRoomIds();
-              if (hiddenRooms.contains(roomId)) {
-                isVaultRoom = true;
-                finalTitle = 'MEKAAR';
-                finalBody = 'Pesan baru masuk';
-              }
-            } catch (_) {}
-          }
+          try {
+            final hiddenRooms =
+                await PrivateContactRepository().getHiddenRoomIds();
+            final hiddenContacts =
+                await PrivateContactRepository().getHiddenContactUserIds();
+            if ((roomId != null && roomId.isNotEmpty && hiddenRooms.contains(roomId)) ||
+                (senderId != null && senderId.isNotEmpty && hiddenContacts.contains(senderId))) {
+              isVaultRoom = true;
+              finalTitle = 'MEKAAR';
+              finalBody = 'Pesan baru masuk';
+            }
+          } catch (_) {}
 
           NotificationService.showMessageNotification(
             title: finalTitle,

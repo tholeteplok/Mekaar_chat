@@ -6,6 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../providers/private_vault_provider.dart';
 
@@ -32,6 +33,15 @@ class PrivateVaultDialogs {
 
     final isHiddenNow =
         await ref.read(hiddenContactUserIdsProvider.notifier).toggleHide(contactUserId);
+
+    // Sinkronkan ke cloud Supabase agar status vault tetap terlindungi saat uninstall / clear data
+    try {
+      await ref.read(userContactsProvider.notifier).updateVaultStatus(contactUserId, isHiddenNow);
+    } catch (_) {
+      try {
+        await ref.read(contactRepositoryProvider).updateContactVaultStatus(contactUserId, isHiddenNow);
+      } catch (_) {}
+    }
 
     // Sinkronkan juga roomId jika tersedia agar kompatibilitas legacy/room listeners terjaga
     if (roomId != null && roomId.isNotEmpty) {
@@ -163,9 +173,9 @@ class PrivateVaultDialogs {
                 color: MekaarColors.guardianTeal,
                 size: 28,
               ),
-              title: 'Buat Kode Vault Rahasia',
+              title: 'Atur PIN Private Vault',
               message:
-                  'Tentukan kode rahasia untuk membuka obrolan tersembunyi.\nKode ini nantinya cukup diketik pada kolom pencarian (Search Bar).',
+                  'Tentukan PIN akses rahasia untuk membuka kontak & obrolan tersembunyi.\nPIN ini dapat Anda masukkan pada kolom pencarian (Search Bar) atau menu kontak.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,10 +184,11 @@ class PrivateVaultDialogs {
                   TextField(
                     controller: codeController,
                     obscureText: obscureCode,
+                    keyboardType: TextInputType.number,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration:
-                        vaultInputDecoration('Masukkan kode rahasia (min. 4 karakter)')
+                        vaultInputDecoration('Masukkan PIN rahasia (min. 4 angka)')
                             .copyWith(
                       errorText: errorMessage,
                       suffixIcon: IconButton(
@@ -190,8 +201,8 @@ class PrivateVaultDialogs {
                         onPressed: () =>
                             setDialogState(() => obscureCode = !obscureCode),
                         tooltip: obscureCode
-                            ? 'Tampilkan kode'
-                            : 'Sembunyikan kode',
+                            ? 'Tampilkan PIN'
+                            : 'Sembunyikan PIN',
                       ),
                     ),
                   ),
@@ -199,10 +210,11 @@ class PrivateVaultDialogs {
                   TextField(
                     controller: confirmController,
                     obscureText: obscureConfirm,
+                    keyboardType: TextInputType.number,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration:
-                        vaultInputDecoration('Konfirmasi kode rahasia')
+                        vaultInputDecoration('Konfirmasi PIN rahasia')
                             .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -214,8 +226,8 @@ class PrivateVaultDialogs {
                         onPressed: () => setDialogState(
                             () => obscureConfirm = !obscureConfirm),
                         tooltip: obscureConfirm
-                            ? 'Tampilkan kode'
-                            : 'Sembunyikan kode',
+                            ? 'Tampilkan PIN'
+                            : 'Sembunyikan PIN',
                       ),
                     ),
                   ),
@@ -237,14 +249,14 @@ class PrivateVaultDialogs {
 
                     if (code.length < 4) {
                       setDialogState(() {
-                        errorMessage = 'Kode minimal 4 karakter / angka';
+                        errorMessage = 'PIN minimal 4 angka / karakter';
                       });
                       return;
                     }
 
                     if (code != confirm) {
                       setDialogState(() {
-                        errorMessage = 'Konfirmasi kode tidak cocok';
+                        errorMessage = 'Konfirmasi PIN tidak cocok';
                       });
                       return;
                     }
@@ -257,7 +269,7 @@ class PrivateVaultDialogs {
                       Navigator.pop(dialogCtx, true);
                     }
                   },
-                  child: const Text('Simpan Kode'),
+                  child: const Text('Simpan PIN'),
                 ),
               ],
             );
@@ -271,6 +283,16 @@ class PrivateVaultDialogs {
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
     }
     return isSuccess;
+  }
+
+  /// Dialog mengubah PIN akses vault yang sudah ada
+  static Future<bool> showChangePasscodeDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final unlocked = await showUnlockPasscodeDialog(context, ref);
+    if (!unlocked || !context.mounted) return false;
+    return await showSetPasscodeDialog(context, ref);
   }
 
   /// Dialog verifikasi kode rahasia vault untuk membuka obrolan tersembunyi
@@ -296,7 +318,7 @@ class PrivateVaultDialogs {
               ),
               title: 'Buka Private Vault',
               message:
-                  'Masukkan kode rahasia untuk membuka percakapan tersembunyi.',
+                  'Masukkan PIN akses rahasia untuk membuka kontak & obrolan tersembunyi.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,11 +327,12 @@ class PrivateVaultDialogs {
                   TextField(
                     controller: codeController,
                     obscureText: obscureCode,
+                    keyboardType: TextInputType.number,
                     autofocus: true,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: InputDecoration(
-                      hintText: 'Kode rahasia vault',
+                      hintText: 'PIN akses vault',
                       errorText: errorMessage,
                       filled: true,
                       fillColor: MekaarColors.surface2Of(dialogCtx),
@@ -342,8 +365,8 @@ class PrivateVaultDialogs {
                         onPressed: () =>
                             setDialogState(() => obscureCode = !obscureCode),
                         tooltip: obscureCode
-                            ? 'Tampilkan kode'
-                            : 'Sembunyikan kode',
+                            ? 'Tampilkan PIN'
+                            : 'Sembunyikan PIN',
                       ),
                     ),
                     onSubmitted: (val) async {
@@ -355,7 +378,7 @@ class PrivateVaultDialogs {
                       } else {
                         HapticService.trigger(MekaarHapticIntent.warning);
                         setDialogState(() {
-                          errorMessage = 'Kode rahasia tidak cocok';
+                          errorMessage = 'PIN rahasia tidak cocok';
                         });
                       }
                     },
@@ -376,7 +399,7 @@ class PrivateVaultDialogs {
                     final code = codeController.text.trim();
                     if (code.isEmpty) {
                       setDialogState(() {
-                        errorMessage = 'Masukkan kode rahasia Anda';
+                        errorMessage = 'Masukkan PIN rahasia Anda';
                       });
                       return;
                     }
@@ -391,7 +414,7 @@ class PrivateVaultDialogs {
                     } else {
                       HapticService.trigger(MekaarHapticIntent.warning);
                       setDialogState(() {
-                        errorMessage = 'Kode rahasia tidak cocok';
+                        errorMessage = 'PIN rahasia tidak cocok';
                       });
                     }
                   },

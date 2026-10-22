@@ -54,6 +54,14 @@ class HiddenContactUserIdsNotifier extends StateNotifier<Set<String>> {
     return isHidden;
   }
 
+  Future<void> hideContact(String contactUserId) async {
+    await _repo.hideContact(contactUserId);
+    if (!state.contains(contactUserId)) {
+      final updated = Set<String>.from(state)..add(contactUserId);
+      state = updated;
+    }
+  }
+
   Future<void> removeContact(String contactUserId) async {
     await _repo.removeHiddenContact(contactUserId);
     final updated = Set<String>.from(state);

@@ -13,6 +13,9 @@ import '../providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
+import '../../../data/repositories/contact_repository.dart';
+import '../providers/private_vault_provider.dart';
+import '../widgets/private_vault_dialogs.dart';
 
 class ContactQrScanScreen extends ConsumerStatefulWidget {
   const ContactQrScanScreen({super.key});
@@ -97,7 +100,21 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
             );
       } catch (_) {}
 
-      // 4. Buat atau dapatkan room chat personal
+      // 4. Proteksi Private Vault: jika kontak disembunyikan & vault terkunci, wajib verifikasi PIN
+      if (!mounted) return;
+      final isTargetVaulted = ref.read(hiddenContactUserIdsProvider).contains(userId) ||
+          (ref.read(userContactsProvider).value?.any((c) => c.contactUserId == userId && c.isVaulted) ?? false);
+      final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
+
+      if (isTargetVaulted && !isVaultUnlocked) {
+        final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(context, ref);
+        if (!unlocked || !mounted) {
+          _resumeScanner();
+          return;
+        }
+      }
+
+      // 5. Buat atau dapatkan room chat personal
       final roomId = await ref
           .read(chatRoomsProvider.notifier)
           .getOrCreateRoom(
