@@ -51,6 +51,7 @@ import 'package:mekaar_chat/features/chat/screens/group_details_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/vault_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/archived_chats_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/contact_vault_settings_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/advanced_privacy_settings_screen.dart';
 import '../constants/motion.dart';
 
 /// MekaarPageRoute — Transisi halaman terpusat.
@@ -151,9 +152,13 @@ class AppRoutes {
   static const String vault = '/chat/vault';
   static const String archivedChats = '/chat/archived';
   static const String contactVaultSettings = '/settings/contact-vault';
+  static const String advancedPrivacySettings = '/settings/advanced-privacy';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case AppRoutes.advancedPrivacySettings:
+        return MekaarPageRoute(builder: (_) => const AdvancedPrivacySettingsScreen());
+
       case AppRoutes.contactVaultSettings:
         return MekaarPageRoute(builder: (_) => const ContactVaultSettingsScreen());
 

@@ -10,14 +10,13 @@ import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
+import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/widgets/private_vault_dialogs.dart';
-import '../providers/privacy_provider.dart';
 import '../widgets/settings_tiles.dart';
 
 /// Layar Pengaturan Kontak Vault Multi-Slot & Privasi Lanjutan
@@ -360,26 +359,42 @@ class _ContactVaultSettingsScreenState
       }
     }
 
-    return Scaffold(
-      backgroundColor: MekaarColors.backgroundOf(context),
-      appBar: AppBar(
-        title: const Text('Vault Kontak & Privasi'),
-        backgroundColor: MekaarColors.backgroundOf(context),
-        foregroundColor: MekaarColors.textPrimaryOf(context),
-        elevation: 0,
-        actions: [
-          if (_activeSlots.length < 3)
-            IconButton(
-              icon: const Icon(SolarIconsOutline.addCircle, size: 24),
-              tooltip: 'Tambah Slot Profil Baru',
-              onPressed: _handleAddNewSlot,
+    return MekaarScaffold(
+      flat: true,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SettingsTopBar(
+              title: 'Manajemen Vault',
+              subtitle: 'Kelola hingga 3 slot profil vault terisolasi',
+              trailing: _activeSlots.length < 3
+                  ? IconButton(
+                      icon: const Icon(
+                        SolarIconsOutline.addCircle,
+                        color: MekaarColors.cyan,
+                        size: 22,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: MekaarColors.surface2Of(context)
+                            .withValues(alpha: 0.85),
+                        side: BorderSide(
+                          color: MekaarColors.cardBorderOf(context)
+                              .withValues(alpha: 0.8),
+                          width: 1.0,
+                        ),
+                        shape: const CircleBorder(),
+                      ),
+                      tooltip: 'Tambah Profil Slot',
+                      onPressed: _handleAddNewSlot,
+                    )
+                  : null,
             ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
                 // Banner Penjelasan
                 CustomCard(
@@ -631,39 +646,13 @@ class _ContactVaultSettingsScreenState
                     ),
                   ),
 
-                // Section: Privasi Lanjutan
-                const SettingsSectionHeader(title: 'Privasi Lanjutan'),
-                CustomCard(
-                  margin: EdgeInsets.zero,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    children: [
-                      SettingsSwitchTile(
-                        icon: SolarIconsOutline.eye,
-                        iconColor: MekaarColors.warning,
-                        title: 'Sembunyikan Notifikasi Darurat',
-                        subtitle: 'Samarkan rincian nama pengirim & pesan saat darurat',
-                        value: ref.watch(notificationMaskingProvider),
-                        onChanged: (value) => ref
-                            .read(notificationMaskingProvider.notifier)
-                            .setEnabled(value),
-                      ),
-                      SettingsSwitchTile(
-                        icon: SolarIconsOutline.eyeClosed,
-                        iconColor: MekaarColors.purpleLight,
-                        title: 'Sembunyikan Cuplikan Pesan',
-                        subtitle: 'Sembunyikan preview teks terakhir pada daftar obrolan publik',
-                        value: ref.watch(stealthChatPreviewProvider),
-                        onChanged: (value) => ref
-                            .read(stealthChatPreviewProvider.notifier)
-                            .setEnabled(value),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 32),
               ],
             ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

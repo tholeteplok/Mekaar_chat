@@ -87,13 +87,6 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             children: [
-              SettingsNavTile(
-                icon: SolarIconsBold.shieldKeyhole,
-                iconColor: MekaarColors.guardianTeal,
-                title: 'Vault Kontak & Privasi Lanjutan',
-                subtitle: 'Kelola profil vault terisolasi, notifikasi & cuplikan pesan',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.contactVaultSettings),
-              ),
               SettingsSwitchTile(
                 icon: SolarIconsOutline.screenShare,
                 iconColor: MekaarColors.guardianTeal,
@@ -101,15 +94,6 @@ class SettingsScreen extends ConsumerWidget {
                 value: ref.watch(screenshotBlockProvider),
                 onChanged: (value) =>
                     ref.read(screenshotBlockProvider.notifier).toggle(value),
-              ),
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.eye,
-                iconColor: MekaarColors.warning,
-                title: 'Sembunyikan Notifikasi Darurat',
-                value: ref.watch(notificationMaskingProvider),
-                onChanged: (value) => ref
-                    .read(notificationMaskingProvider.notifier)
-                    .setEnabled(value),
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.user,
@@ -125,15 +109,6 @@ class SettingsScreen extends ConsumerWidget {
                 value: ref.watch(readReceiptsProvider),
                 onChanged: (value) =>
                     ref.read(readReceiptsProvider.notifier).setEnabled(value),
-              ),
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.eyeClosed,
-                iconColor: MekaarColors.purpleLight,
-                title: 'Sembunyikan Cuplikan Pesan',
-                value: ref.watch(stealthChatPreviewProvider),
-                onChanged: (value) => ref
-                    .read(stealthChatPreviewProvider.notifier)
-                    .setEnabled(value),
               ),
               SettingsNavTile(
                 icon: SolarIconsOutline.shieldUser,
@@ -161,6 +136,13 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: MekaarColors.guardianTeal,
                 title: 'Auto Check-In',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
+              ),
+              SettingsNavTile(
+                icon: SolarIconsBold.shieldKeyhole,
+                iconColor: MekaarColors.guardianTeal,
+                title: 'Privasi Lanjutan',
+                subtitle: 'Manajemen vault, notifikasi & cuplikan pesan',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.advancedPrivacySettings),
               ),
             ],
           ),
