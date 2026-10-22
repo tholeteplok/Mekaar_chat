@@ -245,14 +245,76 @@ class CallRepository {
     }
   }
 
-  /// Stream riwayat panggilan untuk room tertentu secara realtime
-  Stream<List<CallModel>> streamCalls(String roomId) {
-    return _client
+  /// Stream riwayat panggilan untuk room tertentu secara realtime dengan filter riwayat dibersihkan & hidden_calls
+  Stream<List<CallModel>> streamCalls(String roomId) async* {
+    final userId = _client.auth.currentUser?.id;
+
+    // 1. Ambil stempel waktu pembersihan obrolan (history_cleared_at)
+    DateTime? historyClearedAt;
+    if (userId != null) {
+      try {
+        final p = await _client
+            .from('room_participants')
+            .select('history_cleared_at')
+            .eq('room_id', roomId)
+            .eq('profile_id', userId)
+            .maybeSingle();
+        if (p != null && p['history_cleared_at'] != null) {
+          historyClearedAt = DateTime.parse(p['history_cleared_at'] as String);
+        }
+      } catch (_) {}
+    }
+
+    // 2. Ambil ID panggilan yang disembunyikan (hidden_calls)
+    final hiddenCallIds = <String>{};
+    if (userId != null) {
+      try {
+        final rows = await _client
+            .from('hidden_calls')
+            .select('call_id')
+            .eq('profile_id', userId);
+        for (final r in rows as List) {
+          final cid = r['call_id'] as String?;
+          if (cid != null) hiddenCallIds.add(cid);
+        }
+      } catch (_) {}
+    }
+
+    // 3. Dengarkan stream realtime dari tabel calls dan filter
+    yield* _client
         .from('calls')
         .stream(primaryKey: ['id'])
         .eq('room_id', roomId)
         .order('created_at', ascending: true)
-        .map((rows) => rows.map((r) => CallModel.fromJson(r)).toList());
+        .map((rows) {
+          final calls = rows.map((r) => CallModel.fromJson(r));
+          return calls.where((c) {
+            if (hiddenCallIds.contains(c.id)) return false;
+            if (historyClearedAt != null && !c.createdAt.isAfter(historyClearedAt)) {
+              return false;
+            }
+            return true;
+          }).toList();
+        });
+  }
+
+  /// Menyembunyikan panggilan tertentu secara permanen di database cloud
+  Future<void> hideCalls(Set<String> callIds) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || callIds.isEmpty) return;
+
+    final records = callIds
+        .map((cid) => {
+              'profile_id': userId,
+              'call_id': cid,
+            })
+        .toList();
+
+    try {
+      await _client
+          .from('hidden_calls')
+          .upsert(records, onConflict: 'profile_id,call_id');
+    } catch (_) {}
   }
 }
 

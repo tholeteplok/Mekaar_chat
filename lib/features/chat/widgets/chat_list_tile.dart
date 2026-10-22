@@ -20,7 +20,6 @@ class ChatListTile extends StatelessWidget {
   final VoidCallback? onMute;
   final VoidCallback? onDelete;
   final VoidCallback? onArchive;
-  final VoidCallback? onToggleHide;
   final bool isHidden;
 
   const ChatListTile({
@@ -32,7 +31,6 @@ class ChatListTile extends StatelessWidget {
     this.onMute,
     this.onDelete,
     this.onArchive,
-    this.onToggleHide,
     this.isHidden = false,
   });
 
@@ -194,14 +192,6 @@ class ChatListTile extends StatelessWidget {
       endActionPane: ActionPane(
         motion: const BehindMotion(),
         children: [
-          if (onToggleHide != null)
-            SlidableAction(
-              onPressed: (_) => onToggleHide!(),
-              backgroundColor: MekaarColors.guardianTeal,
-              foregroundColor: Colors.white,
-              icon: isHidden ? SolarIconsOutline.eye : SolarIconsOutline.eyeClosed,
-              label: isHidden ? 'Tampilkan' : 'Sembunyikan',
-            ),
           if (onMute != null)
             SlidableAction(
               onPressed: (_) => onMute!(),

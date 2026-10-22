@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/contact_model.dart';
 import '../services/local_message_database.dart';
 import '../services/supabase_service.dart';
@@ -98,7 +99,7 @@ class ContactRepository {
           .eq('contact_user_id', contactUserId);
     }
 
-    // 2. Bersihkan cache lokal jika ada pesan tersimpan
+    // 2. Bersihkan cache lokal jika ada pesan tersimpan & cache panggilan
     try {
       final directRoom = await _supabaseService.client
           .from('room_participants')
@@ -109,6 +110,10 @@ class ContactRepository {
       if (directRoom != null && directRoom['room_id'] != null) {
         final roomId = directRoom['room_id'] as String;
         unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('hidden_call_ids_$roomId');
+        } catch (_) {}
       }
     } catch (_) {}
   }

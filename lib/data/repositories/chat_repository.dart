@@ -1127,6 +1127,13 @@ class ChatRepository {
         params: {'p_room_id': roomId},
       );
     } catch (_) {}
+
+    try {
+      await _supabaseService.client.rpc(
+        'hide_all_room_calls',
+        params: {'p_room_id': roomId},
+      );
+    } catch (_) {}
   }
 
   /// Soft delete Chat Room for current user (hides from list)
@@ -1149,6 +1156,13 @@ class ChatRepository {
     try {
       await _supabaseService.client.rpc(
         'hide_all_room_messages',
+        params: {'p_room_id': roomId},
+      );
+    } catch (_) {}
+
+    try {
+      await _supabaseService.client.rpc(
+        'hide_all_room_calls',
         params: {'p_room_id': roomId},
       );
     } catch (_) {}

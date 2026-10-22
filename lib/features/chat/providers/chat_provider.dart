@@ -487,11 +487,15 @@ class ChatActionsNotifier {
 
   Future<void> clearChatHistory(String roomId) async {
     await _chatRepository.clearChatHistory(roomId);
+    _ref.invalidate(chatCallsProvider(roomId));
+    _ref.invalidate(chatMessagesProvider(roomId));
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
   Future<void> deleteChat(String roomId) async {
     await _chatRepository.deleteChat(roomId);
+    _ref.invalidate(chatCallsProvider(roomId));
+    _ref.invalidate(chatMessagesProvider(roomId));
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 }

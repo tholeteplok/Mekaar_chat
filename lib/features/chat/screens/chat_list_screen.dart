@@ -433,7 +433,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           ),
           onPressed: () async {
             Navigator.pop(context);
-            await ref.read(chatActionsProvider).deleteChat(room['id'] as String);
+            final roomId = room['id'] as String;
+            await ref.read(chatActionsProvider).deleteChat(roomId);
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('hidden_call_ids_$roomId');
+            } catch (_) {}
           },
           child: const Text('Hapus (Hanya Saya)'),
         ),
@@ -802,19 +807,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     );
                                   }
                                 } else if (value == 'archive') {
-                                  final verified =
-                                      await MekaarPinVerificationSheet.verify(
+                                  Navigator.pushNamed(
                                     context,
-                                    title: 'Buka Arsip Percakapan',
-                                    subtitle:
-                                        'Masukkan PIN untuk mengakses obrolan terarsip',
+                                    AppRoutes.archivedChats,
                                   );
-                                  if (verified && context.mounted) {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.archivedChats,
-                                    );
-                                  }
                                 }
                               },
                               itemBuilder: (ctx) => [
@@ -1210,13 +1206,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   onMute: () => _handleMuteRoom(room),
                   onDelete: () => _confirmDeleteRoom(room),
                   onArchive: () => _handleArchiveRoom(room),
-                  onToggleHide: () => PrivateVaultDialogs.toggleRoomHiddenWithAuth(
-                    context,
-                    ref,
-                    roomId: roomId,
-                    chatName: room['name'] as String? ?? 'Obrolan',
-                    otherUserId: otherUserId,
-                  ),
                 );
               },
             ),

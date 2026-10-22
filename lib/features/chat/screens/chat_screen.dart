@@ -47,6 +47,7 @@ import '../../../data/models/chat_theme_model.dart';
 import '../../settings/providers/chat_theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/call_model.dart';
+import '../../../data/repositories/call_repository.dart';
 import '../widgets/call_history_bubble.dart';
 import '../providers/vault_provider.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
@@ -219,6 +220,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         'hidden_call_ids_${widget.chatId}',
         _hiddenCallIds.toList(),
       );
+    } catch (_) {}
+    try {
+      unawaited(ref.read(callRepositoryProvider).hideCalls(callIds));
     } catch (_) {}
   }
   DateTime? _otherLastRead;
@@ -1809,8 +1813,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           onPressed: () async {
             Navigator.pop(context); // Close dialog
             await ref.read(chatActionsProvider).clearChatHistory(widget.chatId);
-            if (!mounted) return;
-            MekaarSnackbar.success(context, 'Riwayat obrolan dibersihkan untuk perangkat ini.');
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('hidden_call_ids_${widget.chatId}');
+            } catch (_) {}
+            if (mounted) {
+              setState(() => _hiddenCallIds.clear());
+              MekaarSnackbar.success(context, 'Riwayat obrolan & panggilan dibersihkan untuk perangkat ini.');
+            }
           },
           child: const Text(
             'Bersihkan (Hanya Saya)',
@@ -1837,6 +1847,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           onPressed: () async {
             Navigator.pop(context); // Close dialog
             await ref.read(chatActionsProvider).deleteChat(widget.chatId);
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('hidden_call_ids_${widget.chatId}');
+            } catch (_) {}
             if (!mounted) return;
             Navigator.pop(context); // Exit chat room to ChatListScreen
           },

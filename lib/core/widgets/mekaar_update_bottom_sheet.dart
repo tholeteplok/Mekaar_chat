@@ -564,130 +564,7 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
 
         // Tombol Aksi Kontrol (Jeda / Lanjutkan / Minimalkan / Pasang / Buka Folder)
         if (isCompleted) ...[
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.successTextOf(context),
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(46),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MekaarRadius.md),
-              ),
-            ),
-            onPressed: () async {
-              HapticService.trigger(MekaarHapticIntent.success);
-              final result = await ref
-                  .read(updateDownloadProvider.notifier)
-                  .triggerInstall();
-
-              if (!context.mounted) return;
-
-              if (result == InstallResult.success) {
-                Navigator.pop(context);
-              } else if (result == InstallResult.permissionRequired) {
-                MekaarSnackbar.info(
-                  context,
-                  'Silakan izinkan pemasangan aplikasi dari sumber ini pada pengaturan perangkat.',
-                );
-              } else if (result == InstallResult.corruptApk) {
-                MekaarSnackbar.error(
-                  context,
-                  'Berkas unduhan corrupt atau tidak lengkap. Cache telah dibersihkan.',
-                );
-              } else {
-                MekaarSnackbar.error(
-                  context,
-                  'Gagal membuka installer otomatis. Anda dapat membuka file dari folder Unduhan.',
-                );
-              }
-            },
-            icon: const Icon(SolarIconsBold.rocket2, size: 18),
-            label: const Text(
-              'Pasang Sekarang',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              foregroundColor: MekaarColors.sosCoral,
-              side: BorderSide(
-                color: MekaarColors.sosCoral.withValues(alpha: 0.35),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MekaarRadius.md),
-              ),
-            ),
-            onPressed: () async {
-              HapticService.trigger(MekaarHapticIntent.selection);
-              await ref
-                  .read(updateDownloadProvider.notifier)
-                  .deleteAndRetryDownload(widget.info);
-            },
-            icon: const Icon(SolarIconsOutline.restart, size: 16),
-            label: const Text('Unduh Ulang (Hapus Cache)'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MekaarRadius.md),
-              ),
-            ),
-            onPressed: () async {
-              HapticService.trigger(MekaarHapticIntent.selection);
-              await ref
-                  .read(updateDownloadProvider.notifier)
-                  .openDownloadsFolder();
-            },
-            icon: const Icon(SolarIconsOutline.folderWithFiles, size: 16),
-            label: const Text('Buka Folder Unduhan'),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextButton(
-                onPressed: () async {
-                  HapticService.trigger(MekaarHapticIntent.selection);
-                  Navigator.pop(context);
-                  await ref
-                      .read(updateDownloadProvider.notifier)
-                      .deleteCacheAndReset();
-                },
-                child: Text(
-                  'Hapus Berkas & Tutup',
-                  style: MekaarTypography.caption.copyWith(
-                    color: MekaarColors.sosCoral,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                width: 4,
-                height: 4,
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: MekaarColors.textSecondaryOf(context),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  ref.read(updateDownloadProvider.notifier).minimize();
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  'Pasang Nanti',
-                  style: MekaarTypography.caption.copyWith(
-                    color: MekaarColors.textSecondaryOf(context),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          const _ReadyToInstallActions(),
         ] else if (errorMessage != null) ...[
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -926,8 +803,23 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 20),
+        const _ReadyToInstallActions(),
+      ],
+    );
+  }
+}
 
-        // Tombol Pasang Sekarang
+/// Tombol aksi siap pasang tersentralisasi (2 baris: Pasang Sekarang, Buka Unduhan & Hapus Berkas)
+class _ReadyToInstallActions extends ConsumerWidget {
+  const _ReadyToInstallActions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Baris 1: Tombol Pasang Sekarang
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: MekaarColors.successTextOf(context),
