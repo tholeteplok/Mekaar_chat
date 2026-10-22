@@ -114,6 +114,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   late final FocusNode _inChatSearchFocusNode;
+  late final FocusNode _composerFocusNode;
   Timer? _searchDebounceTimer;
   bool _isSearching = false;
   String _searchQuery = '';
@@ -301,6 +302,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void initState() {
     super.initState();
     _inChatSearchFocusNode = FocusNode();
+    _composerFocusNode = FocusNode();
     WidgetsBinding.instance.addObserver(this);
     _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScrollChanged);
@@ -490,6 +492,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
     _searchDebounceTimer?.cancel();
     _inChatSearchFocusNode.dispose();
+    _composerFocusNode.dispose();
     _otherLastSeenNotifier.dispose();
     _textController.dispose();
     _searchController.dispose();
@@ -600,6 +603,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         .read(pendingMessagesProvider(widget.chatId).notifier)
         .addPending(optimisticMessage);
     _scrollToBottom();
+
+    // Mutasi lokal list room agar pesan langsung tampil di daftar percakapan (0 ms)
+    ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+      roomId: widget.chatId,
+      previewText: textToSend,
+      timestamp: now,
+      isFromOtherUser: false,
+      isCurrentlyInRoom: true,
+    );
 
     try {
       await actions.sendMessage(
@@ -1711,6 +1723,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     } catch (_) {}
   }
 
+  Future<T?> _pushNamedWithoutActiveRoom<T>(
+    String routeName, {
+    Object? arguments,
+  }) async {
+    // Kosongkan sementara agar notifikasi pesan masuk tetap berbunyi/muncul
+    // saat pengguna berada di layar anak (panggilan, setelan, detail, dsb)
+    ref.read(activeRoomIdProvider.notifier).state = null;
+    try {
+      return await Navigator.pushNamed<T>(
+        context,
+        routeName,
+        arguments: arguments,
+      );
+    } finally {
+      if (mounted) {
+        ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
+      }
+    }
+  }
+
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
     if (currentUserId == null || widget.otherUserId == null) {
@@ -1720,8 +1752,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       );
       return;
     }
-    Navigator.pushNamed(
-      context,
+    _pushNamedWithoutActiveRoom(
       AppRoutes.call,
       arguments: {
         'roomId': widget.chatId,
@@ -1853,8 +1884,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             return;
           }
         }
-        if (didPop && _burnOnExit) {
-          _triggerBurnOnExit();
+        if (didPop) {
+          // Bersihkan status kamar aktif seketika layar mulai keluar (animasi pop)
+          ref.read(activeRoomIdProvider.notifier).state = null;
+          if (_burnOnExit) {
+            _triggerBurnOnExit();
+          }
         }
       },
       child: MekaarScaffold(
@@ -2168,10 +2203,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   return ChatComposer(
                     key: _composerKey,
                     controller: _textController,
+                    focusNode: _composerFocusNode,
                     replyMessage: _replyMessage,
                     replySenderName: _getSenderDisplayName(_replyMessage),
                     editingMessage: _editingMessage,
-                    enabled: isComposerEnabled,
+                    enabled: true,
+                    canSend: isComposerEnabled,
                     roomThemeSpec: roomThemeSpec,
                     onEmojiPanelVisibilityChanged: (isOpen) {
                       if (_isEmojiPickerOpen != isOpen) {
@@ -2405,8 +2442,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         textColor: roomThemeSpec.textColor,
                         subtitleColor: roomThemeSpec.subtitleColor,
                         onAvatarTap: widget.isGroup
-                            ? () => Navigator.pushNamed(
-                                context,
+                            ? () => _pushNamedWithoutActiveRoom(
                                 AppRoutes.groupDetails,
                                 arguments: {
                                   'roomId': widget.chatId,
@@ -2415,8 +2451,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 },
                               )
                             : (widget.otherUserId != null
-                                  ? () => Navigator.pushNamed(
-                                      context,
+                                  ? () => _pushNamedWithoutActiveRoom(
                                       AppRoutes.contactSettings,
                                       arguments: {
                                         'roomId': widget.chatId,
@@ -2479,8 +2514,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               } else if (value == 'mute') {
                                 _toggleMute();
                               } else if (value == 'theme') {
-                                Navigator.pushNamed(
-                                  context,
+                                _pushNamedWithoutActiveRoom(
                                   AppRoutes.chatThemeSettings,
                                 );
                               } else if (value == 'privacy_settings') {

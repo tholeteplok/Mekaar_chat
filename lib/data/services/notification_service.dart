@@ -113,6 +113,8 @@ class NotificationService {
   static const int incomingCallNotificationId = 7001;
   static const String actionCallAccept = 'call_accept';
   static const String actionCallDecline = 'call_decline';
+  static const String messageChannelId = 'mekaar_message_channel_v2';
+  static const String legacyMessageChannelId = 'mekaar_message_channel';
   static final Logger _logger = Logger();
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -199,10 +201,15 @@ class NotificationService {
         ),
       );
 
-      // 2. Channel Pesan Masuk (High Importance, suara & getar default)
+      // Hapus channel pesan legacy agar cache low/default importance dari OS direset
+      try {
+        await androidImpl.deleteNotificationChannel(legacyMessageChannelId);
+      } catch (_) {}
+
+      // 2. Channel Pesan Masuk v2 (High Importance, suara & getar default)
       await androidImpl.createNotificationChannel(
         const AndroidNotificationChannel(
-          'mekaar_message_channel',
+          messageChannelId,
           'Pesan MEKAAR',
           description: 'Saluran notifikasi pesan masuk',
           importance: Importance.high,
@@ -297,7 +304,7 @@ class NotificationService {
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'mekaar_message_channel',
+        messageChannelId,
         'Pesan MEKAAR',
         channelDescription: 'Saluran notifikasi pesan masuk',
         importance: Importance.high,
@@ -351,7 +358,7 @@ class NotificationService {
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'mekaar_message_channel',
+        messageChannelId,
         'Pesan MEKAAR',
         channelDescription: 'Saluran notifikasi pesan dan panggilan masuk',
         importance: Importance.high,

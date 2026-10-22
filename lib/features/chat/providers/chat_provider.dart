@@ -60,6 +60,45 @@ class ChatRoomsNotifier
     await refreshRooms();
     return roomId;
   }
+
+  /// Memutasi daftar room di memori secara lokal & instan (0 ms) saat pesan baru masuk atau terkirim.
+  /// Memindahkan room terkait ke urutan paling atas (index 0), memperbarui cuplikan teks,
+  /// timestamp, dan menambah unread count jika pengirim adalah pihak lawan dan user tidak
+  /// sedang berada di dalam room tersebut.
+  void updateLastMessageLocally({
+    required String roomId,
+    required String previewText,
+    required DateTime timestamp,
+    required bool isFromOtherUser,
+    required bool isCurrentlyInRoom,
+  }) {
+    final currentList = state.value;
+    if (currentList == null) return;
+
+    final index = currentList.indexWhere((r) => r['id'] == roomId);
+    if (index == -1) {
+      // Room baru yang belum ada di daftar lokal: muat dari backend
+      refreshRooms();
+      return;
+    }
+
+    final existingRoom = currentList[index];
+    final currentUnread = (existingRoom['unreadCount'] as num?)?.toInt() ?? 0;
+    final newUnread = (isFromOtherUser && !isCurrentlyInRoom)
+        ? currentUnread + 1
+        : currentUnread;
+
+    final updatedRoom = Map<String, dynamic>.from(existingRoom);
+    updatedRoom['lastMessage'] = previewText;
+    updatedRoom['timestamp'] = timestamp.toIso8601String();
+    updatedRoom['unreadCount'] = newUnread;
+
+    final newList = List<Map<String, dynamic>>.from(currentList);
+    newList.removeAt(index);
+    newList.insert(0, updatedRoom);
+
+    state = AsyncValue.data(newList);
+  }
 }
 
 final chatRoomsProvider =

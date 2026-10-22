@@ -59,6 +59,15 @@ class FakeChatRoomsNotifier
     bool screenshotEnabled = true,
   }) async =>
       'mock-room-id';
+
+  @override
+  void updateLastMessageLocally({
+    required String roomId,
+    required String previewText,
+    required DateTime timestamp,
+    required bool isFromOtherUser,
+    required bool isCurrentlyInRoom,
+  }) {}
 }
 
 class FakeHiddenRoomIdsNotifier extends StateNotifier<Set<String>>

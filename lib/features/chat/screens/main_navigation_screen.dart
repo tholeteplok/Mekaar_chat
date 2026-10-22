@@ -59,6 +59,12 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
+    // Pastikan tidak ada status ruangan aktif saat berada di tab navigasi utama
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(activeRoomIdProvider.notifier).state = null;
+      }
+    });
   }
 
   @override

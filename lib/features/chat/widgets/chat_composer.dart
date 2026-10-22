@@ -47,6 +47,8 @@ class ChatComposer extends ConsumerStatefulWidget {
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
   final bool enabled;
+  final bool canSend;
+  final FocusNode? focusNode;
   final ChatRoomThemeSpec? roomThemeSpec;
   final ValueChanged<bool>? onEmojiPanelVisibilityChanged;
 
@@ -63,6 +65,8 @@ class ChatComposer extends ConsumerStatefulWidget {
     this.onSendLocation,
     this.onShareLiveLocation,
     this.enabled = true,
+    this.canSend = true,
+    this.focusNode,
     this.roomThemeSpec,
     this.onEmojiPanelVisibilityChanged,
   });
@@ -73,7 +77,9 @@ class ChatComposer extends ConsumerStatefulWidget {
 
 class ChatComposerState extends ConsumerState<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
-  final FocusNode _focusNode = FocusNode();
+  FocusNode? _internalFocusNode;
+  FocusNode get _effectiveFocusNode =>
+      widget.focusNode ?? (_internalFocusNode ??= FocusNode());
   bool _isUploading = false;
   bool _showEmojiPicker = false;
   List<String> _recentEmojis = [];
@@ -133,10 +139,19 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   @override
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
-    _focusNode.dispose();
+    _internalFocusNode?.dispose();
     _recordTimer?.cancel();
     _audioRecorder?.dispose();
     super.dispose();
+  }
+
+  void _handleSend() {
+    if (!widget.canSend) {
+      HapticService.trigger(MekaarHapticIntent.warning);
+      MekaarSnackbar.info(context, 'Menyiapkan enkripsi kamar...');
+      return;
+    }
+    widget.onSend();
   }
 
   void _onTextChanged() {
@@ -150,6 +165,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   }
 
   Future<void> _startRecording() async {
+    if (!widget.canSend) {
+      HapticService.trigger(MekaarHapticIntent.warning);
+      MekaarSnackbar.info(context, 'Menyiapkan enkripsi kamar...');
+      return;
+    }
     try {
       _audioRecorder ??= AudioRecorder();
       final hasPermission = await _audioRecorder!.hasPermission();
@@ -630,9 +650,9 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   void _toggleEmojiPicker() {
     if (_showEmojiPicker) {
       closeEmojiPicker();
-      _focusNode.requestFocus();
+      _effectiveFocusNode.requestFocus();
     } else {
-      _focusNode.unfocus();
+      _effectiveFocusNode.unfocus();
       setState(() => _showEmojiPicker = true);
       widget.onEmojiPanelVisibilityChanged?.call(true);
     }
@@ -1208,7 +1228,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                               child: TextField(
                                 key: const ValueKey('chat_composer_text_field'),
                                 controller: widget.controller,
-                                focusNode: _focusNode,
+                                focusNode: _effectiveFocusNode,
                                 enabled: widget.enabled,
                                 keyboardType: TextInputType.multiline,
                                 textInputAction: TextInputAction.newline,
@@ -1246,7 +1266,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   fontSize: 14,
                                   color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
                                 ),
-                                onSubmitted: (_) => widget.enabled ? widget.onSend() : null,
+                                onSubmitted: (_) => widget.enabled ? _handleSend() : null,
                                 onTap: closeEmojiPicker,
                               ),
                             ),
@@ -1286,14 +1306,16 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                         child: PressableScale(
                           onTap: !widget.enabled
                               ? null
-                              : (_isEditMode || _hasText ? widget.onSend : _startRecording),
+                              : (_isEditMode || _hasText ? _handleSend : _startRecording),
                           child: Center(
                             child: Icon(
                               _isEditMode
                                   ? SolarIconsOutline.checkCircle
                                   : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
                               color: (_isEditMode || _hasText)
-                                  ? primaryAccent
+                                  ? (widget.canSend
+                                      ? primaryAccent
+                                      : primaryAccent.withValues(alpha: 0.5))
                                   : (widget.roomThemeSpec?.iconColor ?? MekaarColors.textPrimaryOf(context)),
                               size: 22,
                             ),

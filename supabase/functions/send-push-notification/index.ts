@@ -197,30 +197,51 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // ── 0. Validasi Webhook Secret (Mencegah Pemalsuan Notifikasi / Spoofing) ──
-  const expectedSecret = Deno.env.get("PUSH_WEBHOOK_SECRET");
-  if (expectedSecret) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // ── 0. Otorisasi Ganda: Webhook Secret (pg_net) ATAU User JWT Bearer Token (Flutter Client) ──
+    const expectedSecret = Deno.env.get("PUSH_WEBHOOK_SECRET");
     const incomingSecret =
       req.headers.get("x-webhook-secret") ||
       req.headers.get("x-push-webhook-secret");
-    if (!incomingSecret || incomingSecret !== expectedSecret) {
-      console.warn("⛔ Unauthorized push notification invocation: Invalid or missing webhook secret.");
+    const authHeader = req.headers.get("Authorization");
+
+    let isAuthorized = false;
+
+    // 1. Jalur Webhook Database (pg_net)
+    if (expectedSecret && incomingSecret === expectedSecret) {
+      isAuthorized = true;
+    }
+    // 2. Jalur Fallback Klien Flutter Terotentikasi (JWT Bearer Token)
+    else if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const authClient = createClient(supabaseUrl, supabaseAnonKey);
+      const {
+        data: { user },
+        error,
+      } = await authClient.auth.getUser(token);
+      if (user && !error) {
+        isAuthorized = true;
+      }
+    }
+    // 3. Fallback jika secret belum disetel (Development / Testing)
+    else if (!expectedSecret) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      console.warn("⛔ Unauthorized push notification invocation: Invalid or missing webhook secret/auth token.");
       return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid webhook secret" }),
+        JSON.stringify({ error: "Unauthorized: Missing valid auth token or webhook secret" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
-  }
-
-  try {
-    // Webhook dari pg_net dikirim tanpa Authorization header,
-    // jadi kita pakai service_role key untuk akses Supabase.
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     // Edge Function bertindak sebagai backend terpercaya (privileged service).
     // Selalu gunakan service_role key agar dapat mengambil fcm_token penerima

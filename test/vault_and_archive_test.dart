@@ -25,6 +25,15 @@ class MockChatRoomsNotifier
     bool screenshotEnabled = true,
   }) async =>
       'dummy-room';
+
+  @override
+  void updateLastMessageLocally({
+    required String roomId,
+    required String previewText,
+    required DateTime timestamp,
+    required bool isFromOtherUser,
+    required bool isCurrentlyInRoom,
+  }) {}
 }
 
 class MockVaultNotifier

@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/emoji_shortcode_parser.dart';
+import '../../../data/models/message_model.dart';
+import '../../../data/services/e2ee_service.dart';
+import '../../../data/services/local_message_database.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import '../../settings/providers/trip_monitor_scheduler.dart';
@@ -48,21 +52,92 @@ class MessageNotificationListener {
 
     final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
     if (roomId == null || senderId == null || currentUserId == null) return;
+    if (isDeleted) return;
 
-    // Refresh daftar chat rooms secara real-time agar unread badge, urutan room,
-    // dan preview pesan langsung ter-update di chat list & bottom nav bar.
-    _ref.read(chatRoomsProvider.notifier).refreshRooms();
+    final activeRoomId = _ref.read(activeRoomIdProvider);
+    final isCurrentlyInRoom = activeRoomId == roomId;
+    final isFromOtherUser = senderId != currentUserId;
 
-    // 1. Echo broadcast: abaikan pesan sendiri.
-    // 2. User sedang di room ini? Jangan ganggu.
-    // 3. Pesan yang di-soft-delete tidak perlu notif.
-    // 4. Dedup: abaikan jika sudah dinotifikasi dari jalur FCM.
+    // Pembaruan Optimistik Local-First:
+    // Dekripsi background, simpan ke database SQLite lokal, dan mutasi RAM seketika (0 ms).
+    unawaited(
+      _processLocalFirstUpdate(
+        newRow: newRow,
+        roomId: roomId,
+        senderId: senderId,
+        rawContent: content,
+        isEncrypted: isEncrypted,
+        msgType: msgType,
+        isFromOtherUser: isFromOtherUser,
+        isCurrentlyInRoom: isCurrentlyInRoom,
+        currentUserId: currentUserId,
+      ),
+    );
+  }
+
+  Future<void> _processLocalFirstUpdate({
+    required Map<String, dynamic> newRow,
+    required String roomId,
+    required String senderId,
+    required String rawContent,
+    required bool isEncrypted,
+    required String msgType,
+    required bool isFromOtherUser,
+    required bool isCurrentlyInRoom,
+    required String currentUserId,
+  }) async {
+    String decryptedContent = rawContent;
+    Message? messageObj;
+
+    try {
+      messageObj = Message.fromJson(newRow);
+    } catch (_) {}
+
+    if (isEncrypted && rawContent.isNotEmpty) {
+      try {
+        decryptedContent =
+            await E2eeService.instance.decryptForRoom(roomId, rawContent);
+        if (messageObj != null) {
+          messageObj = messageObj.copyWith(content: decryptedContent);
+        }
+      } catch (_) {
+        decryptedContent = E2eeService.undecryptableText;
+      }
+    }
+
+    if (messageObj != null) {
+      unawaited(LocalMessageDatabase.instance.saveMessage(messageObj));
+    }
+
+    final isStillEncrypted = isEncrypted && decryptedContent == rawContent;
+
+    final previewText = formatPreviewText(
+      msgType: msgType,
+      content: decryptedContent,
+      isEncrypted: isStillEncrypted,
+      isFromOtherUser: isFromOtherUser,
+    );
+
+    final createdAt = messageObj?.createdAt ??
+        (DateTime.tryParse(newRow['created_at'] as String? ?? '') ??
+            DateTime.now());
+
+    // Update RAM seketika tanpa query HTTP monolitik
+    _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+      roomId: roomId,
+      previewText: previewText,
+      timestamp: createdAt,
+      isFromOtherUser: isFromOtherUser,
+      isCurrentlyInRoom: isCurrentlyInRoom,
+    );
+
+    // Filter notifikasi sistem (suara, banner, dsb)
     if (!shouldNotify(
       currentUserId: currentUserId,
       senderId: senderId,
       roomId: roomId,
       activeRoomId: _ref.read(activeRoomIdProvider),
-      isDeleted: isDeleted,
+      isDeleted: false,
     )) {
       return;
     }
@@ -77,7 +152,42 @@ class MessageNotificationListener {
       NotificationDedupService.markNotified('msg_$messageId');
     }
 
-    _notify(roomId, senderId, content, isEncrypted, msgType: msgType);
+    _notify(
+      roomId,
+      senderId,
+      decryptedContent,
+      isStillEncrypted,
+      msgType: msgType,
+    );
+  }
+
+  /// Format cuplikan teks untuk preview daftar chat
+  static String formatPreviewText({
+    required String msgType,
+    required String content,
+    required bool isEncrypted,
+    required bool isFromOtherUser,
+  }) {
+    if (isEncrypted) {
+      return isFromOtherUser ? 'Pesan baru' : '••••••••';
+    }
+    switch (msgType) {
+      case 'image':
+        return isFromOtherUser ? '📷 Foto baru' : '📷 Foto';
+      case 'video':
+        return isFromOtherUser ? '🎥 Video baru' : '🎥 Video';
+      case 'voice':
+        return isFromOtherUser ? '🎤 Pesan suara baru' : '🎤 Pesan Suara';
+      case 'location':
+        return isFromOtherUser ? '📍 Lokasi baru' : '📍 Lokasi';
+      case 'file':
+        return isFromOtherUser ? '📎 File baru' : '📎 Dokumen';
+      case 'system':
+        return content;
+      default:
+        final parsed = replaceCustomEmojiTokens(content, (_) => '[emoji]');
+        return parsed.isNotEmpty ? parsed : 'Pesan baru';
+    }
   }
 
   /// Dipanggil saat ada perubahan pesan (update/soft-delete) di tabel messages
