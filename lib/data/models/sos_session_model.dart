@@ -9,6 +9,7 @@ class SOSSession {
   final bool micEnabled;
   final bool videoEnabled;
   final String? endedReason; // 'manual' | 'timer' | 'inactivity'
+  final String? message;
   final DateTime createdAt;
 
   SOSSession({
@@ -22,6 +23,7 @@ class SOSSession {
     this.micEnabled = false,
     this.videoEnabled = false,
     this.endedReason,
+    this.message,
     required this.createdAt,
   });
 
@@ -37,6 +39,7 @@ class SOSSession {
       micEnabled: json['mic_enabled'] as bool? ?? false,
       videoEnabled: json['video_enabled'] as bool? ?? false,
       endedReason: json['ended_reason'] as String?,
+      message: json['message'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -53,6 +56,7 @@ class SOSSession {
       'mic_enabled': micEnabled,
       'video_enabled': videoEnabled,
       'ended_reason': endedReason,
+      'message': message,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -68,6 +72,7 @@ class SOSSession {
     bool? micEnabled,
     bool? videoEnabled,
     String? endedReason,
+    String? message,
     DateTime? createdAt,
   }) {
     return SOSSession(
@@ -81,6 +86,7 @@ class SOSSession {
       micEnabled: micEnabled ?? this.micEnabled,
       videoEnabled: videoEnabled ?? this.videoEnabled,
       endedReason: endedReason ?? this.endedReason,
+      message: message ?? this.message,
       createdAt: createdAt ?? this.createdAt,
     );
   }

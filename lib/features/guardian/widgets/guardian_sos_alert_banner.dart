@@ -7,6 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_banner.dart';
+import '../../../data/services/alarm_service.dart';
 import '../../sos/providers/sos_provider.dart';
 
 /// Provider sesi darurat aktif dari orang yang kita jaga
@@ -38,6 +39,10 @@ class GuardianSOSAlertBanner extends ConsumerWidget {
         final sessionId = first['id'] as String? ?? '';
         final victimName = first['user_name'] as String? ?? 'Seseorang';
         final victimId = first['user_id'] as String? ?? '';
+        final victimMessage = first['message'] as String?;
+
+        final hasTacticalMessage =
+            victimMessage != null && victimMessage.trim().isNotEmpty;
 
         return Padding(
           padding: padding,
@@ -59,62 +64,97 @@ class GuardianSOSAlertBanner extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Sesi SOS sedang aktif • Ketuk untuk lacak',
+                  hasTacticalMessage
+                      ? '💬 "$victimMessage"'
+                      : 'Sesi SOS sedang aktif • Ketuk untuk lacak',
                   style: MekaarTypography.bodySM.copyWith(
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: hasTacticalMessage
+                        ? const Color(0xFFFEF08A) // Soft warning yellow
+                        : Colors.white.withValues(alpha: 0.85),
                     fontSize: 11,
+                    fontWeight: hasTacticalMessage
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ],
             ),
-            action: InkWell(
-              onTap: () {
-                HapticService.trigger(MekaarHapticIntent.destructive);
-                Navigator.pushNamed(
-                  context,
-                  AppRoutes.sosViewer,
-                  arguments: {
-                    'sessionId': sessionId,
-                    'userId': victimId,
-                    'userName': victimName,
+            action: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    AlarmService.stopSOSAlarm();
                   },
-                );
-              },
-              borderRadius: BorderRadius.circular(MekaarRadius.sm),
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 36),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
                   borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 36, minWidth: 36),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     ),
-                  ],
+                    child: const Icon(
+                      SolarIconsOutline.volumeCross,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      SolarIconsBold.routing,
-                      color: MekaarColors.sosRed,
-                      size: 14,
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.destructive);
+                    AlarmService.stopSOSAlarm();
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.sosViewer,
+                      arguments: {
+                        'sessionId': sessionId,
+                        'userId': victimId,
+                        'userName': victimName,
+                        'message': victimMessage,
+                      },
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Lacak',
-                      style: TextStyle(
-                        color: MekaarColors.sosRed,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          SolarIconsBold.routing,
+                          color: MekaarColors.sosRed,
+                          size: 14,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Lacak',
+                          style: TextStyle(
+                            color: MekaarColors.sosRed,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );

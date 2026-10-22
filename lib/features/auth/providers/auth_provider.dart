@@ -388,10 +388,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(profile: updatedProfile);
     } catch (e) {
       final errorStr = e.toString();
+      if (errorStr.contains('tunggu')) {
+        final match = RegExp(r'Silakan tunggu \d+ hari lagi').firstMatch(errorStr);
+        throw Exception(match?.group(0) ?? 'Username baru saja diubah. Silakan tunggu masa cooldown.');
+      }
       if (errorStr.contains('unique') ||
           errorStr.contains('duplicate') ||
-          errorStr.contains('profiles_username_key')) {
+          errorStr.contains('profiles_username_key') ||
+          errorStr.contains('digunakan')) {
         throw Exception('Username sudah digunakan oleh orang lain.');
+      }
+      if (errorStr.contains('karakter') || errorStr.contains('huruf kecil')) {
+        throw Exception('Username hanya boleh 3-30 karakter (huruf kecil, angka, underscore).');
       }
       throw Exception('Gagal memperbarui username: $e');
     }

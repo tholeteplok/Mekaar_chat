@@ -7,6 +7,7 @@ import 'package:logger/logger.dart';
 import 'package:mekaar_chat/core/navigation/app_navigator.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/data/services/supabase_service.dart';
+import 'package:mekaar_chat/data/services/alarm_service.dart';
 import 'package:mekaar_chat/data/services/notification_service.dart';
 import 'package:mekaar_chat/data/services/push_notification_service.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
@@ -284,6 +285,7 @@ void _handleNotificationRoute(NotificationRoute route) async {
     case NotificationRouteType.sos:
       final sessionId = route.sessionId;
       if (sessionId == null || sessionId.isEmpty) return;
+      AlarmService.stopSOSAlarm();
       Navigator.pushNamed(
         context,
         AppRoutes.sosViewer,

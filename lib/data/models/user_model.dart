@@ -46,6 +46,7 @@ class Profile {
   final bool legalHoldActive;
   final String? legalHoldCaseRef;
   final String chatInvitationMode;
+  final DateTime? usernameLastChangedAt;
 
   Profile({
     required this.id,
@@ -78,9 +79,21 @@ class Profile {
     this.legalHoldActive = false,
     this.legalHoldCaseRef,
     this.chatInvitationMode = 'approved_only',
+    this.usernameLastChangedAt,
   });
 
   bool get hasUsername => username.trim().isNotEmpty;
+
+  int get remainingUsernameCooldownDays {
+    if (usernameLastChangedAt == null) return 0;
+    final diff = DateTime.now().difference(usernameLastChangedAt!).inDays;
+    const cooldownDays = 60;
+    if (diff >= cooldownDays) return 0;
+    final rem = cooldownDays - diff;
+    return rem <= 0 ? 1 : rem;
+  }
+
+  bool get canChangeUsername => remainingUsernameCooldownDays == 0;
 
   factory Profile.fromJson(Map<String, dynamic> json) {
     return Profile(
@@ -123,6 +136,9 @@ class Profile {
       legalHoldActive: json['legal_hold_active'] as bool? ?? false,
       legalHoldCaseRef: json['legal_hold_case_ref'] as String?,
       chatInvitationMode: json['chat_invitation_mode'] as String? ?? 'approved_only',
+      usernameLastChangedAt: json['username_last_changed_at'] != null
+          ? DateTime.parse(json['username_last_changed_at'] as String)
+          : null,
     );
   }
 
@@ -157,6 +173,7 @@ class Profile {
       'legal_hold_active': legalHoldActive,
       'legal_hold_case_ref': legalHoldCaseRef,
       'chat_invitation_mode': chatInvitationMode,
+      'username_last_changed_at': usernameLastChangedAt?.toIso8601String(),
     };
   }
 
@@ -190,6 +207,7 @@ class Profile {
     bool? legalHoldActive,
     String? legalHoldCaseRef,
     String? chatInvitationMode,
+    DateTime? usernameLastChangedAt,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -222,6 +240,8 @@ class Profile {
       legalHoldActive: legalHoldActive ?? this.legalHoldActive,
       legalHoldCaseRef: legalHoldCaseRef ?? this.legalHoldCaseRef,
       chatInvitationMode: chatInvitationMode ?? this.chatInvitationMode,
+      usernameLastChangedAt:
+          usernameLastChangedAt ?? this.usernameLastChangedAt,
     );
   }
 }

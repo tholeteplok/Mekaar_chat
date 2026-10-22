@@ -318,6 +318,7 @@ class AppRoutes {
             sessionId: args['sessionId'] as String? ?? '',
             userId: args['userId'] as String?,
             userName: args['userName'] as String?,
+            initialMessage: args['message'] as String?,
           ),
         );
 
@@ -332,11 +333,20 @@ class AppRoutes {
 
       case AppRoutes.map:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final rawLat = args['latitude'] ?? args['lat'];
+        final rawLon = args['longitude'] ?? args['lon'];
+        final lat = (rawLat is num)
+            ? rawLat.toDouble()
+            : double.tryParse(rawLat?.toString() ?? '') ?? 0.0;
+        final lon = (rawLon is num)
+            ? rawLon.toDouble()
+            : double.tryParse(rawLon?.toString() ?? '') ?? 0.0;
+        final locationName = (args['locationName'] ?? args['title']) as String?;
         return MekaarPageRoute(
           builder: (_) => LocationMapScreen(
-            latitude: args['latitude'] as double,
-            longitude: args['longitude'] as double,
-            locationName: args['locationName'] as String?,
+            latitude: lat,
+            longitude: lon,
+            locationName: locationName,
           ),
         );
 

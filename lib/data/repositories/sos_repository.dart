@@ -203,6 +203,40 @@ class SOSRepository {
     }
   }
 
+  Future<void> updateSessionMessage(String sessionId, String message) async {
+    try {
+      await _supabaseService.client
+          .from('sos_sessions')
+          .update({'message': message})
+          .eq('id', sessionId);
+    } catch (_) {
+      // Non-fatal fallback
+    }
+  }
+
+  Future<Map<String, dynamic>?> getSessionById(String sessionId) async {
+    try {
+      final response = await _supabaseService.client
+          .from('sos_sessions')
+          .select('*, profiles:user_id(username, full_name, email, avatar_url)')
+          .eq('id', sessionId)
+          .maybeSingle();
+      if (response == null) return null;
+      final sessionMap = Map<String, dynamic>.from(response);
+      if (sessionMap['profiles'] is Map) {
+        final profile = sessionMap['profiles'] as Map<String, dynamic>;
+        sessionMap['user_name'] =
+            profile['full_name'] as String? ??
+            profile['username'] as String? ??
+            'User';
+        sessionMap['user_email'] = profile['email'] as String? ?? '';
+      }
+      return sessionMap;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>?> getOwnActiveSessionWithPing() async {
     try {
       final userId = _supabaseService.currentUserId;

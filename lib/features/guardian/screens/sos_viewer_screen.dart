@@ -2,11 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
+import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/mekaar_map_preview.dart';
+import '../../../data/services/alarm_service.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -33,12 +38,14 @@ class SOSViewerScreen extends ConsumerStatefulWidget {
   final String sessionId;
   final String? userId;
   final String? userName;
+  final String? initialMessage;
 
   const SOSViewerScreen({
     super.key,
     required this.sessionId,
     this.userId,
     this.userName,
+    this.initialMessage,
   });
 
   @override
@@ -50,10 +57,11 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   bool _hasError = false;
   DateTime? _updatedAt;
   Map<String, dynamic>? _ping;
+  String? _currentMessage;
   Timer? _autoRefreshTimer;
 
   // WebRTC Streaming
-  late final SosStreamingService _streamingService;
+  SosStreamingService? _streamingService;
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   SosStreamState _streamState = SosStreamState.idle;
   bool _hasRemoteVideo = false;
@@ -61,6 +69,8 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   @override
   void initState() {
     super.initState();
+    _currentMessage = widget.initialMessage;
+    AlarmService.stopSOSAlarm();
     _initWebRtc();
     _loadPing();
 
@@ -73,13 +83,14 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   Future<void> _initWebRtc() async {
     try {
       await _remoteRenderer.initialize();
-      _streamingService = SosStreamingService(Supabase.instance.client);
+      final service = SosStreamingService(Supabase.instance.client);
+      _streamingService = service;
 
-      _streamingService.onStreamStateChange = (state) {
+      service.onStreamStateChange = (state) {
         if (mounted) setState(() => _streamState = state);
       };
 
-      _streamingService.onRemoteStream = (stream) {
+      service.onRemoteStream = (stream) {
         if (mounted) {
           setState(() {
             _remoteRenderer.srcObject = stream;
@@ -90,7 +101,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
 
       final myUserId = SupabaseService().currentUserId;
       if (myUserId != null) {
-        await _streamingService.joinStream(
+        await service.joinStream(
           sessionId: widget.sessionId,
           myUserId: myUserId,
         );
@@ -101,7 +112,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
-    _streamingService.cleanUp();
+    _streamingService?.cleanUp();
     _remoteRenderer.dispose();
     super.dispose();
   }
@@ -117,9 +128,13 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
     final repo = ref.read(sosRepositoryProvider);
     try {
       final ping = await repo.getLatestLocationPing(widget.sessionId);
+      final sessionData = await repo.getSessionById(widget.sessionId);
       if (!mounted) return;
       setState(() {
         _ping = ping;
+        if (sessionData != null && sessionData['message'] != null) {
+          _currentMessage = sessionData['message'] as String?;
+        }
         _isLoading = false;
         _updatedAt = DateTime.now();
       });
@@ -227,6 +242,15 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
         subtitle: 'Pemantauan darurat real-time',
         actions: [
           IconButton(
+            icon: const Icon(SolarIconsOutline.volumeCross),
+            tooltip: 'Hentikan Alarm Suara',
+            onPressed: () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              AlarmService.stopSOSAlarm();
+              MekaarSnackbar.info(context, 'Alarm suara darurat dimatikan');
+            },
+          ),
+          IconButton(
             icon: const Icon(SolarIconsOutline.refresh),
             onPressed: _isLoading ? null : _loadPing,
           ),
@@ -260,6 +284,9 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ── 0. Pesan Darurat Taktis Korban (Prioritas Tertinggi) ──
+          _buildTacticalEmergencyBanner(),
+
           // ── 1. Video Stream Player jika aktif ──
           if (_hasRemoteVideo && _remoteRenderer.srcObject != null) ...[
             _buildVideoStreamCard(),
@@ -282,6 +309,122 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
             ),
 
           if (_ping != null) _buildPingCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTacticalEmergencyBanner() {
+    if (_currentMessage == null || _currentMessage!.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final isSilentHiding = _currentMessage!
+            .toLowerCase()
+            .contains('sembunyi') ||
+        _currentMessage!.toLowerCase().contains('jangan telepon');
+
+    return CustomCard(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      color: isSilentHiding
+          ? const Color(0xFF450A0A) // Dark tactical crimson
+          : const Color(0xFF422006), // Dark amber
+      borderRadius: MekaarRadius.md,
+      border: Border.all(
+        color: isSilentHiding
+            ? const Color(0xFFEF4444)
+            : const Color(0xFFF59E0B),
+        width: 1.5,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isSilentHiding
+                    ? SolarIconsBold.volumeCross
+                    : SolarIconsBold.dangerTriangle,
+                color: isSilentHiding
+                    ? const Color(0xFFFCA5A5)
+                    : const Color(0xFFFDE68A),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isSilentHiding
+                      ? '⚠️ PERINGATAN VITAL KORBAN'
+                      : 'PESAN DARURAT KORBAN',
+                  style: MekaarTypography.labelLG.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSilentHiding
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFFD97706),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: const Text(
+                  'PRIORITAS TINGGI',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(MekaarRadius.sm),
+            ),
+            child: Text(
+              '💬 "${_currentMessage!}"',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+              ),
+            ),
+          ),
+          if (isSilentHiding) ...[
+            const SizedBox(height: 8),
+            const Row(
+              children: [
+                Icon(
+                  SolarIconsBold.shieldWarning,
+                  color: Color(0xFFFCA5A5),
+                  size: 14,
+                ),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'JANGAN TELEPON KORBAN! Suara ponsel dapat membongkar lokasi sembunyi korban ke pelaku.',
+                    style: TextStyle(
+                      color: Color(0xFFFECACA),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -472,6 +615,75 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
           ),
           const SizedBox(height: 14),
 
+          // Pratinjau Peta Mini Terintegrasi
+          ClipRRect(
+            borderRadius: BorderRadius.circular(MekaarRadius.md),
+            child: SizedBox(
+              height: 180,
+              width: double.infinity,
+              child: Stack(
+                children: [
+                  MekaarMapPreview(
+                    center: LatLng(lat, lon),
+                    zoom: 16,
+                    interactive: false,
+                    radiusMeters: accuracy ?? 50.0,
+                    markerChild: const Icon(
+                      MekaarIcons.location,
+                      color: MekaarColors.sosRed,
+                      size: 38,
+                    ),
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.map,
+                        arguments: {
+                          'latitude': lat,
+                          'longitude': lon,
+                          'locationName': 'Lokasi $userName',
+                        },
+                      );
+                    },
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(MekaarSpacing.xs),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            SolarIconsOutline.maximizeSquareMinimalistic,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Perbesar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
           // Koordinat
           Container(
             padding: const EdgeInsets.all(12),
@@ -524,14 +736,14 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                       context,
                       AppRoutes.map,
                       arguments: {
-                        'lat': lat,
-                        'lon': lon,
-                        'title': 'Lokasi $userName',
+                        'latitude': lat,
+                        'longitude': lon,
+                        'locationName': 'Lokasi $userName',
                       },
                     );
                   },
-                  icon: const Icon(SolarIconsOutline.map),
-                  label: const Text('Lihat di Peta'),
+                  icon: const Icon(SolarIconsOutline.maximizeSquareMinimalistic),
+                  label: const Text('Perbesar Peta'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: MekaarColors.accentOf(context),
                     foregroundColor: Colors.white,

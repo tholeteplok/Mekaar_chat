@@ -12,6 +12,7 @@ import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/services/haptic_service.dart';
@@ -220,7 +221,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   Future<void> _saveUsername() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final newUsername = _usernameController.text.trim();
+    final newUsername = _usernameController.text.trim().toLowerCase();
+    final currentUsername = ref.read(authProvider).profile?.username ?? '';
+
+    if (newUsername == currentUsername) {
+      setState(() => _isEditingUsername = false);
+      return;
+    }
+
     if (newUsername.isEmpty || newUsername.length < 3) {
       if (mounted) {
         MekaarSnackbar.error(context, 'Username minimal 3 karakter.');
@@ -228,22 +236,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       return;
     }
 
+    // 1. Verifikasi PIN Keamanan jika PIN sudah disetel
+    final isPinSet = ref.read(authProvider).isPinSet;
+    if (isPinSet) {
+      final verified = await MekaarPinVerificationSheet.verify(
+        context,
+        title: 'Verifikasi Ganti Username',
+        subtitle: 'Masukkan 6 digit PIN untuk mengonfirmasi perubahan username ke @$newUsername',
+      );
+      if (!verified) {
+        if (mounted) {
+          setState(() {
+            _isEditingUsername = false;
+            _usernameController.text = currentUsername;
+          });
+        }
+        return;
+      }
+    }
+
     setState(() => _isEditingUsername = false);
 
     try {
       await ref.read(authProvider.notifier).updateUsername(newUsername);
       if (mounted) {
-        MekaarSnackbar.success(context, 'Username berhasil diperbarui.');
+        MekaarSnackbar.success(context, 'Username berhasil diperbarui ke @$newUsername');
       }
     } catch (e) {
-      final errorStr = e.toString();
+      final errorStr = e.toString().replaceAll('Exception: ', '');
       if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          errorStr.contains('digunakan')
-              ? 'Username sudah digunakan.'
-              : 'Gagal memperbarui username.',
-        );
+        MekaarSnackbar.error(context, errorStr);
       }
       _usernameController.text = ref.read(authProvider).profile?.username ?? '';
     }
@@ -294,6 +316,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final wasDuress = authState.lastUnlockWasDuress;
     final user = authState.user;
     final profile = authState.profile;
+    final remDays = profile?.remainingUsernameCooldownDays ?? 0;
+    final isUsernameLocked = remDays > 0;
 
     final userName =
         profile?.displayName ??
@@ -435,8 +459,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             value: username.isNotEmpty
                                 ? '@$username'
                                 : 'Belum diatur',
-                            onToggle: () =>
-                                setState(() => _isEditingUsername = true),
+                            subtitle: isUsernameLocked
+                                ? 'Dapat diubah kembali dalam $remDays hari'
+                                : null,
+                            isLocked: isUsernameLocked,
+                            onToggle: () {
+                              if (isUsernameLocked) {
+                                MekaarSnackbar.info(
+                                  context,
+                                  'Username hanya dapat diubah sekali setiap 60 hari. Sisa waktu: $remDays hari.',
+                                );
+                              } else {
+                                setState(() => _isEditingUsername = true);
+                              }
+                            },
                             onSave: _saveUsername,
                           ),
                           const SizedBox(height: 6),
@@ -600,18 +636,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     required TextEditingController controller,
     required VoidCallback onToggle,
     required VoidCallback onSave,
+    String? subtitle,
+    bool isLocked = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
+        crossAxisAlignment:
+            subtitle != null ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           SizedBox(
             width: 90,
-            child: Text(
-              label,
-              style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textMutedOf(context),
-                fontWeight: FontWeight.w500,
+            child: Padding(
+              padding: EdgeInsets.only(top: subtitle != null ? 2 : 0),
+              child: Text(
+                label,
+                style: MekaarTypography.bodySM.copyWith(
+                  color: MekaarColors.textMutedOf(context),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -642,22 +685,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       hintText: 'Ketik $label...',
                     ),
                   )
-                : Text(
-                    value,
-                    style: MekaarTypography.bodyMD.copyWith(
-                      color: MekaarColors.textPrimaryOf(context),
-                      fontWeight: FontWeight.w600,
-                    ),
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        value,
+                        style: MekaarTypography.bodyMD.copyWith(
+                          color: MekaarColors.textPrimaryOf(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: MekaarTypography.caption.copyWith(
+                            color: MekaarColors.textMutedOf(context),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
           ),
           IconButton(
             icon: Icon(
-              isEditing ? SolarIconsOutline.checkCircle : SolarIconsOutline.pen,
+              isEditing
+                  ? SolarIconsOutline.checkCircle
+                  : (isLocked ? SolarIconsOutline.lockKeyhole : SolarIconsOutline.pen),
               color: isEditing
                   ? MekaarColors.accentTextOf(context)
-                  : MekaarColors.textMutedOf(context),
+                  : (isLocked
+                      ? MekaarColors.textMutedOf(context).withValues(alpha: 0.6)
+                      : MekaarColors.textMutedOf(context)),
               size: 18,
             ),
+            tooltip: isLocked ? 'Terkunci (Cooldown)' : (isEditing ? 'Simpan' : 'Ubah'),
             onPressed: isEditing ? onSave : onToggle,
           ),
         ],

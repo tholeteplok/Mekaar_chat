@@ -17,13 +17,15 @@ import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/models/contact_model.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
-import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/nearby_friends_canvas.dart';
 import '../widgets/private_vault_active_banner.dart';
 
@@ -171,13 +173,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     super.build(context);
     final authState = ref.watch(authProvider);
     final wasDuress = authState.lastUnlockWasDuress;
-    final roomsAsync = ref.watch(chatRoomsProvider);
-    final currentUserId = ref.watch(supabaseServiceProvider).currentUserId;
+    final contactsAsync = ref.watch(userContactsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final nearbyState = ref.watch(nearbyFriendsProvider);
 
-    return roomsAsync.when(
+    return contactsAsync.when(
       loading: () => const MekaarStateView(
         pose: MikaPose.neutral,
         title: 'Memuat Kontak',
@@ -192,59 +193,31 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         title: 'Gagal Memuat Kontak',
         message: ErrorResolver.resolve(err),
         actionLabel: 'Coba Lagi',
-        onAction: () => ref.invalidate(chatRoomsProvider),
+        onAction: () => ref.read(userContactsProvider.notifier).refreshContacts(forceLoading: true),
       ),
-      data: (rooms) {
-        // Saring data room:
-        // 1. Bukan room perangkat sendiri (otherUserId == currentUserId)
-        // 2. Jika vault terkunci, jangan sertakan room yang terdaftar di hiddenRoomIds
-        final contactRooms = rooms.where((r) {
-          if (r['otherUserId'] == currentUserId) return false;
-          if (!isVaultUnlocked && hiddenRoomIds.contains(r['id'])) {
-            return false;
-          }
-          return true;
-        }).toList();
+      data: (items) {
+        final allContacts = wasDuress ? <ContactItem>[] : items;
 
-        // 3. Deduplikasi kontak unik berdasarkan otherUserId (utamakan room non-guardian/normal)
-        final Map<String, Map<String, dynamic>> uniqueContacts = {};
-        for (final room in contactRooms) {
-          final otherUserId = room['otherUserId'] as String;
-          final existing = uniqueContacts[otherUserId];
-          if (existing == null ||
-              (existing['isGuardian'] == true && room['isGuardian'] == false)) {
-            uniqueContacts[otherUserId] = room;
-          }
-        }
-
-        final allContacts = wasDuress
-            ? <Map<String, dynamic>>[]
-            : uniqueContacts.values.toList();
-
-        // 4. Filter berdasarkan pencarian
+        // Filter berdasarkan pencarian
         final filteredContacts = allContacts.where((contact) {
-          final name = (contact['name'] as String).toLowerCase();
-          final username = (contact['otherUsername'] as String).toLowerCase();
-          final email = (contact['otherEmail'] as String).toLowerCase();
+          final name = contact.effectiveName.toLowerCase();
+          final username = contact.username.toLowerCase();
+          final email = (contact.email ?? '').toLowerCase();
           final q = _searchQuery.toLowerCase();
           return name.contains(q) || username.contains(q) || email.contains(q);
         }).toList();
 
-        // 5. Urutkan berdasarkan tab pill filter aktif
+        // Urutkan berdasarkan tab pill filter aktif
         if (_selectedSortIndex == 0) {
           // A-Z: Urutkan secara alfabetis berdasarkan nama
           filteredContacts.sort(
-            (a, b) => (a['name'] as String).toLowerCase().compareTo(
-              (b['name'] as String).toLowerCase(),
+            (a, b) => a.effectiveName.toLowerCase().compareTo(
+              b.effectiveName.toLowerCase(),
             ),
           );
         } else {
-          // Baru Ditambahkan: Urutkan berdasarkan interaksi/penambahan terbaru
-          filteredContacts.sort((a, b) {
-            final dtA = a['timestamp'] as DateTime? ?? DateTime(1970);
-            final dtB = b['timestamp'] as DateTime? ?? DateTime(1970);
-            return dtB.compareTo(dtA);
-          });
+          // Baru Ditambahkan: Urutkan berdasarkan waktu penambahan kontak
+          filteredContacts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         }
 
         return Scaffold(
@@ -441,8 +414,71 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     );
   }
 
+  Future<void> _openChat(ContactItem contact) async {
+    try {
+      final roomId = await ref.read(chatRoomsProvider.notifier).getOrCreateRoom(
+        contact.contactUserId,
+        contact.isGuardian ? 'guardian' : 'normal',
+      );
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        AppRoutes.chat,
+        arguments: {
+          'chatId': roomId,
+          'chatName': contact.effectiveName,
+          'chatAvatar': contact.effectiveName.isNotEmpty
+              ? contact.effectiveName[0].toUpperCase()
+              : '?',
+          'chatAvatarUrl': contact.avatarUrl,
+          'isGuardian': contact.isGuardian,
+          'otherUserId': contact.contactUserId,
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal membuka obrolan: $e');
+      }
+    }
+  }
+
+  void _confirmDeleteContact(BuildContext context, ContactItem contact) {
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Hapus Kontak ${contact.effectiveName}?',
+      message:
+          'Kontak ini akan dihapus dari daftar kontak Anda. Seluruh riwayat obrolan bilateral dengannya juga akan dibersihkan secara otomatis.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () async {
+            Navigator.pop(context);
+            await ref
+                .read(userContactsProvider.notifier)
+                .deleteContact(contact.contactUserId);
+            if (context.mounted) {
+              MekaarSnackbar.success(
+                context,
+                'Kontak dan obrolan berhasil dihapus.',
+              );
+            }
+          },
+          child: const Text('Hapus Kontak & Chat'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildContactsCard(
-    List<Map<String, dynamic>> contacts,
+    List<ContactItem> contacts,
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
@@ -477,7 +513,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   }
 
   Widget _buildContactsGridContent(
-    List<Map<String, dynamic>> contacts,
+    List<ContactItem> contacts,
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
@@ -499,31 +535,18 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         ),
         itemBuilder: (context, index) {
           final contact = contacts[index];
-          final name = contact['name'] as String;
-          final avatar = contact['avatar'] as String;
-          final isGuardian = contact['isGuardian'] as bool? ?? false;
-          final isHidden = hiddenRoomIds.contains(contact['id']);
-          final username = contact['otherUsername'] as String;
-          final email = contact['otherEmail'] as String;
+          final name = contact.effectiveName;
+          final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
+          final isGuardian = contact.isGuardian;
+          final isHidden = contact.roomId != null && hiddenRoomIds.contains(contact.roomId);
+          final username = contact.username;
+          final email = contact.email ?? '';
 
           return Material(
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  AppRoutes.chat,
-                  arguments: {
-                    'chatId': contact['id'],
-                    'chatName': name,
-                    'chatAvatar': avatar,
-                    'chatAvatarUrl': contact['avatarUrl'] as String?,
-                    'isGuardian': isGuardian,
-                    'otherUserId': contact['otherUserId'] as String?,
-                  },
-                );
-              },
+              onTap: () => _openChat(contact),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Column(
@@ -534,7 +557,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       alignment: Alignment.bottomRight,
                       children: [
                         Avatar(
-                          imageUrl: contact['avatarUrl'] as String?,
+                          imageUrl: contact.avatarUrl,
                           initial: avatar,
                           isGuardian: isGuardian,
                           size: 52,
@@ -644,7 +667,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   }
 
   Widget _buildContactsListContent(
-    List<Map<String, dynamic>> contacts,
+    List<ContactItem> contacts,
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
@@ -665,38 +688,22 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       ),
       itemBuilder: (context, index) {
         final contact = contacts[index];
-        final name = contact['name'] as String;
-        final avatar = contact['avatar'] as String;
-        final isGuardian = contact['isGuardian'] as bool? ?? false;
-        final isHidden = hiddenRoomIds.contains(contact['id']);
-        final username = contact['otherUsername'] as String;
-        final email = contact['otherEmail'] as String;
+        final name = contact.effectiveName;
+        final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
+        final isGuardian = contact.isGuardian;
+        final isHidden = contact.roomId != null && hiddenRoomIds.contains(contact.roomId);
+        final username = contact.username;
+        final email = contact.email ?? '';
 
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.chat,
-                arguments: {
-                  'chatId': contact['id'],
-                  'chatName': name,
-                  'chatAvatar': avatar,
-                  'chatAvatarUrl': contact['avatarUrl'] as String?,
-                  'isGuardian': isGuardian,
-                  'otherUserId': contact['otherUserId'] as String?,
-                },
-              );
-            },
+            onTap: () => _openChat(contact),
             onLongPress: () {
               HapticService.trigger(MekaarHapticIntent.selection);
               _showContactContextMenu(
                 context,
                 contact,
-                name,
-                avatar,
-                isGuardian,
               );
             },
             child: Padding(
@@ -704,7 +711,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               child: Row(
                 children: [
                   Avatar(
-                    imageUrl: contact['avatarUrl'] as String?,
+                    imageUrl: contact.avatarUrl,
                     initial: avatar,
                     isGuardian: isGuardian,
                     size: 48,
@@ -811,10 +818,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         context,
                         AppRoutes.contactSettings,
                         arguments: {
-                          'roomId': contact['id'],
+                          'roomId': contact.roomId ?? '',
                           'chatName': name,
                           'chatAvatar': avatar,
-                          'otherUserId': contact['otherUserId'] as String?,
+                          'otherUserId': contact.contactUserId,
                           'isGuardian': isGuardian,
                         },
                       );
@@ -832,11 +839,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
   void _showContactContextMenu(
     BuildContext context,
-    Map<String, dynamic> contact,
-    String name,
-    String avatar,
-    bool isGuardian,
+    ContactItem contact,
   ) {
+    final name = contact.effectiveName;
+    final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final isGuardian = contact.isGuardian;
+
     MekaarBottomSheet.show(
       context: context,
       showDragHandle: true,
@@ -853,7 +861,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 child: Row(
                   children: [
                     Avatar(
-                      imageUrl: contact['avatarUrl'] as String?,
+                      imageUrl: contact.avatarUrl,
                       initial: avatar,
                       isGuardian: isGuardian,
                       size: 40,
@@ -881,18 +889,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 title: const Text('Buka Obrolan'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.chat,
-                    arguments: {
-                      'chatId': contact['id'],
-                      'chatName': name,
-                      'chatAvatar': avatar,
-                      'chatAvatarUrl': contact['avatarUrl'] as String?,
-                      'isGuardian': isGuardian,
-                      'otherUserId': contact['otherUserId'] as String?,
-                    },
-                  );
+                  _openChat(contact);
                 },
               ),
               ListTile(
@@ -907,10 +904,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     context,
                     AppRoutes.contactSettings,
                     arguments: {
-                      'roomId': contact['id'],
+                      'roomId': contact.roomId ?? '',
                       'chatName': name,
                       'chatAvatar': avatar,
-                      'otherUserId': contact['otherUserId'] as String?,
+                      'otherUserId': contact.contactUserId,
                       'isGuardian': isGuardian,
                     },
                   );
@@ -918,16 +915,16 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               ),
               ListTile(
                 leading: const Icon(
-                  SolarIconsOutline.shieldCheck,
-                  color: MekaarColors.guardianTeal,
+                  SolarIconsOutline.userCross,
+                  color: MekaarColors.sosRed,
                 ),
-                title: const Text('Pengaturan Privasi Obrolan'),
+                title: const Text(
+                  'Hapus Kontak',
+                  style: TextStyle(color: MekaarColors.sosRed),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ChatRoomPrivacySheet.show(
-                    context,
-                    roomId: contact['id'] as String,
-                  );
+                  _confirmDeleteContact(context, contact);
                 },
               ),
               const SizedBox(height: 8),

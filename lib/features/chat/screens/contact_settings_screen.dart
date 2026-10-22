@@ -26,6 +26,7 @@ import '../../chat/widgets/chat_room_privacy_sheet.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/repositories/report_repository.dart';
+import '../../../data/repositories/contact_repository.dart';
 
 class ContactSettingsScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -842,7 +843,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               color: MekaarColors.sosRed,
                             ),
                             title: const Text('Hapus Chat (Hanya Saya)'),
-                            subtitle: const Text('Hapus dari daftar chat Anda; obrolan rekan tidak terhapus'),
+                            subtitle: const Text('Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak'),
                             titleTextStyle: const TextStyle(
                               color: MekaarColors.sosRed,
                               fontWeight: FontWeight.w600,
@@ -856,7 +857,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                 context: context,
                                 title: 'Hapus Chat dari Daftar Anda?',
                                 message:
-                                    'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Rekan obrolan tetap dapat melihat percakapan ini.',
+                                    'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Kontak ini tetap tersimpan di daftar kontak Anda, dan rekan obrolan tetap dapat melihat percakapan ini.',
                                 isDestructive: true,
                                 actions: [
                                   TextButton(
@@ -878,6 +879,60 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                       }
                                     },
                                     child: const Text('Hapus (Hanya Saya)'),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const MekaarCardDivider(),
+
+                          // Hapus Kontak (Otomatis Menghapus Percakapan)
+                          ListTile(
+                            leading: const Icon(
+                              SolarIconsOutline.userCross,
+                              color: MekaarColors.sosRed,
+                            ),
+                            title: const Text('Hapus Kontak'),
+                            subtitle: const Text('Hapus dari buku kontak dan bersihkan seluruh riwayat chat'),
+                            titleTextStyle: const TextStyle(
+                              color: MekaarColors.sosRed,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            subtitleTextStyle: TextStyle(
+                              fontSize: 12,
+                              color: MekaarColors.textSecondaryOf(context),
+                            ),
+                            onTap: () {
+                              MekaarDialog.showConfirmation<void>(
+                                context: context,
+                                title: 'Hapus Kontak ${widget.chatName}?',
+                                message:
+                                    'Kontak ini akan dihapus dari daftar kontak Anda. Seluruh riwayat obrolan bilateral dengannya juga akan dibersihkan secara otomatis.',
+                                isDestructive: true,
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Batal'),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: MekaarColors.sosRed,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      Navigator.pop(context);
+                                      await ref
+                                          .read(userContactsProvider.notifier)
+                                          .deleteContact(widget.otherUserId);
+                                      if (context.mounted) {
+                                        MekaarSnackbar.success(
+                                          context,
+                                          'Kontak dan obrolan berhasil dihapus.',
+                                        );
+                                        Navigator.of(context).pop();
+                                      }
+                                    },
+                                    child: const Text('Hapus Kontak & Chat'),
                                   ),
                                 ],
                               );

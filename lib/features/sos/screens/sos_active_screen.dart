@@ -86,11 +86,24 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
 
   Future<void> _sendSilentEmergencyMessage(String templateText) async {
     HapticService.trigger(MekaarHapticIntent.selection);
+
+    // 1. Update kolom message pada tabel sos_sessions secara instan di database
+    final sosState = ref.read(sosProvider);
+    final sessionId = sosState.activeSession?.id;
+    if (sessionId != null) {
+      try {
+        final sosRepo = ref.read(sosRepositoryProvider);
+        await sosRepo.updateSessionMessage(sessionId, templateText);
+      } catch (_) {}
+    }
+
+    // 2. Kirim pesan ke room chat semua guardian aktif menggunakan guardian.guardianId
+    if (!mounted) return;
     final activeGuardians = activeGuardiansOf(ref.read(guardianProvider));
     if (activeGuardians.isEmpty) {
       MekaarSnackbar.warning(
         context,
-        'Tidak ada Guardian aktif yang terhubung.',
+        'Pesan darurat tersimpan, namun tidak ada Guardian aktif yang terhubung.',
       );
       return;
     }
@@ -100,7 +113,10 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
 
     for (final guardian in activeGuardians) {
       try {
-        final roomId = await chatRepo.createRoom(guardian.id, 'guardian');
+        final roomId = await chatRepo.createRoom(
+          guardian.guardianId,
+          'guardian',
+        );
         await chatRepo.sendMessage(
           roomId,
           '🚨 [PESAN DARURAT SENYAP]: $templateText',
@@ -114,12 +130,12 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
       HapticService.trigger(MekaarHapticIntent.success);
       MekaarSnackbar.info(
         context,
-        'Pesan senyap berhasil dikirim ke $sentCount Guardian',
+        'Pesan senyap terkirim ke $sentCount Guardian & layar pantau.',
       );
     } else {
-      MekaarSnackbar.error(
+      MekaarSnackbar.warning(
         context,
-        'Gagal mengirimkan pesan senyap ke Guardian.',
+        'Pesan darurat tersimpan di radar SOS.',
       );
     }
   }

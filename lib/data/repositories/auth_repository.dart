@@ -240,21 +240,46 @@ class AuthRepository {
     return signInWithEmail(email, password);
   }
 
-  // Update username in profiles table
+  // Update username in profiles table (dengan validasi cooldown via RPC / timestamp)
   Future<Profile> updateUsername(String username) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
 
-    final response = await _supabaseService.client
-        .from('profiles')
-        .update({
-          'username': username,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', userId)
-        .select()
-        .single();
-    return Profile.fromJson(response);
+    final clean = username.trim().toLowerCase();
+
+    // 1. Coba panggil RPC change_username yang memvalidasi format, keunikan, dan cooldown 60 hari
+    try {
+      await _supabaseService.client.rpc(
+        'change_username',
+        params: {'p_new_username': clean},
+      );
+      final refreshed = await getProfile();
+      if (refreshed != null) return refreshed;
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('tunggu') ||
+          msg.contains('digunakan') ||
+          msg.contains('karakter') ||
+          msg.contains('huruf kecil')) {
+        rethrow;
+      }
+      // Fallback update langsung jika RPC belum tersedia di server
+      final response = await _supabaseService.client
+          .from('profiles')
+          .update({
+            'username': clean,
+            'username_last_changed_at': DateTime.now().toUtc().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', userId)
+          .select()
+          .single();
+      return Profile.fromJson(response);
+    }
+
+    final p = await getProfile();
+    if (p == null) throw Exception('Profil tidak ditemukan');
+    return p;
   }
 
   // Update display name in profiles table
