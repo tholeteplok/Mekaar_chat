@@ -15,6 +15,9 @@ CREATE INDEX IF NOT EXISTS idx_user_contacts_user_vaulted
 ON public.user_contacts(user_id, is_vaulted);
 
 -- 2. Perbarui user_contacts_view
+-- Catatan: Wajib DROP VIEW terlebih dahulu agar PostgreSQL mengizinkan penambahan/perubahan posisi kolom view (SQLSTATE 42P16)
+DROP VIEW IF EXISTS public.user_contacts_view;
+
 CREATE OR REPLACE VIEW public.user_contacts_view
 WITH (security_barrier = true)
 AS
