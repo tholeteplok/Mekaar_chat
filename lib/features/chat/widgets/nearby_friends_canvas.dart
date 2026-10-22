@@ -107,6 +107,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     final showPreview = ref.watch(nearbyPreviewPreferenceProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
 
     final screenH = MediaQuery.sizeOf(context).height;
@@ -116,12 +117,15 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     final dynamicHeight =
         maxH - (maxH - minH) * collapseProgress.clamp(0.0, 1.0);
 
-    // Kumpulkan userId dari room yang disembunyikan jika vault terkunci (anti-leak)
+    // Kumpulkan userId dari room dan kontak yang disembunyikan jika vault terkunci (anti-leak)
     final hiddenUserIds = <String>{};
-    if (!isVaultUnlocked && hiddenRoomIds.isNotEmpty) {
-      for (final r in chatRooms) {
-        if (hiddenRoomIds.contains(r['id']) && r['otherUserId'] != null) {
-          hiddenUserIds.add(r['otherUserId'] as String);
+    if (!isVaultUnlocked) {
+      hiddenUserIds.addAll(hiddenContactUserIds);
+      if (hiddenRoomIds.isNotEmpty) {
+        for (final r in chatRooms) {
+          if (hiddenRoomIds.contains(r['id']) && r['otherUserId'] != null) {
+            hiddenUserIds.add(r['otherUserId'] as String);
+          }
         }
       }
     }

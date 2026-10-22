@@ -276,8 +276,9 @@ class MessageNotificationListener {
       }
     }
 
-    // Cek apakah room disembunyikan dalam Private Contact Vault
-    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId);
+    // Cek apakah room/sender disembunyikan dalam Private Contact Vault
+    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId) ||
+        _ref.read(hiddenContactUserIdsProvider).contains(senderId);
     final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
     final isStealthPreview = _ref.read(stealthChatPreviewProvider);
 

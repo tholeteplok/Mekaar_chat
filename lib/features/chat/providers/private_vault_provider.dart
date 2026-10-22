@@ -18,6 +18,55 @@ final hiddenRoomIdsProvider =
   return HiddenRoomIdsNotifier(repo);
 });
 
+/// Notifier reaktif untuk daftar ID kontak (contactUserId) yang disembunyikan
+final hiddenContactUserIdsProvider =
+    StateNotifierProvider<HiddenContactUserIdsNotifier, Set<String>>((ref) {
+  final repo = ref.watch(privateContactRepositoryProvider);
+  return HiddenContactUserIdsNotifier(repo);
+});
+
+class HiddenContactUserIdsNotifier extends StateNotifier<Set<String>> {
+  final PrivateContactRepository _repo;
+
+  HiddenContactUserIdsNotifier(this._repo) : super(<String>{}) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _repo.preloadCache();
+    await loadHiddenContacts();
+  }
+
+  Future<void> loadHiddenContacts() async {
+    final ids = await _repo.getHiddenContactUserIds();
+    state = ids;
+  }
+
+  Future<bool> toggleHide(String contactUserId) async {
+    final isHidden = await _repo.toggleHideContact(contactUserId);
+    final updated = Set<String>.from(state);
+    if (isHidden) {
+      updated.add(contactUserId);
+    } else {
+      updated.remove(contactUserId);
+    }
+    state = updated;
+    return isHidden;
+  }
+
+  Future<void> removeContact(String contactUserId) async {
+    await _repo.removeHiddenContact(contactUserId);
+    final updated = Set<String>.from(state);
+    if (updated.remove(contactUserId)) {
+      state = updated;
+    }
+  }
+
+  bool isHidden(String contactUserId) {
+    return state.contains(contactUserId);
+  }
+}
+
 class HiddenRoomIdsNotifier extends StateNotifier<Set<String>> {
   final PrivateContactRepository _repo;
 

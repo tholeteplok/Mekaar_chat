@@ -439,7 +439,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 Consumer(
                   builder: (context, ref, _) {
                     final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
-                    final isHidden = hiddenRooms.contains(widget.roomId);
+                    final hiddenUsers = ref.watch(hiddenContactUserIdsProvider);
+                    final isHidden = hiddenUsers.contains(widget.otherUserId) ||
+                        hiddenRooms.contains(widget.roomId);
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -469,13 +471,24 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                 : SolarIconsOutline.eyeClosed,
                             label: isHidden ? 'Tampilkan' : 'Sembunyikan',
                             isActive: isHidden,
-                            onTap: () =>
+                            onTap: () {
+                              if (widget.otherUserId.isNotEmpty) {
+                                PrivateVaultDialogs.toggleContactHiddenWithAuth(
+                                  context,
+                                  ref,
+                                  contactUserId: widget.otherUserId,
+                                  contactName: widget.chatName,
+                                  roomId: widget.roomId,
+                                );
+                              } else {
                                 PrivateVaultDialogs.toggleRoomHiddenWithAuth(
                                   context,
                                   ref,
                                   roomId: widget.roomId,
                                   chatName: widget.chatName,
-                                ),
+                                );
+                              }
+                            },
                           ),
                         ],
                       ),

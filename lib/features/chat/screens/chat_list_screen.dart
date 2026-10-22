@@ -69,6 +69,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   int? _lastTabIndex;
   Set<String>? _lastBlockedIds;
   Set<String>? _lastHiddenIds;
+  Set<String>? _lastHiddenContactIds;
   bool? _lastVaultUnlocked;
 
   int _computeRoomsSignature(List<Map<String, dynamic>> rooms) {
@@ -281,7 +282,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final isMuted = room['isMuted'] as bool? ?? false;
     final unreadCount = room['unreadCount'] as int? ?? 0;
     final hiddenRooms = ref.read(hiddenRoomIdsProvider);
-    final isHidden = hiddenRooms.contains(roomId);
+    final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
+    final isHidden = hiddenRooms.contains(roomId) ||
+        (otherUserId != null && hiddenUsers.contains(otherUserId));
 
     MekaarBottomSheet.show(
       context: context,
@@ -375,6 +378,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ref,
                 roomId: roomId,
                 chatName: chatName,
+                otherUserId: otherUserId,
               );
             },
           ),
@@ -1014,6 +1018,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         );
 
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
 
     // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
@@ -1024,6 +1029,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         _lastTabIndex == _selectedTabIndex &&
         setEquals(_lastBlockedIds, blockedIds) &&
         setEquals(_lastHiddenIds, hiddenRoomIds) &&
+        setEquals(_lastHiddenContactIds, hiddenContactUserIds) &&
         _lastVaultUnlocked == isVaultUnlocked;
 
     final List<Map<String, dynamic>> filtered;
@@ -1082,8 +1088,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           return false;
         }
 
-        // 2. Cloaking Private Vault: Sembunyikan obrolan jika vault terkunci
-        if (!isVaultUnlocked && hiddenRoomIds.contains(roomId)) {
+        // 2. Cloaking Private Vault: Sembunyikan obrolan jika vault terkunci (berdasarkan roomId atau contactUserId)
+        final isDirectHidden = otherUserId != null && hiddenContactUserIds.contains(otherUserId);
+        final isRoomHidden = hiddenRoomIds.contains(roomId);
+        if (!isVaultUnlocked && (isDirectHidden || isRoomHidden)) {
           return false;
         }
 
@@ -1110,6 +1118,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       _lastTabIndex = _selectedTabIndex;
       _lastBlockedIds = Set<String>.from(blockedIds);
       _lastHiddenIds = Set<String>.from(hiddenRoomIds);
+      _lastHiddenContactIds = Set<String>.from(hiddenContactUserIds);
       _lastVaultUnlocked = isVaultUnlocked;
     }
 
@@ -1173,7 +1182,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               itemBuilder: (context, index) {
                 final room = filtered[index];
                 final roomId = room['id'] as String;
-                final isHidden = hiddenRoomIds.contains(roomId);
+                final otherUserId = room['otherUserId'] as String?;
+                final isHidden = hiddenRoomIds.contains(roomId) ||
+                    (otherUserId != null && hiddenContactUserIds.contains(otherUserId));
 
                 return ChatListTile(
                   room: room,
@@ -1202,6 +1213,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     ref,
                     roomId: roomId,
                     chatName: room['name'] as String? ?? 'Obrolan',
+                    otherUserId: otherUserId,
                   ),
                 );
               },

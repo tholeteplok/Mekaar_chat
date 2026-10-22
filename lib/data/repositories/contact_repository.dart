@@ -5,6 +5,7 @@ import '../services/local_message_database.dart';
 import '../services/supabase_service.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/chat/providers/chat_provider.dart';
+import '../../features/chat/providers/private_vault_provider.dart';
 
 final contactRepositoryProvider = Provider<ContactRepository>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
@@ -152,6 +153,12 @@ class ContactsNotifier extends StateNotifier<AsyncValue<List<ContactItem>>> {
   /// Menghapus kontak dan otomatis merefresh state kontak serta kamar chat
   Future<void> deleteContact(String contactUserId) async {
     await _repo.deleteContact(contactUserId);
+    // Hapus dari set private vault jika kontak tersembunyi untuk mencegah orphan data
+    try {
+      await _ref
+          .read(hiddenContactUserIdsProvider.notifier)
+          .removeContact(contactUserId);
+    } catch (_) {}
     // Refresh daftar kontak
     await refreshContacts(forceLoading: false);
     // Refresh juga chat rooms agar chat yang dibersihkan langsung hilang dari layar pesan

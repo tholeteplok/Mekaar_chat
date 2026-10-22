@@ -118,8 +118,9 @@ class CallInvitationListener {
       _log.w('[CALL_INVITE] Gagal memuat profil pemanggil ($callerId): $e');
     }
 
-    // Cek apakah room termasuk kontak Private Vault yang sedang terkunci
-    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId);
+    // Cek apakah room/caller termasuk kontak Private Vault yang sedang terkunci
+    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId) ||
+        _ref.read(hiddenContactUserIdsProvider).contains(callerId);
     final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
     final isVaultLocked = isHidden && !isVaultUnlocked;
 
@@ -229,8 +230,9 @@ class CallInvitationListener {
             }
           } catch (_) {}
 
-          final isHidden = roomId != null &&
-              _ref.read(hiddenRoomIdsProvider).contains(roomId);
+          final isHidden = (roomId != null &&
+                  _ref.read(hiddenRoomIdsProvider).contains(roomId)) ||
+              _ref.read(hiddenContactUserIdsProvider).contains(callerId);
           final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
           final isVaultLocked = isHidden && !isVaultUnlocked;
 

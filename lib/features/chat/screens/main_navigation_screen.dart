@@ -81,12 +81,17 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     // (Abaikan room tersembunyi saat vault terkunci agar indikator tidak bocor)
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final chatRoomsState = ref.watch(chatRoomsProvider);
     final totalUnread = chatRoomsState.maybeWhen(
       data: (rooms) => rooms.fold<int>(
         0,
         (sum, r) {
-          if (!isVaultUnlocked && hiddenRoomIds.contains(r['id'])) {
+          final otherUserId = r['otherUserId'] as String?;
+          if (!isVaultUnlocked &&
+              (hiddenRoomIds.contains(r['id']) ||
+                  (otherUserId != null &&
+                      hiddenContactUserIds.contains(otherUserId)))) {
             return sum;
           }
           return sum + ((r['unreadCount'] as int?) ?? 0);

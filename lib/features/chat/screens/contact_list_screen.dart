@@ -28,6 +28,7 @@ import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/nearby_friends_canvas.dart';
 import '../widgets/private_vault_active_banner.dart';
+import '../widgets/private_vault_dialogs.dart';
 
 class ContactListScreen extends ConsumerStatefulWidget {
   const ContactListScreen({super.key});
@@ -175,6 +176,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final wasDuress = authState.lastUnlockWasDuress;
     final contactsAsync = ref.watch(userContactsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
+    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final nearbyState = ref.watch(nearbyFriendsProvider);
 
@@ -198,8 +200,13 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       data: (items) {
         final allContacts = wasDuress ? <ContactItem>[] : items;
 
-        // Filter berdasarkan pencarian
+        // Filter berdasarkan vault cloaking & pencarian
         final filteredContacts = allContacts.where((contact) {
+          // Cloaking Private Vault: sembunyikan kontak jika vault terkunci
+          if (!isVaultUnlocked && hiddenContactUserIds.contains(contact.contactUserId)) {
+            return false;
+          }
+
           final name = contact.effectiveName.toLowerCase();
           final username = contact.username.toLowerCase();
           final email = (contact.email ?? '').toLowerCase();
@@ -391,6 +398,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                           ? _buildEmptyState()
                           : _buildContactsCard(
                               filteredContacts,
+                              hiddenContactUserIds,
                               hiddenRoomIds,
                               isVaultUnlocked,
                             ))
@@ -415,6 +423,18 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   }
 
   Future<void> _openChat(ContactItem contact) async {
+    final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
+    final hiddenRooms = ref.read(hiddenRoomIdsProvider);
+    final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
+    final isContactVaulted = hiddenUsers.contains(contact.contactUserId) ||
+        (contact.roomId != null && hiddenRooms.contains(contact.roomId));
+
+    if (isContactVaulted && !isVaultUnlocked) {
+      final unlocked =
+          await PrivateVaultDialogs.showUnlockPasscodeDialog(context, ref);
+      if (!unlocked || !mounted) return;
+    }
+
     try {
       final roomId = await ref.read(chatRoomsProvider.notifier).getOrCreateRoom(
         contact.contactUserId,
@@ -479,6 +499,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
   Widget _buildContactsCard(
     List<ContactItem> contacts,
+    Set<String> hiddenContactUserIds,
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
@@ -498,11 +519,13 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             child: _isGridView
                 ? _buildContactsGridContent(
                     contacts,
+                    hiddenContactUserIds,
                     hiddenRoomIds,
                     isVaultUnlocked,
                   )
                 : _buildContactsListContent(
                     contacts,
+                    hiddenContactUserIds,
                     hiddenRoomIds,
                     isVaultUnlocked,
                   ),
@@ -514,6 +537,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
   Widget _buildContactsGridContent(
     List<ContactItem> contacts,
+    Set<String> hiddenContactUserIds,
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
@@ -538,7 +562,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           final name = contact.effectiveName;
           final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
           final isGuardian = contact.isGuardian;
-          final isHidden = contact.roomId != null && hiddenRoomIds.contains(contact.roomId);
+          final isHidden = hiddenContactUserIds.contains(contact.contactUserId) ||
+              (contact.roomId != null && hiddenRoomIds.contains(contact.roomId));
           final username = contact.username;
           final email = contact.email ?? '';
 
@@ -547,6 +572,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () => _openChat(contact),
+              onLongPress: () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                _showContactContextMenu(context, contact);
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Column(
@@ -668,6 +697,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
   Widget _buildContactsListContent(
     List<ContactItem> contacts,
+    Set<String> hiddenContactUserIds,
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
@@ -691,144 +721,214 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         final name = contact.effectiveName;
         final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
         final isGuardian = contact.isGuardian;
-        final isHidden = contact.roomId != null && hiddenRoomIds.contains(contact.roomId);
+        final isHidden = hiddenContactUserIds.contains(contact.contactUserId) ||
+            (contact.roomId != null && hiddenRoomIds.contains(contact.roomId));
         final username = contact.username;
         final email = contact.email ?? '';
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _openChat(contact),
-            onLongPress: () {
-              HapticService.trigger(MekaarHapticIntent.selection);
-              _showContactContextMenu(
-                context,
-                contact,
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  Avatar(
-                    imageUrl: contact.avatarUrl,
-                    initial: avatar,
-                    isGuardian: isGuardian,
-                    size: 48,
+        return Dismissible(
+          key: ValueKey('contact_dismiss_${contact.contactUserId}'),
+          direction: DismissDirection.horizontal,
+          // 1. Gestur kanan: Hapus Kontak
+          background: Container(
+            color: MekaarColors.sosRed,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                const Icon(
+                  SolarIconsOutline.trashBinTrash,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Hapus Kontak',
+                  style: MekaarTypography.bodyMD.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                name,
-                                style: MekaarTypography.bodyMD.copyWith(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: primaryColor,
+                ),
+              ],
+            ),
+          ),
+          // 2. Gestur kiri: Sembunyikan Kontak ke Private Vault
+          secondaryBackground: Container(
+            color: MekaarColors.guardianTeal,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  isHidden ? 'Tampilkan' : 'Sembunyikan',
+                  style: MekaarTypography.bodyMD.copyWith(
+                    color: MekaarColors.textOnTeal,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  isHidden ? SolarIconsBold.eye : SolarIconsBold.shieldKeyhole,
+                  color: MekaarColors.textOnTeal,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+          confirmDismiss: (direction) async {
+            HapticService.trigger(MekaarHapticIntent.selection);
+            if (direction == DismissDirection.startToEnd) {
+              // Geser kanan -> Hapus Kontak
+              _confirmDeleteContact(context, contact);
+              return false;
+            } else {
+              // Geser kiri -> Sembunyikan ke Private Vault
+              await PrivateVaultDialogs.toggleContactHiddenWithAuth(
+                context,
+                ref,
+                contactUserId: contact.contactUserId,
+                contactName: name,
+                roomId: contact.roomId,
+              );
+              return false;
+            }
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openChat(contact),
+              onLongPress: () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                _showContactContextMenu(
+                  context,
+                  contact,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    Avatar(
+                      imageUrl: contact.avatarUrl,
+                      initial: avatar,
+                      isGuardian: isGuardian,
+                      size: 48,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  style: MekaarTypography.bodyMD.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: primaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            if (isHidden && isVaultUnlocked) ...[
-                              SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: MekaarColors.accentOf(
-                                    context,
-                                  ).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      SolarIconsOutline.lockKeyhole,
-                                      size: 11,
-                                      color: MekaarColors.accentOf(context),
-                                    ),
-                                    SizedBox(width: 3),
-                                    Text(
-                                      'Vault',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
+                              if (isHidden && isVaultUnlocked) ...[
+                                SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: MekaarColors.accentOf(
+                                      context,
+                                    ).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        SolarIconsOutline.lockKeyhole,
+                                        size: 11,
                                         color: MekaarColors.accentOf(context),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            if (isGuardian) ...[
-                              SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: MekaarColors.safeTextOf(
-                                    context,
-                                  ).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'Guardian',
-                                  style: MekaarTypography.caption.copyWith(
-                                    color: MekaarColors.safeTextOf(context),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Vault',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: MekaarColors.accentOf(context),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
+                              ],
+                              if (isGuardian) ...[
+                                SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: MekaarColors.safeTextOf(
+                                      context,
+                                    ).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Guardian',
+                                    style: MekaarTypography.caption.copyWith(
+                                      color: MekaarColors.safeTextOf(context),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          username.isNotEmpty ? '@$username' : email,
-                          style: MekaarTypography.bodySM.copyWith(
-                            fontSize: 13.5,
-                            color: mutedColor,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            username.isNotEmpty ? '@$username' : email,
+                            style: MekaarTypography.bodySM.copyWith(
+                              fontSize: 13.5,
+                              color: mutedColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: Icon(
-                      SolarIconsOutline.infoCircle,
-                      color: mutedColor,
-                      size: 20,
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: Icon(
+                        SolarIconsOutline.infoCircle,
+                        color: mutedColor,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.contactSettings,
+                          arguments: {
+                            'roomId': contact.roomId ?? '',
+                            'chatName': name,
+                            'chatAvatar': avatar,
+                            'otherUserId': contact.contactUserId,
+                            'isGuardian': isGuardian,
+                          },
+                        );
+                      },
+                      tooltip: 'Info Kontak',
                     ),
-                    onPressed: () {
-                      HapticService.trigger(MekaarHapticIntent.selection);
-                      Navigator.pushNamed(
-                        context,
-                        AppRoutes.contactSettings,
-                        arguments: {
-                          'roomId': contact.roomId ?? '',
-                          'chatName': name,
-                          'chatAvatar': avatar,
-                          'otherUserId': contact.contactUserId,
-                          'isGuardian': isGuardian,
-                        },
-                      );
-                    },
-                    tooltip: 'Info Kontak',
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -844,6 +944,10 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final name = contact.effectiveName;
     final avatar = name.isNotEmpty ? name[0].toUpperCase() : '?';
     final isGuardian = contact.isGuardian;
+    final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
+    final hiddenRooms = ref.read(hiddenRoomIdsProvider);
+    final isHidden = hiddenUsers.contains(contact.contactUserId) ||
+        (contact.roomId != null && hiddenRooms.contains(contact.roomId));
 
     MekaarBottomSheet.show(
       context: context,
@@ -910,6 +1014,27 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       'otherUserId': contact.contactUserId,
                       'isGuardian': isGuardian,
                     },
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  isHidden ? SolarIconsOutline.eye : SolarIconsOutline.shieldKeyhole,
+                  color: MekaarColors.guardianTeal,
+                ),
+                title: Text(
+                  isHidden
+                      ? 'Keluarkan dari Private Vault'
+                      : 'Sembunyikan ke Private Vault',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  PrivateVaultDialogs.toggleContactHiddenWithAuth(
+                    context,
+                    ref,
+                    contactUserId: contact.contactUserId,
+                    contactName: name,
+                    roomId: contact.roomId,
                   );
                 },
               ),

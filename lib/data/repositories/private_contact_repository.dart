@@ -15,9 +15,12 @@ class PrivateContactRepository {
   static const String _passcodeKey = 'mekaar_private_vault_passcode_hash';
   static const String _saltKey = 'mekaar_private_vault_salt';
   static const String _hiddenRoomsKey = 'mekaar_private_vault_hidden_rooms';
+  static const String _hiddenContactsKey = 'mekaar_private_vault_hidden_contacts';
 
   String? _cachedSalt;
   String? _cachedHash;
+  Set<String>? _cachedHiddenContactUserIds;
+  Set<String>? _cachedHiddenRoomIds;
 
   PrivateContactRepository({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ??
@@ -54,13 +57,15 @@ class PrivateContactRepository {
     return sha256.convert(utf8.encode('$salt:${code.trim()}')).toString();
   }
 
-  /// Memuat cache hash & salt ke memori untuk verifikasi instan O(1)
+  /// Memuat cache hash, salt, & set tersembunyi ke memori untuk verifikasi instan O(1)
   Future<void> preloadCache() async {
     try {
       final salt = await _getOrCreateSalt();
       final hash = await _secureStorage.read(key: _passcodeKey);
       _cachedSalt = salt;
       _cachedHash = hash;
+      _cachedHiddenContactUserIds = await getHiddenContactUserIds();
+      _cachedHiddenRoomIds = await getHiddenRoomIds();
     } catch (_) {}
   }
 
@@ -112,13 +117,19 @@ class PrivateContactRepository {
 
   /// Dapatkan daftar seluruh ID ruang obrolan yang disembunyikan
   Future<Set<String>> getHiddenRoomIds() async {
+    if (_cachedHiddenRoomIds != null) {
+      return Set<String>.from(_cachedHiddenRoomIds!);
+    }
     try {
       final jsonStr = await _secureStorage.read(key: _hiddenRoomsKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final list = jsonDecode(jsonStr) as List<dynamic>;
-        return list.map((e) => e.toString()).toSet();
+        final result = list.map((e) => e.toString()).toSet();
+        _cachedHiddenRoomIds = result;
+        return result;
       }
     } catch (_) {}
+    _cachedHiddenRoomIds = <String>{};
     return <String>{};
   }
 
@@ -134,6 +145,8 @@ class PrivateContactRepository {
       currentSet.add(roomId);
     }
 
+    _cachedHiddenRoomIds = Set<String>.from(currentSet);
+
     try {
       final jsonStr = jsonEncode(currentSet.toList());
       await _secureStorage.write(key: _hiddenRoomsKey, value: jsonStr);
@@ -146,5 +159,93 @@ class PrivateContactRepository {
   Future<bool> isRoomHidden(String roomId) async {
     final currentSet = await getHiddenRoomIds();
     return currentSet.contains(roomId);
+  }
+
+  /// Dapatkan daftar seluruh contactUserId yang disembunyikan ke Private Vault
+  Future<Set<String>> getHiddenContactUserIds() async {
+    if (_cachedHiddenContactUserIds != null) {
+      return Set<String>.from(_cachedHiddenContactUserIds!);
+    }
+    try {
+      final jsonStr = await _secureStorage.read(key: _hiddenContactsKey);
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final list = jsonDecode(jsonStr) as List<dynamic>;
+        final result = list.map((e) => e.toString()).toSet();
+        _cachedHiddenContactUserIds = result;
+        return result;
+      }
+    } catch (_) {}
+    _cachedHiddenContactUserIds = <String>{};
+    return <String>{};
+  }
+
+  /// Sembunyikan atau batalkan penyembunyian suatu kontak (berbasis contactUserId)
+  /// Mengembalikan true jika kontak sekarang tersembunyi, false jika ditampilkan.
+  Future<bool> toggleHideContact(String contactUserId) async {
+    final currentSet = await getHiddenContactUserIds();
+    final isHidden = currentSet.contains(contactUserId);
+
+    if (isHidden) {
+      currentSet.remove(contactUserId);
+    } else {
+      currentSet.add(contactUserId);
+    }
+
+    _cachedHiddenContactUserIds = Set<String>.from(currentSet);
+
+    try {
+      final jsonStr = jsonEncode(currentSet.toList());
+      await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+    } catch (_) {}
+
+    return !isHidden;
+  }
+
+  /// Hapus contactUserId dari daftar tersembunyi (misal saat kontak dihapus permanen)
+  Future<void> removeHiddenContact(String contactUserId) async {
+    final currentSet = await getHiddenContactUserIds();
+    if (currentSet.remove(contactUserId)) {
+      _cachedHiddenContactUserIds = Set<String>.from(currentSet);
+      try {
+        final jsonStr = jsonEncode(currentSet.toList());
+        await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+      } catch (_) {}
+    }
+  }
+
+  /// Periksa apakah seorang kontak disembunyikan
+  Future<bool> isContactHidden(String contactUserId) async {
+    final currentSet = await getHiddenContactUserIds();
+    return currentSet.contains(contactUserId);
+  }
+
+  /// Migrasi transparan data legacy: jika ada roomId lama yang disembunyikan,
+  /// petakan roomId ke contactUserId dan simpan ke hidden_contacts.
+  Future<void> migrateLegacyHiddenRoomsToContacts(
+    Map<String, String> roomToUserIdMap,
+  ) async {
+    if (roomToUserIdMap.isEmpty) return;
+    try {
+      final hiddenRooms = await getHiddenRoomIds();
+      if (hiddenRooms.isEmpty) return;
+
+      final hiddenContacts = await getHiddenContactUserIds();
+      bool changed = false;
+
+      for (final entry in roomToUserIdMap.entries) {
+        if (hiddenRooms.contains(entry.key)) {
+          if (!hiddenContacts.contains(entry.value)) {
+            hiddenContacts.add(entry.value);
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        _cachedHiddenContactUserIds = Set<String>.from(hiddenContacts);
+        final jsonStr = jsonEncode(hiddenContacts.toList());
+        await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+      }
+    } catch (_) {}
   }
 }

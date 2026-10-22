@@ -10,13 +10,77 @@ import '../../../data/repositories/private_contact_repository.dart';
 import '../providers/private_vault_provider.dart';
 
 class PrivateVaultDialogs {
-  /// Membantu menyembunyikan / menampilkan obrolan dengan validasi passcode terlebih dahulu
+  /// Membantu menyembunyikan / menampilkan kontak dan obrolan terkait dengan validasi passcode
+  static Future<bool?> toggleContactHiddenWithAuth(
+    BuildContext context,
+    WidgetRef ref, {
+    required String contactUserId,
+    required String contactName,
+    String? roomId,
+  }) async {
+    final repo = ref.read(privateContactRepositoryProvider);
+    final hasPasscode = await repo.hasPasscode();
+
+    if (!context.mounted) return null;
+
+    if (!hasPasscode) {
+      final success = await showSetPasscodeDialog(context, ref);
+      if (!success) return null;
+    }
+
+    if (!context.mounted) return null;
+
+    final isHiddenNow =
+        await ref.read(hiddenContactUserIdsProvider.notifier).toggleHide(contactUserId);
+
+    // Sinkronkan juga roomId jika tersedia agar kompatibilitas legacy/room listeners terjaga
+    if (roomId != null && roomId.isNotEmpty) {
+      final isRoomHidden = ref.read(hiddenRoomIdsProvider).contains(roomId);
+      if (isHiddenNow && !isRoomHidden) {
+        await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
+      } else if (!isHiddenNow && isRoomHidden) {
+        await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
+      }
+    }
+
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    if (context.mounted) {
+      if (isHiddenNow) {
+        MekaarSnackbar.success(
+          context,
+          'Kontak & obrolan "$contactName" telah disembunyikan dalam Private Vault',
+        );
+      } else {
+        MekaarSnackbar.info(
+          context,
+          'Kontak & obrolan "$contactName" ditampilkan kembali ke daftar utama',
+        );
+      }
+    }
+    return isHiddenNow;
+  }
+
+  /// Membantu menyembunyikan / menampilkan obrolan dengan validasi passcode terlebih dahulu.
+  /// Jika otherUserId disertakan (1-on-1 direct chat), otomatis menyembunyikan kontak terkait.
   static Future<void> toggleRoomHiddenWithAuth(
     BuildContext context,
     WidgetRef ref, {
     required String roomId,
     required String chatName,
+    String? otherUserId,
   }) async {
+    if (otherUserId != null && otherUserId.isNotEmpty) {
+      await toggleContactHiddenWithAuth(
+        context,
+        ref,
+        contactUserId: otherUserId,
+        contactName: chatName,
+        roomId: roomId,
+      );
+      return;
+    }
+
     final repo = ref.read(privateContactRepositoryProvider);
     final hasPasscode = await repo.hasPasscode();
 
@@ -202,11 +266,18 @@ class PrivateVaultDialogs {
       },
     );
 
-    return result ?? false;
+    final isSuccess = result ?? false;
+    if (isSuccess) {
+      ref.read(privateVaultUnlockedProvider.notifier).state = true;
+    }
+    return isSuccess;
   }
 
   /// Dialog verifikasi kode rahasia vault untuk membuka obrolan tersembunyi
-  static Future<bool> showUnlockPasscodeDialog(BuildContext context) async {
+  static Future<bool> showUnlockPasscodeDialog(
+    BuildContext context, [
+    WidgetRef? ref,
+  ]) async {
     final codeController = TextEditingController();
     String? errorMessage;
     bool obscureCode = true;
@@ -333,6 +404,10 @@ class PrivateVaultDialogs {
       },
     );
 
-    return result ?? false;
+    final isSuccess = result ?? false;
+    if (isSuccess && ref != null) {
+      ref.read(privateVaultUnlockedProvider.notifier).state = true;
+    }
+    return isSuccess;
   }
 }
