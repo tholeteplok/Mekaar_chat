@@ -17,6 +17,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
+import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/chat_date_separator.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -726,6 +727,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             scheduledWipeTargetAt: _scheduledWipeTargetAt,
           );
 
+      ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+        roomId: widget.chatId,
+        previewText: MessagePreviewResolver.formatChatListPreview(
+          type: type,
+          content: contentPayload,
+          isUnreadFromOther: false,
+        ),
+        timestamp: DateTime.now(),
+        isFromOtherUser: false,
+        isCurrentlyInRoom: true,
+      );
+
       if (mounted && _replyMessage != null) {
         setState(() => _replyMessage = null);
       }
@@ -775,6 +788,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             autoDeleteHours: _autoDeleteHours,
             scheduledWipeTargetAt: _scheduledWipeTargetAt,
           );
+
+      ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+        roomId: widget.chatId,
+        previewText: MessagePreviewResolver.formatChatListPreview(
+          type: MessageType.location,
+          content: '$lat, $lng',
+          isUnreadFromOther: false,
+        ),
+        timestamp: DateTime.now(),
+        isFromOtherUser: false,
+        isCurrentlyInRoom: true,
+      );
       _scrollToBottom();
     } catch (e) {
       if (mounted) {

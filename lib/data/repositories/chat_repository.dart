@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/utils/emoji_shortcode_parser.dart';
+import '../../core/utils/message_preview_resolver.dart';
 import '../services/supabase_service.dart';
 import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
@@ -262,26 +262,15 @@ class ChatRepository {
                 ? localLastMsg
                 : chosenMsg;
 
-        if (contentSource.type == MessageType.image) {
-          lastMessageText = isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
-        } else if (contentSource.type == MessageType.video) {
-          lastMessageText = isUnreadFromOther ? '🎥 Video baru' : '🎥 Video';
-        } else if (contentSource.type == MessageType.voice) {
-          lastMessageText = isUnreadFromOther
-              ? '🎤 Pesan suara baru'
-              : '🎤 Pesan Suara';
-        } else if (contentSource.type == MessageType.location) {
-          lastMessageText = isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
-        } else if (contentSource.type == MessageType.system) {
-          lastMessageText = contentSource.content;
-        } else if (contentSource.isEncrypted &&
+        if (contentSource.isEncrypted &&
             contentSource.content.isNotEmpty &&
             contentSource != localLastMsg) {
           lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
         } else {
-          lastMessageText = replaceCustomEmojiTokens(
-            contentSource.content,
-            (_) => '[emoji]',
+          lastMessageText = MessagePreviewResolver.formatChatListPreview(
+            type: contentSource.type,
+            content: contentSource.content,
+            isUnreadFromOther: isUnreadFromOther,
           );
         }
       }

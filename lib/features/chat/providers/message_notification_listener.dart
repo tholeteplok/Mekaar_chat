@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/emoji_shortcode_parser.dart';
+import '../../../core/utils/message_preview_resolver.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/local_message_database.dart';
@@ -171,23 +172,11 @@ class MessageNotificationListener {
     if (isEncrypted) {
       return isFromOtherUser ? 'Pesan baru' : '••••••••';
     }
-    switch (msgType) {
-      case 'image':
-        return isFromOtherUser ? '📷 Foto baru' : '📷 Foto';
-      case 'video':
-        return isFromOtherUser ? '🎥 Video baru' : '🎥 Video';
-      case 'voice':
-        return isFromOtherUser ? '🎤 Pesan suara baru' : '🎤 Pesan Suara';
-      case 'location':
-        return isFromOtherUser ? '📍 Lokasi baru' : '📍 Lokasi';
-      case 'file':
-        return isFromOtherUser ? '📎 File baru' : '📎 Dokumen';
-      case 'system':
-        return content;
-      default:
-        final parsed = replaceCustomEmojiTokens(content, (_) => '[emoji]');
-        return parsed.isNotEmpty ? parsed : 'Pesan baru';
-    }
+    return MessagePreviewResolver.formatChatListPreview(
+      rawMsgType: msgType,
+      content: content,
+      isUnreadFromOther: isFromOtherUser,
+    );
   }
 
   /// Dipanggil saat ada perubahan pesan (update/soft-delete) di tabel messages
@@ -238,7 +227,10 @@ class MessageNotificationListener {
       case 'video':
         return '🎬 Video';
       case 'file':
-        return '📎 Dokumen';
+        if (MessagePreviewResolver.isRecognizedDocument(content)) {
+          return '📎 Dokumen';
+        }
+        return '📎 Berkas';
       case 'location':
         return '📍 Lokasi';
       default:

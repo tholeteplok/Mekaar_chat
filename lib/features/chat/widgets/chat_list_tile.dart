@@ -7,7 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
-import '../../../core/utils/emoji_shortcode_parser.dart';
+import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../settings/providers/privacy_provider.dart';
 import '../providers/chat_provider.dart';
@@ -148,12 +148,10 @@ class ChatListTile extends StatelessWidget {
                             final rawLastMsg = room['lastMessage'] as String?;
                             final hasMessages = timestamp != null;
 
-                            final displayLastMsg = (isStealth && hasMessages)
-                                ? '••••••••'
-                                : (rawLastMsg != null
-                                    ? replaceCustomEmojiTokens(
-                                        rawLastMsg, (_) => '[emoji]')
-                                    : 'Mulai percakapan...');
+                            final displayLastMsg = MessagePreviewResolver.sanitizeLastMessage(
+                              rawLastMsg,
+                              isStealth: isStealth && hasMessages,
+                            );
 
                             final isDots = displayLastMsg == '••••••••';
 
