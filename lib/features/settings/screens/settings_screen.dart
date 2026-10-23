@@ -141,7 +141,6 @@ class SettingsScreen extends ConsumerWidget {
                 icon: SolarIconsBold.shieldKeyhole,
                 iconColor: MekaarColors.guardianTeal,
                 title: 'Privasi Lanjutan',
-                subtitle: 'Manajemen vault, notifikasi & cuplikan pesan',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.advancedPrivacySettings),
               ),
             ],
@@ -317,8 +316,7 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SettingsNavTile(
             icon: SolarIconsOutline.infoCircle,
-            title: 'Tentang MEKAAR',
-            subtitle: 'Versi aplikasi & kebijakan privasi',
+            title: 'Tentang Mekaar',
             onTap: () => Navigator.pushNamed(context, AppRoutes.about),
           ),
         ),

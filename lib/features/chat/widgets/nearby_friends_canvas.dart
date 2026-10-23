@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -12,6 +14,7 @@ import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/models/nearby_friend_model.dart';
 import '../../../data/repositories/contact_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
@@ -76,9 +79,19 @@ class NearbyFriendsCanvas extends ConsumerWidget {
 
     // Buka atau buat room obrolan
     try {
+      final contacts = ref.read(userContactsProvider).value ?? const [];
+      final isGuardian = contacts.any(
+        (c) => c.contactUserId == friend.userId && c.isGuardian,
+      );
+      final roomType = isGuardian ? 'guardian' : 'normal';
+
       final roomId = await ref
           .read(chatRoomsProvider.notifier)
-          .getOrCreateRoom(friend.userId, 'direct');
+          .getOrCreateRoom(
+            friend.userId,
+            roomType,
+            screenshotEnabled: ref.read(screenshotBlockProvider),
+          );
 
       if (!context.mounted) return;
 
@@ -92,13 +105,21 @@ class NearbyFriendsCanvas extends ConsumerWidget {
               ? friend.displayName[0].toUpperCase()
               : 'U',
           'chatAvatarUrl': friend.avatarUrl,
-          'isGuardian': false,
+          'isGuardian': isGuardian,
           'otherUserId': friend.userId,
         },
       );
-    } catch (_) {
+    } catch (e, st) {
+      Logger().e(
+        'Gagal membuka ruang obrolan teman sekitar',
+        error: e,
+        stackTrace: st,
+      );
       if (context.mounted) {
-        MekaarSnackbar.error(context, 'Gagal membuka ruang obrolan.');
+        MekaarSnackbar.error(
+          context,
+          'Gagal membuka ruang obrolan: ${ErrorResolver.resolve(e)}',
+        );
       }
     }
   }

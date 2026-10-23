@@ -78,7 +78,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       HapticService.trigger(MekaarHapticIntent.success);
       MekaarSnackbar.success(
         context,
-        'Aplikasi MEKAAR Anda sudah versi paling mutakhir (v$_currentVersion).',
+        'Aplikasi Mekaar Anda sudah versi paling mutakhir ($_currentVersion).',
       );
     }
   }
@@ -203,7 +203,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        '5 prinsip perlindungan & integritas data MEKAAR',
+                        '5 prinsip perlindungan & integritas data Mekaar',
                         style: MekaarTypography.bodySM.copyWith(
                           color: MekaarColors.textMutedOf(context),
                         ),
@@ -349,7 +349,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        '7 fitur keamanan unggulan MEKAAR',
+                        '7 fitur keamanan unggulan Mekaar',
                         style: MekaarTypography.bodySM.copyWith(
                           color: MekaarColors.textMutedOf(context),
                         ),
@@ -427,7 +427,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         icon: SolarIconsOutline.shieldKeyhole,
         title: 'Komitmen Zero-Knowledge',
         desc:
-            'Server MEKAAR tidak pernah menyimpan kunci privat atau memiliki akses dekripsi terhadap pesan, panggilan, dan media Anda.',
+            'Server Mekaar tidak pernah menyimpan kunci privat atau memiliki akses dekripsi terhadap pesan, panggilan, dan media Anda.',
       ),
       (
         icon: SolarIconsOutline.forbiddenCircle,
@@ -486,7 +486,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Prinsip perlindungan hukum & zero-knowledge MEKAAR',
+                        'Prinsip perlindungan hukum & zero-knowledge Mekaar',
                         style: MekaarTypography.bodySM.copyWith(
                           color: MekaarColors.textMutedOf(context),
                         ),
@@ -629,7 +629,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SettingsTopBar(title: 'Tentang MEKAAR'),
+            const SettingsTopBar(title: 'Tentang Mekaar'),
 
             Expanded(
               child: ListView(
@@ -690,7 +690,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
 
                         // Subtitle
                         Text(
-                          'Personal-Safety & Privacy-First Messenger',
+                          'Bicara Bebas, Tetap Aman',
                           style: MekaarTypography.bodyMD.copyWith(
                             color: MekaarColors.textSecondaryOf(context),
                             fontWeight: FontWeight.w500,
@@ -886,7 +886,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                               style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                             ),
                             subtitle: Text(
-                              '7 fitur keamanan unggulan MEKAAR',
+                              '7 fitur keamanan unggulan Mekaar',
                               style: TextStyle(
                                 fontSize: 12.5,
                                 color: MekaarColors.textMutedOf(context),
@@ -981,7 +981,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                   // ── 4. Footer Kriptografi & Lisensi ──
                   Center(
                     child: Text(
-                      'MEKAAR Personal Safety System · Open Source\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
+                      'Mekaar Personal Safety System & Private Messenger\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
                       style: MekaarTypography.caption.copyWith(
                         color: MekaarColors.textSecondaryOf(context),
                         fontSize: 12.5,

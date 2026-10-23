@@ -9,7 +9,6 @@ import '../../../core/constants/theme_resolver.dart';
 import '../../../core/constants/theme_preference.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
-import '../../../core/routes/app_routes.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/time_tick_provider.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -19,6 +18,7 @@ import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 
+import '../../auth/providers/auth_provider.dart';
 import '../widgets/settings_tiles.dart';
 
 /// Layar Terpisah untuk Pengaturan Tampilan, Tema, dan Tipografi MEKAAR.
@@ -31,12 +31,34 @@ class ThemeSettingsScreen extends ConsumerStatefulWidget {
 
 class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(authProvider).profile == null) {
+        ref.read(authProvider.notifier).loadProfile();
+      }
+    });
+  }
+  @override
   Widget build(BuildContext context) {
     ref.watch(timeTickProvider);
     final currentPref = ref.watch(themePreferenceProvider).valueOrNull ?? ThemePreference.auto;
     final currentFontKey = ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
     final activeFont = AppFontFamily.findByKey(currentFontKey);
     final activeThemeData = ref.watch(resolvedThemeDataProvider);
+    final authState = ref.watch(authProvider);
+    final profile = authState.profile;
+    final displayName = profile?.displayName?.trim();
+    final fullName = profile?.fullName?.trim();
+    final username = profile?.username.trim();
+
+    final greetingName = (displayName != null && displayName.isNotEmpty)
+        ? displayName
+        : (fullName != null && fullName.isNotEmpty)
+            ? fullName
+            : (username != null && username.isNotEmpty)
+                ? username
+                : 'MEKAAR User';
 
     return MekaarScaffold(
       flat: true,
@@ -52,7 +74,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── 1. Live Preview Card ──
-                    _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref),
+                    _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref, greetingName),
 
             const SizedBox(height: MekaarSpacing.xl),
 
@@ -99,75 +121,6 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             ),
 
             const SizedBox(height: MekaarSpacing.xl),
-
-            // ── 4. Slot Ekstensi Kustomisasi Masa Depan ──
-            Text('KUSTOMISASI LANJUTAN (SEGERA HADIR)', style: MekaarTypography.overline),
-            const SizedBox(height: MekaarSpacing.sm),
-            CustomCard(
-              padding: const EdgeInsets.all(MekaarSpacing.md),
-              child: Column(
-                children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: MekaarIconBadge(
-                      icon: SolarIconsOutline.palette,
-                      color: MekaarColors.textMutedOf(context),
-                      backgroundColor: MekaarColors.surface2Of(context),
-                    ),
-                    title: Text(
-                      'Aksen Warna Primary',
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Default disesuaikan otomatis dengan palet fase waktu.',
-                      style: MekaarTypography.bodySM.copyWith(
-                        color: MekaarColors.textMutedOf(context),
-                      ),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.surface2Of(context),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text('Auto', style: MekaarTypography.bodySM.copyWith(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: MekaarIconBadge(
-                      icon: SolarIconsOutline.gallery,
-                      color: MekaarColors.accentTextOf(context),
-                      backgroundColor:
-                          MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
-                    ),
-                    title: Text(
-                      'Wallpaper Chat & Gelembung',
-                      style: MekaarTypography.bodyMD.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Atur wallpaper, gaya gelembung, dan warna obrolan.',
-                      style: MekaarTypography.bodySM.copyWith(
-                        color: MekaarColors.textMutedOf(context),
-                      ),
-                    ),
-                    trailing: Icon(
-                      SolarIconsOutline.altArrowRight,
-                      color: MekaarColors.textMutedOf(context),
-                      size: 18,
-                    ),
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
-                  ),
-                ],
-              ),
-            ),
                     const SizedBox(height: MekaarSpacing.xxl),
                   ],
                 ),
@@ -185,6 +138,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     ThemeData activeTheme,
     AppFontFamily activeFont,
     ThemePreference currentPref,
+    String greetingName,
   ) {
     final now = DateTime.now();
     final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -239,7 +193,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           ),
           SizedBox(height: MekaarSpacing.md),
           Text(
-            'Halo, MEKAAR User!',
+            'Halo, $greetingName!',
             style: GoogleFonts.getFont(
               activeFont.key,
               textStyle: TextStyle(

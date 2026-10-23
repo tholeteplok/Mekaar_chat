@@ -1650,7 +1650,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             if (canDownload)
               IconButton(
                 icon: Icon(
-                  SolarIconsOutline.inboxIn,
+                  SolarIconsOutline.download,
                   size: 22,
                   color: iconColor,
                 ),
