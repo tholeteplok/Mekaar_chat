@@ -65,8 +65,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
     super.key,
     required this.chatId,
-    required this.chatName,
-    required this.chatAvatar,
+    this.chatName = '',
+    this.chatAvatar = '',
     this.chatAvatarUrl,
     this.isGuardian = false,
     this.isGroup = false,
@@ -237,12 +237,105 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Timer? _purgeTimer;
   Timer? _scheduledWipeTimer;
 
+  String? _resolvedChatName;
+  String? _resolvedAvatarInitial;
+  String? _resolvedAvatarUrl;
+  String? _resolvedOtherUserId;
+
+  String get _effectiveChatName =>
+      (_resolvedChatName?.isNotEmpty == true)
+          ? _resolvedChatName!
+          : (widget.chatName.isNotEmpty ? widget.chatName : 'Percakapan');
+
+  String get _effectiveAvatarInitial =>
+      (_resolvedAvatarInitial?.isNotEmpty == true)
+          ? _resolvedAvatarInitial!
+          : (widget.chatAvatar.isNotEmpty
+              ? widget.chatAvatar
+              : (_effectiveChatName.isNotEmpty
+                  ? _effectiveChatName[0].toUpperCase()
+                  : '💬'));
+
+  String? get _effectiveAvatarUrl => _resolvedAvatarUrl ?? widget.chatAvatarUrl;
+  String? get _effectiveOtherUserId =>
+      _resolvedOtherUserId ?? widget.otherUserId;
+
   String _getSenderDisplayName(Message? msg) {
     if (msg == null) return '';
     final myId = ref.read(authProvider).user?.id ?? Supabase.instance.client.auth.currentUser?.id;
     if (msg.senderId == myId) return 'Anda';
-    if (!widget.isGroup) return widget.chatName;
+    if (!widget.isGroup) return _effectiveChatName;
     return _participantNames[msg.senderId] ?? 'Anggota';
+  }
+
+  Future<void> _resolveMissingRoomMetadata() async {
+    if (widget.isGroup) return;
+    if (_effectiveOtherUserId != null &&
+        widget.chatName.isNotEmpty &&
+        widget.chatName != 'Percakapan') {
+      return;
+    }
+
+    try {
+      // 1. Coba baca dari state cache chatRoomsProvider di RAM
+      final cachedRooms = ref.read(chatRoomsProvider).valueOrNull ?? [];
+      final cached = cachedRooms.cast<Map<String, dynamic>?>().firstWhere(
+        (r) => r?['id'] == widget.chatId,
+        orElse: () => null,
+      );
+
+      if (cached != null && mounted) {
+        setState(() {
+          _resolvedChatName ??= cached['name'] as String?;
+          _resolvedAvatarInitial ??= cached['avatar'] as String?;
+          _resolvedAvatarUrl ??= cached['avatarUrl'] as String?;
+          _resolvedOtherUserId ??= cached['otherUserId'] as String?;
+        });
+        if (_resolvedOtherUserId != null) {
+          _startPresenceHeartbeat();
+        }
+        return;
+      }
+
+      // 2. Fallback query langsung ke Supabase jika belum ada di cache
+      final client = Supabase.instance.client;
+      final currentUserId = client.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      final participant = await client
+          .from('room_participants')
+          .select('profile_id')
+          .eq('room_id', widget.chatId)
+          .neq('profile_id', currentUserId)
+          .maybeSingle();
+
+      if (participant != null && mounted) {
+        final otherId = participant['profile_id'] as String;
+        final profile = await client
+            .from('public_profiles')
+            .select('id, username, full_name, display_name, avatar_url')
+            .eq('id', otherId)
+            .maybeSingle();
+
+        if (profile != null && mounted) {
+          final name = (profile['display_name'] as String?)?.isNotEmpty == true
+              ? profile['display_name'] as String
+              : profile['full_name'] as String? ??
+                  profile['username'] as String? ??
+                  'User';
+          final avatar = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+          final avatarUrl = profile['avatar_url'] as String?;
+
+          setState(() {
+            _resolvedOtherUserId = otherId;
+            _resolvedChatName = name;
+            _resolvedAvatarInitial = avatar;
+            _resolvedAvatarUrl = avatarUrl;
+          });
+          _startPresenceHeartbeat();
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadGroupParticipants() async {
@@ -293,8 +386,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (!mounted) return;
       final repo = ref.read(chatRepositoryProvider);
       await repo.updateLastSeen();
-      if (widget.otherUserId != null) {
-        final lastSeen = await repo.getLastSeen(widget.otherUserId!);
+      final otherId = _effectiveOtherUserId;
+      if (otherId != null) {
+        final lastSeen = await repo.getLastSeen(otherId);
         if (mounted) {
           _otherLastSeenNotifier.value = lastSeen;
         }
@@ -321,6 +415,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
     });
     _startPresenceHeartbeat();
+    _resolveMissingRoomMetadata();
     _loadHiddenCalls();
 
     // Timer periodik pembersihan pesan kedaluwarsa (client guard)
@@ -667,8 +762,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       String url;
 
       // Check whether room supports E2EE (peer key exists) without wasteful dummy encryption
-      final peerKey = widget.otherUserId != null
-          ? await E2eeService.instance.getPeerPublicKey(widget.otherUserId!)
+      final otherId = _effectiveOtherUserId;
+      final peerKey = otherId != null
+          ? await E2eeService.instance.getPeerPublicKey(otherId)
           : null;
       if (peerKey != null && peerKey.isNotEmpty) {
         // Kamar chat mendukung E2EE, enkripsi & unggah media
@@ -927,8 +1023,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
 
       final senderName = widget.isGroup
-          ? (_participantNames[msg.senderId] ?? widget.chatName)
-          : widget.chatName;
+          ? (_participantNames[msg.senderId] ?? _effectiveChatName)
+          : _effectiveChatName;
 
       await ref.read(vaultRepositoryProvider).saveMediaToVault(
             sourceFile: file,
@@ -1045,8 +1141,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
         if (file != null && await file.exists()) {
           final senderName = widget.isGroup
-              ? (_participantNames[msg.senderId] ?? widget.chatName)
-              : widget.chatName;
+              ? (_participantNames[msg.senderId] ?? _effectiveChatName)
+              : _effectiveChatName;
 
           await vaultRepo.saveMediaToVault(
             sourceFile: file,
@@ -1286,7 +1382,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Hapus juga untuk ${widget.isGroup ? 'semua anggota' : widget.chatName}',
+                                'Hapus juga untuk ${widget.isGroup ? 'semua anggota' : _effectiveChatName}',
                                 style: TextStyle(
                                   color: textPrimary,
                                   fontSize: 14,
@@ -1773,7 +1869,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
-    if (currentUserId == null || widget.otherUserId == null) {
+    final otherId = _effectiveOtherUserId;
+    if (currentUserId == null || otherId == null) {
       MekaarSnackbar.error(
         context,
         'Panggilan tidak tersedia untuk obrolan ini.',
@@ -1784,9 +1881,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       AppRoutes.call,
       arguments: {
         'roomId': widget.chatId,
-        'chatName': widget.chatName,
+        'chatName': _effectiveChatName,
         'callerId': currentUserId,
-        'receiverId': widget.otherUserId!,
+        'receiverId': otherId,
         'isCaller': true,
         'callType': callType,
       },
@@ -2424,9 +2521,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       final isOnline = _isCurrentlyOnline(lastSeen);
                       return CustomAppBar(
                         isMaterialHeader: true,
-                        title: widget.chatName,
-                        avatarInitial: widget.chatAvatar,
-                        avatarUrl: widget.chatAvatarUrl,
+                        title: _effectiveChatName,
+                        avatarInitial: _effectiveAvatarInitial,
+                        avatarUrl: _effectiveAvatarUrl,
                         isGuardian: widget.isGuardian,
                         showOnlineIndicator: true,
                         isOnline: isOnline || isTyping,
@@ -2446,18 +2543,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 AppRoutes.groupDetails,
                                 arguments: {
                                   'roomId': widget.chatId,
-                                  'groupName': widget.chatName,
-                                  'groupAvatarUrl': widget.chatAvatarUrl,
+                                  'groupName': _effectiveChatName,
+                                  'groupAvatarUrl': _effectiveAvatarUrl,
                                 },
                               )
-                            : (widget.otherUserId != null
+                            : (_effectiveOtherUserId != null
                                   ? () => _pushNamedWithoutActiveRoom(
                                       AppRoutes.contactSettings,
                                       arguments: {
                                         'roomId': widget.chatId,
-                                        'chatName': widget.chatName,
-                                        'chatAvatar': widget.chatAvatar,
-                                        'otherUserId': widget.otherUserId!,
+                                        'chatName': _effectiveChatName,
+                                        'chatAvatar': _effectiveAvatarInitial,
+                                        'otherUserId': _effectiveOtherUserId!,
                                         'isGuardian': widget.isGuardian,
                                       },
                                     )

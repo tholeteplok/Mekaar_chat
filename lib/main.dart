@@ -11,6 +11,7 @@ import 'package:mekaar_chat/data/services/alarm_service.dart';
 import 'package:mekaar_chat/data/services/notification_service.dart';
 import 'package:mekaar_chat/data/services/push_notification_service.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
+import 'package:mekaar_chat/features/chat/providers/chat_provider.dart';
 import 'package:mekaar_chat/features/chat/screens/incoming_call_screen.dart';
 import 'package:mekaar_chat/data/repositories/trip_repository.dart';
 import 'package:mekaar_chat/data/services/deep_link_service.dart';
@@ -187,6 +188,60 @@ void _handleNotificationRoute(NotificationRoute route) async {
       final roomId = route.roomId;
       if (roomId == null || roomId.isEmpty) return;
 
+      // Cek apakah user sudah berada di ruang obrolan ini (mencegah layar kembar)
+      try {
+        final container = ProviderScope.containerOf(context, listen: false);
+        if (container.read(activeRoomIdProvider) == roomId) {
+          return;
+        }
+      } catch (_) {}
+
+      // Lengkapi metadata obrolan dari memori chatRoomsProvider jika rute notifikasi minimal
+      String? chatName = route.chatName;
+      String? avatarInitial = route.chatAvatar;
+      String? chatAvatarUrl = route.chatAvatarUrl;
+      String? otherUserId = route.otherUserId;
+      bool isGuardian = route.isGuardian;
+      bool isGroup = false;
+
+      try {
+        final container = ProviderScope.containerOf(context, listen: false);
+        final rooms = container.read(chatRoomsProvider).valueOrNull ?? [];
+        final room = rooms.cast<Map<String, dynamic>?>().firstWhere(
+          (r) => r?['id'] == roomId,
+          orElse: () => null,
+        );
+        if (room != null) {
+          if (chatName == null || chatName.isEmpty) {
+            chatName = room['name'] as String?;
+          }
+          if (avatarInitial == null || avatarInitial.isEmpty) {
+            avatarInitial = room['avatar'] as String?;
+          }
+          chatAvatarUrl ??= room['avatarUrl'] as String?;
+          otherUserId ??= room['otherUserId'] as String?;
+          isGuardian = room['isGuardian'] as bool? ?? isGuardian;
+          isGroup = room['isGroup'] as bool? ?? isGroup;
+        }
+      } catch (_) {}
+
+      final effectiveName =
+          (chatName != null && chatName.isNotEmpty) ? chatName : 'Percakapan';
+      final effectiveAvatar =
+          (avatarInitial != null && avatarInitial.isNotEmpty)
+              ? avatarInitial
+              : (effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : '💬');
+
+      final chatArgs = {
+        'chatId': roomId,
+        'chatName': effectiveName,
+        'chatAvatar': effectiveAvatar,
+        'chatAvatarUrl': chatAvatarUrl,
+        'isGuardian': isGuardian,
+        'isGroup': isGroup,
+        'otherUserId': otherUserId,
+      };
+
       // ── Mitigasi Privasi Kontak Vault (Tersembunyi) ──
       try {
         final hiddenRooms =
@@ -215,13 +270,7 @@ void _handleNotificationRoute(NotificationRoute route) async {
               Navigator.pushNamed(
                 context,
                 AppRoutes.chat,
-                arguments: {
-                  'chatId': roomId,
-                  'chatName': route.chatName,
-                  'chatAvatarUrl': route.chatAvatarUrl,
-                  'isGuardian': route.isGuardian,
-                  'otherUserId': route.otherUserId,
-                },
+                arguments: chatArgs,
               );
             }
             return;
@@ -233,13 +282,7 @@ void _handleNotificationRoute(NotificationRoute route) async {
         Navigator.pushNamed(
           context,
           AppRoutes.chat,
-          arguments: {
-            'chatId': roomId,
-            'chatName': route.chatName,
-            'chatAvatarUrl': route.chatAvatarUrl,
-            'isGuardian': route.isGuardian,
-            'otherUserId': route.otherUserId,
-          },
+          arguments: chatArgs,
         );
       }
     case NotificationRouteType.call:

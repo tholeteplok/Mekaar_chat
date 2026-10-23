@@ -62,7 +62,30 @@ class MessagePreviewResolver {
     bool isEncrypted = false,
   }) {
     if (isStealth) return '••••••••';
-    if (content == null || content.isEmpty) return 'Mulai percakapan...';
+
+    final effectiveType = type ?? (rawMsgType != null ? _parseMessageType(rawMsgType) : null);
+
+    if (content == null || content.trim().isEmpty) {
+      if (effectiveType != null && effectiveType != MessageType.text) {
+        switch (effectiveType) {
+          case MessageType.image:
+            return isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
+          case MessageType.video:
+            return isUnreadFromOther ? '🎥 Video baru' : '🎥 Video';
+          case MessageType.voice:
+            return isUnreadFromOther ? '🎤 Pesan suara baru' : '🎤 Pesan Suara';
+          case MessageType.location:
+            return isUnreadFromOther ? '📍 Lokasi baru' : '📍 Lokasi';
+          case MessageType.file:
+            return isUnreadFromOther ? '📎 Berkas baru' : '📎 Berkas';
+          case MessageType.system:
+            return '';
+          default:
+            break;
+        }
+      }
+      return 'Mulai percakapan...';
+    }
 
     final trimmed = content.trim();
 
@@ -91,7 +114,6 @@ class MessagePreviewResolver {
 
           // Media terenkripsi (gambar, video, suara)
           if (hasKey) {
-            final effectiveType = type ?? (rawMsgType != null ? _parseMessageType(rawMsgType) : null);
             switch (effectiveType) {
               case MessageType.image:
                 return isUnreadFromOther ? '📷 Foto baru' : '📷 Foto';
@@ -110,7 +132,6 @@ class MessagePreviewResolver {
     }
 
     // 2. Evaluasi berdasarkan tipe pesan [MessageType]
-    final effectiveType = type ?? (rawMsgType != null ? _parseMessageType(rawMsgType) : null);
     if (effectiveType != null) {
       switch (effectiveType) {
         case MessageType.image:

@@ -294,6 +294,10 @@ class MessageNotificationListener {
       );
     }
 
+    final avatarInitial = isCloaked
+        ? null
+        : (senderName.isNotEmpty ? senderName[0].toUpperCase() : 'U');
+
     await NotificationService.showMessageNotification(
       title: finalTitle,
       body: finalBody,
@@ -302,6 +306,7 @@ class MessageNotificationListener {
         type: NotificationRouteType.message,
         roomId: roomId,
         chatName: isCloaked ? null : senderName,
+        chatAvatar: avatarInitial,
         otherUserId: isCloaked ? null : senderId,
       ),
     );

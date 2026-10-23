@@ -21,6 +21,7 @@ class NotificationRoute {
   // Message
   final String? roomId;
   final String? chatName;
+  final String? chatAvatar;
   final String? chatAvatarUrl;
   final bool isGuardian;
   final String? otherUserId;
@@ -41,6 +42,7 @@ class NotificationRoute {
     required this.type,
     this.roomId,
     this.chatName,
+    this.chatAvatar,
     this.chatAvatarUrl,
     this.isGuardian = false,
     this.otherUserId,
@@ -58,6 +60,7 @@ class NotificationRoute {
         'type': type.name,
         'roomId': roomId,
         'chatName': chatName,
+        'chatAvatar': chatAvatar,
         'chatAvatarUrl': chatAvatarUrl,
         'isGuardian': isGuardian,
         'otherUserId': otherUserId,
@@ -91,6 +94,7 @@ class NotificationRoute {
         type: type,
         roomId: decoded['roomId'] as String?,
         chatName: decoded['chatName'] as String?,
+        chatAvatar: decoded['chatAvatar'] as String?,
         chatAvatarUrl: decoded['chatAvatarUrl'] as String?,
         isGuardian: decoded['isGuardian'] == true,
         otherUserId: decoded['otherUserId'] as String?,

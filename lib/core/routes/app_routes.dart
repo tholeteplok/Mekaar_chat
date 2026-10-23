@@ -201,14 +201,23 @@ class AppRoutes {
 
       case AppRoutes.chat:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final rawChatName = args['chatName'] as String?;
+        final rawAvatar = args['chatAvatar'] as String?;
+        final chatName = (rawChatName != null && rawChatName.isNotEmpty)
+            ? rawChatName
+            : 'Percakapan';
+        final chatAvatar = (rawAvatar != null && rawAvatar.isNotEmpty)
+            ? rawAvatar
+            : (chatName.isNotEmpty ? chatName[0].toUpperCase() : '💬');
+
         return MekaarPageRoute(
           builder: (_) => ChatScreen(
-            chatId: args['chatId'],
-            chatName: args['chatName'],
-            chatAvatar: args['chatAvatar'],
+            chatId: args['chatId'] as String? ?? '',
+            chatName: chatName,
+            chatAvatar: chatAvatar,
             chatAvatarUrl: args['chatAvatarUrl'] as String?,
-            isGuardian: args['isGuardian'] ?? false,
-            isGroup: args['isGroup'] ?? false,
+            isGuardian: args['isGuardian'] as bool? ?? false,
+            isGroup: args['isGroup'] as bool? ?? false,
             otherUserId: args['otherUserId'] as String?,
           ),
         );
