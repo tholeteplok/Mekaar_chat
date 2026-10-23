@@ -524,16 +524,18 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   }
 
   Future<void> _openChat(ContactItem contact) async {
-    final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
-    final hiddenRooms = ref.read(hiddenRoomIdsProvider);
-    final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
-    final isContactVaulted = contact.isVaulted ||
-        hiddenUsers.contains(contact.contactUserId) ||
-        (contact.roomId != null && hiddenRooms.contains(contact.roomId));
+    final isCloaked = VaultIsolationHelper.isContactCloaked(
+      ref,
+      contact.contactUserId,
+      knownSlot: contact.vaultSlot,
+    );
 
-    if (isContactVaulted && !isVaultUnlocked) {
-      final unlocked =
-          await PrivateVaultDialogs.showUnlockPasscodeDialog(context, ref);
+    if (isCloaked) {
+      final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(
+        context,
+        ref,
+        contact.vaultSlot,
+      );
       if (!unlocked || !mounted) return;
     }
 

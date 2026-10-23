@@ -210,6 +210,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
 
     let isAuthorized = false;
+    let authenticatedUserId: string | null = null;
 
     // 1. Jalur Webhook Database (pg_net)
     if (expectedSecret && incomingSecret === expectedSecret) {
@@ -225,11 +226,8 @@ Deno.serve(async (req: Request) => {
       } = await authClient.auth.getUser(token);
       if (user && !error) {
         isAuthorized = true;
+        authenticatedUserId = user.id;
       }
-    }
-    // 3. Fallback jika secret belum disetel (Development / Testing)
-    else if (!expectedSecret) {
-      isAuthorized = true;
     }
 
     if (!isAuthorized) {
@@ -255,6 +253,34 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Jika dipanggil via JWT Client Token (bukan webhook secret database),
+    // verifikasi bahwa authenticated user adalah pengirim pesan / pemanggil yang sah (anti-phishing)
+    if (authenticatedUserId) {
+      if (payload.table === "messages") {
+        const msg = payload.record as MessageRecord;
+        if (msg.sender_id !== authenticatedUserId) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Sender ID does not match authenticated user" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      } else if (payload.table === "calls") {
+        const call = payload.record as CallRecord;
+        if (call.caller_id !== authenticatedUserId) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: Caller ID does not match authenticated user" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
     }
 
     let pushPayload: {
@@ -340,21 +366,35 @@ Deno.serve(async (req: Request) => {
           bodyText = bodyText.substring(0, 97) + "...";
         }
 
+        // Periksa apakah penerima (p.profile_id) menyimpan pengirim (msg.sender_id) dalam Private Vault
+        const { data: vaultContact } = await supabaseClient
+          .from("user_contacts")
+          .select("is_vaulted")
+          .eq("user_id", p.profile_id)
+          .eq("contact_user_id", msg.sender_id)
+          .eq("is_vaulted", true)
+          .maybeSingle();
+
+        const isVaultedForRecipient = !!vaultContact;
+        const finalTitle = isVaultedForRecipient ? "MEKAAR" : senderName;
+        const finalBody = isVaultedForRecipient ? "Pesan baru masuk" : bodyText;
+
         for (const dt of deviceTokens) {
           results.push(
             messaging.send({
               token: dt.token,
               notification: {
-                title: senderName,
-                body: bodyText,
+                title: finalTitle,
+                body: finalBody,
               },
               data: {
                 type: "message",
                 roomId: msg.room_id,
-                title: senderName,
-                body: bodyText,
-                senderName,
+                title: finalTitle,
+                body: finalBody,
+                senderName: isVaultedForRecipient ? "MEKAAR" : senderName,
                 messageId: msg.id,
+                isVaultMasked: isVaultedForRecipient ? "true" : "false",
               },
               android: {
                 priority: "high",
@@ -369,6 +409,10 @@ Deno.serve(async (req: Request) => {
                     badge: 1,
                     sound: "default",
                     "content-available": 1,
+                    alert: {
+                      title: finalTitle,
+                      body: finalBody,
+                    },
                   },
                 },
               },
@@ -432,6 +476,22 @@ Deno.serve(async (req: Request) => {
       const callLabel =
         call.call_type === "video" ? "Panggilan video masuk" : "Panggilan masuk";
 
+      // Periksa apakah penerima panggilan menyembunyikan caller dalam Private Vault
+      const { data: vaultCallContact } = await supabaseClient
+        .from("user_contacts")
+        .select("is_vaulted")
+        .eq("user_id", call.receiver_id)
+        .eq("contact_user_id", call.caller_id)
+        .eq("is_vaulted", true)
+        .maybeSingle();
+
+      const isVaultedForCallReceiver = !!vaultCallContact;
+      const finalCallTitle = isVaultedForCallReceiver ? "MEKAAR" : callLabel;
+      const finalCallBody = isVaultedForCallReceiver
+        ? "Panggilan masuk"
+        : `${callerName} memanggil Anda`;
+      const finalCallerName = isVaultedForCallReceiver ? "MEKAAR" : callerName;
+
       const messaging = getMessaging(getFirebaseApp());
       const callResults = [];
 
@@ -443,18 +503,19 @@ Deno.serve(async (req: Request) => {
             // tetap menampilkan banner notifikasi di tray/lockscreen sekalipun background handler
             // dibatasi oleh sistem manajemen baterai OEM.
             notification: {
-              title: callLabel,
-              body: `${callerName} memanggil Anda`,
+              title: finalCallTitle,
+              body: finalCallBody,
             },
             data: {
               type: "call",
               roomId: call.room_id,
               callId: call.id,
-              callerId: call.caller_id,
-              title: callLabel,
-              body: callerName,
-              callerName,
+              callerId: isVaultedForCallReceiver ? "" : call.caller_id,
+              title: finalCallTitle,
+              body: isVaultedForCallReceiver ? "Panggilan masuk" : callerName,
+              callerName: finalCallerName,
               callType: call.call_type,
+              isVaultMasked: isVaultedForCallReceiver ? "true" : "false",
             },
             android: {
               priority: "high",
@@ -468,8 +529,8 @@ Deno.serve(async (req: Request) => {
               payload: {
                 aps: {
                   alert: {
-                    title: callLabel,
-                    body: callerName,
+                    title: finalCallTitle,
+                    body: isVaultedForCallReceiver ? "Panggilan masuk" : callerName,
                   },
                   sound: "default",
                   "content-available": 1,

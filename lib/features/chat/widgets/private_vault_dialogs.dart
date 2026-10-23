@@ -34,12 +34,19 @@ class PrivateVaultDialogs {
     final isHiddenNow =
         await ref.read(hiddenContactUserIdsProvider.notifier).toggleHide(contactUserId);
 
+    // Dapatkan nomor vaultSlot yang saat ini dimiliki kontak (jika ada) agar tidak ter-reset ke Slot 1
+    final existingContact = ref.read(userContactsProvider).value?.firstWhere(
+          (c) => c.contactUserId == contactUserId,
+          orElse: () => null as dynamic,
+        );
+    final targetSlot = existingContact?.vaultSlot ?? 1;
+
     // Sinkronkan ke cloud Supabase agar status vault tetap terlindungi saat uninstall / clear data
     try {
-      await ref.read(userContactsProvider.notifier).updateVaultStatus(contactUserId, isHiddenNow, vaultSlot: 1);
+      await ref.read(userContactsProvider.notifier).updateVaultStatus(contactUserId, isHiddenNow, vaultSlot: targetSlot);
     } catch (_) {
       try {
-        await ref.read(contactRepositoryProvider).updateContactVaultStatus(contactUserId, isHiddenNow, vaultSlot: 1);
+        await ref.read(contactRepositoryProvider).updateContactVaultStatus(contactUserId, isHiddenNow, vaultSlot: targetSlot);
       } catch (_) {}
     }
 
@@ -393,14 +400,32 @@ class PrivateVaultDialogs {
                       final repo = ref != null
                           ? ref.read(privateContactRepositoryProvider)
                           : PrivateContactRepository();
+                      if (await repo.isVaultLockedOut()) {
+                        final remaining =
+                            await repo.getVaultLockoutRemainingSeconds();
+                        HapticService.trigger(MekaarHapticIntent.warning);
+                        setDialogState(() {
+                          errorMessage =
+                              'Terlalu banyak percobaan. Tunggu $remaining detik.';
+                        });
+                        return;
+                      }
                       final isMatch = await repo.verifySlotPasscode(slot, val.trim());
                       if (isMatch) {
                         HapticService.trigger(MekaarHapticIntent.success);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx, true);
                       } else {
                         HapticService.trigger(MekaarHapticIntent.warning);
+                        final isNowLocked = await repo.isVaultLockedOut();
+                        final remaining =
+                            await repo.getVaultLockoutRemainingSeconds();
                         setDialogState(() {
-                          errorMessage = 'PIN rahasia tidak cocok';
+                          if (isNowLocked) {
+                            errorMessage =
+                                'Terlalu banyak percobaan. Tunggu $remaining detik.';
+                          } else {
+                            errorMessage = 'PIN rahasia tidak cocok';
+                          }
                         });
                       }
                     },
@@ -429,6 +454,16 @@ class PrivateVaultDialogs {
                     final repo = ref != null
                         ? ref.read(privateContactRepositoryProvider)
                         : PrivateContactRepository();
+                    if (await repo.isVaultLockedOut()) {
+                      final remaining =
+                          await repo.getVaultLockoutRemainingSeconds();
+                      HapticService.trigger(MekaarHapticIntent.warning);
+                      setDialogState(() {
+                        errorMessage =
+                            'Terlalu banyak percobaan. Tunggu $remaining detik.';
+                      });
+                      return;
+                    }
                     final isMatch = await repo.verifySlotPasscode(slot, code);
                     if (isMatch) {
                       HapticService.trigger(MekaarHapticIntent.success);
@@ -437,8 +472,16 @@ class PrivateVaultDialogs {
                       }
                     } else {
                       HapticService.trigger(MekaarHapticIntent.warning);
+                      final isNowLocked = await repo.isVaultLockedOut();
+                      final remaining =
+                          await repo.getVaultLockoutRemainingSeconds();
                       setDialogState(() {
-                        errorMessage = 'PIN rahasia tidak cocok';
+                        if (isNowLocked) {
+                          errorMessage =
+                              'Terlalu banyak percobaan. Tunggu $remaining detik.';
+                        } else {
+                          errorMessage = 'PIN rahasia tidak cocok';
+                        }
                       });
                     }
                   },

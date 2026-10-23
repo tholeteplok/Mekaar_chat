@@ -18,11 +18,16 @@ class PrivateContactRepository {
   static const String _hiddenRoomsKey = 'mekaar_private_vault_hidden_rooms';
   static const String _hiddenContactsKey = 'mekaar_private_vault_hidden_contacts';
   static const String _slotNamePrefix = 'mekaar_vault_slot_name_';
+  static const String _failedAttemptsKey = 'mekaar_vault_failed_attempts';
+  static const String _lockedUntilKey = 'mekaar_vault_locked_until';
+  static const int _maxAttemptsBeforeLockout = 5;
 
   String? _cachedSalt;
   String? _cachedHash;
   Set<String>? _cachedHiddenContactUserIds;
   Set<String>? _cachedHiddenRoomIds;
+  int? _cachedFailedAttempts;
+  DateTime? _cachedLockedUntil;
 
   PrivateContactRepository({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ??
@@ -93,12 +98,105 @@ class PrivateContactRepository {
     await _secureStorage.write(key: _passcodeKey, value: hash);
   }
 
-  /// Verifikasi kecocokan kode rahasia input secara aman dan cepat
-  Future<bool> verifyPasscode(String code) async {
-    final trimmed = code.trim();
-    if (trimmed.isEmpty) return false;
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Anti-Brute Force Lockout & Rate Limiting (P2-2)
+  // ─────────────────────────────────────────────────────────────────────────────
 
-    // Gunakan in-memory cache jika tersedia untuk menghindari disk I/O blocking
+  /// Memeriksa apakah autentikasi vault saat ini sedang di-lockout
+  Future<bool> isVaultLockedOut() async {
+    final now = DateTime.now().toUtc();
+    if (_cachedLockedUntil != null) {
+      if (now.isBefore(_cachedLockedUntil!)) {
+        return true;
+      } else {
+        await resetFailedVaultAttempts();
+        return false;
+      }
+    }
+
+    try {
+      final lockedUntilStr = await _secureStorage.read(key: _lockedUntilKey);
+      if (lockedUntilStr != null && lockedUntilStr.isNotEmpty) {
+        final lockedUntil = DateTime.tryParse(lockedUntilStr)?.toUtc();
+        if (lockedUntil != null && now.isBefore(lockedUntil)) {
+          _cachedLockedUntil = lockedUntil;
+          return true;
+        } else {
+          await resetFailedVaultAttempts();
+          return false;
+        }
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
+  /// Sisa waktu lockout dalam detik (0 jika tidak terkunci)
+  Future<int> getVaultLockoutRemainingSeconds() async {
+    final now = DateTime.now().toUtc();
+    DateTime? lockedUntil = _cachedLockedUntil;
+    if (lockedUntil == null) {
+      try {
+        final lockedUntilStr = await _secureStorage.read(key: _lockedUntilKey);
+        if (lockedUntilStr != null && lockedUntilStr.isNotEmpty) {
+          lockedUntil = DateTime.tryParse(lockedUntilStr)?.toUtc();
+          _cachedLockedUntil = lockedUntil;
+        }
+      } catch (_) {}
+    }
+
+    if (lockedUntil != null && now.isBefore(lockedUntil)) {
+      return lockedUntil.difference(now).inSeconds + 1;
+    }
+    return 0;
+  }
+
+  /// Catat percobaan PIN yang gagal dan aktifkan lockout jika mencapai ambang batas
+  Future<int> recordFailedVaultAttempt() async {
+    int attempts = _cachedFailedAttempts ?? 0;
+    if (_cachedFailedAttempts == null) {
+      try {
+        final val = await _secureStorage.read(key: _failedAttemptsKey);
+        attempts = int.tryParse(val ?? '0') ?? 0;
+      } catch (_) {
+        attempts = 0;
+      }
+    }
+
+    attempts++;
+    _cachedFailedAttempts = attempts;
+
+    try {
+      await _secureStorage.write(key: _failedAttemptsKey, value: attempts.toString());
+      if (attempts >= _maxAttemptsBeforeLockout) {
+        // Jeda 30 detik untuk 5 percobaan pertama, 120 detik jika terus mencoba
+        final lockoutDuration = attempts >= 10
+            ? const Duration(seconds: 120)
+            : const Duration(seconds: 30);
+        final lockedUntil = DateTime.now().toUtc().add(lockoutDuration);
+        _cachedLockedUntil = lockedUntil;
+        await _secureStorage.write(
+          key: _lockedUntilKey,
+          value: lockedUntil.toIso8601String(),
+        );
+      }
+    } catch (_) {}
+
+    return attempts;
+  }
+
+  /// Reset counter percobaan gagal saat verifikasi berhasil
+  Future<void> resetFailedVaultAttempts() async {
+    _cachedFailedAttempts = 0;
+    _cachedLockedUntil = null;
+    try {
+      await _secureStorage.delete(key: _failedAttemptsKey);
+      await _secureStorage.delete(key: _lockedUntilKey);
+    } catch (_) {}
+  }
+
+  /// Verifikasi kecocokan kode rahasia input internal tanpa pencatatan failed attempt
+  Future<bool> _verifyPasscodeInternal(String trimmed) async {
     if (_cachedHash != null && _cachedSalt != null) {
       if (_cachedHash!.isEmpty) return false;
       return _cachedHash == _hashWithSalt(trimmed, _cachedSalt!);
@@ -113,6 +211,22 @@ class PrivateContactRepository {
       if (savedHash == null || savedHash.isEmpty) return false;
       return savedHash == _hashWithSalt(trimmed, salt);
     } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verifikasi kecocokan kode rahasia input secara aman dan cepat
+  Future<bool> verifyPasscode(String code) async {
+    if (await isVaultLockedOut()) return false;
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return false;
+
+    final isMatch = await _verifyPasscodeInternal(trimmed);
+    if (isMatch) {
+      await resetFailedVaultAttempts();
+      return true;
+    } else {
+      await recordFailedVaultAttempt();
       return false;
     }
   }
@@ -168,11 +282,12 @@ class PrivateContactRepository {
     await _secureStorage.write(key: _slotPasscodeKey(slot), value: hash);
   }
 
-  /// Verifikasi kode akses slot tertentu
-  Future<bool> verifySlotPasscode(int slot, String code) async {
-    if (slot == 1) return verifyPasscode(code);
+  /// Verifikasi kecocokan passcode slot tanpa trigger pencatatan percobaan gagal
+  Future<bool> _checkSlotPasscodeNoAttempt(int slot, String code) async {
     final trimmed = code.trim();
     if (trimmed.isEmpty) return false;
+    if (slot == 1) return _verifyPasscodeInternal(trimmed);
+
     try {
       final salt = await _getOrCreateSlotSalt(slot);
       final savedHash = await _secureStorage.read(key: _slotPasscodeKey(slot));
@@ -183,14 +298,34 @@ class PrivateContactRepository {
     }
   }
 
+  /// Verifikasi kode akses slot tertentu (dengan rate limiting & anti brute force)
+  Future<bool> verifySlotPasscode(int slot, String code) async {
+    if (await isVaultLockedOut()) return false;
+    if (slot == 1) return verifyPasscode(code);
+
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return false;
+
+    final isMatch = await _checkSlotPasscodeNoAttempt(slot, trimmed);
+    if (isMatch) {
+      await resetFailedVaultAttempts();
+      return true;
+    } else {
+      await recordFailedVaultAttempt();
+      return false;
+    }
+  }
+
   /// Memeriksa apakah input teks cocok dengan salah satu kode akses slot (1..3).
   /// Mengembalikan nomor slot yang cocok, atau null jika tidak cocok satupun.
   Future<int?> checkAnySlotPasscode(String code) async {
+    if (await isVaultLockedOut()) return null;
     final trimmed = code.trim();
     if (trimmed.isEmpty) return null;
     for (int slot = 1; slot <= 3; slot++) {
       if (await hasSlotPasscode(slot)) {
-        if (await verifySlotPasscode(slot, trimmed)) {
+        if (await _checkSlotPasscodeNoAttempt(slot, trimmed)) {
+          await resetFailedVaultAttempts();
           return slot;
         }
       }
@@ -199,6 +334,7 @@ class PrivateContactRepository {
   }
 
   /// Menghapus kode akses slot (khusus slot 2 atau 3 saat slot dihapus)
+  /// dan membersihkan nama kustom profil di SharedPreferences (P3-1)
   Future<void> deleteSlotPasscode(int slot) async {
     try {
       await _secureStorage.delete(key: _slotPasscodeKey(slot));
@@ -206,6 +342,8 @@ class PrivateContactRepository {
       if (slot == 1) {
         _cachedHash = null;
       }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('$_slotNamePrefix$slot');
     } catch (_) {}
   }
 

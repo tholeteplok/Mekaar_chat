@@ -118,11 +118,13 @@ class CallInvitationListener {
       _log.w('[CALL_INVITE] Gagal memuat profil pemanggil ($callerId): $e');
     }
 
-    // Cek apakah room/caller termasuk kontak Private Vault yang sedang terkunci
-    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId) ||
-        _ref.read(hiddenContactUserIdsProvider).contains(callerId);
-    final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
-    final isVaultLocked = isHidden && !isVaultUnlocked;
+    // Cek apakah room/caller termasuk kontak Private Vault yang sedang terkunci (terisolasi per-slot)
+    final isVaultLocked = VaultIsolationHelper.isRoomCloaked(
+      _ref,
+      roomId: roomId,
+      otherUserId: callerId,
+    );
+    final callerSlot = VaultIsolationHelper.getContactVaultSlot(_ref, callerId);
 
     // 1. Tampilkan layar panggilan masuk langsung ke UI (decoupling dari notifikasi/audio)
     void navigateToIncomingScreen(BuildContext ctx) {
@@ -138,6 +140,7 @@ class CallInvitationListener {
             callerAvatarUrl: callerAvatarUrl,
             callType: callType,
             isVaultLocked: isVaultLocked,
+            callerSlot: callerSlot,
           ),
         ),
       );
@@ -230,11 +233,11 @@ class CallInvitationListener {
             }
           } catch (_) {}
 
-          final isHidden = (roomId != null &&
-                  _ref.read(hiddenRoomIdsProvider).contains(roomId)) ||
-              _ref.read(hiddenContactUserIdsProvider).contains(callerId);
-          final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
-          final isVaultLocked = isHidden && !isVaultUnlocked;
+          final isVaultLocked = VaultIsolationHelper.isRoomCloaked(
+            _ref,
+            roomId: roomId,
+            otherUserId: callerId,
+          );
 
           await NotificationService.showMissedCallNotification(
             callerName: isVaultLocked ? 'MEKAAR' : callerName,

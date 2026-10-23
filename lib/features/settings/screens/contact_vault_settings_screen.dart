@@ -166,10 +166,34 @@ class _ContactVaultSettingsScreenState
 
     if (confirmed == true && mounted) {
       setState(() => _isLoading = true);
+
+      // 1. Ambil seluruh kontak yang berada di slot yang akan dihapus
+      final contactsInSlot = ref
+              .read(userContactsProvider)
+              .value
+              ?.where((c) => c.vaultSlot == slot && c.isVaulted)
+              .toList() ??
+          [];
+
+      // 2. Bersihkan contactUserId dari set lokal hiddenContactUserIds
+      final hiddenNotifier = ref.read(hiddenContactUserIdsProvider.notifier);
+      for (final c in contactsInSlot) {
+        await hiddenNotifier.removeContact(c.contactUserId);
+      }
+
+      // 3. Cabut slot dari unlockedVaultSlotsProvider di RAM
+      ref
+          .read(unlockedVaultSlotsProvider.notifier)
+          .update((s) => s.where((x) => x != slot).toSet());
+      if (ref.read(unlockedVaultSlotsProvider).isEmpty) {
+        ref.read(privateVaultUnlockedProvider.notifier).state = false;
+      }
+
+      // 4. Hapus passcode slot di Secure Storage
       final repo = ref.read(privateContactRepositoryProvider);
       await repo.deleteSlotPasscode(slot);
 
-      // Panggil RPC Supabase untuk mengeluarkan kontak dari slot tersebut
+      // 5. Panggil RPC Supabase untuk mengeluarkan kontak dari slot tersebut
       await ref.read(contactRepositoryProvider).deleteVaultSlot(slot);
       ref.invalidate(userContactsProvider);
 

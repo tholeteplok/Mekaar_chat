@@ -78,20 +78,17 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
     // Hitung total unread di semua room untuk badge ikon Pesan
-    // (Abaikan room tersembunyi saat vault terkunci agar indikator tidak bocor)
-    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
-    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
-    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
+    // (Abaikan room tersembunyi saat vault terkunci agar indikator tidak bocor - terisolasi per-slot)
+    final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
+    final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
     final chatRoomsState = ref.watch(chatRoomsProvider);
     final totalUnread = chatRoomsState.maybeWhen(
       data: (rooms) => rooms.fold<int>(
         0,
         (sum, r) {
           final otherUserId = r['otherUserId'] as String?;
-          if (!isVaultUnlocked &&
-              (hiddenRoomIds.contains(r['id']) ||
-                  (otherUserId != null &&
-                      hiddenContactUserIds.contains(otherUserId)))) {
+          if (cloakedRooms.contains(r['id']) ||
+              (otherUserId != null && cloakedContacts.contains(otherUserId))) {
             return sum;
           }
           return sum + ((r['unreadCount'] as int?) ?? 0);

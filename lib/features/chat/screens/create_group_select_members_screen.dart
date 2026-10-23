@@ -63,18 +63,14 @@ class _CreateGroupSelectMembersScreenState
   @override
   Widget build(BuildContext context) {
     final contactsAsync = ref.watch(contactsProvider);
-    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
-    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
-    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
+    final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
+    final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
 
-    final hiddenUserIds = <String>{};
-    if (!isVaultUnlocked) {
-      hiddenUserIds.addAll(hiddenContactUserIds);
-      for (final r in chatRooms) {
-        if (hiddenRoomIds.contains(r['id']) && r['otherUserId'] != null) {
-          hiddenUserIds.add(r['otherUserId'] as String);
-        }
+    final hiddenUserIds = <String>{...cloakedContacts};
+    for (final r in chatRooms) {
+      if (cloakedRooms.contains(r['id']) && r['otherUserId'] != null) {
+        hiddenUserIds.add(r['otherUserId'] as String);
       }
     }
 

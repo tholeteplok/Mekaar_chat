@@ -9,7 +9,9 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/models/contact_model.dart';
 import '../../../data/models/nearby_friend_model.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
@@ -105,9 +107,12 @@ class NearbyFriendsCanvas extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(nearbyFriendsProvider);
     final showPreview = ref.watch(nearbyPreviewPreferenceProvider);
-    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
-    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
+    final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+    final vaultedContactUserIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
 
     final screenH = MediaQuery.sizeOf(context).height;
@@ -117,15 +122,12 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     final dynamicHeight =
         maxH - (maxH - minH) * collapseProgress.clamp(0.0, 1.0);
 
-    // Kumpulkan userId dari room dan kontak yang disembunyikan jika vault terkunci (anti-leak)
-    final hiddenUserIds = <String>{};
-    if (!isVaultUnlocked) {
-      hiddenUserIds.addAll(hiddenContactUserIds);
-      if (hiddenRoomIds.isNotEmpty) {
-        for (final r in chatRooms) {
-          if (hiddenRoomIds.contains(r['id']) && r['otherUserId'] != null) {
-            hiddenUserIds.add(r['otherUserId'] as String);
-          }
+    // Kumpulkan userId dari room dan kontak yang disembunyikan jika vault terkunci (anti-leak terisolasi per-slot)
+    final hiddenUserIds = <String>{...cloakedContacts};
+    if (cloakedRooms.isNotEmpty) {
+      for (final r in chatRooms) {
+        if (cloakedRooms.contains(r['id']) && r['otherUserId'] != null) {
+          hiddenUserIds.add(r['otherUserId'] as String);
         }
       }
     }
@@ -207,11 +209,12 @@ class NearbyFriendsCanvas extends ConsumerWidget {
 
     // ── 2. State Aktif: Tampilkan Header + Orbital Physics Canvas ──
     final orbitalItems = displayList.map((friend) {
-      final isVaultContact = isVaultUnlocked &&
-          hiddenRoomIds.isNotEmpty &&
-          chatRooms.any((r) =>
-              hiddenRoomIds.contains(r['id']) &&
-              r['otherUserId'] == friend.userId);
+      final isVaultContact = vaultedContactUserIds.contains(friend.userId) ||
+          hiddenContactUserIds.contains(friend.userId) ||
+          (hiddenRoomIds.isNotEmpty &&
+              chatRooms.any((r) =>
+                  hiddenRoomIds.contains(r['id']) &&
+                  r['otherUserId'] == friend.userId));
       return OrbitalAvatarItem(
         id: friend.userId,
         displayName: friend.displayName,

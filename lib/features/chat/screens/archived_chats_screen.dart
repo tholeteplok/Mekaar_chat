@@ -14,8 +14,13 @@ import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/models/contact_model.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../providers/chat_provider.dart';
+import '../providers/private_vault_provider.dart';
 import '../widgets/chat_list_tile.dart';
+import '../widgets/private_vault_active_banner.dart';
+import '../widgets/private_vault_dialogs.dart';
 
 /// Layar Arsip Percakapan terproteksi PIN.
 ///
@@ -195,6 +200,8 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
       ),
       body: Column(
         children: [
+          if (ref.watch(unlockedVaultSlotsProvider).isNotEmpty)
+            const PrivateVaultActiveBanner(),
           if (_isSearchActive)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -237,10 +244,26 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
                 ),
               ),
               data: (rooms) {
-                // Filter hanya room yang diarsipkan
+                final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
+                final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
+                final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+                final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
+                final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+                final vaultedContactIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
+
+                // Filter hanya room yang diarsipkan & tidak sedang cloaked (terisolasi per-slot)
                 final archivedRooms = rooms.where((room) {
                   final isArchived = room['isArchived'] as bool? ?? false;
                   if (!isArchived) return false;
+
+                  final roomId = room['id'] as String;
+                  final otherUserId = room['otherUserId'] as String?;
+
+                  // Cloaking Private Vault terisolasi: sembunyikan jika room / kontak cloaked
+                  if (cloakedRooms.contains(roomId)) return false;
+                  if (otherUserId != null && cloakedContacts.contains(otherUserId)) {
+                    return false;
+                  }
 
                   if (_searchQuery.isNotEmpty) {
                     final name =
@@ -282,10 +305,31 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
                     itemCount: archivedRooms.length,
                     itemBuilder: (context, index) {
                       final room = archivedRooms[index];
+                      final roomId = room['id'] as String;
+                      final otherUserId = room['otherUserId'] as String?;
+                      final isHidden = hiddenRoomIds.contains(roomId) ||
+                          (otherUserId != null &&
+                              (hiddenContactUserIds.contains(otherUserId) ||
+                                  vaultedContactIds.contains(otherUserId)));
+
                       return ChatListTile(
                         room: room,
-                        onTap: () {
+                        isHidden: isHidden,
+                        onTap: () async {
                           HapticService.trigger(MekaarHapticIntent.selection);
+                          if (otherUserId != null) {
+                            final isCloaked = VaultIsolationHelper.isContactCloaked(ref, otherUserId);
+                            final targetSlot = VaultIsolationHelper.getContactVaultSlot(ref, otherUserId);
+                            if (isCloaked) {
+                              final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(
+                                context,
+                                ref,
+                                targetSlot,
+                              );
+                              if (!unlocked || !context.mounted) return;
+                            }
+                          }
+                          if (!context.mounted) return;
                           Navigator.pushNamed(
                             context,
                             AppRoutes.chat,

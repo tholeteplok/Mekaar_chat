@@ -70,11 +70,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   String? _lastSearchQuery;
   int? _lastTabIndex;
   Set<String>? _lastBlockedIds;
-  Set<String>? _lastHiddenIds;
-  Set<String>? _lastHiddenContactIds;
-  Set<String>? _lastVaultedContactIds;
-  Set<int>? _lastUnlockedSlots;
-  bool? _lastVaultUnlocked;
+  Set<String>? _lastCloakedRoomIds;
+  Set<String>? _lastCloakedContactUserIds;
 
   int _computeRoomsSignature(List<Map<String, dynamic>> rooms) {
     if (rooms.isEmpty) return 0;
@@ -615,12 +612,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   // Proteksi Private Vault: jika user tujuan disembunyikan & vault terkunci, verifikasi PIN terlebih dahulu
                                   if (!stateCtx.mounted) return;
                                   final targetUserId = profile['id'] as String;
-                                  final isTargetVaulted = ref.read(hiddenContactUserIdsProvider).contains(targetUserId) ||
-                                      (ref.read(userContactsProvider).value?.any((c) => c.contactUserId == targetUserId && c.isVaulted) ?? false);
-                                  final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
+                                  final isCloaked = VaultIsolationHelper.isContactCloaked(ref, targetUserId);
+                                  final targetSlot = VaultIsolationHelper.getContactVaultSlot(ref, targetUserId);
 
-                                  if (isTargetVaulted && !isVaultUnlocked) {
-                                    final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(stateCtx, ref);
+                                  if (isCloaked) {
+                                    final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(
+                                      stateCtx,
+                                      ref,
+                                      targetSlot,
+                                    );
                                     if (!unlocked || !stateCtx.mounted) return;
                                   }
 
@@ -1015,15 +1015,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           orElse: () => <String>{},
         );
 
+    final cloakedRoomIds = ref.watch(cloakedRoomIdsProvider);
+    final cloakedContactUserIds = ref.watch(cloakedContactUserIdsProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
-    final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
-    final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
     final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
     final vaultedContactIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
-    final vaultedContactsSlotMap = {
-      for (var c in contactsList.where((c) => c.isVaulted)) c.contactUserId: c.vaultSlot
-    };
 
     // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
     final roomsSignature = _computeRoomsSignature(rooms);
@@ -1032,11 +1029,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         _lastSearchQuery == _searchQuery &&
         _lastTabIndex == _selectedTabIndex &&
         setEquals(_lastBlockedIds, blockedIds) &&
-        setEquals(_lastHiddenIds, hiddenRoomIds) &&
-        setEquals(_lastHiddenContactIds, hiddenContactUserIds) &&
-        setEquals(_lastVaultedContactIds, vaultedContactIds) &&
-        setEquals(_lastUnlockedSlots, unlockedSlots) &&
-        _lastVaultUnlocked == isVaultUnlocked;
+        setEquals(_lastCloakedRoomIds, cloakedRoomIds) &&
+        setEquals(_lastCloakedContactUserIds, cloakedContactUserIds);
 
     final List<Map<String, dynamic>> filtered;
     if (isCacheValid) {
@@ -1094,15 +1088,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           return false;
         }
 
-        // 2. Cloaking Private Vault terisolasi: Sembunyikan obrolan jika slot vault kontak belum dibuka
-        if (otherUserId != null && vaultedContactsSlotMap.containsKey(otherUserId)) {
-          final slot = vaultedContactsSlotMap[otherUserId]!;
-          if (!unlockedSlots.contains(slot)) return false;
-        } else if (otherUserId != null && hiddenContactUserIds.contains(otherUserId)) {
-          if (!isVaultUnlocked) return false;
-        }
-        final isRoomHidden = hiddenRoomIds.contains(roomId);
-        if (!isVaultUnlocked && isRoomHidden) {
+        // 2. Cloaking Private Vault terisolasi: Sembunyikan obrolan jika kontak/room terselubung
+        if (cloakedRoomIds.contains(roomId)) return false;
+        if (otherUserId != null && cloakedContactUserIds.contains(otherUserId)) {
           return false;
         }
 
@@ -1128,11 +1116,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       _lastSearchQuery = _searchQuery;
       _lastTabIndex = _selectedTabIndex;
       _lastBlockedIds = Set<String>.from(blockedIds);
-      _lastHiddenIds = Set<String>.from(hiddenRoomIds);
-      _lastHiddenContactIds = Set<String>.from(hiddenContactUserIds);
-      _lastVaultedContactIds = Set<String>.from(vaultedContactIds);
-      _lastUnlockedSlots = Set<int>.from(unlockedSlots);
-      _lastVaultUnlocked = isVaultUnlocked;
+      _lastCloakedRoomIds = Set<String>.from(cloakedRoomIds);
+      _lastCloakedContactUserIds = Set<String>.from(cloakedContactUserIds);
     }
 
     if (filtered.isEmpty) {

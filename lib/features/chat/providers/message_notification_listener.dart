@@ -276,16 +276,18 @@ class MessageNotificationListener {
       }
     }
 
-    // Cek apakah room/sender disembunyikan dalam Private Contact Vault
-    final isHidden = _ref.read(hiddenRoomIdsProvider).contains(roomId) ||
-        _ref.read(hiddenContactUserIdsProvider).contains(senderId);
-    final isVaultUnlocked = _ref.read(privateVaultUnlockedProvider);
+    // Cek apakah room/sender disembunyikan dalam Private Contact Vault (terisolasi per-slot)
+    final isCloaked = VaultIsolationHelper.isRoomCloaked(
+      _ref,
+      roomId: roomId,
+      otherUserId: senderId,
+    );
     final isStealthPreview = _ref.read(stealthChatPreviewProvider);
 
     final String finalTitle;
     final String finalBody;
 
-    if (isHidden && !isVaultUnlocked) {
+    if (isCloaked) {
       // Masking total ala WhatsApp Locked Chat:
       // Tampilkan nama brand & teks netral tanpa membocorkan pengirim/isi pesan
       finalTitle = 'MEKAAR';
@@ -307,8 +309,8 @@ class MessageNotificationListener {
       route: NotificationRoute(
         type: NotificationRouteType.message,
         roomId: roomId,
-        chatName: (isHidden && !isVaultUnlocked) ? null : senderName,
-        otherUserId: (isHidden && !isVaultUnlocked) ? null : senderId,
+        chatName: isCloaked ? null : senderName,
+        otherUserId: isCloaked ? null : senderId,
       ),
     );
   }

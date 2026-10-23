@@ -13,7 +13,6 @@ import '../providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
-import '../../../data/repositories/contact_repository.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
 
@@ -102,12 +101,15 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
 
       // 4. Proteksi Private Vault: jika kontak disembunyikan & vault terkunci, wajib verifikasi PIN
       if (!mounted) return;
-      final isTargetVaulted = ref.read(hiddenContactUserIdsProvider).contains(userId) ||
-          (ref.read(userContactsProvider).value?.any((c) => c.contactUserId == userId && c.isVaulted) ?? false);
-      final isVaultUnlocked = ref.read(privateVaultUnlockedProvider);
+      final isCloaked = VaultIsolationHelper.isContactCloaked(ref, userId);
+      final targetSlot = VaultIsolationHelper.getContactVaultSlot(ref, userId);
 
-      if (isTargetVaulted && !isVaultUnlocked) {
-        final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(context, ref);
+      if (isCloaked) {
+        final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(
+          context,
+          ref,
+          targetSlot,
+        );
         if (!unlocked || !mounted) {
           _resumeScanner();
           return;

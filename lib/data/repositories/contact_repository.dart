@@ -218,12 +218,18 @@ class ContactsNotifier extends StateNotifier<AsyncValue<List<ContactItem>>> {
           .where((item) => item.isVaulted)
           .map((item) => item.contactUserId)
           .toSet();
+      final hiddenNotifier = _ref.read(hiddenContactUserIdsProvider.notifier);
       if (vaultedContactIds.isNotEmpty) {
-        final hiddenNotifier = _ref.read(hiddenContactUserIdsProvider.notifier);
         for (final cid in vaultedContactIds) {
           if (!hiddenNotifier.isHidden(cid)) {
             await hiddenNotifier.hideContact(cid);
           }
+        }
+      }
+      // Bersihkan kontak yang status isVaulted-nya telah dinonaktifkan di cloud (anti-orphan)
+      for (final item in items) {
+        if (!item.isVaulted && hiddenNotifier.isHidden(item.contactUserId)) {
+          await hiddenNotifier.removeContact(item.contactUserId);
         }
       }
     } catch (e, st) {

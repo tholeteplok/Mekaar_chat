@@ -13,7 +13,6 @@ import '../../../data/services/notification_service.dart';
 import '../../../data/services/wakelock_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/call_state_provider.dart';
-import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
 
 class IncomingCallScreen extends ConsumerStatefulWidget {
@@ -24,6 +23,7 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
   final String? callerAvatarUrl;
   final String callType;
   final bool isVaultLocked;
+  final int callerSlot;
 
   const IncomingCallScreen({
     super.key,
@@ -34,6 +34,7 @@ class IncomingCallScreen extends ConsumerStatefulWidget {
     this.callerAvatarUrl,
     required this.callType,
     this.isVaultLocked = false,
+    this.callerSlot = 1,
   });
 
   @override
@@ -139,8 +140,11 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
 
     // Jika kontak panggilan berada di vault dan sedang terkunci, minta PIN terlebih dahulu
     if (_effectiveVaultLocked) {
-      final unlocked =
-          await PrivateVaultDialogs.showUnlockPasscodeDialog(context);
+      final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(
+        context,
+        ref,
+        widget.callerSlot,
+      );
       if (!mounted) return;
       if (!unlocked) {
         return; // Pengguna membatalkan atau PIN salah
@@ -148,9 +152,6 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
       setState(() {
         _isVaultUnlockedLocally = true;
       });
-      try {
-        ref.read(privateVaultUnlockedProvider.notifier).state = true;
-      } catch (_) {}
     }
 
     setState(() => _isResponding = true);
