@@ -25,8 +25,14 @@ class PrivateVaultDialogs {
     if (!context.mounted) return null;
 
     if (!hasPasscode) {
-      final success = await showSetPasscodeDialog(context, ref);
+      final success = await showSetPasscodeDialog(
+        context,
+        ref,
+        autoUnlock: false,
+      );
       if (!success) return null;
+      ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+      ref.read(privateVaultUnlockedProvider.notifier).state = false;
     }
 
     if (!context.mounted) return null;
@@ -104,8 +110,14 @@ class PrivateVaultDialogs {
     if (!context.mounted) return;
 
     if (!hasPasscode) {
-      final success = await showSetPasscodeDialog(context, ref);
+      final success = await showSetPasscodeDialog(
+        context,
+        ref,
+        autoUnlock: false,
+      );
       if (!success) return;
+      ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+      ref.read(privateVaultUnlockedProvider.notifier).state = false;
     }
 
     if (!context.mounted) return;
@@ -137,6 +149,7 @@ class PrivateVaultDialogs {
     int slot = 1,
     String? slotName,
     bool isResetFlow = false,
+    bool autoUnlock = false,
   }) async {
     final codeController = TextEditingController();
     final confirmController = TextEditingController();
@@ -184,9 +197,9 @@ class PrivateVaultDialogs {
                 color: MekaarColors.guardianTeal,
                 size: 28,
               ),
-              title: isResetFlow ? 'Reset PIN $displayName' : 'Atur PIN $displayName',
+              title: isResetFlow ? 'Reset Kode Akses $displayName' : 'Atur Kode Akses $displayName',
               message:
-                  'Tentukan PIN akses rahasia untuk membuka $displayName.\nPIN ini dapat Anda masukkan pada kolom pencarian (Search Bar) untuk membuka kontak di profil ini secara terisolasi.',
+                  'Tentukan kode akses rahasia (bebas: angka, huruf, atau simbol, min. 6 karakter) untuk membuka $displayName.\nKode ini dapat Anda masukkan pada kolom pencarian (Search Bar) untuk membuka kontak di profil ini secara terisolasi.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,11 +208,11 @@ class PrivateVaultDialogs {
                   TextField(
                     controller: codeController,
                     obscureText: obscureCode,
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.visiblePassword,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration:
-                        vaultInputDecoration('Masukkan PIN rahasia (min. 4 angka)')
+                        vaultInputDecoration('Masukkan kode akses rahasia (min. 6 karakter)')
                             .copyWith(
                       errorText: errorMessage,
                       suffixIcon: IconButton(
@@ -212,8 +225,8 @@ class PrivateVaultDialogs {
                         onPressed: () =>
                             setDialogState(() => obscureCode = !obscureCode),
                         tooltip: obscureCode
-                            ? 'Tampilkan PIN'
-                            : 'Sembunyikan PIN',
+                            ? 'Tampilkan kode akses'
+                            : 'Sembunyikan kode akses',
                       ),
                     ),
                   ),
@@ -221,11 +234,11 @@ class PrivateVaultDialogs {
                   TextField(
                     controller: confirmController,
                     obscureText: obscureConfirm,
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.visiblePassword,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration:
-                        vaultInputDecoration('Konfirmasi PIN rahasia')
+                        vaultInputDecoration('Konfirmasi kode akses rahasia')
                             .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -237,8 +250,8 @@ class PrivateVaultDialogs {
                         onPressed: () => setDialogState(
                             () => obscureConfirm = !obscureConfirm),
                         tooltip: obscureConfirm
-                            ? 'Tampilkan PIN'
-                            : 'Sembunyikan PIN',
+                            ? 'Tampilkan kode akses'
+                            : 'Sembunyikan kode akses',
                       ),
                     ),
                   ),
@@ -258,16 +271,16 @@ class PrivateVaultDialogs {
                     final code = codeController.text.trim();
                     final confirm = confirmController.text.trim();
 
-                    if (code.length < 4) {
+                    if (code.length < 6) {
                       setDialogState(() {
-                        errorMessage = 'PIN minimal 4 angka / karakter';
+                        errorMessage = 'Kode akses minimal 6 karakter';
                       });
                       return;
                     }
 
                     if (code != confirm) {
                       setDialogState(() {
-                        errorMessage = 'Konfirmasi PIN tidak cocok';
+                        errorMessage = 'Konfirmasi kode akses tidak cocok';
                       });
                       return;
                     }
@@ -280,7 +293,7 @@ class PrivateVaultDialogs {
                       Navigator.pop(dialogCtx, true);
                     }
                   },
-                  child: const Text('Simpan PIN'),
+                  child: const Text('Simpan Kode Akses'),
                 ),
               ],
             );
@@ -290,7 +303,7 @@ class PrivateVaultDialogs {
     );
 
     final isSuccess = result ?? false;
-    if (isSuccess) {
+    if (isSuccess && autoUnlock) {
       ref.read(unlockedVaultSlotsProvider.notifier).update((s) => {...s, slot});
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
     }
@@ -316,6 +329,7 @@ class PrivateVaultDialogs {
       ref,
       slot: slot,
       slotName: slotName,
+      autoUnlock: true,
     );
   }
 
@@ -345,7 +359,7 @@ class PrivateVaultDialogs {
               ),
               title: 'Buka $displayName',
               message:
-                  'Masukkan PIN akses rahasia untuk membuka $displayName.',
+                  'Masukkan kode akses rahasia untuk membuka $displayName.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,12 +368,12 @@ class PrivateVaultDialogs {
                   TextField(
                     controller: codeController,
                     obscureText: obscureCode,
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.visiblePassword,
                     autofocus: true,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: InputDecoration(
-                      hintText: 'PIN akses $displayName',
+                      hintText: 'Kode akses $displayName',
                       errorText: errorMessage,
                       filled: true,
                       fillColor: MekaarColors.surface2Of(dialogCtx),
@@ -392,8 +406,8 @@ class PrivateVaultDialogs {
                         onPressed: () =>
                             setDialogState(() => obscureCode = !obscureCode),
                         tooltip: obscureCode
-                            ? 'Tampilkan PIN'
-                            : 'Sembunyikan PIN',
+                            ? 'Tampilkan kode akses'
+                            : 'Sembunyikan kode akses',
                       ),
                     ),
                     onSubmitted: (val) async {
@@ -424,7 +438,7 @@ class PrivateVaultDialogs {
                             errorMessage =
                                 'Terlalu banyak percobaan. Tunggu $remaining detik.';
                           } else {
-                            errorMessage = 'PIN rahasia tidak cocok';
+                            errorMessage = 'Kode akses rahasia tidak cocok';
                           }
                         });
                       }
@@ -446,7 +460,7 @@ class PrivateVaultDialogs {
                     final code = codeController.text.trim();
                     if (code.isEmpty) {
                       setDialogState(() {
-                        errorMessage = 'Masukkan PIN rahasia Anda';
+                        errorMessage = 'Masukkan kode akses rahasia Anda';
                       });
                       return;
                     }
@@ -480,7 +494,7 @@ class PrivateVaultDialogs {
                           errorMessage =
                               'Terlalu banyak percobaan. Tunggu $remaining detik.';
                         } else {
-                          errorMessage = 'PIN rahasia tidak cocok';
+                          errorMessage = 'Kode akses rahasia tidak cocok';
                         }
                       });
                     }

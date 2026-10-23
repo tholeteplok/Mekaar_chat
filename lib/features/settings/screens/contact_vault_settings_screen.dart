@@ -391,7 +391,7 @@ class _ContactVaultSettingsScreenState
           children: [
             SettingsTopBar(
               title: 'Manajemen Vault',
-              subtitle: 'Kelola hingga 3 slot profil vault terisolasi',
+              subtitle: 'Kelola profil vault terisolasi',
               trailing: _activeSlots.length < 3
                   ? IconButton(
                       icon: const Icon(
@@ -665,7 +665,7 @@ class _ContactVaultSettingsScreenState
                         ),
                       ),
                       icon: const Icon(SolarIconsOutline.addCircle, size: 18),
-                      label: Text('Tambah Profil Slot ${_activeSlots.length + 1} (Maks 3)'),
+                      label: Text('Tambah Profil ${_activeSlots.length + 1}'),
                       onPressed: _handleAddNewSlot,
                     ),
                   ),

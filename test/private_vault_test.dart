@@ -83,5 +83,17 @@ void main() {
       expect(await freshRepo.verifyPasscode('vault1234'), isTrue);
       expect(await freshRepo.verifyPasscode('vault9999'), isFalse);
     });
+
+    test('Kode akses bebas alfanumerik dan simbol (min. 6 karakter) tersimpan dan terverifikasi', () async {
+      final repo = PrivateContactRepository();
+      const complexPasscode = '!K0d3#V@ult2026?';
+      await repo.setSlotPasscode(1, complexPasscode);
+
+      expect(await repo.hasPasscode(), isTrue);
+      expect(await repo.verifySlotPasscode(1, complexPasscode), isTrue);
+      expect(await repo.verifyPasscode(complexPasscode), isTrue);
+      expect(await repo.checkAnySlotPasscode(complexPasscode), equals(1));
+      expect(await repo.verifySlotPasscode(1, 'salah123'), isFalse);
+    });
   });
 }

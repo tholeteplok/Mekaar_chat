@@ -46,6 +46,7 @@ class PrivateVaultActiveBanner extends ConsumerWidget {
         action: InkWell(
           onTap: () {
             HapticService.trigger(MekaarHapticIntent.selection);
+            ref.read(unlockedVaultSlotsProvider.notifier).state = {};
             ref.read(privateVaultUnlockedProvider.notifier).state = false;
             MekaarSnackbar.info(context, 'Private Vault Terkunci');
           },
