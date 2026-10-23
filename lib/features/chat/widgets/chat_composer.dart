@@ -29,6 +29,7 @@ import '../../../core/utils/error_resolver.dart';
 import 'package:file_picker/file_picker.dart';
 import 'image_send_preview_sheet.dart';
 import 'document_send_preview_sheet.dart';
+import 'typing_indicator.dart';
 
 class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -48,6 +49,7 @@ class ChatComposer extends ConsumerStatefulWidget {
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
   final bool enabled;
   final bool canSend;
+  final bool isOtherTyping;
   final FocusNode? focusNode;
   final ChatRoomThemeSpec? roomThemeSpec;
   final ValueChanged<bool>? onEmojiPanelVisibilityChanged;
@@ -66,6 +68,7 @@ class ChatComposer extends ConsumerStatefulWidget {
     this.onShareLiveLocation,
     this.enabled = true,
     this.canSend = true,
+    this.isOtherTyping = false,
     this.focusNode,
     this.roomThemeSpec,
     this.onEmojiPanelVisibilityChanged,
@@ -1048,7 +1051,37 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       padding: EdgeInsets.only(left: 8, right: 8, bottom: bottomPadding + 6, top: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) ──
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            reverseDuration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SizeTransition(
+                  sizeFactor: animation,
+                  axisAlignment: -1.0,
+                  child: child,
+                ),
+              );
+            },
+            child: widget.isOtherTyping
+                ? Align(
+                    key: const ValueKey('composer_typing_indicator_active'),
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: TypingIndicator(
+                        dotColor: primaryAccent,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(
+                    key: ValueKey('composer_typing_indicator_inactive'),
+                  ),
+          ),
           // Reply preview
           if (widget.replyMessage != null && !_isEditMode)
             Padding(

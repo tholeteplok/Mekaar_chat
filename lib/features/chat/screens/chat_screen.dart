@@ -36,7 +36,6 @@ import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
-import '../widgets/typing_indicator.dart';
 import '../widgets/e2ee_preparation_banner.dart';
 import '../providers/e2ee_room_status_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -2007,33 +2006,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                         ...activePending,
                                       ];
 
-                                      final isTyping = ref.watch(
-                                        typingStateProvider(widget.chatId),
-                                      );
-
-                                      if (rawMessages.isEmpty &&
-                                          rawCalls.isEmpty) {
-                                        if (isTyping) {
-                                          return ListView(
-                                            controller: _scrollController,
-                                            reverse: true,
-                                            padding: const EdgeInsets.only(
-                                              top: 8,
-                                              bottom: 130,
-                                            ),
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.only(bottom: 6),
-                                                child: Align(
-                                                  alignment: Alignment.centerLeft,
-                                                  child: TypingIndicator(
-                                                    dotColor: roomThemeSpec.primaryAccentColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        }
+                                       if (rawMessages.isEmpty &&
+                                           rawCalls.isEmpty) {
                                         return const MekaarStateView(
                                           pose: MikaPose.sleep,
                                           title: 'Belum Ada Pesan',
@@ -2113,27 +2087,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                               bottom:
                                                   130 + keyboardHeight + emojiInset,
                                             ),
-                                            itemCount: itemEntries.length +
-                                                (isTyping ? 1 : 0),
-                                            itemBuilder: (context, index) {
-                                              if (isTyping && index == 0) {
-                                                return Padding(
-                                                  padding: const EdgeInsets.only(
-                                                    bottom: 4,
-                                                  ),
-                                                  child: Align(
-                                                    alignment: Alignment.centerLeft,
-                                                    child: TypingIndicator(
-                                                      dotColor: roomThemeSpec
-                                                          .primaryAccentColor,
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                              final entryIndex =
-                                                  isTyping ? index - 1 : index;
-                                              return _buildLazyMessageItem(
-                                                itemEntries[entryIndex],
+                                             itemCount: itemEntries.length,
+                                             itemBuilder: (context, index) {
+                                               return _buildLazyMessageItem(
+                                                 itemEntries[index],
                                                 currentUserId,
                                                 actions,
                                                 messageMap,
@@ -2213,9 +2170,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   );
                   final isComposerEnabled =
                       widget.isGroup || (e2eeStatus == E2eeRoomStatus.ready);
+                  final isOtherTyping = ref.watch(
+                    typingStateProvider(widget.chatId),
+                  );
 
                   return ChatComposer(
                     key: _composerKey,
+                    isOtherTyping: isOtherTyping,
                     controller: _textController,
                     focusNode: _composerFocusNode,
                     replyMessage: _replyMessage,
