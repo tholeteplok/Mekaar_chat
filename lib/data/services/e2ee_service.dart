@@ -322,6 +322,8 @@ class E2eeService {
     }
 
     final completer = Completer<SecretKey?>();
+    // Abaikan unhandled async error di event loop jika terjadi error saat belum ada listener konkuren
+    completer.future.ignore();
     _roomKeyInflight[roomId] = completer;
 
     try {
@@ -515,6 +517,10 @@ class E2eeService {
           _logger.w(
             'Pesan lama tidak cocok dengan kunci saat ini di room $roomId (MAC mismatch).',
           );
+        } else if (e is E2eeUnavailableException) {
+          // Identitas lokal belum siap (misal menunggu pemulihan dengan PIN).
+          // Log ringkas tanpa spamming full stack trace error.
+          _logger.w('decryptForRoom ditunda di room $roomId: ${e.message}');
         } else {
           _logger.e(
             'decryptForRoom error in room $roomId',

@@ -426,6 +426,7 @@ class ChatRepository {
     final controller = StreamController<List<Message>>();
     StreamSubscription? streamSubscription;
     Timer? retryTimer;
+    Timer? reconnectDebounceTimer;
     var retryAttempt = 0;
     bool hasEmittedData = false;
     final Map<String, Message> messagePool = {};
@@ -637,8 +638,15 @@ class ChatRepository {
       void handleStreamError(dynamic err) {
         if (controller.isClosed) return;
 
-        // Tandai stream sedang menyambung ulang / offline
-        onReconnectChange?.call(true);
+        // Debounce status reconnecting / offline (2.5s) agar fluktuasi mikro socket
+        // tidak langsung memunculkan banner "Mode Offline" di layar obrolan pengguna.
+        if (reconnectDebounceTimer == null || !reconnectDebounceTimer!.isActive) {
+          reconnectDebounceTimer = Timer(const Duration(milliseconds: 2500), () {
+            if (!controller.isClosed) {
+              onReconnectChange?.call(true);
+            }
+          });
+        }
 
         // Coba subscribe ulang dengan backoff
         if (retryAttempt < reconnectPolicy.maxAttempts) {
@@ -663,6 +671,7 @@ class ChatRepository {
               }
             });
           } else {
+            reconnectDebounceTimer?.cancel();
             onReconnectChange?.call(false);
             controller.addError(err);
           }
@@ -685,10 +694,11 @@ class ChatRepository {
               .limit(100)
               .listen(
                 (maps) {
+                  reconnectDebounceTimer?.cancel();
                   if (retryAttempt > 0) {
                     retryAttempt = 0;
-                    onReconnectChange?.call(false);
                   }
+                  onReconnectChange?.call(false);
                   if (isProcessing) {
                     pendingBatch = maps;
                     return;
@@ -709,6 +719,7 @@ class ChatRepository {
     }
 
     controller.onCancel = () {
+      reconnectDebounceTimer?.cancel();
       retryTimer?.cancel();
       streamSubscription?.cancel();
       if (_activeRoomControllers[roomId] == controller) {
@@ -779,6 +790,18 @@ class ChatRepository {
     final plaintextMsg = sentMsg.copyWith(content: content);
     _decryptedContentCache[sentMsg.id] = content;
     unawaited(LocalMessageDatabase.instance.saveMessage(plaintextMsg));
+
+    // 0ms Instant Local Emit: mutasi RAM dan pancarkan ke UI stream seketika
+    final activePool = _activeRoomMessagePools[roomId];
+    final activeCtrl = _activeRoomControllers[roomId];
+    if (activePool != null) {
+      activePool[sentMsg.id] = plaintextMsg;
+      if (activeCtrl != null && !activeCtrl.isClosed) {
+        final sorted = activePool.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        activeCtrl.add(sorted);
+      }
+    }
 
     // Dual-dispatch fallback push notification ke penerima pesan
     unawaited(
