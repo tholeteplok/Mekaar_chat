@@ -196,9 +196,9 @@ class ImageBubble extends ConsumerWidget {
               color: MekaarColors.surface2Of(context),
               borderRadius: borderRadius,
             ),
-            child: const Icon(
+            child: Icon(
               MekaarIcons.brokenImage,
-              color: MekaarColors.textMuted,
+              color: MekaarColors.textMutedOf(context),
             ),
           );
         }

@@ -88,8 +88,13 @@ class MekaarColors {
   static const Color textSecondaryDark = Color(0xFF9FB0C9);
   static const Color textSecondary = Color(0xFF9FB0C9);
 
+  @Deprecated('Gunakan MekaarColors.textSecondaryLight.')
   static const Color textMutedLight = Color(0xFF5C6B85);
+
+  @Deprecated('Gunakan MekaarColors.textSecondaryDark.')
   static const Color textMutedDark = Color(0xFF9FB0C9);
+
+  @Deprecated('Gunakan MekaarColors.textMutedOf(context) untuk kontras yang adaptif.')
   static const Color textMuted = Color(0xFF6B7599);
 
   static const Color textOnBlue = AppColors.textOnBlue;
@@ -129,8 +134,13 @@ class MekaarColors {
   static const Color surface3Dark = Color(0xFF1E304F);
 
   // ── Legacy Compatibility Mappings ──
+  @Deprecated('Gunakan MekaarColors.sosCoral sebagai token resmi.')
   static const Color softCoral = AppColors.sosCoral;
+
+  @Deprecated('Gunakan MekaarColors.sosDeep atau AppColors.sosDeep.')
   static const Color sosRed = AppColors.sosDeep;
+
+  @Deprecated('Gunakan MekaarColors.safeTeal sebagai token resmi.')
   static const Color guardianTeal = AppColors.safeTeal;
   static const Color sosLight = Color(0xFFFFF1F2);
   static const Color guardianLight = Color(0xFFE6FFFA);
@@ -217,7 +227,17 @@ class MekaarColors {
 
   static Color outgoingBubbleBorderOf(BuildContext c) => Colors.transparent;
 
-  static Color outgoingTextOf(BuildContext c) => Colors.white;
+  /// Warna teks pada gelembung keluar (outgoing).
+  /// Otomatis beralih ke warna gelap kontras tinggi (AppColors.darkBlue)
+  /// jika warna latar gelembung memiliki luminansi terang (luminance > 0.5)
+  /// untuk memenuhi standar aksesibilitas kontras WCAG AA.
+  static Color outgoingTextOf(BuildContext c, [Color? bubbleColor]) {
+    if (bubbleColor != null) {
+      final luminance = bubbleColor.computeLuminance();
+      return luminance > 0.5 ? AppColors.darkBlue : Colors.white;
+    }
+    return Colors.white;
+  }
 }
 
 class MekaarGradients {
