@@ -19,7 +19,6 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
-import '../../../core/widgets/mekaar_notification_dot.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -750,44 +749,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               },
               action: wasDuress
                   ? null
-                  : Consumer(
-                      builder: (context, ref, _) {
-                        final activeGuardians =
-                            activeGuardiansOf(ref.watch(guardianProvider));
-                        final hasPending =
-                            ref.watch(hasPendingIncomingGuardiansProvider);
-                        final activeCount = activeGuardians.length;
-
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: MekaarNotificationDot(
-                                badgeCount: activeCount > 0 ? activeCount : null,
-                                badgeColor: MekaarColors.primaryOf(context),
-                                show: hasPending,
-                                showDot: hasPending,
-                                color: MekaarColors.warnAmber,
-                                offset: const Offset(0, -2),
-                                child: const Icon(
-                                  SolarIconsOutline.shieldUser,
-                                  color: MekaarColors.guardianTeal,
-                                ),
-                              ),
-                              tooltip: 'Guardian Saya',
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, AppRoutes.guardian),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.magnifier,
-                                color: MekaarColors.primaryOf(context),
-                              ),
-                              tooltip: 'Cari Chat',
-                              onPressed: () =>
-                                  setState(() => _isSearchActive = true),
-                            ),
-                            PopupMenuButton<String>(
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.magnifier,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: 'Cari Chat',
+                          onPressed: () =>
+                              setState(() => _isSearchActive = true),
+                        ),
+                        PopupMenuButton<String>(
                               icon: Icon(
                                 SolarIconsOutline.menuDotsCircle,
                                 color: MekaarColors.primaryOf(context),
@@ -864,9 +838,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               ],
                             ),
                           ],
-                        );
-                      },
-                    ),
+                        ),
             ),
             // Banner Darurat SOS untuk Guardian (jika orang yang dijaga dalam bahaya)
             const GuardianSOSAlertBanner(),

@@ -63,10 +63,12 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
     final isQueued = sosState.status == SOSStatus.queuedOffline;
 
     // Wajib verifikasi PIN keamanan 6-digit untuk menonaktifkan SOS
+    // Strict Rejection: allowDuress = false agar Duress PIN tidak dapat melumpuhkan darurat
     final pinVerified = await MekaarPinVerificationSheet.verify(
       context,
       title: isQueued ? 'Batalkan SOS Tertunda' : 'Nonaktifkan Mode Darurat',
-      subtitle: 'Masukkan 6 digit PIN untuk menghentikan pelacakan SOS',
+      subtitle: 'Masukkan 6 digit PIN Utama untuk menghentikan pelacakan SOS',
+      allowDuress: false,
     );
 
     if (pinVerified != true || !mounted) return;

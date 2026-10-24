@@ -4,10 +4,12 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../settings/screens/profile_screen.dart';
+import '../../guardian/screens/guardian_list_screen.dart';
 import '../../settings/screens/settings_screen.dart';
+import '../../guardian/providers/guardian_provider.dart';
 import '../../guardian/providers/trip_permission_provider.dart';
 import 'chat_list_screen.dart';
 import 'contact_list_screen.dart';
@@ -28,7 +30,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   final List<Widget> _screens = const [
     ChatListScreen(),
     ContactListScreen(),
-    ProfileScreen(),
+    GuardianListScreen(),
     SettingsScreen(),
   ];
 
@@ -44,9 +46,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       activeIcon: SolarIconsBold.usersGroupTwoRounded,
     ),
     MekaarNavItem(
-      label: 'Profil',
-      inactiveIcon: SolarIconsOutline.userCircle,
-      activeIcon: SolarIconsBold.userCircle,
+      label: 'Guardian',
+      inactiveIcon: SolarIconsOutline.shieldUser,
+      activeIcon: SolarIconsBold.shieldUser,
     ),
     MekaarNavItem(
       label: 'Setelan',
@@ -97,17 +99,28 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       orElse: () => 0,
     );
 
-    // Salin items dan tempel unreadCount di item Pesan
-    final items = _navItems
-        .map((item) => item.label == 'Pesan'
-            ? MekaarNavItem(
-                label: item.label,
-                inactiveIcon: item.inactiveIcon,
-                activeIcon: item.activeIcon,
-                unreadCount: totalUnread,
-              )
-            : item)
-        .toList();
+    final hasPendingGuardian = ref.watch(hasPendingIncomingGuardiansProvider);
+
+    // Salin items dan tempel unreadCount di item Pesan dan Guardian
+    final items = _navItems.map((item) {
+      if (item.label == 'Pesan') {
+        return MekaarNavItem(
+          label: item.label,
+          inactiveIcon: item.inactiveIcon,
+          activeIcon: item.activeIcon,
+          unreadCount: totalUnread > 0 ? totalUnread : null,
+        );
+      }
+      if (item.label == 'Guardian') {
+        return MekaarNavItem(
+          label: item.label,
+          inactiveIcon: item.inactiveIcon,
+          activeIcon: item.activeIcon,
+          unreadCount: hasPendingGuardian ? 1 : null,
+        );
+      }
+      return item;
+    }).toList();
 
     return PopScope(
       canPop: _currentIndex == 0,
@@ -165,22 +178,43 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               child: Consumer(
                 builder: (context, ref, _) {
                   final activeTrip = ref.watch(tripPermissionNotifierProvider);
-                  if (activeTrip == null || !activeTrip.isActive) return const SizedBox.shrink();
-                  final endTimeStr = '${activeTrip.endTime.hour.toString().padLeft(2, '0')}:${activeTrip.endTime.minute.toString().padLeft(2, '0')}';
+                  final isTripActive = activeTrip != null && activeTrip.isActive;
+                  final endTimeStr = isTripActive
+                      ? '${activeTrip.endTime.hour.toString().padLeft(2, '0')}:${activeTrip.endTime.minute.toString().padLeft(2, '0')}'
+                      : '';
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: MekaarColors.guardianTeal,
-                      borderRadius: BorderRadius.circular(MekaarRadius.md),
-                      boxShadow: [
-                        BoxShadow(
-                          color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                  return AnimatedSwitcher(
+                    duration: MekaarMotion.counter,
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, -0.4),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: child,
                         ),
-                      ],
-                    ),
+                      );
+                    },
+                    child: !isTripActive
+                        ? const SizedBox.shrink(key: ValueKey('trip_inactive'))
+                        : Container(
+                            key: const ValueKey('trip_active_banner'),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.guardianTeal,
+                              borderRadius: BorderRadius.circular(MekaarRadius.md),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: MekaarColors.guardianTeal.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
                     child: Row(
                       children: [
                         const Icon(SolarIconsOutline.mapPoint,
@@ -189,10 +223,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                         Expanded(
                           child: Text(
                             'Berbagi lokasi ke ${activeTrip.destinationName} hingga $endTimeStr',
-                            style: const TextStyle(
+                            style: MekaarTypography.labelMD.copyWith(
                               color: MekaarColors.textOnTeal,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -218,12 +251,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                                 borderRadius:
                                     BorderRadius.circular(MekaarRadius.pill),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Hentikan',
-                                style: TextStyle(
+                                style: MekaarTypography.labelMD.copyWith(
                                   color: MekaarColors.sosDeep,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
@@ -231,8 +263,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                         ),
                       ],
                     ),
-                  );
-                },
+                  ),
+                );
+              },
               ),
             ),
           ],

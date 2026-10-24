@@ -565,25 +565,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   // Validate dynamic PIN with lockout check.
-  // Jika [pin] cocok dengan Duress PIN, buka normal tapi tandai
-  // lastUnlockWasDuress = true (konsumen harus memicu SOS silent diam-diam).
-  Future<bool> validatePIN(String pin) async {
+  // Jika [pin] cocok dengan Duress PIN dan [allowDuress] diizinkan, buka normal
+  // tapi tandai lastUnlockWasDuress = true (konsumen harus memicu SOS silent diam-diam).
+  // Saat [allowDuress] bernilai false (misal: de-eskalasi / mematikan SOS darurat),
+  // Duress PIN strictly ditolak dan hanya Primary PIN asli yang berhak lolos.
+  Future<bool> validatePIN(String pin, {bool allowDuress = true}) async {
     if (state.isPinLocked) return false;
 
     state = state.copyWith(isLoading: true);
 
-    // Cek Duress PIN lebih dulu — BUKAN dihitung sebagai gagal.
-    final isDuress = await _authRepository.validateDuressPIN(pin);
-    if (isDuress) {
-      await _authRepository.clearPinLockout();
-      await _authRepository.saveDuressUnlockStatus(true);
-      state = state.copyWith(
-        pinAttempts: 0,
-        pinLockedUntil: null,
-        isLoading: false,
-        lastUnlockWasDuress: true,
-      );
-      return true;
+    // Cek Duress PIN lebih dulu jika diizinkan — BUKAN dihitung sebagai gagal.
+    if (allowDuress) {
+      final isDuress = await _authRepository.validateDuressPIN(pin);
+      if (isDuress) {
+        await _authRepository.clearPinLockout();
+        await _authRepository.saveDuressUnlockStatus(true);
+        state = state.copyWith(
+          pinAttempts: 0,
+          pinLockedUntil: null,
+          isLoading: false,
+          lastUnlockWasDuress: true,
+        );
+        return true;
+      }
     }
 
     final isValid = await _authRepository.validatePIN(pin);

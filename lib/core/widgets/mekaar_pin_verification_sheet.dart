@@ -16,11 +16,13 @@ import '../../features/auth/providers/auth_provider.dart';
 class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
   final String title;
   final String subtitle;
+  final bool allowDuress;
 
   const MekaarPinVerificationSheet({
     super.key,
     required this.title,
     required this.subtitle,
+    this.allowDuress = true,
   });
 
   /// Menampilkan sheet verifikasi PIN modal.
@@ -29,6 +31,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
     BuildContext context, {
     String title = 'Verifikasi PIN Keamanan',
     String subtitle = 'Masukkan 6 digit PIN untuk melanjutkan',
+    bool allowDuress = true,
   }) async {
     final result = await MekaarBottomSheet.show<bool>(
       context: context,
@@ -36,6 +39,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
       builder: (_) => MekaarPinVerificationSheet(
         title: title,
         subtitle: subtitle,
+        allowDuress: allowDuress,
       ),
     );
     return result ?? false;
@@ -128,8 +132,9 @@ class _MekaarPinVerificationSheetState
     setState(() => _isVerifying = true);
 
     try {
-      final isValid =
-          await ref.read(authProvider.notifier).validatePIN(_pin);
+      final isValid = await ref
+          .read(authProvider.notifier)
+          .validatePIN(_pin, allowDuress: widget.allowDuress);
 
       if (!mounted) return;
 
