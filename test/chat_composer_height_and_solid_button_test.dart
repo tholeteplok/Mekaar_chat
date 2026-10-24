@@ -176,9 +176,14 @@ void main() {
       expect(actionBtnSize.width, 48.0);
       expect(actionBtnSize.height, 48.0);
 
-      // Verifikasi TextField memiliki textAlignVertical.center untuk center vertical alignment
+      // Verifikasi TextField memiliki textAlignVertical.center dan padding vertikal simetris
       final textField = tester.widget<TextField>(textFieldFinder);
       expect(textField.textAlignVertical, equals(TextAlignVertical.center));
+      expect(textField.decoration?.contentPadding?.vertical, equals(27.0));
+
+      // Verifikasi tinggi TextField adalah 48.0 (kompak dan sejajar sempurna dengan tombol 48px)
+      final textFieldSize = tester.getSize(textFieldFinder);
+      expect(textFieldSize.height, 48.0);
     });
   });
 }
