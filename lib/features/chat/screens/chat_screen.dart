@@ -49,7 +49,13 @@ import '../../../core/routes/app_routes.dart';
 import '../../../data/models/call_model.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../widgets/call_history_bubble.dart';
+import '../widgets/chat_floating_reaction_pill.dart';
+import '../widgets/chat_selection_app_bar.dart';
+import '../widgets/chat_swipe_action_wrapper.dart';
 import '../providers/vault_provider.dart';
+
+export '../widgets/chat_reconnecting_badge.dart';
+export '../widgets/chat_swipe_action_wrapper.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../data/services/local_vault_database.dart';
 
@@ -1582,54 +1588,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   Widget _buildFloatingReactionPill(Message msg, bool isMe) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    const emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6, left: 16, right: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E222A) : Colors.white,
-          borderRadius: BorderRadius.circular(MekaarRadius.pill),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.08),
-            width: 0.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: emojis.map((emoji) {
-            return InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                HapticService.trigger(MekaarHapticIntent.selection);
-                _handleReactToMessage(msg, emoji);
-                _clearSelection();
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 4,
-                ),
-                child: Text(
-                  emoji,
-                  style: const TextStyle(fontSize: 20),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+    return ChatFloatingReactionPill(
+      isMe: isMe,
+      onReact: (emoji) {
+        _handleReactToMessage(msg, emoji);
+        _clearSelection();
+      },
     );
   }
 
@@ -1639,13 +1603,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     required RoomForwardingProtection? forwardingProtection,
     required List<Message> rawMessages,
   }) {
-    final topPadding = MediaQuery.of(context).padding.top;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor =
-        roomThemeSpec.glassBackgroundColor ?? MekaarColors.surfaceOf(context);
-    final textPrimary = roomThemeSpec.textColor;
-    final iconColor = roomThemeSpec.iconColor;
-
     final selectedCount = _totalSelectedCount;
     final isSingle = selectedCount == 1;
     final isForwardProtected = forwardingProtection?.effective ?? false;
@@ -1691,117 +1648,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final canDownload =
         downloadableFileMessages.isNotEmpty && _selectedCallIds.isEmpty;
 
-    return Container(
-      padding: EdgeInsets.only(top: topPadding),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        border: Border(
-          bottom: BorderSide(
-            color: MekaarColors.borderOf(
-              context,
-            ).withValues(alpha: isDark ? 0.3 : 0.1),
-            width: 1.0,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
+    return ChatSelectionAppBar(
+      selectedCount: selectedCount,
+      canReply: canReply,
+      hasCopyableText: hasCopyableText,
+      canForward: canForward,
+      canDownload: canDownload,
+      canSaveToVault: canSaveToVault,
+      surfaceColor: roomThemeSpec.glassBackgroundColor,
+      textColor: roomThemeSpec.textColor,
+      iconColor: roomThemeSpec.iconColor,
+      onClose: _clearSelection,
+      onReply: () => _replyToSelectedMessage(rawMessages),
+      onCopy: () => _copySelectedMessages(rawMessages),
+      onForward: () => _forwardSelectedMessages(
+        rawMessages,
+        forwardingProtection: forwardingProtection,
       ),
-      child: SizedBox(
-        height: kToolbarHeight,
-        child: Row(
-          children: [
-            IconButton(
-              icon: Icon(
-                SolarIconsOutline.closeCircle,
-                size: 22,
-                color: iconColor,
-              ),
-              tooltip: 'Batal',
-              onPressed: _clearSelection,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '$selectedCount dipilih',
-              style: TextStyle(
-                color: textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Spacer(),
-            if (canReply)
-              IconButton(
-                icon: Icon(
-                  SolarIconsOutline.reply,
-                  size: 22,
-                  color: iconColor,
-                ),
-                tooltip: 'Balas',
-                onPressed: () => _replyToSelectedMessage(rawMessages),
-              ),
-            if (hasCopyableText)
-              IconButton(
-                icon: Icon(
-                  SolarIconsOutline.copy,
-                  size: 22,
-                  color: iconColor,
-                ),
-                tooltip: 'Salin',
-                onPressed: () => _copySelectedMessages(rawMessages),
-              ),
-            if (canForward)
-              IconButton(
-                icon: Icon(
-                  SolarIconsOutline.forward,
-                  size: 22,
-                  color: iconColor,
-                ),
-                tooltip: 'Teruskan',
-                onPressed: () => _forwardSelectedMessages(
-                  rawMessages,
-                  forwardingProtection: forwardingProtection,
-                ),
-              ),
-            if (canDownload)
-              IconButton(
-                icon: Icon(
-                  SolarIconsOutline.download,
-                  size: 22,
-                  color: iconColor,
-                ),
-                tooltip: 'Unduh ke Download/Mekaar',
-                onPressed: () =>
-                    _handleDownloadSelectedFiles(downloadableFileMessages),
-              ),
-            if (canSaveToVault)
-              IconButton(
-                icon: Icon(
-                  SolarIconsOutline.safeSquare,
-                  size: 22,
-                  color: iconColor,
-                ),
-                tooltip: 'Simpan ke Brankas',
-                onPressed: () =>
-                    _handleSaveSelectedToVault(savableMediaMessages),
-              ),
-            IconButton(
-              icon: Icon(
-                SolarIconsOutline.trashBinTrash,
-                size: 22,
-                color: MekaarColors.sosRed,
-              ),
-              tooltip: 'Hapus',
-              onPressed: () => _confirmDeleteSelectedItems(rawMessages),
-            ),
-            const SizedBox(width: 4),
-          ],
-        ),
-      ),
+      onDownload: () => _handleDownloadSelectedFiles(downloadableFileMessages),
+      onSaveToVault: () => _handleSaveSelectedToVault(savableMediaMessages),
+      onDelete: () => _confirmDeleteSelectedItems(rawMessages),
     );
   }
 
@@ -2968,251 +2834,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 }
 
-/// Gesture wrapper untuk aksi swipe pada bubble chat:
-/// - Geser ke kanan 1x untuk memicu balasan (reply).
-/// - Geser ke kiri 2x (dalam jendela 2.0 detik) untuk memicu dialog hapus.
-class _SwipeActionWrapper extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onReply;
-  final VoidCallback? onDelete;
-
-  const _SwipeActionWrapper({
-    required this.child,
-    this.onReply,
-    this.onDelete,
-  });
-
-  @override
-  State<_SwipeActionWrapper> createState() => _SwipeActionWrapperState();
-}
-
-class _SwipeActionWrapperState extends State<_SwipeActionWrapper>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _recoilController;
-  double _dragOffset = 0.0;
-  bool _rightThresholdReached = false;
-  bool _leftThresholdReached = false;
-  int _leftSwipeCount = 0;
-  Timer? _leftSwipeTimer;
-
-  static const double _actionThreshold = 48.0;
-  static const double _maxDragDistance = 72.0;
-  static const Duration _doubleSwipeWindow = Duration(milliseconds: 2000);
-
-  @override
-  void initState() {
-    super.initState();
-    _recoilController = AnimationController(
-      vsync: this,
-      duration: MekaarMotion.fast,
-    );
-  }
-
-  @override
-  void dispose() {
-    _leftSwipeTimer?.cancel();
-    _recoilController.dispose();
-    super.dispose();
-  }
-
-  void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    final delta = details.primaryDelta ?? 0.0;
-
-    // 1. Geser ke kanan (Reply)
-    if ((delta > 0 || _dragOffset > 0) && _dragOffset >= 0 && widget.onReply != null) {
-      setState(() {
-        _dragOffset = (_dragOffset + delta).clamp(0.0, _maxDragDistance);
-        if (_dragOffset >= _actionThreshold && !_rightThresholdReached) {
-          _rightThresholdReached = true;
-          HapticService.trigger(MekaarHapticIntent.selection);
-        }
-      });
-      return;
-    }
-
-    // 2. Geser ke kiri (Delete)
-    if ((delta < 0 || _dragOffset < 0) && _dragOffset <= 0 && widget.onDelete != null) {
-      setState(() {
-        _dragOffset = (_dragOffset + delta).clamp(-_maxDragDistance, 0.0);
-        if (_dragOffset <= -_actionThreshold && !_leftThresholdReached) {
-          _leftThresholdReached = true;
-          HapticService.trigger(
-            _leftSwipeCount == 1
-                ? MekaarHapticIntent.destructive
-                : MekaarHapticIntent.selection,
-          );
-        }
-      });
-    }
-  }
-
-  void _onHorizontalDragEnd(DragEndDetails details) {
-    // 1. Tangani swipe kanan (Reply)
-    if (_rightThresholdReached) {
-      _resetLeftSwipe();
-      widget.onReply?.call();
-    }
-    _rightThresholdReached = false;
-
-    // 2. Tangani swipe kiri (Delete 2x)
-    if (_leftThresholdReached) {
-      if (_leftSwipeCount == 0) {
-        // Geseran pertama: catat dan aktifkan jendela 2.0 detik
-        setState(() {
-          _leftSwipeCount = 1;
-        });
-        _leftSwipeTimer?.cancel();
-        _leftSwipeTimer = Timer(_doubleSwipeWindow, () {
-          if (mounted) {
-            setState(() {
-              _leftSwipeCount = 0;
-            });
-          }
-        });
-      } else if (_leftSwipeCount == 1) {
-        // Geseran kedua: konfirmasi hapus!
-        _resetLeftSwipe();
-        widget.onDelete?.call();
-      }
-    }
-    _leftThresholdReached = false;
-
-    // Animasi recoil kembali ke posisi netral (0.0)
-    if (_dragOffset != 0.0) {
-      final startOffset = _dragOffset;
-      final anim = Tween<double>(begin: startOffset, end: 0.0).animate(
-        CurvedAnimation(parent: _recoilController, curve: Curves.easeOutCubic),
-      );
-      anim.addListener(() {
-        setState(() {
-          _dragOffset = anim.value;
-        });
-      });
-      _recoilController.forward(from: 0.0);
-    }
-  }
-
-  void _resetLeftSwipe() {
-    _leftSwipeTimer?.cancel();
-    _leftSwipeTimer = null;
-    if (_leftSwipeCount != 0 && mounted) {
-      setState(() {
-        _leftSwipeCount = 0;
-      });
-    } else {
-      _leftSwipeCount = 0;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragUpdate: _onHorizontalDragUpdate,
-      onHorizontalDragEnd: _onHorizontalDragEnd,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Ikon Reply di sisi kiri (saat digeser ke kanan)
-          if (_dragOffset > 6 && widget.onReply != null)
-            Positioned(
-              left: 14,
-              child: Opacity(
-                opacity: (_dragOffset / _actionThreshold).clamp(0.0, 1.0),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: MekaarColors.guardianTeal.withValues(alpha: 0.16),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      SolarIconsOutline.reply,
-                      color: MekaarColors.guardianTeal,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Ikon Hapus di sisi kanan (saat digeser ke kiri)
-          if (_dragOffset < -6 && widget.onDelete != null)
-            Positioned(
-              right: 14,
-              child: Opacity(
-                opacity: (-_dragOffset / _actionThreshold).clamp(0.0, 1.0),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: MekaarColors.sosRed.withValues(alpha: 0.16),
-                    shape: BoxShape.circle,
-                    border: _leftSwipeCount == 1
-                        ? Border.all(color: MekaarColors.sosRed, width: 1.5)
-                        : null,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      SolarIconsOutline.trashBinTrash,
-                      color: MekaarColors.sosRed,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Petunjuk visual saat geseran pertama aktif (menunggu geseran kedua)
-          if (_leftSwipeCount == 1 && _dragOffset.abs() < 6 && widget.onDelete != null)
-            Positioned(
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: MekaarColors.sosRed.withValues(alpha: 0.90),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: MekaarColors.sosRed.withValues(alpha: 0.25),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      SolarIconsBold.trashBinMinimalistic,
-                      color: Colors.white,
-                      size: 12,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Geser 1x lagi',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Bubble utama yang digeser
-          Transform.translate(
-            offset: Offset(_dragOffset, 0),
-            child: widget.child,
-          ),
-        ],
-      ),
-    );
-  }
-}
+/// Alias backward-compatibility untuk ChatSwipeActionWrapper
+typedef _SwipeActionWrapper = ChatSwipeActionWrapper;
 
 /// Mode tampilan daftar pesan (murni, bisa diuji unit).
 ///
@@ -3227,44 +2850,4 @@ ChatMessagesUiMode chatMessagesUiMode(AsyncValue<List<Message>> stream) {
   if (stream.hasValue) return ChatMessagesUiMode.data;
   if (stream.hasError) return ChatMessagesUiMode.error;
   return ChatMessagesUiMode.loading;
-}
-
-/// Badge tipis non-blocking yang muncul saat stream pesan sedang mencoba
-/// menyambung ulang setelah gangguan Realtime sesaat (retry+backoff).
-class ReconnectingBadge extends StatelessWidget {
-  const ReconnectingBadge({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final surface = MekaarColors.surfaceOf(context);
-    final accent = MekaarColors.accentOf(context);
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(left: 16, right: 16, top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Menyambung ulang…',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: accent),
-          ),
-        ],
-      ),
-    );
-  }
 }
