@@ -21,6 +21,7 @@ import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:mekaar_chat/data/services/aegis_shredder_service.dart';
 import 'app.dart';
 
 final logger = Logger();
@@ -40,6 +41,7 @@ void main() async {
 
   // Inisialisasi format tanggal lokal (Indonesia) untuk intl
   await initializeDateFormatting('id_ID', null);
+  unawaited(AegisShredderService.ensureInitialized());
 
   // 1. Initialize Supabase using --dart-define
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');

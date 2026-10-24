@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,6 +10,7 @@ import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
 import '../services/local_message_database.dart';
 import '../services/push_notification_service.dart';
+import '../services/aegis_shredder_service.dart';
 import 'reconnect_policy.dart';
 
 class ChatRepository {
@@ -1395,16 +1396,7 @@ class ChatRepository {
     try {
       final tempDir = await getTemporaryDirectory();
       if (await tempDir.exists()) {
-        final entities = tempDir.listSync();
-        for (final entity in entities) {
-          try {
-            if (entity is File) {
-              await entity.delete();
-            } else if (entity is Directory) {
-              await entity.delete(recursive: true);
-            }
-          } catch (_) {}
-        }
+        await AegisShredderService.instance.shredDirectoryContents(tempDir.path);
       }
     } catch (_) {}
   }
