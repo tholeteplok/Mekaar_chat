@@ -3,7 +3,9 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/memory_guard.dart';
 import 'api/shredder.dart';
+import 'api/stream_cipher.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -64,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1675152142;
+  int get rustContentHash => 1678038929;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -76,9 +78,29 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<BigInt> crateApiStreamCipherDecryptFileStream({
+    required String srcPath,
+    required String dstPath,
+    required BigInt keySlotId,
+  });
+
+  Future<BigInt> crateApiStreamCipherEncryptFileStream({
+    required String srcPath,
+    required String dstPath,
+    required BigInt keySlotId,
+  });
+
+  Future<bool> crateApiMemoryGuardHasSecureKey({required BigInt slotId});
+
   Future<int> crateApiShredderShredDirectoryContents({required String dirPath});
 
   Future<bool> crateApiShredderShredFile({required String path});
+
+  Future<BigInt> crateApiMemoryGuardStoreSecureKey({required List<int> rawKey});
+
+  Future<int> crateApiMemoryGuardZeroizeAllKeys();
+
+  Future<bool> crateApiMemoryGuardZeroizeKey({required BigInt slotId});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -88,6 +110,108 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
+
+  @override
+  Future<BigInt> crateApiStreamCipherDecryptFileStream({
+    required String srcPath,
+    required String dstPath,
+    required BigInt keySlotId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(srcPath, serializer);
+          sse_encode_String(dstPath, serializer);
+          sse_encode_u_64(keySlotId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiStreamCipherDecryptFileStreamConstMeta,
+        argValues: [srcPath, dstPath, keySlotId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiStreamCipherDecryptFileStreamConstMeta =>
+      const TaskConstMeta(
+        debugName: "decrypt_file_stream",
+        argNames: ["srcPath", "dstPath", "keySlotId"],
+      );
+
+  @override
+  Future<BigInt> crateApiStreamCipherEncryptFileStream({
+    required String srcPath,
+    required String dstPath,
+    required BigInt keySlotId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(srcPath, serializer);
+          sse_encode_String(dstPath, serializer);
+          sse_encode_u_64(keySlotId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiStreamCipherEncryptFileStreamConstMeta,
+        argValues: [srcPath, dstPath, keySlotId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiStreamCipherEncryptFileStreamConstMeta =>
+      const TaskConstMeta(
+        debugName: "encrypt_file_stream",
+        argNames: ["srcPath", "dstPath", "keySlotId"],
+      );
+
+  @override
+  Future<bool> crateApiMemoryGuardHasSecureKey({required BigInt slotId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_64(slotId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMemoryGuardHasSecureKeyConstMeta,
+        argValues: [slotId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMemoryGuardHasSecureKeyConstMeta =>
+      const TaskConstMeta(debugName: "has_secure_key", argNames: ["slotId"]);
 
   @override
   Future<int> crateApiShredderShredDirectoryContents({
@@ -101,7 +225,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 4,
             port: port_,
           );
         },
@@ -132,7 +256,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 5,
             port: port_,
           );
         },
@@ -150,6 +274,91 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiShredderShredFileConstMeta =>
       const TaskConstMeta(debugName: "shred_file", argNames: ["path"]);
 
+  @override
+  Future<BigInt> crateApiMemoryGuardStoreSecureKey({
+    required List<int> rawKey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(rawKey, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiMemoryGuardStoreSecureKeyConstMeta,
+        argValues: [rawKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMemoryGuardStoreSecureKeyConstMeta =>
+      const TaskConstMeta(debugName: "store_secure_key", argNames: ["rawKey"]);
+
+  @override
+  Future<int> crateApiMemoryGuardZeroizeAllKeys() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMemoryGuardZeroizeAllKeysConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMemoryGuardZeroizeAllKeysConstMeta =>
+      const TaskConstMeta(debugName: "zeroize_all_keys", argNames: []);
+
+  @override
+  Future<bool> crateApiMemoryGuardZeroizeKey({required BigInt slotId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_64(slotId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMemoryGuardZeroizeKeyConstMeta,
+        argValues: [slotId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMemoryGuardZeroizeKeyConstMeta =>
+      const TaskConstMeta(debugName: "zeroize_key", argNames: ["slotId"]);
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -160,6 +369,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
   }
 
   @protected
@@ -175,9 +390,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt dco_decode_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
   int dco_decode_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  void dco_decode_unit(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return;
   }
 
   @protected
@@ -194,6 +421,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -207,9 +441,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8();
+  }
+
+  @protected
+  void sse_decode_unit(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
   }
 
   @protected
@@ -231,6 +476,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_prim_u_8_loose(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint8List(
+      self is Uint8List ? self : Uint8List.fromList(self),
+    );
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -247,9 +504,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
+  }
+
+  @protected
+  void sse_encode_unit(void self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
   }
 
   @protected
