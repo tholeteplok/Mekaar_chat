@@ -53,7 +53,8 @@ class _AnimatedPresetBubbleEntranceState
           ),
         );
 
-      // 2. Glassmorphism: Opacity fade-in 280ms
+      // 2. Mecha Tactical Snap / Glassmorphism Blur
+      case EntranceType.mechaTacticalSnap:
       case EntranceType.glassmorphismBlur:
         return FadeTransition(
           opacity: _animation,
