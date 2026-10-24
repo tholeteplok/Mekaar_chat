@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     (
       title: 'PIN & Brankas Rahasia',
       desc:
-          'Lindungi aplikasi dengan PIN 6 digit dan simpan berkas penting Anda di Brankas terenkripsi aman.',
+          'Amankan obrolan pribadi, sembunyikan kontak sensitif, dan simpan berkas penting dalam Brankas terenkripsi PIN.',
       illustration: MikaIllustrationType.onboardingSecurity,
     ),
     (
@@ -55,7 +55,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_currentPage < _slides.length - 1) {
       _pageController.nextPage(
         duration: MekaarMotion.counter,
-        curve: Curves.easeIn,
+        curve: Curves.easeOutCubic,
       );
     } else {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -83,10 +83,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Navigator.pushReplacementNamed(context, AppRoutes.login),
                   child: Text(
                     'Lewati',
-                    style: TextStyle(
+                    style: MekaarTypography.labelLG.copyWith(
                       color: textSecondary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -147,27 +145,59 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Row(
                     children: List.generate(
                       _slides.length,
-                      (index) => AnimatedContainer(
-                        duration: MekaarMotion.counter,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentPage == index ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          color: _currentPage == index
-                              ? AppColors.blue
-                              : cardBorder,
+                      (index) => GestureDetector(
+                        key: ValueKey('onboarding_dot_$index'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          _pageController.animateToPage(
+                            index,
+                            duration: MekaarMotion.counter,
+                            curve: Curves.easeOutCubic,
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
+                          child: AnimatedContainer(
+                            duration: MekaarMotion.counter,
+                            curve: Curves.easeOutCubic,
+                            width: _currentPage == index ? 24 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              color: _currentPage == index
+                                  ? MekaarColors.accentOf(context)
+                                  : cardBorder,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: _nextPage,
-                    icon: const Icon(SolarIconsOutline.altArrowRight),
+                    icon: const Icon(SolarIconsOutline.altArrowRight, size: 18),
                     label: Text(
                       _currentPage == _slides.length - 1
                           ? 'Mulai Sekarang'
                           : 'Lanjut',
+                      style: MekaarTypography.labelLG.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: MekaarColors.accentOf(context),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(MekaarRadius.lg),
+                      ),
+                      elevation: 0,
                     ),
                   ),
                 ],
