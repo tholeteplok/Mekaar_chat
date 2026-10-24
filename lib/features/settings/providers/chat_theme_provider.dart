@@ -50,10 +50,11 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
       case ChatThemePreset.neonCyberpunk:
         await _save(ChatThemePreference.neuro);
         break;
+      case ChatThemePreset.mecha:
       case ChatThemePreset.glass:
       case ChatThemePreset.glassmorphism:
       case ChatThemePreset.fireflyNight:
-        await _save(ChatThemePreference.glass);
+        await _save(ChatThemePreference.mecha);
         break;
       case ChatThemePreset.pixel:
       case ChatThemePreset.pixelGarden:

@@ -1,13 +1,14 @@
-/// Enum tipe wallpaper obrolan (7 Preset Inti + Custom).
+/// Enum tipe wallpaper obrolan (7 Preset Inti + Custom + Legacy).
 enum WallpaperType {
   solidColor,
   comicHalftone,
   neumorphicCanvas,
-  gradient,
+  mechaBlueprintGrid,
   pixelGardenCanvas,
   pattern,
   solarpunkCanvas,
   customImage,
+  gradient,
   // Alias / Legacy types untuk kompatibilitas riwayat preferensi lama
   dynamicTime,
   neonGrid,
@@ -23,7 +24,8 @@ enum ChatBubbleStyle {
   modernPill, // Mekaar
   playfulOutlined, // Comic
   neumorphicSoft, // Neuro
-  glassmorphism, // Glass
+  mechaChamfer, // Mecha Style Tactical
+  glassmorphism, // Glass (legacy)
   pixelGardenStyle, // Pixel
   classicRounded, // Candy / Classic
   solarpunkLeaf, // Eco
@@ -42,6 +44,7 @@ enum ChatBubbleColorPreset {
   mekaarClean,
   comicPop,
   neumorphicSoft,
+  mechaTactical,
   glassmorphismTint,
   pixelGardenNavy,
   roseGold,
@@ -65,12 +68,13 @@ enum ChatThemePreset {
   mekaar, // 1. Mekaar Clean Theme (Default)
   comic,  // 2. Comic Pop Art
   neuro,  // 3. Neuro / Neumorphism Soft UI
-  glass,  // 4. Glassmorphism Frosted Glass
-  pixel,  // 5. Pixel Garden 8-Bit
+  mecha,  // 4. Mecha Style Tactical Armor & Blueprint/Cockpit Grid
+  pixel,  // 5. Pixel Garden / Craft 8-Bit
   candy,  // 6. Candy Pop / Playful
   eco,    // 7. Solarpunk Eco Organic Leaf
 
   // Alias untuk kompatibilitas riwayat preferensi lama
+  glass,
   comicPopArt,
   neumorphism,
   glassmorphism,
@@ -173,8 +177,8 @@ class ChatThemePreference {
       p = ChatThemePreset.comic;
     } else if (rawPreset == 'neuro' || rawPreset == 'neumorphism' || rawPreset == 'neonDreams' || rawPreset == 'neonCyberpunk') {
       p = ChatThemePreset.neuro;
-    } else if (rawPreset == 'glass' || rawPreset == 'glassmorphism' || rawPreset == 'fireflyNight') {
-      p = ChatThemePreset.glass;
+    } else if (rawPreset == 'mecha' || rawPreset == 'glass' || rawPreset == 'glassmorphism' || rawPreset == 'fireflyNight') {
+      p = ChatThemePreset.mecha;
     } else if (rawPreset == 'pixel' || rawPreset == 'pixelGarden' || rawPreset == 'retroWave' || rawPreset == 'retroY2K') {
       p = ChatThemePreset.pixel;
     } else if (rawPreset == 'candy' || rawPreset == 'candyPop' || rawPreset == 'isometric3d') {
@@ -244,15 +248,16 @@ class ChatThemePreference {
   );
   static const neumorphism = neuro;
 
-  /// Preset 4: Glassmorphism / Frosted Glass.
-  static const glass = ChatThemePreference(
-    preset: ChatThemePreset.glass,
-    wallpaperType: WallpaperType.gradient,
-    bubbleStyle: ChatBubbleStyle.glassmorphism,
-    bubbleColorPreset: ChatBubbleColorPreset.glassmorphismTint,
+  /// Preset 4: Mecha Style (White Tactical Armor / Stealth Cockpit).
+  static const mecha = ChatThemePreference(
+    preset: ChatThemePreset.mecha,
+    wallpaperType: WallpaperType.mechaBlueprintGrid,
+    bubbleStyle: ChatBubbleStyle.mechaChamfer,
+    bubbleColorPreset: ChatBubbleColorPreset.mechaTactical,
     textScale: 1.0,
   );
-  static const glassmorphism = glass;
+  static const glass = mecha;
+  static const glassmorphism = mecha;
 
   /// Preset 5: Pixel Garden 8-Bit (Arcade).
   static const pixel = ChatThemePreference(
@@ -292,6 +297,6 @@ class ChatThemePreference {
   static const retroY2K = pixel;
   static const monoVibe = mekaar;
   static const swissMinimalist = mekaar;
-  static const fireflyNight = glass;
+  static const fireflyNight = mecha;
   static const diary = comic;
 }

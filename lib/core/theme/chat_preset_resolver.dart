@@ -1,10 +1,8 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/chat_theme_model.dart';
 import '../constants/colors.dart';
-import '../constants/shadows.dart';
 import '../constants/typography.dart';
 
 /// Tipe animasi masuk signature per preset tema.
@@ -22,6 +20,7 @@ enum EntranceType {
   dynamicTimeFadeSlide,
   fireflySlowGlow,
   diaryWritingSlideLeft,
+  mechaTacticalSnap,
 }
 
 /// Spec animasi masuk gelembung pesan per preset tema.
@@ -97,12 +96,14 @@ class ChatPresetResolver {
           curve: Curves.easeOutCubic,
           type: EntranceType.neumorphismSoft,
         );
+      case ChatThemePreset.mecha:
       case ChatThemePreset.glass:
       case ChatThemePreset.glassmorphism:
+      case ChatThemePreset.fireflyNight:
         return const BubbleEntranceSpec(
-          duration: Duration(milliseconds: 280),
-          curve: Curves.easeOut,
-          type: EntranceType.glassmorphismBlur,
+          duration: Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          type: EntranceType.mechaTacticalSnap,
         );
       case ChatThemePreset.pixel:
       case ChatThemePreset.pixelGarden:
@@ -149,12 +150,6 @@ class ChatPresetResolver {
           duration: Duration(milliseconds: 150),
           curve: Curves.easeInOutQuart,
           type: EntranceType.swissRevealHorizontal,
-        );
-      case ChatThemePreset.fireflyNight:
-        return const BubbleEntranceSpec(
-          duration: Duration(milliseconds: 450),
-          curve: Curves.easeInOutSine,
-          type: EntranceType.fireflySlowGlow,
         );
       case ChatThemePreset.mekaar:
       case ChatThemePreset.dynamicTime:
@@ -203,15 +198,16 @@ class ChatPresetResolver {
               height: 1.4,
               fontWeight: FontWeight.w500,
             );
+          case ChatThemePreset.mecha:
           case ChatThemePreset.glass:
           case ChatThemePreset.glassmorphism:
           case ChatThemePreset.fireflyNight:
-            return GoogleFonts.outfit(
+            return GoogleFonts.spaceGrotesk(
               color: textColor,
               fontSize: fontSize,
-              height: 1.4,
-              letterSpacing: 0.3,
-              fontWeight: FontWeight.w500,
+              height: 1.35,
+              letterSpacing: 0.2,
+              fontWeight: FontWeight.w600,
             );
           case ChatThemePreset.pixel:
           case ChatThemePreset.pixelGarden:
@@ -242,13 +238,6 @@ class ChatPresetResolver {
             );
           case ChatThemePreset.neonDreams:
           case ChatThemePreset.neonCyberpunk:
-            return GoogleFonts.spaceGrotesk(
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.35,
-              letterSpacing: 0.2,
-              fontWeight: isMe ? FontWeight.w700 : FontWeight.w500,
-            );
           case ChatThemePreset.monoVibe:
           case ChatThemePreset.swissMinimalist:
             return GoogleFonts.spaceGrotesk(
@@ -336,23 +325,23 @@ class ChatPresetResolver {
         if (isMe) {
           const txt = Colors.black;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFFF59E0B), // Saturated Amber Gold
+            backgroundColor: const Color(0xFFEAB308), // Classic Yellow Gold Comic
             border: Border.all(color: Colors.black, width: 2),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: const [
-              BoxShadow(color: Colors.black, offset: Offset(2.5, 2.5)),
+              BoxShadow(color: Colors.black, offset: Offset(3, 3)),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
         } else {
-          const txt = Color(0xFFF9FAFB);
+          const txt = Color(0xFFFDF4FF);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF1F2937), // Dark Charcoal
-            border: Border.all(color: const Color(0xFF4B5563), width: 2),
-            borderRadius: BorderRadius.circular(16),
+            backgroundColor: const Color(0xFF2B1D3D), // Neo-noir purple
+            border: Border.all(color: Colors.black, width: 2),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: const [
-              BoxShadow(color: Colors.black, offset: Offset(2.5, 2.5)),
+              BoxShadow(color: Colors.black, offset: Offset(3, 3)),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
@@ -361,11 +350,11 @@ class ChatPresetResolver {
       } else {
         const txt = Colors.black;
         return ChatBubbleSpec(
-          backgroundColor: isMe ? const Color(0xFFFFD84D) : Colors.white,
+          backgroundColor: isMe ? const Color(0xFF38BDF8) : Colors.white,
           border: Border.all(color: Colors.black, width: 2),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(2.5, 2.5)),
+            BoxShadow(color: Colors.black, offset: Offset(3, 3)),
           ],
           textColor: txt,
           textStyle: resolveTextStyle(txt),
@@ -377,113 +366,54 @@ class ChatPresetResolver {
     if (pref.preset == ChatThemePreset.neuro ||
         pref.preset == ChatThemePreset.neumorphism ||
         pref.bubbleStyle == ChatBubbleStyle.neumorphicSoft) {
-      final baseBg = isDark ? const Color(0xFF242A38) : const Color(0xFFE2E8F0);
-      final txt = isDark ? Colors.white : (isMe ? const Color(0xFF1A202C) : const Color(0xFF2D3748));
-      if (isMe) {
-        return ChatBubbleSpec(
-          backgroundColor: isDark ? const Color(0xFF2D3546) : const Color(0xFFEDF2F7),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.6) : const Color(0xFFA0AEC0),
-              offset: const Offset(3, 3),
-              blurRadius: 6,
-            ),
-            BoxShadow(
-              color: isDark ? const Color(0xFF3A445A) : Colors.white,
-              offset: const Offset(-3, -3),
-              blurRadius: 6,
-            ),
-          ],
-          textColor: txt,
-          textStyle: resolveTextStyle(txt),
-        );
-      } else {
-        return ChatBubbleSpec(
-          backgroundColor: baseBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0xFFCBD5E1),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.4) : const Color(0xFFCBD5E1),
-              offset: const Offset(1, 1),
-              blurRadius: 3,
-            ),
-          ],
-          textColor: txt,
-          textStyle: resolveTextStyle(txt),
-        );
-      }
-    }
-
-    // 3. Glassmorphism / Frosted Glass
-    if (pref.preset == ChatThemePreset.glass ||
-        pref.preset == ChatThemePreset.glassmorphism ||
-        pref.bubbleStyle == ChatBubbleStyle.glassmorphism) {
       if (isDark) {
         if (isMe) {
-          const txt = Colors.white;
+          const txt = Color(0xFF67E8F9);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0x668B5CF6), // Royal Purple Frosted
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 1.2,
-            ),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(4),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
-            ),
-            boxShadow: [
+            backgroundColor: const Color(0xFF2B3342),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
               BoxShadow(
-                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                blurRadius: 12,
+                color: Color(0xFF191D24),
+                offset: Offset(2, 2),
+                blurRadius: 6,
               ),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
         } else {
-          const txt = Color(0xFFF1F5F9);
+          const txt = Color(0xFFE2E8F0);
           return ChatBubbleSpec(
-            backgroundColor: Colors.white.withValues(alpha: 0.12),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.25),
-              width: 1.2,
-            ),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
-            ),
+            backgroundColor: const Color(0xFF242933),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0xFF191D24),
+                offset: Offset(3, 3),
+                blurRadius: 6,
+              ),
+              BoxShadow(
+                color: Color(0xFF2F3542),
+                offset: Offset(-2, -2),
+                blurRadius: 6,
+              ),
+            ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
         }
       } else {
         if (isMe) {
-          const txt = Colors.white;
+          const txt = Color(0xFF0369A1);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0x773B82F6), // Sky Blue Frosted
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.65),
-              width: 1.2,
-            ),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(4),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
-            ),
-            boxShadow: [
+            backgroundColor: const Color(0xFFD8E2EC),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
               BoxShadow(
-                color: const Color(0xFF3B82F6).withValues(alpha: 0.25),
-                blurRadius: 12,
+                color: Color(0xFFCBD5E1),
+                offset: Offset(2, 2),
+                blurRadius: 6,
               ),
             ],
             textColor: txt,
@@ -492,21 +422,18 @@ class ChatPresetResolver {
         } else {
           const txt = Color(0xFF1E293B);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xCCFFFFFF), // Frosted Pearl White
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.8),
-              width: 1.2,
-            ),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
-            ),
-            boxShadow: [
+            backgroundColor: const Color(0xFFE2E8F0),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
+                color: Color(0xFFC8D0DA),
+                offset: Offset(3, 3),
+                blurRadius: 6,
+              ),
+              BoxShadow(
+                color: Color(0xFFFCFFFF),
+                offset: Offset(-3, -3),
+                blurRadius: 6,
               ),
             ],
             textColor: txt,
@@ -516,7 +443,105 @@ class ChatPresetResolver {
       }
     }
 
-    // 4. Pixel Garden 8-Bit (Arcade)
+    // 3. Mecha Style (Tactical Armor & Cyber Grid — Menggantikan Glassmorphism)
+    if (pref.preset == ChatThemePreset.mecha ||
+        pref.preset == ChatThemePreset.glass ||
+        pref.preset == ChatThemePreset.glassmorphism ||
+        pref.preset == ChatThemePreset.fireflyNight ||
+        pref.bubbleStyle == ChatBubbleStyle.mechaChamfer ||
+        pref.bubbleStyle == ChatBubbleStyle.glassmorphism) {
+      if (isDark) {
+        if (isMe) {
+          const txt = Color(0xFFE6FFFA);
+          return ChatBubbleSpec(
+            backgroundColor: const Color(0xFF004E5A),
+            border: const Border(right: BorderSide(color: Color(0xFF00F0FF), width: 3.5)),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(14),
+              topRight: Radius.circular(2),
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3500F0FF),
+                blurRadius: 10,
+                offset: Offset(0, 0),
+              ),
+            ],
+            textColor: txt,
+            textStyle: resolveTextStyle(txt),
+          );
+        } else {
+          const txt = Color(0xFFE0F2FE);
+          return ChatBubbleSpec(
+            backgroundColor: const Color(0xFF112233),
+            border: const Border(left: BorderSide(color: Color(0xFF00F0FF), width: 3.5)),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(2),
+              topRight: Radius.circular(14),
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x2500F0FF),
+                blurRadius: 10,
+                offset: Offset(0, 0),
+              ),
+            ],
+            textColor: txt,
+            textStyle: resolveTextStyle(txt),
+          );
+        }
+      } else {
+        if (isMe) {
+          const txt = Color(0xFF0369A1);
+          return ChatBubbleSpec(
+            backgroundColor: const Color(0xFFDBEAFE),
+            border: const Border(right: BorderSide(color: Color(0xFF0284C7), width: 3.5)),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(14),
+              topRight: Radius.circular(2),
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A0284C7),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+            textColor: txt,
+            textStyle: resolveTextStyle(txt),
+          );
+        } else {
+          const txt = Color(0xFF0F172A);
+          return ChatBubbleSpec(
+            backgroundColor: Colors.white,
+            border: const Border(left: BorderSide(color: Color(0xFF0284C7), width: 3.5)),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(2),
+              topRight: Radius.circular(14),
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x10000000),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+            textColor: txt,
+            textStyle: resolveTextStyle(txt),
+          );
+        }
+      }
+    }
+
+    // 4. Pixel Garden / Craft 8-Bit (Minecraft Voxel)
     if (pref.preset == ChatThemePreset.pixel ||
         pref.preset == ChatThemePreset.pixelGarden ||
         pref.preset == ChatThemePreset.retroWave ||
@@ -526,13 +551,13 @@ class ChatPresetResolver {
         if (isMe) {
           const txt = Colors.white;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF2563EB), // Electric Blue Arcade
-            border: Border.all(color: const Color(0xFF0F172A), width: 1.5),
+            backgroundColor: const Color(0xFF5B8731), // Grass Block Green
+            border: Border.all(color: const Color(0xFF2D4514), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
-                color: Color(0xFF0F172A),
-                offset: Offset(2.5, 2.5),
+                color: Colors.black,
+                offset: Offset(3, 3),
                 blurRadius: 0,
               ),
             ],
@@ -541,15 +566,15 @@ class ChatPresetResolver {
             headerWidget: _buildPixelHeader(isMe: true, isDark: true),
           );
         } else {
-          const txt = Color(0xFFE2E8F0);
+          const txt = Colors.white;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF1E293B), // Cyber Slate
-            border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
+            backgroundColor: const Color(0xFF484848), // Deepslate Stone
+            border: Border.all(color: const Color(0xFF1E1E1E), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
-                color: Color(0xFF0F172A),
-                offset: Offset(2.5, 2.5),
+                color: Colors.black,
+                offset: Offset(3, 3),
                 blurRadius: 0,
               ),
             ],
@@ -560,15 +585,15 @@ class ChatPresetResolver {
         }
       } else {
         if (isMe) {
-          const txt = Color(0xFFF5F3EF);
+          const txt = Colors.white;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF3B567D),
-            border: Border.all(color: const Color(0xFF1B2A4A), width: 1.5),
+            backgroundColor: const Color(0xFF5B8731), // Grass Block Green
+            border: Border.all(color: const Color(0xFF2D4514), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
-                color: Color(0xFF1B2A4A),
-                offset: Offset(2.5, 2.5),
+                color: Color(0xFF1B2D0B),
+                offset: Offset(3, 3),
                 blurRadius: 0,
               ),
             ],
@@ -577,15 +602,15 @@ class ChatPresetResolver {
             headerWidget: _buildPixelHeader(isMe: true, isDark: false),
           );
         } else {
-          const txt = Color(0xFF1B2A4A);
+          const txt = Color(0xFF2E1E0A);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFFF7F5F0),
-            border: Border.all(color: const Color(0xFF3B567D), width: 1.5),
+            backgroundColor: const Color(0xFFC6B287), // Oak Wood Planks
+            border: Border.all(color: const Color(0xFF8C734B), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
-                color: Color(0x333B567D),
-                offset: Offset(2.5, 2.5),
+                color: Color(0xFF4A2E12),
+                offset: Offset(3, 3),
                 blurRadius: 0,
               ),
             ],
@@ -607,11 +632,16 @@ class ChatPresetResolver {
         if (isMe) {
           const txt = Colors.white;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFFF43F5E), // Neon Rose
-            borderRadius: BorderRadius.circular(22),
+            backgroundColor: const Color(0xFFDB2777),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFDB2777), Color(0xFFE11D48)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x40F43F5E),
+                color: Color(0x40DB2777),
                 blurRadius: 10,
                 offset: Offset(0, 3),
               ),
@@ -620,13 +650,13 @@ class ChatPresetResolver {
             textStyle: resolveTextStyle(txt),
           );
         } else {
-          const txt = Color(0xFFF0FDFA);
+          const txt = Color(0xFFFCE7F3);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF0D9488), // Neon Teal
-            borderRadius: BorderRadius.circular(22),
+            backgroundColor: const Color(0xFF381E35), // Sweet Berry Blackcurrant
+            borderRadius: BorderRadius.circular(18),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x330D9488),
+                color: Color(0x35000000),
                 blurRadius: 10,
                 offset: Offset(0, 3),
               ),
@@ -639,12 +669,17 @@ class ChatPresetResolver {
         if (isMe) {
           const txt = Colors.white;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFFFF6B9D), // Candy Pink
-            borderRadius: BorderRadius.circular(22),
+            backgroundColor: const Color(0xFFF472B6),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF472B6), Color(0xFFFB7185)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x29FF6B9D),
-                blurRadius: 8,
+                color: Color(0x35FB7185),
+                blurRadius: 10,
                 offset: Offset(0, 3),
               ),
             ],
@@ -652,14 +687,14 @@ class ChatPresetResolver {
             textStyle: resolveTextStyle(txt),
           );
         } else {
-          const txt = Color(0xFF1A2B2C); // Dark teal text
+          const txt = Color(0xFF831843);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF4ECDC4), // Candy Mint
-            borderRadius: BorderRadius.circular(22),
+            backgroundColor: Colors.white,
+            borderRadius: BorderRadius.circular(18),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x294ECDC4),
-                blurRadius: 8,
+                color: Color(0x25F472B6),
+                blurRadius: 10,
                 offset: Offset(0, 3),
               ),
             ],
@@ -670,80 +705,74 @@ class ChatPresetResolver {
       }
     }
 
-    // 6. Eco / Solarpunk (Organic Leaf)
+    // 6. Eco / Solarpunk (Calm Nature Kit)
     if (pref.preset == ChatThemePreset.eco ||
         pref.preset == ChatThemePreset.solarpunk ||
         pref.bubbleStyle == ChatBubbleStyle.solarpunkLeaf) {
       if (isDark) {
         if (isMe) {
-          const txt = Colors.white;
+          const txt = Color(0xFFF4EFE8);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF059669), // Forest Emerald
-            border: Border.all(color: const Color(0xFF047857), width: 1),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-              bottomLeft: Radius.circular(24),
-              bottomRight: Radius.circular(2),
-            ),
+            backgroundColor: const Color(0xFF344837), // Muted Moss
+            border: Border.all(color: const Color(0xFF4A634E), width: 1.0),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x40059669),
-                blurRadius: 8,
-                offset: Offset(0, 4),
+                color: Color(0x40000000),
+                blurRadius: 12,
+                offset: Offset(0, 3),
               ),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
         } else {
-          const txt = Color(0xFFD1FAE5);
+          const txt = Color(0xFFE8EFE8);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF064E3B), // Jungle Moss
-            border: Border.all(color: const Color(0xFF047857), width: 1),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-              bottomLeft: Radius.circular(2),
-              bottomRight: Radius.circular(24),
-            ),
+            backgroundColor: const Color(0xFF202D23), // Forest Earth
+            border: Border.all(color: const Color(0xFF2F4233), width: 1.0),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x35000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
         }
       } else {
         if (isMe) {
-          const txt = Colors.white;
+          const txt = Color(0xFFF4EFE8);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF10B981), // Fresh Emerald
-            border: Border.all(color: const Color(0xFF059669), width: 1),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-              bottomLeft: Radius.circular(24),
-              bottomRight: Radius.circular(2),
-            ),
+            backgroundColor: const Color(0xFF6B7F6E), // Sage Green
+            border: Border.all(color: const Color(0xFF5A6D5D), width: 1.0),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x3310B981),
-                blurRadius: 8,
-                offset: Offset(0, 4),
+                color: Color(0x286B7F6E),
+                blurRadius: 10,
+                offset: Offset(0, 3),
               ),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
         } else {
-          const txt = Color(0xFF065F46);
+          const txt = Color(0xFF2D3A2F);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFFECFDF5), // Fresh Sage
-            border: Border.all(color: const Color(0xFFA7F3D0), width: 1),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-              bottomLeft: Radius.circular(2),
-              bottomRight: Radius.circular(24),
-            ),
+            backgroundColor: Colors.white,
+            border: Border.all(color: const Color(0xFFD9E1D9), width: 1.0), // Mist border
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x146B7F6E),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
           );
@@ -751,39 +780,93 @@ class ChatPresetResolver {
       }
     }
 
-    // 7. MEKAAR Clean Theme (Default Fallback)
-    if (isMe) {
-      return ChatBubbleSpec(
-        backgroundColor: AppColors.blue,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(4),
-        ),
-        textColor: AppColors.textOnBlue,
-        fontFamily: activeFont,
-        textStyle: resolveTextStyle(AppColors.textOnBlue),
-      );
+    // 7. MEKAAR Core Theme (Default Fallback)
+    if (isDark) {
+      if (isMe) {
+        return ChatBubbleSpec(
+          backgroundColor: const Color(0xFF0284C7),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(4),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x400284C7),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+          textColor: Colors.white,
+          fontFamily: activeFont,
+          textStyle: resolveTextStyle(Colors.white),
+        );
+      } else {
+        return ChatBubbleSpec(
+          backgroundColor: const Color(0xFF1E293B),
+          border: Border.all(color: const Color(0xFF334155), width: 1.0),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+          textColor: const Color(0xFFF1F5F9),
+          fontFamily: activeFont,
+          textStyle: resolveTextStyle(const Color(0xFFF1F5F9)),
+        );
+      }
     } else {
-      final bg = isDark ? const Color(0xFF1E304F) : Colors.white;
-      final txt = isDark ? const Color(0xFFF4F9FF) : AppColors.darkBlue;
-      final borderColor = isDark ? const Color(0xFF25395B) : const Color(0xFFDCE7F5);
-
-      return ChatBubbleSpec(
-        backgroundColor: bg,
-        border: Border.all(color: borderColor, width: 1.0),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-          bottomLeft: Radius.circular(4),
-          bottomRight: Radius.circular(20),
-        ),
-        boxShadow: MekaarShadows.bubble,
-        textColor: txt,
-        fontFamily: activeFont,
-        textStyle: resolveTextStyle(txt),
-      );
+      if (isMe) {
+        return ChatBubbleSpec(
+          backgroundColor: const Color(0xFF0284C7),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(4),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x300284C7),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
+          textColor: Colors.white,
+          fontFamily: activeFont,
+          textStyle: resolveTextStyle(Colors.white),
+        );
+      } else {
+        return ChatBubbleSpec(
+          backgroundColor: Colors.white,
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
+          textColor: const Color(0xFF0F172A),
+          fontFamily: activeFont,
+          textStyle: resolveTextStyle(const Color(0xFF0F172A)),
+        );
+      }
     }
   }
 
@@ -838,18 +921,18 @@ class ChatPresetResolver {
         pref.preset == ChatThemePreset.diary ||
         pref.bubbleStyle == ChatBubbleStyle.playfulOutlined) {
       if (isDark) {
-        const accent = Color(0xFFF59E0B);
+        const accent = Color(0xFFEAB308);
         return ChatRoomThemeSpec(
           primaryAccentColor: accent,
-          secondaryAccentColor: const Color(0xFFE5E7EB),
+          secondaryAccentColor: const Color(0xFF38BDF8),
           iconColor: accent,
           textColor: const Color(0xFFF9FAFB),
           subtitleColor: const Color(0xFF9CA3AF),
           glassBorder: Border.all(color: accent, width: 2.0),
-          glassBackgroundColor: const Color(0xEE111827),
+          glassBackgroundColor: const Color(0xEE1C1427),
         );
       } else {
-        const accent = Color(0xFFFFD84D);
+        const accent = Color(0xFF38BDF8);
         return ChatRoomThemeSpec(
           primaryAccentColor: accent,
           secondaryAccentColor: Colors.black,
@@ -857,7 +940,7 @@ class ChatPresetResolver {
           textColor: Colors.black,
           subtitleColor: Colors.black87,
           glassBorder: Border.all(color: Colors.black, width: 2.0),
-          glassBackgroundColor: const Color(0xEEFFFDF0),
+          glassBackgroundColor: const Color(0xEEFEF9C3),
         );
       }
     }
@@ -866,7 +949,7 @@ class ChatPresetResolver {
     if (pref.preset == ChatThemePreset.neuro ||
         pref.preset == ChatThemePreset.neumorphism ||
         pref.bubbleStyle == ChatBubbleStyle.neumorphicSoft) {
-      final accent = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+      final accent = isDark ? const Color(0xFF67E8F9) : const Color(0xFF0369A1);
       return ChatRoomThemeSpec(
         primaryAccentColor: accent,
         secondaryAccentColor: const Color(0xFF64748B),
@@ -877,55 +960,68 @@ class ChatPresetResolver {
           color: isDark ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFCBD5E1),
           width: 1.2,
         ),
-        glassBackgroundColor: isDark ? const Color(0x33242A38) : const Color(0x33E2E8F0),
+        glassBackgroundColor: isDark ? const Color(0x33242933) : const Color(0x33E2E8F0),
       );
     }
 
-    // 3. Glassmorphism / Frosted Glass
-    if (pref.preset == ChatThemePreset.glass ||
+    // 3. Mecha Style (Tactical Armor & Cyber Grid — Menggantikan Glassmorphism)
+    if (pref.preset == ChatThemePreset.mecha ||
+        pref.preset == ChatThemePreset.glass ||
         pref.preset == ChatThemePreset.glassmorphism ||
+        pref.preset == ChatThemePreset.fireflyNight ||
+        pref.bubbleStyle == ChatBubbleStyle.mechaChamfer ||
         pref.bubbleStyle == ChatBubbleStyle.glassmorphism) {
-      final accent = isDark ? const Color(0xFFA78BFA) : const Color(0xFF3B82F6);
-      return ChatRoomThemeSpec(
-        primaryAccentColor: accent,
-        secondaryAccentColor: isDark ? const Color(0xFF818CF8) : const Color(0xFF8B5CF6),
-        iconColor: accent,
-        textColor: defaultText,
-        subtitleColor: defaultSubtitle,
-        glassBorder: Border.all(
-          color: Colors.white.withValues(alpha: isDark ? 0.35 : 0.6),
-          width: 1.2,
-        ),
-        glassBackgroundColor: isDark ? const Color(0x228B5CF6) : const Color(0x183B82F6),
-      );
+      if (isDark) {
+        const accent = Color(0xFF00F0FF); // Laser Cyan
+        return ChatRoomThemeSpec(
+          primaryAccentColor: accent,
+          secondaryAccentColor: const Color(0xFF0284C7),
+          iconColor: accent,
+          textColor: const Color(0xFFE0F2FE),
+          subtitleColor: const Color(0xFF38BDF8),
+          glassBorder: Border.all(color: accent, width: 1.5),
+          glassBackgroundColor: const Color(0xEE060B12),
+        );
+      } else {
+        const accent = Color(0xFF0284C7); // Tactical Cobalt
+        return ChatRoomThemeSpec(
+          primaryAccentColor: accent,
+          secondaryAccentColor: const Color(0xFF38BDF8),
+          iconColor: accent,
+          textColor: defaultText,
+          subtitleColor: defaultSubtitle,
+          glassBorder: Border.all(color: accent, width: 1.5),
+          glassBackgroundColor: const Color(0xEEEAEFF5),
+        );
+      }
     }
 
-    // 4. Pixel Garden 8-Bit (Arcade)
+    // 4. Pixel Garden / Craft 8-Bit (Minecraft Voxel)
     if (pref.preset == ChatThemePreset.pixel ||
         pref.preset == ChatThemePreset.pixelGarden ||
         pref.preset == ChatThemePreset.retroWave ||
         pref.preset == ChatThemePreset.retroY2K ||
         pref.bubbleStyle == ChatBubbleStyle.pixelGardenStyle) {
       if (isDark) {
-        const accent = Color(0xFF38BDF8);
+        const accent = Color(0xFF5B8731);
         return ChatRoomThemeSpec(
           primaryAccentColor: accent,
-          secondaryAccentColor: const Color(0xFF2563EB),
+          secondaryAccentColor: const Color(0xFF82B947),
           iconColor: accent,
           textColor: const Color(0xFFE2E8F0),
           subtitleColor: const Color(0xFF93C5FD),
           glassBorder: Border.all(color: accent, width: 1.5),
-          glassBackgroundColor: const Color(0xEE0B132B),
+          glassBackgroundColor: const Color(0xEE1F1A17),
         );
       } else {
-        const accent = Color(0xFF3B567D);
+        const accent = Color(0xFF5B8731);
         return ChatRoomThemeSpec(
           primaryAccentColor: accent,
-          secondaryAccentColor: const Color(0xFF5B769D),
-          iconColor: const Color(0xFF1B2A4A),
-          textColor: const Color(0xFF1B2A4A),
-          subtitleColor: const Color(0xFF3B567D),
-          glassBorder: Border.all(color: const Color(0xFF1B2A4A), width: 1.5),
+          secondaryAccentColor: const Color(0xFF82B947),
+          iconColor: const Color(0xFF2D4514),
+          textColor: const Color(0xFF1B2D0B),
+          subtitleColor: const Color(0xFF4A2E12),
+          glassBorder: Border.all(color: const Color(0xFF2D4514), width: 1.5),
           glassBackgroundColor: const Color(0xDDFFFFFF),
         );
       }
@@ -937,8 +1033,8 @@ class ChatPresetResolver {
         pref.preset == ChatThemePreset.isometric3d ||
         pref.bubbleStyle == ChatBubbleStyle.classicRounded ||
         pref.bubbleStyle == ChatBubbleStyle.isometric3D) {
-      final accent = isDark ? const Color(0xFFFB7185) : const Color(0xFFFF6B9D);
-      final secondary = isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4ECDC4);
+      final accent = isDark ? const Color(0xFFDB2777) : const Color(0xFFF472B6);
+      final secondary = isDark ? const Color(0xFFE11D48) : const Color(0xFFFB7185);
       return ChatRoomThemeSpec(
         primaryAccentColor: accent,
         secondaryAccentColor: secondary,
@@ -950,12 +1046,12 @@ class ChatPresetResolver {
       );
     }
 
-    // 6. Eco / Solarpunk (Organic Leaf)
+    // 6. Eco / Solarpunk (Calm Nature Kit)
     if (pref.preset == ChatThemePreset.eco ||
         pref.preset == ChatThemePreset.solarpunk ||
         pref.bubbleStyle == ChatBubbleStyle.solarpunkLeaf) {
-      final accent = isDark ? const Color(0xFF34D399) : const Color(0xFF10B981);
-      final secondary = const Color(0xFF059669);
+      final accent = isDark ? const Color(0xFFA7B8A7) : const Color(0xFF6B7F6E);
+      final secondary = isDark ? const Color(0xFF344837) : const Color(0xFF5A6D5D);
       return ChatRoomThemeSpec(
         primaryAccentColor: accent,
         secondaryAccentColor: secondary,
@@ -963,11 +1059,11 @@ class ChatPresetResolver {
         textColor: defaultText,
         subtitleColor: defaultSubtitle,
         glassBorder: Border.all(color: secondary.withValues(alpha: 0.4), width: 1.2),
-        glassBackgroundColor: accent.withValues(alpha: isDark ? 0.15 : 0.08),
+        glassBackgroundColor: secondary.withValues(alpha: isDark ? 0.15 : 0.08),
       );
     }
 
-    // 7. MEKAAR Clean Theme (Default Fallback)
+    // 7. MEKAAR Core Theme (Default Fallback)
     return ChatRoomThemeSpec(
       primaryAccentColor: defaultPrimary,
       secondaryAccentColor: defaultSecondary,
@@ -985,62 +1081,51 @@ class ChatPresetResolver {
       case WallpaperType.comicHalftone:
         return Positioned.fill(
           child: Container(
-            color: isDark ? const Color(0xFF111827) : const Color(0xFFFFFDF0),
+            color: isDark ? const Color(0xFF1C1427) : const Color(0xFFFEF9C3),
             child: CustomPaint(painter: _ComicHalftonePainter(isDark: isDark)),
           ),
         );
       case WallpaperType.neumorphicCanvas:
         return Positioned.fill(
           child: Container(
-            color: isDark ? const Color(0xFF1E2430) : const Color(0xFFE2E8F0),
+            color: isDark ? const Color(0xFF242933) : const Color(0xFFE2E8F0),
           ),
         );
-      case WallpaperType.gradient:
+      case WallpaperType.mechaBlueprintGrid:
+      case WallpaperType.gradient: // Fallback legacy glass
         return Positioned.fill(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? const [Color(0xFF1E1B4B), Color(0xFF0F172A)]
-                    : const [Color(0xFFE0E7FF), Color(0xFFBAE6FD)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            color: isDark ? const Color(0xFF060B12) : const Color(0xFFEAEFF5),
+            child: CustomPaint(painter: _MechaBlueprintPainter(isDark: isDark)),
           ),
         );
       case WallpaperType.pixelGardenCanvas:
         return Positioned.fill(
           child: Container(
-            color: isDark ? const Color(0xFF0B132B) : const Color(0xFFEFECE6),
-            child: CustomPaint(painter: _PixelGardenPainter(isDark: isDark)),
+            color: isDark ? const Color(0xFF1F1A17) : const Color(0xFF99C272),
+            child: CustomPaint(painter: _PixelVoxelPainter(isDark: isDark)),
           ),
         );
       case WallpaperType.pattern:
         return Positioned.fill(
           child: Container(
-            color: isDark ? const Color(0xFF1E112A) : const Color(0xFFFFF5F7),
-            child: CustomPaint(painter: _PatternWallpaperPainter(isDark: isDark)),
+            color: isDark ? const Color(0xFF231221) : const Color(0xFFFDF2F8),
+            child: CustomPaint(painter: _CandyPolkaPainter(isDark: isDark)),
           ),
         );
       case WallpaperType.solarpunkCanvas:
         return Positioned.fill(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? const [Color(0xFF064E3B), Color(0xFF022C22)]
-                    : const [Color(0xFFECFDF5), Color(0xFFFEF3C7)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+            color: isDark ? const Color(0xFF172119) : const Color(0xFFF4EFE8),
+            child: CustomPaint(painter: _SolarPunkGrainPainter(isDark: isDark)),
           ),
         );
       case WallpaperType.solidColor:
-        final hex = int.tryParse(pref.wallpaperValue ?? '') ??
-            (isDark ? 0xFF0F172A : 0xFFF8FAFF);
-        return Positioned.fill(child: Container(color: Color(hex)));
+        final hex = int.tryParse(pref.wallpaperValue ?? '');
+        if (hex != null) {
+          return Positioned.fill(child: Container(color: Color(hex)));
+        }
+        return _buildMekaarCleanWallpaper(context);
       case WallpaperType.customImage:
         if (pref.wallpaperValue != null && pref.wallpaperValue!.isNotEmpty) {
           final file = File(pref.wallpaperValue!);
@@ -1064,9 +1149,10 @@ class ChatPresetResolver {
   }
 
   static Widget _buildMekaarCleanWallpaper(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Positioned.fill(
       child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: isDark ? const Color(0xFF0B1120) : const Color(0xFFF1F5F9),
       ),
     );
   }
@@ -1075,9 +1161,9 @@ class ChatPresetResolver {
     final text = isMe ? '❖ [SENT.8BIT]' : '❖ [RECV.8BIT]';
     Color color;
     if (isDark) {
-      color = isMe ? const Color(0xFF93C5FD) : const Color(0xFF38BDF8);
+      color = isMe ? const Color(0xFF82B947) : const Color(0xFF686868);
     } else {
-      color = isMe ? const Color(0xFF90B0D8) : const Color(0xFF4B6B94);
+      color = isMe ? const Color(0xFF82B947) : const Color(0xFF8C734B);
     }
 
     return Padding(
@@ -1095,7 +1181,7 @@ class ChatPresetResolver {
   }
 }
 
-// ── Custom Painters untuk Canvas Background (Adaptif Light & Dark) ───────────
+// ── Custom Painters untuk Canvas Background 60fps (Adaptif Light & Dark) ──────
 
 class _ComicHalftonePainter extends CustomPainter {
   final bool isDark;
@@ -1104,11 +1190,11 @@ class _ComicHalftonePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDark ? const Color(0x22374151) : const Color(0x15000000);
-    const step = 16.0;
+      ..color = isDark ? const Color(0xFF38264E) : const Color(0xFFFDE047);
+    const step = 12.0;
     for (double x = 0; x < size.width; x += step) {
       for (double y = 0; y < size.height; y += step) {
-        canvas.drawCircle(Offset(x, y), 2.0, paint);
+        canvas.drawCircle(Offset(x + 6, y + 6), 1.5, paint);
       }
     }
   }
@@ -1117,19 +1203,17 @@ class _ComicHalftonePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _PixelGardenPainter extends CustomPainter {
+class _MechaBlueprintPainter extends CustomPainter {
   final bool isDark;
-  _PixelGardenPainter({required this.isDark});
+  _MechaBlueprintPainter({required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
-
     final gridPaint = Paint()
-      ..color = isDark ? const Color(0x1838BDF8) : const Color(0x184B6B94)
+      ..color = isDark ? const Color(0x1800F0FF) : const Color(0xFFDCE4EE)
       ..strokeWidth = 1.0;
 
-    // 1. Subtle 8-bit dither grid lines ~24px apart
     const step = 24.0;
     for (double x = 0; x < size.width; x += step) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
@@ -1137,58 +1221,72 @@ class _PixelGardenPainter extends CustomPainter {
     for (double y = 0; y < size.height; y += step) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
-
-    // 2. Pixel flower motifs (❖ 4-petal pixel cross) scattered across background
-    final flowerPaint = Paint()
-      ..color = isDark ? const Color(0x3538BDF8) : const Color(0x354B6B94);
-    final rand = math.Random(101);
-    const flowerCount = 14;
-
-    for (int i = 0; i < flowerCount; i++) {
-      final cx = (rand.nextDouble() * size.width / step).floor() * step + step / 2;
-      final cy = (rand.nextDouble() * size.height / step).floor() * step + step / 2;
-      const pSize = 3.0;
-
-      // Draw 4-petal pixel flower plus shape
-      canvas.drawRect(Rect.fromLTWH(cx - pSize * 1.5, cy - pSize * 0.5, pSize, pSize), flowerPaint);
-      canvas.drawRect(Rect.fromLTWH(cx + pSize * 0.5, cy - pSize * 0.5, pSize, pSize), flowerPaint);
-      canvas.drawRect(Rect.fromLTWH(cx - pSize * 0.5, cy - pSize * 1.5, pSize, pSize), flowerPaint);
-      canvas.drawRect(Rect.fromLTWH(cx - pSize * 0.5, cy + pSize * 0.5, pSize, pSize), flowerPaint);
-    }
-
-    // 3. Pixel mountain silhouette along bottom canvas
-    final mountainPaint = Paint()
-      ..color = isDark ? const Color(0x201E3A8A) : const Color(0x20708CAE);
-    final path = Path();
-    path.moveTo(0, size.height);
-    path.lineTo(0, size.height - 45);
-    path.lineTo(size.width * 0.2, size.height - 75);
-    path.lineTo(size.width * 0.45, size.height - 35);
-    path.lineTo(size.width * 0.75, size.height - 85);
-    path.lineTo(size.width, size.height - 40);
-    path.lineTo(size.width, size.height);
-    path.close();
-    canvas.drawPath(path, mountainPaint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _PatternWallpaperPainter extends CustomPainter {
+class _PixelVoxelPainter extends CustomPainter {
   final bool isDark;
-  _PatternWallpaperPainter({required this.isDark});
+  _PixelVoxelPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final voxelPaint = Paint()
+      ..color = isDark ? const Color(0xFF181412) : const Color(0xFF8CB865);
+
+    const step = 16.0;
+    const half = step / 2;
+    for (double y = 0; y < size.height; y += step) {
+      final rowOdd = ((y / step).floor() % 2 == 1);
+      for (double x = 0; x < size.width; x += step) {
+        final colOdd = ((x / step).floor() % 2 == 1);
+        if (rowOdd ^ colOdd) {
+          canvas.drawRect(Rect.fromLTWH(x, y, half, half), voxelPaint);
+          canvas.drawRect(Rect.fromLTWH(x + half, y + half, half, half), voxelPaint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _CandyPolkaPainter extends CustomPainter {
+  final bool isDark;
+  _CandyPolkaPainter({required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDark ? const Color(0x2EFB7185) : const Color(0x1FDD5A8C)
-      ..strokeWidth = 1.0;
-    const step = 24.0;
-
+      ..color = isDark ? const Color(0xFF3D1E38) : const Color(0xFFFBCFE8);
+    const step = 14.0;
     for (double x = 0; x < size.width; x += step) {
       for (double y = 0; y < size.height; y += step) {
-        canvas.drawCircle(Offset(x + 12, y + 12), 1.5, paint);
+        canvas.drawCircle(Offset(x + 7, y + 7), 1.2, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SolarPunkGrainPainter extends CustomPainter {
+  final bool isDark;
+  _SolarPunkGrainPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = isDark ? const Color(0xFF263629) : const Color(0xFFC9BDAF);
+    const step = 18.0;
+    for (double x = 0; x < size.width; x += step) {
+      for (double y = 0; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x + 9, y + 9), 1.2, paint);
       }
     }
   }

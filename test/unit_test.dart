@@ -237,7 +237,8 @@ void main() {
       expect(ChatThemePreference.mekaar.preset, equals(ChatThemePreset.mekaar));
       expect(ChatThemePreference.comic.preset, equals(ChatThemePreset.comic));
       expect(ChatThemePreference.neuro.preset, equals(ChatThemePreset.neuro));
-      expect(ChatThemePreference.glass.preset, equals(ChatThemePreset.glass));
+      expect(ChatThemePreference.mecha.preset, equals(ChatThemePreset.mecha));
+      expect(ChatThemePreference.glass.preset, equals(ChatThemePreset.mecha));
       expect(ChatThemePreference.pixel.preset, equals(ChatThemePreset.pixel));
       expect(ChatThemePreference.candy.preset, equals(ChatThemePreset.candy));
       expect(ChatThemePreference.eco.preset, equals(ChatThemePreset.eco));
@@ -252,9 +253,10 @@ void main() {
         'neuro': ChatThemePreset.neuro,
         'neonDreams': ChatThemePreset.neuro,
         'neonCyberpunk': ChatThemePreset.neuro,
-        'glassmorphism': ChatThemePreset.glass,
-        'glass': ChatThemePreset.glass,
-        'fireflyNight': ChatThemePreset.glass,
+        'mecha': ChatThemePreset.mecha,
+        'glassmorphism': ChatThemePreset.mecha,
+        'glass': ChatThemePreset.mecha,
+        'fireflyNight': ChatThemePreset.mecha,
         'pixelGarden': ChatThemePreset.pixel,
         'pixel': ChatThemePreset.pixel,
         'retroWave': ChatThemePreset.pixel,
@@ -283,6 +285,7 @@ void main() {
         ChatThemePreference.mekaar,
         ChatThemePreference.comic,
         ChatThemePreference.neuro,
+        ChatThemePreference.mecha,
         ChatThemePreference.glass,
         ChatThemePreference.pixel,
         ChatThemePreference.candy,
