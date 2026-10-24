@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/message_preview_resolver.dart';
@@ -23,6 +24,14 @@ class ChatRepository {
   /// Memungkinkan eviksi optimistik 0ms saat pesan dihapus oleh pengguna.
   final Map<String, StreamController<List<Message>>> _activeRoomControllers = {};
   final Map<String, Map<String, Message>> _activeRoomMessagePools = {};
+
+  @visibleForTesting
+  Map<String, StreamController<List<Message>>> get activeRoomControllers =>
+      _activeRoomControllers;
+
+  @visibleForTesting
+  Map<String, Map<String, Message>> get activeRoomMessagePools =>
+      _activeRoomMessagePools;
 
   ChatRepository(this._supabaseService);
 
@@ -1073,9 +1082,38 @@ class ChatRepository {
   }
 
   /// Hard-delete messages that have passed their auto_delete_at timestamp.
-  /// Best-effort: called from client on chat open. The Supabase cron job
-  /// (migration 17) performs the authoritative periodic purge.
-  Future<int> purgeExpiredMessages() async {
+  /// Memvalidasi database lokal, backend Supabase, dan memori RAM _activeRoomMessagePools
+  /// secara sinkron sehingga pesan yang kedaluwarsa langsung lenyap dari layar (0ms).
+  Future<int> purgeExpiredMessages({String? targetRoomId}) async {
+    final now = DateTime.now().toUtc();
+    final roomsToCheck = targetRoomId != null
+        ? [targetRoomId]
+        : _activeRoomMessagePools.keys.toList();
+
+    for (final rId in roomsToCheck) {
+      final pool = _activeRoomMessagePools[rId];
+      final controller = _activeRoomControllers[rId];
+      if (pool != null && pool.isNotEmpty) {
+        final expiredIds = pool.values
+            .where((m) => m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now))
+            .map((m) => m.id)
+            .toList();
+
+        if (expiredIds.isNotEmpty) {
+          for (final id in expiredIds) {
+            pool.remove(id);
+            _decryptedContentCache.remove(id);
+            unawaited(LocalMessageDatabase.instance.deleteMessage(id));
+          }
+          if (controller != null && !controller.isClosed) {
+            final sorted = pool.values.toList()
+              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            controller.add(sorted);
+          }
+        }
+      }
+    }
+
     unawaited(LocalMessageDatabase.instance.purgeExpiredMessages());
     try {
       final response = await _supabaseService.client.rpc(
@@ -1276,6 +1314,19 @@ class ChatRepository {
   /// Eksekusi pembersihan riwayat chat sekarang (manual / timer terpicu).
   /// Memanggil RPC `execute_room_scheduled_wipe`.
   Future<int> executeRoomScheduledWipe(String roomId) async {
+    // 0ms Instant Local Memory Eviction: Kosongkan pool RAM dan pancarkan list kosong seketika
+    final pool = _activeRoomMessagePools[roomId];
+    final controller = _activeRoomControllers[roomId];
+    if (pool != null) {
+      for (final msgId in pool.keys) {
+        _decryptedContentCache.remove(msgId);
+      }
+      pool.clear();
+      if (controller != null && !controller.isClosed) {
+        controller.add(const []);
+      }
+    }
+
     unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
     try {
       final result = await _supabaseService.client.rpc(
@@ -1313,8 +1364,16 @@ class ChatRepository {
   /// Eksekusi penghapusan pesan saat keluar room (Burn on Exit).
   /// Menghapus jejak lokal (memori, SQLite, file cache OS) dan riwayat di server.
   Future<void> executeRoomBurnOnExit(String roomId) async {
-    // 1. Bersihkan cache in-memory agar gelembung pesan tidak tersisa di RAM
+    // 1. Bersihkan cache in-memory dan pool room agar gelembung pesan tidak tersisa di RAM
     _decryptedContentCache.clear();
+    final pool = _activeRoomMessagePools[roomId];
+    final controller = _activeRoomControllers[roomId];
+    if (pool != null) {
+      pool.clear();
+      if (controller != null && !controller.isClosed) {
+        controller.add(const []);
+      }
+    }
 
     // 2. Bersihkan baris pesan dari database lokal SQLCipher
     unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));

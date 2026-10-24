@@ -425,10 +425,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _resolveMissingRoomMetadata();
     _loadHiddenCalls();
 
-    // Timer periodik pembersihan pesan kedaluwarsa (client guard)
-    _purgeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+    // Timer periodik pembersihan pesan kedaluwarsa & sinkronisasi UI real-time
+    _purgeTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       try {
-        ref.read(chatRepositoryProvider).purgeExpiredMessages();
+        ref.read(chatRepositoryProvider).purgeExpiredMessages(targetRoomId: widget.chatId);
       } catch (_) {}
     });
 
@@ -486,7 +486,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
       // Best-effort purge pesan kedaluwarsa saat pertama buka chat
       try {
-        await repo.purgeExpiredMessages();
+        await repo.purgeExpiredMessages(targetRoomId: widget.chatId);
       } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
       if (widget.otherUserId != null) {
@@ -1968,6 +1968,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     case ChatMessagesUiMode.data:
                                       final rawDbMessages =
                                           messagesStream.valueOrNull!;
+                                      final nowUtc = DateTime.now().toUtc();
+                                      final activeDbMessages = rawDbMessages.where((m) {
+                                        if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(nowUtc)) {
+                                          return false;
+                                        }
+                                        return true;
+                                      }).toList();
                                       final pendingMessages = ref.watch(
                                         pendingMessagesProvider(widget.chatId),
                                       );
@@ -1985,13 +1992,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                               )
                                               .toList();
                                       final dbIds = {
-                                        for (var m in rawDbMessages) m.id,
+                                        for (var m in activeDbMessages) m.id,
                                       };
                                       final activePending = pendingMessages
-                                          .where((p) => !dbIds.contains(p.id))
+                                          .where((p) =>
+                                              !dbIds.contains(p.id) &&
+                                              (p.autoDeleteAt == null || p.autoDeleteAt!.isAfter(nowUtc)))
                                           .toList();
                                       final rawMessages = [
-                                        ...rawDbMessages,
+                                        ...activeDbMessages,
                                         ...activePending,
                                       ];
 
@@ -2280,14 +2289,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     );
                     final rawDbMessages =
                         messagesStream.valueOrNull ?? const [];
+                    final nowUtc = DateTime.now().toUtc();
+                    final activeDbMessages = rawDbMessages.where((m) {
+                      if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(nowUtc)) {
+                        return false;
+                      }
+                      return true;
+                    }).toList();
                     final pendingMessages = ref.watch(
                       pendingMessagesProvider(widget.chatId),
                     );
-                    final dbIds = {for (var m in rawDbMessages) m.id};
+                    final dbIds = {for (var m in activeDbMessages) m.id};
                     final activePending = pendingMessages
-                        .where((p) => !dbIds.contains(p.id))
+                        .where((p) =>
+                            !dbIds.contains(p.id) &&
+                            (p.autoDeleteAt == null || p.autoDeleteAt!.isAfter(nowUtc)))
                         .toList();
-                    final rawMessages = [...rawDbMessages, ...activePending];
+                    final rawMessages = [...activeDbMessages, ...activePending];
 
                     return _buildSelectionAppBar(
                       context,
