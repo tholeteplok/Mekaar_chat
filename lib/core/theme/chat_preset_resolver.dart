@@ -570,7 +570,6 @@ class ChatPresetResolver {
           const txt = Color(0xFFE6FFFA);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF004E5A),
-            border: const Border(right: BorderSide(color: Color(0xFF00F0FF), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(14),
               topRight: Radius.circular(2),
@@ -588,15 +587,12 @@ class ChatPresetResolver {
             textStyle: resolveTextStyle(txt),
             tailType: BubbleTailType.mechaChamfer,
             shapeType: BubbleShapeType.mechaChamfered,
-            accentVerticalBorderColor: const Color(0xFF00F0FF),
-            accentVerticalBorderWidth: 3.0,
             contentPadding: padding,
           );
         } else {
           const txt = Color(0xFFE0F2FE);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF112233),
-            border: const Border(left: BorderSide(color: Color(0xFF00F0FF), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(2),
               topRight: Radius.circular(14),
@@ -614,8 +610,6 @@ class ChatPresetResolver {
             textStyle: resolveTextStyle(txt),
             tailType: BubbleTailType.mechaChamfer,
             shapeType: BubbleShapeType.mechaChamfered,
-            accentVerticalBorderColor: const Color(0xFF00F0FF),
-            accentVerticalBorderWidth: 3.0,
             contentPadding: padding,
           );
         }
@@ -624,7 +618,6 @@ class ChatPresetResolver {
           const txt = Color(0xFF0369A1);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFFDBEAFE),
-            border: const Border(right: BorderSide(color: Color(0xFF0284C7), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(14),
               topRight: Radius.circular(2),
@@ -642,15 +635,12 @@ class ChatPresetResolver {
             textStyle: resolveTextStyle(txt),
             tailType: BubbleTailType.mechaChamfer,
             shapeType: BubbleShapeType.mechaChamfered,
-            accentVerticalBorderColor: const Color(0xFF0284C7),
-            accentVerticalBorderWidth: 3.0,
             contentPadding: padding,
           );
         } else {
           const txt = Color(0xFF0F172A);
           return ChatBubbleSpec(
             backgroundColor: Colors.white,
-            border: const Border(left: BorderSide(color: Color(0xFF0284C7), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(2),
               topRight: Radius.circular(14),
@@ -668,8 +658,6 @@ class ChatPresetResolver {
             textStyle: resolveTextStyle(txt),
             tailType: BubbleTailType.mechaChamfer,
             shapeType: BubbleShapeType.mechaChamfered,
-            accentVerticalBorderColor: const Color(0xFF0284C7),
-            accentVerticalBorderWidth: 3.0,
             contentPadding: padding,
           );
         }
@@ -1051,13 +1039,13 @@ class ChatPresetResolver {
     } else {
       if (isMe) {
         return ChatBubbleSpec(
-          backgroundColor: const Color(0xFF0284C7),
+          backgroundColor: AppColors.blue,
           borderRadius: mekaarBorderRad,
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x300284C7),
+              color: AppColors.blue.withValues(alpha: 0.25),
               blurRadius: 3,
-              offset: Offset(0, 1),
+              offset: const Offset(0, 1),
             ),
           ],
           textColor: Colors.white,
@@ -1328,8 +1316,15 @@ class ChatPresetResolver {
       case WallpaperType.pattern:
         return Positioned.fill(
           child: Container(
-            color: isDark ? const Color(0xFF231221) : const Color(0xFFFDF2F8),
-            child: CustomPaint(painter: _CandyPolkaPainter(isDark: isDark)),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: isDark
+                    ? const [Color(0xFF281326), Color(0xFF190B18)]
+                    : const [Color(0xFFFFF1F6), Color(0xFFFCE7F3)],
+              ),
+            ),
           ),
         );
       case WallpaperType.solarpunkCanvas:
@@ -1474,38 +1469,18 @@ class _PixelVoxelPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _CandyPolkaPainter extends CustomPainter {
-  final bool isDark;
-  _CandyPolkaPainter({required this.isDark});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = isDark ? const Color(0xFF3D1E38) : const Color(0xFFFBCFE8);
-    const step = 14.0;
-    for (double x = 0; x < size.width; x += step) {
-      for (double y = 0; y < size.height; y += step) {
-        canvas.drawCircle(Offset(x + 7, y + 7), 1.2, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _SolarPunkGrainPainter extends CustomPainter {
   final bool isDark;
   _SolarPunkGrainPainter({required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = isDark ? const Color(0xFF263629) : const Color(0xFFC9BDAF);
-    const step = 18.0;
+    final baseColor = isDark ? const Color(0xFF263629) : const Color(0xFFC9BDAF);
+    final paint = Paint()..color = baseColor.withValues(alpha: 0.40);
+    const step = 32.0;
     for (double x = 0; x < size.width; x += step) {
       for (double y = 0; y < size.height; y += step) {
-        canvas.drawCircle(Offset(x + 9, y + 9), 1.2, paint);
+        canvas.drawCircle(Offset(x + 16, y + 16), 0.8, paint);
       }
     }
   }

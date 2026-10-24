@@ -1,3 +1,4 @@
+import 'package:mekaar_chat/core/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/core/theme/chat_preset_resolver.dart';
@@ -99,7 +100,7 @@ void main() {
       );
     });
 
-    testWidgets('Mecha Style has 3px vertical accent border and chamfer',
+    testWidgets('Mecha Style has chamfer shape without laser vertical accent',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -111,16 +112,40 @@ void main() {
                 context,
                 isMe: true,
               );
-              expect(sender.accentVerticalBorderColor, equals(const Color(0xFF00F0FF)));
-              expect(sender.accentVerticalBorderWidth, equals(3.0));
+              expect(sender.accentVerticalBorderColor, isNull);
+              expect(sender.accentVerticalBorderWidth, isNull);
+              expect(sender.shapeType, equals(BubbleShapeType.mechaChamfered));
+              expect(sender.tailType, equals(BubbleTailType.mechaChamfer));
 
               final receiver = ChatPresetResolver.getBubbleSpec(
                 ChatThemePreference.mecha,
                 context,
                 isMe: false,
               );
-              expect(receiver.accentVerticalBorderColor, equals(const Color(0xFF00F0FF)));
-              expect(receiver.accentVerticalBorderWidth, equals(3.0));
+              expect(receiver.accentVerticalBorderColor, isNull);
+              expect(receiver.accentVerticalBorderWidth, isNull);
+              expect(receiver.shapeType, equals(BubbleShapeType.mechaChamfered));
+              expect(receiver.tailType, equals(BubbleTailType.mechaChamfer));
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+    });
+
+    testWidgets('Mekaar Core Light Mode sender bubble color is brandBlue (AppColors.blue)',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.light(),
+          home: Builder(
+            builder: (context) {
+              final sender = ChatPresetResolver.getBubbleSpec(
+                ChatThemePreference.mekaar,
+                context,
+                isMe: true,
+              );
+              expect(sender.backgroundColor, equals(AppColors.blue));
               return const SizedBox();
             },
           ),

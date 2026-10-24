@@ -1251,49 +1251,55 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                 tooltip: 'Emoji',
                               ),
                             Expanded(
-                              child: TextField(
-                                key: const ValueKey('chat_composer_text_field'),
-                                controller: widget.controller,
-                                focusNode: _effectiveFocusNode,
-                                enabled: widget.enabled,
-                                keyboardType: TextInputType.multiline,
-                                textInputAction: TextInputAction.newline,
-                                minLines: 1,
-                                maxLines: 5,
-                                textCapitalization: TextCapitalization.sentences,
-                                contentInsertionConfiguration: ContentInsertionConfiguration(
-                                  allowedMimeTypes: const <String>[
-                                    'image/gif',
-                                    'image/png',
-                                    'image/jpeg',
-                                    'image/webp',
-                                  ],
-                                  onContentInserted: _handleKeyboardContentInserted,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: !widget.enabled
-                                      ? 'Menyiapkan enkripsi...'
-                                      : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
-                                  hintStyle: TextStyle(
-                                    fontSize: 14,
-                                    color: widget.roomThemeSpec?.subtitleColor ?? MekaarColors.textMutedOf(context),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minHeight: 48),
+                                child: Center(
+                                  child: TextField(
+                                    key: const ValueKey('chat_composer_text_field'),
+                                    controller: widget.controller,
+                                    focusNode: _effectiveFocusNode,
+                                    enabled: widget.enabled,
+                                    keyboardType: TextInputType.multiline,
+                                    textInputAction: TextInputAction.newline,
+                                    minLines: 1,
+                                    maxLines: 5,
+                                    textCapitalization: TextCapitalization.sentences,
+                                    textAlignVertical: TextAlignVertical.center,
+                                    contentInsertionConfiguration: ContentInsertionConfiguration(
+                                      allowedMimeTypes: const <String>[
+                                        'image/gif',
+                                        'image/png',
+                                        'image/jpeg',
+                                        'image/webp',
+                                      ],
+                                      onContentInserted: _handleKeyboardContentInserted,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: !widget.enabled
+                                          ? 'Menyiapkan enkripsi...'
+                                          : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
+                                      hintStyle: TextStyle(
+                                        fontSize: 14,
+                                        color: widget.roomThemeSpec?.subtitleColor ?? MekaarColors.textMutedOf(context),
+                                      ),
+                                      border: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      fillColor: Colors.transparent,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 8,
+                                      ),
+                                      isDense: true,
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
+                                    ),
+                                    onSubmitted: (_) => widget.enabled ? _handleSend() : null,
+                                    onTap: closeEmojiPicker,
                                   ),
-                                  border: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  fillColor: Colors.transparent,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 8,
-                                  ),
-                                  isDense: true,
                                 ),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
-                                ),
-                                onSubmitted: (_) => widget.enabled ? _handleSend() : null,
-                                onTap: closeEmojiPicker,
                               ),
                             ),
                             if (!_isEditMode)

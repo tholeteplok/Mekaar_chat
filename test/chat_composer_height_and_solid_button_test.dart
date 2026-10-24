@@ -175,6 +175,10 @@ void main() {
       final actionBtnSize = tester.getSize(actionBtnFinder);
       expect(actionBtnSize.width, 48.0);
       expect(actionBtnSize.height, 48.0);
+
+      // Verifikasi TextField memiliki textAlignVertical.center untuk center vertical alignment
+      final textField = tester.widget<TextField>(textFieldFinder);
+      expect(textField.textAlignVertical, equals(TextAlignVertical.center));
     });
   });
 }

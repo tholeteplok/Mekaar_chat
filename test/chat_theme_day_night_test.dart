@@ -99,7 +99,8 @@ void main() {
                 context,
                 isMe: true,
               );
-              expect(mechaOutgoing.border, isNotNull);
+              expect(mechaOutgoing.border, isNull);
+              expect(mechaOutgoing.shapeType, equals(BubbleShapeType.mechaChamfered));
 
               // Legacy glass alias resolves to mecha
               final glassOutgoing = ChatPresetResolver.getBubbleSpec(
@@ -107,7 +108,8 @@ void main() {
                 context,
                 isMe: true,
               );
-              expect(glassOutgoing.border, isNotNull);
+              expect(glassOutgoing.border, isNull);
+              expect(glassOutgoing.shapeType, equals(BubbleShapeType.mechaChamfered));
               expect(glassOutgoing.backgroundColor,
                   equals(mechaOutgoing.backgroundColor));
 
