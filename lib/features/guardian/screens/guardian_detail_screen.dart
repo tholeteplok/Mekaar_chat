@@ -10,6 +10,7 @@ import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_badge.dart';
+import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
@@ -36,7 +37,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   late bool _gpsEnabled;
   late bool _micEnabled;
   late bool _videoEnabled;
-  late String _storageOption;
   bool _isSaving = false;
   String? _avatarUrl;
 
@@ -46,7 +46,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     _gpsEnabled = widget.guardian.permissions['gps'] ?? false;
     _micEnabled = widget.guardian.permissions['mic'] ?? false;
     _videoEnabled = widget.guardian.permissions['video'] ?? false;
-    _storageOption = widget.guardian.storageOption;
     _loadPeerProfile();
   }
 
@@ -167,7 +166,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
       await ref.read(guardianProvider.notifier).updateGuardianPermissions(
         widget.guardian.id,
         {'gps': _gpsEnabled, 'mic': _micEnabled, 'video': _videoEnabled},
-        _storageOption,
+        'stream_only',
       );
       if (mounted) {
         MekaarSnackbar.success(context, 'Izin berhasil diperbarui.');
@@ -710,13 +709,41 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // ── Storage Option Section ──
+                  // ── Informasi Transmisi & Privasi ──
                   Text(
-                    'OPSI PENYIMPANAN REKAMAN',
+                    'INFORMASI TRANSMISI & PRIVASI',
                     style: MekaarTypography.overline,
                   ),
                   const SizedBox(height: 10),
-                  _buildStorageOptions(),
+                  MekaarBanner(
+                    color: MekaarColors.primaryOf(context),
+                    icon: SolarIconsOutline.shieldCheck,
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    content: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Transmisi Langsung (Zero-Knowledge)',
+                          style: MekaarTypography.labelLG.copyWith(
+                            color: MekaarColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Audio dan video SOS hanya disiarkan langsung ke Guardian saat darurat. Tidak ada rekaman yang disimpan di server atau cloud demi menjaga privasi penuh.',
+                          style: MekaarTypography.bodySM.copyWith(
+                            color: MekaarColors.textSecondaryOf(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(height: 32),
 
@@ -882,87 +909,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStorageOptions() {
-    final options = [
-      {
-        'value': 'stream_only',
-        'label': 'Streaming Saja',
-        'desc': 'Tidak ada data yang disimpan.',
-        'icon': SolarIconsOutline.soundwave,
-      },
-      {
-        'value': 'server',
-        'label': 'Server Terenkripsi',
-        'desc': 'Guardian bisa putar ulang, tidak bisa unduh.',
-        'icon': SolarIconsOutline.cloud,
-      },
-      {
-        'value': 'drive_a',
-        'label': 'Drive Pribadi Saya',
-        'desc': 'File langsung ke Google Drive/iCloud Anda.',
-        'icon': SolarIconsOutline.folderWithFiles,
-      },
-      {
-        'value': 'drive_link',
-        'label': 'Drive + Tautan Sementara',
-        'desc': 'Guardian dapat tautan 24 jam, tidak permanen.',
-        'icon': SolarIconsOutline.link,
-      },
-    ];
-
-    return CustomCard(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        children: options.asMap().entries.map((entry) {
-          final index = entry.key;
-          final opt = entry.value;
-          final isSelected = _storageOption == opt['value'];
-          final isLast = index == options.length - 1;
-
-          return Column(
-            children: [
-              ListTile(
-                leading: MekaarIconBadge(
-                  icon: opt['icon'] as IconData,
-                  size: 40,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : MekaarColors.textMutedOf(context),
-                  backgroundColor: isSelected
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.12)
-                      : MekaarColors.surface2Of(context),
-                ),
-                title: Text(
-                  opt['label'] as String,
-                  style: MekaarTypography.labelLG,
-                ),
-                subtitle: Text(
-                  opt['desc'] as String,
-                  style: MekaarTypography.bodySM,
-                ),
-                trailing: isSelected
-                    ? Icon(
-                        SolarIconsBold.checkCircle,
-                        color: Theme.of(context).colorScheme.primary,
-                      )
-                    : Icon(
-                        SolarIconsOutline.checkCircle,
-                        color: MekaarColors.textMutedOf(context),
-                      ),
-                onTap: () =>
-                    setState(() => _storageOption = opt['value'] as String),
-              ),
-              if (!isLast) const MekaarCardDivider(),
-            ],
-          );
-        }).toList(),
       ),
     );
   }
