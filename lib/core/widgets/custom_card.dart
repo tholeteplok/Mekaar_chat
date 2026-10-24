@@ -41,19 +41,28 @@ class CustomCard extends StatelessWidget {
       boxShadow: MekaarShadows.cardDynamic(context),
     );
 
-    Widget cardWidget = Container(
+    Widget content = Padding(
       padding: padding ?? const EdgeInsets.all(16),
-      decoration: decoration,
       child: child,
     );
 
     if (onTap != null) {
-      cardWidget = InkWell(
+      content = InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(radius),
-        child: cardWidget,
+        child: content,
       );
     }
+
+    Widget cardWidget = Container(
+      decoration: decoration,
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(radius),
+        clipBehavior: Clip.antiAlias,
+        child: content,
+      ),
+    );
 
     return Container(
       margin: margin ?? const EdgeInsets.only(bottom: 12),

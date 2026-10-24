@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mekaar_chat/core/widgets/custom_card.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_tab_header.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_wordmark.dart';
 
@@ -73,5 +74,63 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+  });
+
+  group('CustomCard Material & ListTile Compliance', () {
+    testWidgets('CustomCard menyematkan Material transparan dan aman untuk ListTile & SwitchListTile', (tester) async {
+      bool switchValue = false;
+      bool cardTapped = false;
+
+      await tester.pumpWidget(
+        _host(
+          CustomCard(
+            onTap: () => cardTapped = true,
+            child: Column(
+              children: [
+                StatefulBuilder(
+                  builder: (context, setState) {
+                    return SwitchListTile(
+                      title: const Text('Izin Lokasi'),
+                      value: switchValue,
+                      onChanged: (v) => setState(() => switchValue = v),
+                    );
+                  },
+                ),
+                ListTile(
+                  title: const Text('Opsi Keamanan'),
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Verifikasi Material transparan hadir di dalam CustomCard
+      final materialFinder = find.descendant(
+        of: find.byType(CustomCard),
+        matching: find.byType(Material),
+      );
+      expect(materialFinder, findsAtLeastNWidgets(1));
+
+      final materialWidget = tester.widget<Material>(materialFinder.first);
+      expect(materialWidget.type, MaterialType.transparency);
+      expect(materialWidget.clipBehavior, Clip.antiAlias);
+
+      // Pastikan tidak ada exception atau assertion dilempar saat render
+      expect(tester.takeException(), isNull);
+
+      // Verifikasi interaksi SwitchListTile
+      expect(find.text('Izin Lokasi'), findsOneWidget);
+      await tester.tap(find.text('Izin Lokasi'));
+      await tester.pumpAndSettle();
+      expect(switchValue, isTrue);
+
+      // Verifikasi tap pada CustomCard
+      await tester.tap(find.byType(CustomCard));
+      await tester.pumpAndSettle();
+      expect(cardTapped, isTrue);
+      expect(tester.takeException(), isNull);
+    });
   });
 }
