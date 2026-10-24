@@ -1,255 +1,42 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:photo_view/photo_view.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/models/chat_theme_model.dart';
 import '../../data/models/message_model.dart';
-import '../../data/services/e2ee_service.dart';
+import '../../features/settings/providers/chat_theme_provider.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
-import '../constants/shadows.dart';
-import '../routes/app_routes.dart';
-import '../services/haptic_service.dart';
-import 'mekaar_bottom_sheet.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
-import '../../data/models/chat_theme_model.dart';
-import '../../features/settings/providers/chat_theme_provider.dart';
-import '../theme/chat_preset_resolver.dart';
 import '../constants/icons.dart';
-import '../../data/repositories/screen_protection_repository.dart';
-import '../../features/chat/providers/chat_provider.dart';
-import '../../features/chat/providers/emoji_pack_provider.dart';
-import '../utils/emoji_shortcode_parser.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants/typography.dart';
 import '../providers/font_provider.dart';
-import 'package:solar_icons/solar_icons.dart';
-import 'mekaar_snackbar.dart';
-import '../../data/services/file_export_service.dart';
+import '../routes/app_routes.dart';
+import '../services/haptic_service.dart';
+import '../theme/chat_preset_resolver.dart';
+import '../utils/emoji_shortcode_parser.dart';
+import 'bubbles/animated_preset_bubble_entrance.dart';
+import 'bubbles/bubble_media_helper.dart';
+import 'bubbles/custom_emoji_glyph.dart';
+import 'bubbles/file_bubble_card.dart';
+import 'bubbles/image_bubble.dart';
+import 'bubbles/message_context_menu.dart';
+import 'bubbles/reactions_strip.dart';
+import 'bubbles/read_receipt_icon.dart';
+import 'bubbles/view_once_store.dart';
+import 'bubbles/voice_bubble_player.dart';
+import 'mekaar_bottom_sheet.dart';
 
-/// Helper terpusat untuk me-resolve TextStyle pada bubble chat yang menjamin
-/// penggunaan font aktif (dari preferensi pengguna atau tema bubble khusus)
-/// melalui runtime loader GoogleFonts.
-TextStyle resolveBubbleTextStyle({
-  required Color color,
-  double fontSize = 16,
-  FontWeight fontWeight = FontWeight.w400,
-  double height = 1.4,
-  String? fontFamily,
-  FontStyle? fontStyle,
-  TextDecoration? decoration,
-}) {
-  final activeFont = (fontFamily != null && fontFamily.isNotEmpty)
-      ? fontFamily
-      : MekaarTypography.fontFamily;
-  try {
-    return GoogleFonts.getFont(
-      activeFont,
-      color: color,
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      height: height,
-      fontStyle: fontStyle,
-      decoration: decoration,
-    );
-  } catch (_) {
-    return TextStyle(
-      fontFamily: activeFont,
-      color: color,
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      height: height,
-      fontStyle: fontStyle,
-      decoration: decoration,
-    );
-  }
-}
-
-/// Helper publik untuk mendapatkan atau mendekripsi file media pesan
-Future<File?> getOrDecryptMedia({
-  required String messageId,
-  required String? url,
-  required bool isEncrypted,
-  required String fileKeyB64,
-}) =>
-    _getOrDecryptMedia(
-      messageId: messageId,
-      url: url,
-      isEncrypted: isEncrypted,
-      fileKeyB64: fileKeyB64,
-    );
-
-
-/// In-memory cache untuk berkas media yang sudah selesai diunduh/didekripsi
-/// Menghindari I/O disk berulang dan menghilangkan kedipan (flickering) saat widget di-rebuild.
-final Map<String, File> _decryptedFileMemoryCache = <String, File>{};
-final Map<String, Future<File?>> _inFlightMediaFutures = <String, Future<File?>>{};
-
-/// Parser payload media cerdas: mengekstrak fileKeyB64 dan caption.
-/// Kompatibel 100% dengan pesan E2EE JSON baru maupun pesan lawas plain text / raw key.
-({String fileKeyB64, String caption}) parseMediaPayload(Message message) {
-  final content = message.content.trim();
-  if (content.startsWith('{') && content.endsWith('}')) {
-    try {
-      final decoded = jsonDecode(content);
-      if (decoded is Map<String, dynamic>) {
-        return (
-          fileKeyB64: decoded['key'] as String? ?? '',
-          caption: decoded['caption'] as String? ?? '',
-        );
-      }
-    } catch (_) {}
-  }
-  // Fallback: pesan legacy
-  if (message.isEncrypted) {
-    return (fileKeyB64: message.content, caption: '');
-  } else {
-    return (fileKeyB64: '', caption: message.content);
-  }
-}
-
-({String fileKeyB64, String caption}) _parseMediaPayload(Message message) =>
-    parseMediaPayload(message);
-
-// Helper function to download, decrypt, and cache E2EE media locally with memory caching.
-Future<File?> _getOrDecryptMedia({
-  required String messageId,
-  required String? url,
-  required bool isEncrypted,
-  required String fileKeyB64,
-}) async {
-  if (url == null || url.isEmpty) return null;
-
-  // 1. Cek memory cache tercepat (0ms delay)
-  final inMemory = _decryptedFileMemoryCache[messageId];
-  if (inMemory != null && inMemory.existsSync()) {
-    return inMemory;
-  }
-
-  // 2. Cegah request berulang yang sedang berjalan (in-flight deduplication)
-  if (_inFlightMediaFutures.containsKey(messageId)) {
-    return _inFlightMediaFutures[messageId]!;
-  }
-
-  final future = _doGetOrDecryptMedia(
-    messageId: messageId,
-    url: url,
-    isEncrypted: isEncrypted,
-    fileKeyB64: fileKeyB64,
-  );
-  _inFlightMediaFutures[messageId] = future;
-
-  try {
-    final result = await future;
-    if (result != null) {
-      _decryptedFileMemoryCache[messageId] = result;
-    }
-    return result;
-  } finally {
-    _inFlightMediaFutures.remove(messageId);
-  }
-}
-
-Future<File?> _doGetOrDecryptMedia({
-  required String messageId,
-  required String? url,
-  required bool isEncrypted,
-  required String fileKeyB64,
-}) async {
-  if (url == null || url.isEmpty) return null;
-
-  try {
-    // Ekstrak effective key jika fileKeyB64 berupa JSON payload
-    String effectiveKey = fileKeyB64.trim();
-    if (effectiveKey.startsWith('{') && effectiveKey.endsWith('}')) {
-      try {
-        final decoded = jsonDecode(effectiveKey);
-        if (decoded is Map<String, dynamic> && decoded['key'] != null) {
-          effectiveKey = decoded['key'] as String;
-        }
-      } catch (_) {}
-    }
-
-    final tempDir = await getTemporaryDirectory();
-    final uri = Uri.parse(url);
-    final ext = uri.pathSegments.isNotEmpty
-        ? uri.pathSegments.last.split('.').last
-        : 'bin';
-    final cachedFile = File('${tempDir.path}/decrypted_$messageId.$ext');
-
-    if (await cachedFile.exists()) {
-      return cachedFile;
-    }
-
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 30);
-    final request = await client.getUrl(uri);
-    final response = await request.close().timeout(const Duration(seconds: 45));
-    if (response.statusCode != 200) return null;
-
-    final bytes = await response.fold<List<int>>([], (a, b) => a..addAll(b));
-
-    if (isEncrypted && effectiveKey.isNotEmpty) {
-      final decryptedBytes = await E2eeService.instance.decryptMedia(
-        bytes,
-        effectiveKey,
-      );
-      await cachedFile.writeAsBytes(decryptedBytes);
-    } else {
-      await cachedFile.writeAsBytes(bytes);
-    }
-
-    return cachedFile;
-  } catch (_) {
-    return null;
-  }
-}
-
-// Pelacakan pesan "Sekali Lihat" yang sudah dibuka (lokal, persisten).
-class ViewOnceStore {
-  static const String _key = 'viewed_once_message_ids';
-  static final Set<String> _memory = {};
-  static bool _loaded = false;
-
-  static Future<void> _ensureLoaded() async {
-    if (_loaded) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getStringList(_key) ?? [];
-      _memory.addAll(stored);
-    } catch (_) {}
-    _loaded = true;
-  }
-
-  static Future<bool> isViewed(String id) async {
-    await _ensureLoaded();
-    return _memory.contains(id);
-  }
-
-  static Future<void> markViewed(String id) async {
-    await _ensureLoaded();
-    if (_memory.contains(id)) return;
-    _memory.add(id);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_key, _memory.toList());
-    } catch (_) {}
-  }
-}
-
-// ─────────────────────────────────────────
-// Enum for read receipt status
-// ─────────────────────────────────────────
-enum ReadReceiptStatus {
-  pending, // clock: not yet sent to server
-  sent, // single check: reached server
-  delivered, // double check (muted): delivered to other device
-  read, // double check (softCoral): other person opened the room
-}
+// Re-exports untuk 100% backward compatibility
+export 'bubbles/animated_preset_bubble_entrance.dart';
+export 'bubbles/bubble_media_helper.dart';
+export 'bubbles/custom_emoji_glyph.dart';
+export 'bubbles/file_bubble_card.dart';
+export 'bubbles/full_screen_image_viewer.dart';
+export 'bubbles/image_bubble.dart';
+export 'bubbles/message_context_menu.dart';
+export 'bubbles/reactions_strip.dart';
+export 'bubbles/read_receipt_icon.dart';
+export 'bubbles/view_once_store.dart';
+export 'bubbles/voice_bubble_player.dart';
 
 // ─────────────────────────────────────────
 // ChatBubble widget
@@ -335,9 +122,8 @@ class ChatBubble extends ConsumerWidget {
           arguments: {
             'latitude': parsed.$1,
             'longitude': parsed.$2,
-            'locationName': isLive
-                ? 'Lokasi Live (Real-time)'
-                : 'Lokasi Terbagikan',
+            'locationName':
+                isLive ? 'Lokasi Live (Real-time)' : 'Lokasi Terbagikan',
           },
         );
       }
@@ -370,7 +156,7 @@ class ChatBubble extends ConsumerWidget {
     HapticService.trigger(MekaarHapticIntent.warning);
     MekaarBottomSheet.show(
       context: context,
-      builder: (ctx) => _MessageContextMenu(
+      builder: (ctx) => MessageContextMenu(
         message: message,
         isMe: isMe,
         canDelete: canDelete,
@@ -460,7 +246,7 @@ class ChatBubble extends ConsumerWidget {
     // Deteksi gambar & payload caption cerdas
     final isImage = message.type == MessageType.image && !isDeleted;
     final mediaPayload = isImage
-        ? _parseMediaPayload(message)
+        ? parseMediaPayload(message)
         : (fileKeyB64: '', caption: '');
     final hasImageCaption = isImage && mediaPayload.caption.trim().isNotEmpty;
     final hasReply = message.replyToId != null && !isDeleted;
@@ -527,32 +313,31 @@ class ChatBubble extends ConsumerWidget {
                 }
               : null,
           child: Column(
-            crossAxisAlignment: isMe
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
                 padding: isPureFramelessImage
                     ? EdgeInsets.zero
                     : (isImage && hasImageCaption
-                          ? EdgeInsets.zero
-                          : (isOnlyEmoji
+                        ? EdgeInsets.zero
+                        : (isOnlyEmoji
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              )
+                            : (isSticker
                                 ? const EdgeInsets.symmetric(
-                                    horizontal: 6,
+                                    horizontal: 4,
                                     vertical: 2,
                                   )
-                                : (isSticker
-                                      ? const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 2,
-                                        )
-                                      : const EdgeInsets.only(
-                                          left: 12,
-                                          right: 10,
-                                          top: 7,
-                                          bottom: 6,
-                                        )))),
+                                : const EdgeInsets.only(
+                                    left: 12,
+                                    right: 10,
+                                    top: 7,
+                                    bottom: 6,
+                                  )))),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.76,
                 ),
@@ -560,16 +345,16 @@ class ChatBubble extends ConsumerWidget {
                   color: isPureFramelessImage
                       ? Colors.transparent
                       : (isSelected
-                            ? Color.alphaBlend(
-                                MekaarColors.blue.withValues(
-                                  alpha: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? 0.35
-                                      : 0.22,
-                                ),
-                                bubbleColor,
-                              )
-                            : bubbleColor),
+                          ? Color.alphaBlend(
+                              MekaarColors.blue.withValues(
+                                alpha: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? 0.35
+                                    : 0.22,
+                              ),
+                              bubbleColor,
+                            )
+                          : bubbleColor),
                   gradient: (isPureFramelessImage || isSelected)
                       ? null
                       : bubbleGradient,
@@ -584,8 +369,8 @@ class ChatBubble extends ConsumerWidget {
                     final metaColor = isOnlyEmoji
                         ? MekaarColors.textMutedOf(context)
                         : (isMe
-                              ? textColor.withValues(alpha: 0.7)
-                              : MekaarColors.textMutedOf(context));
+                            ? textColor.withValues(alpha: 0.7)
+                            : MekaarColors.textMutedOf(context));
 
                     Widget buildTimestampWidget() {
                       if (isSticker && !isDeleted) {
@@ -605,7 +390,8 @@ class ChatBubble extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                                DateFormat('HH:mm')
+                                    .format(message.createdAt.toLocal()),
                                 style: const TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w500,
@@ -622,7 +408,7 @@ class ChatBubble extends ConsumerWidget {
                               ],
                               if (isMe) ...[
                                 const SizedBox(width: 4),
-                                _ReadReceiptIcon(
+                                ReadReceiptIcon(
                                   status: receiptStatus,
                                   color: Colors.white,
                                 ),
@@ -649,7 +435,8 @@ class ChatBubble extends ConsumerWidget {
                             ),
                           ],
                           Text(
-                            DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                            DateFormat('HH:mm')
+                                .format(message.createdAt.toLocal()),
                             style: resolveBubbleTextStyle(
                               fontSize: 10.5,
                               color: metaColor,
@@ -667,7 +454,7 @@ class ChatBubble extends ConsumerWidget {
                           ],
                           if (isMe && !isDeleted) ...[
                             const SizedBox(width: 3),
-                            _ReadReceiptIcon(
+                            ReadReceiptIcon(
                               status: receiptStatus,
                               color: metaColor,
                             ),
@@ -724,7 +511,7 @@ class ChatBubble extends ConsumerWidget {
                               style: resolveBubbleTextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.blue,
+                                color: MekaarColors.accentOf(context),
                                 fontFamily: fontFamily,
                               ),
                             ),
@@ -758,7 +545,7 @@ class ChatBubble extends ConsumerWidget {
               ),
               // Emoji reactions strip below bubble
               if (message.reactions.isNotEmpty && !isDeleted)
-                _ReactionsStrip(
+                ReactionsStrip(
                   reactions: message.reactions,
                   isMe: isMe,
                   onReact: onReact != null
@@ -889,10 +676,9 @@ class ChatBubble extends ConsumerWidget {
           );
         }
         if (RegExp(r':([a-z0-9_]{2,32}):').hasMatch(message.content)) {
-          return _RichEmojiContent(
+          return RichEmojiContent(
             content: message.content,
-            baseStyle:
-                customTextStyle ??
+            baseStyle: customTextStyle ??
                 resolveBubbleTextStyle(
                   color: textColor,
                   fontSize: 16,
@@ -903,8 +689,7 @@ class ChatBubble extends ConsumerWidget {
         }
         return Text(
           message.content,
-          style:
-              customTextStyle ??
+          style: customTextStyle ??
               resolveBubbleTextStyle(
                 color: textColor,
                 fontSize: 16,
@@ -914,32 +699,35 @@ class ChatBubble extends ConsumerWidget {
         );
 
       case MessageType.file:
-        return _FileBubbleCard(
+        return FileBubbleCard(
           message: message,
           isMe: isMe,
           textColor: textColor,
           fontFamily: fontFamily,
-          onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
+          onSaveToVault:
+              onSaveToVault != null ? () => onSaveToVault!(message) : null,
         );
 
       case MessageType.image:
-        return _ImageBubble(
+        return ImageBubble(
           message: message,
           textColor: textColor,
           isSticker: isSticker,
           isMe: isMe,
-          borderRadius: borderRadius ?? const BorderRadius.all(Radius.circular(16)),
+          borderRadius:
+              borderRadius ?? const BorderRadius.all(Radius.circular(16)),
           isPureFrameless: isPureFrameless,
           isSelected: isSelected,
           receiptStatus: receiptStatus,
           caption: caption,
           metaWidget: metaWidget,
           onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
-          onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
+          onSaveToVault:
+              onSaveToVault != null ? () => onSaveToVault!(message) : null,
         );
 
       case MessageType.voice:
-        return _VoiceBubblePlayer(
+        return VoiceBubblePlayer(
           message: message,
           isMe: isMe,
           textColor: textColor,
@@ -947,9 +735,8 @@ class ChatBubble extends ConsumerWidget {
 
       case MessageType.location:
         final isLive = message.content.startsWith('LIVE:');
-        final liveRemaining = isLive
-            ? _parseLiveRemaining(message.content)
-            : null;
+        final liveRemaining =
+            isLive ? _parseLiveRemaining(message.content) : null;
         return InkWell(
           onTap: () => _handleLocationTap(context),
           borderRadius: BorderRadius.circular(10),
@@ -1023,8 +810,8 @@ class ChatBubble extends ConsumerWidget {
                           Text(
                             isLive
                                 ? (liveRemaining != null
-                                      ? 'Kedaluwarsa ${liveRemaining}s • Ketuk untuk buka'
-                                      : 'Ketuk untuk buka peta')
+                                    ? 'Kedaluwarsa ${liveRemaining}s • Ketuk untuk buka'
+                                    : 'Ketuk untuk buka peta')
                                 : 'Ketuk untuk buka peta',
                             style: TextStyle(
                               color: isMe
@@ -1046,17 +833,19 @@ class ChatBubble extends ConsumerWidget {
 
       case MessageType.video:
         if (message.isViewOnce) {
-          return _ImageBubble(
+          return ImageBubble(
             message: message,
             textColor: textColor,
             isMe: isMe,
-            borderRadius: borderRadius ?? const BorderRadius.all(Radius.circular(16)),
+            borderRadius:
+                borderRadius ?? const BorderRadius.all(Radius.circular(16)),
             isPureFrameless: false,
             isSelected: isSelected,
             receiptStatus: receiptStatus,
             caption: caption,
             onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
-            onSaveToVault: onSaveToVault != null ? () => onSaveToVault!(message) : null,
+            onSaveToVault:
+                onSaveToVault != null ? () => onSaveToVault!(message) : null,
           );
         }
         return Stack(
@@ -1105,7 +894,7 @@ class ChatBubble extends ConsumerWidget {
       } else {
         switch (target.type) {
           case MessageType.image:
-            final imagePayload = _parseMediaPayload(target);
+            final imagePayload = parseMediaPayload(target);
             previewText = imagePayload.caption.isNotEmpty
                 ? '📷 ${imagePayload.caption}'
                 : '📷 Foto';
@@ -1144,16 +933,16 @@ class ChatBubble extends ConsumerWidget {
     }
 
     final accentColor = isMe
-        ? AppColors.blue
+        ? MekaarColors.accentOf(context)
         : (Theme.of(context).brightness == Brightness.dark
-              ? MekaarColors.cyan
-              : MekaarColors.guardianTeal);
+            ? MekaarColors.cyan
+            : MekaarColors.guardianTeal);
 
     final quoteBg = isMe
         ? Colors.black.withValues(alpha: 0.15)
         : (Theme.of(context).brightness == Brightness.dark
-              ? Colors.black.withValues(alpha: 0.25)
-              : Colors.black.withValues(alpha: 0.05));
+            ? Colors.black.withValues(alpha: 0.25)
+            : Colors.black.withValues(alpha: 0.05));
 
     final titleColor = isMe ? Colors.white : accentColor;
     final bodyColor = isMe
@@ -1201,1054 +990,6 @@ class ChatBubble extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────
-// Read Receipt Icon (uses MekaarColors — no hardcoded colors)
-// ─────────────────────────────────────────
-class _ReadReceiptIcon extends StatelessWidget {
-  final ReadReceiptStatus status;
-  final Color color;
-
-  const _ReadReceiptIcon({required this.status, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    switch (status) {
-      case ReadReceiptStatus.pending:
-        return Icon(MekaarIcons.timerOutlined, size: 12, color: color);
-      case ReadReceiptStatus.sent:
-        return Icon(MekaarIcons.receiptSent, size: 15, color: color);
-      case ReadReceiptStatus.delivered:
-        return Icon(MekaarIcons.receiptDelivered, size: 15, color: color);
-      case ReadReceiptStatus.read:
-        return const Icon(
-          MekaarIcons.receiptRead,
-          size: 15,
-          color: MekaarColors.readReceiptGreen,
-        );
-    }
-  }
-}
-
-// ─────────────────────────────────────────
-// Reactions Strip
-// ─────────────────────────────────────────
-class _ReactionsStrip extends StatelessWidget {
-  final Map<String, List<String>> reactions;
-  final bool isMe;
-  final Function(String emoji)? onReact;
-
-  const _ReactionsStrip({
-    required this.reactions,
-    required this.isMe,
-    this.onReact,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: isMe ? 0 : 20,
-        right: isMe ? 20 : 0,
-        bottom: 4,
-      ),
-      child: Wrap(
-        spacing: 4,
-        children: reactions.entries.map((entry) {
-          final emoji = entry.key;
-          final count = entry.value.length;
-          return _PopReaction(
-            emoji: emoji,
-            count: count,
-            onTap: () => onReact?.call(emoji),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────
-// Long-Press Context Menu
-// ─────────────────────────────────────────
-class _MessageContextMenu extends StatelessWidget {
-  final Message message;
-  final bool isMe;
-  final bool canDelete;
-  final bool canEdit;
-  final bool canForward;
-  final Function(Message)? onReply;
-  final Function(Message, String)? onEdit;
-  final Function(Message)? onForward;
-  final VoidCallback? onDelete;
-  final VoidCallback? onUnsend;
-  final Function(Message, String)? onReact;
-  final Function(Message)? onSaveToVault;
-  final bool canUnsend;
-
-  const _MessageContextMenu({
-    required this.message,
-    required this.isMe,
-    required this.canDelete,
-    required this.canEdit,
-    required this.canForward,
-    this.canUnsend = false,
-    this.onReply,
-    this.onEdit,
-    this.onForward,
-    this.onDelete,
-    this.onUnsend,
-    this.onReact,
-    this.onSaveToVault,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
-
-    return Container(
-      margin: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: MekaarColors.surfaceOf(context),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: MekaarShadows.floating,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Emoji Reactions Row
-          if (onReact != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: emojis.map((emoji) {
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      onReact!(message, emoji);
-                    },
-                    child: Text(emoji, style: const TextStyle(fontSize: 28)),
-                  );
-                }).toList(),
-              ),
-            ),
-            Divider(
-              color: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),
-              height: 1,
-            ),
-          ],
-          // Action buttons
-          if (message.type == MessageType.text && !message.isDeleted && message.content.isNotEmpty)
-            _menuItem(
-              context,
-              icon: MekaarIcons.copy,
-              label: 'Salin Teks',
-              onTap: () {
-                Navigator.pop(context);
-                Clipboard.setData(ClipboardData(text: message.content));
-                HapticService.trigger(MekaarHapticIntent.selection);
-                MekaarSnackbar.success(context, 'Pesan disalin');
-              },
-            ),
-          if (!message.isDeleted &&
-              (message.type == MessageType.file ||
-                  (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)))
-            _menuItem(
-              context,
-              icon: SolarIconsOutline.inboxIn,
-              label: 'Unduh ke Download/Mekaar',
-              onTap: () async {
-                Navigator.pop(context);
-                MekaarSnackbar.info(context, 'Mengunduh dan mengekspor berkas...');
-                final localFile = await FileExportService.resolveOrDownloadFile(message);
-                if (!context.mounted) return;
-                if (localFile != null) {
-                  final meta = message.fileMeta;
-                  final fileName = meta?.fileName ?? localFile.path.split(Platform.pathSeparator).last;
-                  final exported = await FileExportService.exportToMekaarDownloads(
-                    file: localFile,
-                    fileName: fileName,
-                    mimeType: meta?.mimeType,
-                  );
-                  if (!context.mounted) return;
-                  if (exported != null) {
-                    HapticService.trigger(MekaarHapticIntent.success);
-                    MekaarSnackbar.success(
-                      context,
-                      'Berkas berhasil disimpan di $exported',
-                    );
-                    return;
-                  }
-                }
-                HapticService.trigger(MekaarHapticIntent.warning);
-                MekaarSnackbar.error(context, 'Gagal mengunduh berkas');
-              },
-            ),
-          if (onSaveToVault != null &&
-              !message.isDeleted &&
-              (message.type == MessageType.image ||
-                  message.type == MessageType.video ||
-                  message.type == MessageType.voice ||
-                  message.type == MessageType.file ||
-                  (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)))
-            _menuItem(
-              context,
-              icon: SolarIconsOutline.safeSquare,
-              label: 'Simpan ke Brankas',
-              onTap: () {
-                Navigator.pop(context);
-                onSaveToVault!(message);
-              },
-            ),
-          if (onReply != null)
-            _menuItem(
-              context,
-              icon: MekaarIcons.reply,
-              label: 'Balas',
-              onTap: () {
-                Navigator.pop(context);
-                onReply!(message);
-              },
-            ),
-          if (canEdit && onEdit != null)
-            _menuItem(
-              context,
-              icon: MekaarIcons.edit,
-              label: 'Edit Pesan',
-              onTap: () {
-                Navigator.pop(context);
-                _showEditDialog(context);
-              },
-            ),
-          if (canForward && onForward != null)
-            _menuItem(
-              context,
-              icon: MekaarIcons.forward,
-              label: 'Teruskan',
-              onTap: () {
-                Navigator.pop(context);
-                onForward!(message);
-              },
-            ),
-          if (canDelete && onDelete != null)
-            _menuItem(
-              context,
-              icon: MekaarIcons.delete,
-              label: 'Hapus untuk Saya',
-              color: MekaarColors.textMutedOf(context),
-              onTap: () {
-                Navigator.pop(context);
-                onDelete!();
-              },
-            ),
-          if (canUnsend && onUnsend != null)
-            _menuItem(
-              context,
-              icon: MekaarIcons.deleteForever,
-              label: 'Tarik Pesan',
-              color: MekaarColors.sosRed,
-              onTap: () {
-                Navigator.pop(context);
-                onUnsend!();
-              },
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  void _showEditDialog(BuildContext context) {
-    final controller = TextEditingController(text: message.content);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Pesan'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: null,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newContent = controller.text.trim();
-              if (newContent.isNotEmpty && newContent != message.content) {
-                onEdit!(message, newContent);
-              }
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _menuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    final itemColor = color ?? MekaarColors.textPrimaryOf(context);
-    return ListTile(
-      leading: Icon(icon, color: itemColor, size: 20),
-      title: Text(
-        label,
-        style: TextStyle(
-          color: itemColor,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      onTap: onTap,
-      dense: true,
-    );
-  }
-}
-
-// ─────────────────────────────────────────
-// Voice Note Player (replaces static mock)
-// ─────────────────────────────────────────
-class _VoiceBubblePlayer extends ConsumerStatefulWidget {
-  final Message message;
-  final bool isMe;
-  final Color textColor;
-
-  const _VoiceBubblePlayer({
-    required this.message,
-    required this.isMe,
-    required this.textColor,
-  });
-
-  @override
-  ConsumerState<_VoiceBubblePlayer> createState() => _VoiceBubblePlayerState();
-}
-
-class _VoiceBubblePlayerState extends ConsumerState<_VoiceBubblePlayer> {
-  final AudioPlayer _player = AudioPlayer();
-  bool _isPlaying = false;
-  bool _isLoading = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-  File? _downloadedFile;
-
-  @override
-  void initState() {
-    super.initState();
-    _player.onPlayerStateChanged.listen((state) {
-      if (!mounted) return;
-      setState(() => _isPlaying = state == PlayerState.playing);
-    });
-    _player.onDurationChanged.listen((d) {
-      if (mounted) setState(() => _duration = d);
-    });
-    _player.onPositionChanged.listen((p) {
-      if (mounted) setState(() => _position = p);
-    });
-    _player.onPlayerComplete.listen((_) {
-      if (!mounted) return;
-      setState(() => _position = Duration.zero);
-      if (widget.message.isViewOnce) {
-        ViewOnceStore.markViewed(widget.message.id);
-        try {
-          ref.read(chatActionsProvider).markViewOnceOpened(widget.message.id);
-        } catch (_) {}
-        final temp = _downloadedFile;
-        if (temp != null && temp.existsSync()) {
-          try {
-            temp.deleteSync();
-          } catch (_) {}
-        }
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    if (widget.message.isViewOnce) {
-      final temp = _downloadedFile;
-      if (temp != null && temp.existsSync()) {
-        try {
-          temp.deleteSync();
-        } catch (_) {}
-      }
-    }
-    super.dispose();
-  }
-
-  Future<void> _togglePlay() async {
-    final url = widget.message.mediaUrl;
-    if (url == null || url.isEmpty) return;
-    try {
-      if (_isPlaying) {
-        await _player.pause();
-      } else {
-        setState(() => _isLoading = true);
-        final file = await _getOrDecryptMedia(
-          messageId: widget.message.id,
-          url: url,
-          isEncrypted: widget.message.isEncrypted,
-          fileKeyB64: widget.message.content,
-        );
-        if (file != null) {
-          _downloadedFile = file;
-          await _player.play(DeviceFileSource(file.path));
-        }
-      }
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  double get _progress {
-    if (_duration.inMilliseconds == 0) return 0;
-    return (_position.inMilliseconds / _duration.inMilliseconds).clamp(
-      0.0,
-      1.0,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.message.isViewOnce) {
-      return FutureBuilder<bool>(
-        future: ViewOnceStore.isViewed(widget.message.id),
-        initialData: widget.message.isOpened,
-        builder: (ctx, snap) {
-          final alreadyViewed = widget.message.isOpened || (snap.data ?? false);
-          if (alreadyViewed) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.75),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    MekaarIcons.visibilityOff,
-                    color: Colors.white54,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Pesan suara telah diputar',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ],
-              ),
-            );
-          }
-          return _buildPlayerRow(context);
-        },
-      );
-    }
-    return _buildPlayerRow(context);
-  }
-
-  Widget _buildPlayerRow(BuildContext context) {
-    final mainColor = widget.isMe ? widget.textColor : AppColors.blue;
-    final activeWave = widget.isMe ? widget.textColor : AppColors.blue;
-    final inactiveWave = widget.isMe
-        ? widget.textColor.withValues(alpha: 0.35)
-        : MekaarColors.textMutedOf(context).withValues(alpha: 0.35);
-
-    return GestureDetector(
-      onTap: _togglePlay,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isLoading)
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: mainColor,
-                  ),
-                ),
-              ),
-            )
-          else
-            Icon(
-              _isPlaying
-                  ? MekaarIcons.pauseCircleFilled
-                  : MekaarIcons.playCircleFilled,
-              size: 32,
-              color: mainColor,
-            ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 100,
-            height: 20,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(15, (index) {
-                final played = (index / 15) <= _progress;
-                return Container(
-                  width: 3,
-                  height: (4 + (index % 4) * 3.0).toDouble(),
-                  margin: const EdgeInsets.symmetric(horizontal: 1),
-                  decoration: BoxDecoration(
-                    color: played ? activeWave : inactiveWave,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _label(),
-            style: TextStyle(
-              color: widget.isMe
-                  ? widget.textColor.withValues(alpha: 0.8)
-                  : MekaarColors.textMutedOf(context),
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _label() {
-    if (_isPlaying || _position > Duration.zero) {
-      final m = _position.inMinutes;
-      final s = _position.inSeconds % 60;
-      return '$m:${s.toString().padLeft(2, '0')}';
-    }
-    if (_duration > Duration.zero) {
-      final m = _duration.inMinutes;
-      final s = _duration.inSeconds % 60;
-      return '$m:${s.toString().padLeft(2, '0')}';
-    }
-    return '0:00';
-  }
-}
-
-// ─────────────────────────────────────────
-// Full-screen image viewer (photo_view)
-// ─────────────────────────────────────────
-// ─────────────────────────────────────────
-// Full-screen image viewer (photo_view)
-// ─────────────────────────────────────────
-class _FullScreenImageViewer extends StatefulWidget {
-  final ImageProvider imageProvider;
-  final File? tempFileToPurge;
-  final VoidCallback? onSaveToVault;
-
-  const _FullScreenImageViewer({
-    required this.imageProvider,
-    this.tempFileToPurge,
-    this.onSaveToVault,
-  });
-
-  @override
-  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
-}
-
-class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
-  @override
-  void initState() {
-    super.initState();
-    NativeScreenProtection().setEnabled(true);
-  }
-
-  @override
-  void dispose() {
-    // Catatan: Jangan panggil setEnabled(false) di sini agar tidak mematikan
-    // screen protection global milik room obrolan di bawahnya.
-    final file = widget.tempFileToPurge;
-    if (file != null && file.existsSync()) {
-      try {
-        file.deleteSync();
-      } catch (_) {}
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          if (widget.onSaveToVault != null)
-            IconButton(
-              icon: const Icon(SolarIconsOutline.safeSquare),
-              tooltip: 'Simpan ke Brankas',
-              onPressed: widget.onSaveToVault,
-            ),
-        ],
-      ),
-      body: PhotoView(
-        imageProvider: widget.imageProvider,
-        minScale: PhotoViewComputedScale.contained,
-        maxScale: PhotoViewComputedScale.covered * 3,
-        backgroundDecoration: const BoxDecoration(color: Colors.black),
-      ),
-    );
-  }
-}
-
-// Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka.
-// Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka
-// serta mendukung layout frameless dan caption ala Telegram & WhatsApp.
-class _ImageBubble extends ConsumerWidget {
-  final Message message;
-  final Color textColor;
-  final bool isSticker;
-  final bool isMe;
-  final BorderRadius borderRadius;
-  final bool isPureFrameless;
-  final bool isSelected;
-  final ReadReceiptStatus? receiptStatus;
-  final String caption;
-  final Widget? metaWidget;
-  final VoidCallback onViewOnceOpened;
-  final VoidCallback? onSaveToVault;
-
-  const _ImageBubble({
-    required this.message,
-    required this.textColor,
-    this.isSticker = false,
-    this.isMe = false,
-    this.borderRadius = const BorderRadius.all(Radius.circular(16)),
-    this.isPureFrameless = false,
-    this.isSelected = false,
-    this.receiptStatus,
-    this.caption = '',
-    this.metaWidget,
-    required this.onViewOnceOpened,
-    this.onSaveToVault,
-  });
-
-  void _openViewer(BuildContext context, File file, {File? tempFileToPurge}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _FullScreenImageViewer(
-          imageProvider: FileImage(file),
-          tempFileToPurge: tempFileToPurge,
-          onSaveToVault: onSaveToVault,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isViewOnce = message.isViewOnce;
-
-    if (isViewOnce) {
-      return FutureBuilder<bool>(
-        future: ViewOnceStore.isViewed(message.id),
-        initialData: message.isOpened,
-        builder: (ctx, snap) {
-          final alreadyViewed = message.isOpened || (snap.data ?? false);
-          if (alreadyViewed) {
-            return _viewOnceHidden(textColor);
-          }
-          final payload = _parseMediaPayload(message);
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: () async {
-                  onViewOnceOpened();
-                  try {
-                    ref
-                        .read(chatActionsProvider)
-                        .markViewOnceOpened(message.id);
-                  } catch (_) {}
-
-                  if (ctx.mounted && message.mediaUrl != null) {
-                    final file = await _getOrDecryptMedia(
-                      messageId: message.id,
-                      url: message.mediaUrl,
-                      isEncrypted: message.isEncrypted,
-                      fileKeyB64: payload.fileKeyB64,
-                    );
-                    if (file != null && ctx.mounted) {
-                      await Navigator.push(
-                        ctx,
-                        MaterialPageRoute(
-                          builder: (_) => _FullScreenImageViewer(
-                            imageProvider: FileImage(file),
-                            tempFileToPurge: file,
-                          ),
-                        ),
-                      );
-                      if (file.existsSync()) {
-                        try {
-                          file.deleteSync();
-                        } catch (_) {}
-                      }
-                    }
-                  }
-                },
-                child: Container(
-                  height: 180,
-                  width: 220,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          MekaarIcons.visibilityOff,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Media Sekali Lihat — Ketuk untuk membuka',
-                          style: TextStyle(color: Colors.white, fontSize: 11),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (payload.caption.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  payload.caption,
-                  style: TextStyle(color: textColor, fontSize: 14),
-                ),
-              ],
-            ],
-          );
-        },
-      );
-    }
-
-    // 1. Cek memory cache sinkron: jika ada, render langsung tanpa FutureBuilder & tanpa kedipan!
-    final cached = _decryptedFileMemoryCache[message.id];
-    if (cached != null && cached.existsSync()) {
-      return _buildImageContent(context, cached);
-    }
-
-    // 2. Jika belum ada di memori RAM, muat via FutureBuilder sekali saja
-    final payload = _parseMediaPayload(message);
-    return FutureBuilder<File?>(
-      future: _getOrDecryptMedia(
-        messageId: message.id,
-        url: message.mediaUrl,
-        isEncrypted: message.isEncrypted,
-        fileKeyB64: payload.fileKeyB64,
-      ),
-      builder: (context, snapshot) {
-        final file = snapshot.data;
-        if (snapshot.connectionState == ConnectionState.waiting && file == null) {
-          return SizedBox(
-            height: isSticker ? 140 : 200,
-            width: isSticker ? 140 : 240,
-            child: Center(
-              child: Container(
-                width: 32,
-                height: 32,
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  shape: BoxShape.circle,
-                ),
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (file == null) {
-          return Container(
-            height: isSticker ? 120 : 180,
-            width: isSticker ? 120 : 220,
-            decoration: BoxDecoration(
-              color: MekaarColors.surface2Of(context),
-              borderRadius: borderRadius,
-            ),
-            child: const Icon(
-              MekaarIcons.brokenImage,
-              color: MekaarColors.textMuted,
-            ),
-          );
-        }
-
-        return _buildImageContent(context, file);
-      },
-    );
-  }
-
-  Widget _buildImageContent(BuildContext context, File file) {
-    if (isSticker) {
-      return GestureDetector(
-        onTap: () => _openViewer(context, file),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 180,
-            maxHeight: 180,
-            minWidth: 80,
-            minHeight: 80,
-          ),
-          child: Image.file(
-            file,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.medium,
-          ),
-        ),
-      );
-    }
-
-    final bubbleWidth = MediaQuery.of(context).size.width * 0.76;
-
-    if (isPureFrameless) {
-      return GestureDetector(
-        onTap: () => _openViewer(context, file),
-        child: ClipRRect(
-          borderRadius: borderRadius,
-          child: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Image.file(
-                file,
-                width: bubbleWidth,
-                height: 220,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.medium,
-              ),
-              if (isSelected)
-                Positioned.fill(
-                  child: Container(
-                    color: MekaarColors.blue.withValues(
-                      alpha: Theme.of(context).brightness == Brightness.dark
-                          ? 0.35
-                          : 0.22,
-                    ),
-                  ),
-                ),
-              Positioned(
-                bottom: 6,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(MekaarRadius.pill),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('HH:mm').format(message.createdAt.toLocal()),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (message.autoDeleteAt != null) ...[
-                        const SizedBox(width: 3),
-                        const Icon(
-                          MekaarIcons.timerOutlined,
-                          size: 9.5,
-                          color: Colors.white,
-                        ),
-                      ],
-                      if (isMe) ...[
-                        const SizedBox(width: 3),
-                        _ReadReceiptIcon(
-                          status: receiptStatus ?? ReadReceiptStatus.sent,
-                          color: Colors.white,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final hasCaption = caption.isNotEmpty;
-    return GestureDetector(
-      onTap: () => _openViewer(context, file),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.only(
-              topLeft: borderRadius.topLeft,
-              topRight: borderRadius.topRight,
-              bottomLeft: hasCaption ? Radius.zero : borderRadius.bottomLeft,
-              bottomRight: hasCaption ? Radius.zero : borderRadius.bottomRight,
-            ),
-            child: Stack(
-              children: [
-                Image.file(
-                  file,
-                  width: bubbleWidth,
-                  height: 220,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.medium,
-                ),
-                if (isSelected)
-                  Positioned.fill(
-                    child: Container(
-                      color: MekaarColors.blue.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark
-                            ? 0.35
-                            : 0.22,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (hasCaption)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 7, 10, 4),
-              child: Column(
-                crossAxisAlignment:
-                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    caption,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 15,
-                      height: 1.35,
-                    ),
-                  ),
-                  if (metaWidget != null) ...[
-                    const SizedBox(height: 2),
-                    metaWidget!,
-                  ],
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _viewOnceHidden(Color textColor) {
-    return Container(
-      height: 180,
-      width: 220,
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(MekaarIcons.visibilityOff, color: Colors.white54, size: 30),
-            SizedBox(height: 6),
-            Text(
-              'Media sudah dilihat',
-              style: TextStyle(color: Colors.white54, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────
-// Reaction chip with pop-in animation
-// ─────────────────────────────────────────
-class _PopReaction extends StatefulWidget {
-  final String emoji;
-  final int count;
-  final VoidCallback? onTap;
-
-  const _PopReaction({required this.emoji, required this.count, this.onTap});
-
-  @override
-  State<_PopReaction> createState() => _PopReactionState();
-}
-
-class _PopReactionState extends State<_PopReaction>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 280),
-  )..forward();
-
-  @override
-  void didUpdateWidget(covariant _PopReaction oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.count != widget.count) {
-      _ctrl.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final curved = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 0.4, end: 1).animate(curved),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: MekaarColors.surface2Of(context),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: MekaarColors.borderLight),
-          ),
-          child: Text(
-            '${widget.emoji} ${widget.count}',
-            style: const TextStyle(fontSize: 12),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────
 // Emoji Detection & Dynamic Scaling Helpers
 // ─────────────────────────────────────────
 int _getEmojiOnlyCount(String text) {
@@ -2281,644 +1022,5 @@ double _getEmojiFontSize(int count) {
       return 28.0;
     default:
       return 16.0;
-  }
-}
-
-/// Generic Entrance Animation Wrapper for all 12 Presets.
-class AnimatedPresetBubbleEntrance extends StatefulWidget {
-  final Widget child;
-  final BubbleEntranceSpec spec;
-
-  const AnimatedPresetBubbleEntrance({
-    super.key,
-    required this.child,
-    required this.spec,
-  });
-
-  @override
-  State<AnimatedPresetBubbleEntrance> createState() =>
-      _AnimatedPresetBubbleEntranceState();
-}
-
-class _AnimatedPresetBubbleEntranceState
-    extends State<AnimatedPresetBubbleEntrance>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.spec.duration,
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: widget.spec.curve);
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    switch (widget.spec.type) {
-      // 1. Neumorphism: Scale 0.97 -> 1.0 + fade
-      case EntranceType.neumorphismSoft:
-        return FadeTransition(
-          opacity: _animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1.0).animate(_animation),
-            child: widget.child,
-          ),
-        );
-
-      // 2. Glassmorphism: Opacity fade-in 280ms
-      case EntranceType.glassmorphismBlur:
-        return FadeTransition(
-          opacity: _animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.96, end: 1.0).animate(_animation),
-            child: widget.child,
-          ),
-        );
-
-      // 3. Pixel Garden 8-Bit: 3-frame discrete step scale 0.7 -> 0.9 -> 1.0 + scanline flicker
-      case EntranceType.pixelGlitchStep:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            final val = _animation.value;
-            double scale = 0.7;
-            double opacity = 0.6;
-            if (val >= 0.66) {
-              scale = 1.0;
-              opacity = 1.0;
-            } else if (val >= 0.33) {
-              scale = 0.9;
-              opacity = 0.85;
-            }
-            return Opacity(
-              opacity: opacity,
-              child: Transform.scale(scale: scale, child: child),
-            );
-          },
-          child: widget.child,
-        );
-
-      // 4. Isometric 3D: Rigid translateY 6px -> 0px 120ms (linear snap)
-      case EntranceType.isometricSnap:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            final dy = (1.0 - _animation.value) * 6.0;
-            return Transform.translate(offset: Offset(0, dy), child: child);
-          },
-          child: widget.child,
-        );
-
-      // 5. Retro Y2K: Header titlebar first / instant snap
-      case EntranceType.retroY2KHeaderFirst:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            return Opacity(
-              opacity: _animation.value >= 0.2 ? 1.0 : 0.0,
-              child: child,
-            );
-          },
-          child: widget.child,
-        );
-
-      // 6. Swiss Minimalist: Horizontal clip reveal dari kiri ke kanan 150ms
-      case EntranceType.swissRevealHorizontal:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            return ClipRect(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                widthFactor: _animation.value.clamp(0.0, 1.0),
-                child: child,
-              ),
-            );
-          },
-          child: widget.child,
-        );
-
-      // 7. Solarpunk: Scale 0.6 -> 1.0 elastic growth
-      case EntranceType.solarpunkGrowth:
-        return FadeTransition(
-          opacity: _animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.6, end: 1.0).animate(_animation),
-            child: widget.child,
-          ),
-        );
-
-      // 8. Neon Cyberpunk: Flicker kedipan cepat 3-4x 200ms
-      case EntranceType.neonFlickerGlow:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            final val = _animation.value;
-            double opacity = 1.0;
-            if (val < 0.2) {
-              opacity = val * 5.0;
-            } else if (val < 0.4) {
-              opacity = 0.3;
-            } else if (val < 0.7) {
-              opacity = 1.0;
-            } else if (val < 0.85) {
-              opacity = 0.6;
-            } else {
-              opacity = 1.0;
-            }
-
-            return Opacity(opacity: opacity.clamp(0.0, 1.0), child: child);
-          },
-          child: widget.child,
-        );
-
-      // 9. Comic Pop Art: Elastic bounce scale 0.7 -> 1.15 -> 1.0 dengan rotasi ±3°
-      case EntranceType.comicPopElastic:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            final val = _animation.value;
-            final rot = (1.0 - val) * 0.05; // ~ 3 degrees
-            return Transform.rotate(
-              angle: rot,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.7, end: 1.0).animate(_animation),
-                child: child,
-              ),
-            );
-          },
-          child: widget.child,
-        );
-
-      // 10. Firefly Night: Slow fade-in 450ms
-      case EntranceType.fireflySlowGlow:
-        return FadeTransition(opacity: _animation, child: widget.child);
-
-      // 11. Buku Harian: Fade + slide 4px dari kiri (searah tulisan)
-      case EntranceType.diaryWritingSlideLeft:
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            final dx = (1.0 - _animation.value) * -4.0;
-            return Transform.translate(
-              offset: Offset(dx, 0),
-              child: Opacity(
-                opacity: _animation.value.clamp(0.0, 1.0),
-                child: child,
-              ),
-            );
-          },
-          child: widget.child,
-        );
-
-      // 12. Mekaar Clean: Standard fade 0->1 + slide 8px dari bawah 200ms
-      case EntranceType.mekaarFadeSlide:
-      case EntranceType.dynamicTimeFadeSlide:
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.08),
-            end: Offset.zero,
-          ).animate(_animation),
-          child: FadeTransition(opacity: _animation, child: widget.child),
-        );
-    }
-  }
-}
-
-/// ===== Custom Emoji (Toko Emoji) =====
-///
-/// Pesan hanya membawa token `:slug:` terenkripsi; aset diselesaikan dari
-/// katalog Toko Emoji. Pack terpasang dirender dari disk (luring), yang
-/// tidak di-install lazy-load via URL publik katalog.
-
-class _EmojiPlaceholder extends StatelessWidget {
-  final String slug;
-  final double size;
-  const _EmojiPlaceholder({required this.slug, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxWidth: size, maxHeight: size),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: MekaarColors.surface2Of(context),
-        borderRadius: BorderRadius.circular(MekaarRadius.sm),
-      ),
-      child: Center(
-        child: Text(
-          ':$slug:',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: (size * 0.18).clamp(9.0, 13.0),
-            color: MekaarColors.textMutedOf(context),
-            fontStyle: FontStyle.italic,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-}
-
-class CustomEmojiGlyph extends ConsumerWidget {
-  final String slug;
-  final double size;
-  const CustomEmojiGlyph({super.key, required this.slug, this.size = 24});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final catalogAsync = ref.watch(emojiCatalogProvider);
-    final service = ref.read(emojiPackServiceProvider);
-
-    return FutureBuilder<File?>(
-      future: service.resolveLocalFile(slug),
-      builder: (context, snap) {
-        final file = snap.data;
-        if (file != null) {
-          return Image.file(
-            file,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-          );
-        }
-
-        // Jika pengecekan disk masih berjalan
-        if (snap.connectionState == ConnectionState.waiting) {
-          return SizedBox(width: size, height: size);
-        }
-
-        // Cek URL dari katalog jika belum terpasang lokal
-        final url = ref.read(emojiCatalogProvider.notifier).urlFor(slug);
-        if (url != null) {
-          return Image.network(
-            url,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) =>
-                _EmojiPlaceholder(slug: slug, size: size),
-            loadingBuilder: (_, child, progress) =>
-                progress == null ? child : SizedBox(width: size, height: size),
-          );
-        }
-
-        // Sedang memuat katalog (offline atau initial startup)
-        if (catalogAsync.isLoading) {
-          return SizedBox(
-            width: size,
-            height: size,
-            child: Center(
-              child: SizedBox(
-                width: (size * 0.3).clamp(12.0, 24.0),
-                height: (size * 0.3).clamp(12.0, 24.0),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: MekaarColors.guardianTeal.withValues(alpha: 0.4),
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Katalog selesai dimuat namun slug tidak dikenal
-        return _EmojiPlaceholder(slug: slug, size: size);
-      },
-    );
-  }
-}
-
-/// Konten teks campuran dengan token custom emoji inline.
-class _RichEmojiContent extends StatelessWidget {
-  final String content;
-  final TextStyle baseStyle;
-  const _RichEmojiContent({required this.content, required this.baseStyle});
-
-  @override
-  Widget build(BuildContext context) {
-    final segments = parseEmojiContent(content);
-    final inlineSize = baseStyle.fontSize != null
-        ? baseStyle.fontSize! * 1.65
-        : 28.0;
-    final spans = <InlineSpan>[];
-    for (final seg in segments) {
-      switch (seg) {
-        case TextSegment(:final text):
-          if (text.isEmpty) break;
-          spans.add(TextSpan(text: text));
-        case CustomEmojiSegment(:final slug):
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              baseline: TextBaseline.alphabetic,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1),
-                child: CustomEmojiGlyph(slug: slug, size: inlineSize),
-              ),
-            ),
-          );
-      }
-    }
-    return RichText(
-      text: TextSpan(style: baseStyle, children: spans),
-    );
-  }
-}
-
-
-/// Kartu tampilan gelembung berkas/dokumen terenkripsi pada pesan chat.
-class _FileBubbleCard extends StatefulWidget {
-  final Message message;
-  final bool isMe;
-  final Color textColor;
-  final String? fontFamily;
-  final VoidCallback? onSaveToVault;
-
-  const _FileBubbleCard({
-    required this.message,
-    required this.isMe,
-    required this.textColor,
-    this.fontFamily,
-    this.onSaveToVault,
-  });
-
-  @override
-  State<_FileBubbleCard> createState() => _FileBubbleCardState();
-}
-
-class _FileBubbleCardState extends State<_FileBubbleCard> {
-  bool _isDownloading = false;
-  File? _cachedFile;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLocalCache();
-  }
-
-  Future<void> _checkLocalCache() async {
-    final meta = widget.message.fileMeta;
-    final fileName = meta?.fileName ?? 'dokumen';
-    final tempDir = await getTemporaryDirectory();
-    final safeFileName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-    final file = File('${tempDir.path}/mekaar_file_${widget.message.id}_$safeFileName');
-    if (await file.exists() && await file.length() > 0) {
-      if (mounted) setState(() => _cachedFile = file);
-    }
-  }
-
-  Future<void> _handleTap() async {
-    if (_isDownloading) return;
-
-    if (_cachedFile != null) {
-      final meta = widget.message.fileMeta;
-      final opened = await FileExportService.openFileWithChooser(
-        file: _cachedFile!,
-        mimeType: meta?.mimeType,
-      );
-      if (!opened && mounted) {
-        MekaarSnackbar.info(context, 'Tidak ada aplikasi yang dapat membuka berkas ini.');
-      }
-      return;
-    }
-
-    final isExpired = _cachedFile == null &&
-        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
-    if (isExpired) {
-      MekaarSnackbar.warning(
-        context,
-        'Berkas di server telah kedaluwarsa (> 30 hari) sesuai batas retensi Supabase.',
-      );
-      return;
-    }
-
-    setState(() => _isDownloading = true);
-    HapticService.trigger(MekaarHapticIntent.selection);
-
-    final file = await FileExportService.resolveOrDownloadFile(widget.message);
-    if (!mounted) return;
-    setState(() {
-      _isDownloading = false;
-      _cachedFile = file;
-    });
-
-    if (file != null) {
-      final meta = widget.message.fileMeta;
-      await FileExportService.openFileWithChooser(
-        file: file,
-        mimeType: meta?.mimeType,
-      );
-    } else {
-      if (DateTime.now().difference(widget.message.createdAt).inDays >= 30) {
-        MekaarSnackbar.warning(
-          context,
-          'Berkas tidak ditemukan atau telah kedaluwarsa di server (> 30 hari).',
-        );
-      } else {
-        MekaarSnackbar.error(context, 'Gagal mengunduh berkas.');
-      }
-    }
-  }
-
-  ({IconData icon, Color color}) _resolveFileTypeStyle(String ext) {
-    final cleanExt = ext.toLowerCase();
-    if (cleanExt == 'pdf') {
-      return (icon: SolarIconsBold.fileText, color: MekaarColors.sosRed);
-    }
-    if (['doc', 'docx', 'txt', 'rtf', 'odt'].contains(cleanExt)) {
-      return (icon: SolarIconsBold.documentText, color: AppColors.blue);
-    }
-    if (['xls', 'xlsx', 'csv', 'ods'].contains(cleanExt)) {
-      return (icon: SolarIconsBold.documentAdd, color: MekaarColors.guardianTeal);
-    }
-    if (['ppt', 'pptx', 'odp'].contains(cleanExt)) {
-      return (icon: SolarIconsBold.presentationGraph, color: Colors.deepOrange);
-    }
-    if (['zip', 'rar', '7z', 'tar', 'gz'].contains(cleanExt)) {
-      return (icon: SolarIconsBold.archive, color: Colors.amber.shade800);
-    }
-    return (icon: SolarIconsBold.file, color: MekaarColors.info);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = widget.message.fileMeta ??
-        FileAttachmentMeta(
-          fileName: 'Berkas Dokumen',
-          fileSize: 0,
-        );
-
-    final isExpired = _cachedFile == null &&
-        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
-
-    final style = _resolveFileTypeStyle(meta.fileExtension);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = widget.isMe
-        ? Colors.black.withValues(alpha: 0.1)
-        : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.04));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: _handleTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: widget.textColor.withValues(alpha: 0.15),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: style.color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    style.icon,
-                    color: style.color,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        meta.fileName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: resolveBubbleTextStyle(
-                          color: widget.textColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          height: 1.25,
-                          fontFamily: widget.fontFamily,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: style.color.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              meta.fileExtension,
-                              style: resolveBubbleTextStyle(
-                                color: isExpired ? Colors.amber.shade800 : style.color,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: widget.fontFamily,
-                              ),
-                            ),
-                          ),
-                          if (isExpired) ...[
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Kedaluwarsa di server',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: resolveBubbleTextStyle(
-                                  color: Colors.amber.shade800,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: widget.fontFamily,
-                                ),
-                              ),
-                            ),
-                          ] else if (meta.formattedFileSize.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              meta.formattedFileSize,
-                              style: resolveBubbleTextStyle(
-                                color: widget.textColor.withValues(alpha: 0.7),
-                                fontSize: 11.5,
-                                fontFamily: widget.fontFamily,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: widget.textColor.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: _isDownloading
-                      ? Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(widget.textColor),
-                          ),
-                        )
-                      : Icon(
-                          _cachedFile != null
-                              ? SolarIconsOutline.eye
-                              : (isExpired
-                                  ? SolarIconsOutline.clockCircle
-                                  : SolarIconsOutline.download),
-                          color: isExpired && _cachedFile == null
-                              ? Colors.amber.shade800
-                              : widget.textColor,
-                          size: 18,
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (meta.caption != null && meta.caption!.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              meta.caption!,
-              style: resolveBubbleTextStyle(
-                color: widget.textColor,
-                fontSize: 14,
-                height: 1.35,
-                fontFamily: widget.fontFamily,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
   }
 }
