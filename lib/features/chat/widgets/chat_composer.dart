@@ -1038,17 +1038,13 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
   @override
   Widget build(BuildContext context) {
-    final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
-    final systemBottomPadding = MediaQuery.of(context).padding.bottom;
-    final bottomPadding = viewInsetsBottom > 0 ? 0.0 : systemBottomPadding;
-
-    final primaryAccent = widget.roomThemeSpec?.primaryAccentColor ?? MekaarColors.softCoral;
-    final secondaryAccent = widget.roomThemeSpec?.secondaryAccentColor ?? MekaarColors.textMutedOf(context);
+    final primaryAccent = widget.roomThemeSpec?.primaryAccentColor ?? MekaarColors.primaryOf(context);
+    final secondaryAccent = widget.roomThemeSpec?.secondaryAccentColor ?? MekaarColors.textSecondaryOf(context);
     final glassBorder = widget.roomThemeSpec?.glassBorder;
     final glassBg = widget.roomThemeSpec?.glassBackgroundColor;
 
     return Padding(
-      padding: EdgeInsets.only(left: 8, right: 8, bottom: bottomPadding + 6, top: 4),
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8, top: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1234,28 +1230,25 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                           maxHeight: 130,
                         ),
                         borderRadius: BorderRadius.circular(24),
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                         border: glassBorder,
                         customColor: glassBg,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             if (!_isEditMode)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(width: 40, height: 44),
-                                  icon: Icon(
-                                    MekaarIcons.smile,
-                                    color: _showEmojiPicker
-                                        ? primaryAccent
-                                        : secondaryAccent,
-                                    size: 22,
-                                  ),
-                                  onPressed: widget.enabled ? _toggleEmojiPicker : null,
-                                  tooltip: 'Emoji',
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 40, height: 48),
+                                icon: Icon(
+                                  MekaarIcons.smile,
+                                  color: _showEmojiPicker
+                                      ? primaryAccent
+                                      : secondaryAccent,
+                                  size: 22,
                                 ),
+                                onPressed: widget.enabled ? _toggleEmojiPicker : null,
+                                tooltip: 'Emoji',
                               ),
                             Expanded(
                               child: TextField(
@@ -1291,7 +1284,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   fillColor: Colors.transparent,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 6,
-                                    vertical: 10,
+                                    vertical: 8,
                                   ),
                                   isDense: true,
                                 ),
@@ -1304,19 +1297,16 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                               ),
                             ),
                             if (!_isEditMode)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(width: 40, height: 44),
-                                  icon: Icon(
-                                    SolarIconsOutline.paperclip,
-                                    color: secondaryAccent,
-                                    size: 22,
-                                  ),
-                                  onPressed: widget.enabled ? _showAttachmentSheet : null,
-                                  tooltip: 'Lampiran',
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 40, height: 48),
+                                icon: Icon(
+                                  SolarIconsOutline.paperclip,
+                                  color: secondaryAccent,
+                                  size: 22,
                                 ),
+                                onPressed: widget.enabled ? _showAttachmentSheet : null,
+                                tooltip: 'Lampiran',
                               ),
                           ],
                         ),
@@ -1325,31 +1315,38 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
                     const SizedBox(width: 8),
 
-                    // ── Container 3 (Kanan): Mikrofon / Kirim 🎤 / ✈️ ──
-                    MekaarGlassBlurContainer(
-                      isFloating: true,
-                      shape: BoxShape.circle,
-                      width: 48,
-                      height: 48,
-                      border: glassBorder,
-                      customColor: glassBg,
-                      child: Semantics(
-                        button: true,
-                        label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
-                        child: PressableScale(
-                          onTap: !widget.enabled
-                              ? null
-                              : (_isEditMode || _hasText ? _handleSend : _startRecording),
+                    // ── Container 3 (Kanan): Mikrofon / Kirim 🎤 / ✈️ (Solid Circle Dinamis Tema) ──
+                    Semantics(
+                      button: true,
+                      label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
+                      child: PressableScale(
+                        onTap: !widget.enabled
+                            ? null
+                            : (_isEditMode || _hasText ? _handleSend : _startRecording),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.enabled
+                                ? (widget.canSend
+                                    ? primaryAccent
+                                    : primaryAccent.withValues(alpha: 0.5))
+                                : primaryAccent.withValues(alpha: 0.35),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryAccent.withValues(alpha: 0.28),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
                           child: Center(
                             child: Icon(
                               _isEditMode
                                   ? SolarIconsOutline.checkCircle
                                   : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
-                              color: (_isEditMode || _hasText)
-                                  ? (widget.canSend
-                                      ? primaryAccent
-                                      : primaryAccent.withValues(alpha: 0.5))
-                                  : (widget.roomThemeSpec?.iconColor ?? MekaarColors.textPrimaryOf(context)),
+                              color: Colors.white,
                               size: 22,
                             ),
                           ),

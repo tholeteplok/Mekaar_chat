@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2073,7 +2074,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                             padding: EdgeInsets.only(
                                               top: 8,
                                               bottom:
-                                                  130 + keyboardHeight + emojiInset,
+                                                  130 +
+                                                  math.max(
+                                                    keyboardHeight,
+                                                    MediaQuery.viewPaddingOf(
+                                                      context,
+                                                    ).bottom,
+                                                  ) +
+                                                  emojiInset,
                                             ),
                                              itemCount: itemEntries.length,
                                              itemBuilder: (context, index) {
@@ -2143,7 +2151,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             Positioned(
               left: 0,
               right: 0,
-              bottom: MediaQuery.viewInsetsOf(context).bottom,
+              bottom: math.max(
+                MediaQuery.viewInsetsOf(context).bottom,
+                MediaQuery.viewPaddingOf(context).bottom,
+              ),
               child: Consumer(
                 builder: (context, ref, _) {
                   final chatPref =
@@ -2202,7 +2213,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               left: 0,
               right: 0,
               bottom:
-                  MediaQuery.viewInsetsOf(context).bottom +
+                  math.max(
+                    MediaQuery.viewInsetsOf(context).bottom,
+                    MediaQuery.viewPaddingOf(context).bottom,
+                  ) +
                   120 +
                   (_isEmojiPickerOpen ? 270.0 : 0.0),
               child: Center(
