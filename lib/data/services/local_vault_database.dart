@@ -53,12 +53,31 @@ class LocalVaultDatabase {
         await _checkAndMigrateLegacyPlaintextDb(path, key);
       }
 
-      _db = await openDatabase(
-        path,
-        password: key,
-        version: _dbVersion,
-        onCreate: _onCreate,
-      );
+      try {
+        _db = await openDatabase(
+          path,
+          password: key,
+          version: _dbVersion,
+          onCreate: _onCreate,
+        );
+      } catch (openErr) {
+        // Coba auto-migrasi dari legacy SQLCipher key jika db sudah ada tapi belum di-rekey ke Argon2id v2
+        final legacyKey = DatabaseKeyService.instance.activeLegacyVaultKey;
+        if (legacyKey != null && await File(path).exists()) {
+          _logger.w('Mencoba membuka brankas dengan legacy PBKDF2 key dan re-key ke Argon2id v2...');
+          _db = await openDatabase(
+            path,
+            password: legacyKey,
+            version: _dbVersion,
+            onCreate: _onCreate,
+          );
+          // Rekey SQLCipher database ke key Argon2id v2 yang baru
+          await _db!.execute("PRAGMA rekey = '$key';");
+          _logger.i('✅ Rekey database brankas ke Argon2id v2 berhasil!');
+        } else {
+          rethrow;
+        }
+      }
 
       _dbInitCompleter!.complete(_db!);
       return _db!;

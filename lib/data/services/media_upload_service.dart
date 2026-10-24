@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'e2ee_service.dart';
 
 /// Service for uploading chat media to Supabase Storage.
@@ -25,9 +26,8 @@ class MediaUploadService {
 
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     final ext = _extensionFromFileOrMime(file.path, mimeType);
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final userId = _client.auth.currentUser?.id ?? 'anon';
-    final storagePath = '$roomId/${userId}_$timestamp$ext';
+    final randomBlobId = const Uuid().v4();
+    final storagePath = 'blobs/$randomBlobId$ext';
 
     final bytes = await file.readAsBytes();
     await _client.storage.from('chat-media').uploadBinary(
@@ -40,26 +40,26 @@ class MediaUploadService {
   }
 
   /// Uploads and encrypts [file] before storing it in Supabase Storage.
-  /// Returns the public URL and the Base64-encoded secret key used for encryption.
+  /// Menghapus jejak metadata (roomId, userId, timestamp, dan ekstensi file)
+  /// dengan menggunakan identifier acak 'blobs/{uuid}.bin'.
   Future<({String url, String keyB64})> uploadEncryptedChatMedia(File file, String roomId) async {
     final length = await file.length();
     if (length > maxFileSizeBytes) {
       throw Exception('Ukuran file melebihi batas maksimal 15 MB (keterbatasan kuota Supabase gratis).');
     }
-    final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-    final ext = _extensionFromFileOrMime(file.path, mimeType);
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final userId = _client.auth.currentUser?.id ?? 'anon';
-    final storagePath = '$roomId/${userId}_$timestamp$ext';
+    
+    // Anonimisasi storage path: tidak memuat roomId, userId, timestamp, atau ekstensi asli
+    final randomBlobId = const Uuid().v4();
+    final storagePath = 'blobs/$randomBlobId.bin';
 
-    // Baca byte asli file, lalu enkripsi menggunakan E2EE
+    // Baca byte asli file, lalu enkripsi & padding menggunakan E2EE
     final rawBytes = await file.readAsBytes();
     final encryptedResult = await E2eeService.instance.encryptMedia(rawBytes);
 
     await _client.storage.from('chat-media').uploadBinary(
       storagePath,
       Uint8List.fromList(encryptedResult.bytes),
-      fileOptions: FileOptions(contentType: mimeType, upsert: false),
+      fileOptions: const FileOptions(contentType: 'application/octet-stream', upsert: false),
     );
 
     final publicUrl = _client.storage.from('chat-media').getPublicUrl(storagePath);

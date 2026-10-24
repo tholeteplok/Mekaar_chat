@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:logger/logger.dart';
 
 import 'package:cryptography/cryptography.dart';
@@ -534,23 +535,67 @@ class E2eeService {
   }
 
   // ── Media (kunci file acak per lampiran) ───────────────────
+  static const List<int> _paddedMediaMagic = [0x4D, 0x4B, 0x50, 0x31]; // 'MKP1'
 
   Future<({List<int> bytes, String keyB64})> encryptMedia(
     List<int> bytes,
   ) async {
     final fileKey = await _cipher.newSecretKey();
-    final box = await _cipher.encrypt(bytes, secretKey: fileKey);
+
+    // Padding pertahanan analisis trafik (Traffic Analysis Resistance):
+    // Format: Magic 'MKP1' (4 bytes) + Original Length uint32 big-endian (4 bytes) + Plaintext + Random Padding.
+    // Dibulatkan ke kelipatan 16 KB (16384 bytes) dengan batas minimum 16 KB.
+    final origLen = bytes.length;
+    final headerAndDataLen = 8 + origLen;
+    const blockSize = 16384;
+    final targetLen = ((headerAndDataLen + blockSize - 1) ~/ blockSize) * blockSize;
+    final paddingLen = targetLen - headerAndDataLen;
+
+    final paddedBuffer = Uint8List(targetLen);
+    paddedBuffer.setRange(0, 4, _paddedMediaMagic);
+    paddedBuffer[4] = (origLen >> 24) & 0xFF;
+    paddedBuffer[5] = (origLen >> 16) & 0xFF;
+    paddedBuffer[6] = (origLen >> 8) & 0xFF;
+    paddedBuffer[7] = origLen & 0xFF;
+    paddedBuffer.setRange(8, 8 + origLen, bytes);
+
+    if (paddingLen > 0) {
+      final random = Random.secure();
+      for (int i = 8 + origLen; i < targetLen; i++) {
+        paddedBuffer[i] = random.nextInt(256);
+      }
+    }
+
+    final box = await _cipher.encrypt(paddedBuffer, secretKey: fileKey);
     final keyBytes = await fileKey.extractBytes();
     return (bytes: box.concatenation(), keyB64: base64Encode(keyBytes));
   }
 
-  Future<List<int>> decryptMedia(List<int> bytes, String keyB64) {
+  Future<List<int>> decryptMedia(List<int> bytes, String keyB64) async {
     final box = SecretBox.fromConcatenation(
       bytes,
       nonceLength: 24,
       macLength: 16,
     );
-    return _cipher.decrypt(box, secretKey: SecretKey(base64Decode(keyB64)));
+    final decrypted = await _cipher.decrypt(box, secretKey: SecretKey(base64Decode(keyB64)));
+
+    // Cek apakah berkas memiliki header padding 'MKP1'
+    if (decrypted.length >= 8 &&
+        decrypted[0] == _paddedMediaMagic[0] &&
+        decrypted[1] == _paddedMediaMagic[1] &&
+        decrypted[2] == _paddedMediaMagic[2] &&
+        decrypted[3] == _paddedMediaMagic[3]) {
+      final origLen = (decrypted[4] << 24) |
+          (decrypted[5] << 16) |
+          (decrypted[6] << 8) |
+          decrypted[7];
+      if (origLen >= 0 && 8 + origLen <= decrypted.length) {
+        return decrypted.sublist(8, 8 + origLen);
+      }
+    }
+
+    // Kompatibilitas mundur: berkas lama tanpa padding
+    return decrypted;
   }
 
   // ── Backup & restore via PIN ───────────────────────────────
@@ -573,8 +618,8 @@ class E2eeService {
           .from('profiles')
           .update({
             'e2ee_key_backup': jsonEncode({
-              'v': 2,
-              'kdf': 'argon2id',
+              'v': 3,
+              'kdf': 'argon2id-v3',
               'salt': base64Encode(salt),
               'ct': base64Encode(box.concatenation()),
             }),
@@ -607,10 +652,13 @@ class E2eeService {
       final map = jsonDecode(backup) as Map;
       final salt = base64Decode(map['salt'] as String);
       final kdfType = map['kdf'] as String? ?? 'pbkdf2-sha256-100000';
+      final version = (map['v'] as num?)?.toInt() ?? 1;
 
       final SecretKey wrapKey;
-      if (kdfType == 'argon2id') {
+      if (kdfType == 'argon2id-v3' || version >= 3) {
         wrapKey = await _pinKeyArgon2id(pin, salt);
+      } else if (kdfType == 'argon2id') {
+        wrapKey = await _pinKeyArgon2id(pin, salt, legacy: true);
       } else {
         wrapKey = await _pinKeyPBKDF2(pin, salt);
       }
@@ -624,8 +672,8 @@ class E2eeService {
 
       await _loadIdentityFromBytes(privBytes);
 
-      // Auto-upgrade backup KDF to Argon2id in background if it was pbkdf2
-      if (kdfType != 'argon2id') {
+      // Auto-upgrade backup KDF to Argon2id-v3 in background if it was legacy
+      if (kdfType != 'argon2id-v3' || version < 3) {
         backupWithPin(pin);
       }
 
@@ -706,13 +754,20 @@ class E2eeService {
     );
   }
 
-  Future<SecretKey> _pinKeyArgon2id(String pin, List<int> salt) async {
-    final argon2 = Argon2id(
-      memory: 12000,
-      iterations: 2,
-      parallelism: 1,
-      hashLength: 32,
-    );
+  Future<SecretKey> _pinKeyArgon2id(String pin, List<int> salt, {bool legacy = false}) async {
+    final argon2 = legacy
+        ? Argon2id(
+            memory: 12000,
+            iterations: 2,
+            parallelism: 1,
+            hashLength: 32,
+          )
+        : Argon2id(
+            memory: 19456,
+            iterations: 2,
+            parallelism: 1,
+            hashLength: 32,
+          );
     return argon2.deriveKey(
       secretKey: SecretKey(utf8.encode(pin)),
       nonce: salt,

@@ -347,37 +347,11 @@ Deno.serve(async (req: Request) => {
         );
         if (deviceTokens.length === 0) continue;
 
-        // Generate preview text berdasarkan tipe pesan & status enkripsi
-        let bodyText = msg.content || "";
-        if (msg.is_encrypted) {
-          bodyText = "🔒 Pesan baru";
-        } else if (msg.msg_type === "image") {
-          bodyText = "📷 Gambar";
-        } else if (msg.msg_type === "voice") {
-          bodyText = "🎤 Pesan suara";
-        } else if (msg.msg_type === "video") {
-          bodyText = "🎬 Video";
-        } else if (msg.msg_type === "location") {
-          bodyText = "📍 Lokasi";
-        }
-
-        // Batasi panjang body
-        if (bodyText.length > 100) {
-          bodyText = bodyText.substring(0, 97) + "...";
-        }
-
-        // Periksa apakah penerima (p.profile_id) menyimpan pengirim (msg.sender_id) dalam Private Vault
-        const { data: vaultContact } = await supabaseClient
-          .from("user_contacts")
-          .select("is_vaulted")
-          .eq("user_id", p.profile_id)
-          .eq("contact_user_id", msg.sender_id)
-          .eq("is_vaulted", true)
-          .maybeSingle();
-
-        const isVaultedForRecipient = !!vaultContact;
-        const finalTitle = isVaultedForRecipient ? "MEKAAR" : senderName;
-        const finalBody = isVaultedForRecipient ? "Pesan baru masuk" : bodyText;
+        // MEKAAR Balanced Privacy: Mencegah kebocoran metadata pengirim dan cuplikan pesan ke pihak ketiga (Google FCM / Apple APNs).
+        // Seluruh notifikasi pesan disamarkan menjadi generik ("MEKAAR: Pesan baru masuk").
+        // Perangkat klien yang akan memuat dan merender isi pesan secara lokal setelah diotentikasi.
+        const finalTitle = "MEKAAR";
+        const finalBody = "Pesan baru masuk";
 
         for (const dt of deviceTokens) {
           results.push(
@@ -392,9 +366,9 @@ Deno.serve(async (req: Request) => {
                 roomId: msg.room_id,
                 title: finalTitle,
                 body: finalBody,
-                senderName: isVaultedForRecipient ? "MEKAAR" : senderName,
+                senderName: "MEKAAR",
                 messageId: msg.id,
-                isVaultMasked: isVaultedForRecipient ? "true" : "false",
+                isVaultMasked: "true",
               },
               android: {
                 priority: "high",

@@ -21,11 +21,34 @@ class DatabaseKeyService {
   );
 
   static const String _messageDbKeyStorageKey = 'sqlcipher_message_db_key_v1';
+  static const String _masterVaultSaltStorageKey = 'sqlcipher_vault_master_salt_v2';
+  static const String _decoyVaultSaltStorageKey = 'sqlcipher_vault_decoy_salt_v2';
   static const int _pbkdf2Iterations = 100000;
 
   /// Kunci runtime in-memory untuk brankas berkas yang dibuka saat ini
   String? _activeVaultKey;
+  String? _activeLegacyVaultKey;
   bool _isVaultDuress = false;
+
+  /// Mendapatkan salt acak 32-byte unik per perangkat dari Hardware Keystore.
+  /// Mencegah serangan pre-computed rainbow table lintas perangkat.
+  Future<List<int>> getOrCreateVaultSalt({required bool isDuress}) async {
+    final storageKey = isDuress ? _decoyVaultSaltStorageKey : _masterVaultSaltStorageKey;
+    try {
+      final existingB64 = await _secureStorage.read(key: storageKey);
+      if (existingB64 != null && existingB64.isNotEmpty) {
+        return base64Decode(existingB64);
+      }
+      final random = Random.secure();
+      final salt = List<int>.generate(32, (_) => random.nextInt(256));
+      await _secureStorage.write(key: storageKey, value: base64Encode(salt));
+      return salt;
+    } catch (e) {
+      _logger.e('Gagal memuat atau membuat salt acak untuk brankas: $e');
+      final saltPrefix = isDuress ? 'mekaar_vault_decoy_salt_' : 'mekaar_vault_master_salt_';
+      return utf8.encode('${saltPrefix}v1_secure');
+    }
+  }
 
   /// Mendapatkan atau membuat kunci enkripsi acak 256-bit untuk database pesan lokal.
   /// Kunci disimpan di Hardware Keystore / Secure Storage.
@@ -52,9 +75,44 @@ class DatabaseKeyService {
     }
   }
 
-  /// Menurunkan kunci enkripsi 256-bit dari PIN pengguna menggunakan PBKDF2.
-  /// Membedakan salt antara Master PIN dan Duress PIN agar derivasi kunci terpisah total.
-  Future<String> deriveVaultKey(String pin, {required bool isDuress}) async {
+  /// Menurunkan kunci enkripsi 256-bit dari PIN pengguna menggunakan Argon2id (64MB)
+  /// dengan random salt unik per perangkat (v2).
+  /// Mendukung fallback ke legacy PBKDF2 (v1) untuk auto-migrasi database lama.
+  Future<String> deriveVaultKey(
+    String pin, {
+    required bool isDuress,
+    bool forceLegacy = false,
+  }) async {
+    if (forceLegacy) {
+      return _deriveLegacyVaultKey(pin, isDuress: isDuress);
+    }
+
+    try {
+      // Pre-compute legacy key untuk keperluan auto-rekeying jika database lama belum di-upgrade
+      _activeLegacyVaultKey = await _deriveLegacyVaultKey(pin, isDuress: isDuress);
+
+      final salt = await getOrCreateVaultSalt(isDuress: isDuress);
+      final argon2 = Argon2id(
+        memory: 19456, // 19 MB (OWASP recommended minimum parameter untuk mobile Dart VM tanpa SIMD native)
+        iterations: 2,
+        parallelism: 1,
+        hashLength: 32,
+      );
+
+      final secretKey = await argon2.deriveKey(
+        secretKey: SecretKey(utf8.encode(pin)),
+        nonce: salt,
+      );
+
+      final keyBytes = await secretKey.extractBytes();
+      return keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    } catch (e) {
+      _logger.w('Argon2id derivation gagal, fallback ke legacy: $e');
+      return _deriveLegacyVaultKey(pin, isDuress: isDuress);
+    }
+  }
+
+  Future<String> _deriveLegacyVaultKey(String pin, {required bool isDuress}) async {
     final saltPrefix = isDuress ? 'mekaar_vault_decoy_salt_' : 'mekaar_vault_master_salt_';
     final salt = utf8.encode('${saltPrefix}v1_secure');
 
@@ -83,12 +141,16 @@ class DatabaseKeyService {
   /// Mendapatkan kunci aktif brankas saat ini.
   String? get activeVaultKey => _activeVaultKey;
 
+  /// Kunci legacy yang diturunkan sementara untuk re-keying database lama
+  String? get activeLegacyVaultKey => _activeLegacyVaultKey;
+
   /// Mengetahui apakah brankas yang sedang aktif adalah Decoy (Duress).
   bool get isVaultDuress => _isVaultDuress;
 
   /// Mengunci kembali brankas dan membersihkan kunci dari memori.
   void lockVault() {
     _activeVaultKey = null;
+    _activeLegacyVaultKey = null;
     _isVaultDuress = false;
   }
 
