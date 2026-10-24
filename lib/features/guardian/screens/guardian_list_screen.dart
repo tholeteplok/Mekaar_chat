@@ -6,9 +6,8 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_badge.dart';
@@ -28,9 +27,12 @@ class GuardianListScreen extends ConsumerStatefulWidget {
 }
 
 class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -56,6 +58,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
     final myGuardians = wasDuress ? <Guardian>[] : ref.watch(guardianProvider);
     final whoAddedMe = wasDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
@@ -63,50 +66,64 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
     final whoAddedMeStatus = ref.watch(whoAddedMeLoadStatusProvider);
     final pendingCount = ref.watch(pendingIncomingGuardianCountProvider);
 
-    return MekaarScaffold(
-      flat: true,
-      appBar: CustomAppBar(
-        title: 'Sistem Guardian',
-        subtitle: 'Saling menjaga dalam situasi darurat',
-        actions: [
-          if (myGuardians.isNotEmpty)
-            IconButton(
-              icon: const Icon(SolarIconsOutline.userPlus),
-              tooltip: 'Tambah Guardian Baru',
-              onPressed: () =>
-                  Navigator.pushNamed(context, AppRoutes.guardianAdd),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Column(
+          children: [
+            MekaarTabHeader(
+              key: const ValueKey('guardian_list_tab_header'),
+              title: 'Guardian',
+              action: wasDuress
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (myGuardians.isNotEmpty)
+                          IconButton(
+                            icon: Icon(
+                              SolarIconsOutline.userPlus,
+                              color: MekaarColors.primaryOf(context),
+                            ),
+                            tooltip: 'Tambah Guardian Baru',
+                            onPressed: () =>
+                                Navigator.pushNamed(context, AppRoutes.guardianAdd),
+                          ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.gps,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: 'Lacak Guardian',
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.guardianTracking),
+                        ),
+                      ],
+                    ),
             ),
-          IconButton(
-            icon: const Icon(SolarIconsOutline.gps),
-            tooltip: 'Lacak Guardian',
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.guardianTracking),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 6),
-          MekaarSlidingSegmentBar(
-            tabs: const ['Dijaga', 'Menjaga'],
-            selectedIndex: _selectedTabIndex,
-            badges: pendingCount > 0 ? {1: pendingCount} : null,
-            onTabSelected: (index) {
-              setState(() => _selectedTabIndex = index);
-              _tabController.animateTo(index);
-            },
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildMyGuardiansTab(myGuardians, myGuardiansStatus),
-                _buildWhoAddedMeTab(whoAddedMe, whoAddedMeStatus),
-              ],
+            const SizedBox(height: 6),
+            MekaarSlidingSegmentBar(
+              tabs: const ['Dijaga', 'Menjaga'],
+              selectedIndex: _selectedTabIndex,
+              badges: pendingCount > 0 ? {1: pendingCount} : null,
+              onTabSelected: (index) {
+                setState(() => _selectedTabIndex = index);
+                _tabController.animateTo(index);
+              },
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildMyGuardiansTab(myGuardians, myGuardiansStatus),
+                  _buildWhoAddedMeTab(whoAddedMe, whoAddedMeStatus),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
