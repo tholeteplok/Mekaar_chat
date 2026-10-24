@@ -8,6 +8,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
+import '../../../core/widgets/bubbles/themed_bubble_container.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -428,25 +429,10 @@ class _ChatThemeSettingsScreenState
                         // Pesan Masuk
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Container(
+                          child: ThemedBubbleContainer(
+                            spec: incomingSpec,
+                            isMe: false,
                             constraints: const BoxConstraints(maxWidth: 250),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 9,
-                            ),
-                            decoration: BoxDecoration(
-                              color: incomingSpec.backgroundColor,
-                              gradient: incomingSpec.gradient,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(20),
-                                topRight: Radius.circular(20),
-                                bottomRight: Radius.circular(20),
-                                bottomLeft: Radius.circular(6),
-                              ),
-                              border: incomingSpec.border ??
-                                  Border.all(color: borderColor, width: 1),
-                              boxShadow: incomingSpec.boxShadow,
-                            ),
                             child: Text(
                               'Halo! Apakah lokasi kamu aman?',
                               style: incomingSpec.textStyle.copyWith(
@@ -460,24 +446,10 @@ class _ChatThemeSettingsScreenState
                         // Pesan Keluar
                         Align(
                           alignment: Alignment.centerRight,
-                          child: Container(
+                          child: ThemedBubbleContainer(
+                            spec: outgoingSpec,
+                            isMe: true,
                             constraints: const BoxConstraints(maxWidth: 250),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 9,
-                            ),
-                            decoration: BoxDecoration(
-                              color: outgoingSpec.backgroundColor,
-                              gradient: outgoingSpec.gradient,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(20),
-                                topRight: Radius.circular(20),
-                                bottomLeft: Radius.circular(20),
-                                bottomRight: Radius.circular(6),
-                              ),
-                              border: outgoingSpec.border,
-                              boxShadow: outgoingSpec.boxShadow,
-                            ),
                             child: Text(
                               'Aman, fitur rute perjalanan sedang aktif.',
                               style: outgoingSpec.textStyle.copyWith(
