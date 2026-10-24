@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
@@ -27,10 +28,13 @@ class SOSActiveScreen extends ConsumerStatefulWidget {
 
 class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
   bool _hasShownLocationWarning = false;
+  Timer? _durationTimer;
+  Duration _elapsed = Duration.zero;
 
   @override
   void initState() {
     super.initState();
+    _startDurationTimer();
     Future.microtask(() {
       ref
           .read(screenProtectionControllerProvider)
@@ -49,8 +53,42 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
     });
   }
 
+  void _startDurationTimer() {
+    _updateElapsed();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        _updateElapsed();
+      }
+    });
+  }
+
+  void _updateElapsed() {
+    final sosState = ref.read(sosProvider);
+    final startedAt =
+        sosState.activeSession?.startedAt ?? sosState.activeSession?.createdAt;
+    if (startedAt != null) {
+      final diff = DateTime.now().difference(startedAt);
+      if (mounted) {
+        setState(() {
+          _elapsed = diff.isNegative ? Duration.zero : diff;
+        });
+      }
+    }
+  }
+
+  String _formatDuration(Duration d) {
+    final hours = d.inHours.toString().padLeft(2, '0');
+    final minutes = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    if (d.inHours > 0) {
+      return '$hours:$minutes:$seconds';
+    }
+    return '$minutes:$seconds';
+  }
+
   @override
   void dispose() {
+    _durationTimer?.cancel();
     try {
       ref
           .read(screenProtectionControllerProvider)
@@ -182,7 +220,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
             Text(
               'Pilih pesan darurat terverifikasi untuk dikirim instan tanpa suara ke seluruh Guardian aktif:',
               style: MekaarTypography.bodySM.copyWith(
-                color: const Color(0xFF94A3B8),
+                color: MekaarColors.stealthTextMuted,
                 fontSize: 12,
               ),
             ),
@@ -194,7 +232,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E293B),
+                      backgroundColor: MekaarColors.stealthCard,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
@@ -203,9 +241,9 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                       ),
                       alignment: Alignment.centerLeft,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(MekaarRadius.md),
                         side: const BorderSide(
-                          color: Color(0xFF334155),
+                          color: MekaarColors.stealthCardBorder,
                         ),
                       ),
                     ),
@@ -245,6 +283,79 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
     );
   }
 
+  Widget _buildTelemetryChip({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String sublabel,
+    required Color statusColor,
+    VoidCallback? onTap,
+  }) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: MekaarColors.stealthSurface,
+        borderRadius: BorderRadius.circular(MekaarRadius.md),
+        border: Border.all(color: MekaarColors.stealthCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: iconColor, size: 20),
+              const Spacer(),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withValues(alpha: 0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: MekaarTypography.labelMD.copyWith(
+              color: MekaarColors.stealthText,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sublabel,
+            style: MekaarTypography.caption.copyWith(
+              color: MekaarColors.stealthTextMuted,
+              fontSize: 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: chip,
+      );
+    }
+    return chip;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<bool>(
@@ -274,29 +385,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
       SOSStatus.ending => 'MENGAKHIRI SOS',
     };
 
-    final statusText = switch (sosState.status) {
-      SOSStatus.active when sosState.message != null => sosState.message!,
-      SOSStatus.active when activeGuardians.isEmpty =>
-        'SOS tercatat aktif. Tidak ada Guardian aktif yang terhubung ke akun Anda. Tambahkan Guardian setelah Anda berada di tempat aman.',
-      SOSStatus.active =>
-        'SOS tercatat aktif. Guardian yang terhubung: ${activeGuardians.join(', ')}. '
-            '${sosState.isGpsStreaming
-                ? 'Lokasi perangkat dibagikan.'
-                : sosState.locationPermissionDenied
-                    ? 'Lokasi tidak tersedia karena izin lokasi ditolak.'
-                    : 'Lokasi perangkat tidak dibagikan.'} '
-            '${sosState.isAudioStreaming
-                ? 'Audio perangkat dibagikan.'
-                : sosState.micPermissionDenied
-                ? 'Audio tidak tersedia karena izin mikrofon ditolak.'
-                : 'Audio perangkat tidak dibagikan.'}',
-      SOSStatus.queuedOffline =>
-        sosState.message ?? 'SOS belum terkirim dan menunggu koneksi.',
-      SOSStatus.failed => sosState.message ?? 'SOS gagal dimulai. Coba lagi.',
-      SOSStatus.ending => 'Sedang memastikan SOS berakhir dengan aman.',
-      _ =>
-        'Menunggu konfirmasi sesi. Guardian belum menerima status pelacakan.',
-    };
+    final errorMessage = sosState.message;
 
     return PopScope(
       canPop: false,
@@ -313,7 +402,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
         body: SafeArea(
           child: Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF000000), // OLED PURE BLACK — ZERO GLOW DI TEMPAT GELAP
+              color: MekaarColors.stealthBg, // OLED PURE BLACK — ZERO GLOW DI TEMPAT GELAP
             ),
             child: Column(
               children: [
@@ -329,10 +418,10 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF111827),
-                          borderRadius: BorderRadius.circular(100),
+                          color: MekaarColors.stealthSurface,
+                          borderRadius: BorderRadius.circular(MekaarRadius.pill),
                           border: Border.all(
-                            color: const Color(0xFF1F2937),
+                            color: MekaarColors.stealthCardBorder,
                           ),
                         ),
                         child: Row(
@@ -398,14 +487,14 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                                   isQueued
                                       ? SolarIconsBold.cloudUpload
                                       : SolarIconsBold.danger,
-                                  color: const Color(0xFFEF4444),
+                                  color: MekaarColors.stealthDanger,
                                   size: 44,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         Text(
                           title,
                           textAlign: TextAlign.center,
@@ -416,61 +505,187 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                             letterSpacing: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          statusText,
-                          textAlign: TextAlign.center,
-                          style: MekaarTypography.bodyMD.copyWith(
-                            color: const Color(0xFF94A3B8), // Soft slate grey
-                            height: 1.5,
-                          ),
-                        ),
-                        if (isActive &&
-                            (sosState.micPermissionDenied ||
-                                sosState.locationPermissionDenied)) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              if (sosState.locationPermissionDenied)
+                        if (isActive) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.stealthSurface,
+                              borderRadius:
+                                  BorderRadius.circular(MekaarRadius.pill),
+                              border: Border.all(
+                                color: MekaarColors.stealthCardBorder,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  SolarIconsOutline.stopwatch,
+                                  size: 16,
+                                  color: MekaarColors.stealthTextMuted,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatDuration(_elapsed),
+                                  style: MekaarTypography.monoLG.copyWith(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                    color: MekaarColors.stealthText,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
+                                    horizontal: 6,
+                                    vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: MekaarColors.warnAmber,
-                                    borderRadius: BorderRadius.circular(100),
+                                    color: MekaarColors.stealthSuccess
+                                        .withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    'Izin Lokasi Ditolak',
-                                    style: MekaarTypography.labelLG.copyWith(
-                                      color: MekaarColors.textOnYellow,
+                                    'LIVE',
+                                    style: MekaarTypography.labelSM.copyWith(
+                                      color: MekaarColors.stealthSuccess,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 10,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
                                 ),
-                              if (sosState.micPermissionDenied)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: MekaarColors.warnAmber,
-                                    borderRadius: BorderRadius.circular(100),
-                                  ),
-                                  child: Text(
-                                    'Izin Mikrofon Ditolak',
-                                    style: MekaarTypography.labelLG.copyWith(
-                                      color: MekaarColors.textOnYellow,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
+                        if (errorMessage != null &&
+                            sosState.status == SOSStatus.failed) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            errorMessage,
+                            textAlign: TextAlign.center,
+                            style: MekaarTypography.bodyMD.copyWith(
+                              color: MekaarColors.stealthWarning,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        // ── Cockpit Telemetry HUD: Grid 2x2 ──
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTelemetryChip(
+                                icon: sosState.isGpsStreaming
+                                    ? SolarIconsBold.mapPoint
+                                    : sosState.locationPermissionDenied
+                                        ? SolarIconsBold.mapPointRemove
+                                        : SolarIconsOutline.mapPoint,
+                                iconColor: sosState.isGpsStreaming
+                                    ? MekaarColors.stealthSuccess
+                                    : sosState.locationPermissionDenied
+                                        ? MekaarColors.stealthWarning
+                                        : MekaarColors.stealthTextMuted,
+                                label: sosState.isGpsStreaming
+                                    ? 'GPS LIVE'
+                                    : sosState.locationPermissionDenied
+                                        ? 'GPS DITOLAK'
+                                        : 'GPS MATI',
+                                sublabel: sosState.isGpsStreaming
+                                    ? 'Koordinat aktif'
+                                    : sosState.locationPermissionDenied
+                                        ? 'Izin ditolak'
+                                        : 'Lokasi off',
+                                statusColor: sosState.isGpsStreaming
+                                    ? MekaarColors.stealthSuccess
+                                    : sosState.locationPermissionDenied
+                                        ? MekaarColors.stealthWarning
+                                        : MekaarColors.stealthTextMuted,
+                                onTap: sosState.locationPermissionDenied
+                                    ? () => MekaarDialog
+                                        .showLocationPermissionDeniedWarning(
+                                            context: context)
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildTelemetryChip(
+                                icon: sosState.isAudioStreaming
+                                    ? SolarIconsBold.microphone
+                                    : sosState.micPermissionDenied
+                                        ? SolarIconsBold.muted
+                                        : SolarIconsOutline.muted,
+                                iconColor: sosState.isAudioStreaming
+                                    ? MekaarColors.stealthSuccess
+                                    : sosState.micPermissionDenied
+                                        ? MekaarColors.stealthWarning
+                                        : MekaarColors.stealthTextMuted,
+                                label: sosState.isAudioStreaming
+                                    ? 'AUDIO LIVE'
+                                    : sosState.micPermissionDenied
+                                        ? 'AUDIO DITOLAK'
+                                        : 'AUDIO MATI',
+                                sublabel: sosState.isAudioStreaming
+                                    ? 'Suara live'
+                                    : sosState.micPermissionDenied
+                                        ? 'Izin mic ditolak'
+                                        : 'Mic nonaktif',
+                                statusColor: sosState.isAudioStreaming
+                                    ? MekaarColors.stealthSuccess
+                                    : sosState.micPermissionDenied
+                                        ? MekaarColors.stealthWarning
+                                        : MekaarColors.stealthTextMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTelemetryChip(
+                                icon: activeGuardians.isNotEmpty
+                                    ? SolarIconsBold.shieldUser
+                                    : SolarIconsOutline.shieldWarning,
+                                iconColor: activeGuardians.isNotEmpty
+                                    ? MekaarColors.guardianTeal
+                                    : MekaarColors.stealthWarning,
+                                label: activeGuardians.isNotEmpty
+                                    ? '${activeGuardians.length} GUARDIAN'
+                                    : '0 GUARDIAN',
+                                sublabel: activeGuardians.isNotEmpty
+                                    ? activeGuardians.take(2).join(', ')
+                                    : 'Belum terhubung',
+                                statusColor: activeGuardians.isNotEmpty
+                                    ? MekaarColors.guardianTeal
+                                    : MekaarColors.stealthWarning,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildTelemetryChip(
+                                icon: isQueued
+                                    ? SolarIconsBold.cloudUpload
+                                    : SolarIconsBold.cloudCheck,
+                                iconColor: isQueued
+                                    ? MekaarColors.stealthWarning
+                                    : MekaarColors.stealthSuccess,
+                                label: isQueued ? 'OFFLINE' : 'TERHUBUNG',
+                                sublabel: isQueued
+                                    ? 'Antrean lokal'
+                                    : 'Radar cloud aktif',
+                                statusColor: isQueued
+                                    ? MekaarColors.stealthWarning
+                                    : MekaarColors.stealthSuccess,
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 24),
                         if (isActive) ...[
                           // Tombol Kirim Pesan Senyap ke Guardian (Eksklusif Template Terverifikasi)
@@ -485,10 +700,10 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                               label: const Text('Kirim Pesan Senyap ke Guardian'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: const Color(0xFF0F172A),
-                                side: const BorderSide(color: Color(0xFF334155)),
+                                backgroundColor: MekaarColors.stealthSurface,
+                                side: const BorderSide(color: MekaarColors.stealthCardBorder),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(MekaarRadius.md),
                                 ),
                               ),
                               onPressed: _showSilentEmergencyDispatchSheet,
@@ -502,10 +717,10 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                               icon: const Icon(SolarIconsOutline.gps),
                               label: const Text('Lihat Lokasi Saya'),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFE2E8F0),
-                                side: const BorderSide(color: Color(0xFF334155)),
+                                foregroundColor: MekaarColors.stealthText,
+                                side: const BorderSide(color: MekaarColors.stealthCardBorder),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(MekaarRadius.md),
                                 ),
                               ),
                               onPressed: () async {
@@ -551,15 +766,15 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                                     ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor:
-                                          const Color(0xFF1E293B),
+                                          MekaarColors.stealthCard,
                                       foregroundColor:
                                           Colors.white,
                                       elevation: 0,
                                       side: const BorderSide(
-                                        color: Color(0xFF334155),
+                                        color: MekaarColors.stealthCardBorder,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(MekaarRadius.md),
                                       ),
                                     ),
                                     onPressed: () => Navigator.pushNamed(
@@ -574,7 +789,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFF64748B),
+                                    color: MekaarColors.stealthTextMuted,
                                   ),
                                 ),
                               ],
@@ -590,7 +805,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                             child: ElevatedButton.icon(
                               icon: const Icon(
                                 SolarIconsBold.lock,
-                                color: Color(0xFF0F172A), // Dark slate icon
+                                color: MekaarColors.stealthSurface, // Dark slate icon
                                 size: 20,
                               ),
                               label: Text(
@@ -598,7 +813,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                                     ? 'Batalkan SOS (Perlu PIN)'
                                     : 'Nonaktifkan SOS (Perlu PIN)',
                                 style: const TextStyle(
-                                  color: Color(0xFF0F172A), // Dark slate text
+                                  color: MekaarColors.stealthSurface, // Dark slate text
                                   fontWeight: FontWeight.w800,
                                   fontSize: 15,
                                   letterSpacing: 0.3,
@@ -606,11 +821,11 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white, // BUKAN MERAH — Putih solid
-                                foregroundColor: const Color(0xFF0F172A),
+                                foregroundColor: MekaarColors.stealthSurface,
                                 elevation: 4,
                                 shadowColor: Colors.black.withValues(alpha: 0.3),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(MekaarRadius.md),
                                 ),
                               ),
                               onPressed: () => _handleEndSOS(sosState),
@@ -622,7 +837,7 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF94A3B8),
+                              color: MekaarColors.stealthTextMuted,
                             ),
                           ),
                         ],

@@ -63,6 +63,17 @@ class MekaarColors {
   static const Color sosDeep = AppColors.sosDeep;
   static const Color safeTeal = AppColors.safeTeal;
 
+  // ── Palet Taktis & Darurat (Stealth OLED) ──
+  static const Color stealthBg = Color(0xFF000000); // OLED Pure Black (Zero glow)
+  static const Color stealthSurface = Color(0xFF0F172A); // Slate 900
+  static const Color stealthCard = Color(0xFF1E293B); // Slate 800
+  static const Color stealthCardBorder = Color(0xFF334155); // Slate 700
+  static const Color stealthText = Color(0xFFF8FAFC); // Slate 50
+  static const Color stealthTextMuted = Color(0xFF94A3B8); // Slate 400
+  static const Color stealthSuccess = Color(0xFF22C55E); // Green 500
+  static const Color stealthWarning = Color(0xFFF59E0B); // Amber 500
+  static const Color stealthDanger = Color(0xFFEF4444); // Red 500
+
   /// Tinta gelap teal untuk teks/ikon di atas permukaan terang
   /// (safeTeal #2DD4BF hanya ≈1.8:1 di atas putih).
   static const Color safeTealInk = Color(0xFF0C6B60);

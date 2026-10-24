@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/dimensions.dart';
 import '../constants/motion.dart';
+import '../constants/typography.dart';
+import 'mekaar_snackbar.dart';
 import '../services/haptic_service.dart';
 
 /// Tombol Darurat SOS dengan dukungan Hold-to-Confirm (2 detik) untuk aktivasi
@@ -17,7 +20,7 @@ class SOSButton extends StatefulWidget {
     super.key,
     this.onPressed,
     this.isActive = false,
-    this.size = 76,
+    this.size = MekaarSizes.sos,
     this.holdDuration = const Duration(seconds: 2),
   });
 
@@ -127,6 +130,11 @@ class _SOSButtonState extends State<SOSButton>
       widget.onPressed?.call();
       return;
     }
+    // Jika tombol hanya di-tap singkat tanpa ditahan selama 2 detik
+    if (_holdController.value < 1.0) {
+      HapticService.trigger(MekaarHapticIntent.warning);
+      MekaarSnackbar.info(context, 'Tahan tombol selama 2 detik untuk memicu SOS');
+    }
     _cancelHold();
   }
 
@@ -200,7 +208,7 @@ class _SOSButtonState extends State<SOSButton>
                 child: ExcludeSemantics(
                   child: Text(
                     'SOS',
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                    style: MekaarTypography.headingLG.copyWith(
                           fontSize: (buttonSize * 0.25).clamp(13.0, 20.0),
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
