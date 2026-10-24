@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/memory_guard.dart';
+import 'api/safety_signature.dart';
 import 'api/shredder.dart';
 import 'api/stream_cipher.dart';
 import 'dart:async';
@@ -66,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1678038929;
+  int get rustContentHash => 189500239;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -90,13 +91,26 @@ abstract class RustLibApi extends BaseApi {
     required BigInt keySlotId,
   });
 
+  Future<SosKeyPairResult> crateApiSafetySignatureGenerateSosKeypair();
+
   Future<bool> crateApiMemoryGuardHasSecureKey({required BigInt slotId});
 
   Future<int> crateApiShredderShredDirectoryContents({required String dirPath});
 
   Future<bool> crateApiShredderShredFile({required String path});
 
+  Future<String> crateApiSafetySignatureSignSosPacket({
+    required String canonicalPayload,
+    required BigInt keySlotId,
+  });
+
   Future<BigInt> crateApiMemoryGuardStoreSecureKey({required List<int> rawKey});
+
+  Future<bool> crateApiSafetySignatureVerifySosPacket({
+    required String canonicalPayload,
+    required String signatureB64,
+    required String publicKeyB64,
+  });
 
   Future<int> crateApiMemoryGuardZeroizeAllKeys();
 
@@ -186,6 +200,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<SosKeyPairResult> crateApiSafetySignatureGenerateSosKeypair() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sos_key_pair_result,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSafetySignatureGenerateSosKeypairConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSafetySignatureGenerateSosKeypairConstMeta =>
+      const TaskConstMeta(debugName: "generate_sos_keypair", argNames: []);
+
+  @override
   Future<bool> crateApiMemoryGuardHasSecureKey({required BigInt slotId}) {
     return handler.executeNormal(
       NormalTask(
@@ -195,7 +236,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -225,7 +266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -256,7 +297,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -275,6 +316,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "shred_file", argNames: ["path"]);
 
   @override
+  Future<String> crateApiSafetySignatureSignSosPacket({
+    required String canonicalPayload,
+    required BigInt keySlotId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(canonicalPayload, serializer);
+          sse_encode_u_64(keySlotId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSafetySignatureSignSosPacketConstMeta,
+        argValues: [canonicalPayload, keySlotId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSafetySignatureSignSosPacketConstMeta =>
+      const TaskConstMeta(
+        debugName: "sign_sos_packet",
+        argNames: ["canonicalPayload", "keySlotId"],
+      );
+
+  @override
   Future<BigInt> crateApiMemoryGuardStoreSecureKey({
     required List<int> rawKey,
   }) {
@@ -286,7 +362,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -305,6 +381,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "store_secure_key", argNames: ["rawKey"]);
 
   @override
+  Future<bool> crateApiSafetySignatureVerifySosPacket({
+    required String canonicalPayload,
+    required String signatureB64,
+    required String publicKeyB64,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(canonicalPayload, serializer);
+          sse_encode_String(signatureB64, serializer);
+          sse_encode_String(publicKeyB64, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSafetySignatureVerifySosPacketConstMeta,
+        argValues: [canonicalPayload, signatureB64, publicKeyB64],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSafetySignatureVerifySosPacketConstMeta =>
+      const TaskConstMeta(
+        debugName: "verify_sos_packet",
+        argNames: ["canonicalPayload", "signatureB64", "publicKeyB64"],
+      );
+
+  @override
   Future<int> crateApiMemoryGuardZeroizeAllKeys() {
     return handler.executeNormal(
       NormalTask(
@@ -313,7 +426,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 10,
             port: port_,
           );
         },
@@ -341,7 +454,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 11,
             port: port_,
           );
         },
@@ -381,6 +494,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  SosKeyPairResult dco_decode_sos_key_pair_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SosKeyPairResult(
+      keySlotId: dco_decode_u_64(arr[0]),
+      publicKeyB64: dco_decode_String(arr[1]),
+    );
   }
 
   @protected
@@ -432,6 +557,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  SosKeyPairResult sse_decode_sos_key_pair_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_keySlotId = sse_decode_u_64(deserializer);
+    var var_publicKeyB64 = sse_decode_String(deserializer);
+    return SosKeyPairResult(
+      keySlotId: var_keySlotId,
+      publicKeyB64: var_publicKeyB64,
+    );
   }
 
   @protected
@@ -495,6 +633,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_sos_key_pair_result(
+    SosKeyPairResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.keySlotId, serializer);
+    sse_encode_String(self.publicKeyB64, serializer);
   }
 
   @protected

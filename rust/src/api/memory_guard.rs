@@ -85,9 +85,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex as TestMutex;
+
+    static TEST_LOCK: TestMutex<()> = TestMutex::new(());
 
     #[test]
     fn test_store_and_zeroize_key() {
+        let _guard = TEST_LOCK.lock().unwrap();
         let dummy_key = vec![0x42u8; 32];
         let slot_id = store_secure_key(dummy_key).unwrap();
 
@@ -109,6 +113,7 @@ mod tests {
 
     #[test]
     fn test_invalid_key_length() {
+        let _guard = TEST_LOCK.lock().unwrap();
         let short_key = vec![0x01u8; 16]; // Hanya 16 byte
         let res = store_secure_key(short_key);
         assert!(res.is_err());
@@ -116,6 +121,7 @@ mod tests {
 
     #[test]
     fn test_zeroize_all_keys() {
+        let _guard = TEST_LOCK.lock().unwrap();
         let k1 = store_secure_key(vec![1u8; 32]).unwrap();
         let k2 = store_secure_key(vec![2u8; 32]).unwrap();
 

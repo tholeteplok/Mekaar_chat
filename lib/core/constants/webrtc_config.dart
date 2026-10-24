@@ -8,8 +8,10 @@ class WebRtcConfig {
   static const String _turnCredential = String.fromEnvironment('TURN_CREDENTIAL');
 
   /// Membangun konfigurasi ICE servers terpusat.
+  /// Jika [relayOnly] bernilai true, hanya jalur TURN relay yang diizinkan
+  /// guna mencegah kebocoran alamat IP publik/lokal ke peer (Anti-IP Leak).
   /// Pada mode produksi, set --dart-define=TURN_URL=... (+ TURN_USERNAME, TURN_CREDENTIAL).
-  static Map<String, dynamic> buildIceConfiguration() {
+  static Map<String, dynamic> buildIceConfiguration({bool relayOnly = false}) {
     final iceServers = <Map<String, dynamic>>[
       {
         'urls': [
@@ -31,9 +33,15 @@ class WebRtcConfig {
       });
     }
 
-    return {
+    final config = <String, dynamic>{
       'iceServers': iceServers,
       'sdpSemantics': 'unified-plan',
     };
+
+    if (relayOnly) {
+      config['iceTransportPolicy'] = 'relay';
+    }
+
+    return config;
   }
 }

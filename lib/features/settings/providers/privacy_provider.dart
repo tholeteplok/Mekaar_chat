@@ -143,3 +143,41 @@ final stealthChatPreviewProvider =
     StateNotifierProvider<StealthChatPreviewNotifier, bool>((ref) {
   return StealthChatPreviewNotifier();
 });
+
+
+/// Provider untuk mengontrol fitur Anti-IP Leak WebRTC (Selalu Reroute Panggilan via Relay).
+/// Memaksa WebRTC menggunakan TURN relay server secara eksklusif agar alamat IP asli tidak bocor ke lawan bicara.
+class RelayCallsOnlyNotifier extends StateNotifier<bool> {
+  static const String key = 'relay_calls_only';
+  final SharedPreferences? _prefs;
+
+  RelayCallsOnlyNotifier([this._prefs]) : super(false) {
+    if (_prefs != null) {
+      state = _prefs.getBool(key) ?? false;
+    } else {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(key) ?? false;
+  }
+
+  Future<void> toggle() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    state = !state;
+    await prefs.setBool(key, state);
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    state = enabled;
+    await prefs.setBool(key, enabled);
+  }
+}
+
+final relayCallsOnlyProvider =
+    StateNotifierProvider<RelayCallsOnlyNotifier, bool>((ref) {
+  return RelayCallsOnlyNotifier();
+});

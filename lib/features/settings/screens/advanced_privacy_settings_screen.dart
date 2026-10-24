@@ -17,6 +17,7 @@ import '../widgets/settings_tiles.dart';
 /// 1. Manajemen Vault (dilindungi verifikasi 6-digit PIN Utama)
 /// 2. Sembunyikan Notifikasi Darurat
 /// 3. Sembunyikan Cuplikan Pesan
+/// 4. Sembunyikan Alamat IP Panggilan (WebRTC Relay Only)
 class AdvancedPrivacySettingsScreen extends ConsumerWidget {
   const AdvancedPrivacySettingsScreen({super.key});
 
@@ -91,6 +92,22 @@ class AdvancedPrivacySettingsScreen extends ConsumerWidget {
                               .setEnabled(value),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: MekaarSpacing.md),
+                  const SettingsSectionHeader(title: 'Panggilan & Jaringan (Anti-IP Leak)'),
+                  CustomCard(
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: SettingsSwitchTile(
+                      icon: SolarIconsOutline.routing,
+                      iconColor: MekaarColors.info,
+                      title: 'Sembunyikan Alamat IP Panggilan',
+                      subtitle: 'Selalu alihkan panggilan via relay server MEKAAR untuk mencegah kebocoran alamat IP Anda',
+                      value: ref.watch(relayCallsOnlyProvider),
+                      onChanged: (value) => ref
+                          .read(relayCallsOnlyProvider.notifier)
+                          .setEnabled(value),
                     ),
                   ),
                 ],
