@@ -36,6 +36,42 @@ class BubbleEntranceSpec {
   });
 }
 
+/// Tipe ekor gelembung chat sesuai spesifikasi visual 7 tema MEKAAR.
+enum BubbleTailType {
+  none,
+  swoopTop, // Mekaar Core: Ekor segitiga di sudut atas
+  comicBeakBottom, // Comic Art: Paruh komik di sudut bawah ber-outline ganda
+  neuroNotchBottom, // Neuro UI: Notch sudut lancip di sudut bawah
+  mechaChamfer, // Mecha Style: Sayap chamfered tanpa ekor konvensional
+  pixelVoxelBottom, // Pixel Craft: Kubus voxel 5x5px menonjol di sudut bawah
+  candyTeardropTop, // Candy Pop: Setengah lingkaran teardrop 10x10px di sudut atas
+  solarLeafBottom, // Solar Punk: Tangkai daun segitiga 9x9px miring ber-border 1px
+}
+
+/// Tipe bentuk / clipping gelembung pesan.
+enum BubbleShapeType {
+  roundedPill, // Mekaar Core
+  comicBox, // Comic Art (12px rounded outline tebal)
+  neuroClay, // Neuro UI (16px rounded surface)
+  mechaChamfered, // Mecha Style (Potongan miring chamfer apex 12px)
+  pixelSteppedVoxel, // Pixel Craft (Potongan bertingkat 2-step voxel 4px/8px)
+  candyRounded, // Candy Pop (18px rounded)
+  solarLeafBox, // Solar Punk (16px rounded mist/sage)
+}
+
+/// Border bevel 3D untuk blok Voxel Minecraft.
+class VoxelBevelBorder {
+  final Color highlightColor; // Sisi atas dan kiri
+  final Color shadowColor; // Sisi bawah dan kanan
+  final double width;
+
+  const VoxelBevelBorder({
+    required this.highlightColor,
+    required this.shadowColor,
+    this.width = 3.0,
+  });
+}
+
 /// Spec styling lengkap untuk gelembung chat (termasuk Tipografi).
 class ChatBubbleSpec {
   final Color backgroundColor;
@@ -47,6 +83,16 @@ class ChatBubbleSpec {
   final String? fontFamily;
   final TextStyle textStyle;
   final Widget? headerWidget;
+  final BubbleTailType tailType;
+  final BubbleShapeType shapeType;
+  final VoxelBevelBorder? voxelBevel;
+  final Color? accentVerticalBorderColor;
+  final double? accentVerticalBorderWidth;
+  final bool hasInsetDeboss;
+  final Color? debossDarkColor;
+  final Color? debossLightColor;
+  final EdgeInsets bubbleMargin;
+  final EdgeInsets contentPadding;
 
   const ChatBubbleSpec({
     required this.backgroundColor,
@@ -58,6 +104,16 @@ class ChatBubbleSpec {
     this.fontFamily,
     required this.textStyle,
     this.headerWidget,
+    this.tailType = BubbleTailType.none,
+    this.shapeType = BubbleShapeType.roundedPill,
+    this.voxelBevel,
+    this.accentVerticalBorderColor,
+    this.accentVerticalBorderWidth,
+    this.hasInsetDeboss = false,
+    this.debossDarkColor,
+    this.debossLightColor,
+    this.bubbleMargin = EdgeInsets.zero,
+    this.contentPadding = const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
   });
 }
 
@@ -316,35 +372,55 @@ class ChatPresetResolver {
       }
     }
 
-    // 1. Comic Pop Art
+    // 1. Comic Pop Art (Corner Beak & Hard Comic Shadow)
     if (pref.preset == ChatThemePreset.comic ||
         pref.preset == ChatThemePreset.comicPopArt ||
         pref.preset == ChatThemePreset.diary ||
         pref.bubbleStyle == ChatBubbleStyle.playfulOutlined) {
+      final borderRad = isMe
+          ? const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.zero,
+            )
+          : const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+              bottomLeft: Radius.zero,
+              bottomRight: Radius.circular(12),
+            );
+
       if (isDark) {
         if (isMe) {
           const txt = Colors.black;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFFEAB308), // Classic Yellow Gold Comic
+            backgroundColor: const Color(0xFFEAB308), // Classic Comic Yellow Gold
             border: Border.all(color: Colors.black, width: 2),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: borderRad,
             boxShadow: const [
-              BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+              BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.comicBeakBottom,
+            shapeType: BubbleShapeType.comicBox,
+            bubbleMargin: const EdgeInsets.only(right: 10),
           );
         } else {
           const txt = Color(0xFFFDF4FF);
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF2B1D3D), // Neo-noir purple
+            backgroundColor: const Color(0xFF2B1D3D), // Neo-noir Dark Purple
             border: Border.all(color: Colors.black, width: 2),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: borderRad,
             boxShadow: const [
-              BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+              BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.comicBeakBottom,
+            shapeType: BubbleShapeType.comicBox,
+            bubbleMargin: const EdgeInsets.only(left: 10),
           );
         }
       } else {
@@ -352,26 +428,43 @@ class ChatPresetResolver {
         return ChatBubbleSpec(
           backgroundColor: isMe ? const Color(0xFF38BDF8) : Colors.white,
           border: Border.all(color: Colors.black, width: 2),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: borderRad,
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+            BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0),
           ],
           textColor: txt,
           textStyle: resolveTextStyle(txt),
+          tailType: BubbleTailType.comicBeakBottom,
+          shapeType: BubbleShapeType.comicBox,
+          bubbleMargin: isMe ? const EdgeInsets.only(right: 10) : const EdgeInsets.only(left: 10),
         );
       }
     }
 
-    // 2. Neuro / Neumorphism Soft UI
+    // 2. Neuro / Neumorphism Soft UI (Corner Notch & Dual Clay Shadows)
     if (pref.preset == ChatThemePreset.neuro ||
         pref.preset == ChatThemePreset.neumorphism ||
         pref.bubbleStyle == ChatBubbleStyle.neumorphicSoft) {
+      final borderRad = isMe
+          ? const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.circular(16),
+              bottomRight: Radius.zero,
+            )
+          : const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.zero,
+              bottomRight: Radius.circular(16),
+            );
+
       if (isDark) {
         if (isMe) {
           const txt = Color(0xFF67E8F9);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF2B3342),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0xFF191D24),
@@ -381,26 +474,35 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.neuroNotchBottom,
+            shapeType: BubbleShapeType.neuroClay,
+            hasInsetDeboss: true,
+            debossDarkColor: const Color(0xFF1B202A),
+            debossLightColor: const Color(0xFF3B465A),
+            bubbleMargin: const EdgeInsets.only(right: 10),
           );
         } else {
           const txt = Color(0xFFE2E8F0);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF242933),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0xFF191D24),
-                offset: Offset(3, 3),
-                blurRadius: 6,
+                offset: Offset(4, 4),
+                blurRadius: 8,
               ),
               BoxShadow(
                 color: Color(0xFF2F3542),
-                offset: Offset(-2, -2),
-                blurRadius: 6,
+                offset: Offset(-3, -3),
+                blurRadius: 8,
               ),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.neuroNotchBottom,
+            shapeType: BubbleShapeType.neuroClay,
+            bubbleMargin: const EdgeInsets.only(left: 10),
           );
         }
       } else {
@@ -408,7 +510,7 @@ class ChatPresetResolver {
           const txt = Color(0xFF0369A1);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFFD8E2EC),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0xFFCBD5E1),
@@ -418,44 +520,57 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.neuroNotchBottom,
+            shapeType: BubbleShapeType.neuroClay,
+            hasInsetDeboss: true,
+            debossDarkColor: const Color(0xFFB8C4D2),
+            debossLightColor: const Color(0xFFF8FFFF),
+            bubbleMargin: const EdgeInsets.only(right: 10),
           );
         } else {
           const txt = Color(0xFF1E293B);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFFE2E8F0),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0xFFC8D0DA),
-                offset: Offset(3, 3),
-                blurRadius: 6,
+                offset: Offset(4, 4),
+                blurRadius: 8,
               ),
               BoxShadow(
                 color: Color(0xFFFCFFFF),
-                offset: Offset(-3, -3),
-                blurRadius: 6,
+                offset: Offset(-4, -4),
+                blurRadius: 8,
               ),
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.neuroNotchBottom,
+            shapeType: BubbleShapeType.neuroClay,
+            bubbleMargin: const EdgeInsets.only(left: 10),
           );
         }
       }
     }
 
-    // 3. Mecha Style (Tactical Armor & Cyber Grid — Menggantikan Glassmorphism)
+    // 3. Mecha Style (Tactical Armor Chamfer Apex & Vertical Laser Accent)
     if (pref.preset == ChatThemePreset.mecha ||
         pref.preset == ChatThemePreset.glass ||
         pref.preset == ChatThemePreset.glassmorphism ||
         pref.preset == ChatThemePreset.fireflyNight ||
         pref.bubbleStyle == ChatBubbleStyle.mechaChamfer ||
         pref.bubbleStyle == ChatBubbleStyle.glassmorphism) {
+      final padding = isMe
+          ? EdgeInsets.only(left: 14, right: 18, top: 9, bottom: 9)
+          : EdgeInsets.only(left: 18, right: 14, top: 9, bottom: 9);
+
       if (isDark) {
         if (isMe) {
           const txt = Color(0xFFE6FFFA);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF004E5A),
-            border: const Border(right: BorderSide(color: Color(0xFF00F0FF), width: 3.5)),
+            border: const Border(right: BorderSide(color: Color(0xFF00F0FF), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(14),
               topRight: Radius.circular(2),
@@ -471,12 +586,17 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.mechaChamfer,
+            shapeType: BubbleShapeType.mechaChamfered,
+            accentVerticalBorderColor: const Color(0xFF00F0FF),
+            accentVerticalBorderWidth: 3.0,
+            contentPadding: padding,
           );
         } else {
           const txt = Color(0xFFE0F2FE);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF112233),
-            border: const Border(left: BorderSide(color: Color(0xFF00F0FF), width: 3.5)),
+            border: const Border(left: BorderSide(color: Color(0xFF00F0FF), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(2),
               topRight: Radius.circular(14),
@@ -492,6 +612,11 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.mechaChamfer,
+            shapeType: BubbleShapeType.mechaChamfered,
+            accentVerticalBorderColor: const Color(0xFF00F0FF),
+            accentVerticalBorderWidth: 3.0,
+            contentPadding: padding,
           );
         }
       } else {
@@ -499,7 +624,7 @@ class ChatPresetResolver {
           const txt = Color(0xFF0369A1);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFFDBEAFE),
-            border: const Border(right: BorderSide(color: Color(0xFF0284C7), width: 3.5)),
+            border: const Border(right: BorderSide(color: Color(0xFF0284C7), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(14),
               topRight: Radius.circular(2),
@@ -515,12 +640,17 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.mechaChamfer,
+            shapeType: BubbleShapeType.mechaChamfered,
+            accentVerticalBorderColor: const Color(0xFF0284C7),
+            accentVerticalBorderWidth: 3.0,
+            contentPadding: padding,
           );
         } else {
           const txt = Color(0xFF0F172A);
           return ChatBubbleSpec(
             backgroundColor: Colors.white,
-            border: const Border(left: BorderSide(color: Color(0xFF0284C7), width: 3.5)),
+            border: const Border(left: BorderSide(color: Color(0xFF0284C7), width: 3.0)),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(2),
               topRight: Radius.circular(14),
@@ -536,12 +666,17 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.mechaChamfer,
+            shapeType: BubbleShapeType.mechaChamfered,
+            accentVerticalBorderColor: const Color(0xFF0284C7),
+            accentVerticalBorderWidth: 3.0,
+            contentPadding: padding,
           );
         }
       }
     }
 
-    // 4. Pixel Garden / Craft 8-Bit (Minecraft Voxel)
+    // 4. Pixel Craft (Minecraft 3D Voxel Bevel & Stepped Cut)
     if (pref.preset == ChatThemePreset.pixel ||
         pref.preset == ChatThemePreset.pixelGarden ||
         pref.preset == ChatThemePreset.retroWave ||
@@ -552,7 +687,6 @@ class ChatPresetResolver {
           const txt = Colors.white;
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF5B8731), // Grass Block Green
-            border: Border.all(color: const Color(0xFF2D4514), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
@@ -564,12 +698,19 @@ class ChatPresetResolver {
             textColor: txt,
             textStyle: resolveTextStyle(txt),
             headerWidget: _buildPixelHeader(isMe: true, isDark: true),
+            tailType: BubbleTailType.pixelVoxelBottom,
+            shapeType: BubbleShapeType.pixelSteppedVoxel,
+            voxelBevel: const VoxelBevelBorder(
+              highlightColor: Color(0xFF82B947),
+              shadowColor: Color(0xFF2D4514),
+              width: 3.0,
+            ),
+            bubbleMargin: const EdgeInsets.only(right: 8),
           );
         } else {
           const txt = Colors.white;
           return ChatBubbleSpec(
-            backgroundColor: const Color(0xFF484848), // Deepslate Stone
-            border: Border.all(color: const Color(0xFF1E1E1E), width: 2.5),
+            backgroundColor: const Color(0xFF484848), // Deepslate Cobblestone
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
@@ -581,6 +722,14 @@ class ChatPresetResolver {
             textColor: txt,
             textStyle: resolveTextStyle(txt),
             headerWidget: _buildPixelHeader(isMe: false, isDark: true),
+            tailType: BubbleTailType.pixelVoxelBottom,
+            shapeType: BubbleShapeType.pixelSteppedVoxel,
+            voxelBevel: const VoxelBevelBorder(
+              highlightColor: Color(0xFF686868),
+              shadowColor: Color(0xFF1E1E1E),
+              width: 3.0,
+            ),
+            bubbleMargin: const EdgeInsets.only(left: 8),
           );
         }
       } else {
@@ -588,7 +737,6 @@ class ChatPresetResolver {
           const txt = Colors.white;
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF5B8731), // Grass Block Green
-            border: Border.all(color: const Color(0xFF2D4514), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
@@ -600,12 +748,19 @@ class ChatPresetResolver {
             textColor: txt,
             textStyle: resolveTextStyle(txt),
             headerWidget: _buildPixelHeader(isMe: true, isDark: false),
+            tailType: BubbleTailType.pixelVoxelBottom,
+            shapeType: BubbleShapeType.pixelSteppedVoxel,
+            voxelBevel: const VoxelBevelBorder(
+              highlightColor: Color(0xFF82B947),
+              shadowColor: Color(0xFF2D4514),
+              width: 3.0,
+            ),
+            bubbleMargin: const EdgeInsets.only(right: 8),
           );
         } else {
           const txt = Color(0xFF2E1E0A);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFFC6B287), // Oak Wood Planks
-            border: Border.all(color: const Color(0xFF8C734B), width: 2.5),
             borderRadius: BorderRadius.zero,
             boxShadow: const [
               BoxShadow(
@@ -617,17 +772,39 @@ class ChatPresetResolver {
             textColor: txt,
             textStyle: resolveTextStyle(txt),
             headerWidget: _buildPixelHeader(isMe: false, isDark: false),
+            tailType: BubbleTailType.pixelVoxelBottom,
+            shapeType: BubbleShapeType.pixelSteppedVoxel,
+            voxelBevel: const VoxelBevelBorder(
+              highlightColor: Color(0xFFE5D7B5),
+              shadowColor: Color(0xFF8C734B),
+              width: 3.0,
+            ),
+            bubbleMargin: const EdgeInsets.only(left: 8),
           );
         }
       }
     }
 
-    // 5. Candy Pop (Playful)
+    // 5. Candy Pop (Playful & Top Teardrop Half-Circle Ear)
     if (pref.preset == ChatThemePreset.candy ||
         pref.preset == ChatThemePreset.candyPop ||
         pref.preset == ChatThemePreset.isometric3d ||
         pref.bubbleStyle == ChatBubbleStyle.classicRounded ||
         pref.bubbleStyle == ChatBubbleStyle.isometric3D) {
+      final borderRad = isMe
+          ? const BorderRadius.only(
+              topLeft: Radius.circular(18),
+              topRight: Radius.zero,
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(18),
+            )
+          : const BorderRadius.only(
+              topLeft: Radius.zero,
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(18),
+            );
+
       if (isDark) {
         if (isMe) {
           const txt = Colors.white;
@@ -638,7 +815,7 @@ class ChatPresetResolver {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x40DB2777),
@@ -648,12 +825,15 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.candyTeardropTop,
+            shapeType: BubbleShapeType.candyRounded,
+            bubbleMargin: const EdgeInsets.only(right: 8),
           );
         } else {
           const txt = Color(0xFFFCE7F3);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF381E35), // Sweet Berry Blackcurrant
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x35000000),
@@ -663,6 +843,9 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.candyTeardropTop,
+            shapeType: BubbleShapeType.candyRounded,
+            bubbleMargin: const EdgeInsets.only(left: 8),
           );
         }
       } else {
@@ -675,7 +858,7 @@ class ChatPresetResolver {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x35FB7185),
@@ -685,12 +868,15 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.candyTeardropTop,
+            shapeType: BubbleShapeType.candyRounded,
+            bubbleMargin: const EdgeInsets.only(right: 8),
           );
         } else {
           const txt = Color(0xFF831843);
           return ChatBubbleSpec(
             backgroundColor: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x25F472B6),
@@ -700,22 +886,39 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.candyTeardropTop,
+            shapeType: BubbleShapeType.candyRounded,
+            bubbleMargin: const EdgeInsets.only(left: 8),
           );
         }
       }
     }
 
-    // 6. Eco / Solarpunk (Calm Nature Kit)
+    // 6. Eco / Solarpunk (Calm Nature Kit & Leaf Stem Triangle)
     if (pref.preset == ChatThemePreset.eco ||
         pref.preset == ChatThemePreset.solarpunk ||
         pref.bubbleStyle == ChatBubbleStyle.solarpunkLeaf) {
+      final borderRad = isMe
+          ? const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.circular(16),
+              bottomRight: Radius.zero,
+            )
+          : const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.zero,
+              bottomRight: Radius.circular(16),
+            );
+
       if (isDark) {
         if (isMe) {
           const txt = Color(0xFFF4EFE8);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF344837), // Muted Moss
             border: Border.all(color: const Color(0xFF4A634E), width: 1.0),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x40000000),
@@ -725,13 +928,16 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.solarLeafBottom,
+            shapeType: BubbleShapeType.solarLeafBox,
+            bubbleMargin: const EdgeInsets.only(right: 8),
           );
         } else {
           const txt = Color(0xFFE8EFE8);
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF202D23), // Forest Earth
             border: Border.all(color: const Color(0xFF2F4233), width: 1.0),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x35000000),
@@ -741,6 +947,9 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.solarLeafBottom,
+            shapeType: BubbleShapeType.solarLeafBox,
+            bubbleMargin: const EdgeInsets.only(left: 8),
           );
         }
       } else {
@@ -749,7 +958,7 @@ class ChatPresetResolver {
           return ChatBubbleSpec(
             backgroundColor: const Color(0xFF6B7F6E), // Sage Green
             border: Border.all(color: const Color(0xFF5A6D5D), width: 1.0),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x286B7F6E),
@@ -759,13 +968,16 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.solarLeafBottom,
+            shapeType: BubbleShapeType.solarLeafBox,
+            bubbleMargin: const EdgeInsets.only(right: 8),
           );
         } else {
           const txt = Color(0xFF2D3A2F);
           return ChatBubbleSpec(
             backgroundColor: Colors.white,
             border: Border.all(color: const Color(0xFFD9E1D9), width: 1.0), // Mist border
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: borderRad,
             boxShadow: const [
               BoxShadow(
                 color: Color(0x146B7F6E),
@@ -775,22 +987,34 @@ class ChatPresetResolver {
             ],
             textColor: txt,
             textStyle: resolveTextStyle(txt),
+            tailType: BubbleTailType.solarLeafBottom,
+            shapeType: BubbleShapeType.solarLeafBox,
+            bubbleMargin: const EdgeInsets.only(left: 8),
           );
         }
       }
     }
 
-    // 7. MEKAAR Core Theme (Default Fallback)
+    // 7. MEKAAR Core Theme (Default Fallback & Top-Corner Swoop)
+    final mekaarBorderRad = isMe
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(14),
+            topRight: Radius.zero,
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(14),
+          )
+        : const BorderRadius.only(
+            topLeft: Radius.zero,
+            topRight: Radius.circular(14),
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(14),
+          );
+
     if (isDark) {
       if (isMe) {
         return ChatBubbleSpec(
           backgroundColor: const Color(0xFF0284C7),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(4),
-          ),
+          borderRadius: mekaarBorderRad,
           boxShadow: const [
             BoxShadow(
               color: Color(0x400284C7),
@@ -801,17 +1025,14 @@ class ChatPresetResolver {
           textColor: Colors.white,
           fontFamily: activeFont,
           textStyle: resolveTextStyle(Colors.white),
+          tailType: BubbleTailType.swoopTop,
+          shapeType: BubbleShapeType.roundedPill,
+          bubbleMargin: const EdgeInsets.only(right: 8),
         );
       } else {
         return ChatBubbleSpec(
           backgroundColor: const Color(0xFF1E293B),
-          border: Border.all(color: const Color(0xFF334155), width: 1.0),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
-          ),
+          borderRadius: mekaarBorderRad,
           boxShadow: const [
             BoxShadow(
               color: Color(0x40000000),
@@ -822,18 +1043,16 @@ class ChatPresetResolver {
           textColor: const Color(0xFFF1F5F9),
           fontFamily: activeFont,
           textStyle: resolveTextStyle(const Color(0xFFF1F5F9)),
+          tailType: BubbleTailType.swoopTop,
+          shapeType: BubbleShapeType.roundedPill,
+          bubbleMargin: const EdgeInsets.only(left: 8),
         );
       }
     } else {
       if (isMe) {
         return ChatBubbleSpec(
           backgroundColor: const Color(0xFF0284C7),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(4),
-          ),
+          borderRadius: mekaarBorderRad,
           boxShadow: const [
             BoxShadow(
               color: Color(0x300284C7),
@@ -844,17 +1063,14 @@ class ChatPresetResolver {
           textColor: Colors.white,
           fontFamily: activeFont,
           textStyle: resolveTextStyle(Colors.white),
+          tailType: BubbleTailType.swoopTop,
+          shapeType: BubbleShapeType.roundedPill,
+          bubbleMargin: const EdgeInsets.only(right: 8),
         );
       } else {
         return ChatBubbleSpec(
           backgroundColor: Colors.white,
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
-          ),
+          borderRadius: mekaarBorderRad,
           boxShadow: const [
             BoxShadow(
               color: Color(0x14000000),
@@ -865,6 +1081,9 @@ class ChatPresetResolver {
           textColor: const Color(0xFF0F172A),
           fontFamily: activeFont,
           textStyle: resolveTextStyle(const Color(0xFF0F172A)),
+          tailType: BubbleTailType.swoopTop,
+          shapeType: BubbleShapeType.roundedPill,
+          bubbleMargin: const EdgeInsets.only(left: 8),
         );
       }
     }

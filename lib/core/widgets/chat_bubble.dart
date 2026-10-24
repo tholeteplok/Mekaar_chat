@@ -23,6 +23,7 @@ import 'bubbles/reactions_strip.dart';
 import 'bubbles/read_receipt_icon.dart';
 import 'bubbles/view_once_store.dart';
 import 'bubbles/voice_bubble_player.dart';
+import 'bubbles/themed_bubble_container.dart';
 import 'mekaar_bottom_sheet.dart';
 
 // Re-exports untuk 100% backward compatibility
@@ -37,6 +38,8 @@ export 'bubbles/reactions_strip.dart';
 export 'bubbles/read_receipt_icon.dart';
 export 'bubbles/view_once_store.dart';
 export 'bubbles/voice_bubble_player.dart';
+export 'bubbles/themed_bubble_container.dart';
+export 'bubbles/themed_bubble_painter.dart';
 
 // ─────────────────────────────────────────
 // ChatBubble widget
@@ -262,29 +265,25 @@ class ChatBubble extends ConsumerWidget {
 
     final isFrameless = isOnlyEmoji || isSticker || isPureFramelessImage;
 
-    Color bubbleColor = spec.backgroundColor;
-    Border? border = spec.border;
-    Gradient? bubbleGradient = spec.gradient;
-    BorderRadius radius = spec.borderRadius;
-    List<BoxShadow>? shadows = spec.boxShadow;
-    Color textColor = spec.textColor;
-    String? fontFamily = spec.fontFamily ?? activeFontFamily;
+    final activeSpec = isDeleted
+        ? ChatBubbleSpec(
+            backgroundColor: MekaarColors.surface3Of(context),
+            textColor: MekaarColors.textMutedOf(context),
+            borderRadius: BorderRadius.circular(14),
+            textStyle: spec.textStyle.copyWith(
+              color: MekaarColors.textMutedOf(context),
+            ),
+            tailType: BubbleTailType.none,
+          )
+        : spec;
 
-    if (isDeleted) {
-      bubbleColor = MekaarColors.surface3Of(context);
-      textColor = MekaarColors.textMutedOf(context);
-      border = null;
-      bubbleGradient = null;
-      shadows = null;
-    } else if (isFrameless) {
-      bubbleColor = Colors.transparent;
-      border = null;
-      bubbleGradient = null;
-      shadows = null;
-      textColor = isMe
-          ? MekaarColors.outgoingTextOf(context)
-          : MekaarColors.textPrimaryOf(context);
-    }
+    final textColor = isFrameless
+        ? (isMe
+            ? MekaarColors.outgoingTextOf(context)
+            : MekaarColors.textPrimaryOf(context))
+        : activeSpec.textColor;
+    final fontFamily = activeSpec.fontFamily ?? activeFontFamily;
+    final radius = activeSpec.borderRadius;
 
     final receiptStatus = _getReceiptStatus();
     final entranceSpec = ChatPresetResolver.getEntranceAnimation(
@@ -316,55 +315,25 @@ class ChatBubble extends ConsumerWidget {
             crossAxisAlignment:
                 isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
-                padding: isPureFramelessImage
-                    ? EdgeInsets.zero
-                    : (isImage && hasImageCaption
-                        ? EdgeInsets.zero
-                        : (isOnlyEmoji
-                            ? const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              )
-                            : (isSticker
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
+                child: isFrameless
+                    ? Container(
+                        padding: isPureFramelessImage
+                            ? EdgeInsets.zero
+                            : (isOnlyEmoji
                                 ? const EdgeInsets.symmetric(
-                                    horizontal: 4,
+                                    horizontal: 6,
                                     vertical: 2,
                                   )
-                                : const EdgeInsets.only(
-                                    left: 12,
-                                    right: 10,
-                                    top: 7,
-                                    bottom: 6,
-                                  )))),
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.76,
-                ),
-                decoration: BoxDecoration(
-                  color: isPureFramelessImage
-                      ? Colors.transparent
-                      : (isSelected
-                          ? Color.alphaBlend(
-                              MekaarColors.blue.withValues(
-                                alpha: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? 0.35
-                                    : 0.22,
-                              ),
-                              bubbleColor,
-                            )
-                          : bubbleColor),
-                  gradient: (isPureFramelessImage || isSelected)
-                      ? null
-                      : bubbleGradient,
-                  border: isSelected
-                      ? Border.all(color: MekaarColors.blue, width: 2)
-                      : (isPureFramelessImage ? null : border),
-                  borderRadius: radius,
-                  boxShadow: isPureFramelessImage ? null : shadows,
-                ),
-                child: Builder(
+                                : const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  )),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.76,
+                        ),
+                        child: Builder(
                   builder: (context) {
                     final metaColor = isOnlyEmoji
                         ? MekaarColors.textMutedOf(context)
@@ -542,6 +511,100 @@ class ChatBubble extends ConsumerWidget {
                     );
                   },
                 ),
+              )
+            : ThemedBubbleContainer(
+                spec: activeSpec,
+                isMe: isMe,
+                isSelected: isSelected,
+                selectionColor: MekaarColors.blue,
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.76,
+                ),
+                customPadding: isImage && hasImageCaption
+                    ? EdgeInsets.zero
+                    : null,
+                child: Builder(
+                  builder: (context) {
+                    final metaColor = isOnlyEmoji
+                        ? MekaarColors.textMutedOf(context)
+                        : (isMe
+                            ? textColor.withValues(alpha: 0.7)
+                            : MekaarColors.textMutedOf(context));
+
+                    Widget buildTimestampWidget() {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w500,
+                              color: metaColor,
+                            ),
+                          ),
+                          if (message.autoDeleteAt != null) ...[
+                            const SizedBox(width: 3),
+                            Icon(
+                              MekaarIcons.timerOutlined,
+                              size: 9.5,
+                              color: metaColor,
+                            ),
+                          ],
+                          if (isMe) ...[
+                            const SizedBox(width: 4),
+                            ReadReceiptIcon(
+                              status: receiptStatus,
+                              color: metaColor,
+                            ),
+                          ],
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasHeader) spec.headerWidget!,
+                        if (hasSenderName) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              senderName!,
+                              style: resolveBubbleTextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: MekaarColors.accentOf(context),
+                                fontFamily: fontFamily,
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (message.replyToId != null && !isDeleted)
+                          _buildQuotedReplyBox(context, fontFamily),
+                        _buildContentWidget(
+                          context,
+                          textColor,
+                          fontFamily,
+                          spec.textStyle,
+                          isSticker: isSticker,
+                          borderRadius: radius,
+                          isPureFrameless: isPureFramelessImage,
+                          isSelected: isSelected,
+                          receiptStatus: receiptStatus,
+                          caption: mediaPayload.caption,
+                          metaWidget: buildTimestampWidget(),
+                        ),
+                        if (!isPureFramelessImage && !hasImageCaption) ...[
+                          const SizedBox(height: 2),
+                          buildTimestampWidget(),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ),
               ),
               // Emoji reactions strip below bubble
               if (message.reactions.isNotEmpty && !isDeleted)
