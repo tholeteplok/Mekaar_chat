@@ -13,6 +13,7 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'is_notification_masked': true,
       'is_stealth_chat_preview_enabled': false,
+      'relay_calls_only': false,
     });
   });
 
@@ -32,11 +33,12 @@ void main() {
       expect(find.text('Privasi Lanjutan'), findsOneWidget);
       expect(find.text('Manajemen vault, notifikasi & cuplikan pesan'), findsOneWidget);
 
-      // Verifikasi ketiga opsi utama
+      // Verifikasi opsi utama
       expect(find.text('Manajemen Vault'), findsOneWidget);
       expect(find.text('Kelola slot vault, kode akses, dan kontak terisolasi'), findsOneWidget);
       expect(find.text('Sembunyikan Notifikasi Darurat'), findsOneWidget);
       expect(find.text('Sembunyikan Cuplikan Pesan'), findsOneWidget);
+      expect(find.text('Sembunyikan Alamat IP Panggilan'), findsOneWidget);
     });
 
     testWidgets('Tapping switch toggles state and updates switch widget UI', (tester) async {
@@ -49,9 +51,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Awalnya: 1 'Aktif' (Notifikasi Darurat) dan 1 'Nonaktif' (Cuplikan Pesan)
+      // Awalnya: 1 'Aktif' (Notifikasi Darurat) dan 2 'Nonaktif' (Cuplikan Pesan & Relay IP)
       expect(find.text('Aktif'), findsOneWidget);
-      expect(find.text('Nonaktif'), findsOneWidget);
+      expect(find.text('Nonaktif'), findsNWidgets(2));
 
       final stealthSwitch = find.widgetWithText(SettingsSwitchTile, 'Sembunyikan Cuplikan Pesan');
       expect(stealthSwitch, findsOneWidget);
@@ -60,8 +62,23 @@ void main() {
       await tester.tap(stealthSwitch);
       await tester.pumpAndSettle();
 
-      // Sekarang keduanya berstatus 'Aktif'
+      // Sekarang 2 berstatus 'Aktif' dan 1 'Nonaktif'
       expect(find.text('Aktif'), findsNWidgets(2));
+      expect(find.text('Nonaktif'), findsOneWidget);
+
+      final relaySwitch = find.widgetWithText(SettingsSwitchTile, 'Sembunyikan Alamat IP Panggilan');
+      expect(relaySwitch, findsOneWidget);
+
+      // Pastikan widget terlihat di viewport sebelum tap
+      await tester.ensureVisible(relaySwitch);
+      await tester.pumpAndSettle();
+
+      // Tap toggle Sembunyikan Alamat IP Panggilan
+      await tester.tap(relaySwitch);
+      await tester.pumpAndSettle();
+
+      // Sekarang seluruhnya (3) berstatus 'Aktif'
+      expect(find.text('Aktif'), findsNWidgets(3));
       expect(find.text('Nonaktif'), findsNothing);
     });
 
