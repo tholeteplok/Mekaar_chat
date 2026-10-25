@@ -28,13 +28,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final type = data['type'] as String? ?? 'message';
     final title = data['title'] as String? ?? 'Pesan Baru';
     final body = data['body'] as String? ?? 'Anda menerima pesan baru';
-    final roomId = data['roomId'] as String?;
+    final roomId = data['roomId'] as String? ?? data['room_id'] as String?;
 
     if (type == 'call') {
       String callerName = data['callerName'] as String? ?? 'Seseorang';
       String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
       final callType = data['callType'] as String? ?? 'voice';
-      final callerId = data['callerId'] as String?;
+      final callerId = data['callerId'] as String? ?? data['caller_id'] as String?;
       bool isVaultRoom = false;
 
       try {
@@ -54,14 +54,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         callerName: callerName,
         callType: callType,
         roomId: roomId,
-        callId: data['callId'] as String?,
-        callerId: isVaultRoom ? null : (data['callerId'] as String?),
+        callId: data['callId'] as String? ?? data['call_id'] as String?,
+        callerId: isVaultRoom ? null : (data['callerId'] as String? ?? data['caller_id'] as String?),
         callerAvatarUrl: callerAvatarUrl,
         route: NotificationRoute(
           type: NotificationRouteType.call,
           roomId: roomId,
-          callId: data['callId'] as String?,
-          callerId: isVaultRoom ? null : (data['callerId'] as String?),
+          callId: data['callId'] as String? ?? data['call_id'] as String?,
+          callerId: isVaultRoom ? null : (data['callerId'] as String? ?? data['caller_id'] as String?),
           callerName: callerName,
           callerAvatarUrl: callerAvatarUrl,
           callType: callType,
@@ -74,8 +74,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         data: data,
         route: NotificationRoute(
           type: NotificationRouteType.sos,
-          sessionId: data['sessionId'] as String?,
-          userId: data['userId'] as String?,
+          sessionId: data['sessionId'] as String? ?? data['session_id'] as String?,
+          userId: data['userId'] as String? ?? data['user_id'] as String?,
           userName: data['victimName'] as String?,
         ),
       );
@@ -84,7 +84,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     } else {
       String finalTitle = title;
       String finalBody = body;
-      final senderId = data['senderId'] as String?;
+      final senderId = data['senderId'] as String? ?? data['sender_id'] as String?;
       bool isVaultRoom = false;
 
       try {
@@ -108,7 +108,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           type: NotificationRouteType.message,
           roomId: roomId,
           chatName: isVaultRoom ? null : (data['senderName'] as String?),
-          otherUserId: isVaultRoom ? null : (data['senderId'] as String?),
+          otherUserId: isVaultRoom ? null : (data['senderId'] as String? ?? data['sender_id'] as String?),
         ),
       );
     }
@@ -184,23 +184,23 @@ class PushNotificationService {
         final type = data['type'] as String? ?? 'message';
         final title = data['title'] as String? ?? 'Pesan Baru';
         final body = data['body'] as String? ?? 'Anda menerima pesan baru';
-        final roomId = data['roomId'] as String?;
-
-        // Dedup: cek apakah sudah dinotifikasi dari jalur Realtime
-        final dedupKey = _getDedupKey(type, data);
-        if (dedupKey != null &&
-            NotificationDedupService.isDuplicate(dedupKey)) {
-          return;
-        }
-        if (dedupKey != null) {
-          NotificationDedupService.markNotified(dedupKey);
-        }
+        final roomId = data['roomId'] as String? ?? data['room_id'] as String?;
 
         if (type == 'call') {
+          // Dedup: cek apakah call sudah dinotifikasi dari jalur Realtime
+          final dedupKey = _getDedupKey(type, data);
+          if (dedupKey != null &&
+              NotificationDedupService.isDuplicate(dedupKey)) {
+            return;
+          }
+          if (dedupKey != null) {
+            NotificationDedupService.markNotified(dedupKey);
+          }
+
           String callerName = data['callerName'] as String? ?? 'Seseorang';
           String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
           final callType = data['callType'] as String? ?? 'voice';
-          final callerId = data['callerId'] as String?;
+          final callerId = data['callerId'] as String? ?? data['caller_id'] as String?;
           bool isVaultRoom = false;
 
           try {
@@ -220,62 +220,58 @@ class PushNotificationService {
             callerName: callerName,
             callType: callType,
             roomId: roomId,
-            callId: data['callId'] as String?,
-            callerId: isVaultRoom ? null : (data['callerId'] as String?),
+            callId: data['callId'] as String? ?? data['call_id'] as String?,
+            callerId: isVaultRoom ? null : (data['callerId'] as String? ?? data['caller_id'] as String?),
             callerAvatarUrl: callerAvatarUrl,
             route: NotificationRoute(
               type: NotificationRouteType.call,
               roomId: roomId,
-              callId: data['callId'] as String?,
-              callerId: isVaultRoom ? null : (data['callerId'] as String?),
+              callId: data['callId'] as String? ?? data['call_id'] as String?,
+              callerId: isVaultRoom ? null : (data['callerId'] as String? ?? data['caller_id'] as String?),
               callerName: callerName,
               callerAvatarUrl: callerAvatarUrl,
               callType: callType,
             ),
           );
         } else if (type == 'sos') {
+          // Dedup: cek apakah SOS sudah dinotifikasi dari jalur Realtime
+          final dedupKey = _getDedupKey(type, data);
+          if (dedupKey != null &&
+              NotificationDedupService.isDuplicate(dedupKey)) {
+            return;
+          }
+          if (dedupKey != null) {
+            NotificationDedupService.markNotified(dedupKey);
+          }
+
           NotificationService.showLocalSOSNotification(
             title: title,
             body: body,
             data: data,
             route: NotificationRoute(
               type: NotificationRouteType.sos,
-              sessionId: data['sessionId'] as String?,
-              userId: data['userId'] as String?,
+              sessionId: data['sessionId'] as String? ?? data['session_id'] as String?,
+              userId: data['userId'] as String? ?? data['user_id'] as String?,
               userName: data['victimName'] as String?,
             ),
           );
         } else if (type == 'device_command') {
           DeviceCommandHandler.handle(data);
         } else {
-          String finalTitle = title;
-          String finalBody = body;
-          final senderId = data['senderId'] as String?;
-          bool isVaultRoom = false;
-
-          try {
-            final hiddenRooms =
-                await PrivateContactRepository().getHiddenRoomIds();
-            final hiddenContacts =
-                await PrivateContactRepository().getHiddenContactUserIds();
-            if ((roomId != null && roomId.isNotEmpty && hiddenRooms.contains(roomId)) ||
-                (senderId != null && senderId.isNotEmpty && hiddenContacts.contains(senderId))) {
-              isVaultRoom = true;
-              finalTitle = 'MEKAAR';
-              finalBody = 'Pesan baru masuk';
-            }
-          } catch (_) {}
-
-          NotificationService.showMessageNotification(
-            title: finalTitle,
-            body: finalBody,
-            roomId: roomId,
-            route: NotificationRoute(
-              type: NotificationRouteType.message,
-              roomId: roomId,
-              chatName: isVaultRoom ? null : (data['senderName'] as String?),
-              otherUserId: isVaultRoom ? null : (data['senderId'] as String?),
-            ),
+          // type == 'message'
+          // Di Foreground, notifikasi pesan masuk dikelola secara eksklusif oleh
+          // MessageNotificationListener via Supabase Realtime channel.
+          // MessageNotificationListener memiliki akses lengkap ke Riverpod state:
+          // 1. Mengetahui apakah user sedang membuka room yang sama (activeRoomIdProvider).
+          // 2. Mengetahui apakah slot kontak vault sedang dibuka/unlocked di memori UI.
+          // 3. Mendekripsi pesan E2EE dan menampilkan cuplikan teks terdekripsi yang akurat.
+          //
+          // Notifikasi FCM di foreground disupresi untuk mencegah notifikasi ganda
+          // dan mencegah penimpaan judul menjadi "MEKAAR: Pesan baru masuk" saat slot
+          // kontak vault sedang dibuka oleh user.
+          _logger.d(
+            'PushNotificationService: Foreground FCM message disupresi '
+            '(ditangani MessageNotificationListener via Realtime).',
           );
         }
       });
@@ -366,9 +362,9 @@ class PushNotificationService {
       case 'call':
         return NotificationRoute(
           type: NotificationRouteType.call,
-          roomId: data['roomId'] as String?,
-          callId: data['callId'] as String?,
-          callerId: data['callerId'] as String?,
+          roomId: data['roomId'] as String? ?? data['room_id'] as String?,
+          callId: data['callId'] as String? ?? data['call_id'] as String?,
+          callerId: data['callerId'] as String? ?? data['caller_id'] as String?,
           callerName: data['callerName'] as String?,
           callerAvatarUrl: data['callerAvatarUrl'] as String?,
           callType: data['callType'] as String?,
@@ -376,14 +372,14 @@ class PushNotificationService {
       case 'sos':
         return NotificationRoute(
           type: NotificationRouteType.sos,
-          sessionId: data['sessionId'] as String?,
-          userId: data['userId'] as String?,
+          sessionId: data['sessionId'] as String? ?? data['session_id'] as String?,
+          userId: data['userId'] as String? ?? data['user_id'] as String?,
           userName: data['victimName'] as String?,
         );
       default:
         return NotificationRoute(
           type: NotificationRouteType.message,
-          roomId: data['roomId'] as String?,
+          roomId: data['roomId'] as String? ?? data['room_id'] as String?,
         );
     }
   }
@@ -406,21 +402,21 @@ class PushNotificationService {
   static String? _getDedupKey(String type, Map<String, dynamic> data) {
     switch (type) {
       case 'message':
-        final msgId = data['messageId'] as String?;
-        if (msgId != null) return 'msg_$msgId';
+        final msgId = (data['messageId'] ?? data['message_id'] ?? data['id']) as String?;
+        if (msgId != null && msgId.isNotEmpty) return 'msg_$msgId';
         // Fallback: gunakan roomId + timestamp
-        final roomId = data['roomId'] as String?;
-        return roomId != null
+        final roomId = (data['roomId'] ?? data['room_id']) as String?;
+        return (roomId != null && roomId.isNotEmpty)
             ? 'msg_fcm_${roomId}_${DateTime.now().millisecondsSinceEpoch ~/ 1000}'
             : null;
       case 'call':
-        final callId = data['callId'] as String? ?? data['call_id'] as String?;
+        final callId = (data['callId'] ?? data['call_id'] ?? data['id']) as String?;
         if (callId != null && callId.isNotEmpty) return 'call_$callId';
-        final roomId = data['roomId'] as String?;
-        return roomId != null ? 'call_$roomId' : null;
+        final roomId = (data['roomId'] ?? data['room_id']) as String?;
+        return (roomId != null && roomId.isNotEmpty) ? 'call_$roomId' : null;
       case 'sos':
-        final sessionId = data['sessionId'] as String?;
-        return sessionId != null ? 'sos_$sessionId' : null;
+        final sessionId = (data['sessionId'] ?? data['session_id'] ?? data['id']) as String?;
+        return (sessionId != null && sessionId.isNotEmpty) ? 'sos_$sessionId' : null;
       default:
         return null;
     }
