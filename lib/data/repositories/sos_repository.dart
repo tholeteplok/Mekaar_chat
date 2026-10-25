@@ -108,19 +108,41 @@ class SOSRepository {
     }).toList();
   }
 
-  // Ping location
+  // Ping location dengan perlindungan tanda tangan digital Ed25519 (Aegis Safety Signature)
   Future<void> pingLocation(
     String sessionId,
     double latitude,
     double longitude, {
     double? accuracy,
+    String? signature,
+    String? publicKey,
+    String? canonicalPayload,
   }) async {
-    await _supabaseService.client.from('location_pings').insert({
+    final payload = <String, dynamic>{
       'session_id': sessionId,
       'latitude': latitude,
       'longitude': longitude,
       'accuracy': accuracy,
-    });
+    };
+    if (signature != null) payload['signature'] = signature;
+    if (publicKey != null) payload['public_key'] = publicKey;
+    if (canonicalPayload != null) payload['canonical_payload'] = canonicalPayload;
+
+    try {
+      await _supabaseService.client.from('location_pings').insert(payload);
+    } catch (_) {
+      // Fallback tanpa kolom tanda tangan jika schema database server belum diperbarui
+      if (signature != null || publicKey != null || canonicalPayload != null) {
+        await _supabaseService.client.from('location_pings').insert({
+          'session_id': sessionId,
+          'latitude': latitude,
+          'longitude': longitude,
+          'accuracy': accuracy,
+        });
+      } else {
+        rethrow;
+      }
+    }
   }
 
   // Get active SOS sessions from owners who added me as guardian
@@ -162,9 +184,10 @@ class SOSRepository {
 
   Future<Map<String, dynamic>?> getLatestLocationPing(String sessionId) async {
     try {
+      // Coba ambil beserta field kriptografi Ed25519
       final response = await _supabaseService.client
           .from('location_pings')
-          .select('latitude, longitude, timestamp, accuracy')
+          .select('latitude, longitude, timestamp, accuracy, signature, public_key, canonical_payload')
           .eq('session_id', sessionId)
           .order('timestamp', ascending: false)
           .limit(1)
@@ -179,9 +202,34 @@ class SOSRepository {
         'accuracy': response['accuracy'] == null
             ? null
             : (response['accuracy'] as num).toDouble(),
+        'signature': response['signature'] as String?,
+        'public_key': response['public_key'] as String?,
+        'canonical_payload': response['canonical_payload'] as String?,
       };
     } catch (_) {
-      return null;
+      // Fallback jika kolom signature/public_key belum ada di database
+      try {
+        final response = await _supabaseService.client
+            .from('location_pings')
+            .select('latitude, longitude, timestamp, accuracy')
+            .eq('session_id', sessionId)
+            .order('timestamp', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (response == null) return null;
+
+        return {
+          'latitude': (response['latitude'] as num).toDouble(),
+          'longitude': (response['longitude'] as num).toDouble(),
+          'timestamp': response['timestamp'] as String,
+          'accuracy': response['accuracy'] == null
+              ? null
+              : (response['accuracy'] as num).toDouble(),
+        };
+      } catch (_) {
+        return null;
+      }
     }
   }
 

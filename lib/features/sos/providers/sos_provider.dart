@@ -9,6 +9,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import '../../../data/models/sos_session_model.dart';
 import '../../../data/repositories/sos_repository.dart';
 import '../../../data/services/aegis_memory_guard_service.dart';
+import '../../../data/services/aegis_safety_signature_service.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/audio_service.dart';
 import '../../../data/services/notification_service.dart';
@@ -92,6 +93,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
   Timer? _timer;
   StreamSubscription? _locationSubscription;
   Timer? _inactivityTimer;
+
+  // Aegis Safety Signature: Kunci privat di memory guard & kunci publik Ed25519
+  BigInt? _sosKeySlotId;
+  String? _sosPublicKeyB64;
 
   // Akselerometer: track gerakan perangkat untuk inactivity check
   StreamSubscription? _accelerometerSubscription;
@@ -324,6 +329,15 @@ class SOSNotifier extends StateNotifier<SOSState> {
     // Panic SOS Lockdown: Hancurkan seluruh kunci privat dan vault di RAM seketika
     unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
 
+    // Generate ephemeral Ed25519 keypair for SOS telemetry anti-spoofing
+    try {
+      final keyPair = await AegisSafetySignatureService.instance.generateKeyPair();
+      _sosKeySlotId = keyPair.keySlotId;
+      _sosPublicKeyB64 = keyPair.publicKeyB64;
+    } catch (e) {
+      _logger.w('Gagal inisialisasi Ed25519 Safety Signature: $e');
+    }
+
     SOSSession session;
     try {
       session = await _sosRepository.startSOS(gps: gps, mic: mic, video: video);
@@ -451,6 +465,13 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _accelerometerSubscription?.cancel();
     await _audioService.stopMicStreaming();
 
+    // Sanitasi RAM: zeroize kunci Ed25519 sesi SOS seketika
+    if (_sosKeySlotId != null) {
+      unawaited(AegisMemoryGuardService.instance.zeroizeKey(_sosKeySlotId!));
+      _sosKeySlotId = null;
+      _sosPublicKeyB64 = null;
+    }
+
     state = SOSState(); // Reset state
   }
 
@@ -465,22 +486,68 @@ class SOSNotifier extends StateNotifier<SOSState> {
     });
   }
 
-  /// Mulai streaming GPS ke Supabase location_pings
+  Future<void> _sendLocationPing({
+    required String sessionId,
+    required String userId,
+    required double latitude,
+    required double longitude,
+    double? accuracy,
+  }) async {
+    String? signature;
+    String? publicKey;
+    String? canonicalPayload;
+
+    if (_sosKeySlotId != null && _sosPublicKeyB64 != null) {
+      try {
+        final now = DateTime.now().toUtc();
+        canonicalPayload = AegisSafetySignatureService.buildCanonicalPayload(
+          senderId: userId,
+          timestamp: now,
+          latitude: latitude,
+          longitude: longitude,
+          emergencyType: 'sos',
+        );
+        signature = await AegisSafetySignatureService.instance.signPayload(
+          canonicalPayload: canonicalPayload,
+          keySlotId: _sosKeySlotId!,
+        );
+        publicKey = _sosPublicKeyB64;
+      } catch (e) {
+        _logger.w('Gagal menandatangani payload koordinat SOS: $e');
+      }
+    }
+
+    await _sosRepository.pingLocation(
+      sessionId,
+      latitude,
+      longitude,
+      accuracy: accuracy,
+      signature: signature,
+      publicKey: publicKey,
+      canonicalPayload: canonicalPayload,
+    );
+  }
+
+  /// Mulai streaming GPS ke Supabase location_pings dengan Ed25519 Safety Signature
   void _startLocationStreaming(String sessionId) {
     _locationSubscription?.cancel();
     // Kirim lokasi pertama segera tanpa membuka Settings OS
     LocationService.getCurrentLocation(allowOpenSettings: false).then((locData) {
+      final currentSession = state.activeSession;
       if (state.status == SOSStatus.active &&
-          state.activeSession?.id == sessionId &&
+          currentSession?.id == sessionId &&
           locData != null &&
           locData.latitude != null &&
           locData.longitude != null) {
-        _sosRepository.pingLocation(
-          sessionId,
-          locData.latitude!,
-          locData.longitude!,
+        _sendLocationPing(
+          sessionId: sessionId,
+          userId: currentSession!.userId,
+          latitude: locData.latitude!,
+          longitude: locData.longitude!,
           accuracy: locData.accuracy,
-        );
+        ).catchError((e) {
+          debugPrint('Location first ping non-fatal error: $e');
+        });
       } else if (locData == null) {
         LocationService.isLocationPermanentlyDenied().then((denied) {
           if (denied && mounted) {
@@ -495,16 +562,20 @@ class SOSNotifier extends StateNotifier<SOSState> {
     // Listen to location stream
     _locationSubscription = LocationService.getLocationStream().listen(
       (locData) {
+        final currentSession = state.activeSession;
         if (state.status == SOSStatus.active &&
-            state.activeSession?.id == sessionId &&
+            currentSession?.id == sessionId &&
             locData.latitude != null &&
             locData.longitude != null) {
-          _sosRepository.pingLocation(
-            sessionId,
-            locData.latitude!,
-            locData.longitude!,
+          _sendLocationPing(
+            sessionId: sessionId,
+            userId: currentSession!.userId,
+            latitude: locData.latitude!,
+            longitude: locData.longitude!,
             accuracy: locData.accuracy,
-          );
+          ).catchError((e) {
+            debugPrint('Location stream error: $e');
+          });
         }
       },
       onError: (e) {
@@ -602,6 +673,11 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _accelerometerSubscription?.cancel();
     _flushTimer?.cancel();
     _audioService.dispose();
+    if (_sosKeySlotId != null) {
+      unawaited(AegisMemoryGuardService.instance.zeroizeKey(_sosKeySlotId!));
+      _sosKeySlotId = null;
+      _sosPublicKeyB64 = null;
+    }
     super.dispose();
   }
 }

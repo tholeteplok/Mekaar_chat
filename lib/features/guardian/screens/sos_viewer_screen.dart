@@ -26,6 +26,7 @@ import '../../../data/services/sos_streaming_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../sos/providers/device_lost_provider.dart';
 import '../../sos/providers/sos_provider.dart';
+import '../../../data/services/aegis_safety_signature_service.dart';
 
 /// Layar pembaca SOS untuk Guardian.
 ///
@@ -57,6 +58,7 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
   bool _hasError = false;
   DateTime? _updatedAt;
   Map<String, dynamic>? _ping;
+  bool? _isSignatureValid;
   String? _currentMessage;
   Timer? _autoRefreshTimer;
 
@@ -130,8 +132,39 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
       final ping = await repo.getLatestLocationPing(widget.sessionId);
       final sessionData = await repo.getSessionById(widget.sessionId);
       if (!mounted) return;
+
+      bool? isSigValid;
+      if (ping != null) {
+        final sig = ping['signature'] as String?;
+        final pubKey = ping['public_key'] as String?;
+        final canonical = ping['canonical_payload'] as String?;
+        if (sig != null && pubKey != null) {
+          try {
+            final payloadToVerify = canonical ??
+                AegisSafetySignatureService.buildCanonicalPayload(
+                  senderId: widget.userId ??
+                      (sessionData != null
+                          ? sessionData['user_id'] as String? ?? ''
+                          : ''),
+                  timestamp: DateTime.parse(ping['timestamp'] as String),
+                  latitude: (ping['latitude'] as num).toDouble(),
+                  longitude: (ping['longitude'] as num).toDouble(),
+                  emergencyType: 'sos',
+                );
+            isSigValid = await AegisSafetySignatureService.instance.verifySignature(
+              canonicalPayload: payloadToVerify,
+              signatureB64: sig,
+              publicKeyB64: pubKey,
+            );
+          } catch (_) {
+            isSigValid = false;
+          }
+        }
+      }
+
       setState(() {
         _ping = ping;
+        _isSignatureValid = isSigValid;
         if (sessionData != null && sessionData['message'] != null) {
           _currentMessage = sessionData['message'] as String?;
         }
@@ -607,9 +640,30 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                   ],
                 ),
               ),
-              const MekaarBadge(
-                label: 'SOS Aktif',
-                color: MekaarColors.sosRed,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const MekaarBadge(
+                    label: 'SOS Aktif',
+                    color: MekaarColors.sosRed,
+                  ),
+                  const SizedBox(height: 4),
+                  if (_isSignatureValid == true)
+                    const MekaarBadge(
+                      label: '🛡️ Terverifikasi Ed25519',
+                      color: MekaarColors.success,
+                    )
+                  else if (_isSignatureValid == false)
+                    const MekaarBadge(
+                      label: '⚠️ Indikasi Spoofing',
+                      color: MekaarColors.sosRed,
+                    )
+                  else
+                    MekaarBadge(
+                      label: 'ℹ️ Telemetri Standar',
+                      color: MekaarColors.textMutedOf(context),
+                    ),
+                ],
               ),
             ],
           ),
@@ -721,6 +775,18 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
                     _formatTimestamp(timestamp),
                   ),
                 ],
+                if (_isSignatureValid != null) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow(
+                    _isSignatureValid!
+                        ? SolarIconsOutline.shieldCheck
+                        : SolarIconsOutline.shieldWarning,
+                    'Integritas Sinyal',
+                    _isSignatureValid!
+                        ? 'Ed25519 Terverifikasi'
+                        : 'Peringatan: Tanda Tangan Tidak Sah',
+                  ),
+                ],
               ],
             ),
           ),
@@ -811,12 +877,16 @@ class _SOSViewerScreenState extends ConsumerState<SOSViewerScreen> {
             color: MekaarColors.textMutedOf(context),
           ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: MekaarTypography.monoMD.copyWith(
-            fontWeight: FontWeight.w600,
-            color: MekaarColors.textPrimaryOf(context),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: MekaarTypography.monoMD.copyWith(
+              fontWeight: FontWeight.w600,
+              color: MekaarColors.textPrimaryOf(context),
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

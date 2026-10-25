@@ -181,3 +181,6 @@ final relayCallsOnlyProvider =
     StateNotifierProvider<RelayCallsOnlyNotifier, bool>((ref) {
   return RelayCallsOnlyNotifier();
 });
+
+/// Alias untuk relayCallsOnlyProvider
+final relayCallsProvider = relayCallsOnlyProvider;
