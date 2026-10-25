@@ -15,6 +15,17 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<BigInt> storeSecureKey({required List<int> rawKey}) =>
     RustLib.instance.api.crateApiMemoryGuardStoreSecureKey(rawKey: rawKey);
 
+/// Menurunkan kunci 256-bit (32 byte) dari PIN/Passcode menggunakan Argon2id (Memory-Hard KDF).
+/// Kunci hasil derivasi langsung disimpan di `KEY_REGISTRY` (Zeroizing), dan slot_id numerik dikembalikan.
+/// Byte mentah passcode dan salt langsung di-zeroize dari memori RAM.
+Future<BigInt> deriveVaultKey({
+  required String passcode,
+  required List<int> salt,
+}) => RustLib.instance.api.crateApiMemoryGuardDeriveVaultKey(
+  passcode: passcode,
+  salt: salt,
+);
+
 /// Memeriksa apakah suatu slot kunci masih aktif di memori RAM
 Future<bool> hasSecureKey({required BigInt slotId}) =>
     RustLib.instance.api.crateApiMemoryGuardHasSecureKey(slotId: slotId);

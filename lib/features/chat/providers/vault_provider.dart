@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../../data/models/vault_item.dart';
 import '../../../data/services/aegis_shredder_service.dart';
+import '../../../data/services/aegis_stream_cipher_service.dart';
+import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
 
 final vaultRepositoryProvider = Provider<VaultRepository>((ref) {
@@ -21,12 +23,20 @@ final vaultItemsProvider =
 
 class VaultRepository {
   final LocalVaultDatabase _db;
+  final Directory? _customVaultDir;
   static const String _vaultFolder = 'vault_files';
 
-  VaultRepository(this._db);
+  VaultRepository(this._db, {Directory? vaultDir}) : _customVaultDir = vaultDir;
 
   /// Mendapatkan direktori privat terisolasi untuk brankas berkas.
   Future<Directory> _getVaultDirectory() async {
+    final customDir = _customVaultDir;
+    if (customDir != null) {
+      if (!await customDir.exists()) {
+        await customDir.create(recursive: true);
+      }
+      return customDir;
+    }
     final appDocDir = await getApplicationDocumentsDirectory();
     final vaultDir = Directory('${appDocDir.path}/$_vaultFolder');
     if (!await vaultDir.exists()) {
@@ -35,7 +45,9 @@ class VaultRepository {
     return vaultDir;
   }
 
-  /// Menyalin berkas fisik dari cache/sumber ke direktori aman brankas dan mencatatnya ke DB.
+  /// Menyimpan berkas fisik ke direktori terisolasi brankas dengan enkripsi streaming (Aegis Vault).
+  /// Jika kunci slot aktif tersedia, berkas dienkripsi per-chunk 64KB (XChaCha20-Poly1305) menjadi `.aegis`.
+  /// Opsional memusnahkan berkas sumber secara forensik (`deleteSource: true`) jika berasal dari cache sementara.
   Future<VaultItem> saveMediaToVault({
     required File sourceFile,
     required String originalMessageId,
@@ -45,6 +57,8 @@ class VaultRepository {
     String? senderId,
     String? roomId,
     String? mimeType,
+    BigInt? keySlotId,
+    bool deleteSource = false,
   }) async {
     if (!await sourceFile.exists()) {
       throw Exception('Berkas sumber tidak ditemukan pada perangkat.');
@@ -55,11 +69,32 @@ class VaultRepository {
         sourceFile.path.split(RegExp(r'[/\\]')).last;
     final sanitizedName = rawName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     final uniquePrefix = DateTime.now().millisecondsSinceEpoch;
-    final targetPath = '${vaultDir.path}/${uniquePrefix}_$sanitizedName';
 
-    // Salin fisik file agar independen dari riwayat pesan chat
-    final copiedFile = await sourceFile.copy(targetPath);
-    final size = await copiedFile.length();
+    final effectiveSlotId = keySlotId ?? DatabaseKeyService.instance.activeVaultKeySlotId;
+    final String targetPath;
+    final int size;
+
+    if (effectiveSlotId != null) {
+      // Modus Aman Aegis: Enkripsi Streaming per-chunk 64KB ke wadah biner .aegis
+      targetPath = '${vaultDir.path}/${uniquePrefix}_$sanitizedName.aegis';
+      final encWritten = await AegisStreamCipherService.instance.encryptFileStream(
+        srcPath: sourceFile.path,
+        dstPath: targetPath,
+        keySlotId: effectiveSlotId,
+      );
+      size = encWritten.toInt();
+
+      if (deleteSource) {
+        try {
+          await AegisShredderService.instance.shredFile(sourceFile.path);
+        } catch (_) {}
+      }
+    } else {
+      // Modus Fallback: Salin fisik langsung jika belum ada kunci aktif di RAM
+      targetPath = '${vaultDir.path}/${uniquePrefix}_$sanitizedName';
+      final copiedFile = await sourceFile.copy(targetPath);
+      size = await copiedFile.length();
+    }
 
     final resolvedType = fileType ??
         VaultFileType.fromFileNameOrMime(sanitizedName, mimeType: mimeType);
@@ -80,6 +115,26 @@ class VaultRepository {
 
     await _db.insertItem(item);
     return item;
+  }
+
+  /// Mendekripsi berkas brankas (.aegis) ke file sementara di sandbox cache untuk ditampilkan.
+  /// Jika berkas tidak berakhiran .aegis (file legacy), langsung mengembalikan file fisik aslinya.
+  Future<File> getDecryptedMedia(VaultItem item, {BigInt? keySlotId}) async {
+    final file = File(item.localPath);
+    if (!item.localPath.endsWith('.aegis')) {
+      return file;
+    }
+
+    final effectiveSlotId = keySlotId ?? DatabaseKeyService.instance.activeVaultKeySlotId;
+    if (effectiveSlotId == null) {
+      throw StateError('Brankas terkunci: Kunci dekripsi tidak tersedia di memori RAM');
+    }
+
+    return await AegisStreamCipherService.instance.decryptToTempFile(
+      encryptedPath: item.localPath,
+      keySlotId: effectiveSlotId,
+      fileExtension: item.fileName.split('.').last,
+    );
   }
 
   /// Mengambil daftar item brankas.

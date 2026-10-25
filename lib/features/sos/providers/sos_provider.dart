@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../../../data/models/sos_session_model.dart';
 import '../../../data/repositories/sos_repository.dart';
+import '../../../data/services/aegis_memory_guard_service.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/audio_service.dart';
 import '../../../data/services/notification_service.dart';
@@ -320,6 +321,8 @@ class SOSNotifier extends StateNotifier<SOSState> {
     }
 
     state = SOSState(status: SOSStatus.activating);
+    // Panic SOS Lockdown: Hancurkan seluruh kunci privat dan vault di RAM seketika
+    unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
 
     SOSSession session;
     try {

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
+import 'aegis_memory_guard_service.dart';
 
 /// Layanan terpusat untuk mengelola dan menurunkan kunci enkripsi database lokal (SQLCipher).
 ///
@@ -29,6 +30,10 @@ class DatabaseKeyService {
   String? _activeVaultKey;
   String? _activeLegacyVaultKey;
   bool _isVaultDuress = false;
+  BigInt? _activeVaultKeySlotId;
+
+  /// Slot ID kunci aktif di memori Aegis Memory Guard (Rust heap terisolasi).
+  BigInt? get activeVaultKeySlotId => _activeVaultKeySlotId;
 
   /// Mendapatkan salt acak 32-byte unik per perangkat dari Hardware Keystore.
   /// Mencegah serangan pre-computed rainbow table lintas perangkat.
@@ -92,6 +97,14 @@ class DatabaseKeyService {
       _activeLegacyVaultKey = await _deriveLegacyVaultKey(pin, isDuress: isDuress);
 
       final salt = await getOrCreateVaultSalt(isDuress: isDuress);
+      try {
+        _activeVaultKeySlotId = await AegisMemoryGuardService.instance.deriveVaultKey(
+          passcode: pin,
+          salt: salt,
+        );
+      } catch (e) {
+        _logger.w('Gagal mengisolasi kunci di AegisMemoryGuard: $e');
+      }
       final argon2 = Argon2id(
         memory: 19456, // 19 MB (OWASP recommended minimum parameter untuk mobile Dart VM tanpa SIMD native)
         iterations: 2,
@@ -148,10 +161,17 @@ class DatabaseKeyService {
   bool get isVaultDuress => _isVaultDuress;
 
   /// Mengunci kembali brankas dan membersihkan kunci dari memori.
-  void lockVault() {
+  Future<void> lockVault() async {
     _activeVaultKey = null;
     _activeLegacyVaultKey = null;
     _isVaultDuress = false;
+    final slotId = _activeVaultKeySlotId;
+    _activeVaultKeySlotId = null;
+    if (slotId != null) {
+      try {
+        await AegisMemoryGuardService.instance.zeroizeKey(slotId);
+      } catch (_) {}
+    }
   }
 
   /// Melakukan pemusnahan forensik aman (*secure shredding*) pada sebuah file.
