@@ -130,6 +130,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   bool _burnOnExit = false;
   bool _burnTriggered = false;
   bool _isEmojiPickerOpen = false;
+  bool _wasKeyboardOpenOnPause = false;
   Message? _replyMessage;
   Message? _editingMessage;
   final Set<String> _selectedMessageIds = <String>{};
@@ -434,6 +435,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
     // Timer periodik pembersihan pesan kedaluwarsa & sinkronisasi UI real-time
     _purgeTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      // Jangan ganggu fokus input dan cegah penutupan keyboard virtual oleh IME Android:
+      // Jika composer sedang memiliki fokus atau keyboard sedang terbuka, tunda pembersihan berkala.
+      if (_composerFocusNode.hasFocus) return;
+      final viewInsetsBottom =
+          MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
+      if (viewInsetsBottom > 0) return;
+
       try {
         ref.read(chatRepositoryProvider).purgeExpiredMessages(targetRoomId: widget.chatId);
       } catch (_) {}
@@ -617,10 +626,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if ((state == AppLifecycleState.paused ||
-            state == AppLifecycleState.inactive) &&
-        _burnOnExit) {
-      _triggerBurnOnExit();
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _wasKeyboardOpenOnPause = _composerFocusNode.hasFocus ||
+          ((MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0);
+      if (_burnOnExit) {
+        _triggerBurnOnExit();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (_wasKeyboardOpenOnPause && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            // Pulihkan fokus dan tampilkan kembali keyboard virtual IME pasca lock screen (Standar Telegram)
+            if (!_composerFocusNode.hasFocus) {
+              _composerFocusNode.requestFocus();
+            } else {
+              // Jika focus node masih terdaftar hasFocus di memori Flutter,
+              // lakukan re-attachment dengan IME Android melalui unfocus -> requestFocus -> TextInput.show
+              _composerFocusNode.unfocus();
+              Future.delayed(const Duration(milliseconds: 50), () {
+                if (mounted && _composerFocusNode.canRequestFocus) {
+                  _composerFocusNode.requestFocus();
+                  SystemChannels.textInput.invokeMethod('TextInput.show');
+                }
+              });
+            }
+          }
+        });
+      }
     }
   }
 

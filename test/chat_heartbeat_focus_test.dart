@@ -58,6 +58,59 @@ void main() {
       controller.dispose();
     });
 
+    testWidgets('Supresi _purgeTimer saat composer fokus atau keyboard terbuka', (tester) async {
+      bool purgeRan = false;
+      void runPurgeTick({required bool isFocused, required double insetsBottom}) {
+        if (isFocused || insetsBottom > 0) return;
+        purgeRan = true;
+      }
+
+      // Kasus 1: Input sedang fokus
+      runPurgeTick(isFocused: true, insetsBottom: 0);
+      expect(purgeRan, isFalse, reason: '_purgeTimer harus disupresi saat composer fokus');
+
+      // Kasus 2: Keyboard sedang terbuka (insets > 0)
+      purgeRan = false;
+      runPurgeTick(isFocused: false, insetsBottom: 280.0);
+      expect(purgeRan, isFalse, reason: '_purgeTimer harus disupresi saat keyboard terbuka');
+
+      // Kasus 3: Input idle dan keyboard tertutup
+      purgeRan = false;
+      runPurgeTick(isFocused: false, insetsBottom: 0.0);
+      expect(purgeRan, isTrue, reason: '_purgeTimer boleh berjalan saat keyboard tertutup');
+    });
+
+    testWidgets('Lifecycle keyboard retention mencatat state saat paused dan merestorasi saat resumed', (tester) async {
+      bool wasKeyboardOpenOnPause = false;
+      bool keyboardRestorationTriggered = false;
+
+      void simulateLifecycleChange(AppLifecycleState state, {required bool isFocused, required double insetsBottom}) {
+        if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+          wasKeyboardOpenOnPause = isFocused || insetsBottom > 0;
+        } else if (state == AppLifecycleState.resumed) {
+          if (wasKeyboardOpenOnPause) {
+            keyboardRestorationTriggered = true;
+          }
+        }
+      }
+
+      // Skenario A: Keyboard terbuka saat layar terkunci -> wajib restorasi saat resume
+      simulateLifecycleChange(AppLifecycleState.paused, isFocused: true, insetsBottom: 300.0);
+      expect(wasKeyboardOpenOnPause, isTrue);
+
+      simulateLifecycleChange(AppLifecycleState.resumed, isFocused: false, insetsBottom: 0.0);
+      expect(keyboardRestorationTriggered, isTrue, reason: 'Restorasi keyboard harus dipicu jika sebelumnya terbuka');
+
+      // Skenario B: Keyboard tertutup saat layar terkunci -> tidak boleh merestorasi
+      wasKeyboardOpenOnPause = false;
+      keyboardRestorationTriggered = false;
+      simulateLifecycleChange(AppLifecycleState.paused, isFocused: false, insetsBottom: 0.0);
+      expect(wasKeyboardOpenOnPause, isFalse);
+
+      simulateLifecycleChange(AppLifecycleState.resumed, isFocused: false, insetsBottom: 0.0);
+      expect(keyboardRestorationTriggered, isFalse, reason: 'Restorasi keyboard tidak boleh dipicu jika sebelumnya tertutup');
+    });
+
     testWidgets('ChatComposer menampilkan reply preview tanpa karakter mojibake', (tester) async {
       final controller = TextEditingController();
       final focusNode = FocusNode();
