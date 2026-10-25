@@ -635,11 +635,22 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                         return ChoiceChip(
                           label: Text(choice),
                           selected: isSelected,
-                          selectedColor: MekaarColors.primaryOf(context).withValues(alpha: 0.2),
-                          side: BorderSide(
+                          selectedColor: MekaarColors.primaryOf(context),
+                          backgroundColor: MekaarColors.surface2Of(context),
+                          labelStyle: MekaarTypography.labelMD.copyWith(
                             color: isSelected
-                                ? MekaarColors.primaryOf(context)
-                                : MekaarColors.surface2Of(context),
+                                ? Colors.white
+                                : MekaarColors.textPrimaryOf(context),
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? MekaarColors.primaryOf(context)
+                                  : MekaarColors.borderOf(context),
+                            ),
                           ),
                           onSelected: (selected) {
                             if (selected) {
@@ -780,13 +791,23 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                         return FilterChip(
                           label: Text(dayName),
                           selected: isSelected,
-                          selectedColor:
-                              MekaarColors.primaryOf(context).withValues(alpha: 0.25),
-                          checkmarkColor: MekaarColors.primaryOf(context),
-                          side: BorderSide(
+                          selectedColor: MekaarColors.primaryOf(context),
+                          backgroundColor: MekaarColors.surface2Of(context),
+                          checkmarkColor: Colors.white,
+                          labelStyle: MekaarTypography.labelMD.copyWith(
                             color: isSelected
-                                ? MekaarColors.primaryOf(context)
-                                : MekaarColors.surface2Of(context),
+                                ? Colors.white
+                                : MekaarColors.textPrimaryOf(context),
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? MekaarColors.primaryOf(context)
+                                  : MekaarColors.borderOf(context),
+                            ),
                           ),
                           onSelected: (selected) {
                             HapticFeedback.selectionClick();

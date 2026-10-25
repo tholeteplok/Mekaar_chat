@@ -37,7 +37,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   late bool _gpsEnabled;
   late bool _micEnabled;
   late bool _videoEnabled;
-  bool _isSaving = false;
   String? _avatarUrl;
 
   @override
@@ -160,27 +159,36 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     Navigator.pushNamed(context, AppRoutes.guardianTracking);
   }
 
-  Future<void> _savePermissions() async {
-    setState(() => _isSaving = true);
+  Future<void> _togglePermission(String type, bool value) async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    final previousGps = _gpsEnabled;
+    final previousMic = _micEnabled;
+    final previousVideo = _videoEnabled;
+
+    setState(() {
+      if (type == 'gps') _gpsEnabled = value;
+      if (type == 'mic') _micEnabled = value;
+      if (type == 'video') _videoEnabled = value;
+    });
+
     try {
       await ref.read(guardianProvider.notifier).updateGuardianPermissions(
         widget.guardian.id,
         {'gps': _gpsEnabled, 'mic': _micEnabled, 'video': _videoEnabled},
         'stream_only',
       );
-      if (mounted) {
-        MekaarSnackbar.success(context, 'Izin berhasil diperbarui.');
-        Navigator.pop(context);
-      }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _gpsEnabled = previousGps;
+          _micEnabled = previousMic;
+          _videoEnabled = previousVideo;
+        });
         MekaarSnackbar.error(
           context,
-          'Gagal: ${e.toString().replaceAll('Exception: ', '')}',
+          'Gagal memperbarui izin: ${e.toString().replaceAll('Exception: ', '')}',
         );
       }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -645,7 +653,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                             style: MekaarTypography.bodySM,
                           ),
                           value: _gpsEnabled,
-                          onChanged: (v) => setState(() => _gpsEnabled = v),
+                          onChanged: (v) => _togglePermission('gps', v),
                         ),
                         const MekaarCardDivider(),
                         SwitchListTile(
@@ -673,7 +681,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                             style: MekaarTypography.bodySM,
                           ),
                           value: _micEnabled,
-                          onChanged: (v) => setState(() => _micEnabled = v),
+                          onChanged: (v) => _togglePermission('mic', v),
                         ),
                         const MekaarCardDivider(),
                         SwitchListTile(
@@ -701,7 +709,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                             style: MekaarTypography.bodySM,
                           ),
                           value: _videoEnabled,
-                          onChanged: (v) => setState(() => _videoEnabled = v),
+                          onChanged: (v) => _togglePermission('video', v),
                         ),
                       ],
                     ),
@@ -745,40 +753,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
-
-                  // ── Primary Action Button ──
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _savePermissions,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        shape: const StadiumBorder(),
-                        elevation: 0,
-                      ),
-                      child: _isSaving
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Simpan Perubahan',
-                              style: MekaarTypography.buttonLG.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                              ),
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
                   // ── 4. Tindakan & Zona Bahaya (Grouped Destructive Card) ──
                   Text(

@@ -8,12 +8,16 @@ import 'package:mekaar_chat/features/guardian/providers/guardian_provider.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
 
 class FakeGuardianRepository extends Fake implements GuardianRepository {
+  Map<String, bool>? lastUpdatedPermissions;
+
   @override
   Future<void> updatePermissions(
     String guardianRelationId, {
     required Map<String, bool> permissions,
     required String storageOption,
-  }) async {}
+  }) async {
+    lastUpdatedPermissions = permissions;
+  }
 
   @override
   Future<List<Guardian>> getMyGuardians() async => [];
@@ -65,6 +69,37 @@ void main() {
       expect(find.text('Drive Pribadi Saya'), findsNothing);
       expect(find.text('Drive + Tautan Sementara'), findsNothing);
       expect(find.text('File langsung ke Google Drive/iCloud Anda.'), findsNothing);
+
+      // 4. Verifikasi tombol Simpan Perubahan redundan telah dihapus
+      expect(find.text('Simpan Perubahan'), findsNothing);
+    });
+
+    testWidgets('Menggeser switch izin langsung menyimpan secara otomatis (auto-save)', (tester) async {
+      final fakeRepo = FakeGuardianRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            guardianRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: MaterialApp(
+            home: GuardianDetailScreen(guardian: dummyGuardian),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Temukan switch GPS (saat ini bernilai true pada dummyGuardian)
+      final gpsSwitchFinder = find.widgetWithText(SwitchListTile, 'Lacak Lokasi GPS');
+      expect(gpsSwitchFinder, findsOneWidget);
+
+      // Toggle switch GPS ke false
+      await tester.tap(gpsSwitchFinder);
+      await tester.pumpAndSettle();
+
+      // Verifikasi auto-save langsung memanggil repository
+      expect(fakeRepo.lastUpdatedPermissions, isNotNull);
+      expect(fakeRepo.lastUpdatedPermissions!['gps'], isFalse);
     });
   });
 }
