@@ -155,6 +155,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       return;
     }
     widget.onSend();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _effectiveFocusNode.canRequestFocus) {
+        _effectiveFocusNode.requestFocus();
+      }
+    });
   }
 
   void _onTextChanged() {
@@ -587,7 +592,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     required VoidCallback onTap,
     int step = 0,
   }) {
-    // Entrance staggered via AnimatedAppear — token motion + reduced motion.
+    // Entrance staggered via AnimatedAppear â€” token motion + reduced motion.
     return AnimatedAppear(
       delay: MekaarMotion.staggerStep * step,
       child: ListTile(
@@ -696,7 +701,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
-          // ── Tab strip: Standar | pack terpasang... | Toko ──
+          // â”€â”€ Tab strip: Standar | pack terpasang... | Toko â”€â”€
           SizedBox(
             height: 40,
             child: ListView(
@@ -741,7 +746,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             color:
                 MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
           ),
-          // ── Konten grid ──
+          // â”€â”€ Konten grid â”€â”€
           Expanded(
             child: activePack != null
                 ? _buildPackGrid(activePack, installed)
@@ -824,22 +829,22 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       if (_recentEmojis.isNotEmpty)
         'Sering Digunakan': _recentEmojis,
       'Ekspresi & Wajah': [
-        '😀', '😂', '😍', '🥰', '😎', '🥳', '🤩', '😇',
-        '😋', '🤪', '😜', '🤗', '🤔', '🫣', '😌', '😏',
-        '😤', '😭', '🥺', '😱', '🤯', '😴', '😷', '😈',
+        'ðŸ˜€', 'ðŸ˜‚', 'ðŸ˜', 'ðŸ¥°', 'ðŸ˜Ž', 'ðŸ¥³', 'ðŸ¤©', 'ðŸ˜‡',
+        'ðŸ˜‹', 'ðŸ¤ª', 'ðŸ˜œ', 'ðŸ¤—', 'ðŸ¤”', 'ðŸ«£', 'ðŸ˜Œ', 'ðŸ˜',
+        'ðŸ˜¤', 'ðŸ˜­', 'ðŸ¥º', 'ðŸ˜±', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ˜·', 'ðŸ˜ˆ',
       ],
       'Isyarat & Tangan': [
-        '👍', '👎', '👏', '🙌', '🤝', '🙏', '✌️', '🤞',
-        '🤟', '🤘', '👌', '🤏', '👈', '👉', '👆', '👇',
-        '💪', '🔥', '✨', '⭐', '⚡', '💥', '🎉', '🎊',
+        'ðŸ‘', 'ðŸ‘Ž', 'ðŸ‘', 'ðŸ™Œ', 'ðŸ¤', 'ðŸ™', 'âœŒï¸', 'ðŸ¤ž',
+        'ðŸ¤Ÿ', 'ðŸ¤˜', 'ðŸ‘Œ', 'ðŸ¤', 'ðŸ‘ˆ', 'ðŸ‘‰', 'ðŸ‘†', 'ðŸ‘‡',
+        'ðŸ’ª', 'ðŸ”¥', 'âœ¨', 'â­', 'âš¡', 'ðŸ’¥', 'ðŸŽ‰', 'ðŸŽŠ',
       ],
       'Hati & Cinta': [
-        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
-        '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+        'â¤ï¸', 'ðŸ§¡', 'ðŸ’›', 'ðŸ’š', 'ðŸ’™', 'ðŸ’œ', 'ðŸ–¤', 'ðŸ¤',
+        'ðŸ¤Ž', 'ðŸ’”', 'â£ï¸', 'ðŸ’•', 'ðŸ’ž', 'ðŸ’“', 'ðŸ’—', 'ðŸ’–',
       ],
       'Simbol & Benda': [
-        '🎈', '🎁', '🏆', '💯', '🌟', '☀️', '🌙', '☕',
-        '🍕', '🚀', '🛡️', '🔒', '🔑', '💬', '📢', '🔔',
+        'ðŸŽˆ', 'ðŸŽ', 'ðŸ†', 'ðŸ’¯', 'ðŸŒŸ', 'â˜€ï¸', 'ðŸŒ™', 'â˜•',
+        'ðŸ•', 'ðŸš€', 'ðŸ›¡ï¸', 'ðŸ”’', 'ðŸ”‘', 'ðŸ’¬', 'ðŸ“¢', 'ðŸ””',
       ],
     };
 
@@ -885,7 +890,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     );
   }
 
-  /// Grid item pack terpasang — membaca file dari disk (luring).
+  /// Grid item pack terpasang â€” membaca file dari disk (luring).
   Widget _buildPackGrid(EmojiPack pack, InstalledPacksState installed) {
     final service = ref.read(emojiPackServiceProvider);
     final items = ref
@@ -1049,7 +1054,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) ──
+          // â”€â”€ Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) â”€â”€
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
             reverseDuration: const Duration(milliseconds: 200),
@@ -1221,7 +1226,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // ── Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ 😀 Emoji | Input Teks | 📎 Lampiran ] ──
+                    // â”€â”€ Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ ðŸ˜€ Emoji | Input Teks | ðŸ“Ž Lampiran ] â”€â”€
                     Expanded(
                       child: MekaarGlassBlurContainer(
                         isFloating: true,
@@ -1316,7 +1321,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
                     const SizedBox(width: 8),
 
-                    // ── Container 3 (Kanan): Mikrofon / Kirim 🎤 / ✈️ (Solid Circle Dinamis Tema) ──
+                    // â”€â”€ Container 3 (Kanan): Mikrofon / Kirim ðŸŽ¤ / âœˆï¸ (Solid Circle Dinamis Tema) â”€â”€
                     Semantics(
                       button: true,
                       label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
@@ -1415,9 +1420,9 @@ class _BlinkingDotState extends State<_BlinkingDot>
   }
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Reply Preview Banner
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _ReplyPreview extends StatelessWidget {
   final Message message;
   final String? senderName;
@@ -1430,21 +1435,21 @@ class _ReplyPreview extends StatelessWidget {
   });
 
   String _formatPreviewText() {
-    if (message.isDeleted) return '🚫 Pesan telah dihapus';
+    if (message.isDeleted) return 'ðŸš« Pesan telah dihapus';
     switch (message.type) {
       case MessageType.image:
-        return '📷 Foto';
+        return 'ðŸ“· Foto';
       case MessageType.video:
-        return '🎥 Video';
+        return 'ðŸŽ¥ Video';
       case MessageType.voice:
-        return '🎙️ Pesan Suara';
+        return 'ðŸŽ™ï¸ Pesan Suara';
       case MessageType.file:
         final fName = message.fileMeta?.fileName ?? 'Berkas / Dokumen';
-        return '📄 $fName';
+        return 'ðŸ“„ $fName';
       case MessageType.location:
-        return '📍 Lokasi Terbagikan';
+        return 'ðŸ“ Lokasi Terbagikan';
       case MessageType.system:
-        return '🛡️ Informasi Sistem';
+        return 'ðŸ›¡ï¸ Informasi Sistem';
       case MessageType.text:
         return message.content.isNotEmpty ? message.content : 'Pesan';
     }

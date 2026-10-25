@@ -261,7 +261,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ? widget.chatAvatar
               : (_effectiveChatName.isNotEmpty
                   ? _effectiveChatName[0].toUpperCase()
-                  : '💬'));
+                  : 'ðŸ’¬'));
 
   String? get _effectiveAvatarUrl => _resolvedAvatarUrl ?? widget.chatAvatarUrl;
   String? get _effectiveOtherUserId =>
@@ -639,7 +639,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
     final actions = ref.read(chatActionsProvider);
 
-    // ── Mode 1: Edit Pesan ──
+    // â”€â”€ Mode 1: Edit Pesan â”€â”€
     if (_editingMessage != null) {
       final msgToEdit = _editingMessage!;
       if (!actions.canEdit(msgToEdit, isGuardianRoom: widget.isGuardian)) {
@@ -676,7 +676,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       return;
     }
 
-    // ── Mode 2: Kirim Pesan Baru (Optimistic UI 0ms Latency) ──
+    // â”€â”€ Mode 2: Kirim Pesan Baru (Optimistic UI 0ms Latency) â”€â”€
     final textToSend = text;
     final replyToMessage = _replyMessage;
     final isViewOnceToSend = _isViewOnce;
@@ -1900,7 +1900,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
-            // ── Layer 0: Wallpaper/Background (Scoped Consumer) ──
+            // â”€â”€ Layer 0: Wallpaper/Background (Scoped Consumer) â”€â”€
             Consumer(
               builder: (context, ref, _) {
                 final chatPref =
@@ -1910,7 +1910,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               },
             ),
 
-            // ── Layer 1: Daftar Pesan (Scoped Consumer) ──
+            // â”€â”€ Layer 1: Daftar Pesan (Scoped Consumer) â”€â”€
             Positioned.fill(
               child: Consumer(
                 builder: (context, ref, _) {
@@ -1957,7 +1957,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         child: Column(
                           children: [
                             // Stale-while-revalidate: selama masih ada data
-                            // termuat, jangan collapse ke error view — tampilkan
+                            // termuat, jangan collapse ke error view â€” tampilkan
                             // banner statis 'Mode Offline' saat menyambung ulang / offline.
                             if (messagesStream.hasValue && reconnecting)
                               MekaarBanner.offlineMode(),
@@ -2078,6 +2078,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                                   .bottom;
                                           return ListView.builder(
                                             controller: _scrollController,
+                                            keyboardDismissBehavior:
+                                                ScrollViewKeyboardDismissBehavior
+                                                    .manual,
                                             reverse: true,
                                             // Padding bawah memberi ruang untuk composer floating + inset keyboard + panel emoji
                                             padding: EdgeInsets.only(
@@ -2156,7 +2159,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
 
-            // ── Layer 2: Composer Floating (Scoped Consumer) ──
+            // â”€â”€ Layer 2: Composer Floating (Scoped Consumer) â”€â”€
             Positioned(
               left: 0,
               right: 0,
@@ -2217,7 +2220,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
 
-            // ── Layer 5: Scroll-to-bottom button (ValueListenableBuilder) ──
+            // â”€â”€ Layer 5: Scroll-to-bottom button (ValueListenableBuilder) â”€â”€
             Positioned(
               left: 0,
               right: 0,
@@ -2264,7 +2267,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
 
-            // ── Layer 4: Custom App Bar Floating Frosted Glass ──
+            // â”€â”€ Layer 4: Custom App Bar Floating Frosted Glass â”€â”€
             Positioned(
               top: 0,
               left: 0,
@@ -2426,7 +2429,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         showOnlineIndicator: true,
                         isOnline: isOnline || isTyping,
                         subtitle: widget.isGroup
-                            ? '${_participantNames.isNotEmpty ? '${_participantNames.length} anggota • ' : ''}Enkripsi Server'
+                            ? '${_participantNames.isNotEmpty ? '${_participantNames.length} anggota â€¢ ' : ''}Enkripsi Server'
                             : (isTyping
                                 ? 'sedang mengetik...'
                                 : _formatPresenceSubtitle(lastSeen)),
@@ -2872,7 +2875,7 @@ typedef _SwipeActionWrapper = ChatSwipeActionWrapper;
 /// Mode tampilan daftar pesan (murni, bisa diuji unit).
 ///
 /// Stale-while-revalidate: selama masih ada data termuat ([AsyncValue.hasValue]),
-/// tampilkan data lama meski stream sempat error — jangan collapse ke error
+/// tampilkan data lama meski stream sempat error â€” jangan collapse ke error
 /// view. `error` hanya dipakai kalau tidak ada data sama sekali (kegagalan
 /// pertama buka chat), `loading` untuk state awal.
 enum ChatMessagesUiMode { data, error, loading }

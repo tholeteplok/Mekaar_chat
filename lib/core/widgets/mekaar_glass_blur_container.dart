@@ -4,7 +4,7 @@ import '../constants/colors.dart';
 
 enum BlurPosition { top, bottom, none }
 
-/// MekaarGlassBlurContainer — Komponen terpusat pembungkus efek Backdrop Blur + Semi-Transparan Floating Glass
+/// MekaarGlassBlurContainer â€” Komponen terpusat pembungkus efek Backdrop Blur + Semi-Transparan Floating Glass
 /// bergaya iOS & Modern Flutter.
 class MekaarGlassBlurContainer extends StatelessWidget {
   final Widget child;
@@ -116,6 +116,20 @@ class MekaarGlassBlurContainer extends StatelessWidget {
 
     if (margin != null) {
       content = Padding(padding: margin!, child: content);
+    }
+
+    final clippedContent = ClipPath(
+      clipper: shape == BoxShape.circle ? const _CircleClipper() : null,
+      child: ClipRRect(
+        // Gradient mode: tidak ada clipping radius (full-width).
+        // Floating mode: clip mengikuti effectiveRadius.
+        borderRadius: shape == BoxShape.rectangle ? effectiveRadius : BorderRadius.zero,
+        child: content,
+      ),
+    );
+
+    if (blurSigma <= 0) {
+      return clippedContent;
     }
 
     return ClipPath(

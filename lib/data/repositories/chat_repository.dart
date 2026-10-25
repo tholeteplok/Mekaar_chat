@@ -9,7 +9,6 @@ import '../models/message_model.dart';
 import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
 import '../services/local_message_database.dart';
-import '../services/push_notification_service.dart';
 import '../services/aegis_shredder_service.dart';
 import 'reconnect_policy.dart';
 
@@ -802,13 +801,10 @@ class ChatRepository {
       }
     }
 
-    // Dual-dispatch fallback push notification ke penerima pesan
-    unawaited(
-      PushNotificationService.dispatchPushFallback(
-        type: 'message',
-        record: response,
-      ),
-    );
+    // Note: Push notification untuk pesan baru sudah ditangani secara otomatis
+    // dan andal oleh database webhook trigger notify_push_webhook via pg_net
+    // ke Edge Function send-push-notification. Pemanggilan client fallback
+    // dinonaktifkan untuk mencegah notifikasi ganda (BUG-03).
 
     return plaintextMsg;
   }

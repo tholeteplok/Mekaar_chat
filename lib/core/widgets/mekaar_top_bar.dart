@@ -4,7 +4,7 @@ import '../constants/colors.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 
-/// MekaarTopBar — Header sub-screen terpusat Mekaar (Desain 2: Stacked Two-Row / Large Header).
+/// MekaarTopBar â€” Header sub-screen terpusat Mekaar (Desain 2: Stacked Two-Row / Large Header).
 ///
 /// Baris 1: Tombol kembali (<) dengan lingkaran squircle di kiri, dan action icon / trailing widget di kanan.
 /// Baris 2: Judul besar (Large Title) selebar layar tanpa risiko pemotongan teks (*anti-truncation*) + subtitle opsional.
@@ -46,77 +46,80 @@ class MekaarTopBar extends StatelessWidget implements PreferredSizeWidget {
       );
     }
 
-    return Padding(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (canPop)
-                IconButton(
-                  tooltip: 'Kembali',
-                  onPressed: () {
-                    HapticService.trigger(MekaarHapticIntent.selection);
-                    if (onBack != null) {
-                      onBack!();
-                    } else {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  icon: Icon(
-                    SolarIconsOutline.altArrowLeft,
-                    color: MekaarColors.textPrimaryOf(context),
-                    size: 20,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor:
-                        MekaarColors.surface2Of(context).withValues(alpha: 0.85),
-                    side: BorderSide(
-                      color: MekaarColors.cardBorderOf(context)
-                          .withValues(alpha: 0.8),
-                      width: 1.0,
-                    ),
-                    shape: const CircleBorder(),
-                  ),
-                )
-              else
-                const SizedBox(width: 40, height: 40),
-              ?effectiveTrailing,
-            ],
-          ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: MekaarTypography.headingLG.copyWith(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: MekaarColors.textPrimaryOf(context),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: MekaarTypography.caption.copyWith(
-                      color: MekaarColors.textSecondaryOf(context),
-                      fontSize: 13,
+                if (canPop)
+                  IconButton(
+                    tooltip: 'Kembali',
+                    onPressed: () {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      if (onBack != null) {
+                        onBack!();
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    icon: Icon(
+                      SolarIconsOutline.altArrowLeft,
+                      color: MekaarColors.textPrimaryOf(context),
+                      size: 20,
                     ),
-                  ),
-                ],
+                    style: IconButton.styleFrom(
+                      backgroundColor:
+                          MekaarColors.surface2Of(context).withValues(alpha: 0.85),
+                      side: BorderSide(
+                        color: MekaarColors.cardBorderOf(context)
+                            .withValues(alpha: 0.8),
+                        width: 1.0,
+                      ),
+                      shape: const CircleBorder(),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 40, height: 40),
+                ?effectiveTrailing,
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: MekaarTypography.headingLG.copyWith(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: MekaarColors.textPrimaryOf(context),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: MekaarTypography.caption.copyWith(
+                        color: MekaarColors.textSecondaryOf(context),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

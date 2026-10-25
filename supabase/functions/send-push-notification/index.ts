@@ -1,4 +1,4 @@
-// send-push-notification — MEKAAR 3.0
+// send-push-notification â€” MEKAAR 3.0
 //
 // Supabase Edge Function yang dikirim oleh Database Webhooks (pg_net)
 // saat ada INSERT di tabel messages atau calls.
@@ -8,7 +8,7 @@
 // 2. Melookup FCM token penerima dari tabel profiles
 // 3. Mengirim FCM push notification via Firebase Admin SDK
 //
-// ── Setup (wajib sebelum deploy) ──────────────────────────────────────────
+// â”€â”€ Setup (wajib sebelum deploy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // 1. Set Firebase service account credentials sebagai secret:
 //      supabase secrets set FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'
 //
@@ -72,7 +72,7 @@ function getFirebaseApp(): App {
   return firebaseApp;
 }
 
-// ── Interface untuk webhook payload dari pg_net ──────────────────────────
+// â”€â”€ Interface untuk webhook payload dari pg_net â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface WebhookPayload {
   type: "INSERT" | "UPDATE" | "DELETE";
   table: string;
@@ -102,7 +102,7 @@ interface CallRecord {
   created_at: string;
 }
 
-// ── Helper: deteksi & bersihkan FCM token yang sudah tidak valid ──────────
+// â”€â”€ Helper: deteksi & bersihkan FCM token yang sudah tidak valid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Token invalid (app di-uninstall / token di-revoke) akan terus gagal terkirim
 // selamanya kalau tidak dibersihkan. Saat terdeteksi, kita kosongkan
 // profiles.fcm_token supaya kegagalan permanen tidak menutupi kegagalan baru
@@ -202,7 +202,7 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // ── 0. Otorisasi Ganda: Webhook Secret (pg_net) ATAU User JWT Bearer Token (Flutter Client) ──
+    // â”€â”€ 0. Otorisasi Ganda: Webhook Secret (pg_net) ATAU User JWT Bearer Token (Flutter Client) â”€â”€
     const expectedSecret = Deno.env.get("PUSH_WEBHOOK_SECRET");
     const incomingSecret =
       req.headers.get("x-webhook-secret") ||
@@ -231,7 +231,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!isAuthorized) {
-      console.warn("⛔ Unauthorized push notification invocation: Invalid or missing webhook secret/auth token.");
+      console.warn("â›” Unauthorized push notification invocation: Invalid or missing webhook secret/auth token.");
       return new Response(
         JSON.stringify({ error: "Unauthorized: Missing valid auth token or webhook secret" }),
         {
@@ -290,7 +290,7 @@ Deno.serve(async (req: Request) => {
       apns?: { payload: Record<string, unknown> };
     } | null = null;
 
-    // ── Handle Message INSERT ──
+    // â”€â”€ Handle Message INSERT â”€â”€
     if (payload.table === "messages") {
       const msg = payload.record as MessageRecord;
 
@@ -338,7 +338,7 @@ Deno.serve(async (req: Request) => {
           if (!mutedUntil || new Date(mutedUntil) > new Date()) {
             continue; // masih dalam periode mute
           }
-          // mutedUntil sudah lewat — lanjut kirim (mute expired)
+          // mutedUntil sudah lewat â€” lanjut kirim (mute expired)
         }
 
         const deviceTokens = await getUserDeviceTokens(
@@ -357,10 +357,6 @@ Deno.serve(async (req: Request) => {
           results.push(
             messaging.send({
               token: dt.token,
-              notification: {
-                title: finalTitle,
-                body: finalBody,
-              },
               data: {
                 type: "message",
                 roomId: msg.room_id,
@@ -372,10 +368,6 @@ Deno.serve(async (req: Request) => {
               },
               android: {
                 priority: "high",
-                notification: {
-                  channelId: "mekaar_message_channel",
-                  sound: "default",
-                },
               },
               apns: {
                 payload: {
@@ -411,7 +403,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Handle Call INSERT ──
+    // â”€â”€ Handle Call INSERT â”€â”€
     if (payload.table === "calls") {
       const call = payload.record as CallRecord;
 
@@ -532,7 +524,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Handle SOS Session INSERT ──
+    // â”€â”€ Handle SOS Session INSERT â”€â”€
     if (payload.table === "sos_sessions") {
       const record = payload.record as Record<string, unknown>;
       const userId = record.user_id as string;
@@ -586,12 +578,12 @@ Deno.serve(async (req: Request) => {
           results.push(
             messaging.send({
               token: dt.token,
-              // DATA-ONLY — no 'notification' key agar selalu lewat kode Dart
+              // DATA-ONLY â€” no 'notification' key agar selalu lewat kode Dart
               data: {
                 type: "sos",
                 sessionId: sessionId,
                 userId: userId,
-                title: `🆘 DARURAT — ${victimName}`,
+                title: `ðŸ†˜ DARURAT â€” ${victimName}`,
                 body: message ?? "Butuh bantuan segera! Tap untuk melihat lokasi.",
                 victimName: victimName,
               },
@@ -624,7 +616,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Handle Device Command INSERT (Fase 2: Remote Commands) ──
+    // â”€â”€ Handle Device Command INSERT (Fase 2: Remote Commands) â”€â”€
     if (payload.table === "device_commands") {
       const cmd = payload.record as Record<string, unknown>;
       const targetProfileId = cmd.target_profile_id as string;

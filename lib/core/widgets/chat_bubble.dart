@@ -290,10 +290,10 @@ class ChatBubble extends ConsumerWidget {
       chatPref.preset,
     );
 
-    return AnimatedPresetBubbleEntrance(
-      spec: entranceSpec,
-      child: Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+    final shouldAnimateEntrance = !isMe || message.isSending;
+
+    final bubbleBody = Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: GestureDetector(
           onTap: isSelectionMode ? onSelectionTap : null,
           onLongPress: !isDeleted
@@ -618,7 +618,15 @@ class ChatBubble extends ConsumerWidget {
             ],
           ),
         ),
-      ),
+      );
+
+    if (!shouldAnimateEntrance) {
+      return bubbleBody;
+    }
+
+    return AnimatedPresetBubbleEntrance(
+      spec: entranceSpec,
+      child: bubbleBody,
     );
   }
 
