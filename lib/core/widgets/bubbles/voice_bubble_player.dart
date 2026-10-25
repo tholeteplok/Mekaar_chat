@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/message_model.dart';
+import '../../../data/services/aegis_shredder_service.dart';
 import '../../../features/chat/providers/chat_provider.dart';
 import '../../constants/colors.dart';
 import '../../constants/icons.dart';
@@ -57,9 +59,7 @@ class _VoiceBubblePlayerState extends ConsumerState<VoiceBubblePlayer> {
         } catch (_) {}
         final temp = _downloadedFile;
         if (temp != null && temp.existsSync()) {
-          try {
-            temp.deleteSync();
-          } catch (_) {}
+          unawaited(AegisShredderService.instance.shredFile(temp.path));
         }
         setState(() {});
       }
@@ -72,9 +72,7 @@ class _VoiceBubblePlayerState extends ConsumerState<VoiceBubblePlayer> {
     if (widget.message.isViewOnce) {
       final temp = _downloadedFile;
       if (temp != null && temp.existsSync()) {
-        try {
-          temp.deleteSync();
-        } catch (_) {}
+        unawaited(AegisShredderService.instance.shredFile(temp.path));
       }
     }
     super.dispose();

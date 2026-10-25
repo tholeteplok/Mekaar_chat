@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:video_compress/video_compress.dart';
+import 'aegis_shredder_service.dart';
 
 class MediaCompressor {
   MediaCompressor._();
@@ -41,11 +42,11 @@ class MediaCompressor {
     final compressedFile = File(result.path);
     final compressedSize = await compressedFile.length();
     if (compressedSize >= originalSize) {
-      await compressedFile.delete();
+      await AegisShredderService.instance.shredFile(compressedFile.path);
       return file;
     }
 
-    await file.delete();
+    await AegisShredderService.instance.shredFile(file.path);
     return compressedFile;
   }
 
@@ -62,11 +63,11 @@ class MediaCompressor {
     final originalSize = await file.length();
 
     if (compressedSize >= originalSize) {
-      await info.file!.delete();
+      await AegisShredderService.instance.shredFile(info.file!.path);
       return file;
     }
 
-    await file.delete();
+    await AegisShredderService.instance.shredFile(file.path);
     return info.file!;
   }
 

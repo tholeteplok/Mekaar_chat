@@ -72,5 +72,35 @@ void main() {
       expect(await f2.exists(), isFalse);
       expect(await f3.exists(), isFalse);
     });
+
+    test('shredFile wipes and unlinks cancelled audio recording mock file', () async {
+      final voiceFile = File('${tempDir.path}/cancelled_record.m4a');
+      await voiceFile.writeAsString('voice raw audio bytes header and samples');
+      expect(await voiceFile.exists(), isTrue);
+
+      final result = await AegisShredderService.instance.shredFile(voiceFile.path);
+      expect(result, isTrue);
+      expect(await voiceFile.exists(), isFalse);
+    });
+
+    test('shredFile wipes and unlinks view-once temporary image cache', () async {
+      final imgFile = File('${tempDir.path}/view_once_temp.jpg');
+      await imgFile.writeAsBytes([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      expect(await imgFile.exists(), isTrue);
+
+      final result = await AegisShredderService.instance.shredFile(imgFile.path);
+      expect(result, isTrue);
+      expect(await imgFile.exists(), isFalse);
+    });
+
+    test('shredFile wipes and unlinks deleted vault item', () async {
+      final vaultDoc = File('${tempDir.path}/vault_confidential.pdf');
+      await vaultDoc.writeAsString('%PDF-1.4 sensitive financial statement');
+      expect(await vaultDoc.exists(), isTrue);
+
+      final result = await AegisShredderService.instance.shredFile(vaultDoc.path);
+      expect(result, isTrue);
+      expect(await vaultDoc.exists(), isFalse);
+    });
   });
 }

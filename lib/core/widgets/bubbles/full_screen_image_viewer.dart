@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../data/repositories/screen_protection_repository.dart';
+import '../../../data/services/aegis_shredder_service.dart';
 
 /// Full-screen image viewer (photo_view) dengan perlindungan tangkapan layar
 class FullScreenImageViewer extends StatefulWidget {
@@ -34,9 +36,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     // screen protection global milik room obrolan di bawahnya.
     final file = widget.tempFileToPurge;
     if (file != null && file.existsSync()) {
-      try {
-        file.deleteSync();
-      } catch (_) {}
+      unawaited(AegisShredderService.instance.shredFile(file.path));
     }
     super.dispose();
   }

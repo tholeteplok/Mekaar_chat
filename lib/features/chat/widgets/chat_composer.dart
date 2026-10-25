@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/message_model.dart';
+import '../../../data/services/aegis_shredder_service.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
@@ -258,10 +259,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       });
 
       if (_recordingPath != null) {
-        final file = File(_recordingPath!);
-        if (await file.exists()) {
-          await file.delete();
-        }
+        await AegisShredderService.instance.shredFile(_recordingPath!);
       }
     } catch (e) {
       debugPrint('Error cancelling recording: $e');

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../../data/models/vault_item.dart';
+import '../../../data/services/aegis_shredder_service.dart';
 import '../../../data/services/local_vault_database.dart';
 
 final vaultRepositoryProvider = Provider<VaultRepository>((ref) {
@@ -94,10 +95,7 @@ class VaultRepository {
     final item = await _db.getItemById(id);
     if (item != null) {
       try {
-        final file = File(item.localPath);
-        if (await file.exists()) {
-          await file.delete();
-        }
+        await AegisShredderService.instance.shredFile(item.localPath);
       } catch (_) {}
     }
     final deletedCount = await _db.deleteItem(id);

@@ -6,6 +6,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
+import 'aegis_shredder_service.dart';
 
 class ImagePickerService {
   final ImagePicker _picker = ImagePicker();
@@ -66,12 +67,12 @@ class ImagePickerService {
       );
 
       if (croppedFile == null) {
-        if (await localFile.exists()) await localFile.delete();
+        await AegisShredderService.instance.shredFile(localFile.path);
         return null;
       }
 
-      // 5. Hapus file lokal mentah
-      await localFile.delete();
+      // 5. Hapus file lokal mentah via forensic shredder
+      await AegisShredderService.instance.shredFile(localFile.path);
 
       // 6. Compress Image
       final compressedPath = '${tempDir.path}/avatar_${const Uuid().v4()}.jpg';
