@@ -827,22 +827,22 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       if (_recentEmojis.isNotEmpty)
         'Sering Digunakan': _recentEmojis,
       'Ekspresi & Wajah': [
-        'ðŸ˜€', 'ðŸ˜‚', 'ðŸ˜', 'ðŸ¥°', 'ðŸ˜Ž', 'ðŸ¥³', 'ðŸ¤©', 'ðŸ˜‡',
-        'ðŸ˜‹', 'ðŸ¤ª', 'ðŸ˜œ', 'ðŸ¤—', 'ðŸ¤”', 'ðŸ«£', 'ðŸ˜Œ', 'ðŸ˜',
-        'ðŸ˜¤', 'ðŸ˜­', 'ðŸ¥º', 'ðŸ˜±', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ˜·', 'ðŸ˜ˆ',
+        '😀', '😂', '😍', '🥰', '😎', '🥳', '🤩', '😇',
+        '😋', '🤪', '😜', '🤗', '🤔', '🫣', '😌', '😏',
+        '😤', '😭', '🥺', '😱', '🤯', '😴', '😷', '😈',
       ],
       'Isyarat & Tangan': [
-        'ðŸ‘', 'ðŸ‘Ž', 'ðŸ‘', 'ðŸ™Œ', 'ðŸ¤', 'ðŸ™', 'âœŒï¸', 'ðŸ¤ž',
-        'ðŸ¤Ÿ', 'ðŸ¤˜', 'ðŸ‘Œ', 'ðŸ¤', 'ðŸ‘ˆ', 'ðŸ‘‰', 'ðŸ‘†', 'ðŸ‘‡',
-        'ðŸ’ª', 'ðŸ”¥', 'âœ¨', 'â­', 'âš¡', 'ðŸ’¥', 'ðŸŽ‰', 'ðŸŽŠ',
+        '👍', '👎', '👏', '🙌', '🤝', '🙏', '✌️', '🤞',
+        '🤟', '🤘', '👌', '🤏', '👈', '👉', '👆', '👇',
+        '💪', '🔥', '✨', '⭐', '⚡', '💥', '🎉', '🎊',
       ],
       'Hati & Cinta': [
-        'â¤ï¸', 'ðŸ§¡', 'ðŸ’›', 'ðŸ’š', 'ðŸ’™', 'ðŸ’œ', 'ðŸ–¤', 'ðŸ¤',
-        'ðŸ¤Ž', 'ðŸ’”', 'â£ï¸', 'ðŸ’•', 'ðŸ’ž', 'ðŸ’“', 'ðŸ’—', 'ðŸ’–',
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+        '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
       ],
       'Simbol & Benda': [
-        'ðŸŽˆ', 'ðŸŽ', 'ðŸ†', 'ðŸ’¯', 'ðŸŒŸ', 'â˜€ï¸', 'ðŸŒ™', 'â˜•',
-        'ðŸ•', 'ðŸš€', 'ðŸ›¡ï¸', 'ðŸ”’', 'ðŸ”‘', 'ðŸ’¬', 'ðŸ“¢', 'ðŸ””',
+        '🎈', '🎁', '🏆', '💯', '🌟', '☀️', '🌙', '☕',
+        '🍕', '🚀', '🛡️', '🔒', '🔑', '💬', '📢', '🔔',
       ],
     };
 
@@ -1224,7 +1224,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // ──── Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ ðŸ˜€ Emoji | Input Teks | ðŸ“Ž Lampiran ] ────
+                    // ──── Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ 😀 Emoji | Input Teks | 📎 Lampiran ] ────
                     Expanded(
                       child: MekaarGlassBlurContainer(
                         isFloating: true,
@@ -1319,7 +1319,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
                     const SizedBox(width: 8),
 
-                    // ──── Container 3 (Kanan): Mikrofon / Kirim ðŸŽ¤ / âœˆï¸ (Solid Circle Dinamis Tema) ────
+                    // ──── Container 3 (Kanan): Mikrofon / Kirim 🎤 / ✈️ (Solid Circle Dinamis Tema) ────
                     Semantics(
                       button: true,
                       label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
@@ -1433,21 +1433,21 @@ class _ReplyPreview extends StatelessWidget {
   });
 
   String _formatPreviewText() {
-    if (message.isDeleted) return 'ðŸš« Pesan telah dihapus';
+    if (message.isDeleted) return '🚫 Pesan telah dihapus';
     switch (message.type) {
       case MessageType.image:
-        return 'ðŸ“· Foto';
+        return '📷 Foto';
       case MessageType.video:
-        return 'ðŸŽ¥ Video';
+        return '🎥 Video';
       case MessageType.voice:
-        return 'ðŸŽ™ï¸ Pesan Suara';
+        return '🎙️ Pesan Suara';
       case MessageType.file:
         final fName = message.fileMeta?.fileName ?? 'Berkas / Dokumen';
-        return 'ðŸ“„ $fName';
+        return '📄 $fName';
       case MessageType.location:
-        return 'ðŸ“ Lokasi Terbagikan';
+        return '📍 Lokasi Terbagikan';
       case MessageType.system:
-        return 'ðŸ›¡ï¸ Informasi Sistem';
+        return '🛡️ Informasi Sistem';
       case MessageType.text:
         return message.content.isNotEmpty ? message.content : 'Pesan';
     }

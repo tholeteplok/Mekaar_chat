@@ -261,7 +261,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ? widget.chatAvatar
               : (_effectiveChatName.isNotEmpty
                   ? _effectiveChatName[0].toUpperCase()
-                  : 'ðŸ’¬'));
+                  : '💬'));
 
   String? get _effectiveAvatarUrl => _resolvedAvatarUrl ?? widget.chatAvatarUrl;
   String? get _effectiveOtherUserId =>
@@ -391,12 +391,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _,
     ) async {
       if (!mounted) return;
+      // Jangan ganggu fokus input dan cegah penutupan keyboard virtual oleh IME Android:
+      // Jika composer sedang memiliki fokus atau keyboard sedang terbuka, tunda siklus heartbeat.
+      if (_composerFocusNode.hasFocus) return;
+      final viewInsetsBottom =
+          MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
+      if (viewInsetsBottom > 0) return;
+
       final repo = ref.read(chatRepositoryProvider);
       await repo.updateLastSeen();
       final otherId = _effectiveOtherUserId;
       if (otherId != null) {
         final lastSeen = await repo.getLastSeen(otherId);
-        if (mounted) {
+        if (mounted && !_composerFocusNode.hasFocus) {
           _otherLastSeenNotifier.value = lastSeen;
         }
       }
@@ -687,6 +694,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _replyMessage = null;
     });
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(false);
+    unawaited(ref.read(chatRepositoryProvider).updateLastSeen());
 
     // Buat pesan optimistik agar bubble langsung muncul seketika di layar
     final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
