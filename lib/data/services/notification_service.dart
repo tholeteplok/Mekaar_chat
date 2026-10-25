@@ -293,6 +293,25 @@ class NotificationService {
     );
   }
 
+  /// Menghitung ID notifikasi deterministik berbasis roomId atau route.
+  /// Memastikan notifikasi baru dalam percakapan yang sama saling menimpa
+  /// (in-place update) di status bar dan tidak memunculkan notifikasi ganda.
+  static int getMessageNotificationId(String? roomId, [NotificationRoute? route]) {
+    final effectiveKey = (roomId != null && roomId.isNotEmpty)
+        ? 'room_$roomId'
+        : (route?.roomId != null && route!.roomId!.isNotEmpty)
+            ? 'room_${route.roomId}'
+            : (route?.chatName ?? 'mekaar_msg');
+    final rawId = effectiveKey.hashCode.abs().remainder(1 << 31);
+    return rawId == 0 ? 1 : rawId;
+  }
+
+  /// Batalkan notifikasi pesan untuk [roomId] tertentu (misal saat room dibuka).
+  static Future<void> cancelMessageNotification(String roomId) async {
+    final notificationId = getMessageNotificationId(roomId);
+    await _localNotificationsPlugin.cancel(notificationId);
+  }
+
   static Future<void> showMessageNotification({
     required String title,
     required String body,
@@ -303,8 +322,7 @@ class NotificationService {
     AlarmService.playMessageSound();
     await HapticService.trigger(MekaarHapticIntent.success);
 
-    final notificationId =
-        DateTime.now().microsecondsSinceEpoch.remainder(1 << 31);
+    final notificationId = getMessageNotificationId(roomId, route);
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -357,8 +375,13 @@ class NotificationService {
   }) async {
     await HapticService.trigger(MekaarHapticIntent.warning);
 
-    final notificationId =
-        DateTime.now().microsecondsSinceEpoch.remainder(1 << 31);
+    final effectiveKey = (callId != null && callId.isNotEmpty)
+        ? 'missed_call_$callId'
+        : (roomId != null && roomId.isNotEmpty)
+            ? 'missed_room_$roomId'
+            : 'missed_call';
+    final rawId = effectiveKey.hashCode.abs().remainder(1 << 31);
+    final notificationId = rawId == 0 ? 1 : rawId;
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(

@@ -5,13 +5,13 @@
 ///
 /// Cara kerja:
 /// - Setiap notifikasi didaftarkan dengan ID unik (misal: `msg_<id>`, `call_<id>`, `sos_<id>`).
-/// - `isDuplicate()` mengembalikan true jika ID sudah dinotifikasi dalam 5 detik terakhir.
+/// - `isDuplicate()` mengembalikan true jika ID sudah dinotifikasi dalam window deduplikasi (60 detik).
 /// - `markNotified()` mendaftarkan ID sebagai sudah dinotifikasi.
-/// - Auto-cleanup entries yang expired dan batasi maksimal 200 entries.
+/// - Auto-cleanup entries yang expired dan batasi maksimal 500 entries.
 class NotificationDedupService {
   static final Map<String, DateTime> _notifiedIds = {};
-  static const Duration _dedupeWindow = Duration(seconds: 5);
-  static const int _maxEntries = 200;
+  static const Duration _dedupeWindow = Duration(seconds: 60);
+  static const int _maxEntries = 500;
 
   /// Returns true jika ID ini sudah pernah dinotifikasi dalam dedup window.
   static bool isDuplicate(String id) {
