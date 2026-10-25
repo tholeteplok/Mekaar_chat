@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/validators.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
@@ -130,7 +130,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
   Widget build(BuildContext context) {
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(title: 'Undang Guardian'),
+      appBar: const MekaarTopBar(title: 'Undang Guardian'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(

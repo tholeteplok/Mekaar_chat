@@ -7,7 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_banner.dart';
@@ -407,7 +407,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: CustomAppBar(
+      appBar: MekaarTopBar(
         title: 'Detail Guardian',
         actions: [
           PopupMenuButton<String>(
@@ -480,7 +480,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           children: [
-            // ── 1. Header Profil (Avatar Besar di Tengah, Nama, Email, Badge) ──
+            // â”€â”€ 1. Header Profil (Avatar Besar di Tengah, Nama, Email, Badge) â”€â”€
             Center(
               child: Column(
                 children: [
@@ -519,7 +519,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── 2. Quick Action Hub (4 Tombol Frosted Glass) ──
+            // â”€â”€ 2. Quick Action Hub (4 Tombol Frosted Glass) â”€â”€
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -552,13 +552,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── 3. Detail Konten Pengaturan ──
+            // â”€â”€ 3. Detail Konten Pengaturan â”€â”€
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Expiry Info Card ──
+                  // â”€â”€ Expiry Info Card â”€â”€
                   if (!isPending && !isExpired) ...[
                     CustomCard(
                       padding: const EdgeInsets.all(16),
@@ -580,7 +580,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${widget.guardian.daysRemaining} hari lagi — perlu diperbarui agar tetap aktif.',
+                                  '${widget.guardian.daysRemaining} hari lagi â€” perlu diperbarui agar tetap aktif.',
                                   style: MekaarTypography.bodySM,
                                 ),
                               ],
@@ -618,7 +618,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // ── Izin Keamanan Section ──
+                  // â”€â”€ Izin Keamanan Section â”€â”€
                   Text(
                     'IZIN KEAMANAN (HANYA AKTIF SAAT SOS)',
                     style: MekaarTypography.overline,
@@ -717,7 +717,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // ── Informasi Transmisi & Privasi ──
+                  // â”€â”€ Informasi Transmisi & Privasi â”€â”€
                   Text(
                     'INFORMASI TRANSMISI & PRIVASI',
                     style: MekaarTypography.overline,
@@ -755,7 +755,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
                   const SizedBox(height: 28),
 
-                  // ── 4. Tindakan & Zona Bahaya (Grouped Destructive Card) ──
+                  // â”€â”€ 4. Tindakan & Zona Bahaya (Grouped Destructive Card) â”€â”€
                   Text(
                     'TINDAKAN & ZONA BAHAYA',
                     style: MekaarTypography.overline.copyWith(

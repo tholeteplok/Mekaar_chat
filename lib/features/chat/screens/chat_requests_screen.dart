@@ -6,7 +6,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -29,7 +29,7 @@ class ChatRequestsScreen extends ConsumerWidget {
     final requestsAsync = ref.watch(incomingRequestsProvider);
 
     return MekaarScaffold(
-      appBar: const CustomAppBar(title: 'Permintaan Chat Masuk'),
+      appBar: const MekaarTopBar(title: 'Permintaan Chat Masuk'),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(incomingRequestsProvider),
         child: requestsAsync.when(

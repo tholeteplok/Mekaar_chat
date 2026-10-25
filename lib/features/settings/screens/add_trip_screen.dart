@@ -13,7 +13,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_map_preview.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -41,12 +41,12 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   final _destLabelController = TextEditingController(text: 'Rumah');
   final _expectedTimeController = TextEditingController(text: '18:30');
 
-  // ── Map & Location State ──
+  // â”€â”€ Map & Location State â”€â”€
   late MapController _mapController;
   LatLng? _destinationLocation;
   bool _isLoadingGps = false;
 
-  // ── Pencarian Lokasi (Nominatim) + Riwayat Lokal ──
+  // â”€â”€ Pencarian Lokasi (Nominatim) + Riwayat Lokal â”€â”€
   final NominatimService _nominatim = NominatimService();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -55,8 +55,8 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   List<GeocodingResult> _history = [];
   bool _isSearching = false;
 
-  // ── Form Trip Configuration State ──
-  String _originChoice = '📍 Lokasi Saat Ini';
+  // â”€â”€ Form Trip Configuration State â”€â”€
+  String _originChoice = 'ðŸ“ Lokasi Saat Ini';
   int _radiusMeters = 150;
   final int _gracePeriodMinutes = 30;
   final List<int> _selectedActiveDays = [1, 2, 3, 4, 5, 6, 7]; // 1 = Sen, 7 = Min
@@ -111,7 +111,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     });
   }
 
-  // ── Riwayat Pencarian (Lokal SharedPreferences, Cap 5) ──
+  // â”€â”€ Riwayat Pencarian (Lokal SharedPreferences, Cap 5) â”€â”€
 
   Future<void> _loadHistory() async {
     try {
@@ -167,7 +167,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     } catch (_) {}
   }
 
-  // ── Pencarian Nominatim dengan Debounce ──
+  // â”€â”€ Pencarian Nominatim dengan Debounce â”€â”€
 
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
@@ -417,10 +417,10 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(title: 'Tambah Rute Perjalanan'),
+      appBar: const MekaarTopBar(title: 'Tambah Rute Perjalanan'),
       body: Column(
         children: [
-          // ── Bagian Atas: Peta Hero Interaktif + Floating Search Bar ──
+          // â”€â”€ Bagian Atas: Peta Hero Interaktif + Floating Search Bar â”€â”€
           Expanded(
             child: Stack(
               children: [
@@ -542,7 +542,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
             ),
           ),
 
-          // ── Bagian Bawah: Kartu Formulir Rute Perjalanan ──
+          // â”€â”€ Bagian Bawah: Kartu Formulir Rute Perjalanan â”€â”€
           Container(
             decoration: BoxDecoration(
               color: MekaarColors.surfaceOf(context),
@@ -627,9 +627,9 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                     Wrap(
                       spacing: 8,
                       children: [
-                        '📍 Lokasi Saat Ini',
-                        '🏢 Kantor',
-                        '🏠 Rumah',
+                        'ðŸ“ Lokasi Saat Ini',
+                        'ðŸ¢ Kantor',
+                        'ðŸ  Rumah',
                       ].map((choice) {
                         final isSelected = _originChoice == choice;
                         return ChoiceChip(
@@ -656,7 +656,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                             if (selected) {
                               HapticFeedback.selectionClick();
                               setState(() => _originChoice = choice);
-                              if (choice == '📍 Lokasi Saat Ini') {
+                              if (choice == 'ðŸ“ Lokasi Saat Ini') {
                                 _fetchRealGpsLocation();
                               }
                             }

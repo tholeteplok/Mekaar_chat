@@ -75,6 +75,11 @@ void main() {
     });
 
     testWidgets('Menggeser switch izin langsung menyimpan secara otomatis (auto-save)', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final fakeRepo = FakeGuardianRepository();
       await tester.pumpWidget(
         ProviderScope(

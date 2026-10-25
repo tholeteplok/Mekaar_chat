@@ -9,7 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -76,7 +76,7 @@ class _CreateGroupSelectMembersScreenState
 
     return Scaffold(
       backgroundColor: MekaarColors.backgroundOf(context),
-      appBar: CustomAppBar(
+      appBar: MekaarTopBar(
         title: 'Grup Baru',
         subtitle: _selectedUserIds.isEmpty
             ? 'Pilih anggota grup'
@@ -291,7 +291,7 @@ class _CreateGroupSelectMembersScreenState
               loading: () => const MekaarStateView(
                 pose: MikaPose.neutral,
                 title: 'Memuat Kontak',
-                message: 'Mengambil daftar kontak untuk dipilih…',
+                message: 'Mengambil daftar kontak untuk dipilihâ€¦',
                 semanticLabel: 'Memuat daftar kontak',
               ),
               error: (err, stack) => MekaarStateView(

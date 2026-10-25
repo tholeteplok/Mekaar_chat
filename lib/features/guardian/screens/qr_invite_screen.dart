@@ -5,7 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -76,7 +76,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
   Widget build(BuildContext context) {
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(title: 'Kode QR Saya'),
+      appBar: const MekaarTopBar(title: 'Kode QR Saya'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -94,11 +94,11 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
               const MekaarStateView(
                 pose: MikaPose.neutral,
                 title: 'Menyiapkan Kode QR',
-                message: 'Membuat kode undangan Guardian Anda…',
+                message: 'Membuat kode undangan Guardian Andaâ€¦',
                 semanticLabel: 'Memuat kode QR undangan',
               )
             else if (_token != null)
-              // QR wajib latar putih solid demi scannability — warna eksplisit.
+              // QR wajib latar putih solid demi scannability â€” warna eksplisit.
               CustomCard(
                 margin: EdgeInsets.zero,
                 padding: const EdgeInsets.all(20),

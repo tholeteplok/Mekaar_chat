@@ -9,7 +9,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -203,7 +203,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     final vaultItemsState = ref.watch(vaultItemsProvider);
 
     return MekaarScaffold(
-      appBar: CustomAppBar(
+      appBar: MekaarTopBar(
         title: 'Brankas Berkas',
         actions: [
           IconButton(
@@ -424,7 +424,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.formattedFileSize} • $dateStr',
+                      '${item.formattedFileSize} â€¢ $dateStr',
                       style: MekaarTypography.caption.copyWith(
                         color: MekaarColors.textSecondaryOf(context),
                       ),

@@ -9,7 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -17,7 +17,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 
-/// MyQrScreen — Layar QR Code Profil & Integrasi Pemindai ala Telegram.
+/// MyQrScreen â€” Layar QR Code Profil & Integrasi Pemindai ala Telegram.
 ///
 /// Menyajikan kartu QR profil dengan avatar melayang (overlapping)
 /// serta tombol aksi terpadu untuk berbagi dan memindai QR teman.
@@ -45,7 +45,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
 
     return MekaarScaffold(
       flat: false,
-      appBar: const CustomAppBar(title: 'Kode QR Profil'),
+      appBar: const MekaarTopBar(title: 'Kode QR Profil'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         child: Column(
@@ -65,11 +65,11 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
               const MekaarStateView(
                 pose: MikaPose.neutral,
                 title: 'Menyiapkan Kode QR',
-                message: 'Menghasilkan kode profil Anda…',
+                message: 'Menghasilkan kode profil Andaâ€¦',
                 semanticLabel: 'Memuat kode QR profil',
               )
             else ...[
-              // ── Telegram-Style Overlapping QR Card ──
+              // â”€â”€ Telegram-Style Overlapping QR Card â”€â”€
               Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
@@ -209,7 +209,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
 
               const SizedBox(height: 36),
 
-              // ── Primary Action: Salin & Bagikan QR ──
+              // â”€â”€ Primary Action: Salin & Bagikan QR â”€â”€
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -242,7 +242,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
 
               const SizedBox(height: 14),
 
-              // ── Secondary Action (Telegram Style): Pindai Kode QR ──
+              // â”€â”€ Secondary Action (Telegram Style): Pindai Kode QR â”€â”€
               SizedBox(
                 width: double.infinity,
                 height: 50,

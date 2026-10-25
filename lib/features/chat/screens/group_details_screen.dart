@@ -6,7 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -105,7 +105,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
 
     return Scaffold(
       backgroundColor: MekaarColors.backgroundOf(context),
-      appBar: CustomAppBar(
+      appBar: MekaarTopBar(
         title: name,
         subtitle: '${_participants.length} Anggota',
       ),
@@ -113,7 +113,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
           ? const MekaarStateView(
               pose: MikaPose.hi,
               title: 'Memuat Detail Grup',
-              message: 'Mengambil informasi dan anggota grup…',
+              message: 'Mengambil informasi dan anggota grupâ€¦',
               semanticLabel: 'Memuat detail grup',
             )
           : SingleChildScrollView(

@@ -7,7 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -167,7 +167,7 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
     final chatRoomsAsync = ref.watch(chatRoomsProvider);
 
     return MekaarScaffold(
-      appBar: CustomAppBar(
+      appBar: MekaarTopBar(
         title: 'Arsip Percakapan',
         actions: [
           IconButton(

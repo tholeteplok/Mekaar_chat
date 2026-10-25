@@ -16,7 +16,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_illustration.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -319,18 +319,18 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(title: 'Info Kontak'),
+      appBar: const MekaarTopBar(title: 'Info Kontak'),
       body: _isLoading
           ? const MekaarStateView(
               pose: MikaPose.ask,
               title: 'Memuat Info Kontak',
-              message: 'Mengambil detail profil kontak Anda…',
+              message: 'Mengambil detail profil kontak Andaâ€¦',
               semanticLabel: 'Memuat info kontak',
             )
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
-                // ── 1. Header Profil (Avatar, Nama, Username, Status Online) ──
+                // â”€â”€ 1. Header Profil (Avatar, Nama, Username, Status Online) â”€â”€
                 Center(
                   child: Column(
                     children: [
@@ -435,7 +435,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── 2. Quick Action Hub (4 Tombol Frosted Glass) ──
+                // â”€â”€ 2. Quick Action Hub (4 Tombol Frosted Glass) â”€â”€
                 Consumer(
                   builder: (context, ref, _) {
                     final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
@@ -497,7 +497,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── 3. Card Bio / Catatan Kontak ──
+                // â”€â”€ 3. Card Bio / Catatan Kontak â”€â”€
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: CustomCard(
@@ -573,7 +573,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── 4. Card Pengaturan Obrolan ──
+                // â”€â”€ 4. Card Pengaturan Obrolan â”€â”€
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
@@ -826,7 +826,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── 5. Card Tindakan (Danger Zone) ──
+                // â”€â”€ 5. Card Tindakan (Danger Zone) â”€â”€
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(

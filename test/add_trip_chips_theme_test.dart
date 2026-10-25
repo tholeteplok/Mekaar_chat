@@ -35,7 +35,9 @@ void main() {
       await tester.pumpWidget(buildHarness(isDark: true));
       await tester.pump(const Duration(milliseconds: 200));
 
-      final chipFinder = find.widgetWithText(ChoiceChip, '📍 Lokasi Saat Ini');
+      final chipFinder = find.byWidgetPredicate(
+        (w) => w is ChoiceChip && w.label is Text && ((w.label as Text).data?.contains('Lokasi Saat Ini') ?? false),
+      );
       expect(chipFinder, findsOneWidget);
 
       final choiceChip = tester.widget<ChoiceChip>(chipFinder);

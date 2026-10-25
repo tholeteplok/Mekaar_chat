@@ -8,7 +8,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../providers/chat_provider.dart';
@@ -105,7 +105,7 @@ class _CreateGroupDetailsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MekaarColors.backgroundOf(context),
-      appBar: const CustomAppBar(
+      appBar: const MekaarTopBar(
         title: 'Info Grup',
         subtitle: 'Lengkapi nama & foto grup',
       ),

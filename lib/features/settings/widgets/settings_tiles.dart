@@ -7,94 +7,21 @@ import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 
-/// Header sub-settings terpusat dengan tombol kembali (<) squircle dan judul besar konsisten
-class SettingsTopBar extends StatelessWidget {
+/// Header sub-settings terpusat dengan tombol kembali (<) squircle dan judul besar konsisten.
+/// Mewarisi [MekaarTopBar] terpusat dari core/widgets.
+class SettingsTopBar extends MekaarTopBar {
   const SettingsTopBar({
     super.key,
-    required this.title,
-    this.subtitle,
-    this.onBack,
-    this.trailing,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    required super.title,
+    super.subtitle,
+    super.onBack,
+    super.trailing,
+    super.actions,
+    super.showBackButton = true,
+    super.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
   });
-
-  final String title;
-  final String? subtitle;
-  final VoidCallback? onBack;
-  final Widget? trailing;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () {
-                  HapticService.trigger(MekaarHapticIntent.selection);
-                  if (onBack != null) {
-                    onBack!();
-                  } else {
-                    Navigator.of(context).pop();
-                  }
-                },
-                icon: Icon(
-                  SolarIconsOutline.altArrowLeft,
-                  color: MekaarColors.textPrimaryOf(context),
-                  size: 20,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor:
-                      MekaarColors.surface2Of(context).withValues(alpha: 0.85),
-                  side: BorderSide(
-                    color: MekaarColors.cardBorderOf(context)
-                        .withValues(alpha: 0.8),
-                    width: 1.0,
-                  ),
-                  shape: const CircleBorder(),
-                ),
-              ),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: MekaarTypography.headingLG.copyWith(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: MekaarColors.textPrimaryOf(context),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: MekaarTypography.caption.copyWith(
-                      color: MekaarColors.textSecondaryOf(context),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Kartu accordion dropdown terpusat untuk bagian pengaturan/informasi

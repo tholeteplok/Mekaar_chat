@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -41,7 +41,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
 
   void _handlePinKey(String key) {
     HapticService.trigger(MekaarHapticIntent.selection);
-    if (key == '⌫') {
+    if (key == 'âŒ«') {
       if (_pin.isNotEmpty) {
         setState(() => _pin = _pin.substring(0, _pin.length - 1));
       }
@@ -69,7 +69,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       return;
     }
 
-    // PIN valid — kirim permintaan tukar posisi
+    // PIN valid â€” kirim permintaan tukar posisi
     try {
       final newPermissions = {
         'gps': _gpsForB,
@@ -108,7 +108,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
   Widget build(BuildContext context) {
     return MekaarScaffold(
       flat: true,
-      appBar: const CustomAppBar(
+      appBar: const MekaarTopBar(
         title: 'Tukar Posisi',
         subtitle: 'Saling menjaga satu sama lain',
       ),
@@ -140,7 +140,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           const SizedBox(height: 24),
 
           // Existing direction
-          Text('ARAH SAAT INI (A → B)', style: MekaarTypography.overline),
+          Text('ARAH SAAT INI (A â†’ B)', style: MekaarTypography.overline),
           const SizedBox(height: 12),
           CustomCard(
             padding: const EdgeInsets.all(16),
@@ -194,7 +194,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           const SizedBox(height: 24),
 
           // New direction
-          Text('ARAH BARU (B → A)', style: MekaarTypography.overline),
+          Text('ARAH BARU (B â†’ A)', style: MekaarTypography.overline),
           const SizedBox(height: 4),
           Text(
             'Pilih izin yang diberikan kepada Anda saat Anda menjadi guardian untuk ${widget.guardian.name}.',
@@ -354,7 +354,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
-      ['', '0', '⌫'],
+      ['', '0', 'âŒ«'],
     ];
     return Column(
       children: rows
@@ -376,12 +376,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: key == '⌫'
+                        color: key == 'âŒ«'
                             ? Colors.transparent
                             : MekaarColors.surface2Of(context),
                       ),
                       child: Center(
-                        child: key == '⌫'
+                        child: key == 'âŒ«'
                             ? Icon(
                                 SolarIconsOutline.backspace,
                                 color: Theme.of(context).colorScheme.onSurface,
