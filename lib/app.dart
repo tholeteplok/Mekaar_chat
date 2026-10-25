@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,15 +10,43 @@ import 'core/providers/font_provider.dart';
 import 'core/widgets/screen_protection_widgets.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/chat/providers/screen_protection_provider.dart';
+import 'data/services/aegis_memory_guard_service.dart';
+import 'data/services/database_key_service.dart';
 import 'data/services/notification_service.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/widgets/mekaar_update_overlay.dart';
 
-class MekaarApp extends ConsumerWidget {
+class MekaarApp extends ConsumerStatefulWidget {
   const MekaarApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MekaarApp> createState() => _MekaarAppState();
+}
+
+class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      // Hapus seluruh kunci kriptografi dari memori fisik RAM seketika saat aplikasi di-minimize/background
+      unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
+      unawaited(DatabaseKeyService.instance.lockVault());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isScreenshotBlocked = ref.watch(screenshotBlockProvider);
     final protectionController = ref.watch(screenProtectionControllerProvider);
     if (isScreenshotBlocked) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../data/services/aegis_memory_guard_service.dart';
 import '../../../data/services/e2ee_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -459,6 +460,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
     await _authRepository.signOut();
     state = AuthState(isLoading: false);
   }
@@ -580,6 +582,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (isDuress) {
         await _authRepository.clearPinLockout();
         await _authRepository.saveDuressUnlockStatus(true);
+        // Hancurkan seluruh kunci privat & vault di RAM seketika (Duress Defense)
+        unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
         state = state.copyWith(
           pinAttempts: 0,
           pinLockedUntil: null,

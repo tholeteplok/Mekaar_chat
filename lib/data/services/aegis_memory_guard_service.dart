@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:typed_data';
+import 'package:cryptography/cryptography.dart';
 import 'package:logger/logger.dart';
 import '../../src/rust/api/memory_guard.dart' as rust_memory;
 import 'aegis_shredder_service.dart';
@@ -28,6 +30,45 @@ class AegisMemoryGuardService {
       return await rust_memory.storeSecureKey(rawKey: rawKey);
     } catch (e) {
       _logger.d('MemoryGuard native tidak aktif, menggunakan Pure-Dart Fallback: $e');
+      final slotId = _nextFallbackId;
+      _nextFallbackId = _nextFallbackId + BigInt.one;
+      _fallbackKeyRegistry[slotId] = Uint8List.fromList(rawKey);
+      return slotId;
+    }
+  }
+
+  /// Menurunkan kunci vault 256-bit dari PIN dan salt menggunakan Argon2id di Rust.
+  /// Memiliki fallback PBKDF2-HMAC-SHA256 untuk lingkungan test Dart non-native.
+  Future<BigInt> deriveVaultKey({
+    required String passcode,
+    required List<int> salt,
+  }) async {
+    if (passcode.isEmpty) {
+      throw ArgumentError('Passcode tidak boleh kosong');
+    }
+    if (salt.length < 8) {
+      throw ArgumentError('Salt minimal wajib 8 byte');
+    }
+
+    await AegisShredderService.ensureInitialized();
+
+    try {
+      return await rust_memory.deriveVaultKey(
+        passcode: passcode,
+        salt: salt,
+      );
+    } catch (e) {
+      _logger.d('Argon2id native tidak aktif, menggunakan Pure-Dart KDF Fallback: $e');
+      final pbkdf2 = Pbkdf2(
+        macAlgorithm: Hmac(Sha256()),
+        iterations: 100000,
+        bits: 256,
+      );
+      final secretKey = await pbkdf2.deriveKey(
+        secretKey: SecretKey(utf8.encode(passcode)),
+        nonce: salt,
+      );
+      final rawKey = await secretKey.extractBytes();
       final slotId = _nextFallbackId;
       _nextFallbackId = _nextFallbackId + BigInt.one;
       _fallbackKeyRegistry[slotId] = Uint8List.fromList(rawKey);

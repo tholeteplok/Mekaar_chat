@@ -1,3 +1,4 @@
+use argon2::{Algorithm, Argon2, Params, Version};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -33,6 +34,42 @@ pub fn store_secure_key(mut raw_key: Vec<u8>) -> Result<u64, String> {
         .map_err(|e| format!("Gagal mengunci registry kunci: {}", e))?;
 
     registry.insert(slot_id, Zeroizing::new(key_arr));
+    Ok(slot_id)
+}
+
+/// Menurunkan kunci 256-bit (32 byte) dari PIN/Passcode menggunakan Argon2id (Memory-Hard KDF).
+/// Kunci hasil derivasi langsung disimpan di `KEY_REGISTRY` (Zeroizing), dan slot_id numerik dikembalikan.
+/// Byte mentah passcode dan salt langsung di-zeroize dari memori RAM.
+pub fn derive_vault_key(mut passcode: String, mut salt: Vec<u8>) -> Result<u64, String> {
+    if passcode.is_empty() {
+        return Err("Passcode tidak boleh kosong".to_string());
+    }
+    if salt.len() < 8 {
+        return Err("Salt minimal wajib 8 byte".to_string());
+    }
+
+    // OWASP recommendation: Memory 64MB (65536 KiB), Time cost: 3, Parallelism: 4, Output: 32 bytes
+    let params = Params::new(65536, 3, 4, Some(32))
+        .map_err(|e| format!("Konfigurasi parameter Argon2 tidak valid: {}", e))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+
+    let mut derived_key = [0u8; 32];
+    argon2
+        .hash_password_into(passcode.as_bytes(), &salt, &mut derived_key)
+        .map_err(|e| format!("Gagal melakukan derivasi Argon2id: {}", e))?;
+
+    // Zeroize inputs
+    passcode.zeroize();
+    salt.zeroize();
+
+    let slot_id = NEXT_SLOT_ID.fetch_add(1, Ordering::SeqCst);
+    let mut registry = KEY_REGISTRY
+        .lock()
+        .map_err(|e| format!("Gagal mengunci registry kunci: {}", e))?;
+
+    registry.insert(slot_id, Zeroizing::new(derived_key));
+    derived_key.zeroize();
+
     Ok(slot_id)
 }
 
@@ -109,6 +146,28 @@ mod tests {
         // Akses setelah zeroize wajib gagal
         let failed_result = with_key(slot_id, |k| Ok(k[0]));
         assert!(failed_result.is_err());
+    }
+
+    #[test]
+    fn test_derive_vault_key_argon2id() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        let pin = "123456".to_string();
+        let salt = vec![0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0];
+        let slot_id = derive_vault_key(pin, salt).unwrap();
+
+        assert!(has_secure_key(slot_id));
+
+        // Pastikan kunci yang dihasilkan dapat dibaca melalui with_key
+        let check_res = with_key(slot_id, |k| {
+            // Memastikan kunci bukan sekadar nol
+            let is_all_zero = k.iter().all(|&b| b == 0);
+            assert!(!is_all_zero);
+            Ok(())
+        });
+        assert!(check_res.is_ok());
+
+        assert!(zeroize_key(slot_id));
+        assert!(!has_secure_key(slot_id));
     }
 
     #[test]

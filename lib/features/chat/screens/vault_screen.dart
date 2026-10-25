@@ -18,6 +18,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/vault_item.dart';
+import '../../../data/services/aegis_shredder_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
 import '../providers/vault_provider.dart';
@@ -42,6 +43,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   AudioPlayer? _audioPlayer;
   String? _currentlyPlayingId;
   bool _isPlayingAudio = false;
+  String? _currentTempAudioPath;
 
   @override
   void initState() {
@@ -69,6 +71,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     _searchFocusNode.dispose();
     _audioPlayer?.stop();
     _audioPlayer?.dispose();
+    if (_currentTempAudioPath != null) {
+      unawaited(AegisShredderService.instance.shredFile(_currentTempAudioPath!));
+      _currentTempAudioPath = null;
+    }
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     LocalVaultDatabase.instance.close();
@@ -97,7 +103,18 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         }
       });
 
-      await _audioPlayer!.play(DeviceFileSource(item.localPath));
+      if (_currentTempAudioPath != null && _currentTempAudioPath != item.localPath) {
+        unawaited(AegisShredderService.instance.shredFile(_currentTempAudioPath!));
+        _currentTempAudioPath = null;
+      }
+
+      final repo = ref.read(vaultRepositoryProvider);
+      final playFile = await repo.getDecryptedMedia(item);
+      if (playFile.path != item.localPath) {
+        _currentTempAudioPath = playFile.path;
+      }
+
+      await _audioPlayer!.play(DeviceFileSource(playFile.path));
       if (mounted) {
         setState(() {
           _currentlyPlayingId = item.id;
@@ -111,15 +128,28 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
-  void _openImageViewer(BuildContext context, VaultItem item) {
+  Future<void> _openImageViewer(VaultItem item) async {
     HapticService.trigger(MekaarHapticIntent.selection);
-    final file = File(item.localPath);
-    if (!file.existsSync()) {
-      MekaarSnackbar.error(context, 'Berkas fisik sudah tidak ditemukan.');
+    final repo = ref.read(vaultRepositoryProvider);
+    final File displayFile;
+    try {
+      displayFile = await repo.getDecryptedMedia(item);
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal mendekripsi berkas gambar dari brankas.');
+      }
       return;
     }
 
-    Navigator.push(
+    if (!displayFile.existsSync()) {
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Berkas fisik sudah tidak ditemukan.');
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => Scaffold(
@@ -144,7 +174,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           ),
           body: Center(
             child: PhotoView(
-              imageProvider: FileImage(file),
+              imageProvider: FileImage(displayFile),
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 3.0,
             ),
@@ -152,6 +182,11 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         ),
       ),
     );
+
+    // Musnahkan berkas dekripsi sementara setelah penampil ditutup
+    if (displayFile.path != item.localPath) {
+      unawaited(AegisShredderService.instance.shredFile(displayFile.path));
+    }
   }
 
   void _confirmDeleteItem(VaultItem item) {
@@ -392,7 +427,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           borderRadius: BorderRadius.circular(16),
           onTap: () {
             if (item.fileType == VaultFileType.image) {
-              _openImageViewer(context, item);
+              _openImageViewer(item);
             } else if (item.fileType == VaultFileType.audio) {
               _togglePlayAudio(item);
             } else {
@@ -460,7 +495,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                 onSelected: (val) {
                   if (val == 'open') {
                     if (item.fileType == VaultFileType.image) {
-                      _openImageViewer(context, item);
+                      _openImageViewer(item);
                     } else if (item.fileType == VaultFileType.audio) {
                       _togglePlayAudio(item);
                     } else {
@@ -515,7 +550,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   }
 
   Widget _buildItemThumbnail(VaultItem item, bool isPlayingAudio) {
-    if (item.fileType == VaultFileType.image && item.existsOnDisk()) {
+    if (item.fileType == VaultFileType.image && item.existsOnDisk() && !item.localPath.endsWith('.aegis')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Image.file(

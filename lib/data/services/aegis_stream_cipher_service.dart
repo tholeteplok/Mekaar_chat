@@ -80,6 +80,34 @@ class AegisStreamCipherService {
     }
   }
 
+  /// Mendekripsi berkas terenkripsi (.aegis) ke file sementara di cache direktori
+  /// untuk keperluan pemutaran atau peninjauan media di UI.
+  Future<File> decryptToTempFile({
+    required String encryptedPath,
+    required BigInt keySlotId,
+    String? fileExtension,
+  }) async {
+    final encFile = File(encryptedPath);
+    if (!await encFile.exists()) {
+      throw FileSystemException('Berkas terenkripsi tidak ditemukan', encryptedPath);
+    }
+
+    final ext = fileExtension ?? 'tmp';
+    final tempDir = Directory.systemTemp;
+    final randomSuffix = Random().nextInt(1000000);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final tempFilePath =
+        '${tempDir.path}/mekaar_vault_dec_${nowMs}_$randomSuffix.$ext';
+
+    await decryptFileStream(
+      srcPath: encryptedPath,
+      dstPath: tempFilePath,
+      keySlotId: keySlotId,
+    );
+
+    return File(tempFilePath);
+  }
+
   Future<BigInt> _encryptFileStreamDartFallback({
     required File srcFile,
     required File dstFile,

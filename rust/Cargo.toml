@@ -13,6 +13,7 @@ zeroize = { version = "1.8", features = ["derive"] }
 secrecy = "0.8"
 chacha20poly1305 = { version = "0.10", features = ["stream"] }
 lazy_static = "1.5"
+argon2 = "0.5"
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 base64 = "0.22"
 anyhow = "1.0"
