@@ -11,8 +11,10 @@ import '../../../core/widgets/screen_protection_widgets.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/services/notification_service.dart';
+import '../../../core/constants/webrtc_config.dart';
 import '../../../data/services/webrtc_signaling_service.dart';
 import '../../../data/services/wakelock_service.dart';
+import '../../settings/providers/privacy_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../providers/call_state_provider.dart';
 import '../widgets/call_e2ee_badge.dart';
@@ -332,7 +334,13 @@ class _CallScreenState extends ConsumerState<CallScreen>
         throw StateError('Pengguna tidak tersedia');
       }
 
-      final signaling = WebRtcSignalingService(Supabase.instance.client);
+      // Anti-IP Leak: jika saklar relay aktif, paksa seluruh trafik via TURN Relay (iceTransportPolicy: relay)
+      final isRelayOnly = ref.read(relayCallsProvider);
+      final rtcConfiguration = WebRtcConfig.buildIceConfiguration(relayOnly: isRelayOnly);
+      final signaling = WebRtcSignalingService(
+        Supabase.instance.client,
+        configuration: rtcConfiguration,
+      );
       _signaling = signaling;
       _configureSignaling(signaling);
 

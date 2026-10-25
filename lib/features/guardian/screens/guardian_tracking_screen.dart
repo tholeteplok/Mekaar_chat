@@ -10,6 +10,8 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/widgets/mekaar_badge.dart';
+import '../../../data/services/aegis_safety_signature_service.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/services/alarm_service.dart';
 import '../../../data/services/location_service.dart';
@@ -50,13 +52,42 @@ class _GuardianTrackingScreenState
       for (final session in sessions) {
         final sessionId = session['id'] as String;
         Map<String, dynamic>? ping;
+        bool? isSignatureValid;
         try {
           ping = await repo.getLatestLocationPing(sessionId);
+          if (ping != null) {
+            final sig = ping['signature'] as String?;
+            final pubKey = ping['public_key'] as String?;
+            final canonical = ping['canonical_payload'] as String?;
+            if (sig != null && pubKey != null) {
+              try {
+                final payloadToVerify = canonical ??
+                    AegisSafetySignatureService.buildCanonicalPayload(
+                      senderId: session['user_id'] as String? ?? '',
+                      timestamp: DateTime.parse(ping['timestamp'] as String),
+                      latitude: (ping['latitude'] as num).toDouble(),
+                      longitude: (ping['longitude'] as num).toDouble(),
+                      emergencyType: 'sos',
+                    );
+                isSignatureValid = await AegisSafetySignatureService.instance.verifySignature(
+                  canonicalPayload: payloadToVerify,
+                  signatureB64: sig,
+                  publicKeyB64: pubKey,
+                );
+              } catch (_) {
+                isSignatureValid = false;
+              }
+            }
+          }
         } catch (_) {
           result.add({'session': session, 'pingError': true});
           continue;
         }
-        result.add({'session': session, 'ping': ping});
+        result.add({
+          'session': session,
+          'ping': ping,
+          'isSignatureValid': isSignatureValid,
+        });
       }
     } catch (_) {
       if (!mounted) return;
@@ -201,6 +232,7 @@ class _GuardianTrackingScreenState
           return _buildSessionCard(
             session,
             ping,
+            isSignatureValid: item['isSignatureValid'] as bool?,
             pingError: item['pingError'] == true,
           );
         },
@@ -249,6 +281,7 @@ class _GuardianTrackingScreenState
   Widget _buildSessionCard(
     Map<String, dynamic> session,
     Map<String, dynamic>? ping, {
+    bool? isSignatureValid,
     bool pingError = false,
   }) {
     final userName = session['user_name'] as String? ?? 'User';
@@ -280,18 +313,39 @@ class _GuardianTrackingScreenState
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: MekaarColors.sosLight,
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  'SOS Aktif',
-                  style: MekaarTypography.labelSM.copyWith(
-                    color: MekaarColors.sosRed,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.sosLight,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      'SOS Aktif',
+                      style: MekaarTypography.labelSM.copyWith(
+                        color: MekaarColors.sosRed,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  if (isSignatureValid == true)
+                    const MekaarBadge(
+                      label: '🛡️ Terverifikasi Ed25519',
+                      color: MekaarColors.success,
+                    )
+                  else if (isSignatureValid == false)
+                    const MekaarBadge(
+                      label: '⚠️ Indikasi Spoofing',
+                      color: MekaarColors.sosRed,
+                    )
+                  else if (ping != null)
+                    MekaarBadge(
+                      label: 'ℹ️ Telemetri Standar',
+                      color: MekaarColors.textMutedOf(context),
+                    ),
+                ],
               ),
             ],
           ),
@@ -329,7 +383,7 @@ class _GuardianTrackingScreenState
               ],
             )
           else
-            _buildPingInfo(ping),
+            _buildPingInfo(ping, isSignatureValid: isSignatureValid),
           const SizedBox(height: 16),
           if (ping != null)
             Row(
@@ -409,7 +463,10 @@ class _GuardianTrackingScreenState
     );
   }
 
-  Widget _buildPingInfo(Map<String, dynamic> ping) {
+  Widget _buildPingInfo(
+    Map<String, dynamic> ping, {
+    bool? isSignatureValid,
+  }) {
     final lat = (ping['latitude'] as num).toDouble();
     final lon = (ping['longitude'] as num).toDouble();
     final timestamp = ping['timestamp'] as String;
@@ -464,6 +521,34 @@ class _GuardianTrackingScreenState
               Text(
                 'Akurasi: ${accuracy.toStringAsFixed(1)} m',
                 style: MekaarTypography.bodySM,
+              ),
+            ],
+          ),
+        ],
+        if (isSignatureValid != null) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(
+                isSignatureValid
+                    ? SolarIconsOutline.shieldCheck
+                    : SolarIconsOutline.shieldWarning,
+                size: 16,
+                color: isSignatureValid
+                    ? MekaarColors.success
+                    : MekaarColors.sosRed,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isSignatureValid
+                    ? 'Ed25519 Terverifikasi'
+                    : 'Peringatan: Tanda Tangan Tidak Sah',
+                style: MekaarTypography.bodySM.copyWith(
+                  color: isSignatureValid
+                      ? MekaarColors.success
+                      : MekaarColors.sosRed,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
