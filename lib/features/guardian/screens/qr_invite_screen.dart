@@ -98,7 +98,7 @@ class _QrInviteScreenState extends ConsumerState<QrInviteScreen> {
                 semanticLabel: 'Memuat kode QR undangan',
               )
             else if (_token != null)
-              // QR wajib latar putih solid demi scannability â€” warna eksplisit.
+              // QR wajib latar putih solid demi scannability — warna eksplisit.
               CustomCard(
                 margin: EdgeInsets.zero,
                 padding: const EdgeInsets.all(20),

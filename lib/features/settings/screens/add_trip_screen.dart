@@ -41,12 +41,12 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   final _destLabelController = TextEditingController(text: 'Rumah');
   final _expectedTimeController = TextEditingController(text: '18:30');
 
-  // â”€â”€ Map & Location State â”€â”€
+  // ──── Map & Location State ────
   late MapController _mapController;
   LatLng? _destinationLocation;
   bool _isLoadingGps = false;
 
-  // â”€â”€ Pencarian Lokasi (Nominatim) + Riwayat Lokal â”€â”€
+  // ──── Pencarian Lokasi (Nominatim) + Riwayat Lokal ────
   final NominatimService _nominatim = NominatimService();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -55,7 +55,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   List<GeocodingResult> _history = [];
   bool _isSearching = false;
 
-  // â”€â”€ Form Trip Configuration State â”€â”€
+  // ──── Form Trip Configuration State ────
   String _originChoice = 'ðŸ“ Lokasi Saat Ini';
   int _radiusMeters = 150;
   final int _gracePeriodMinutes = 30;
@@ -111,7 +111,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     });
   }
 
-  // â”€â”€ Riwayat Pencarian (Lokal SharedPreferences, Cap 5) â”€â”€
+  // ──── Riwayat Pencarian (Lokal SharedPreferences, Cap 5) ────
 
   Future<void> _loadHistory() async {
     try {
@@ -167,7 +167,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     } catch (_) {}
   }
 
-  // â”€â”€ Pencarian Nominatim dengan Debounce â”€â”€
+  // ──── Pencarian Nominatim dengan Debounce ────
 
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
@@ -420,7 +420,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
       appBar: const MekaarTopBar(title: 'Tambah Rute Perjalanan'),
       body: Column(
         children: [
-          // â”€â”€ Bagian Atas: Peta Hero Interaktif + Floating Search Bar â”€â”€
+          // ──── Bagian Atas: Peta Hero Interaktif + Floating Search Bar ────
           Expanded(
             child: Stack(
               children: [
@@ -542,7 +542,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
             ),
           ),
 
-          // â”€â”€ Bagian Bawah: Kartu Formulir Rute Perjalanan â”€â”€
+          // ──── Bagian Bawah: Kartu Formulir Rute Perjalanan ────
           Container(
             decoration: BoxDecoration(
               color: MekaarColors.surfaceOf(context),

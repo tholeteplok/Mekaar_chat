@@ -592,7 +592,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     required VoidCallback onTap,
     int step = 0,
   }) {
-    // Entrance staggered via AnimatedAppear â€” token motion + reduced motion.
+    // Entrance staggered via AnimatedAppear — token motion + reduced motion.
     return AnimatedAppear(
       delay: MekaarMotion.staggerStep * step,
       child: ListTile(
@@ -701,7 +701,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
-          // â”€â”€ Tab strip: Standar | pack terpasang... | Toko â”€â”€
+          // ──── Tab strip: Standar | pack terpasang... | Toko ────
           SizedBox(
             height: 40,
             child: ListView(
@@ -746,7 +746,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             color:
                 MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
           ),
-          // â”€â”€ Konten grid â”€â”€
+          // ──── Konten grid ────
           Expanded(
             child: activePack != null
                 ? _buildPackGrid(activePack, installed)
@@ -890,7 +890,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     );
   }
 
-  /// Grid item pack terpasang â€” membaca file dari disk (luring).
+  /// Grid item pack terpasang — membaca file dari disk (luring).
   Widget _buildPackGrid(EmojiPack pack, InstalledPacksState installed) {
     final service = ref.read(emojiPackServiceProvider);
     final items = ref
@@ -1054,7 +1054,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // â”€â”€ Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) â”€â”€
+          // ──── Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) ────
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
             reverseDuration: const Duration(milliseconds: 200),
@@ -1226,7 +1226,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // â”€â”€ Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ ðŸ˜€ Emoji | Input Teks | ðŸ“Ž Lampiran ] â”€â”€
+                    // ──── Container 1 (Kiri & Tengah): Kapsul Kaca Luas [ ðŸ˜€ Emoji | Input Teks | ðŸ“Ž Lampiran ] ────
                     Expanded(
                       child: MekaarGlassBlurContainer(
                         isFloating: true,
@@ -1321,7 +1321,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
                     const SizedBox(width: 8),
 
-                    // â”€â”€ Container 3 (Kanan): Mikrofon / Kirim ðŸŽ¤ / âœˆï¸ (Solid Circle Dinamis Tema) â”€â”€
+                    // ──── Container 3 (Kanan): Mikrofon / Kirim ðŸŽ¤ / âœˆï¸ (Solid Circle Dinamis Tema) ────
                     Semantics(
                       button: true,
                       label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
@@ -1420,9 +1420,9 @@ class _BlinkingDotState extends State<_BlinkingDot>
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ──────────────────────────────────────────────────────────────────────────────────
 // Reply Preview Banner
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ──────────────────────────────────────────────────────────────────────────────────
 class _ReplyPreview extends StatelessWidget {
   final Message message;
   final String? senderName;

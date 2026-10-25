@@ -69,7 +69,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       return;
     }
 
-    // PIN valid â€” kirim permintaan tukar posisi
+    // PIN valid — kirim permintaan tukar posisi
     try {
       final newPermissions = {
         'gps': _gpsForB,
@@ -140,7 +140,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           const SizedBox(height: 24),
 
           // Existing direction
-          Text('ARAH SAAT INI (A â†’ B)', style: MekaarTypography.overline),
+          Text('ARAH SAAT INI (A → B)', style: MekaarTypography.overline),
           const SizedBox(height: 12),
           CustomCard(
             padding: const EdgeInsets.all(16),
@@ -194,7 +194,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
           const SizedBox(height: 24),
 
           // New direction
-          Text('ARAH BARU (B â†’ A)', style: MekaarTypography.overline),
+          Text('ARAH BARU (B → A)', style: MekaarTypography.overline),
           const SizedBox(height: 4),
           Text(
             'Pilih izin yang diberikan kepada Anda saat Anda menjadi guardian untuk ${widget.guardian.name}.',

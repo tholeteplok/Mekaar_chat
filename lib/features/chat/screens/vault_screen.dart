@@ -424,7 +424,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.formattedFileSize} â€¢ $dateStr',
+                      '${item.formattedFileSize} • $dateStr',
                       style: MekaarTypography.caption.copyWith(
                         color: MekaarColors.textSecondaryOf(context),
                       ),

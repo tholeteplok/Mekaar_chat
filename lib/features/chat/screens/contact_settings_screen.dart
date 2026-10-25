@@ -330,7 +330,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
-                // â”€â”€ 1. Header Profil (Avatar, Nama, Username, Status Online) â”€â”€
+                // ──── 1. Header Profil (Avatar, Nama, Username, Status Online) ────
                 Center(
                   child: Column(
                     children: [
@@ -435,7 +435,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // â”€â”€ 2. Quick Action Hub (4 Tombol Frosted Glass) â”€â”€
+                // ──── 2. Quick Action Hub (4 Tombol Frosted Glass) ────
                 Consumer(
                   builder: (context, ref, _) {
                     final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
@@ -497,7 +497,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // â”€â”€ 3. Card Bio / Catatan Kontak â”€â”€
+                // ──── 3. Card Bio / Catatan Kontak ────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: CustomCard(
@@ -573,7 +573,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // â”€â”€ 4. Card Pengaturan Obrolan â”€â”€
+                // ──── 4. Card Pengaturan Obrolan ────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
@@ -826,7 +826,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // â”€â”€ 5. Card Tindakan (Danger Zone) â”€â”€
+                // ──── 5. Card Tindakan (Danger Zone) ────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(

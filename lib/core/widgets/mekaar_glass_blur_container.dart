@@ -4,7 +4,7 @@ import '../constants/colors.dart';
 
 enum BlurPosition { top, bottom, none }
 
-/// MekaarGlassBlurContainer â€” Komponen terpusat pembungkus efek Backdrop Blur + Semi-Transparan Floating Glass
+/// MekaarGlassBlurContainer — Komponen terpusat pembungkus efek Backdrop Blur + Semi-Transparan Floating Glass
 /// bergaya iOS & Modern Flutter.
 class MekaarGlassBlurContainer extends StatelessWidget {
   final Widget child;

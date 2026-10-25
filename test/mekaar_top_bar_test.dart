@@ -79,5 +79,54 @@ void main() {
       expect(find.text('Pengaturan Privasi Lanjutan'), findsOneWidget);
       expect(find.text('Kelola vault dan keamanan'), findsOneWidget);
     });
+
+    testWidgets('SafeArea applies top padding correctly when status bar padding exists', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              padding: EdgeInsets.only(top: 48.0),
+            ),
+            child: Scaffold(
+              appBar: MekaarTopBar(
+                title: 'Layar dengan Status Bar',
+                onBack: () {},
+              ),
+              body: const SizedBox(),
+            ),
+          ),
+        ),
+      );
+
+      final backBtnFinder = find.byIcon(SolarIconsOutline.altArrowLeft);
+      expect(backBtnFinder, findsOneWidget);
+
+      final backBtnTop = tester.getTopLeft(backBtnFinder).dy;
+      // Top position tombol kembali harus >= 48.0 (karena SafeArea status bar)
+      expect(backBtnTop, greaterThanOrEqualTo(48.0));
+    });
+
+    testWidgets('Clamped text scaling prevents layout overflow with large accessibility fonts', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              textScaler: TextScaler.linear(2.0),
+            ),
+            child: Scaffold(
+              appBar: MekaarTopBar(
+                title: 'Judul Panjang Sekali Untuk Menguji Ketahanan Layout Aksesibilitas',
+                subtitle: 'Sub-judul deskripsi pelengkap',
+              ),
+              body: SizedBox(),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Judul Panjang Sekali Untuk Menguji Ketahanan Layout Aksesibilitas'), findsOneWidget);
+      expect(find.text('Sub-judul deskripsi pelengkap'), findsOneWidget);
+    });
   });
 }

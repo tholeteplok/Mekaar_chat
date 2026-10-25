@@ -17,7 +17,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 
-/// MyQrScreen â€” Layar QR Code Profil & Integrasi Pemindai ala Telegram.
+/// MyQrScreen — Layar QR Code Profil & Integrasi Pemindai ala Telegram.
 ///
 /// Menyajikan kartu QR profil dengan avatar melayang (overlapping)
 /// serta tombol aksi terpadu untuk berbagi dan memindai QR teman.
@@ -69,7 +69,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
                 semanticLabel: 'Memuat kode QR profil',
               )
             else ...[
-              // â”€â”€ Telegram-Style Overlapping QR Card â”€â”€
+              // ──── Telegram-Style Overlapping QR Card ────
               Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
@@ -209,7 +209,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
 
               const SizedBox(height: 36),
 
-              // â”€â”€ Primary Action: Salin & Bagikan QR â”€â”€
+              // ──── Primary Action: Salin & Bagikan QR ────
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -242,7 +242,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
 
               const SizedBox(height: 14),
 
-              // â”€â”€ Secondary Action (Telegram Style): Pindai Kode QR â”€â”€
+              // ──── Secondary Action (Telegram Style): Pindai Kode QR ────
               SizedBox(
                 width: double.infinity,
                 height: 50,

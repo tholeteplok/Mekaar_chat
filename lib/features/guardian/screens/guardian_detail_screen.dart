@@ -480,7 +480,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           children: [
-            // â”€â”€ 1. Header Profil (Avatar Besar di Tengah, Nama, Email, Badge) â”€â”€
+            // ──── 1. Header Profil (Avatar Besar di Tengah, Nama, Email, Badge) ────
             Center(
               child: Column(
                 children: [
@@ -519,7 +519,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // â”€â”€ 2. Quick Action Hub (4 Tombol Frosted Glass) â”€â”€
+            // ──── 2. Quick Action Hub (4 Tombol Frosted Glass) ────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -552,13 +552,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // â”€â”€ 3. Detail Konten Pengaturan â”€â”€
+            // ──── 3. Detail Konten Pengaturan ────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // â”€â”€ Expiry Info Card â”€â”€
+                  // ──── Expiry Info Card ────
                   if (!isPending && !isExpired) ...[
                     CustomCard(
                       padding: const EdgeInsets.all(16),
@@ -580,7 +580,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${widget.guardian.daysRemaining} hari lagi â€” perlu diperbarui agar tetap aktif.',
+                                  '${widget.guardian.daysRemaining} hari lagi — perlu diperbarui agar tetap aktif.',
                                   style: MekaarTypography.bodySM,
                                 ),
                               ],
@@ -618,7 +618,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // â”€â”€ Izin Keamanan Section â”€â”€
+                  // ──── Izin Keamanan Section ────
                   Text(
                     'IZIN KEAMANAN (HANYA AKTIF SAAT SOS)',
                     style: MekaarTypography.overline,
@@ -717,7 +717,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // â”€â”€ Informasi Transmisi & Privasi â”€â”€
+                  // ──── Informasi Transmisi & Privasi ────
                   Text(
                     'INFORMASI TRANSMISI & PRIVASI',
                     style: MekaarTypography.overline,
@@ -755,7 +755,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
                   const SizedBox(height: 28),
 
-                  // â”€â”€ 4. Tindakan & Zona Bahaya (Grouped Destructive Card) â”€â”€
+                  // ──── 4. Tindakan & Zona Bahaya (Grouped Destructive Card) ────
                   Text(
                     'TINDAKAN & ZONA BAHAYA',
                     style: MekaarTypography.overline.copyWith(

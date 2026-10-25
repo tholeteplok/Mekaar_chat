@@ -4,7 +4,7 @@ import '../constants/colors.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 
-/// MekaarTopBar â€” Header sub-screen terpusat Mekaar (Desain 2: Stacked Two-Row / Large Header).
+/// MekaarTopBar — Header sub-screen terpusat Mekaar (Desain 2: Stacked Two-Row / Large Header).
 ///
 /// Baris 1: Tombol kembali (<) dengan lingkaran squircle di kiri, dan action icon / trailing widget di kanan.
 /// Baris 2: Judul besar (Large Title) selebar layar tanpa risiko pemotongan teks (*anti-truncation*) + subtitle opsional.
@@ -22,6 +22,7 @@ class MekaarTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.showBackButton = true,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    this.maxTitleLines = 1,
   });
 
   final String title;
@@ -31,6 +32,7 @@ class MekaarTopBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showBackButton;
   final EdgeInsetsGeometry padding;
+  final int maxTitleLines;
 
   @override
   Widget build(BuildContext context) {
@@ -96,22 +98,32 @@ class MekaarTopBar extends StatelessWidget implements PreferredSizeWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: MekaarTypography.headingLG.copyWith(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: MekaarColors.textPrimaryOf(context),
-                      letterSpacing: -0.5,
+                  MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.15,
+                    child: Text(
+                      title,
+                      maxLines: maxTitleLines,
+                      overflow: TextOverflow.ellipsis,
+                      style: MekaarTypography.headingLG.copyWith(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: MekaarColors.textPrimaryOf(context),
+                        letterSpacing: -0.5,
+                      ),
                     ),
                   ),
                   if (subtitle != null && subtitle!.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      subtitle!,
-                      style: MekaarTypography.caption.copyWith(
-                        color: MekaarColors.textSecondaryOf(context),
-                        fontSize: 13,
+                    MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.15,
+                      child: Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: MekaarTypography.caption.copyWith(
+                          color: MekaarColors.textSecondaryOf(context),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
