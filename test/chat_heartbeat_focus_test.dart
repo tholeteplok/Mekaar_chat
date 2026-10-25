@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_composer.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
 
@@ -109,6 +110,38 @@ void main() {
 
       simulateLifecycleChange(AppLifecycleState.resumed, isFocused: false, insetsBottom: 0.0);
       expect(keyboardRestorationTriggered, isFalse, reason: 'Restorasi keyboard tidak boleh dipicu jika sebelumnya tertutup');
+    });
+
+    testWidgets('MekaarPageRoute tidak mencabut fokus saat rebuild atau update metrik', (tester) async {
+      final focusNode = FocusNode();
+      final controller = TextEditingController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          onGenerateRoute: (settings) {
+            return MekaarPageRoute(
+              builder: (context) => Scaffold(
+                body: TextField(
+                  focusNode: focusNode,
+                  controller: controller,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+
+      // Fokuskan input
+      focusNode.requestFocus();
+      await tester.pump();
+      expect(focusNode.hasFocus, isTrue);
+
+      // Simulasikan rebuild route (seperti saat insets keyboard atau MediaQuery berubah)
+      await tester.pump();
+      expect(focusNode.hasFocus, isTrue, reason: 'MekaarPageRoute tidak boleh mencabut fokus pada render pipeline');
+
+      focusNode.dispose();
+      controller.dispose();
     });
 
     testWidgets('ChatComposer menampilkan reply preview tanpa karakter mojibake', (tester) async {

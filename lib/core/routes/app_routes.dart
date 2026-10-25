@@ -62,10 +62,8 @@ import '../constants/motion.dart';
 class MekaarPageRoute extends PageRouteBuilder {
   MekaarPageRoute({required WidgetBuilder builder})
       : super(
-          pageBuilder: (context, animation, secondaryAnimation) {
-            FocusManager.instance.primaryFocus?.unfocus();
-            return builder(context);
-          },
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             if (MediaQuery.disableAnimationsOf(context)) return child;
             final curved = CurvedAnimation(
