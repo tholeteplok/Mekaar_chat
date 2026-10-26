@@ -446,6 +446,9 @@ class AuthRepository {
       await _secureStorage
           .delete(key: 'duress_pin_hash')
           .timeout(const Duration(seconds: 1));
+      await _secureStorage
+          .delete(key: 'decoy_pin_hash')
+          .timeout(const Duration(seconds: 1));
     } catch (_) {}
     try {
       E2eeService.instance.clearSession();
@@ -538,6 +541,9 @@ class AuthRepository {
           .timeout(const Duration(seconds: 1));
       await _secureStorage
           .delete(key: 'duress_pin_hash')
+          .timeout(const Duration(seconds: 1));
+      await _secureStorage
+          .delete(key: 'decoy_pin_hash')
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
 
@@ -740,6 +746,90 @@ class AuthRepository {
           .update({'duress_enabled': false, 'duress_pin_hash': null})
           .eq('id', userId);
     } catch (_) {}
+  }
+
+  // ── Decoy PIN (PIN Tamu / Decoy) ──────────────────────────
+  // PIN terpisah yang digunakan saat meminjamkan ponsel ke pihak ketiga.
+  // Membuka database decoy lokal tanpa memicu sinyal darurat SOS.
+
+  Future<void> setDecoyPIN(String pin) async {
+    final pinHash = await _hashPIN(pin);
+    try {
+      await _secureStorage
+          .write(key: 'decoy_pin_hash', value: pinHash)
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {}
+  }
+
+  Future<bool> isDecoyEnabled() async {
+    try {
+      final local = await _secureStorage
+          .read(key: 'decoy_pin_hash')
+          .timeout(const Duration(seconds: 1));
+      return local != null && local.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> validateDecoyPIN(String pin) async {
+    String? storedHash;
+    try {
+      storedHash = await _secureStorage
+          .read(key: 'decoy_pin_hash')
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {}
+
+    if (storedHash != null && storedHash.isNotEmpty) {
+      if (!storedHash.contains(':')) {
+        final bytes = utf8.encode(pin);
+        final legacyHash = crypto.sha256.convert(bytes).toString();
+        if (storedHash == legacyHash) {
+          setDecoyPIN(pin);
+          return true;
+        }
+        return false;
+      }
+      final salt = _extractSalt(storedHash);
+      final enteredHash = await _hashPIN(pin, salt: salt);
+      return storedHash == enteredHash;
+    }
+    return false;
+  }
+
+  Future<void> disableDecoyPIN() async {
+    try {
+      await _secureStorage
+          .delete(key: 'decoy_pin_hash')
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {}
+  }
+
+  // ── Unlock Mode Persistence ──────────────────────────────
+  Future<void> saveUnlockMode(String mode) async {
+    try {
+      await _secureStorage.write(key: 'last_unlock_mode', value: mode);
+      if (mode == 'duress') {
+        await _secureStorage.write(
+          key: 'last_unlock_was_duress',
+          value: 'true',
+        );
+      } else {
+        await _secureStorage.delete(key: 'last_unlock_was_duress');
+      }
+    } catch (_) {}
+  }
+
+  Future<String> getUnlockMode() async {
+    try {
+      final mode = await _secureStorage.read(key: 'last_unlock_mode');
+      if (mode != null && mode.isNotEmpty) return mode;
+      final duress = await _secureStorage.read(key: 'last_unlock_was_duress');
+      if (duress == 'true') return 'duress';
+      return 'master';
+    } catch (_) {
+      return 'master';
+    }
   }
 
   /// Dapatkan waktu server terverifikasi (UTC) untuk menghindari manipulasi jam lokal

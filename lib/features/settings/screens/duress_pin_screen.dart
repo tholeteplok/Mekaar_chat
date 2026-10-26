@@ -106,15 +106,28 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
       return;
     }
 
-    // High 18 / Med 5: Pastikan Duress PIN tidak sama dengan PIN utama
+    // Pastikan Duress PIN tidak sama dengan PIN utama
     final isSameAsPrimary =
-        await ref.read(authProvider.notifier).validatePIN(_pin);
+        await ref.read(authProvider.notifier).validatePIN(_pin, allowDuress: false, allowDecoy: false);
     if (isSameAsPrimary) {
       HapticService.trigger(MekaarHapticIntent.destructive);
       setState(() {
         _pin = '';
         _isConfirming = false;
         _status = 'PIN Paksaan tidak boleh sama dengan PIN utama.';
+      });
+      return;
+    }
+
+    // Pastikan Duress PIN tidak sama dengan PIN Tamu
+    final isSameAsDecoy =
+        await ref.read(authRepositoryProvider).validateDecoyPIN(_pin);
+    if (isSameAsDecoy) {
+      HapticService.trigger(MekaarHapticIntent.destructive);
+      setState(() {
+        _pin = '';
+        _isConfirming = false;
+        _status = 'PIN Paksaan tidak boleh sama dengan PIN Tamu.';
       });
       return;
     }

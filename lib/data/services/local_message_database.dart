@@ -17,11 +17,29 @@ class LocalMessageDatabase {
 
   static final Logger _logger = Logger();
   static const String _tableName = 'local_messages';
-  static const String _dbFileName = 'mekaar_local_messages.db';
+  static const String _masterDbFileName = 'mekaar_local_messages.db';
+  static const String _decoyDbFileName = 'mekaar_decoy.db';
   static const int _dbVersion = 1;
 
   Database? _db;
   Completer<Database>? _dbInitCompleter;
+  bool _isDecoy = false;
+
+  /// Status apakah database yang aktif saat ini adalah mode Decoy
+  bool get isDecoy => _isDecoy;
+
+  /// Beralih mode antara database master dan decoy.
+  /// Menutup database yang sedang terbuka bila mode berubah.
+  Future<void> switchMode({required bool isDecoy}) async {
+    if (_isDecoy == isDecoy && _db != null && _db!.isOpen) return;
+
+    if (_db != null && _db!.isOpen) {
+      await _db!.close();
+      _db = null;
+      _dbInitCompleter = null;
+    }
+    _isDecoy = isDecoy;
+  }
 
   Future<Database> get database async {
     if (_db != null && _db!.isOpen) return _db!;
@@ -33,17 +51,27 @@ class LocalMessageDatabase {
     _dbInitCompleter = Completer<Database>();
     try {
       final dbPath = await getDatabasesPath();
-      final path = '$dbPath/$_dbFileName';
-      final key = await DatabaseKeyService.instance.getMessageDatabaseKey();
+      final fileName = _isDecoy ? _decoyDbFileName : _masterDbFileName;
+      final path = '$dbPath/$fileName';
+      final key = _isDecoy
+          ? await DatabaseKeyService.instance.getDecoyMessageDatabaseKey()
+          : await DatabaseKeyService.instance.getMessageDatabaseKey();
 
-      // Cek dan migrasikan jika file lokal masih berupa database SQLite plaintext legacy
-      await _checkAndMigrateLegacyPlaintextDb(path, key);
+      if (!_isDecoy) {
+        // Cek dan migrasikan jika file lokal masih berupa database SQLite plaintext legacy
+        await _checkAndMigrateLegacyPlaintextDb(path, key);
+      }
 
       _db = await openDatabase(
         path,
         password: key,
         version: _dbVersion,
-        onCreate: _onCreate,
+        onCreate: (db, version) async {
+          await _onCreate(db, version);
+          if (_isDecoy) {
+            await _seedDecoyWelcomeMessage(db);
+          }
+        },
       );
 
       _dbInitCompleter!.complete(_db!);
@@ -55,6 +83,59 @@ class LocalMessageDatabase {
     } finally {
       _dbInitCompleter = null;
     }
+  }
+
+  Future<void> _seedDecoyWelcomeMessage(Database db) async {
+    final now = DateTime.now().toIso8601String();
+    await db.insert(_tableName, {
+      'id': 'msg_welcome_decoy',
+      'room_id': 'room_welcome_mekaar',
+      'sender_id': 'mekaar_official',
+      'content': 'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar. Mulai percakapan aman Anda sekarang.',
+      'media_url': null,
+      'msg_type': 'text',
+      'is_view_once': 0,
+      'is_opened': 1,
+      'opened_at': now,
+      'reply_to_id': null,
+      'is_deleted': 0,
+      'is_silent_deleted': 0,
+      'auto_delete_at': null,
+      'edited_at': null,
+      'reactions': '{}',
+      'created_at': now,
+      'updated_at': now,
+      'is_encrypted': 0,
+    });
+  }
+
+  /// Mengembalikan daftar kamar decoy alami untuk mode tamu / duress
+  Future<List<Map<String, dynamic>>> getDecoyRooms() async {
+    final lastMsg = await getLastActiveMessageForRoom('room_welcome_mekaar');
+    return [
+      {
+        'room_id': 'room_welcome_mekaar',
+        'room_type': 'direct',
+        'chat_name': 'Mekaar Official',
+        'avatar_url': null,
+        'other_user_id': 'mekaar_official',
+        'is_guardian': false,
+        'is_muted': false,
+        'is_archived': false,
+        'unread_count': 0,
+        'last_message': lastMsg ??
+            Message(
+              id: 'msg_welcome_decoy',
+              roomId: 'room_welcome_mekaar',
+              senderId: 'mekaar_official',
+              content:
+                  'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar.',
+              type: MessageType.text,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+      }
+    ];
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -208,6 +289,34 @@ class LocalMessageDatabase {
     } catch (e) {
       _logger.w('Gagal memuat pesan dari SQLite (room: $roomId): $e');
       return [];
+    }
+  }
+
+  /// Ambil satu pesan aktif paling mutakhir untuk preview di inbox/chat list (0ms, direct indexed query)
+  Future<Message?> getLastActiveMessageForRoom(
+    String roomId, {
+    Set<String> hiddenIds = const {},
+  }) async {
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _tableName,
+        where: 'room_id = ? AND is_deleted = 0 AND is_silent_deleted = 0',
+        whereArgs: [roomId],
+        orderBy: 'created_at DESC',
+        limit: 10,
+      );
+
+      for (final row in rows) {
+        final id = row['id'] as String?;
+        if (id != null && !hiddenIds.contains(id)) {
+          return _mapToMessage(row);
+        }
+      }
+      return null;
+    } catch (e) {
+      _logger.w('Gagal memuat pesan terakhir dari SQLite (room: $roomId): $e');
+      return null;
     }
   }
 

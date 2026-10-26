@@ -150,8 +150,8 @@ final whoAddedMeProvider =
 
 /// Provider jumlah undangan guardian masuk yang masih menunggu persetujuan (pending & !isExpired).
 final pendingIncomingGuardianCountProvider = Provider<int>((ref) {
-  final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
-  if (wasDuress) return 0;
+  final isDecoy = ref.watch(authProvider).isDecoyActive;
+  if (isDecoy) return 0;
   final whoAddedMe = ref.watch(whoAddedMeProvider);
   return whoAddedMe
       .where((g) => g.status == 'pending' && !g.isExpired)

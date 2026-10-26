@@ -26,6 +26,15 @@ class FakeAuthRepo extends Fake implements AuthRepository {
   Future<bool> validateDuressPIN(String pin) async => pin == '999999';
 
   @override
+  Future<bool> validateDecoyPIN(String pin) async => false;
+
+  @override
+  Future<void> saveUnlockMode(String mode) async {}
+
+  @override
+  Future<String> getUnlockMode() async => isDuressStatus ? 'duress' : 'master';
+
+  @override
   Future<void> saveDuressUnlockStatus(bool status) async {}
 
   @override
@@ -52,7 +61,11 @@ class FakeAuthNotifier extends AuthNotifier {
   }
 
   @override
-  Future<bool> validatePIN(String pin, {bool allowDuress = true}) async {
+  Future<bool> validatePIN(
+    String pin, {
+    bool allowDuress = true,
+    bool allowDecoy = true,
+  }) async {
     return pin == '123456';
   }
 }

@@ -36,9 +36,9 @@ android {
             val keystoreFile = file("mekaar_release.jks")
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "mekaar_secure_key_2026"
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
                 keyAlias = System.getenv("KEY_ALIAS") ?: "mekaar"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "mekaar_secure_key_2026"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
             } else {
                 storeFile = signingConfigs.getByName("debug").storeFile
                 storePassword = signingConfigs.getByName("debug").storePassword
@@ -51,6 +51,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

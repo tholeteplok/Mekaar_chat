@@ -15,6 +15,7 @@ import '../../sos/providers/sos_provider.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
+import '../../../data/services/local_message_database.dart';
 import '../providers/auth_provider.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
@@ -177,44 +178,44 @@ class _PinScreenState extends ConsumerState<PinScreen>
           HapticService.trigger(MekaarHapticIntent.success);
 
           final authState = ref.read(authProvider);
-          final wasDuress = authState.lastUnlockWasDuress;
+          final isDecoy = authState.isDecoyActive;
+          final isDuress = authState.lastUnlockWasDuress;
+
+          // Isolasi database pesan: beralih ke mekaar_decoy.db jika decoy/duress
+          await LocalMessageDatabase.instance.switchMode(isDecoy: isDecoy);
 
           try {
             final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
               _pin,
-              isDuress: wasDuress,
+              isDuress: isDecoy,
             );
             DatabaseKeyService.instance.setActiveVaultKey(
               vaultKey,
-              isDuress: wasDuress,
+              isDuress: isDecoy,
             );
             await LocalVaultDatabase.instance.openVault(
               key: vaultKey,
-              isDuress: wasDuress,
+              isDuress: isDecoy,
             );
           } catch (_) {}
 
-          if (authState.e2eeNeedsRestore && !wasDuress) {
+          if (authState.e2eeNeedsRestore && !isDecoy) {
             await _showE2eeRestoreDialog();
           }
 
           if (!mounted) return;
 
-          if (wasDuress) {
+          // HANYA Duress PIN yang memicu Silent SOS (Guest/Decoy PIN TIDAK memicu SOS)
+          if (isDuress) {
             ref
                 .read(sosProvider.notifier)
                 .activateSOS(gps: true, mic: false, video: false);
-            if (authState.needsUsername) {
-              Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
-            } else {
-              Navigator.pushReplacementNamed(context, AppRoutes.home);
-            }
+          }
+
+          if (authState.needsUsername) {
+            Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
           } else {
-            if (authState.needsUsername) {
-              Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
-            } else {
-              Navigator.pushReplacementNamed(context, AppRoutes.home);
-            }
+            Navigator.pushReplacementNamed(context, AppRoutes.home);
           }
         }
       } else {

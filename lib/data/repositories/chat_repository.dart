@@ -71,6 +71,11 @@ class ChatRepository {
 
   // Get active chat rooms for current user
   Future<List<Map<String, dynamic>>> getRooms() async {
+    // Zero-Leak Decoy: Jangan sentuh Supabase jika dalam mode Decoy/Duress
+    if (LocalMessageDatabase.instance.isDecoy) {
+      return LocalMessageDatabase.instance.getDecoyRooms();
+    }
+
     final userId = _supabaseService.currentUserId;
     if (userId == null) return [];
 
@@ -227,20 +232,14 @@ class ChatRepository {
       String lastMessageText = 'Mulai percakapan...';
       DateTime? lastMessageTime;
 
-      // Cek apakah pesan aktif terakhir sudah terdekripsi di database lokal (0ms, offline-first)
+      // Cek apakah pesan aktif terakhir sudah terdekripsi di database lokal (0ms, direct indexed query)
       Message? localLastMsg;
       try {
-        final localMsgs =
-            await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
-        final activeLocalMsgs = localMsgs
-            .where((m) =>
-                !m.isDeleted &&
-                !m.isSilentDeleted &&
-                !hiddenMsgIds.contains(m.id))
-            .toList();
-        if (activeLocalMsgs.isNotEmpty) {
-          localLastMsg = activeLocalMsgs.last;
-        }
+        localLastMsg =
+            await LocalMessageDatabase.instance.getLastActiveMessageForRoom(
+          roomId,
+          hiddenIds: hiddenMsgIds,
+        );
       } catch (_) {}
 
       // Tentukan pesan aktif paling mutakhir antara lokal dan remote
@@ -477,6 +476,11 @@ class ChatRepository {
       // 0ms Offline-First: Render riwayat dari SQLite lokal seketika tanpa menunggu query jaringan
       await emitLocalCache();
 
+      // Zero-Leak Decoy: Jangan jalankan query jaringan atau streaming Supabase
+      if (LocalMessageDatabase.instance.isDecoy) {
+        return;
+      }
+
       // Guard: jangan lanjutkan jika stream sudah di-cancel
       if (controller.isClosed) return;
 
@@ -580,9 +584,13 @@ class ChatRepository {
                     roomId,
                     m.content,
                   );
-                  // Batasi kapasitas cache agar penggunaan memori tetap minimal (<2000 item)
+                  // Batasi kapasitas cache dengan safe pruning (hapus 500 entri terlama, bukan .clear() total)
                   if (_decryptedContentCache.length > 2000) {
-                    _decryptedContentCache.clear();
+                    final keysToRemove =
+                        _decryptedContentCache.keys.take(500).toList();
+                    for (final k in keysToRemove) {
+                      _decryptedContentCache.remove(k);
+                    }
                   }
                   _decryptedContentCache[m.id] = plain;
                   final decrypted = m.copyWith(content: plain);
@@ -742,6 +750,35 @@ class ChatRepository {
   }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
+
+    // Zero-Leak Decoy: Simpan pesan hanya di database lokal decoy tanpa kirim ke Supabase
+    if (LocalMessageDatabase.instance.isDecoy) {
+      final now = DateTime.now();
+      final decoyMsg = Message(
+        id: 'msg_decoy_${now.millisecondsSinceEpoch}',
+        roomId: roomId,
+        senderId: userId,
+        content: content,
+        mediaUrl: mediaUrl,
+        type: type,
+        isViewOnce: isViewOnce,
+        createdAt: now,
+        updatedAt: now,
+      );
+      unawaited(LocalMessageDatabase.instance.saveMessage(decoyMsg));
+
+      final activePool = _activeRoomMessagePools[roomId];
+      final activeCtrl = _activeRoomControllers[roomId];
+      if (activePool != null) {
+        activePool[decoyMsg.id] = decoyMsg;
+        if (activeCtrl != null && !activeCtrl.isClosed) {
+          final sorted = activePool.values.toList()
+            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          activeCtrl.add(sorted);
+        }
+      }
+      return decoyMsg;
+    }
 
     // Enkripsi E2EE bila lawan room sudah punya kunci publik;
     // fallback plaintext (is_encrypted=false) HANYA untuk akun lama yang

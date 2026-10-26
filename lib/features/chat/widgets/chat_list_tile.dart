@@ -10,7 +10,6 @@ import '../../../core/constants/icons.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../settings/providers/privacy_provider.dart';
-import '../providers/chat_provider.dart';
 
 class ChatListTile extends StatelessWidget {
   final Map<String, dynamic> room;
@@ -129,26 +128,13 @@ class ChatListTile extends StatelessWidget {
                       Expanded(
                         child: Consumer(
                           builder: (context, ref, _) {
-                            final roomId = room['id'] as String? ?? '';
-                            final isTyping = ref.watch(typingStateProvider(roomId));
-                            if (isTyping) {
-                              return Text(
-                                'sedang mengetik...',
-                                style: MekaarTypography.labelLG.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  fontStyle: FontStyle.italic,
-                                  color: MekaarColors.softCoral,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              );
-                            }
-
-                            final isStealth = ref.watch(stealthChatPreviewProvider);
+                            final isStealth =
+                                ref.watch(stealthChatPreviewProvider);
                             final rawLastMsg = room['lastMessage'] as String?;
                             final hasMessages = timestamp != null;
 
-                            final displayLastMsg = MessagePreviewResolver.sanitizeLastMessage(
+                            final displayLastMsg =
+                                MessagePreviewResolver.sanitizeLastMessage(
                               rawLastMsg,
                               isStealth: isStealth && hasMessages,
                             );

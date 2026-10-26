@@ -27,12 +27,20 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _currentIndex = 0;
   late PageController _pageController;
 
-  final List<Widget> _screens = const [
-    ChatListScreen(),
-    ContactListScreen(),
-    GuardianListScreen(),
-    SettingsScreen(),
-  ];
+  Widget _buildScreenTab(int index) {
+    switch (index) {
+      case 0:
+        return const ChatListScreen();
+      case 1:
+        return const ContactListScreen();
+      case 2:
+        return const GuardianListScreen();
+      case 3:
+        return const SettingsScreen();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
   static const List<MekaarNavItem> _navItems = [
     MekaarNavItem(
@@ -144,13 +152,14 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         extendBody: true,
         body: Stack(
           children: [
-            PageView(
+            PageView.builder(
               controller: _pageController,
+              itemCount: 4,
               onPageChanged: (index) {
                 FocusManager.instance.primaryFocus?.unfocus();
                 setState(() => _currentIndex = index);
               },
-              children: _screens,
+              itemBuilder: (context, index) => _buildScreenTab(index),
             ),
             MekaarBottomNav(
               items: items,

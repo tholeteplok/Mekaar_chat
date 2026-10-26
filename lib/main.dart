@@ -39,8 +39,8 @@ void main() async {
   // guna mencegah kebocoran pesan terdekripsi, token, dan metadata via Android logcat atau USB debugging.
   Logger.level = kReleaseMode ? Level.off : Level.debug;
 
-  // Inisialisasi format tanggal lokal (Indonesia) untuk intl
-  await initializeDateFormatting('id_ID', null);
+  // Inisialisasi format tanggal lokal (Indonesia) untuk intl secara non-blocking
+  unawaited(initializeDateFormatting('id_ID', null));
   unawaited(AegisShredderService.ensureInitialized());
 
   // 1. Initialize Supabase using --dart-define

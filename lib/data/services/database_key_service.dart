@@ -22,6 +22,7 @@ class DatabaseKeyService {
   );
 
   static const String _messageDbKeyStorageKey = 'sqlcipher_message_db_key_v1';
+  static const String _decoyMessageDbKeyStorageKey = 'sqlcipher_decoy_message_db_key_v1';
   static const String _masterVaultSaltStorageKey = 'sqlcipher_vault_master_salt_v2';
   static const String _decoyVaultSaltStorageKey = 'sqlcipher_vault_decoy_salt_v2';
   static const int _pbkdf2Iterations = 100000;
@@ -76,6 +77,30 @@ class DatabaseKeyService {
       return newKey;
     } catch (e) {
       _logger.e('Gagal memuat atau membuat kunci database pesan: $e');
+      rethrow;
+    }
+  }
+
+  /// Mendapatkan atau membuat kunci enkripsi acak 256-bit untuk database pesan decoy lokal.
+  /// Kunci disimpan di Hardware Keystore / Secure Storage secara terpisah dari database utama.
+  Future<String> getDecoyMessageDatabaseKey() async {
+    try {
+      final existingKey = await _secureStorage.read(key: _decoyMessageDbKeyStorageKey);
+      if (existingKey != null && existingKey.isNotEmpty) {
+        return existingKey;
+      }
+
+      final random = Random.secure();
+      final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+      final newKey = base64UrlEncode(bytes);
+
+      await _secureStorage.write(
+        key: _decoyMessageDbKeyStorageKey,
+        value: newKey,
+      );
+      return newKey;
+    } catch (e) {
+      _logger.e('Gagal memuat atau membuat kunci database pesan decoy: $e');
       rethrow;
     }
   }

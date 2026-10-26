@@ -154,7 +154,7 @@ class SettingsScreen extends ConsumerWidget {
   // SECTION 4: Keamanan
   // ─────────────────────────────────────────────────
   Widget _buildSecuritySection(BuildContext context, WidgetRef ref) {
-    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    final isDecoy = ref.watch(authProvider).isDecoyActive;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,11 +185,20 @@ class SettingsScreen extends ConsumerWidget {
                   }
                 },
               ),
-              if (!wasDuress) ...[
+              if (!isDecoy) ...[
+                SettingsNavTile(
+                  icon: SolarIconsOutline.usersGroupTwoRounded,
+                  iconColor: MekaarColors.primary,
+                  title: 'PIN Tamu (Decoy)',
+                  subtitle: 'Akses mode bersih tanpa sinyal SOS',
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.decoyPin),
+                ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.lockKeyhole,
                   iconColor: MekaarColors.sosCoral,
                   title: 'PIN Paksaan (Duress)',
+                  subtitle: 'Akses darurat dengan Silent SOS',
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.duressPin),
                 ),
@@ -246,7 +255,7 @@ class SettingsScreen extends ConsumerWidget {
   // SECTION 6: Sistem — haptic global + guardian & darurat
   // ─────────────────────────────────────────────────
   Widget _buildSystemSection(BuildContext context, WidgetRef ref) {
-    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    final isDecoy = ref.watch(authProvider).isDecoyActive;
 
     final prefsAsync = ref.watch(notificationPreferencesProvider);
     final hapticsEnabled = prefsAsync.value?.hapticsEnabled ?? true;
@@ -271,7 +280,7 @@ class SettingsScreen extends ConsumerWidget {
                           .toggleHaptics(value)
                     : null,
               ),
-              if (!wasDuress) ...[
+              if (!isDecoy) ...[
                 SettingsSwitchTile(
                   icon: SolarIconsOutline.volumeLoud,
                   iconColor: MekaarColors.guardianTeal,
@@ -329,7 +338,7 @@ class SettingsScreen extends ConsumerWidget {
   // ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    final isDecoy = ref.watch(authProvider).isDecoyActive;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -350,8 +359,8 @@ class SettingsScreen extends ConsumerWidget {
                     // ── 2. Tampilan ──
                     _buildDisplaySection(context, ref),
 
-                    // ── 3. Privasi (tersembunyi saat duress) ──
-                    if (!wasDuress) ...[_buildPrivacySection(context, ref)],
+                    // ── 3. Privasi (tersembunyi saat decoy/duress) ──
+                    if (!isDecoy) ...[_buildPrivacySection(context, ref)],
 
                     // ── 4. Keamanan ──
                     _buildSecuritySection(context, ref),

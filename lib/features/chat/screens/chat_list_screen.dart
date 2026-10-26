@@ -538,11 +538,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
                                 try {
                                   final Map<String, dynamic>? profile;
-                                  final wasDuress = ref
+                                  final isDecoy = ref
                                       .read(authProvider)
-                                      .lastUnlockWasDuress;
+                                      .isDecoyActive;
 
-                                  if (wasDuress) {
+                                  if (isDecoy) {
                                     await Future.delayed(
                                       const Duration(milliseconds: 600),
                                     );
@@ -889,7 +889,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 onRefresh: () =>
                     ref.read(chatRoomsProvider.notifier).refreshRooms(),
                 child: chatRoomsState.when(
-                  data: (rooms) => _buildChatList(wasDuress ? [] : rooms),
+                  data: (rooms) => _buildChatList(rooms),
                   loading: () => const ChatListSkeleton(),
                   error: (err, stack) => Center(
                     child: MekaarStateView(

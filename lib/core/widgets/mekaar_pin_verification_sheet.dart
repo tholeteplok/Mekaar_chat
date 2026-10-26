@@ -17,12 +17,14 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
   final String title;
   final String subtitle;
   final bool allowDuress;
+  final bool allowDecoy;
 
   const MekaarPinVerificationSheet({
     super.key,
     required this.title,
     required this.subtitle,
     this.allowDuress = true,
+    this.allowDecoy = false,
   });
 
   /// Menampilkan sheet verifikasi PIN modal.
@@ -32,6 +34,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
     String title = 'Verifikasi PIN Keamanan',
     String subtitle = 'Masukkan 6 digit PIN untuk melanjutkan',
     bool allowDuress = true,
+    bool allowDecoy = false,
   }) async {
     final result = await MekaarBottomSheet.show<bool>(
       context: context,
@@ -40,6 +43,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
         title: title,
         subtitle: subtitle,
         allowDuress: allowDuress,
+        allowDecoy: allowDecoy,
       ),
     );
     return result ?? false;
@@ -134,24 +138,29 @@ class _MekaarPinVerificationSheetState
     try {
       final isValid = await ref
           .read(authProvider.notifier)
-          .validatePIN(_pin, allowDuress: widget.allowDuress);
+          .validatePIN(
+            _pin,
+            allowDuress: widget.allowDuress,
+            allowDecoy: widget.allowDecoy,
+          );
 
       if (!mounted) return;
 
       if (isValid) {
-        final wasDuress = ref.read(authProvider).lastUnlockWasDuress;
+        final authState = ref.read(authProvider);
+        final isDecoy = authState.isDecoyActive;
         try {
           final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
             _pin,
-            isDuress: wasDuress,
+            isDuress: isDecoy,
           );
           DatabaseKeyService.instance.setActiveVaultKey(
             vaultKey,
-            isDuress: wasDuress,
+            isDuress: isDecoy,
           );
           await LocalVaultDatabase.instance.openVault(
             key: vaultKey,
-            isDuress: wasDuress,
+            isDuress: isDecoy,
           );
         } catch (_) {}
 

@@ -519,7 +519,8 @@ final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((
   final resp = await supabase.client
       .from('public_profiles')
       .select('id, username, full_name, display_name, avatar_url')
-      .neq('id', currentUserId);
+      .neq('id', currentUserId)
+      .limit(50);
 
   return (resp as List).cast<Map<String, dynamic>>();
 });

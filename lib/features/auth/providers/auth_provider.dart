@@ -20,6 +20,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 // State definition
+enum AuthUnlockMode {
+  master, // Master PIN (Akses Penuh)
+  decoy,  // Guest/Decoy PIN (Mode Bersih, Tanpa SOS)
+  duress, // Duress Emergency PIN (Mode Bersih, Silent SOS)
+}
+
 class AuthState {
   final User? user;
   final Profile? profile;
@@ -28,6 +34,7 @@ class AuthState {
   final bool isPinSet;
   final int pinAttempts;
   final DateTime? pinLockedUntil;
+  final AuthUnlockMode unlockMode;
   final bool lastUnlockWasDuress;
   final bool newDeviceLogin;
 
@@ -43,10 +50,16 @@ class AuthState {
     this.isPinSet = false,
     this.pinAttempts = 0,
     this.pinLockedUntil,
+    this.unlockMode = AuthUnlockMode.master,
     this.lastUnlockWasDuress = false,
     this.newDeviceLogin = false,
     this.e2eeNeedsRestore = false,
   });
+
+  bool get isDecoyActive =>
+      unlockMode == AuthUnlockMode.decoy ||
+      unlockMode == AuthUnlockMode.duress ||
+      lastUnlockWasDuress;
 
   bool get needsUsername =>
       !isLoading &&
@@ -73,10 +86,18 @@ class AuthState {
     bool? isPinSet,
     int? pinAttempts,
     DateTime? pinLockedUntil,
+    AuthUnlockMode? unlockMode,
     bool? lastUnlockWasDuress,
     bool? newDeviceLogin,
     bool? e2eeNeedsRestore,
   }) {
+    final effectiveUnlockMode = unlockMode ??
+        (lastUnlockWasDuress == true
+            ? AuthUnlockMode.duress
+            : (lastUnlockWasDuress == false && this.lastUnlockWasDuress
+                ? AuthUnlockMode.master
+                : this.unlockMode));
+
     return AuthState(
       user: user ?? this.user,
       profile: profile ?? this.profile,
@@ -85,7 +106,8 @@ class AuthState {
       isPinSet: isPinSet ?? this.isPinSet,
       pinAttempts: pinAttempts ?? this.pinAttempts,
       pinLockedUntil: pinLockedUntil ?? this.pinLockedUntil,
-      lastUnlockWasDuress: lastUnlockWasDuress ?? this.lastUnlockWasDuress,
+      unlockMode: effectiveUnlockMode,
+      lastUnlockWasDuress: effectiveUnlockMode == AuthUnlockMode.duress,
       newDeviceLogin: newDeviceLogin ?? this.newDeviceLogin,
       e2eeNeedsRestore: e2eeNeedsRestore ?? this.e2eeNeedsRestore,
     );
@@ -153,11 +175,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 2. Baru kemudian baca data lokal dari FlutterSecureStorage
       //    (operasi ini bisa lambat 200-800ms di perangkat low-end).
       final lockout = await _authRepository.getPinLockout();
-      final wasDuress = await _authRepository.getDuressUnlockStatus();
+      final unlockModeStr = await _authRepository.getUnlockMode();
+      final unlockMode = unlockModeStr == 'duress'
+          ? AuthUnlockMode.duress
+          : (unlockModeStr == 'decoy'
+              ? AuthUnlockMode.decoy
+              : AuthUnlockMode.master);
       state = state.copyWith(
         pinAttempts: lockout['attempts'] as int,
         pinLockedUntil: lockout['lockedUntil'] as DateTime?,
-        lastUnlockWasDuress: wasDuress,
+        unlockMode: unlockMode,
       );
 
       // 3. Jika ada sesi, muat profil dari server.
@@ -543,12 +570,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> setupPIN(String pin) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final isDuress = await _authRepository.validateDuressPIN(pin);
+      if (isDuress) {
+        throw Exception('PIN utama tidak boleh sama dengan PIN Paksaan');
+      }
+      final isDecoy = await _authRepository.validateDecoyPIN(pin);
+      if (isDecoy) {
+        throw Exception('PIN utama tidak boleh sama dengan PIN Tamu');
+      }
+
       await _authRepository.setPIN(pin);
 
       // Hanya backup kunci E2EE jika kunci sudah ada dan siap.
-      // Jika kunci belum di-restore (needsRestore), jangan backup
-      // karena kunci lokal belum ada. Jika kunci fresh (baru saja
-      // di-generate untuk user baru), boleh backup.
       final e2ee = E2eeService.instance;
       if (!e2ee.needsRestore) {
         try {
@@ -563,42 +596,63 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _translateError(e));
+      rethrow;
     }
   }
 
   // Validate dynamic PIN with lockout check.
-  // Jika [pin] cocok dengan Duress PIN dan [allowDuress] diizinkan, buka normal
-  // tapi tandai lastUnlockWasDuress = true (konsumen harus memicu SOS silent diam-diam).
-  // Saat [allowDuress] bernilai false (misal: de-eskalasi / mematikan SOS darurat),
-  // Duress PIN strictly ditolak dan hanya Primary PIN asli yang berhak lolos.
-  Future<bool> validatePIN(String pin, {bool allowDuress = true}) async {
+  // 1. Duress PIN: Buka mode decoy/stealth, pemicu SOS silent ke Guardian.
+  // 2. Decoy PIN: Buka mode decoy/stealth, TANPA memicu SOS (skenario pinjam HP).
+  // 3. Master PIN: Buka mode master normal.
+  Future<bool> validatePIN(
+    String pin, {
+    bool allowDuress = true,
+    bool allowDecoy = true,
+  }) async {
     if (state.isPinLocked) return false;
 
     state = state.copyWith(isLoading: true);
 
-    // Cek Duress PIN lebih dulu jika diizinkan — BUKAN dihitung sebagai gagal.
+    // 1. Cek Duress PIN lebih dulu jika diizinkan — BUKAN dihitung sebagai gagal.
     if (allowDuress) {
       final isDuress = await _authRepository.validateDuressPIN(pin);
       if (isDuress) {
         await _authRepository.clearPinLockout();
-        await _authRepository.saveDuressUnlockStatus(true);
+        await _authRepository.saveUnlockMode('duress');
         // Hancurkan seluruh kunci privat & vault di RAM seketika (Duress Defense)
         unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
         state = state.copyWith(
           pinAttempts: 0,
           pinLockedUntil: null,
           isLoading: false,
-          lastUnlockWasDuress: true,
+          unlockMode: AuthUnlockMode.duress,
         );
         return true;
       }
     }
 
+    // 2. Cek Decoy / Guest PIN jika diizinkan (Mode Tamu, tanpa SOS)
+    if (allowDecoy) {
+      final isDecoy = await _authRepository.validateDecoyPIN(pin);
+      if (isDecoy) {
+        await _authRepository.clearPinLockout();
+        await _authRepository.saveUnlockMode('decoy');
+        state = state.copyWith(
+          pinAttempts: 0,
+          pinLockedUntil: null,
+          isLoading: false,
+          unlockMode: AuthUnlockMode.decoy,
+        );
+        return true;
+      }
+    }
+
+    // 3. Cek Master PIN
     final isValid = await _authRepository.validatePIN(pin);
 
     if (isValid) {
       await _authRepository.clearPinLockout();
-      await _authRepository.saveDuressUnlockStatus(false);
+      await _authRepository.saveUnlockMode('master');
       // Coba restore E2EE dengan PIN yang valid.
       final e2ee = E2eeService.instance;
       bool e2eeRestored = false;
@@ -610,7 +664,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         pinAttempts: 0,
         pinLockedUntil: null,
         isLoading: false,
-        lastUnlockWasDuress: false,
+        unlockMode: AuthUnlockMode.master,
         e2eeNeedsRestore: e2ee.needsRestore && !e2eeRestored,
       );
       return true;
@@ -627,7 +681,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         pinAttempts: newAttempts,
         pinLockedUntil: lockedUntil,
         isLoading: false,
-        lastUnlockWasDuress: false,
+        unlockMode: AuthUnlockMode.master,
       );
       return false;
     }
@@ -635,6 +689,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // Setup Duress PIN (PIN Paksaan)
   Future<void> setupDuressPIN(String pin) async {
+    final isMaster = await _authRepository.validatePIN(pin);
+    if (isMaster) {
+      throw Exception('PIN Paksaan tidak boleh sama dengan PIN utama');
+    }
+    final isDecoy = await _authRepository.validateDecoyPIN(pin);
+    if (isDecoy) {
+      throw Exception('PIN Paksaan tidak boleh sama dengan PIN Tamu');
+    }
     await _authRepository.setDuressPIN(pin);
   }
 
@@ -644,6 +706,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> isDuressEnabled() async {
     return _authRepository.isDuressEnabled();
+  }
+
+  // Setup Decoy PIN (PIN Tamu / Decoy)
+  Future<void> setupDecoyPIN(String pin) async {
+    final isMaster = await _authRepository.validatePIN(pin);
+    if (isMaster) {
+      throw Exception('PIN Tamu tidak boleh sama dengan PIN utama');
+    }
+    final isDuress = await _authRepository.validateDuressPIN(pin);
+    if (isDuress) {
+      throw Exception('PIN Tamu tidak boleh sama dengan PIN Paksaan');
+    }
+    await _authRepository.setDecoyPIN(pin);
+  }
+
+  Future<void> disableDecoyPIN() async {
+    await _authRepository.disableDecoyPIN();
+  }
+
+  Future<bool> isDecoyEnabled() async {
+    return _authRepository.isDecoyEnabled();
   }
 
   // Force unlock PIN — HANYA untuk debug. Di production build ini adalah no-op.

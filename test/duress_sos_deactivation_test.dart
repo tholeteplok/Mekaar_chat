@@ -19,7 +19,13 @@ class FakeAuthRepository extends Fake implements AuthRepository {
   Future<bool> validateDuressPIN(String pin) async => pin == duressPin;
 
   @override
+  Future<bool> validateDecoyPIN(String pin) async => false;
+
+  @override
   Future<void> clearPinLockout() async {}
+
+  @override
+  Future<void> saveUnlockMode(String mode) async {}
 
   @override
   Future<void> saveDuressUnlockStatus(bool status) async {}

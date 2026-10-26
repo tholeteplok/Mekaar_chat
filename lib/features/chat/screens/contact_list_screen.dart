@@ -179,7 +179,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final authState = ref.watch(authProvider);
-    final wasDuress = authState.lastUnlockWasDuress;
+    final isDecoy = authState.isDecoyActive;
     final contactsAsync = ref.watch(userContactsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
@@ -205,7 +205,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         onAction: () => ref.read(userContactsProvider.notifier).refreshContacts(forceLoading: true),
       ),
       data: (items) {
-        final allContacts = wasDuress ? <ContactItem>[] : items;
+        final allContacts = isDecoy ? <ContactItem>[] : items;
 
         // Filter berdasarkan vault cloaking terisolasi & pencarian
         final filteredContacts = allContacts.where((contact) {
@@ -280,7 +280,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       _searchController.clear();
                     });
                   },
-                  action: wasDuress
+                  action: isDecoy
                       ? null
                       : Row(
                           mainAxisSize: MainAxisSize.min,

@@ -59,9 +59,9 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
-    final myGuardians = wasDuress ? <Guardian>[] : ref.watch(guardianProvider);
-    final whoAddedMe = wasDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
+    final isDecoy = ref.watch(authProvider).isDecoyActive;
+    final myGuardians = isDecoy ? <Guardian>[] : ref.watch(guardianProvider);
+    final whoAddedMe = isDecoy ? <Guardian>[] : ref.watch(whoAddedMeProvider);
     final myGuardiansStatus = ref.watch(guardianLoadStatusProvider);
     final whoAddedMeStatus = ref.watch(whoAddedMeLoadStatusProvider);
     final pendingCount = ref.watch(pendingIncomingGuardianCountProvider);
@@ -74,7 +74,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
             MekaarTabHeader(
               key: const ValueKey('guardian_list_tab_header'),
               title: 'Guardian',
-              action: wasDuress
+              action: isDecoy
                   ? null
                   : Row(
                       mainAxisSize: MainAxisSize.min,
