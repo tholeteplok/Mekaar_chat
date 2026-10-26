@@ -31,7 +31,19 @@ class ChatRoomsNotifier
   final ChatRepository _chatRepository;
 
   ChatRoomsNotifier(this._chatRepository) : super(const AsyncValue.loading()) {
-    refreshRooms();
+    _initLocalFirst();
+  }
+
+  /// Inisialisasi local-first: tampilkan snapshot SQLite lokal seketika (0 ms)
+  /// lalu lakukan sinkronisasi data remote di latar belakang secara hening (stale-while-revalidate).
+  Future<void> _initLocalFirst() async {
+    try {
+      final cached = await _chatRepository.getCachedRooms();
+      if (cached.isNotEmpty) {
+        state = AsyncValue.data(cached);
+      }
+    } catch (_) {}
+    await refreshRooms(forceLoading: !state.hasValue);
   }
 
   Future<void> refreshRooms({bool forceLoading = false}) async {
@@ -509,9 +521,153 @@ final chatActionsProvider = Provider<ChatActionsNotifier>((ref) {
   return notifier;
 });
 
+class PaginatedContactsState {
+  final List<Map<String, dynamic>> items;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final String searchQuery;
+  final int page;
+
+  const PaginatedContactsState({
+    this.items = const [],
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.searchQuery = '',
+    this.page = 0,
+  });
+
+  PaginatedContactsState copyWith({
+    List<Map<String, dynamic>>? items,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    String? searchQuery,
+    int? page,
+  }) {
+    return PaginatedContactsState(
+      items: items ?? this.items,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      searchQuery: searchQuery ?? this.searchQuery,
+      page: page ?? this.page,
+    );
+  }
+}
+
+class PaginatedContactsNotifier extends StateNotifier<PaginatedContactsState> {
+  final Ref _ref;
+  static const int pageSize = 25;
+
+  PaginatedContactsNotifier(this._ref) : super(const PaginatedContactsState()) {
+    loadInitial();
+  }
+
+  Future<void> loadInitial({String? query}) async {
+    final q = query ?? state.searchQuery;
+    state = state.copyWith(isLoading: true, searchQuery: q, page: 0, hasMore: true);
+
+    try {
+      final supabase = _ref.read(supabaseServiceProvider);
+      final currentUserId = supabase.currentUserId;
+      if (currentUserId == null) {
+        state = state.copyWith(isLoading: false, items: [], hasMore: false);
+        return;
+      }
+
+      var queryBuilder = supabase.client
+          .from('public_profiles')
+          .select('id, username, full_name, display_name, avatar_url')
+          .neq('id', currentUserId);
+
+      if (q.trim().isNotEmpty) {
+        final filterTerm = '%${q.trim()}%';
+        queryBuilder = queryBuilder.or(
+          'username.ilike.$filterTerm,full_name.ilike.$filterTerm,display_name.ilike.$filterTerm',
+        );
+      }
+
+      final resp = await queryBuilder
+          .order('created_at', ascending: false)
+          .range(0, pageSize - 1);
+
+      final list = (resp as List).cast<Map<String, dynamic>>();
+      state = state.copyWith(
+        items: list,
+        isLoading: false,
+        hasMore: list.length >= pageSize,
+        page: 1,
+      );
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+
+    state = state.copyWith(isLoadingMore: true);
+    try {
+      final supabase = _ref.read(supabaseServiceProvider);
+      final currentUserId = supabase.currentUserId;
+      if (currentUserId == null) {
+        state = state.copyWith(isLoadingMore: false, hasMore: false);
+        return;
+      }
+
+      final from = state.page * pageSize;
+      final to = from + pageSize - 1;
+
+      var queryBuilder = supabase.client
+          .from('public_profiles')
+          .select('id, username, full_name, display_name, avatar_url')
+          .neq('id', currentUserId);
+
+      if (state.searchQuery.trim().isNotEmpty) {
+        final filterTerm = '%${state.searchQuery.trim()}%';
+        queryBuilder = queryBuilder.or(
+          'username.ilike.$filterTerm,full_name.ilike.$filterTerm,display_name.ilike.$filterTerm',
+        );
+      }
+
+      final resp = await queryBuilder
+          .order('created_at', ascending: false)
+          .range(from, to);
+
+      final list = (resp as List).cast<Map<String, dynamic>>();
+      final combined = [...state.items, ...list];
+
+      state = state.copyWith(
+        items: combined,
+        isLoadingMore: false,
+        hasMore: list.length >= pageSize,
+        page: state.page + 1,
+      );
+    } catch (_) {
+      state = state.copyWith(isLoadingMore: false);
+    }
+  }
+
+  void search(String query) {
+    loadInitial(query: query);
+  }
+}
+
+final paginatedContactsProvider =
+    StateNotifierProvider<PaginatedContactsNotifier, PaginatedContactsState>((ref) {
+  return PaginatedContactsNotifier(ref);
+});
+
 final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
+  final paginatedState = ref.watch(paginatedContactsProvider);
+  if (paginatedState.items.isNotEmpty) {
+    return paginatedState.items;
+  }
+
   final supabase = ref.watch(supabaseServiceProvider);
   final currentUserId = supabase.currentUserId;
   if (currentUserId == null) return [];

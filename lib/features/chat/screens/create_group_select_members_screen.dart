@@ -8,7 +8,6 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -30,6 +29,7 @@ class _CreateGroupSelectMembersScreenState
   final Map<String, Map<String, dynamic>> _selectedUserProfiles = {};
   final TextEditingController _searchController = TextEditingController();
   late final FocusNode _searchFocusNode;
+  late final ScrollController _scrollController;
   Timer? _searchDebounceTimer;
   String _searchQuery = '';
 
@@ -37,11 +37,23 @@ class _CreateGroupSelectMembersScreenState
   void initState() {
     super.initState();
     _searchFocusNode = FocusNode();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(paginatedContactsProvider.notifier).loadMore();
+    }
   }
 
   @override
   void dispose() {
     _searchDebounceTimer?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
@@ -189,16 +201,32 @@ class _CreateGroupSelectMembersScreenState
                     Timer(const Duration(milliseconds: 180), () {
                   if (mounted && _searchQuery != val.toLowerCase()) {
                     setState(() => _searchQuery = val.toLowerCase());
+                    ref.read(paginatedContactsProvider.notifier).search(val);
                   }
                 });
               },
             ),
           ),
 
-          // Contacts List
+          // Contacts List (Paginated & Infinite Scroll)
           Expanded(
-            child: contactsAsync.when(
-              data: (contacts) {
+            child: Builder(
+              builder: (context) {
+                final paginatedState = ref.watch(paginatedContactsProvider);
+
+                if (paginatedState.isLoading && paginatedState.items.isEmpty) {
+                  return const MekaarStateView(
+                    pose: MikaPose.neutral,
+                    title: 'Memuat Kontak',
+                    message: 'Mengambil daftar kontak untuk dipilih...',
+                    semanticLabel: 'Memuat daftar kontak',
+                  );
+                }
+
+                final contacts = paginatedState.items.isNotEmpty
+                    ? paginatedState.items
+                    : (contactsAsync.valueOrNull ?? const []);
+
                 final filtered = contacts.where((c) {
                   final userId = c['id'] as String?;
                   if (userId != null && hiddenUserIds.contains(userId)) {
@@ -212,7 +240,7 @@ class _CreateGroupSelectMembersScreenState
                   return name.contains(_searchQuery);
                 }).toList();
 
-                if (filtered.isEmpty) {
+                if (filtered.isEmpty && !paginatedState.isLoading) {
                   return Center(
                     child: Text(
                       'Tidak ada kontak ditemukan.',
@@ -223,9 +251,24 @@ class _CreateGroupSelectMembersScreenState
                   );
                 }
 
+                final hasExtraLoadingTile = paginatedState.isLoadingMore;
                 return ListView.builder(
-                  itemCount: filtered.length,
+                  controller: _scrollController,
+                  itemCount: filtered.length + (hasExtraLoadingTile ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index == filtered.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: MekaarSpacing.md),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    }
+
                     final contact = filtered[index];
                     final userId = contact['id'] as String;
                     final isSelected = _selectedUserIds.contains(userId);
@@ -288,19 +331,6 @@ class _CreateGroupSelectMembersScreenState
                   },
                 );
               },
-              loading: () => const MekaarStateView(
-                pose: MikaPose.neutral,
-                title: 'Memuat Kontak',
-                message: 'Mengambil daftar kontak untuk dipilihâ€¦',
-                semanticLabel: 'Memuat daftar kontak',
-              ),
-              error: (err, stack) => MekaarStateView(
-                pose: ErrorResolver.resolvePose(err),
-                title: 'Gagal Memuat Kontak',
-                message: ErrorResolver.resolve(err),
-                actionLabel: 'Coba Lagi',
-                onAction: () => ref.invalidate(contactsProvider),
-              ),
             ),
           ),
         ],

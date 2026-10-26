@@ -516,35 +516,41 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
-    return ListView(
-      controller: _contactsScrollController,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 4,
-      ).copyWith(bottom: 110),
-      children: [
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: EdgeInsets.zero,
-          borderRadius: MekaarRadius.card,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(MekaarRadius.card),
-            child: _isGridView
-                ? _buildContactsGridContent(
-                    contacts,
-                    hiddenContactUserIds,
-                    hiddenRoomIds,
-                    isVaultUnlocked,
-                  )
-                : _buildContactsListContent(
-                    contacts,
-                    hiddenContactUserIds,
-                    hiddenRoomIds,
-                    isVaultUnlocked,
-                  ),
+    return RefreshIndicator(
+      onRefresh: () => ref
+          .read(userContactsProvider.notifier)
+          .refreshContacts(forceLoading: true),
+      child: ListView(
+        controller: _contactsScrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 4,
+        ).copyWith(bottom: 110),
+        children: [
+          CustomCard(
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.zero,
+            borderRadius: MekaarRadius.card,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(MekaarRadius.card),
+              child: _isGridView
+                  ? _buildContactsGridContent(
+                      contacts,
+                      hiddenContactUserIds,
+                      hiddenRoomIds,
+                      isVaultUnlocked,
+                    )
+                  : _buildContactsListContent(
+                      contacts,
+                      hiddenContactUserIds,
+                      hiddenRoomIds,
+                      isVaultUnlocked,
+                    ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

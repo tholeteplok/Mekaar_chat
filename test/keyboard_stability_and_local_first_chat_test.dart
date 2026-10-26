@@ -11,6 +11,9 @@ class _FakeChatRepository extends ChatRepository {
   _FakeChatRepository() : super(SupabaseService());
 
   @override
+  Future<List<Map<String, dynamic>>> getCachedRooms() async => [];
+
+  @override
   Future<List<Map<String, dynamic>>> getRooms() async {
     return [
       {

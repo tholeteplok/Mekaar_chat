@@ -17,9 +17,10 @@ class LocalMessageDatabase {
 
   static final Logger _logger = Logger();
   static const String _tableName = 'local_messages';
+  static const String _roomsCacheTableName = 'local_rooms_cache';
   static const String _masterDbFileName = 'mekaar_local_messages.db';
   static const String _decoyDbFileName = 'mekaar_decoy.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   Database? _db;
   Completer<Database>? _dbInitCompleter;
@@ -68,8 +69,14 @@ class LocalMessageDatabase {
         version: _dbVersion,
         onCreate: (db, version) async {
           await _onCreate(db, version);
+          await _createRoomsCacheTable(db);
           if (_isDecoy) {
             await _seedDecoyWelcomeMessage(db);
+          }
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await _createRoomsCacheTable(db);
           }
         },
       );
@@ -171,6 +178,116 @@ class LocalMessageDatabase {
       CREATE INDEX IF NOT EXISTS idx_local_messages_auto_delete
       ON $_tableName (auto_delete_at)
     ''');
+  }
+
+  Future<void> _createRoomsCacheTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_roomsCacheTableName (
+        room_id TEXT PRIMARY KEY,
+        room_type TEXT NOT NULL,
+        chat_name TEXT NOT NULL,
+        avatar_url TEXT,
+        other_user_id TEXT,
+        is_guardian INTEGER NOT NULL DEFAULT 0,
+        is_muted INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        unread_count INTEGER NOT NULL DEFAULT 0,
+        is_group INTEGER NOT NULL DEFAULT 0,
+        member_count INTEGER NOT NULL DEFAULT 0,
+        raw_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_rooms_cache_updated
+      ON $_roomsCacheTableName (updated_at DESC)
+    ''');
+  }
+
+  /// Menyimpan snapshot daftar chat rooms ke cache SQLCipher lokal secara terisolasi (Master / Decoy)
+  Future<void> saveRoomsCache(List<Map<String, dynamic>> rooms) async {
+    if (rooms.isEmpty) return;
+    try {
+      final db = await database;
+      final batch = db.batch();
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      for (final r in rooms) {
+        final roomId = r['id'] as String? ?? r['room_id'] as String?;
+        if (roomId == null || roomId.isEmpty) continue;
+
+        // Siapkan map JSON yang serializable
+        final serializableMap = Map<String, dynamic>.from(r);
+        final lastMsg = r['lastMessage'];
+        if (lastMsg is Message) {
+          serializableMap['lastMessage'] = lastMsg.toJson();
+        }
+
+        final rawJson = jsonEncode(serializableMap);
+        final timestampStr = r['timestamp']?.toString() ?? now;
+
+        batch.insert(
+          _roomsCacheTableName,
+          {
+            'room_id': roomId,
+            'room_type': r['roomType'] as String? ?? r['room_type'] as String? ?? 'direct',
+            'chat_name': r['name'] as String? ?? r['chat_name'] as String? ?? '',
+            'avatar_url': r['avatarUrl'] as String? ?? r['avatar_url'] as String?,
+            'other_user_id': r['otherUserId'] as String? ?? r['other_user_id'] as String?,
+            'is_guardian': (r['isGuardian'] == true || r['is_guardian'] == true) ? 1 : 0,
+            'is_muted': (r['isMuted'] == true || r['is_muted'] == true) ? 1 : 0,
+            'is_archived': (r['isArchived'] == true || r['is_archived'] == true) ? 1 : 0,
+            'unread_count': r['unreadCount'] as int? ?? r['unread_count'] as int? ?? 0,
+            'is_group': (r['isGroup'] == true || r['is_group'] == true) ? 1 : 0,
+            'member_count': r['memberCount'] as int? ?? r['member_count'] as int? ?? 0,
+            'raw_json': rawJson,
+            'updated_at': timestampStr,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      _logger.w('Gagal menyimpan local rooms cache: $e');
+    }
+  }
+
+  /// Mengambil snapshot daftar chat rooms dari SQLite lokal secara instan (0-5 ms, zero network)
+  Future<List<Map<String, dynamic>>> getCachedRooms() async {
+    // Mode Decoy: kembalikan decoy rooms terisolasi
+    if (_isDecoy) {
+      return getDecoyRooms();
+    }
+
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _roomsCacheTableName,
+        orderBy: 'updated_at DESC',
+      );
+
+      final List<Map<String, dynamic>> result = [];
+      for (final row in rows) {
+        final rawJsonStr = row['raw_json'] as String?;
+        if (rawJsonStr == null || rawJsonStr.isEmpty) continue;
+
+        final decoded = jsonDecode(rawJsonStr) as Map<String, dynamic>;
+        // Rekonstruksi Message object jika ada
+        if (decoded['lastMessage'] != null && decoded['lastMessage'] is Map) {
+          try {
+            decoded['lastMessage'] = Message.fromJson(
+              (decoded['lastMessage'] as Map).cast<String, dynamic>(),
+            );
+          } catch (_) {}
+        }
+        result.add(decoded);
+      }
+      return result;
+    } catch (e) {
+      _logger.w('Gagal memuat local rooms cache: $e');
+      return [];
+    }
   }
 
   /// Memeriksa apakah file lokal masih berformat SQLite teks polos (legacy).

@@ -69,6 +69,11 @@ class ChatRepository {
     }
   }
 
+  /// Mengambil snapshot obrolan lokal dari SQLCipher untuk transisi instan 0ms
+  Future<List<Map<String, dynamic>>> getCachedRooms() async {
+    return LocalMessageDatabase.instance.getCachedRooms();
+  }
+
   // Get active chat rooms for current user
   Future<List<Map<String, dynamic>>> getRooms() async {
     // Zero-Leak Decoy: Jangan sentuh Supabase jika dalam mode Decoy/Duress
@@ -80,6 +85,124 @@ class ChatRepository {
     if (userId == null) return [];
 
     final hiddenMsgIds = await _getHiddenMessageIds(userId);
+
+    // 1. Coba panggil RPC Postgres get_user_inbox() (1 round-trip HTTP ~150-250ms)
+    try {
+      final rpcResult = await _supabaseService.client.rpc('get_user_inbox');
+      if (rpcResult is List) {
+        final parsedRooms = await _parseInboxRpcResult(rpcResult, userId, hiddenMsgIds);
+        unawaited(LocalMessageDatabase.instance.saveRoomsCache(parsedRooms));
+        return parsedRooms;
+      }
+    } catch (_) {
+      // Graceful fallback ke legacy N+1 query jika migrasi RPC belum diaplikasikan di database
+    }
+
+    return _getRoomsLegacy(userId, hiddenMsgIds);
+  }
+
+  Future<List<Map<String, dynamic>>> _parseInboxRpcResult(
+    List<dynamic> rpcList,
+    String userId,
+    Set<String> hiddenMsgIds,
+  ) async {
+    final List<Map<String, dynamic>> roomsList = [];
+
+    for (final item in rpcList) {
+      if (item is! Map<String, dynamic>) continue;
+
+      final roomId = item['id'] as String? ?? '';
+      if (roomId.isEmpty) continue;
+
+      final unreadCount = item['unreadCount'] as int? ?? 0;
+      final lastMsgRaw = item['lastMessage'] as Map<String, dynamic>?;
+
+      String lastMessageText = 'Mulai percakapan...';
+      DateTime? lastMessageTime;
+
+      if (item['timestamp'] != null) {
+        lastMessageTime = DateTime.tryParse(item['timestamp'].toString())?.toLocal();
+      }
+
+      if (lastMsgRaw != null) {
+        final msgId = (lastMsgRaw['id'] ?? lastMsgRaw['message_id']) as String?;
+        if (msgId != null && !hiddenMsgIds.contains(msgId)) {
+          Message? localMsg;
+          try {
+            localMsg = await LocalMessageDatabase.instance.getLastActiveMessageForRoom(
+              roomId,
+              hiddenIds: hiddenMsgIds,
+            );
+          } catch (_) {}
+
+          final bool isUnreadFromOther = unreadCount > 0 &&
+              (lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id']) != userId;
+
+          final contentSource = (localMsg != null && localMsg.id == msgId)
+              ? localMsg
+              : Message(
+                  id: msgId,
+                  roomId: roomId,
+                  senderId: (lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id'] ?? '') as String,
+                  content: (lastMsgRaw['content'] ?? '') as String,
+                  type: MessageType.values.firstWhere(
+                    (e) => e.name == (lastMsgRaw['msgType'] ?? lastMsgRaw['msg_type'] ?? 'text'),
+                    orElse: () => MessageType.text,
+                  ),
+                  createdAt: lastMessageTime ?? DateTime.now(),
+                  updatedAt: lastMessageTime ?? DateTime.now(),
+                  isEncrypted: (lastMsgRaw['isEncrypted'] == true || lastMsgRaw['is_encrypted'] == 1),
+                );
+
+          if (contentSource.isEncrypted &&
+              contentSource.content.isNotEmpty &&
+              contentSource != localMsg) {
+            lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
+          } else {
+            lastMessageText = MessagePreviewResolver.formatChatListPreview(
+              type: contentSource.type,
+              content: contentSource.content,
+              isUnreadFromOther: isUnreadFromOther,
+            );
+          }
+        }
+      }
+
+      roomsList.add({
+        'id': roomId,
+        'name': item['name'] as String? ?? 'User',
+        'avatar': item['avatar'] as String? ?? 'U',
+        'avatarUrl': item['avatarUrl'] as String?,
+        'lastMessage': lastMessageText,
+        'timestamp': lastMessageTime,
+        'unreadCount': unreadCount,
+        'isGuardian': item['isGuardian'] as bool? ?? false,
+        'isGroup': item['isGroup'] as bool? ?? false,
+        'memberCount': item['memberCount'] as int? ?? 0,
+        'otherUserId': item['otherUserId'] as String? ?? userId,
+        'otherUsername': '',
+        'otherEmail': '',
+        'isMuted': item['isMuted'] as bool? ?? false,
+        'isArchived': item['isArchived'] as bool? ?? false,
+      });
+    }
+
+    roomsList.sort((a, b) {
+      final aTime = a['timestamp'] as DateTime?;
+      final bTime = b['timestamp'] as DateTime?;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+
+    return roomsList;
+  }
+
+  Future<List<Map<String, dynamic>>> _getRoomsLegacy(
+    String userId,
+    Set<String> hiddenMsgIds,
+  ) async {
 
     // Get rooms the current user participates in, filtering out deleted rooms
     final roomsResponse = await _supabaseService.client
@@ -314,6 +437,7 @@ class ChatRepository {
       if (bTime == null) return -1;
       return bTime.compareTo(aTime);
     });
+    unawaited(LocalMessageDatabase.instance.saveRoomsCache(roomsList));
     return roomsList;
   }
 

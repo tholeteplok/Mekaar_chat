@@ -22,12 +22,17 @@ import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mekaar_chat/data/services/aegis_shredder_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app.dart';
 
 final logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Matikan HTTP runtime fetching Google Fonts secara permanen (Anti-FOUC & 100% Offline Ready).
+  // Seluruh font inti (Plus Jakarta Sans, Space Grotesk, Baloo 2) disuplai langsung dari assets lokal.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Aktifkan Android Photo Picker bawaan OS (Galeri visual foto & video modern)
   final imagePickerPlatform = ImagePickerPlatform.instance;
