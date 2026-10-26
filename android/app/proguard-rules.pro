@@ -17,6 +17,10 @@
 -keep class com.google.mlkit.** { *; }
 -keep class com.google.android.gms.** { *; }
 
+# Google Play Core & Deferred Components (Opsional pada Flutter Engine)
+-dontwarn com.google.android.play.core.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+
 # JNI & Rust Core FFI
 -keep class com.sun.jna.** { *; }
 -keepclasseswithmembernames class * {

@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -31,19 +34,38 @@ android {
         versionName = flutter.versionName
     }
 
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
     signingConfigs {
         create("release") {
             val keystoreFile = file("mekaar_release.jks")
-            if (keystoreFile.exists()) {
+            val envPass: String? = System.getenv("KEYSTORE_PASSWORD")
+            val propPass: String? = keystoreProperties.getProperty("storePassword")
+            val pass = if (!envPass.isNullOrEmpty()) envPass else propPass
+
+            if (keystoreFile.exists() && !pass.isNullOrEmpty()) {
+                val envKeyPass: String? = System.getenv("KEY_PASSWORD")
+                val propKeyPass: String? = keystoreProperties.getProperty("keyPassword")
+                val keyPass = if (!envKeyPass.isNullOrEmpty()) envKeyPass else (propKeyPass ?: pass)
+
+                val envAlias: String? = System.getenv("KEY_ALIAS")
+                val propAlias: String? = keystoreProperties.getProperty("keyAlias")
+                val alias = if (!envAlias.isNullOrEmpty()) envAlias else (propAlias ?: "mekaar")
+
                 storeFile = keystoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: "mekaar"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+                storePassword = pass
+                keyAlias = alias
+                keyPassword = keyPass
             } else {
-                storeFile = signingConfigs.getByName("debug").storeFile
-                storePassword = signingConfigs.getByName("debug").storePassword
-                keyAlias = signingConfigs.getByName("debug").keyAlias
-                keyPassword = signingConfigs.getByName("debug").keyPassword
+                val debugSigning = signingConfigs.getByName("debug")
+                storeFile = debugSigning.storeFile
+                storePassword = debugSigning.storePassword
+                keyAlias = debugSigning.keyAlias
+                keyPassword = debugSigning.keyPassword
             }
         }
     }
