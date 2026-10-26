@@ -56,6 +56,9 @@ class FakeChatRoomsNotifier
   Future<void> refreshRooms({bool forceLoading = false}) async {}
 
   @override
+  Future<void> reloadFromLocalCache({bool syncRemoteInBackground = true}) async {}
+
+  @override
   Future<String> getOrCreateRoom(
     String otherUserId,
     String type, {

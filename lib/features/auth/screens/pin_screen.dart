@@ -195,38 +195,52 @@ class _PinScreenState extends ConsumerState<PinScreen>
           final isDecoy = authState.isDecoyActive;
           final isDuress = authState.lastUnlockWasDuress;
 
-          // Isolasi database pesan: beralih ke mekaar_decoy.db jika decoy/duress
+          // Isolasi database pesan: beralih ke mekaar_decoy.db jika decoy/duress (<10ms)
           await LocalMessageDatabase.instance.switchMode(isDecoy: isDecoy);
-          // Segera invalidasi dan muat ulang draf pesan untuk mode database yang aktif
+
+          // Segera invalidasi draf pesan untuk mode database yang aktif
           ref.invalidate(chatDraftsProvider);
-          await ref.read(chatDraftsProvider.notifier).reloadDrafts();
-          // Segera sinkronkan daftar room di memori ke mode decoy/master agar transisi 0ms instan tanpa kebocoran
-          await ref.read(chatRoomsProvider.notifier).refreshRooms(forceLoading: true);
 
-          // Preload set vault rahasia secara tuntas sebelum berpindah ke layar utama (0ms latency, anti-flash)
-          try {
-            final vaultRepo = ref.read(privateContactRepositoryProvider);
-            await vaultRepo.preloadCache();
-            await ref.read(hiddenContactUserIdsProvider.notifier).loadHiddenContacts();
-            await ref.read(hiddenRoomIdsProvider.notifier).loadHiddenRooms();
-            ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-            ref.read(privateVaultUnlockedProvider.notifier).state = false;
-          } catch (_) {}
+          // Eksekusi paralel I/O lokal (draf, local-first rooms cache, preload vault, dan init vault key)
+          await Future.wait([
+            // 1. Muat ulang draf pesan lokal
+            ref.read(chatDraftsProvider.notifier).reloadDrafts(),
 
-          try {
-            final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
-              _pin,
-              isDuress: isDecoy,
-            );
-            DatabaseKeyService.instance.setActiveVaultKey(
-              vaultKey,
-              isDuress: isDecoy,
-            );
-            await LocalVaultDatabase.instance.openVault(
-              key: vaultKey,
-              isDuress: isDecoy,
-            );
-          } catch (_) {}
+            // 2. Segera muat daftar room dari SQLite lokal secara instan (0ms, zero network blocking)
+            // Sinkronisasi remote Supabase berjalan di latar belakang (stale-while-revalidate) hanya di mode master
+            ref.read(chatRoomsProvider.notifier).reloadFromLocalCache(syncRemoteInBackground: !isDecoy),
+
+            // 3. Preload set vault rahasia secara tuntas (0ms latency, anti-flash)
+            () async {
+              try {
+                final vaultRepo = ref.read(privateContactRepositoryProvider);
+                await vaultRepo.preloadCache();
+                await ref.read(hiddenContactUserIdsProvider.notifier).loadHiddenContacts();
+                await ref.read(hiddenRoomIdsProvider.notifier).loadHiddenRooms();
+                ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+                ref.read(privateVaultUnlockedProvider.notifier).state = false;
+              } catch (_) {}
+            }(),
+
+            // 4. Inisialisasi kunci brankas (Argon2id v2 tanpa PBKDF2 100k redundan)
+            () async {
+              try {
+                final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
+                  _pin,
+                  isDuress: isDecoy,
+                );
+                DatabaseKeyService.instance.setActiveVaultKey(
+                  vaultKey,
+                  isDuress: isDecoy,
+                );
+                await LocalVaultDatabase.instance.openVault(
+                  key: vaultKey,
+                  isDuress: isDecoy,
+                  pin: _pin,
+                );
+              } catch (_) {}
+            }(),
+          ]);
 
           if (authState.e2eeNeedsRestore && !isDecoy) {
             await _showE2eeRestoreDialog();

@@ -33,7 +33,11 @@ class LocalVaultDatabase {
   bool get isDuress => _isDuressActive;
 
   /// Membuka brankas berkas menggunakan kunci enkripsi SQLCipher yang diturunkan dari PIN.
-  Future<Database> openVault({required String key, required bool isDuress}) async {
+  Future<Database> openVault({
+    required String key,
+    required bool isDuress,
+    String? pin,
+  }) async {
     if (_db != null && _db!.isOpen) {
       await _db!.close();
       _db = null;
@@ -62,7 +66,15 @@ class LocalVaultDatabase {
         );
       } catch (openErr) {
         // Coba auto-migrasi dari legacy SQLCipher key jika db sudah ada tapi belum di-rekey ke Argon2id v2
-        final legacyKey = DatabaseKeyService.instance.activeLegacyVaultKey;
+        var legacyKey = DatabaseKeyService.instance.activeLegacyVaultKey;
+        if (legacyKey == null && pin != null && pin.isNotEmpty) {
+          try {
+            legacyKey = await DatabaseKeyService.instance.deriveLegacyVaultKey(
+              pin,
+              isDuress: isDuress,
+            );
+          } catch (_) {}
+        }
         if (legacyKey != null && await File(path).exists()) {
           _logger.w('Mencoba membuka brankas dengan legacy PBKDF2 key dan re-key ke Argon2id v2...');
           _db = await openDatabase(

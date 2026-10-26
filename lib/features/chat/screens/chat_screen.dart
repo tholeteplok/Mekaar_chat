@@ -389,6 +389,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Timer? _presenceHeartbeatTimer;
 
   void _startPresenceHeartbeat() {
+    if (LocalMessageDatabase.instance.isDecoy || widget.chatId == 'room_welcome_mekaar') {
+      return;
+    }
     _presenceHeartbeatTimer?.cancel();
     _presenceHeartbeatTimer = Timer.periodic(const Duration(seconds: 30), (
       _,
@@ -512,15 +515,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         await repo.purgeExpiredMessages(targetRoomId: widget.chatId);
       } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
-      if (widget.otherUserId != null) {
-        _otherLastSeenNotifier.value = await repo.getLastSeen(
-          widget.otherUserId!,
-        );
-      }
       if (widget.isGroup) {
         _loadGroupParticipants();
       }
-      repo.updateLastSeen();
+      if (!LocalMessageDatabase.instance.isDecoy &&
+          widget.chatId != 'room_welcome_mekaar') {
+        if (widget.otherUserId != null) {
+          _otherLastSeenNotifier.value = await repo.getLastSeen(
+            widget.otherUserId!,
+          );
+        }
+        repo.updateLastSeen();
+      }
     });
   }
 
@@ -2574,7 +2580,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                   'groupAvatarUrl': _effectiveAvatarUrl,
                                 },
                               )
-                            : (_effectiveOtherUserId != null
+                            : (_effectiveOtherUserId != null &&
+                                    !LocalMessageDatabase.instance.isDecoy &&
+                                    widget.chatId != 'room_welcome_mekaar'
                                   ? () => _pushNamedWithoutActiveRoom(
                                       AppRoutes.contactSettings,
                                       arguments: {
@@ -2587,26 +2595,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     )
                                   : null),
                         actions: [
-                          // 1. Panggilan Video Langsung
-                          IconButton(
-                            icon: Icon(
-                              SolarIconsOutline.videocamera,
-                              color: roomThemeSpec.iconColor,
-                              size: 22,
+                          if (!LocalMessageDatabase.instance.isDecoy &&
+                              widget.chatId != 'room_welcome_mekaar') ...[
+                            // 1. Panggilan Video Langsung
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.videocamera,
+                                color: roomThemeSpec.iconColor,
+                                size: 22,
+                              ),
+                              tooltip: 'Panggilan Video',
+                              onPressed: () => _initiateCall('video'),
                             ),
-                            tooltip: 'Panggilan Video',
-                            onPressed: () => _initiateCall('video'),
-                          ),
-                          // 2. Panggilan Suara Langsung
-                          IconButton(
-                            icon: Icon(
-                              SolarIconsOutline.phoneRounded,
-                              color: roomThemeSpec.iconColor,
-                              size: 22,
+                            // 2. Panggilan Suara Langsung
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.phoneRounded,
+                                color: roomThemeSpec.iconColor,
+                                size: 22,
+                              ),
+                              tooltip: 'Panggilan Suara',
+                              onPressed: () => _initiateCall('voice'),
                             ),
-                            tooltip: 'Panggilan Suara',
-                            onPressed: () => _initiateCall('voice'),
-                          ),
+                          ],
                           // 3. Actions Popup Menu (High-Contrast Frosted Glass)
                           PopupMenuButton<String>(
                             shape: RoundedRectangleBorder(

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/navigation/app_navigator.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/repositories/call_repository.dart';
+import '../../../data/services/local_message_database.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
 import 'chat_provider.dart';
@@ -33,6 +34,14 @@ class CallInvitationListener {
   /// Memproses data panggilan masuk baik dari realtime listener maupun recovery queue
   Future<void> processIncomingCallRecord(Map<String, dynamic> newRow) async {
     if (_disposed) return;
+
+    // Zero-Leak Decoy: Bungkam panggilan masuk jika ponsel sedang dalam mode Decoy/Tamu/Duress
+    final authState = _ref.read(authProvider);
+    final isDecoy = authState.isDecoyActive || LocalMessageDatabase.instance.isDecoy;
+    if (isDecoy) {
+      _log.i('[CALL_INVITE] Mode Decoy aktif: panggilan masuk dibungkam demi stealth & privasi.');
+      return;
+    }
 
     final callId = newRow['id'] as String?;
     final roomId = newRow['room_id'] as String?;

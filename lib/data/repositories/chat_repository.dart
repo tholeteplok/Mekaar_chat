@@ -1234,6 +1234,8 @@ class ChatRepository {
 
   /// Update the current user's last_seen_at via RPC.
   Future<void> updateLastSeen() async {
+    // Zero-Network Decoy: Jangan sentuh Supabase jika dalam mode Decoy/Duress
+    if (LocalMessageDatabase.instance.isDecoy) return;
     try {
       await _supabaseService.client.rpc('update_last_seen');
     } catch (_) {}
@@ -1300,6 +1302,8 @@ class ChatRepository {
   /// Get the last_seen_at of another user, honoring their last_seen_privacy
   /// setting via the `get_last_seen_for` RPC. Returns null when hidden.
   Future<DateTime?> getLastSeen(String profileId) async {
+    // Zero-Network Decoy: Jangan sentuh Supabase jika dalam mode Decoy/Duress
+    if (LocalMessageDatabase.instance.isDecoy || profileId == 'mekaar_official') return null;
     try {
       final response = await _supabaseService.client.rpc(
         'get_last_seen_for',

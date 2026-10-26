@@ -114,13 +114,10 @@ class DatabaseKeyService {
     bool forceLegacy = false,
   }) async {
     if (forceLegacy) {
-      return _deriveLegacyVaultKey(pin, isDuress: isDuress);
+      return deriveLegacyVaultKey(pin, isDuress: isDuress);
     }
 
     try {
-      // Pre-compute legacy key untuk keperluan auto-rekeying jika database lama belum di-upgrade
-      _activeLegacyVaultKey = await _deriveLegacyVaultKey(pin, isDuress: isDuress);
-
       final salt = await getOrCreateVaultSalt(isDuress: isDuress);
       try {
         _activeVaultKeySlotId = await AegisMemoryGuardService.instance.deriveVaultKey(
@@ -146,8 +143,15 @@ class DatabaseKeyService {
       return keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     } catch (e) {
       _logger.w('Argon2id derivation gagal, fallback ke legacy: $e');
-      return _deriveLegacyVaultKey(pin, isDuress: isDuress);
+      return deriveLegacyVaultKey(pin, isDuress: isDuress);
     }
+  }
+
+  /// Menurunkan kunci legacy PBKDF2 (100.000 iterasi) secara on-demand khusus untuk migrasi database lama.
+  Future<String> deriveLegacyVaultKey(String pin, {required bool isDuress}) async {
+    final hexKey = await _deriveLegacyVaultKey(pin, isDuress: isDuress);
+    _activeLegacyVaultKey = hexKey;
+    return hexKey;
   }
 
   Future<String> _deriveLegacyVaultKey(String pin, {required bool isDuress}) async {

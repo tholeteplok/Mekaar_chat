@@ -224,6 +224,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final profile = await _authRepository.getProfile();
+      unawaited(_authRepository.cacheDuressPinStatus(profile?.duressPinHash));
       final isPinSet = await _authRepository.isPINSet();
       final lockout = await _authRepository.getPinLockout();
 
@@ -653,12 +654,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (isValid) {
       await _authRepository.clearPinLockout();
       await _authRepository.saveUnlockMode('master');
-      // Coba restore E2EE dengan PIN yang valid.
+      // Coba restore E2EE dengan PIN yang valid HANYA jika memang membutuhkan restore
       final e2ee = E2eeService.instance;
       bool e2eeRestored = false;
-      try {
-        e2eeRestored = await e2ee.tryRestoreWithPin(pin);
-      } catch (_) {}
+      if (e2ee.needsRestore) {
+        try {
+          e2eeRestored = await e2ee.tryRestoreWithPin(pin);
+        } catch (_) {}
+      }
 
       state = state.copyWith(
         pinAttempts: 0,

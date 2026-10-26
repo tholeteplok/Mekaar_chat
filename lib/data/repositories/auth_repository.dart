@@ -660,12 +660,23 @@ class AuthRepository {
       final local = await _secureStorage
           .read(key: 'duress_pin_hash')
           .timeout(const Duration(seconds: 1));
+      if (local == 'none' || local == 'disabled') return false;
       if (local != null && local.isNotEmpty) return true;
     } catch (_) {}
     final profile = await getProfile();
     return profile != null &&
         profile.pinHash.isNotEmpty &&
         (profile.duressPinHash?.isNotEmpty ?? false);
+  }
+
+  /// Sinkronkan status hash duress ke secure storage lokal agar tidak memicu query HTTP remote.
+  Future<void> cacheDuressPinStatus(String? remoteHash) async {
+    try {
+      final val = (remoteHash != null && remoteHash.isNotEmpty) ? remoteHash : 'none';
+      await _secureStorage
+          .write(key: 'duress_pin_hash', value: val)
+          .timeout(const Duration(seconds: 1));
+    } catch (_) {}
   }
 
   // Mengembalikan true bila [pin] cocok dengan duress PIN (bukan PIN utama).
@@ -677,19 +688,33 @@ class AuthRepository {
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
 
+    // Jika hash ditandai 'none' atau 'disabled', berarti duress PIN memang tidak diatur.
+    // Hindari melakukan network call ke getProfile() demi mempertahankan unlock instant (<300ms).
+    if (storedHash == 'none' || storedHash == 'disabled') {
+      return false;
+    }
+
     if (storedHash == null || storedHash.isEmpty) {
       final profile = await getProfile();
-      if (profile != null && profile.duressPinHash != null) {
+      if (profile != null && profile.duressPinHash != null && profile.duressPinHash!.isNotEmpty) {
         storedHash = profile.duressPinHash;
         try {
           await _secureStorage
               .write(key: 'duress_pin_hash', value: storedHash)
               .timeout(const Duration(seconds: 1));
         } catch (_) {}
+      } else {
+        // Tandai bahwa duress PIN tidak diatur sehingga unlock berikutnya 0ms tanpa request HTTP
+        try {
+          await _secureStorage
+              .write(key: 'duress_pin_hash', value: 'none')
+              .timeout(const Duration(seconds: 1));
+        } catch (_) {}
+        return false;
       }
     }
 
-    if (storedHash != null && storedHash.isNotEmpty) {
+    if (storedHash != null && storedHash.isNotEmpty && storedHash != 'none') {
       // Backward compatibility: If stored hash doesn't contain ':', it's legacy SHA-256.
       if (!storedHash.contains(':')) {
         final bytes = utf8.encode(pin);
@@ -737,7 +762,7 @@ class AuthRepository {
     if (userId == null) return;
     try {
       await _secureStorage
-          .delete(key: 'duress_pin_hash')
+          .write(key: 'duress_pin_hash', value: 'none')
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
     try {

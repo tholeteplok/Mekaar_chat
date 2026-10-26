@@ -46,6 +46,19 @@ class ChatRoomsNotifier
     await refreshRooms(forceLoading: !state.hasValue);
   }
 
+  /// Memuat snapshot daftar chat rooms dari cache SQLite lokal secara instan (0-5 ms, zero network)
+  /// dan secara opsional memicu sinkronisasi data remote di latar belakang (stale-while-revalidate).
+  Future<void> reloadFromLocalCache({bool syncRemoteInBackground = true}) async {
+    try {
+      final cached = await _chatRepository.getCachedRooms();
+      state = AsyncValue.data(cached);
+    } catch (_) {}
+
+    if (syncRemoteInBackground) {
+      unawaited(refreshRooms(forceLoading: false));
+    }
+  }
+
   Future<void> refreshRooms({bool forceLoading = false}) async {
     try {
       if (forceLoading || !state.hasValue) {
