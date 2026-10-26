@@ -4,6 +4,7 @@ import 'package:mekaar_chat/features/auth/screens/new_password_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/set_username_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/login_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
+import 'package:mekaar_chat/features/auth/screens/welcome_animation_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/pin_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/splash_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/account_suspended_screen.dart';
@@ -102,6 +103,7 @@ class MekaarPageRoute extends PageRouteBuilder {
 class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
+  static const String welcomeAnimation = '/welcome-animation';
   static const String login = '/login';
   static const String setUsername = '/set-username';
   static const String pin = '/pin';
@@ -183,6 +185,9 @@ class AppRoutes {
 
       case AppRoutes.onboarding:
         return MekaarPageRoute(builder: (_) => const OnboardingScreen());
+
+      case AppRoutes.welcomeAnimation:
+        return MekaarPageRoute(builder: (_) => const WelcomeAnimationScreen());
 
       case AppRoutes.login:
         return MekaarPageRoute(builder: (_) => const LoginScreen());

@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
   Widget createWidgetUnderTest() {
     return ProviderScope(
       child: MaterialApp(
         routes: {
+          AppRoutes.welcomeAnimation: (context) =>
+              const Scaffold(body: Text('Mock Welcome Animation')),
           AppRoutes.login: (context) =>
               const Scaffold(body: Text('Mock Login Screen')),
         },
@@ -46,7 +54,7 @@ void main() {
       );
     });
 
-    testWidgets('last slide displays "Mulai Sekarang" and navigates to login',
+    testWidgets('last slide displays "Mulai Sekarang" and navigates to welcome animation',
         (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
@@ -62,7 +70,7 @@ void main() {
       await tester.tap(find.text('Mulai Sekarang'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mock Login Screen'), findsOneWidget);
+      expect(find.text('Mock Welcome Animation'), findsOneWidget);
     });
 
     testWidgets('tapping "Lewati" navigates directly to login', (tester) async {

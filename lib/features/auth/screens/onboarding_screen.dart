@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
@@ -51,14 +52,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _currentPage = index);
   }
 
-  void _nextPage() {
+  Future<void> _nextPage() async {
     if (_currentPage < _slides.length - 1) {
       _pageController.nextPage(
         duration: MekaarMotion.counter,
         curve: Curves.easeOutCubic,
       );
     } else {
-      Navigator.pushReplacementNamed(context, AppRoutes.login);
+      bool hasSeen = false;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        hasSeen = prefs.getBool('has_seen_welcome_animation') ?? false;
+      } catch (_) {}
+      if (!mounted) return;
+      if (!hasSeen) {
+        Navigator.pushReplacementNamed(context, AppRoutes.welcomeAnimation);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
     }
   }
 
