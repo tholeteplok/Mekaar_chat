@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:logger/logger.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
+import '../models/chat_draft_model.dart';
 import '../models/message_model.dart';
 import 'database_key_service.dart';
 
@@ -18,9 +19,10 @@ class LocalMessageDatabase {
   static final Logger _logger = Logger();
   static const String _tableName = 'local_messages';
   static const String _roomsCacheTableName = 'local_rooms_cache';
+  static const String _draftsTableName = 'chat_drafts';
   static const String _masterDbFileName = 'mekaar_local_messages.db';
   static const String _decoyDbFileName = 'mekaar_decoy.db';
-  static const int _dbVersion = 2;
+  static const int _dbVersion = 3;
 
   Database? _db;
   Completer<Database>? _dbInitCompleter;
@@ -70,6 +72,7 @@ class LocalMessageDatabase {
         onCreate: (db, version) async {
           await _onCreate(db, version);
           await _createRoomsCacheTable(db);
+          await _createDraftsTable(db);
           if (_isDecoy) {
             await _seedDecoyWelcomeMessage(db);
           }
@@ -77,6 +80,9 @@ class LocalMessageDatabase {
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
             await _createRoomsCacheTable(db);
+          }
+          if (oldVersion < 3) {
+            await _createDraftsTable(db);
           }
         },
       );
@@ -219,6 +225,22 @@ class LocalMessageDatabase {
     ''');
   }
 
+  Future<void> _createDraftsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_draftsTableName (
+        room_id TEXT PRIMARY KEY,
+        content TEXT NOT NULL,
+        reply_to_id TEXT,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_chat_drafts_updated
+      ON $_draftsTableName (updated_at DESC)
+    ''');
+  }
+
   /// Menyimpan snapshot daftar chat rooms ke cache SQLCipher lokal secara terisolasi (Master / Decoy)
   Future<void> saveRoomsCache(List<Map<String, dynamic>> rooms) async {
     if (rooms.isEmpty) return;
@@ -301,6 +323,83 @@ class LocalMessageDatabase {
     } catch (e) {
       _logger.w('Gagal memuat local rooms cache: $e');
       return [];
+    }
+  }
+
+  /// Menyimpan atau memperbarui draf pesan untuk room tertentu di database SQLCipher lokal
+  Future<void> saveDraft(String roomId, String content, {String? replyToId}) async {
+    if (roomId.trim().isEmpty) return;
+    try {
+      final db = await database;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      await db.insert(
+        _draftsTableName,
+        {
+          'room_id': roomId,
+          'content': content,
+          'reply_to_id': replyToId,
+          'updated_at': nowMs,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      _logger.w('Gagal menyimpan draf pesan lokal: $e');
+    }
+  }
+
+  /// Mengambil draf pesan untuk room tertentu dari database SQLCipher lokal
+  Future<ChatDraft?> getDraft(String roomId) async {
+    if (roomId.trim().isEmpty) return null;
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _draftsTableName,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        return ChatDraft.fromMap(rows.first);
+      }
+      return null;
+    } catch (e) {
+      _logger.w('Gagal membaca draf pesan lokal: $e');
+      return null;
+    }
+  }
+
+  /// Menghapus draf pesan untuk room tertentu dari database SQLCipher lokal
+  Future<void> deleteDraft(String roomId) async {
+    if (roomId.trim().isEmpty) return;
+    try {
+      final db = await database;
+      await db.delete(
+        _draftsTableName,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+      );
+    } catch (e) {
+      _logger.w('Gagal menghapus draf pesan lokal: $e');
+    }
+  }
+
+  /// Mengambil seluruh draf aktif untuk dipetakan ke state RAM saat aplikasi dimulai
+  Future<Map<String, ChatDraft>> getAllDrafts() async {
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _draftsTableName,
+        orderBy: 'updated_at DESC',
+      );
+      final Map<String, ChatDraft> drafts = {};
+      for (final row in rows) {
+        final draft = ChatDraft.fromMap(row);
+        drafts[draft.roomId] = draft;
+      }
+      return drafts;
+    } catch (e) {
+      _logger.w('Gagal membaca seluruh draf pesan lokal: $e');
+      return {};
     }
   }
 

@@ -34,6 +34,8 @@ import '../../../core/widgets/screen_protection_widgets.dart';
 import '../../../core/widgets/scroll_to_bottom_button.dart';
 import '../../../data/repositories/forwarding_protection_repository.dart';
 import '../providers/chat_provider.dart';
+import '../providers/chat_draft_provider.dart';
+import '../../../data/services/local_message_database.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
@@ -417,8 +419,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _inChatSearchFocusNode = FocusNode();
     _composerFocusNode = FocusNode();
     WidgetsBinding.instance.addObserver(this);
-    _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScrollChanged);
+    _restoreDraftAndListenText();
     // Tandai room ini sebagai aktif agar listener notifikasi pesan tahu
     // untuk tidak memunculkan notif saat user sedang melihat percakapan.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -497,6 +499,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         _isMuted = loadedMuted;
       });
 
+      if (roomBurnOnExit) {
+        // Anti-forensik: Room Burn on Exit tidak boleh meninggalkan draf fisik di SQLite
+        unawaited(LocalMessageDatabase.instance.deleteDraft(widget.chatId));
+      }
+
       // Jadwalkan pembersihan terjadwal secara presisi (tanpa polling baterai)
       _scheduleWipeTimer();
 
@@ -517,9 +524,72 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     });
   }
 
+  void _restoreDraftAndListenText() {
+    final initialDraft = ref.read(chatDraftsProvider)[widget.chatId];
+    if (initialDraft != null) {
+      if (initialDraft.content.isNotEmpty) {
+        _textController.text = initialDraft.content;
+        _textController.selection = TextSelection.fromPosition(
+          TextPosition(offset: initialDraft.content.length),
+        );
+      }
+      if (initialDraft.replyToId != null) {
+        _restoreRepliedMessage(initialDraft.replyToId!);
+      }
+    } else {
+      LocalMessageDatabase.instance.getDraft(widget.chatId).then((dbDraft) {
+        if (!mounted || dbDraft == null) return;
+        if (dbDraft.content.isNotEmpty && _textController.text.isEmpty) {
+          setState(() {
+            _textController.text = dbDraft.content;
+            _textController.selection = TextSelection.fromPosition(
+              TextPosition(offset: dbDraft.content.length),
+            );
+          });
+        }
+        if (dbDraft.replyToId != null && _replyMessage == null) {
+          _restoreRepliedMessage(dbDraft.replyToId!);
+        }
+      });
+    }
+    _textController.addListener(_onTextChanged);
+  }
+
+  void _restoreRepliedMessage(String replyToId) async {
+    try {
+      final msg = await LocalMessageDatabase.instance.getMessage(replyToId);
+      if (mounted && msg != null) {
+        setState(() {
+          _replyMessage = msg;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _setReplyMessage(Message? msg) {
+    setState(() {
+      _replyMessage = msg;
+      if (msg != null) {
+        _editingMessage = null;
+      }
+    });
+    ref.read(chatDraftsProvider.notifier).setDraft(
+      roomId: widget.chatId,
+      content: _textController.text,
+      replyToId: msg?.id,
+      isBurnOnExit: _burnOnExit,
+    );
+  }
+
   void _onTextChanged() {
     final isTyping = _textController.text.isNotEmpty;
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(isTyping);
+    ref.read(chatDraftsProvider.notifier).setDraft(
+      roomId: widget.chatId,
+      content: _textController.text,
+      replyToId: _replyMessage?.id,
+      isBurnOnExit: _burnOnExit,
+    );
   }
 
   /// Format presence subtitle: online (< 2 min) > last seen (formatted) > hidden privacy
@@ -604,6 +674,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _scheduledWipeTimer?.cancel();
     if (_burnOnExit) {
       _triggerBurnOnExit();
+      ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
+    } else {
+      ref.read(chatDraftsProvider.notifier).setDraft(
+        roomId: widget.chatId,
+        content: _textController.text,
+        replyToId: _replyMessage?.id,
+        isBurnOnExit: false,
+        flushNow: true,
+      );
     }
     // Hentikan live location sharing jika masih aktif saat meninggalkan room
     ref.read(chatActionsProvider).stopLiveLocationShare();
@@ -632,6 +711,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           ((MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0);
       if (_burnOnExit) {
         _triggerBurnOnExit();
+        ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
+      } else {
+        ref.read(chatDraftsProvider.notifier).setDraft(
+          roomId: widget.chatId,
+          content: _textController.text,
+          replyToId: _replyMessage?.id,
+          isBurnOnExit: false,
+          flushNow: true,
+        );
       }
     } else if (state == AppLifecycleState.resumed) {
       if (_wasKeyboardOpenOnPause && mounted) {
@@ -728,6 +816,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     });
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(false);
     unawaited(ref.read(chatRepositoryProvider).updateLastSeen());
+    ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
 
     // Buat pesan optimistik agar bubble langsung muncul seketika di layar
     final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
@@ -788,6 +877,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           _replyMessage = replyToMessage;
           _isViewOnce = isViewOnceToSend;
         });
+        ref.read(chatDraftsProvider.notifier).setDraft(
+          roomId: widget.chatId,
+          content: textToSend,
+          replyToId: replyToMessage?.id,
+          isBurnOnExit: _burnOnExit,
+          flushNow: true,
+        );
         MekaarSnackbar.error(
           context,
           'Gagal mengirim pesan: ${ErrorResolver.resolve(e)}',
@@ -1296,10 +1392,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
     }
     if (targetMsg == null) return;
-    setState(() {
-      _replyMessage = targetMsg;
-      _editingMessage = null;
-    });
+    _setReplyMessage(targetMsg);
     _clearSelection();
   }
 
@@ -2240,7 +2333,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       }
                     },
                     onSend: _handleSend,
-                    onCancelReply: () => setState(() => _replyMessage = null),
+                    onCancelReply: () => _setReplyMessage(null),
                     onCancelEdit: () {
                       setState(() => _editingMessage = null);
                       _textController.clear();
@@ -2876,12 +2969,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       replyToSenderName: replyToSender,
       onDelete: () => _handleDeleteMessage(msg),
       onUnsend: () => _handleUnsendMessage(msg),
-      onReply: (replyMsg) {
-        setState(() {
-          _replyMessage = replyMsg;
-          _editingMessage = null;
-        });
-      },
+      onReply: (replyMsg) => _setReplyMessage(replyMsg),
       onEdit: (editMsg, newContent) {
         if (!actions.canEdit(editMsg, isGuardianRoom: widget.isGuardian)) {
           return;
@@ -2920,10 +3008,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       child: _isSelectionMode
           ? bubbleWithPill
           : _SwipeActionWrapper(
-              onReply: () => setState(() {
-                _replyMessage = msg;
-                _editingMessage = null;
-              }),
+              onReply: () => _setReplyMessage(msg),
               onDelete: () => _confirmDeleteSingleMessage(msg),
               child: bubbleWithPill,
             ),

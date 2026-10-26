@@ -11,6 +11,7 @@ import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../data/models/message_model.dart';
 import '../../settings/providers/privacy_provider.dart';
+import '../providers/chat_draft_provider.dart';
 
 class ChatListTile extends StatelessWidget {
   final Map<String, dynamic> room;
@@ -132,6 +133,41 @@ class ChatListTile extends StatelessWidget {
                           builder: (context, ref, _) {
                             final isStealth =
                                 ref.watch(stealthChatPreviewProvider);
+                            final draft = ref.watch(chatDraftsProvider)[roomId];
+                            final hasDraft = draft != null && draft.content.trim().isNotEmpty;
+
+                            if (hasDraft) {
+                              final draftText = draft.content.trim().replaceAll('\n', ' ');
+                              final displayDraftSnippet = isStealth ? '••••••••' : draftText;
+
+                              return Text.rich(
+                                TextSpan(
+                                  children: [
+                                    const TextSpan(
+                                      text: 'Draf: ',
+                                      style: TextStyle(
+                                        color: MekaarColors.softCoral,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: displayDraftSnippet,
+                                      style: TextStyle(
+                                        color: MekaarColors.textMutedOf(context),
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: isStealth ? 2.0 : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: MekaarTypography.labelLG.copyWith(
+                                  color: MekaarColors.textMutedOf(context),
+                                ),
+                              );
+                            }
+
                             final rawLast = room['lastMessage'] ?? room['last_message'];
                             final String? rawLastMsg = rawLast is Message
                                 ? rawLast.content
