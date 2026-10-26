@@ -89,6 +89,22 @@ class ChatDraftsNotifier extends StateNotifier<Map<String, ChatDraft>> {
     unawaited(_db.deleteDraft(roomId));
   }
 
+  /// Mengosongkan seluruh draf dari memori RAM seketika dan membatalkan
+  /// seluruh timer debounce yang tertunda (pemberhentian residu memori).
+  void clearMemoryDrafts() {
+    for (final timer in _debounceTimers.values) {
+      timer.cancel();
+    }
+    _debounceTimers.clear();
+    state = {};
+  }
+
+  /// Memuat ulang draf dari database aktif (digunakan saat switchMode Decoy <-> Master).
+  Future<void> reloadDrafts() async {
+    clearMemoryDrafts();
+    await _loadInitialDrafts();
+  }
+
   @override
   void dispose() {
     for (final timer in _debounceTimers.values) {

@@ -19,6 +19,7 @@ import '../../../data/services/local_message_database.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/providers/chat_provider.dart';
+import '../../chat/providers/chat_draft_provider.dart';
 import '../providers/auth_provider.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
@@ -83,10 +84,12 @@ class _PinScreenState extends ConsumerState<PinScreen>
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
 
     // Keamanan Mutlak: Pastikan seluruh sesi vault (slot 1, 2, 3) terkunci seketika saat layar PIN aktif
+    // dan seluruh residu draf pesan di RAM dibersihkan (anti-forensik)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(unlockedVaultSlotsProvider.notifier).state = {};
         ref.read(privateVaultUnlockedProvider.notifier).state = false;
+        ref.read(chatDraftsProvider.notifier).clearMemoryDrafts();
       }
     });
   }
@@ -194,6 +197,9 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
           // Isolasi database pesan: beralih ke mekaar_decoy.db jika decoy/duress
           await LocalMessageDatabase.instance.switchMode(isDecoy: isDecoy);
+          // Segera invalidasi dan muat ulang draf pesan untuk mode database yang aktif
+          ref.invalidate(chatDraftsProvider);
+          await ref.read(chatDraftsProvider.notifier).reloadDrafts();
           // Segera sinkronkan daftar room di memori ke mode decoy/master agar transisi 0ms instan tanpa kebocoran
           await ref.read(chatRoomsProvider.notifier).refreshRooms(forceLoading: true);
 
