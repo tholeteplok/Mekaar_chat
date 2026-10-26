@@ -11,6 +11,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
@@ -171,10 +172,33 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Kunci PIN Aplikasi',
                 value: ref.watch(pinLockEnabledProvider),
                 onChanged: (bool value) async {
+                  if (!value) {
+                    // Wajibkan verifikasi PIN Utama sebelum menonaktifkan kunci PIN aplikasi
+                    final verified = await MekaarPinVerificationSheet.verify(
+                      context,
+                      title: 'Verifikasi PIN Utama',
+                      subtitle: 'Masukkan PIN utama Anda untuk menonaktifkan kunci PIN aplikasi',
+                      allowDuress: false,
+                      allowDecoy: false,
+                    );
+                    if (!verified) return;
+
+                    // Cegah mutlak penonaktifan jika berada pada sesi tamu / paksaan
+                    if (isDecoy) {
+                      if (context.mounted) {
+                        MekaarSnackbar.error(
+                          context,
+                          'Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.',
+                        );
+                      }
+                      return;
+                    }
+                  }
+
                   try {
                     await ref
                         .read(pinLockEnabledProvider.notifier)
-                        .toggle(value);
+                        .toggle(value, isDecoySession: isDecoy);
                   } catch (_) {
                     if (context.mounted) {
                       MekaarSnackbar.error(

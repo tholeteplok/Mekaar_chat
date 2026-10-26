@@ -271,7 +271,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     }
   }
 
-  void _navigateToChangePin() {
+  Future<void> _navigateToChangePin() async {
+    final isPinSet = ref.read(authProvider).isPinSet;
+    final isDecoy = ref.read(authProvider).isDecoyActive;
+
+    if (isPinSet) {
+      final verified = await MekaarPinVerificationSheet.verify(
+        context,
+        title: 'Verifikasi PIN Utama',
+        subtitle: 'Masukkan PIN utama Anda untuk mengubah PIN aplikasi',
+        allowDuress: false,
+        allowDecoy: false,
+      );
+      if (!mounted || !verified) return;
+
+      if (isDecoy) {
+        if (mounted) {
+          MekaarSnackbar.error(
+            context,
+            'PIN utama tidak dapat diubah dalam mode sesi ini.',
+          );
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
     Navigator.pushNamed(context, '/pin', arguments: true);
   }
 

@@ -681,7 +681,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         pinAttempts: newAttempts,
         pinLockedUntil: lockedUntil,
         isLoading: false,
-        unlockMode: AuthUnlockMode.master,
       );
       return false;
     }
@@ -901,7 +900,10 @@ class PinLockEnabledNotifier extends StateNotifier<bool> {
     state = prefs.getBool(preferenceKey) ?? true;
   }
 
-  Future<void> toggle(bool enabled) async {
+  Future<void> toggle(bool enabled, {bool isDecoySession = false}) async {
+    if (!enabled && isDecoySession) {
+      throw StateError('Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.');
+    }
     final prefs = await _preferences;
     final saved = await prefs.setBool(preferenceKey, enabled);
     if (!saved) {
