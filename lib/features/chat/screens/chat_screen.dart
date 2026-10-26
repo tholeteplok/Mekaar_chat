@@ -1940,6 +1940,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         extendBodyBehindAppBar: true,
         resizeToAvoidBottomInset: false,
         body: Stack(
+          fit: StackFit.expand,
           children: [
             // ──── Layer 0: Wallpaper/Background (Scoped Consumer) ────
             Consumer(
@@ -1973,10 +1974,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           .watch(chatReconnectingProvider(widget.chatId))
                           .value ??
                       false;
-                  final protectionAsync = ref.watch(
-                    roomScreenProtectionProvider(widget.chatId),
-                  );
-                  final protection = protectionAsync.valueOrNull;
                   final forwardingProtectionAsync = ref.watch(
                     roomForwardingProtectionProvider(widget.chatId),
                   );
@@ -1985,15 +1982,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
                   return Column(
                     children: [
-                      // Banner E2EE & proteksi harus di bawah header floating agar
+                      // Banner E2EE harus di bawah header floating agar
                       // tidak tertimpa atau terlalu ke atas
                       SizedBox(height: topAreaHeight),
                       E2eePreparationBanner(status: e2eeStatus),
-                      if (protection?.effective ?? true)
-                        ScreenProtectionStatusBadge(
-                          label:
-                              protection?.statusLabel ?? 'Proteksi ruang aktif',
-                        ),
                       Expanded(
                         child: Column(
                           children: [
@@ -2707,6 +2699,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         ],
                       );
                     },
+                  );
+                },
+              ),
+            ),
+
+            // ──── Layer 5: Floating Screen Protection Chip (Frosted Glass Capsule) ────
+            Positioned(
+              top: topAreaHeight + 4,
+              left: 0,
+              right: 0,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final protectionAsync = ref.watch(
+                    roomScreenProtectionProvider(widget.chatId),
+                  );
+                  final protection = protectionAsync.valueOrNull;
+                  final isEffective = protection?.effective ?? true;
+
+                  if (!isEffective) return const SizedBox.shrink();
+
+                  return Center(
+                    child: ScreenProtectionStatusBadge(
+                      label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                      onTap: () {
+                        ChatRoomPrivacySheet.show(
+                          context,
+                          roomId: widget.chatId,
+                          onSettingsChanged: () {
+                            if (mounted) setState(() {});
+                          },
+                        );
+                      },
+                    ),
                   );
                 },
               ),

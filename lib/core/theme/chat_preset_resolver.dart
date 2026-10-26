@@ -115,6 +115,52 @@ class ChatBubbleSpec {
     this.bubbleMargin = EdgeInsets.zero,
     this.contentPadding = const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
   });
+
+  ChatBubbleSpec copyWith({
+    Color? backgroundColor,
+    Gradient? gradient,
+    Border? border,
+    BorderRadius? borderRadius,
+    List<BoxShadow>? boxShadow,
+    Color? textColor,
+    String? fontFamily,
+    TextStyle? textStyle,
+    Widget? headerWidget,
+    BubbleTailType? tailType,
+    BubbleShapeType? shapeType,
+    VoxelBevelBorder? voxelBevel,
+    Color? accentVerticalBorderColor,
+    double? accentVerticalBorderWidth,
+    bool? hasInsetDeboss,
+    Color? debossDarkColor,
+    Color? debossLightColor,
+    EdgeInsets? bubbleMargin,
+    EdgeInsets? contentPadding,
+  }) {
+    return ChatBubbleSpec(
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      gradient: gradient ?? this.gradient,
+      border: border ?? this.border,
+      borderRadius: borderRadius ?? this.borderRadius,
+      boxShadow: boxShadow ?? this.boxShadow,
+      textColor: textColor ?? this.textColor,
+      fontFamily: fontFamily ?? this.fontFamily,
+      textStyle: textStyle ?? this.textStyle,
+      headerWidget: headerWidget ?? this.headerWidget,
+      tailType: tailType ?? this.tailType,
+      shapeType: shapeType ?? this.shapeType,
+      voxelBevel: voxelBevel ?? this.voxelBevel,
+      accentVerticalBorderColor:
+          accentVerticalBorderColor ?? this.accentVerticalBorderColor,
+      accentVerticalBorderWidth:
+          accentVerticalBorderWidth ?? this.accentVerticalBorderWidth,
+      hasInsetDeboss: hasInsetDeboss ?? this.hasInsetDeboss,
+      debossDarkColor: debossDarkColor ?? this.debossDarkColor,
+      debossLightColor: debossLightColor ?? this.debossLightColor,
+      bubbleMargin: bubbleMargin ?? this.bubbleMargin,
+      contentPadding: contentPadding ?? this.contentPadding,
+    );
+  }
 }
 
 /// Spec styling lengkap untuk seluruh komponen UI Chat Room (AppBar, Composer, Buttons, Dividers, Badges).
@@ -226,6 +272,74 @@ class ChatPresetResolver {
     double baseFontSize = 16.0,
     String? fontFamily,
   }) {
+    final baseSpec = _resolveBaseBubbleSpec(
+      pref,
+      context,
+      isMe: isMe,
+      baseFontSize: baseFontSize,
+      fontFamily: fontFamily,
+    );
+
+    // Custom Bubble Color Override: preserves baseSpec shapeType, tailType, borderRadius,
+    // borders, voxelBevel, inset deboss, margins, and paddings!
+    if (pref.useCustomBubbleColors) {
+      final hex1 = isMe ? pref.outgoingColor1 : pref.incomingColor1;
+      final hex2 = isMe ? pref.outgoingColor2 : pref.incomingColor2;
+      Color? parseHex(String? hex) {
+        if (hex == null || hex.isEmpty) return null;
+        try {
+          final cleaned = hex.replaceAll('#', '').trim();
+          final val = int.parse(cleaned, radix: 16);
+          return Color(cleaned.length == 6 ? 0xFF000000 | val : val);
+        } catch (_) {
+          return null;
+        }
+      }
+      final color1 = parseHex(hex1);
+      final color2 = parseHex(hex2);
+
+      if (color1 != null) {
+        final gradient = color2 != null
+            ? LinearGradient(
+                colors: [color1, color2],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null;
+
+        final txtColor = color1.computeLuminance() < 0.45
+            ? Colors.white
+            : const Color(0xFF1A1A1A);
+
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return baseSpec.copyWith(
+          backgroundColor: color1,
+          gradient: gradient,
+          textColor: txtColor,
+          textStyle: baseSpec.textStyle.copyWith(color: txtColor),
+          boxShadow: [
+            BoxShadow(
+              color: color1.withValues(alpha: isDark ? 0.3 : 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        );
+      }
+    }
+
+    return baseSpec;
+  }
+
+  /// Resolusi internal bentuk & gaya gelembung dasar menurut preset dan bubbleStyle.
+  static ChatBubbleSpec _resolveBaseBubbleSpec(
+    ChatThemePreference pref,
+    BuildContext context, {
+    required bool isMe,
+    double baseFontSize = 16.0,
+    String? fontFamily,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fontSize = baseFontSize * pref.textScale;
     final activeFont = (fontFamily != null && fontFamily.isNotEmpty)
@@ -322,55 +436,7 @@ class ChatPresetResolver {
       }
     }
 
-    // Helper parsing Hex Color
-    Color? parseHexColor(String? hex) {
-      if (hex == null || hex.isEmpty) return null;
-      try {
-        final cleaned = hex.replaceAll('#', '').trim();
-        final val = int.parse(cleaned, radix: 16);
-        return Color(cleaned.length == 6 ? 0xFF000000 | val : val);
-      } catch (_) {
-        return null;
-      }
-    }
 
-    // 0. Custom Bubble Color Override (with 2-Color Gradient Support & Auto Contrast)
-    if (pref.useCustomBubbleColors) {
-      final hex1 = isMe ? pref.outgoingColor1 : pref.incomingColor1;
-      final hex2 = isMe ? pref.outgoingColor2 : pref.incomingColor2;
-      final color1 = parseHexColor(hex1);
-      final color2 = parseHexColor(hex2);
-
-      if (color1 != null) {
-        final gradient = color2 != null
-            ? LinearGradient(
-                colors: [color1, color2],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null;
-
-        final txtColor = color1.computeLuminance() < 0.45
-            ? Colors.white
-            : const Color(0xFF1A1A1A);
-
-        return ChatBubbleSpec(
-          backgroundColor: color1,
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: color1.withValues(alpha: isDark ? 0.3 : 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-          textColor: txtColor,
-          fontFamily: activeFont,
-          textStyle: resolveTextStyle(txtColor),
-        );
-      }
-    }
 
     // 1. Comic Pop Art (Corner Beak & Hard Comic Shadow)
     if (pref.preset == ChatThemePreset.comic ||

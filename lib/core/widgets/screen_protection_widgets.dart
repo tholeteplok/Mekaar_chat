@@ -8,47 +8,81 @@ import '../constants/typography.dart';
 
 class ScreenProtectionStatusBadge extends StatelessWidget {
   final String label;
+  final bool isFloating;
+  final VoidCallback? onTap;
 
-  const ScreenProtectionStatusBadge({super.key, required this.label});
+  const ScreenProtectionStatusBadge({
+    super.key,
+    required this.label,
+    this.isFloating = true,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final badgeContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF0F172A).withValues(alpha: 0.45)
+            : Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(
+          color: MekaarColors.safeTeal.withValues(alpha: isDark ? 0.40 : 0.35),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            SolarIconsBold.shieldCheck,
+            size: 13,
+            color: MekaarColors.safeTeal,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MekaarTypography.caption.copyWith(
+                fontSize: 11,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : MekaarColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
     return Semantics(
       label: label,
       child: Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: MekaarColors.safeTeal.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: MekaarColors.safeTeal.withValues(alpha: 0.3),
-              width: 1.0,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(100),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: badgeContent,
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                SolarIconsOutline.shieldCheck,
-                size: 15,
-                color: MekaarColors.safeTeal,
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: MekaarTypography.bodySM.copyWith(
-                    fontSize: 11,
-                    color: MekaarColors.textPrimaryOf(context),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),

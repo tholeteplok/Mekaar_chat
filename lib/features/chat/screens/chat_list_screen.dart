@@ -224,9 +224,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _triggerSOS() async {
+    final wasDuress = ref.read(authProvider).lastUnlockWasDuress;
     final isSosActive = ref.read(sosProvider).status == SOSStatus.active ||
         ref.read(sosProvider).status == SOSStatus.queuedOffline;
-    if (isSosActive) {
+    if (isSosActive && !wasDuress) {
       Navigator.pushNamed(context, AppRoutes.sosActive);
       return;
     }
@@ -925,7 +926,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             // SOS Button on the left
             Consumer(
               builder: (context, ref, _) {
-                final isSosActive = ref.watch(sosProvider).status == SOSStatus.active;
+                final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+                final isSosActive =
+                    ref.watch(sosProvider).status == SOSStatus.active &&
+                    !wasDuress;
                 return SOSButton(
                   onPressed: _triggerSOS,
                   isActive: isSosActive,

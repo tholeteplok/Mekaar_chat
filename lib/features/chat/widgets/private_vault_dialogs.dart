@@ -6,6 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../providers/private_vault_provider.dart';
@@ -63,6 +64,35 @@ class PrivateVaultDialogs {
         await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
       } else if (!isHiddenNow && isRoomHidden) {
         await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
+      }
+    }
+
+    // Jika kontak baru saja ditampilkan kembali (!isHiddenNow), periksa apakah masih
+    // ada kontak rahasia atau obrolan tersembunyi yang tersisa pada slot yang sedang terbuka.
+    // Jika tidak ada lagi (0 kontak tersisa), relock sesi vault seketika agar banner otomatis hilang.
+    if (!isHiddenNow) {
+      final contacts =
+          ref.read(userContactsProvider).value ?? const <ContactItem>[];
+      final unlockedSlots = ref.read(unlockedVaultSlotsProvider);
+      final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
+      final hiddenRooms = ref.read(hiddenRoomIdsProvider);
+
+      final hasOtherVaultedContacts = contacts.any((c) =>
+          c.contactUserId != contactUserId &&
+          c.isVaulted &&
+          (unlockedSlots.isEmpty || unlockedSlots.contains(c.vaultSlot)));
+
+      final hasOtherHiddenUsers = hiddenUsers.any((id) => id != contactUserId);
+      final hasOtherHiddenRooms = (roomId != null && roomId.isNotEmpty)
+          ? hiddenRooms.any((id) => id != roomId)
+          : hiddenRooms.isNotEmpty;
+
+      final hasAnyRemaining =
+          hasOtherVaultedContacts || hasOtherHiddenUsers || hasOtherHiddenRooms;
+
+      if (!hasAnyRemaining) {
+        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+        ref.read(privateVaultUnlockedProvider.notifier).state = false;
       }
     }
 
@@ -124,6 +154,32 @@ class PrivateVaultDialogs {
 
     final isHiddenNow =
         await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
+
+    // Jika obrolan baru saja ditampilkan kembali (!isHiddenNow), periksa apakah masih
+    // ada kontak rahasia atau obrolan tersembunyi yang tersisa pada slot yang sedang terbuka.
+    // Jika tidak ada lagi (0 obrolan/kontak tersisa), relock sesi vault seketika agar banner otomatis hilang.
+    if (!isHiddenNow) {
+      final contacts =
+          ref.read(userContactsProvider).value ?? const <ContactItem>[];
+      final unlockedSlots = ref.read(unlockedVaultSlotsProvider);
+      final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
+      final hiddenRooms = ref.read(hiddenRoomIdsProvider);
+
+      final hasVaultedContacts = contacts.any((c) =>
+          c.isVaulted &&
+          (unlockedSlots.isEmpty || unlockedSlots.contains(c.vaultSlot)));
+
+      final hasOtherHiddenUsers = hiddenUsers.isNotEmpty;
+      final hasOtherHiddenRooms = hiddenRooms.any((id) => id != roomId);
+
+      final hasAnyRemaining =
+          hasVaultedContacts || hasOtherHiddenUsers || hasOtherHiddenRooms;
+
+      if (!hasAnyRemaining) {
+        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+        ref.read(privateVaultUnlockedProvider.notifier).state = false;
+      }
+    }
 
     HapticService.trigger(MekaarHapticIntent.selection);
 

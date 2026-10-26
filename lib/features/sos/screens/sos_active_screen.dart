@@ -118,7 +118,11 @@ class _SOSActiveScreenState extends ConsumerState<SOSActiveScreen> {
       HapticService.trigger(MekaarHapticIntent.success);
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      }
     } else if (current.message != null) {
       MekaarSnackbar.error(context, current.message!);
     }

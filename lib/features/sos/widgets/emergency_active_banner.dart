@@ -9,6 +9,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/sos_provider.dart';
 
 /// EmergencyActiveBanner — Banner darurat sentral persisten yang muncul
@@ -26,6 +27,12 @@ class EmergencyActiveBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Mode duress adalah mode senyap (stealth): jangan tampilkan banner darurat.
+    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    if (wasDuress) {
+      return const SizedBox.shrink();
+    }
+
     final sosState = ref.watch(sosProvider);
     final isActive = sosState.status == SOSStatus.active;
     final isQueued = sosState.status == SOSStatus.queuedOffline;

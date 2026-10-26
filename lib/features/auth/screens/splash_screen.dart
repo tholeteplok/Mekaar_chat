@@ -77,9 +77,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       }
 
       // 0b. Active SOS Lockdown Check (Bypass normal navigation straight to SOSActiveScreen)
+      // Mode duress adalah mode senyap (stealth): jangan bypass ke SOSActiveScreen
       try {
         final activeSos = await ref.read(sosRepositoryProvider).getActiveSOS();
-        if (activeSos != null) {
+        final isDuress =
+            await ref.read(authRepositoryProvider).getDuressUnlockStatus();
+        if (activeSos != null && !isDuress) {
           if (!mounted) return;
           Navigator.pushReplacementNamed(context, AppRoutes.sosActive);
           return;

@@ -433,7 +433,10 @@ class _PinScreenState extends ConsumerState<PinScreen>
               // ── Section Bottom: SOS Bar (100% Center Horizontal) ──
               Consumer(
                 builder: (context, ref, _) {
-                  final isSosActive = ref.watch(sosProvider).status == SOSStatus.active;
+                  final isDuress = ref.watch(authProvider).lastUnlockWasDuress;
+                  final isSosActive =
+                      ref.watch(sosProvider).status == SOSStatus.active &&
+                      !isDuress;
                   return Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

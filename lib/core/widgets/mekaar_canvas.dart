@@ -7,6 +7,7 @@ import '../constants/theme_preference.dart';
 import '../providers/theme_provider.dart';
 import '../providers/time_tick_provider.dart';
 import '../theme/force_dark_scope.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../../features/sos/providers/sos_provider.dart';
 
 /// Canvas background yang dipakai di seluruh app.
@@ -25,17 +26,20 @@ class MekaarCanvas extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // SOS active state — override canvas apapun.
+    // SOS active state — override canvas apapun, KECUALI bila dalam mode duress (stealth).
     bool isSosActive = false;
     try {
       isSosActive = ref.watch(sosProvider).isSOSActive;
     } catch (_) {}
 
-    // SOS aktif juga memaksa palet gelap agar konten tetap terbaca
-    // di atas kanvas merah tua.
-    final effectiveForceDark = forceDark || isSosActive;
+    final isDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    final showSosCanvas = isSosActive && !isDuress;
 
-    if (isSosActive) {
+    // SOS aktif (non-duress) juga memaksa palet gelap agar konten tetap terbaca
+    // di atas kanvas merah tua.
+    final effectiveForceDark = forceDark || showSosCanvas;
+
+    if (showSosCanvas) {
       return ForceDarkScope(
         forceDark: true,
         child: Container(
@@ -63,7 +67,7 @@ class MekaarCanvas extends ConsumerWidget {
         ref.watch(themePreferenceProvider).valueOrNull ?? ThemePreference.auto;
     final gradient = ThemeResolver.resolveCanvasGradient(
       pref,
-      sosActive: isSosActive,
+      sosActive: showSosCanvas,
       forceDark: effectiveForceDark,
     );
 
@@ -78,4 +82,3 @@ class MekaarCanvas extends ConsumerWidget {
     );
   }
 }
-

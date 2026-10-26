@@ -16,6 +16,7 @@ import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 
 import '../../auth/providers/auth_provider.dart';
@@ -316,44 +317,51 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
   ) {
     final notifier = ref.read(fontFamilyProvider.notifier);
 
+    int selectedTabIndex = 0;
+
     MekaarBottomSheet.show(
       context: context,
       title: 'Pilih Gaya Tulisan (Font)',
-      builder: (ctx) => DefaultTabController(
-        length: 2,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TabBar(
-              labelColor: MekaarColors.accentTextOf(context),
-              unselectedLabelColor: MekaarColors.textMutedOf(context),
-              indicatorColor: MekaarColors.accentTextOf(context),
-              tabs: const [
-                Tab(text: 'Modern & Clean'),
-                Tab(text: 'Playful & Komik'),
-              ],
-            ),
-            SizedBox(
-              height: 320,
-              child: TabBarView(
-                children: [
-                  _buildFontListCategory(
-                    context,
-                    notifier,
-                    currentFontKey,
-                    FontCategory.modern,
-                  ),
-                  _buildFontListCategory(
-                    context,
-                    notifier,
-                    currentFontKey,
-                    FontCategory.playful,
-                  ),
-                ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: MekaarSlidingSegmentBar(
+                  margin: EdgeInsets.zero,
+                  height: 40,
+                  tabs: const [
+                    'Modern & Clean',
+                    'Playful & Komik',
+                  ],
+                  selectedIndex: selectedTabIndex,
+                  onTabSelected: (index) {
+                    setSheetState(() {
+                      selectedTabIndex = index;
+                    });
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
+              SizedBox(
+                height: 320,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: _buildFontListCategory(
+                    context,
+                    notifier,
+                    currentFontKey,
+                    selectedTabIndex == 0
+                        ? FontCategory.modern
+                        : FontCategory.playful,
+                    key: ValueKey<int>(selectedTabIndex),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -362,13 +370,15 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     BuildContext context,
     FontFamilyNotifier notifier,
     String currentFontKey,
-    FontCategory category,
-  ) {
+    FontCategory category, {
+    Key? key,
+  }) {
     final fonts = AppFontFamily.availableFonts
         .where((f) => f.category == category)
         .toList();
 
     return ListView.separated(
+      key: key,
       padding: const EdgeInsets.symmetric(vertical: MekaarSpacing.md),
       itemCount: fonts.length,
       separatorBuilder: (ctx, index) => const MekaarCardDivider(indent: 16),

@@ -6,6 +6,8 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../data/models/contact_model.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../providers/private_vault_provider.dart';
 
 /// PrivateVaultActiveBanner — Banner sentral yang muncul saat Private Vault dibuka.
@@ -25,6 +27,23 @@ class PrivateVaultActiveBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     if (!isVaultUnlocked) return const SizedBox.shrink();
+
+    final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
+    final contacts =
+        ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+    final hiddenUsers = ref.watch(hiddenContactUserIdsProvider);
+    final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
+
+    final hasActiveVaultedContacts = contacts.any((c) =>
+            c.isVaulted &&
+            (unlockedSlots.isEmpty || unlockedSlots.contains(c.vaultSlot))) ||
+        hiddenUsers.isNotEmpty ||
+        hiddenRooms.isNotEmpty;
+
+    // Jika tidak ada lagi kontak/obrolan rahasia yang aktif terbuka, jangan render banner
+    if (!hasActiveVaultedContacts) {
+      return const SizedBox.shrink();
+    }
 
     final safeColor = MekaarColors.safeTextOf(context);
 
