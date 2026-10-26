@@ -6,6 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_banner.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -161,127 +162,34 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
     }
   }
 
-  Future<String?> _promptPrimaryPin(
-    BuildContext context, {
-    required String title,
-    required String message,
-  }) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: MekaarColors.surface2Of(ctx),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(MekaarRadius.lg),
-          ),
-          title: Text(title, style: MekaarTypography.headingSM),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                message,
-                style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.textSecondaryOf(ctx),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: true,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  hintText: 'PIN Utama (6 digit)',
-                  counterText: '',
-                  prefixIcon: const Icon(SolarIconsOutline.lockKeyhole),
-                  filled: true,
-                  fillColor: MekaarColors.surfaceOf(ctx),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(MekaarRadius.md),
-                    borderSide: BorderSide(color: MekaarColors.borderOf(ctx)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: Text(
-                'Batal',
-                style: TextStyle(color: MekaarColors.textSecondaryOf(ctx)),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final text = controller.text.trim();
-                Navigator.pop(ctx, text);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MekaarColors.brandPrimary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                ),
-              ),
-              child: const Text('Lanjutkan'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _startChangePin() async {
-    final primaryPin = await _promptPrimaryPin(
+    final isValid = await MekaarPinVerificationSheet.verify(
       context,
       title: 'Verifikasi PIN Utama',
-      message: 'Masukkan PIN utama Anda untuk mengubah PIN Paksaan.',
+      subtitle: 'Masukkan PIN utama Anda untuk mengubah PIN Paksaan',
+      allowDuress: false,
+      allowDecoy: false,
     );
-    if (primaryPin == null || primaryPin.isEmpty) return;
+    if (!mounted || !isValid) return;
 
-    final isValid =
-        await ref.read(authProvider.notifier).validatePIN(primaryPin);
-    if (!isValid) {
-      if (mounted) {
-        HapticService.trigger(MekaarHapticIntent.destructive);
-        MekaarSnackbar.error(context, 'PIN utama salah.');
-      }
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isEditing = true;
-        _pin = '';
-        _confirmPin = '';
-        _isConfirming = false;
-        _status = 'Masukkan PIN Paksaan 6 digit baru.';
-      });
-    }
+    setState(() {
+      _isEditing = true;
+      _pin = '';
+      _confirmPin = '';
+      _isConfirming = false;
+      _status = 'Masukkan PIN Paksaan 6 digit baru.';
+    });
   }
 
   Future<void> _disable() async {
-    final primaryPin = await _promptPrimaryPin(
+    final isValid = await MekaarPinVerificationSheet.verify(
       context,
       title: 'Nonaktifkan PIN Paksaan',
-      message: 'Masukkan PIN utama Anda untuk menonaktifkan PIN Paksaan.',
+      subtitle: 'Masukkan PIN utama Anda untuk menonaktifkan PIN Paksaan',
+      allowDuress: false,
+      allowDecoy: false,
     );
-    if (primaryPin == null || primaryPin.isEmpty) return;
-
-    final isValid =
-        await ref.read(authProvider.notifier).validatePIN(primaryPin);
-    if (!isValid) {
-      if (mounted) {
-        HapticService.trigger(MekaarHapticIntent.destructive);
-        MekaarSnackbar.error(context, 'PIN utama salah.');
-      }
-      return;
-    }
+    if (!mounted || !isValid) return;
 
     setState(() => _isSetting = true);
     try {

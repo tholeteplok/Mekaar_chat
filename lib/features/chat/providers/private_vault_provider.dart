@@ -242,7 +242,7 @@ class VaultIsolationHelper {
 class HiddenContactUserIdsNotifier extends StateNotifier<Set<String>> {
   final PrivateContactRepository _repo;
 
-  HiddenContactUserIdsNotifier(this._repo) : super(<String>{}) {
+  HiddenContactUserIdsNotifier(this._repo) : super(_repo.cachedHiddenContactUserIds) {
     _init();
   }
 
@@ -293,7 +293,7 @@ class HiddenContactUserIdsNotifier extends StateNotifier<Set<String>> {
 class HiddenRoomIdsNotifier extends StateNotifier<Set<String>> {
   final PrivateContactRepository _repo;
 
-  HiddenRoomIdsNotifier(this._repo) : super(<String>{}) {
+  HiddenRoomIdsNotifier(this._repo) : super(_repo.cachedHiddenRoomIds) {
     _init();
   }
 

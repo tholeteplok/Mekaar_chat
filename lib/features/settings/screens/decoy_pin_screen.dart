@@ -6,6 +6,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_banner.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -160,97 +161,15 @@ class _DecoyPinScreenState extends ConsumerState<DecoyPinScreen> {
     }
   }
 
-  Future<String?> _promptPrimaryPin(
-    BuildContext context, {
-    required String title,
-    required String message,
-  }) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: MekaarColors.surface2Of(ctx),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(MekaarRadius.lg),
-          ),
-          title: Text(title, style: MekaarTypography.headingSM),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                message,
-                style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.textSecondaryOf(ctx),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: true,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  hintText: 'PIN Utama (6 digit)',
-                  counterText: '',
-                  prefixIcon: const Icon(SolarIconsOutline.lockKeyhole),
-                  filled: true,
-                  fillColor: MekaarColors.surfaceOf(ctx),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(MekaarRadius.md),
-                    borderSide: BorderSide(color: MekaarColors.borderOf(ctx)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: Text(
-                'Batal',
-                style: TextStyle(color: MekaarColors.textSecondaryOf(ctx)),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final text = controller.text.trim();
-                Navigator.pop(ctx, text);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MekaarColors.brandPrimary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                ),
-              ),
-              child: const Text('Lanjutkan'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _disable() async {
-    final enteredPin = await _promptPrimaryPin(
+    final isPrimaryValid = await MekaarPinVerificationSheet.verify(
       context,
       title: 'Konfirmasi PIN Utama',
-      message:
-          'Masukkan PIN utama Anda untuk menonaktifkan PIN Tamu.',
+      subtitle: 'Masukkan PIN utama Anda untuk menonaktifkan PIN Tamu',
+      allowDuress: false,
+      allowDecoy: false,
     );
-    if (enteredPin == null || enteredPin.isEmpty) return;
-
-    final isPrimaryValid =
-        await ref.read(authProvider.notifier).validatePIN(enteredPin, allowDuress: false, allowDecoy: false);
-    if (!mounted) return;
-    if (!isPrimaryValid) {
-      MekaarSnackbar.error(context, 'PIN utama salah. Tindakan dibatalkan.');
-      return;
-    }
+    if (!mounted || !isPrimaryValid) return;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -306,20 +225,14 @@ class _DecoyPinScreenState extends ConsumerState<DecoyPinScreen> {
   }
 
   Future<void> _startEditing() async {
-    final enteredPin = await _promptPrimaryPin(
+    final isPrimaryValid = await MekaarPinVerificationSheet.verify(
       context,
       title: 'Konfirmasi PIN Utama',
-      message: 'Masukkan PIN utama Anda untuk mengubah PIN Tamu.',
+      subtitle: 'Masukkan PIN utama Anda untuk mengubah PIN Tamu',
+      allowDuress: false,
+      allowDecoy: false,
     );
-    if (enteredPin == null || enteredPin.isEmpty) return;
-
-    final isPrimaryValid =
-        await ref.read(authProvider.notifier).validatePIN(enteredPin, allowDuress: false, allowDecoy: false);
-    if (!mounted) return;
-    if (!isPrimaryValid) {
-      MekaarSnackbar.error(context, 'PIN utama salah. Tindakan dibatalkan.');
-      return;
-    }
+    if (!mounted || !isPrimaryValid) return;
 
     setState(() {
       _isEditing = true;

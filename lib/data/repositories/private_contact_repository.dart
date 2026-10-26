@@ -382,6 +382,12 @@ class PrivateContactRepository {
     return active;
   }
 
+  /// Getter sinkron untuk cache memori roomId yang disembunyikan (0ms latency, anti-flash)
+  Set<String> get cachedHiddenRoomIds =>
+      _cachedHiddenRoomIds != null
+          ? Set<String>.from(_cachedHiddenRoomIds!)
+          : <String>{};
+
   /// Dapatkan daftar seluruh ID ruang obrolan yang disembunyikan
   Future<Set<String>> getHiddenRoomIds() async {
     if (_cachedHiddenRoomIds != null) {
@@ -427,6 +433,12 @@ class PrivateContactRepository {
     final currentSet = await getHiddenRoomIds();
     return currentSet.contains(roomId);
   }
+
+  /// Getter sinkron untuk cache memori contactUserId yang disembunyikan (0ms latency, anti-flash)
+  Set<String> get cachedHiddenContactUserIds =>
+      _cachedHiddenContactUserIds != null
+          ? Set<String>.from(_cachedHiddenContactUserIds!)
+          : <String>{};
 
   /// Dapatkan daftar seluruh contactUserId yang disembunyikan ke Private Vault
   Future<Set<String>> getHiddenContactUserIds() async {

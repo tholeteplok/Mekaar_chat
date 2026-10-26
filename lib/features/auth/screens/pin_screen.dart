@@ -16,6 +16,8 @@ import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
 import '../../../data/services/local_message_database.dart';
+import '../../../data/repositories/private_contact_repository.dart';
+import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -79,6 +81,14 @@ class _PinScreenState extends ConsumerState<PinScreen>
     _statusMessage = _isSetupMode
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
+
+    // Keamanan Mutlak: Pastikan seluruh sesi vault (slot 1, 2, 3) terkunci seketika saat layar PIN aktif
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+        ref.read(privateVaultUnlockedProvider.notifier).state = false;
+      }
+    });
   }
 
   @override
@@ -186,6 +196,16 @@ class _PinScreenState extends ConsumerState<PinScreen>
           await LocalMessageDatabase.instance.switchMode(isDecoy: isDecoy);
           // Segera sinkronkan daftar room di memori ke mode decoy/master agar transisi 0ms instan tanpa kebocoran
           await ref.read(chatRoomsProvider.notifier).refreshRooms(forceLoading: true);
+
+          // Preload set vault rahasia secara tuntas sebelum berpindah ke layar utama (0ms latency, anti-flash)
+          try {
+            final vaultRepo = ref.read(privateContactRepositoryProvider);
+            await vaultRepo.preloadCache();
+            await ref.read(hiddenContactUserIdsProvider.notifier).loadHiddenContacts();
+            await ref.read(hiddenRoomIdsProvider.notifier).loadHiddenRooms();
+            ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+            ref.read(privateVaultUnlockedProvider.notifier).state = false;
+          } catch (_) {}
 
           try {
             final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
