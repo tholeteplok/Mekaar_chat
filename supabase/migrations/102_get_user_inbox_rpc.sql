@@ -1,22 +1,35 @@
 -- ==============================================================================
 -- 102_get_user_inbox_rpc.sql
--- Konsolidasi Query Obrolan: Mengeliminasi N+1 remote query di ChatRepository.getRooms()
--- Mengembalikan seluruh metadata inbox aktif pengguna dalam 1 HTTP round-trip tunggal.
+-- Paket Remediasi Performa & Keamanan:
+-- 1. Composite Partial Index pada messages(room_id, created_at DESC) WHERE is_deleted = false
+-- 2. RPC Agregasi get_user_inbox() yang aman dan terpadu (1 HTTP Round-Trip)
+-- 3. Hardening RLS room_participants (Menutup celah BOLA/IDOR dari 05_security_hardening.sql)
 -- ==============================================================================
 
-CREATE OR REPLACE FUNCTION get_user_inbox(p_user_id UUID DEFAULT NULL)
+-- ------------------------------------------------------------------------------
+-- BAGIAN 1: COMPOSITE PARTIAL INDEX (Temuan 1 - Performa & Skalabilitas)
+-- Mengeliminasi Bitmap Index Scan + Top-N in-memory sort pada query obrolan
+-- ------------------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_messages_room_created_at
+  ON public.messages (room_id, created_at DESC)
+  WHERE is_deleted = false;
+
+-- ------------------------------------------------------------------------------
+-- BAGIAN 2: RPC AGREGASI OBROLAN (Temuan 2 - Arsitektural & Zero Latency)
+-- Menghilangkan N+1 remote query klien Flutter menjadi 1 HTTP Round-Trip tunggal.
+-- Keamanan: Murni membaca auth.uid() dari konteks JWT server (Anti-Injeksi ID Lain).
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_user_inbox()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth
 AS $$
 DECLARE
-    v_user_id UUID;
+    v_user_id UUID := auth.uid();
     v_result JSONB;
 BEGIN
-    -- Ambil user ID dari session auth atau parameter
-    v_user_id := COALESCE(p_user_id, auth.uid());
-    
+    -- Tolak jika tidak terotentikasi
     IF v_user_id IS NULL THEN
         RETURN '[]'::JSONB;
     END IF;
@@ -31,8 +44,8 @@ BEGIN
             cr.room_type,
             cr.name AS group_name,
             cr.avatar_url AS group_avatar_url
-        FROM room_participants rp
-        JOIN chat_rooms cr ON cr.id = rp.room_id
+        FROM public.room_participants rp
+        JOIN public.chat_rooms cr ON cr.id = rp.room_id
         WHERE rp.profile_id = v_user_id
           AND rp.deleted_at IS NULL
     ),
@@ -45,10 +58,10 @@ BEGIN
             p.display_name,
             p.avatar_url
         FROM my_rooms mr
-        JOIN room_participants other_rp 
+        JOIN public.room_participants other_rp 
             ON other_rp.room_id = mr.room_id 
            AND other_rp.profile_id != v_user_id
-        JOIN public_profiles p 
+        JOIN public.public_profiles p 
             ON p.id = other_rp.profile_id
         WHERE mr.room_type != 'group'
     ),
@@ -57,7 +70,7 @@ BEGIN
             mr.room_id,
             COUNT(DISTINCT grp.profile_id)::INT AS member_count
         FROM my_rooms mr
-        JOIN room_participants grp 
+        JOIN public.room_participants grp 
             ON grp.room_id = mr.room_id 
            AND grp.deleted_at IS NULL
         WHERE mr.room_type = 'group'
@@ -68,7 +81,7 @@ BEGIN
             mr.room_id,
             COUNT(m.id)::INT AS unread_count
         FROM my_rooms mr
-        JOIN messages m 
+        JOIN public.messages m 
             ON m.room_id = mr.room_id
            AND m.sender_id != v_user_id
            AND m.is_deleted = FALSE
@@ -92,7 +105,7 @@ BEGIN
             m.created_at,
             m.updated_at
         FROM my_rooms mr
-        JOIN messages m 
+        JOIN public.messages m 
             ON m.room_id = mr.room_id
            AND m.is_deleted = FALSE
            AND m.is_silent_deleted = FALSE
@@ -164,5 +177,37 @@ BEGIN
 END;
 $$;
 
--- Berikan izin eksekusi kepada authenticated user
-GRANT EXECUTE ON FUNCTION get_user_inbox(UUID) TO authenticated;
+-- Hak eksekusi hanya untuk authenticated user
+REVOKE ALL ON FUNCTION public.get_user_inbox() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_user_inbox() TO authenticated;
+
+-- ------------------------------------------------------------------------------
+-- BAGIAN 3: HARDENING RLS room_participants (Temuan 3 - P0 BOLA/IDOR Security)
+-- Menutup celah permissive INSERT yang memungkinkan penyerang menyusup ke room mana pun
+-- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Authenticated users can insert room participants" ON public.room_participants;
+DROP POLICY IF EXISTS "Users can insert room participants" ON public.room_participants;
+DROP POLICY IF EXISTS "Strict room participant insertion guard" ON public.room_participants;
+
+CREATE POLICY "Strict room participant insertion guard"
+ON public.room_participants
+FOR INSERT
+WITH CHECK (
+    -- 1. Penambahan oleh Admin/Owner grup yang sah
+    EXISTS (
+        SELECT 1 FROM public.room_participants rp_admin
+        WHERE rp_admin.room_id = room_participants.room_id
+          AND rp_admin.profile_id = auth.uid()
+          AND rp_admin.role IN ('owner', 'admin')
+          AND rp_admin.deleted_at IS NULL
+    )
+    OR
+    -- 2. Pembuatan room baru oleh inisiator
+    --    (Hanya diizinkan jika room tersebut belum diisi oleh pihak ketiga)
+    NOT EXISTS (
+        SELECT 1 FROM public.room_participants existing_p
+        WHERE existing_p.room_id = room_participants.room_id
+          AND existing_p.profile_id != auth.uid()
+          AND existing_p.profile_id != room_participants.profile_id
+    )
+);
