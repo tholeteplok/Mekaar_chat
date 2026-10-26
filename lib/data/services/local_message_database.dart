@@ -118,29 +118,43 @@ class LocalMessageDatabase {
 
   /// Mengembalikan daftar kamar decoy alami untuk mode tamu / duress
   Future<List<Map<String, dynamic>>> getDecoyRooms() async {
-    final lastMsg = await getLastActiveMessageForRoom('room_welcome_mekaar');
+    Message? lastMsg;
+    if (_db != null && _db!.isOpen) {
+      try {
+        lastMsg = await getLastActiveMessageForRoom('room_welcome_mekaar');
+      } catch (_) {}
+    }
+    final createdAt = lastMsg?.createdAt ?? DateTime.now();
+    final content = lastMsg?.content ??
+        'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar.';
     return [
       {
+        'id': 'room_welcome_mekaar',
         'room_id': 'room_welcome_mekaar',
+        'roomType': 'direct',
         'room_type': 'direct',
+        'name': 'Mekaar Official',
         'chat_name': 'Mekaar Official',
+        'avatar': 'M',
+        'avatarUrl': null,
         'avatar_url': null,
+        'otherUserId': 'mekaar_official',
         'other_user_id': 'mekaar_official',
+        'isGuardian': false,
         'is_guardian': false,
+        'isGroup': false,
+        'is_group': false,
+        'isMuted': false,
         'is_muted': false,
+        'isArchived': false,
         'is_archived': false,
+        'unreadCount': 0,
         'unread_count': 0,
-        'last_message': lastMsg ??
-            Message(
-              id: 'msg_welcome_decoy',
-              roomId: 'room_welcome_mekaar',
-              senderId: 'mekaar_official',
-              content:
-                  'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar.',
-              type: MessageType.text,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            ),
+        'memberCount': 2,
+        'member_count': 2,
+        'timestamp': createdAt,
+        'lastMessage': content,
+        'last_message': content,
       }
     ];
   }

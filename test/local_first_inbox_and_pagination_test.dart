@@ -100,24 +100,41 @@ void main() {
     test('Decoy Mode Room isolation menyajikan entri aman terpisah', () {
       final decoyRooms = [
         {
+          'id': 'room_welcome_mekaar',
           'room_id': 'room_welcome_mekaar',
+          'roomType': 'direct',
           'room_type': 'direct',
+          'name': 'Mekaar Official',
           'chat_name': 'Mekaar Official',
+          'avatar': 'M',
+          'avatarUrl': null,
           'avatar_url': null,
+          'otherUserId': 'mekaar_official',
           'other_user_id': 'mekaar_official',
+          'isGuardian': false,
           'is_guardian': false,
+          'isGroup': false,
+          'is_group': false,
+          'isMuted': false,
           'is_muted': false,
+          'isArchived': false,
           'is_archived': false,
+          'unreadCount': 0,
           'unread_count': 0,
+          'lastMessage': 'Selamat datang di Mekaar Chat!',
           'last_message': 'Selamat datang di Mekaar Chat!',
         }
       ];
 
       expect(decoyRooms.length, 1);
+      expect(decoyRooms.first['id'], 'room_welcome_mekaar');
+      expect(decoyRooms.first['name'], 'Mekaar Official');
+      expect(decoyRooms.first['lastMessage'], 'Selamat datang di Mekaar Chat!');
+      // Backward compatibility keys
       expect(decoyRooms.first['room_id'], 'room_welcome_mekaar');
       expect(decoyRooms.first['chat_name'], 'Mekaar Official');
       // Pastikan tidak ada data sensitif kontak asli
-      expect(decoyRooms.any((r) => r['other_user_id'] != 'mekaar_official'), isFalse);
+      expect(decoyRooms.any((r) => r['otherUserId'] != 'mekaar_official'), isFalse);
     });
   });
 }

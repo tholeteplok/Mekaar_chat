@@ -258,10 +258,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _handleMuteRoom(Map<String, dynamic> room) async {
+    final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
     final repo = ref.read(chatRepositoryProvider);
-    final prefs = await repo.getRoomPreferences(room['id'] as String);
+    final prefs = await repo.getRoomPreferences(roomId);
     final currentlyMuted = prefs?.isMuted ?? false;
-    await repo.updateRoomMute(room['id'] as String, !currentlyMuted);
+    await repo.updateRoomMute(roomId, !currentlyMuted);
     if (!mounted) return;
     MekaarSnackbar.info(
       context,
@@ -271,7 +272,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _handleMarkAsReadRoom(Map<String, dynamic> room) async {
-    final roomId = room['id'] as String;
+    final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
     await ref.read(chatActionsProvider).markRoomRead(roomId);
     if (!mounted) return;
     HapticService.trigger(MekaarHapticIntent.selection);
@@ -280,14 +281,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   void _showChatTileContextMenu(BuildContext context, Map<String, dynamic> room) {
     HapticService.trigger(MekaarHapticIntent.selection);
-    final roomId = room['id'] as String;
-    final chatName = room['name'] as String? ?? 'Obrolan';
-    final chatAvatar = room['avatar'] as String? ?? '';
-    final chatAvatarUrl = room['avatarUrl'] as String?;
-    final otherUserId = room['otherUserId'] as String?;
-    final isGuardian = room['isGuardian'] as bool? ?? false;
-    final isMuted = room['isMuted'] as bool? ?? false;
-    final unreadCount = room['unreadCount'] as int? ?? 0;
+    final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+    final chatName = (room['name'] ?? room['chat_name']) as String? ?? 'Obrolan';
+    final chatAvatar = (room['avatar'] as String?) ?? (chatName.isNotEmpty ? chatName[0] : '');
+    final chatAvatarUrl = (room['avatarUrl'] ?? room['avatar_url']) as String?;
+    final otherUserId = (room['otherUserId'] ?? room['other_user_id']) as String?;
+    final isGuardian = (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false;
+    final isMuted = (room['isMuted'] ?? room['is_muted']) as bool? ?? false;
+    final unreadCount = (room['unreadCount'] ?? room['unread_count']) as int? ?? 0;
 
     MekaarBottomSheet.show(
       context: context,
@@ -411,8 +412,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _handleArchiveRoom(Map<String, dynamic> room) async {
+    final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
     final repo = ref.read(chatRepositoryProvider);
-    await repo.archiveRoom(room['id'] as String);
+    await repo.archiveRoom(roomId);
     if (!mounted) return;
     MekaarSnackbar.info(context, 'Chat diarsipkan');
     ref.read(chatRoomsProvider.notifier).refreshRooms();
@@ -437,7 +439,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           ),
           onPressed: () async {
             Navigator.pop(context);
-            final roomId = room['id'] as String;
+            final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
             await ref.read(chatActionsProvider).deleteChat(roomId);
             try {
               final prefs = await SharedPreferences.getInstance();
@@ -708,7 +710,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final chatRoomsState = ref.watch(chatRoomsProvider);
-    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+    final authState = ref.watch(authProvider);
+    final wasDuress = authState.lastUnlockWasDuress;
+    final isDecoy = authState.isDecoyActive;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -748,7 +752,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   _searchController.clear();
                 });
               },
-              action: wasDuress
+              action: (wasDuress || isDecoy)
                   ? null
                   : Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1053,11 +1057,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       });
 
       filtered = unifiedRooms.where((room) {
-        final roomId = room['id'] as String;
-        final name = room['name'] as String;
+        final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+        final name = (room['name'] ?? room['chat_name'] ?? 'Obrolan') as String;
         final username = room['otherUsername'] as String? ?? '';
         final email = room['otherEmail'] as String? ?? '';
-        final otherUserId = room['otherUserId'] as String?;
+        final otherUserId = (room['otherUserId'] ?? room['other_user_id']) as String?;
 
         // 1. Jangan tampilkan chat dengan pengguna yang diblokir.
         if (otherUserId != null && blockedIds.contains(otherUserId)) {
@@ -1155,8 +1159,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               ),
               itemBuilder: (context, index) {
                 final room = filtered[index];
-                final roomId = room['id'] as String;
-                final otherUserId = room['otherUserId'] as String?;
+                final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+                final otherUserId = (room['otherUserId'] ?? room['other_user_id']) as String?;
                 final isHidden = hiddenRoomIds.contains(roomId) ||
                     (otherUserId != null &&
                         (hiddenContactUserIds.contains(otherUserId) ||
@@ -1166,16 +1170,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   room: room,
                   isHidden: isHidden,
                   onTap: () {
+                    final chatName = (room['name'] ?? room['chat_name']) as String? ?? 'Obrolan';
+                    final chatAvatar = (room['avatar'] as String?) ?? (chatName.isNotEmpty ? chatName[0] : '💬');
                     Navigator.pushNamed(
                       context,
                       AppRoutes.chat,
                       arguments: {
-                        'chatId': room['id'],
-                        'chatName': room['name'],
-                        'chatAvatar': room['avatar'],
-                        'chatAvatarUrl': room['avatarUrl'] as String?,
-                        'isGuardian': room['isGuardian'] as bool? ?? false,
-                        'otherUserId': room['otherUserId'] as String?,
+                        'chatId': roomId,
+                        'chatName': chatName,
+                        'chatAvatar': chatAvatar,
+                        'chatAvatarUrl': (room['avatarUrl'] ?? room['avatar_url']) as String?,
+                        'isGuardian': (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false,
+                        'otherUserId': otherUserId,
                       },
                     );
                   },

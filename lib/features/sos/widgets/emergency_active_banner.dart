@@ -27,9 +27,9 @@ class EmergencyActiveBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Mode duress adalah mode senyap (stealth): jangan tampilkan banner darurat.
-    final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
-    if (wasDuress) {
+    // Mode duress/decoy adalah mode senyap (stealth): jangan tampilkan banner darurat.
+    final isStealthOrDecoy = ref.watch(authProvider).isDecoyActive;
+    if (isStealthOrDecoy) {
       return const SizedBox.shrink();
     }
 

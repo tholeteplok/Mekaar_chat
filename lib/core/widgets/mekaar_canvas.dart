@@ -32,8 +32,8 @@ class MekaarCanvas extends ConsumerWidget {
       isSosActive = ref.watch(sosProvider).isSOSActive;
     } catch (_) {}
 
-    final isDuress = ref.watch(authProvider).lastUnlockWasDuress;
-    final showSosCanvas = isSosActive && !isDuress;
+    final isStealthOrDecoy = ref.watch(authProvider).isDecoyActive;
+    final showSosCanvas = isSosActive && !isStealthOrDecoy;
 
     // SOS aktif (non-duress) juga memaksa palet gelap agar konten tetap terbaca
     // di atas kanvas merah tua.

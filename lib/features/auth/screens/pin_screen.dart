@@ -16,6 +16,7 @@ import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
 import '../../../data/services/local_message_database.dart';
+import '../../chat/providers/chat_provider.dart';
 import '../providers/auth_provider.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
@@ -183,6 +184,8 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
           // Isolasi database pesan: beralih ke mekaar_decoy.db jika decoy/duress
           await LocalMessageDatabase.instance.switchMode(isDecoy: isDecoy);
+          // Segera sinkronkan daftar room di memori ke mode decoy/master agar transisi 0ms instan tanpa kebocoran
+          await ref.read(chatRoomsProvider.notifier).refreshRooms(forceLoading: true);
 
           try {
             final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(

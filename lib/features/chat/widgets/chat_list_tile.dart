@@ -9,6 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../data/models/message_model.dart';
 import '../../settings/providers/privacy_provider.dart';
 
 class ChatListTile extends StatelessWidget {
@@ -35,15 +36,16 @@ class ChatListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isGuardian = room['isGuardian'] as bool? ?? false;
-    final isGroup = room['isGroup'] as bool? ?? false;
+    final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+    final isGuardian = (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false;
+    final isGroup = (room['isGroup'] ?? room['is_group']) as bool? ?? false;
     final rawTimestamp = room['timestamp'];
     final DateTime? timestamp = rawTimestamp is DateTime
         ? rawTimestamp
         : (rawTimestamp is String ? DateTime.tryParse(rawTimestamp) : null);
-    final unreadCount = room['unreadCount'] as int? ?? 0;
-    final name = room['name'] as String? ?? 'User';
-    final isMuted = room['isMuted'] as bool? ?? false;
+    final unreadCount = (room['unreadCount'] ?? room['unread_count']) as int? ?? 0;
+    final name = (room['name'] ?? room['chat_name']) as String? ?? 'User';
+    final isMuted = (room['isMuted'] ?? room['is_muted']) as bool? ?? false;
     final nameColor = MekaarColors.textPrimaryOf(context);
 
     final tile = Material(
@@ -62,7 +64,7 @@ class ChatListTile extends StatelessWidget {
                 initial: (room['avatar'] as String?)?.isNotEmpty == true
                     ? room['avatar'] as String
                     : (name.isNotEmpty ? name[0] : 'U'),
-                imageUrl: room['avatarUrl'] as String?,
+                imageUrl: (room['avatarUrl'] ?? room['avatar_url']) as String?,
                 size: MekaarSizes.avatarLg,
                 isGuardian: isGuardian,
               ),
@@ -130,7 +132,10 @@ class ChatListTile extends StatelessWidget {
                           builder: (context, ref, _) {
                             final isStealth =
                                 ref.watch(stealthChatPreviewProvider);
-                            final rawLastMsg = room['lastMessage'] as String?;
+                            final rawLast = room['lastMessage'] ?? room['last_message'];
+                            final String? rawLastMsg = rawLast is Message
+                                ? rawLast.content
+                                : rawLast?.toString();
                             final hasMessages = timestamp != null;
 
                             final displayLastMsg =
@@ -175,7 +180,7 @@ class ChatListTile extends StatelessWidget {
 
     // Bungkus dengan Slidable untuk swipe actions
     return Slidable(
-      key: ValueKey(room['id']),
+      key: ValueKey(roomId),
       endActionPane: ActionPane(
         motion: const BehindMotion(),
         children: [
