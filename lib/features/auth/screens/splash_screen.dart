@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/animations.dart';
@@ -179,8 +180,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return MekaarScaffold(
-      flat: false,
-      forceDark: true, // Always dark-navy gradient for splash
+      flat: true,
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -208,11 +208,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               // Tagline: Express Yourself. Stay Protected.
               FadeTransition(
                 opacity: _fadeAnimation,
-                child: const Text(
+                child: Text(
                   'Bicara bebas. Tetap aman.',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white70,
+                    color: MekaarColors.textSecondaryOf(context),
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.2,
                   ),
