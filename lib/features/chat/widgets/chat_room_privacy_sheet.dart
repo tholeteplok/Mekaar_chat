@@ -8,6 +8,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../widgets/scheduled_wipe_bottom_sheet.dart';
 import '../providers/chat_provider.dart';
@@ -431,7 +432,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               )
             else ...[
               // Section 1: Proteksi Layar & Konten
-              _buildSectionHeader('PROTEKSI LAYAR & KONTEN'),
+              _buildSectionHeader('Proteksi Layar & Konten'),
               _buildSwitchTile(
                 icon: isScreenProtOn ? SolarIconsBold.shieldCheck : SolarIconsOutline.shieldCross,
                 iconColor: isScreenProtOn ? primaryColor : MekaarColors.textMutedOf(context),
@@ -459,7 +460,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
 
               // Section 2: Penghapusan Otomatis (Kedua Pihak)
               _buildSectionHeader(
-                'PENGHAPUSAN OTOMATIS (KEDUA PIHAK)',
+                'Penghapusan Otomatis (Kedua Pihak)',
                 description:
                     'Fitur di bawah ini tersinkronisasi dan menghapus pesan di perangkat Anda maupun rekan.',
               ),
@@ -489,7 +490,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               ),
 
               // Section 3: Kunci Enkripsi (E2EE)
-              _buildSectionHeader('KEAMANAN ENKRIPSI'),
+              _buildSectionHeader('Keamanan Enkripsi'),
               _buildNavTile(
                 icon: SolarIconsOutline.refreshSquare,
                 iconColor: primaryColor,
@@ -505,33 +506,10 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   }
 
   Widget _buildSectionHeader(String title, {String? description}) {
-    return Padding(
+    return MekaarSectionHeader(
+      title: title,
+      subtitle: description,
       padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: MekaarColors.textMutedOf(context),
-            ),
-          ),
-          if (description != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 12,
-                color: MekaarColors.textSecondaryOf(context),
-                height: 1.3,
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 

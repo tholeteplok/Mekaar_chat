@@ -132,7 +132,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                       const SizedBox(height: 12),
 
                       SoundPreferenceSection(
-                        title: 'NADA NOTIFIKASI PESAN',
+                        title: 'Nada Notifikasi Pesan',
                         options: _messageSounds,
                         selectedPath: prefs.messageSound,
                         previewingPath: _previewingPath,
@@ -148,8 +148,8 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                           type: RingtoneType.notification,
                           title: 'Pilih Nada Pesan',
                           onSelected: (path) => ref
-                              .read(notificationPreferencesProvider.notifier)
-                              .updateMessageSound(path),
+                            .read(notificationPreferencesProvider.notifier)
+                            .updateMessageSound(path),
                         ),
                         onEnabledChanged: (value) => ref
                             .read(notificationPreferencesProvider.notifier)
@@ -157,7 +157,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                       ),
                       const SizedBox(height: 24),
                       SoundPreferenceSection(
-                        title: 'NADA PANGGILAN',
+                        title: 'Nada Panggilan',
                         options: _callSounds,
                         selectedPath: prefs.callSound,
                         previewingPath: _previewingPath,
@@ -173,8 +173,8 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                           type: RingtoneType.ringtone,
                           title: 'Pilih Nada Panggilan',
                           onSelected: (path) => ref
-                              .read(notificationPreferencesProvider.notifier)
-                              .updateCallSound(path),
+                            .read(notificationPreferencesProvider.notifier)
+                            .updateCallSound(path),
                         ),
                         onEnabledChanged: (value) => ref
                             .read(notificationPreferencesProvider.notifier)
@@ -182,7 +182,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                       ),
                       const SizedBox(height: 24),
                       SoundPreferenceSection(
-                        title: 'NADA ALARM DARURAT (SOS)',
+                        title: 'Nada Alarm Darurat (SOS)',
                         options: _sosSounds,
                         selectedPath: prefs.sosSound,
                         previewingPath: _previewingPath,
@@ -198,13 +198,13 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                           type: RingtoneType.alarm,
                           title: 'Pilih Nada Alarm Darurat',
                           onSelected: (path) => ref
-                              .read(notificationPreferencesProvider.notifier)
-                              .updateSosSound(path),
+                            .read(notificationPreferencesProvider.notifier)
+                            .updateSosSound(path),
                         ),
                       ),
                       const SizedBox(height: 24),
                       const SettingsSectionHeader(
-                        title: 'RESPONS GETAR',
+                        title: 'Respons Getaran',
                         padding: EdgeInsets.only(left: 4, bottom: 8),
                       ),
                       CustomCard(

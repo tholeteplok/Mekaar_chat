@@ -7,6 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 
 class SoundOption {
   final String name;
@@ -79,34 +80,23 @@ class SoundPreferenceSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: MekaarTypography.bodyMD.copyWith(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: MekaarColors.textPrimaryOf(context),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ),
-              if (canDisable)
-                Switch.adaptive(
-                  value: enabled,
-                  onChanged: (val) {
-                    HapticService.trigger(MekaarHapticIntent.selection);
-                    onEnabledChanged?.call(val);
-                  },
-                  activeThumbColor: accentColor,
-                  activeTrackColor: accentColor.withValues(alpha: 0.35),
-                  inactiveThumbColor: MekaarColors.textMutedOf(context),
-                  inactiveTrackColor: MekaarColors.surface2Of(context),
-                ),
-            ],
+          MekaarSectionHeader(
+            title: title,
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            trailing: canDisable
+                ? Switch.adaptive(
+                    value: enabled,
+                    onChanged: (val) {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      onEnabledChanged?.call(val);
+                    },
+                    activeThumbColor: accentColor,
+                    activeTrackColor: accentColor.withValues(alpha: 0.35),
+                    inactiveThumbColor: MekaarColors.textMutedOf(context),
+                    inactiveTrackColor: MekaarColors.surface2Of(context),
+                  )
+                : null,
           ),
-          const SizedBox(height: 8),
           CustomCard(
             margin: EdgeInsets.zero,
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),

@@ -7,6 +7,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
@@ -137,11 +138,11 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             ),
           ),
 
-          const SizedBox(height: 24),
-
           // Existing direction
-          Text('ARAH SAAT INI (A → B)', style: MekaarTypography.overline),
-          const SizedBox(height: 12),
+          const MekaarSectionHeader(
+            title: 'Arah Saat Ini (A → B)',
+            padding: EdgeInsets.only(left: 4, top: 20, bottom: 8),
+          ),
           CustomCard(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -191,16 +192,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             ),
           ),
 
-          const SizedBox(height: 24),
-
           // New direction
-          Text('ARAH BARU (B → A)', style: MekaarTypography.overline),
-          const SizedBox(height: 4),
-          Text(
-            'Pilih izin yang diberikan kepada Anda saat Anda menjadi guardian untuk ${widget.guardian.name}.',
-            style: MekaarTypography.bodyMD,
+          MekaarSectionHeader(
+            title: 'Arah Baru (B → A)',
+            subtitle: 'Pilih izin yang diberikan kepada Anda saat Anda menjadi guardian untuk ${widget.guardian.name}.',
+            padding: const EdgeInsets.only(left: 4, top: 20, bottom: 8),
           ),
-          const SizedBox(height: 12),
           CustomCard(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Column(

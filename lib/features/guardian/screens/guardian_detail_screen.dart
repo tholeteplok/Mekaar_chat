@@ -16,6 +16,7 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -619,11 +620,10 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   ],
 
                   // ──── Izin Keamanan Section ────
-                  Text(
-                    'IZIN KEAMANAN (HANYA AKTIF SAAT SOS)',
-                    style: MekaarTypography.overline,
+                  const MekaarSectionHeader(
+                    title: 'Izin Keamanan (Hanya Aktif Saat SOS)',
+                    padding: EdgeInsets.only(left: 4, top: 4, bottom: 8),
                   ),
-                  const SizedBox(height: 10),
                   CustomCard(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Column(
@@ -715,14 +715,11 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-
                   // ──── Informasi Transmisi & Privasi ────
-                  Text(
-                    'INFORMASI TRANSMISI & PRIVASI',
-                    style: MekaarTypography.overline,
+                  const MekaarSectionHeader(
+                    title: 'Informasi Transmisi & Privasi',
+                    padding: EdgeInsets.only(left: 4, top: 20, bottom: 8),
                   ),
-                  const SizedBox(height: 10),
                   MekaarBanner(
                     color: MekaarColors.primaryOf(context),
                     icon: SolarIconsOutline.shieldCheck,
@@ -753,16 +750,12 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 28),
-
                   // ──── 4. Tindakan & Zona Bahaya (Grouped Destructive Card) ────
-                  Text(
-                    'TINDAKAN & ZONA BAHAYA',
-                    style: MekaarTypography.overline.copyWith(
-                      color: MekaarColors.sosRed,
-                    ),
+                  MekaarSectionHeader(
+                    title: 'Tindakan & Zona Bahaya',
+                    titleColor: MekaarColors.sosRed,
+                    padding: const EdgeInsets.only(left: 4, top: 20, bottom: 8),
                   ),
-                  const SizedBox(height: 10),
                   CustomCard(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Column(

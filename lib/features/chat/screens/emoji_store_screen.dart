@@ -9,6 +9,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -67,8 +68,10 @@ class EmojiStoreScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
             children: [
               if (installedPacks.isNotEmpty) ...[
-                Text('TERPASANG', style: MekaarTypography.overline),
-                const SizedBox(height: MekaarSpacing.sm),
+                const MekaarSectionHeader(
+                  title: 'Terpasang',
+                  padding: EdgeInsets.only(left: 4, top: 8, bottom: 8),
+                ),
                 ...installedPacks.map((p) => _PackCard(
                       pack: p,
                       installed: true,
@@ -77,8 +80,10 @@ class EmojiStoreScreen extends ConsumerWidget {
                 const SizedBox(height: MekaarSpacing.lg),
               ],
               if (availablePacks.isNotEmpty) ...[
-                Text('TERSEDIA', style: MekaarTypography.overline),
-                const SizedBox(height: MekaarSpacing.sm),
+                const MekaarSectionHeader(
+                  title: 'Tersedia',
+                  padding: EdgeInsets.only(left: 4, top: 12, bottom: 8),
+                ),
                 ...availablePacks.map((p) => _PackCard(
                       pack: p,
                       installed: false,

@@ -13,6 +13,7 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/bubbles/themed_bubble_container.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -188,26 +189,18 @@ class _ChatThemeSettingsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── PRESET UTAMA — 1 KLIK ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'PRESET UTAMA — 1 KLIK',
-                      style: MekaarTypography.overline.copyWith(
-                        color: textSecondary,
-                      ),
+                MekaarSectionHeader(
+                  title: 'Preset Tema',
+                  padding: const EdgeInsets.only(left: 4, top: 4, bottom: 8),
+                  trailing: Text(
+                    'Geser & pilih',
+                    style: MekaarTypography.caption.copyWith(
+                      fontSize: 11,
+                      color: textSecondary.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w600,
                     ),
-                    Text(
-                      'Geser & pilih',
-                      style: MekaarTypography.caption.copyWith(
-                        fontSize: 11,
-                        color: textSecondary.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 8),
 
                 // Carousel 8 Kartu Preset Horizontal
                 _buildPresetCarousel(
@@ -225,13 +218,10 @@ class _ChatThemeSettingsScreenState
                 const SizedBox(height: 18),
 
                 // ── KUSTOMISASI LANJUTAN (Segmented Control Terpusat) ──
-                Text(
-                  'KUSTOMISASI LANJUTAN',
-                  style: MekaarTypography.overline.copyWith(
-                    color: textSecondary,
-                  ),
+                const MekaarSectionHeader(
+                  title: 'Kustomisasi Lanjutan',
+                  padding: EdgeInsets.only(left: 4, top: 12, bottom: 8),
                 ),
-                const SizedBox(height: 8),
 
                 // Segmented Control Terpusat (MekaarSlidingSegmentBar)
                 MekaarSlidingSegmentBar(

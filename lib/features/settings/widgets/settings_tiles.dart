@@ -7,6 +7,7 @@ import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 
 /// Header sub-settings terpusat dengan tombol kembali (<) squircle dan judul besar konsisten.
@@ -153,30 +154,32 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
   }
 }
 
-/// Header seksi terpusat dengan tipografi bersih dan proporsional
+/// Header seksi terpusat dengan tipografi bersih dan proporsional.
+/// Mewarisi [MekaarSectionHeader] terpusat dari core/widgets.
 class SettingsSectionHeader extends StatelessWidget {
   const SettingsSectionHeader({
     super.key,
     required this.title,
+    this.subtitle,
+    this.trailing,
+    this.titleColor,
     this.padding = const EdgeInsets.only(left: 4, top: 18, bottom: 8),
   });
 
   final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final Color? titleColor;
   final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return MekaarSectionHeader(
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      titleColor: titleColor,
       padding: padding,
-      child: Text(
-        title,
-        style: MekaarTypography.bodyMD.copyWith(
-          fontSize: 15.5,
-          fontWeight: FontWeight.w700,
-          color: MekaarColors.textPrimaryOf(context),
-          letterSpacing: -0.2,
-        ),
-      ),
     );
   }
 }

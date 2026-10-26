@@ -67,6 +67,13 @@ class MekaarTypography {
   static TextStyle get headingSM =>
       _font(fontSize: 18, fontWeight: FontWeight.w700);
 
+  /// Section Header / Judul Seksi terpusat antar-halaman
+  static TextStyle get sectionHeader => _font(
+    fontSize: 14.5,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.2,
+  );
+
   // ─────────────────────────────────────────
   // Body — Konten utama
   // ─────────────────────────────────────────

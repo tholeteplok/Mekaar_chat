@@ -16,6 +16,7 @@ import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 
@@ -77,17 +78,12 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                     // ── 1. Live Preview Card ──
                     _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref, greetingName),
 
-            const SizedBox(height: MekaarSpacing.xl),
+                    // ── 2. Mode Tema Utama ──
+                    const MekaarSectionHeader(title: 'Mode Tema'),
+                    _buildThemePreferenceSelector(context, ref, currentPref),
 
-            // ── 2. Mode Tema Utama ──
-            Text('MODE TEMA', style: MekaarTypography.overline),
-            const SizedBox(height: MekaarSpacing.sm),
-            _buildThemePreferenceSelector(context, ref, currentPref),
-
-            const SizedBox(height: MekaarSpacing.xl),
-
-            // ── 3. Tipografi & Font Family ──
-            Text('TIPOGRAFI & GAYA TULISAN', style: MekaarTypography.overline),
+                    // ── 3. Tipografi & Font Family ──
+                    const MekaarSectionHeader(title: 'Tipografi & Gaya Tulisan'),
             const SizedBox(height: MekaarSpacing.sm),
             CustomCard(
               padding: const EdgeInsets.all(MekaarSpacing.md),
