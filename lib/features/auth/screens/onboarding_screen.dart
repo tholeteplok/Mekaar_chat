@@ -191,9 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     onPressed: _nextPage,
                     icon: const Icon(SolarIconsOutline.altArrowRight, size: 18),
                     label: Text(
-                      _currentPage == _slides.length - 1
-                          ? 'Mulai Sekarang'
-                          : 'Lanjut',
+                      'Lanjut',
                       style: MekaarTypography.labelLG.copyWith(
                         color: Colors.white,
                       ),

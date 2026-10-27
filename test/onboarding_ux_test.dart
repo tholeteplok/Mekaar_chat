@@ -54,7 +54,7 @@ void main() {
       );
     });
 
-    testWidgets('last slide displays "Mulai Sekarang" and navigates to welcome animation',
+    testWidgets('last slide displays "Lanjut" and navigates to welcome animation',
         (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
@@ -64,10 +64,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Privasi Penuh di Tanganmu'), findsOneWidget);
-      expect(find.text('Mulai Sekarang'), findsOneWidget);
-      expect(find.text('Lanjut'), findsNothing);
+      expect(find.text('Lanjut'), findsOneWidget);
 
-      await tester.tap(find.text('Mulai Sekarang'));
+      await tester.tap(find.text('Lanjut'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mock Welcome Animation'), findsOneWidget);

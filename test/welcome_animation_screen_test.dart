@@ -29,17 +29,19 @@ void main() {
   }
 
   group('WelcomeAnimationScreen Widget Tests', () {
-    testWidgets('renders initial collision elements and skip button in Light Mode',
+    testWidgets('renders initial convergence elements, micro-labels and skip button in Light Mode',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
 
       await tester.pumpWidget(buildWelcomeApp(theme: MekaarTheme.lightTheme()));
-      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(WelcomeAnimationScreen), findsOneWidget);
       expect(find.byType(MekaarScaffold), findsOneWidget);
       expect(find.byIcon(SolarIconsBold.chatRoundDots), findsOneWidget);
       expect(find.byIcon(SolarIconsBold.shieldCheck), findsOneWidget);
+      expect(find.text('Bicara Bebas'), findsOneWidget);
+      expect(find.text('Perlindungan'), findsOneWidget);
       expect(find.text('Lewati'), findsOneWidget);
     });
 
@@ -48,11 +50,13 @@ void main() {
       SharedPreferences.setMockInitialValues({});
 
       await tester.pumpWidget(buildWelcomeApp(theme: MekaarTheme.darkTheme()));
-      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(WelcomeAnimationScreen), findsOneWidget);
       expect(find.byIcon(SolarIconsBold.chatRoundDots), findsOneWidget);
       expect(find.byIcon(SolarIconsBold.shieldCheck), findsOneWidget);
+      expect(find.text('Bicara Bebas'), findsOneWidget);
+      expect(find.text('Perlindungan'), findsOneWidget);
       expect(find.text('Lewati'), findsOneWidget);
     });
 
@@ -73,29 +77,30 @@ void main() {
       expect(prefs.getBool('has_seen_welcome_animation'), isTrue);
     });
 
-    testWidgets('full animation sequence displays logo, wordmark, tagline and auto-navigates',
+    testWidgets('full animation displays logo, wordmark, tagline, button "Mulai Sekarang" and handles tap docking',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
 
       await tester.pumpWidget(buildWelcomeApp());
 
-      // Advance through animation stages
-      // 0ms - 460ms: approaching
-      await tester.pump(const Duration(milliseconds: 200));
-
-      // 460ms: collision & blue wave
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // ~1400ms: logo emergence
-      await tester.pump(const Duration(milliseconds: 700));
-
-      // ~1900ms: wordmark & tagline visible
+      // Babak 1: Pendekatan (0ms - 1400ms)
       await tester.pump(const Duration(milliseconds: 600));
+
+      // Babak 2: Sentuhan & Fusi Cahaya (~1600ms)
+      await tester.pump(const Duration(milliseconds: 1000));
+
+      // Babak 3: Logo mekar, Wordmark, Tagline, dan Tombol "Mulai Sekarang" (~3200ms)
+      await tester.pump(const Duration(milliseconds: 1600));
       expect(find.byType(MekaarWordmark), findsOneWidget);
       expect(find.text('Bicara bebas. Tetap aman.'), findsOneWidget);
+      expect(find.text('Mulai Sekarang'), findsOneWidget);
 
-      // Finish remaining duration
-      await tester.pump(const Duration(milliseconds: 600));
+      // User menekan "Mulai Sekarang" -> memicu Babak 4: The Docking Glide
+      await tester.tap(find.text('Mulai Sekarang'));
+      await tester.pump();
+
+      // Selesaikan docking glide (480ms) dan transisi navigasi
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
       expect(find.text('Login Screen'), findsOneWidget);
@@ -127,8 +132,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('onboarding_dot_3')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mulai Sekarang'), findsOneWidget);
-      await tester.tap(find.text('Mulai Sekarang'));
+      expect(find.text('Lanjut'), findsOneWidget);
+      await tester.tap(find.text('Lanjut'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mock Welcome Animation'), findsOneWidget);
@@ -157,8 +162,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('onboarding_dot_3')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mulai Sekarang'), findsOneWidget);
-      await tester.tap(find.text('Mulai Sekarang'));
+      expect(find.text('Lanjut'), findsOneWidget);
+      await tester.tap(find.text('Lanjut'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mock Login Screen'), findsOneWidget);
