@@ -29,7 +29,8 @@ void main() {
   }
 
   group('WelcomeAnimationScreen Widget Tests', () {
-    testWidgets('renders initial convergence elements, micro-labels and skip button in Light Mode',
+    testWidgets(
+        'renders initial convergence elements, micro-labels and skip button in Light Mode',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
 
@@ -60,7 +61,7 @@ void main() {
       expect(find.text('Lewati'), findsOneWidget);
     });
 
-    testWidgets('tapping "Lewati" sets has_seen_welcome_animation and navigates to login',
+    testWidgets('tapping "Lewati" navigates directly to login without once-seen flag',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
 
@@ -72,12 +73,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Login Screen'), findsOneWidget);
-
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('has_seen_welcome_animation'), isTrue);
     });
 
-    testWidgets('full animation displays logo, wordmark, tagline, button "Mulai Sekarang" and handles tap docking',
+    testWidgets(
+        'full animation displays logo, wordmark, tagline, button "Mulai Sekarang" and handles tap docking',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
 
@@ -104,21 +103,17 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Login Screen'), findsOneWidget);
-
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('has_seen_welcome_animation'), isTrue);
     });
 
-    testWidgets('OnboardingScreen navigates to WelcomeAnimationScreen on first run',
+    testWidgets(
+        'OnboardingScreen embeds WelcomeAnimationView on slide 5 and allows tap to start login',
         (tester) async {
-      SharedPreferences.setMockInitialValues({'has_seen_welcome_animation': false});
+      SharedPreferences.setMockInitialValues({});
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
             routes: {
-              AppRoutes.welcomeAnimation: (context) =>
-                  const Scaffold(body: Text('Mock Welcome Animation')),
               AppRoutes.login: (context) =>
                   const Scaffold(body: Text('Mock Login Screen')),
             },
@@ -128,27 +123,30 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Jump to last dot (dot 3)
-      await tester.tap(find.byKey(const ValueKey('onboarding_dot_3')));
+      // Jump to slide 4 (the 5th dot: onboarding_dot_4)
+      await tester.tap(find.byKey(const ValueKey('onboarding_dot_4')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Lanjut'), findsOneWidget);
-      await tester.tap(find.text('Lanjut'));
+      expect(find.byType(WelcomeAnimationView), findsOneWidget);
+      expect(find.text('Mulai Sekarang'), findsOneWidget);
+
+      // Tap "Mulai Sekarang"
+      await tester.tap(find.text('Mulai Sekarang'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mock Welcome Animation'), findsOneWidget);
+      expect(find.text('Mock Login Screen'), findsOneWidget);
     });
 
-    testWidgets('OnboardingScreen navigates directly to Login if already seen',
+    testWidgets('OnboardingScreen Lewati button navigates directly to Login from slide 1',
         (tester) async {
-      SharedPreferences.setMockInitialValues({'has_seen_welcome_animation': true});
+      SharedPreferences.setMockInitialValues({});
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
             routes: {
-              AppRoutes.welcomeAnimation: (context) =>
-                  const Scaffold(body: Text('Mock Welcome Animation')),
               AppRoutes.login: (context) =>
                   const Scaffold(body: Text('Mock Login Screen')),
             },
@@ -158,12 +156,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Jump to last dot (dot 3)
-      await tester.tap(find.byKey(const ValueKey('onboarding_dot_3')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Lanjut'), findsOneWidget);
-      await tester.tap(find.text('Lanjut'));
+      expect(find.text('Lewati'), findsOneWidget);
+      await tester.tap(find.text('Lewati'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mock Login Screen'), findsOneWidget);
