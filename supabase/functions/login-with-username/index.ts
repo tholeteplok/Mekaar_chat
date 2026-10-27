@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
     const { data: profile, error: profileErr } = await adminClient
       .from("profiles")
       .select("email, is_suspended, suspended_reason")
-      .eq("username", username)
+      .ilike("username", username)
       .maybeSingle();
 
     // Respons generik untuk mencegah user enumeration oracle

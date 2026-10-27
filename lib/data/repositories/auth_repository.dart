@@ -277,15 +277,15 @@ class AuthRepository {
           : 'Username atau kata sandi tidak valid';
       throw Exception(errorMsg);
     } catch (e) {
-      // Jika terjadi kesalahan fungsi / offline, coba fallback legacy jika tersedia
+      // Jika terjadi kesalahan fungsi / cold start / offline, coba fallback legacy jika tersedia
       final errStr = e.toString();
-      if (!errStr.contains('FunctionsException') &&
-          !errStr.contains('Username atau kata sandi tidak valid') &&
-          !errStr.contains('Akun ditangguhkan')) {
-        final email = await resolveEmailFromUsername(clean);
-        if (email != null) {
-          return signInWithEmail(email, password);
-        }
+      if (!errStr.contains('Akun ditangguhkan')) {
+        try {
+          final email = await resolveEmailFromUsername(clean);
+          if (email != null) {
+            return signInWithEmail(email, password);
+          }
+        } catch (_) {}
       }
       rethrow;
     }
