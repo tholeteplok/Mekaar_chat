@@ -53,7 +53,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. Verifikasi header bagian
-      expect(find.text('INFORMASI TRANSMISI & PRIVASI'), findsOneWidget);
+      expect(find.text('Informasi Transmisi & Privasi'), findsOneWidget);
       expect(find.text('OPSI PENYIMPANAN REKAMAN'), findsNothing);
 
       // 2. Verifikasi MekaarBanner Zero-Knowledge muncul

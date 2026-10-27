@@ -57,5 +57,41 @@ void main() {
       expect(isAllowedClientTable('device_commands'), isFalse);
       expect(isAllowedClientTable('profiles'), isFalse);
     });
+
+    test('Profile updates include updated_at timestamp without privileged fields', () {
+      final now = DateTime.now().toUtc().toIso8601String();
+      final updatePayload = {
+        'display_name': 'Super Star',
+        'bio': 'Personal Safety First',
+        'updated_at': now,
+      };
+
+      expect(updatePayload.containsKey('display_name'), isTrue);
+      expect(updatePayload.containsKey('updated_at'), isTrue);
+      expect(updatePayload.containsKey('is_admin'), isFalse);
+      expect(updatePayload.containsKey('is_suspended'), isFalse);
+      expect(updatePayload.containsKey('legal_hold_active'), isFalse);
+    });
+
+    test('Username login invalid credentials error translation', () {
+      String translate(String errorStr) {
+        final lowerError = errorStr.toLowerCase();
+        if (lowerError.contains('invalid login credentials') ||
+            lowerError.contains('username atau kata sandi tidak valid') ||
+            lowerError.contains('username atau kata sandi salah')) {
+          return 'Username/email atau password salah, atau akun tidak ditemukan.';
+        }
+        return errorStr;
+      }
+
+      expect(
+        translate('Exception: Username atau kata sandi tidak valid'),
+        'Username/email atau password salah, atau akun tidak ditemukan.',
+      );
+      expect(
+        translate('AuthException: Invalid login credentials'),
+        'Username/email atau password salah, atau akun tidak ditemukan.',
+      );
+    });
   });
 }

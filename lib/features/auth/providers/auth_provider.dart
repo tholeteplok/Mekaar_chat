@@ -790,10 +790,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (lowerError.contains('invalid login credentials') ||
         lowerError.contains('invalid_credentials') ||
         lowerError.contains('invalid email or password') ||
+        lowerError.contains('username atau kata sandi tidak valid') ||
+        lowerError.contains('username atau kata sandi salah') ||
         lowerError.contains('email not confirmed') ||
         lowerError.contains('user tidak ditemukan') ||
         lowerError.contains('user not found')) {
-      return 'Email atau password salah, atau akun tidak ditemukan.';
+      return 'Username/email atau password salah, atau akun tidak ditemukan.';
     }
 
     if (lowerError.contains('user already registered') ||

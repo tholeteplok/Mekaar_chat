@@ -277,15 +277,31 @@ class AuthRepository {
           : 'Username atau kata sandi tidak valid';
       throw Exception(errorMsg);
     } catch (e) {
-      // Jika terjadi kesalahan fungsi / cold start / offline, coba fallback legacy jika tersedia
       final errStr = e.toString();
-      if (!errStr.contains('Akun ditangguhkan')) {
-        try {
-          final email = await resolveEmailFromUsername(clean);
-          if (email != null) {
-            return signInWithEmail(email, password);
-          }
-        } catch (_) {}
+      if (errStr.contains('Akun ditangguhkan')) {
+        rethrow;
+      }
+
+      // Coba fallback jika Edge Function mengalami kendala koneksi / cold start
+      try {
+        final email = await resolveEmailFromUsername(clean);
+        if (email != null && email.isNotEmpty) {
+          return await signInWithEmail(email, password);
+        }
+      } catch (fallbackError) {
+        debugPrint('Fallback resolve_login_email failed: $fallbackError');
+        if (fallbackError is AuthException) {
+          rethrow;
+        }
+      }
+
+      // Jika exception awal adalah FunctionException dengan payload error
+      if (e is FunctionException && e.details is Map) {
+        final detailsMap = e.details as Map;
+        final serverError = detailsMap['error'] as String?;
+        if (serverError != null && serverError.isNotEmpty) {
+          throw Exception(serverError);
+        }
       }
       rethrow;
     }
