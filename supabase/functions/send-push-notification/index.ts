@@ -192,6 +192,15 @@ async function clearFcmToken(
   }
 }
 
+function constantTimeEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -213,7 +222,7 @@ Deno.serve(async (req: Request) => {
     let authenticatedUserId: string | null = null;
 
     // 1. Jalur Webhook Database (pg_net)
-    if (expectedSecret && incomingSecret === expectedSecret) {
+    if (expectedSecret && incomingSecret && constantTimeEquals(expectedSecret, incomingSecret)) {
       isAuthorized = true;
     }
     // 2. Jalur Fallback Klien Flutter Terotentikasi (JWT Bearer Token)
@@ -256,7 +265,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // Jika dipanggil via JWT Client Token (bukan webhook secret database),
-    // verifikasi bahwa authenticated user adalah pengirim pesan / pemanggil yang sah (anti-phishing)
+    // batasi HANYA untuk messages dan calls milik authenticated user (anti-spoofing).
+    // Tabel sos_sessions dan device_commands WAJIB hanya lewat pg_net webhook internal (Remediasi H1).
     if (authenticatedUserId) {
       if (payload.table === "messages") {
         const msg = payload.record as MessageRecord;
@@ -280,6 +290,19 @@ Deno.serve(async (req: Request) => {
             },
           );
         }
+      } else {
+        console.warn(
+          `⛔ Percobaan trigger push tidak sah untuk tabel '${payload.table}' oleh user ${authenticatedUserId}`,
+        );
+        return new Response(
+          JSON.stringify({
+            error: `Forbidden: Push untuk tabel '${payload.table}' hanya diizinkan via database webhook internal`,
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     }
 

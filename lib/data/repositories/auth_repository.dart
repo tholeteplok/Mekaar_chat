@@ -50,6 +50,16 @@ class AuthRepository {
 
   Future<bool> isUsernameAvailable(String username) async {
     try {
+      // 1. Coba RPC aman is_username_available (Remediasi H2)
+      try {
+        final rpcRes = await _supabaseService.client.rpc(
+          'is_username_available',
+          params: {'p_username': username.trim()},
+        );
+        if (rpcRes is bool) return rpcRes;
+      } catch (_) {}
+
+      // 2. Fallback query langsung jika RPC belum termigrasi di database lokal
       final res = await _supabaseService.client
           .from('public_profiles')
           .select('id')
@@ -233,11 +243,52 @@ class AuthRepository {
 
   // Sign in with username or email
   Future<User?> signInWithUsernameOrEmail(String input, String password) async {
-    final email = await resolveEmailFromUsername(input);
-    if (email == null) {
-      throw Exception('User tidak ditemukan');
+    final clean = input.trim();
+    if (clean.isEmpty) throw Exception('Username atau email wajib diisi');
+
+    // 1. Jika pengguna memasukkan email secara langsung
+    if (clean.contains('@')) {
+      return signInWithEmail(clean, password);
     }
-    return signInWithEmail(email, password);
+
+    // 2. Jika memasukkan username: Autentikasi via Edge Function login-with-username (Remediasi H3)
+    // Menghilangkan kebocoran alamat email pengguna ke publik
+    try {
+      final response = await _supabaseService.client.functions.invoke(
+        'login-with-username',
+        body: {'username': clean, 'password': password},
+      );
+
+      if (response.status == 200 && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final sessionMap = data['session'] as Map<String, dynamic>?;
+        if (sessionMap != null) {
+          final refreshToken = sessionMap['refresh_token'] as String?;
+          if (refreshToken != null && refreshToken.isNotEmpty) {
+            final authResponse =
+                await _supabaseService.client.auth.setSession(refreshToken);
+            return authResponse.user;
+          }
+        }
+      }
+
+      final errorMsg = response.data is Map
+          ? (response.data['error'] as String? ?? 'Username atau kata sandi tidak valid')
+          : 'Username atau kata sandi tidak valid';
+      throw Exception(errorMsg);
+    } catch (e) {
+      // Jika terjadi kesalahan fungsi / offline, coba fallback legacy jika tersedia
+      final errStr = e.toString();
+      if (!errStr.contains('FunctionsException') &&
+          !errStr.contains('Username atau kata sandi tidak valid') &&
+          !errStr.contains('Akun ditangguhkan')) {
+        final email = await resolveEmailFromUsername(clean);
+        if (email != null) {
+          return signInWithEmail(email, password);
+        }
+      }
+      rethrow;
+    }
   }
 
   // Update username in profiles table (dengan validasi cooldown via RPC / timestamp)
