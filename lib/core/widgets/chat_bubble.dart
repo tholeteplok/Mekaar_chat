@@ -367,14 +367,7 @@ class ChatBubble extends ConsumerWidget {
                                   color: Colors.white,
                                 ),
                               ),
-                              if (message.autoDeleteAt != null) ...[
-                                const SizedBox(width: 3),
-                                const Icon(
-                                  MekaarIcons.timerOutlined,
-                                  size: 9.5,
-                                  color: Colors.white,
-                                ),
-                              ],
+                              
                               if (isMe) ...[
                                 const SizedBox(width: 4),
                                 ReadReceiptIcon(
@@ -413,14 +406,7 @@ class ChatBubble extends ConsumerWidget {
                               fontFamily: fontFamily,
                             ),
                           ),
-                          if (message.autoDeleteAt != null && !isDeleted) ...[
-                            const SizedBox(width: 3),
-                            Icon(
-                              MekaarIcons.timerOutlined,
-                              size: 10,
-                              color: metaColor,
-                            ),
-                          ],
+                          
                           if (isMe && !isDeleted) ...[
                             const SizedBox(width: 3),
                             ReadReceiptIcon(
@@ -543,14 +529,7 @@ class ChatBubble extends ConsumerWidget {
                               color: metaColor,
                             ),
                           ),
-                          if (message.autoDeleteAt != null) ...[
-                            const SizedBox(width: 3),
-                            Icon(
-                              MekaarIcons.timerOutlined,
-                              size: 9.5,
-                              color: metaColor,
-                            ),
-                          ],
+                          
                           if (isMe) ...[
                             const SizedBox(width: 4),
                             ReadReceiptIcon(

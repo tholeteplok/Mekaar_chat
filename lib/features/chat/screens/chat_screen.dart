@@ -246,6 +246,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Map<String, String> _participantNames = {};
   Timer? _purgeTimer;
   Timer? _scheduledWipeTimer;
+  StreamSubscription? _roomSettingsSub;
 
   String? _resolvedChatName;
   String? _resolvedAvatarInitial;
@@ -457,25 +458,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
 
-      // Muat preferensi pesan menghilang level room (tersinkronisasi untuk kedua pihak)
-      final roomAutoDelete = await repo.getRoomDisappearingHours(widget.chatId);
-
-      // Muat preferensi Burn on Exit level room
-      final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.chatId);
-
-      // Muat preferensi Pembersihan Terjadwal level room
-      String loadedWipeMode = 'off';
-      DateTime? loadedWipeTarget;
-      try {
-        final wipeData = await repo.getRoomScheduledWipe(widget.chatId);
-        if (wipeData != null) {
-          loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
-          final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
-          loadedWipeTarget = targetStr != null
-              ? DateTime.tryParse(targetStr)
-              : null;
-        }
-      } catch (_) {}
+      await _loadRoomSettings();
 
       // Muat preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
       bool savedViewOnce = false;
@@ -494,21 +477,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
       if (!mounted) return;
       setState(() {
-        _autoDeleteHours = roomAutoDelete;
-        _burnOnExit = roomBurnOnExit;
-        _scheduledWipeMode = loadedWipeMode;
-        _scheduledWipeTargetAt = loadedWipeTarget;
         _isViewOnce = savedViewOnce;
         _isMuted = loadedMuted;
       });
 
-      if (roomBurnOnExit) {
-        // Anti-forensik: Room Burn on Exit tidak boleh meninggalkan draf fisik di SQLite
-        unawaited(LocalMessageDatabase.instance.deleteDraft(widget.chatId));
-      }
 
-      // Jadwalkan pembersihan terjadwal secara presisi (tanpa polling baterai)
-      _scheduleWipeTimer();
+
+      try {
+        _roomSettingsSub = Supabase.instance.client
+            .from('rooms')
+            .stream(primaryKey: ['id'])
+            .eq('id', widget.chatId)
+            .listen((_) {
+              if (mounted) _loadRoomSettings();
+            });
+      } catch (_) {}
+
 
       // Best-effort purge pesan kedaluwarsa saat pertama buka chat
       try {
@@ -559,6 +543,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       });
     }
     _textController.addListener(_onTextChanged);
+  }
+
+
+  Future<void> _loadRoomSettings() async {
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final roomAutoDelete = await repo.getRoomDisappearingHours(widget.chatId);
+      final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.chatId);
+      String loadedWipeMode = 'off';
+      DateTime? loadedWipeTarget;
+      try {
+        final wipeData = await repo.getRoomScheduledWipe(widget.chatId);
+        if (wipeData != null) {
+          loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
+          final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
+          loadedWipeTarget = targetStr != null
+              ? DateTime.tryParse(targetStr)
+              : null;
+        }
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() {
+        _autoDeleteHours = roomAutoDelete;
+        _burnOnExit = roomBurnOnExit;
+        _scheduledWipeMode = loadedWipeMode;
+        _scheduledWipeTargetAt = loadedWipeTarget;
+      });
+
+      if (roomBurnOnExit) {
+        unawaited(LocalMessageDatabase.instance.deleteDraft(widget.chatId));
+      }
+      _scheduleWipeTimer();
+    } catch (_) {}
   }
 
   void _restoreRepliedMessage(String replyToId) async {
@@ -678,6 +696,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _presenceHeartbeatTimer?.cancel();
     _purgeTimer?.cancel();
     _scheduledWipeTimer?.cancel();
+    _roomSettingsSub?.cancel();
     if (_burnOnExit) {
       _triggerBurnOnExit();
       ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
@@ -3019,7 +3038,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
 
-            // ──── Layer 5: Floating Screen Protection Chip (Frosted Glass Capsule) ────
+            // ──── Layer 5: Floating Privacy Indicators Capsule (Frosted Glass Capsule) ────
             Positioned(
               top: topAreaHeight + 4,
               left: 0,
@@ -3029,20 +3048,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   final protectionAsync = ref.watch(
                     roomScreenProtectionProvider(widget.chatId),
                   );
-                  final protection = protectionAsync.valueOrNull;
-                  final isEffective = protection?.effective ?? true;
+                  final forwardingAsync = ref.watch(
+                    roomForwardingProtectionProvider(widget.chatId),
+                  );
+                  final isScreenProtected =
+                      protectionAsync.valueOrNull?.effective ?? true;
+                  final isForwardingProtected =
+                      forwardingAsync.valueOrNull?.effective ?? false;
 
-                  if (!isEffective) return const SizedBox.shrink();
+                  final activeIcons = <IconData>[];
+                  if (isScreenProtected) {
+                    activeIcons.add(SolarIconsBold.shieldCheck);
+                  }
+                  if (isForwardingProtected) {
+                    activeIcons.add(SolarIconsBold.forbiddenCircle);
+                  }
+                  if (_autoDeleteHours > 0) {
+                    activeIcons.add(SolarIconsBold.history);
+                  }
+                  if (_scheduledWipeMode != 'off') {
+                    activeIcons.add(SolarIconsBold.clockCircle);
+                  }
+                  if (_burnOnExit) {
+                    activeIcons.add(SolarIconsBold.fire);
+                  }
+
+                  if (activeIcons.isEmpty) return const SizedBox.shrink();
 
                   return Center(
-                    child: ScreenProtectionStatusBadge(
-                      label: protection?.statusLabel ?? 'Proteksi ruang aktif',
+                    child: RoomPrivacyIndicatorCapsule(
+                      icons: activeIcons,
                       onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
                         ChatRoomPrivacySheet.show(
                           context,
                           roomId: widget.chatId,
                           onSettingsChanged: () {
-                            if (mounted) setState(() {});
+                            if (mounted) {
+                              _loadRoomSettings();
+                              setState(() {});
+                            }
                           },
                         );
                       },

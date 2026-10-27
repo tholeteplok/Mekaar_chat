@@ -6,6 +6,79 @@ import 'package:solar_icons/solar_icons.dart';
 import '../constants/colors.dart';
 import '../constants/typography.dart';
 
+
+/// Kapsul frosted glass tunggal adaptif untuk menampilkan icon-only indikator privasi obrolan aktif.
+class RoomPrivacyIndicatorCapsule extends StatelessWidget {
+  final List<IconData> icons;
+  final VoidCallback? onTap;
+
+  const RoomPrivacyIndicatorCapsule({
+    super.key,
+    required this.icons,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (icons.isEmpty) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final capsuleContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF0F172A).withValues(alpha: 0.45)
+            : Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(
+          color: MekaarColors.safeTeal.withValues(alpha: isDark ? 0.40 : 0.35),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (int i = 0; i < icons.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Icon(
+              icons[i],
+              size: 14,
+              color: MekaarColors.safeTeal,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Semantics(
+      label: 'Pengaturan Privasi Obrolan Aktif',
+      button: true,
+      child: Center(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(100),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: capsuleContent,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ScreenProtectionStatusBadge extends StatelessWidget {
   final String label;
   final bool isFloating;
