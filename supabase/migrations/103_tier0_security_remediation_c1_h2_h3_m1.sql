@@ -70,7 +70,6 @@ GRANT UPDATE (
   is_device_lost,
   lock_screen_message,
   recovery_contact,
-  phone,
   username,
   e2ee_public_key,
   e2ee_key_backup,
@@ -136,8 +135,7 @@ GRANT UPDATE (
   muted_until,
   last_read_at,
   history_cleared_at,
-  deleted_at,
-  last_read_message_id
+  deleted_at
 ) ON public.room_participants TO authenticated;
 
 -- ----------------------------------------------------------------------------
@@ -158,7 +156,7 @@ SELECT
   display_name,
   avatar_url,
   CASE
-    WHEN last_seen_privacy = 'nobody' THEN NULL
+    WHEN last_seen_privacy = 'nobody' THEN NULL::TIMESTAMPTZ
     ELSE last_seen_at
   END AS last_seen_at,
   last_seen_privacy,
