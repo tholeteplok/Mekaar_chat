@@ -28,10 +28,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with AutomaticKeepAliveClientMixin {
-  bool _isEditingUsername = false;
   bool _isEditingDisplayName = false;
   bool _isEditingBio = false;
-  late TextEditingController _usernameController;
   late TextEditingController _displayNameController;
   late TextEditingController _bioController;
   bool _isUploadingAvatar = false;
@@ -163,7 +161,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   void initState() {
     super.initState();
     final profile = ref.read(authProvider).profile;
-    _usernameController = TextEditingController(text: profile?.username ?? '');
     _displayNameController = TextEditingController(
       text: profile?.displayName ?? profile?.fullName ?? '',
     );
@@ -172,7 +169,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   @override
   void dispose() {
-    _usernameController.dispose();
     _displayNameController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -216,58 +212,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         MekaarSnackbar.error(context, 'Gagal memperbarui bio: $e');
       }
       _bioController.text = ref.read(authProvider).profile?.bio ?? '';
-    }
-  }
-
-  Future<void> _saveUsername() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    final newUsername = _usernameController.text.trim().toLowerCase();
-    final currentUsername = ref.read(authProvider).profile?.username ?? '';
-
-    if (newUsername == currentUsername) {
-      setState(() => _isEditingUsername = false);
-      return;
-    }
-
-    if (newUsername.isEmpty || newUsername.length < 3) {
-      if (mounted) {
-        MekaarSnackbar.error(context, 'Username minimal 3 karakter.');
-      }
-      return;
-    }
-
-    // 1. Verifikasi PIN Keamanan jika PIN sudah disetel
-    final isPinSet = ref.read(authProvider).isPinSet;
-    if (isPinSet) {
-      final verified = await MekaarPinVerificationSheet.verify(
-        context,
-        title: 'Verifikasi Ganti Username',
-        subtitle: 'Masukkan 6 digit PIN untuk mengonfirmasi perubahan username ke @$newUsername',
-      );
-      if (!verified) {
-        if (mounted) {
-          setState(() {
-            _isEditingUsername = false;
-            _usernameController.text = currentUsername;
-          });
-        }
-        return;
-      }
-    }
-
-    setState(() => _isEditingUsername = false);
-
-    try {
-      await ref.read(authProvider.notifier).updateUsername(newUsername);
-      if (mounted) {
-        MekaarSnackbar.success(context, 'Username berhasil diperbarui ke @$newUsername');
-      }
-    } catch (e) {
-      final errorStr = e.toString().replaceAll('Exception: ', '');
-      if (mounted) {
-        MekaarSnackbar.error(context, errorStr);
-      }
-      _usernameController.text = ref.read(authProvider).profile?.username ?? '';
     }
   }
 
@@ -323,9 +267,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     if (_isEditingDisplayName) {
       await _saveDisplayName();
     }
-    if (_isEditingUsername) {
-      await _saveUsername();
-    }
     if (_isEditingBio) {
       await _saveBio();
     }
@@ -341,8 +282,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final wasDuress = authState.lastUnlockWasDuress;
     final user = authState.user;
     final profile = authState.profile;
-    final remDays = profile?.remainingUsernameCooldownDays ?? 0;
-    final isUsernameLocked = remDays > 0;
 
     final userName =
         profile?.displayName ??
@@ -355,7 +294,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
     final saveActionButton =
-        (_isEditingDisplayName || _isEditingUsername || _isEditingBio)
+        (_isEditingDisplayName || _isEditingBio)
         ? IconButton(
             onPressed: _saveAllChanges,
             icon: Icon(
@@ -476,29 +415,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           ),
                           const SizedBox(height: 6),
 
-                          // 2. Username
-                          _buildCleanRow(
-                            label: 'Username',
-                            isEditing: _isEditingUsername,
-                            controller: _usernameController,
-                            value: username.isNotEmpty
-                                ? '@$username'
-                                : 'Belum diatur',
-                            subtitle: isUsernameLocked
-                                ? 'Dapat diubah kembali dalam $remDays hari'
-                                : null,
-                            isLocked: isUsernameLocked,
-                            onToggle: () {
-                              if (isUsernameLocked) {
-                                MekaarSnackbar.info(
-                                  context,
-                                  'Username hanya dapat diubah sekali setiap 60 hari. Sisa waktu: $remDays hari.',
-                                );
-                              } else {
-                                setState(() => _isEditingUsername = true);
-                              }
+                          // 2. Username (Permanen / Read-only)
+                          InkWell(
+                            onTap: () {
+                              MekaarSnackbar.info(
+                                context,
+                                'Username bersifat permanen dan tidak dapat diubah.',
+                              );
                             },
-                            onSave: _saveUsername,
+                            borderRadius: BorderRadius.circular(MekaarRadius.card),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 90,
+                                    child: Text(
+                                      'Username',
+                                      style: MekaarTypography.bodySM.copyWith(
+                                        color: MekaarColors.textMutedOf(context),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      username.isNotEmpty
+                                          ? '@$username'
+                                          : 'Belum diatur',
+                                      style: MekaarTypography.bodyMD.copyWith(
+                                        color: MekaarColors.textPrimaryOf(
+                                          context,
+                                        ),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Icon(
+                                    SolarIconsOutline.lock,
+                                    size: 16,
+                                    color: MekaarColors.textMutedOf(context),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 6),
 
