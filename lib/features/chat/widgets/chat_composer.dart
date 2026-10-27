@@ -31,6 +31,8 @@ import 'package:file_picker/file_picker.dart';
 import 'image_send_preview_sheet.dart';
 import 'document_send_preview_sheet.dart';
 import 'typing_indicator.dart';
+import '../providers/e2ee_room_status_provider.dart';
+import 'e2ee_security_chip.dart';
 
 class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -54,6 +56,9 @@ class ChatComposer extends ConsumerStatefulWidget {
   final FocusNode? focusNode;
   final ChatRoomThemeSpec? roomThemeSpec;
   final ValueChanged<bool>? onEmojiPanelVisibilityChanged;
+  final E2eeRoomStatus? e2eeStatus;
+  final VoidCallback? onRetryE2ee;
+  final VoidCallback? onRestoreE2ee;
 
   const ChatComposer({
     super.key,
@@ -73,6 +78,9 @@ class ChatComposer extends ConsumerStatefulWidget {
     this.focusNode,
     this.roomThemeSpec,
     this.onEmojiPanelVisibilityChanged,
+    this.e2eeStatus,
+    this.onRetryE2ee,
+    this.onRestoreE2ee,
   });
 
   @override
@@ -1052,6 +1060,13 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ──── Floating E2EE Security Chip (Thumb-Zone Security Status) ────
+          if (widget.e2eeStatus != null)
+            E2eeSecurityChip(
+              status: widget.e2eeStatus!,
+              onRetry: widget.onRetryE2ee,
+              onRestore: widget.onRestoreE2ee,
+            ),
           // ──── Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) ────
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
