@@ -6,7 +6,7 @@ import '../theme/force_dark_scope.dart';
 abstract class AppColors {
   // ── Brand Core (Sumber Tunggal) ──
   static const Color blue = Color(0xFF136CFC);
-  static const Color darkBlue = Color(0xFF152641);
+  static const Color darkBlue = Color(0xFF111E34);
   static const Color green = Color(0xFFC3F84A);
   static const Color lightBlue = Color(0xFFFAF9F6);
 

@@ -766,7 +766,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Pembaruan Tersedia (v${_updateInfo!.latestVersion})',
+                                    'Pembaruan Tersedia (${_updateInfo!.latestVersion})',
                                     style: const TextStyle(
                                       color: MekaarColors.sosRed,
                                       fontSize: 13,

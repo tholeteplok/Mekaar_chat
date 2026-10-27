@@ -42,10 +42,13 @@ void main() {
 
       final content = rulesFile.readAsStringSync();
 
-      // Memastikan cloud-backup mengecualikan seluruh path (".")
+      // Memastikan cloud-backup mengecualikan seluruh domain dan path (".")
       expect(content.contains('<cloud-backup>'), isTrue);
       expect(content.contains('<device-transfer>'), isTrue);
-      expect(content.contains('<exclude path="." />'), isTrue);
+      expect(content.contains('domain="root"'), isTrue);
+      expect(content.contains('domain="sharedpref"'), isTrue);
+      expect(content.contains('domain="database"'), isTrue);
+      expect(content.contains('path="."'), isTrue);
     });
 
     test('MekaarSecureStorage mengonfigurasi enkripsi Hardware Keystore & iOS device isolation', () {
