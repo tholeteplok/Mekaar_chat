@@ -14,7 +14,6 @@ import '../widgets/scheduled_wipe_bottom_sheet.dart';
 import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
-import '../../../data/services/e2ee_service.dart';
 
 /// Modal Bottom Sheet terpusat untuk kontrol privasi ruang obrolan.
 /// Dapat dipanggil dari menu 3-titik di ChatRoom maupun dari Info Kontak (ContactSettingsScreen).
@@ -350,18 +349,6 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     }
   }
 
-  Future<void> _handleSyncE2eeKeys() async {
-    E2eeService.instance.invalidateRoomKey(widget.roomId);
-    ref.invalidate(chatMessagesProvider(widget.roomId));
-    HapticService.trigger(MekaarHapticIntent.success);
-    if (mounted) {
-      MekaarSnackbar.success(
-        context,
-        'Kunci enkripsi ruangan berhasil disinkronkan ulang.',
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final primaryColor = MekaarColors.primaryOf(context);
@@ -489,15 +476,6 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 onChanged: (_) => _toggleBurnOnExit(),
               ),
 
-              // Section 3: Kunci Enkripsi (E2EE)
-              _buildSectionHeader('Keamanan Enkripsi'),
-              _buildNavTile(
-                icon: SolarIconsOutline.refreshSquare,
-                iconColor: primaryColor,
-                title: 'Sinkronkan Kunci Enkripsi (E2EE)',
-                subtitle: 'Muat ulang session keys jika terjadi kegagalan dekripsi pesan',
-                onTap: _handleSyncE2eeKeys,
-              ),
             ],
           ],
         ),
