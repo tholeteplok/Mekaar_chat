@@ -6,11 +6,11 @@ import 'package:solar_icons/solar_icons.dart';
 
 void main() {
   group('RoomPrivacyIndicatorCapsule Widget Tests', () {
-    testWidgets('renders SizedBox.shrink when icons list is empty', (tester) async {
+    testWidgets('renders SizedBox.shrink when items list is empty', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: RoomPrivacyIndicatorCapsule(icons: []),
+            body: RoomPrivacyIndicatorCapsule(items: []),
           ),
         ),
       );
@@ -27,7 +27,12 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: RoomPrivacyIndicatorCapsule(
-              icons: const [SolarIconsBold.shieldCheck],
+              items: const [
+                RoomPrivacyIndicatorItem(
+                  icon: SolarIconsBold.shieldCheck,
+                  color: MekaarColors.safeTeal,
+                ),
+              ],
               onTap: () => tapped = true,
             ),
           ),
@@ -46,28 +51,49 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('renders all active privacy icons adaptively in a single capsule', (tester) async {
-      const activeIcons = [
-        SolarIconsBold.shieldCheck,
-        SolarIconsBold.forbiddenCircle,
-        SolarIconsBold.history,
-        SolarIconsBold.clockCircle,
-        SolarIconsBold.fire,
+    testWidgets('renders all 6 active privacy icons with semantic centralized colors', (tester) async {
+      const activeItems = [
+        RoomPrivacyIndicatorItem(
+          icon: SolarIconsBold.shieldCheck,
+          color: MekaarColors.safeTeal,
+        ),
+        RoomPrivacyIndicatorItem(
+          icon: SolarIconsBold.forbiddenCircle,
+          color: MekaarColors.blue,
+        ),
+        RoomPrivacyIndicatorItem(
+          icon: SolarIconsBold.eyeClosed,
+          color: MekaarColors.blue,
+        ),
+        RoomPrivacyIndicatorItem(
+          icon: SolarIconsBold.history,
+          color: MekaarColors.warnAmber,
+        ),
+        RoomPrivacyIndicatorItem(
+          icon: SolarIconsBold.clockCircle,
+          color: MekaarColors.warnAmber,
+        ),
+        RoomPrivacyIndicatorItem(
+          icon: SolarIconsBold.fire,
+          color: MekaarColors.sosCoral,
+        ),
       ];
 
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
             body: RoomPrivacyIndicatorCapsule(
-              icons: activeIcons,
+              items: activeItems,
             ),
           ),
         ),
       );
 
       expect(find.byType(BackdropFilter), findsOneWidget);
-      for (final icon in activeIcons) {
-        expect(find.byIcon(icon), findsOneWidget);
+      for (final item in activeItems) {
+        expect(find.byIcon(item.icon), findsOneWidget);
+        final widget = tester.widget<Icon>(find.byIcon(item.icon));
+        expect(widget.color, equals(item.color));
       }
     });
   });

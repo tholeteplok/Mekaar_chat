@@ -485,7 +485,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
       try {
         _roomSettingsSub = Supabase.instance.client
-            .from('rooms')
+            .from('chat_rooms')
             .stream(primaryKey: ['id'])
             .eq('id', widget.chatId)
             .listen((_) {
@@ -564,12 +564,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         }
       } catch (_) {}
 
+      // Muat ulang preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
+      bool savedViewOnce = false;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        savedViewOnce =
+            prefs.getBool('room_view_once_${widget.chatId}') ?? false;
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _autoDeleteHours = roomAutoDelete;
         _burnOnExit = roomBurnOnExit;
         _scheduledWipeMode = loadedWipeMode;
         _scheduledWipeTargetAt = loadedWipeTarget;
+        _isViewOnce = savedViewOnce;
       });
 
       if (roomBurnOnExit) {
@@ -2887,7 +2896,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                   context,
                                   roomId: widget.chatId,
                                   onSettingsChanged: () {
-                                    if (mounted) setState(() {});
+                                    if (mounted) _loadRoomSettings();
                                   },
                                 );
                               } else if (value == 'clear') {
@@ -3056,28 +3065,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   final isForwardingProtected =
                       forwardingAsync.valueOrNull?.effective ?? false;
 
-                  final activeIcons = <IconData>[];
+                  final activeItems = <RoomPrivacyIndicatorItem>[];
                   if (isScreenProtected) {
-                    activeIcons.add(SolarIconsBold.shieldCheck);
+                    activeItems.add(const RoomPrivacyIndicatorItem(
+                      icon: SolarIconsBold.shieldCheck,
+                      color: MekaarColors.safeTeal,
+                    ));
                   }
                   if (isForwardingProtected) {
-                    activeIcons.add(SolarIconsBold.forbiddenCircle);
+                    activeItems.add(const RoomPrivacyIndicatorItem(
+                      icon: SolarIconsBold.forbiddenCircle,
+                      color: MekaarColors.blue,
+                    ));
+                  }
+                  if (_isViewOnce) {
+                    activeItems.add(const RoomPrivacyIndicatorItem(
+                      icon: SolarIconsBold.eyeClosed,
+                      color: MekaarColors.blue,
+                    ));
                   }
                   if (_autoDeleteHours > 0) {
-                    activeIcons.add(SolarIconsBold.history);
+                    activeItems.add(const RoomPrivacyIndicatorItem(
+                      icon: SolarIconsBold.history,
+                      color: MekaarColors.warnAmber,
+                    ));
                   }
                   if (_scheduledWipeMode != 'off') {
-                    activeIcons.add(SolarIconsBold.clockCircle);
+                    activeItems.add(const RoomPrivacyIndicatorItem(
+                      icon: SolarIconsBold.clockCircle,
+                      color: MekaarColors.warnAmber,
+                    ));
                   }
                   if (_burnOnExit) {
-                    activeIcons.add(SolarIconsBold.fire);
+                    activeItems.add(const RoomPrivacyIndicatorItem(
+                      icon: SolarIconsBold.fire,
+                      color: MekaarColors.sosCoral,
+                    ));
                   }
 
-                  if (activeIcons.isEmpty) return const SizedBox.shrink();
+                  if (activeItems.isEmpty) return const SizedBox.shrink();
 
                   return Center(
                     child: RoomPrivacyIndicatorCapsule(
-                      icons: activeIcons,
+                      items: activeItems,
                       onTap: () {
                         HapticService.trigger(MekaarHapticIntent.selection);
                         ChatRoomPrivacySheet.show(
@@ -3086,7 +3116,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           onSettingsChanged: () {
                             if (mounted) {
                               _loadRoomSettings();
-                              setState(() {});
                             }
                           },
                         );
