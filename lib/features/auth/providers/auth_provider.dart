@@ -926,14 +926,14 @@ final pinLockEnabledProvider =
 // Default proteksi untuk room baru. Enforcement layar aktif dikelola oleh
 // ScreenProtectionController berdasarkan room/surface yang sedang terbuka.
 class ScreenshotBlockNotifier extends StateNotifier<bool> {
-  ScreenshotBlockNotifier() : super(true) {
+  ScreenshotBlockNotifier() : super(false) {
     _load();
   }
 
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool('is_screenshot_blocked') ?? true;
+      state = prefs.getBool('is_screenshot_blocked') ?? false;
     } catch (_) {}
   }
 

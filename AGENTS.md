@@ -26,7 +26,7 @@ No custom lint/typecheck/format beyond Flutter defaults (`flutter analyze`, `flu
 
 ## Supabase Backend
 
-- Migrations live in `supabase/migrations/` and **must run in numeric filename order** in the Supabase SQL Editor (no local migration runner). Current set runs `01_initial_schema.sql` → … → `12_resolve_login_email_rpc.sql`.
+- Migrations live in `supabase/migrations/` and **must run in numeric filename order** in the Supabase SQL Editor (no local migration runner). Current set runs `01_initial_schema.sql` → … → `108_fix_room_privacy_protection_permissions.sql`.
 - Email auth must be enabled in the Supabase project.
 
 ## Architecture

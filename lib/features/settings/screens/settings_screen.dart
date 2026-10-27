@@ -91,7 +91,7 @@ class SettingsScreen extends ConsumerWidget {
               SettingsSwitchTile(
                 icon: SolarIconsOutline.screenShare,
                 iconColor: MekaarColors.guardianTeal,
-                title: 'Proteksi Layar',
+                title: 'Proteksi Privasi Layar',
                 value: ref.watch(screenshotBlockProvider),
                 onChanged: (value) =>
                     ref.read(screenshotBlockProvider.notifier).toggle(value),

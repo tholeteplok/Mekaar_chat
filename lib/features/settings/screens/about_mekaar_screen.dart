@@ -47,6 +47,15 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       });
     }
   }
+  String _formatDisplayVersion(String rawVersion) {
+    if (rawVersion == 'Memuat...') return rawVersion;
+    final semver = rawVersion.split('+').first.trim();
+    final clean = semver.toLowerCase().startsWith('v')
+        ? semver.substring(1).trim()
+        : semver;
+    return 'v$clean';
+  }
+
 
   Future<void> _handleCheckUpdate() async {
     if (_isCheckingUpdate) return;
@@ -79,7 +88,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       HapticService.trigger(MekaarHapticIntent.success);
       MekaarSnackbar.success(
         context,
-        'Aplikasi Mekaar Anda sudah versi paling mutakhir ($_currentVersion).',
+        'Aplikasi Mekaar Anda sudah versi paling mutakhir (${_formatDisplayVersion(_currentVersion)}).',
       );
     }
   }
@@ -702,7 +711,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
 
                         // Versi Aplikasi
                         Text(
-                          'Versi $_currentVersion',
+                          _formatDisplayVersion(_currentVersion),
                           style: MekaarTypography.caption.copyWith(
                             color: MekaarColors.textMutedOf(context),
                             fontWeight: FontWeight.w600,

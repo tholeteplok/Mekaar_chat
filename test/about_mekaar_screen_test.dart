@@ -34,7 +34,7 @@ void main() {
       // Brand & Version
       expect(find.text('Mekaar'), findsOneWidget);
       expect(find.text('Bicara Bebas, Tetap Aman'), findsOneWidget);
-      expect(find.text('Versi 3.0.0'), findsOneWidget);
+      expect(find.text('v3.0.0'), findsOneWidget);
 
       // 3 Menu Utama Terpadu (Tanpa duplikasi Filosofi & Fitur)
       expect(find.text('Arsitektur & Pilar Pertahanan'), findsOneWidget);
