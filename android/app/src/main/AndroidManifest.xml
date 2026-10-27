@@ -21,7 +21,10 @@
     <application
         android:label="Mekaar"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name="com.mekaar.mekaar_chat.MainActivity"
             android:exported="true"

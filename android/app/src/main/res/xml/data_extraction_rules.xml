@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MEKAAR 3.0: Data Extraction Rules (Android 12+ / API 31+)
+  Mencegah seluruh pencadangan ke cloud (Google Drive) dan transfer perangkat mentah
+  untuk mengisolasi token sesi Supabase, database pesan SQLite, dan kunci enkripsi.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude path="." />
+    </device-transfer>
+</data-extraction-rules>

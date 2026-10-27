@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/storage/mekaar_secure_storage.dart';
 import '../models/device_lost_model.dart';
 import '../services/supabase_service.dart';
 
 class DeviceLostRepository {
   final SupabaseService _supabaseService;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;
 
   static const _storageKey = 'device_lost_state';
 

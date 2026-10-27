@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/storage/mekaar_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
@@ -15,9 +16,7 @@ import 'device_repository.dart';
 
 class AuthRepository {
   final SupabaseService _supabaseService;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;
 
   AuthRepository(this._supabaseService);
 

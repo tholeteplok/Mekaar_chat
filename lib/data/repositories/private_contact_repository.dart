@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/storage/mekaar_secure_storage.dart';
 
 final privateContactRepositoryProvider =
     Provider<PrivateContactRepository>((ref) {
@@ -30,10 +31,7 @@ class PrivateContactRepository {
   DateTime? _cachedLockedUntil;
 
   PrivateContactRepository({FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+      : _secureStorage = secureStorage ?? MekaarSecureStorage.instance;
 
   String _generateSalt() {
     final random = Random.secure();

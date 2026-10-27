@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/storage/mekaar_secure_storage.dart';
 
 /// Mengelola identitas unik perangkat (device_id) per instalasi.
 ///
@@ -14,9 +15,7 @@ import 'package:uuid/uuid.dart';
 class DeviceIdentityService {
   static const _storageKey = 'mekaar_persistent_device_id';
   static const _legacyStorageKey = 'mekaar_device_id';
-  static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  static const _secureStorage = MekaarSecureStorage.instance;
   static String? _cachedDeviceId;
   static String? _cachedDeviceLabel;
 

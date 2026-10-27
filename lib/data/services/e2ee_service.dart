@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/storage/mekaar_secure_storage.dart';
 
 import 'supabase_service.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -53,9 +54,7 @@ class E2eeService {
   static const String undecryptableText = '🔒 Pesan terenkripsi';
 
   final SupabaseService _supabase = SupabaseService();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;
   final X25519 _x25519 = X25519();
   final Xchacha20 _cipher = Xchacha20.poly1305Aead();
 

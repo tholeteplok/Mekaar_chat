@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/storage/mekaar_secure_storage.dart';
 import 'package:logger/logger.dart';
 import 'aegis_memory_guard_service.dart';
 
@@ -17,9 +18,7 @@ class DatabaseKeyService {
   static final DatabaseKeyService instance = DatabaseKeyService._();
 
   static final Logger _logger = Logger();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;
 
   static const String _messageDbKeyStorageKey = 'sqlcipher_message_db_key_v1';
   static const String _decoyMessageDbKeyStorageKey = 'sqlcipher_decoy_message_db_key_v1';
