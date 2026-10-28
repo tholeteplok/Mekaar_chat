@@ -172,6 +172,9 @@ flutter:
           weight: 600
         - asset: assets/fonts/SpaceGrotesk-Bold.ttf
           weight: 700
+    - family: Acidic
+      fonts:
+        - asset: assets/fonts/Acidic.ttf
     - family: Baloo2
       fonts:
         - asset: assets/fonts/Baloo2-Regular.ttf

@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants/colors.dart';
 
 class Avatar extends StatelessWidget {
@@ -57,13 +56,13 @@ class Avatar extends StatelessWidget {
           ? const Color(0xFF152641)
           : const Color(0xFFFFFDF8);
       final circleBorder = isDark
-          ? const Color(0xFFCBD5E1)
-          : const Color(0xFF1E293B);
+          ? const Color(0x33CBD5E1)
+          : const Color(0x261E293B);
 
       boxDecoration = BoxDecoration(
         shape: BoxShape.circle,
         color: backgroundColor ?? circleBg,
-        border: Border.all(color: circleBorder, width: 1.5),
+        border: Border.all(color: circleBorder, width: 1.0),
       );
     } else {
       final avatarColor = backgroundColor ?? _getAvatarColor(initial);
@@ -115,28 +114,21 @@ class Avatar extends StatelessWidget {
       );
     }
 
-    // Inisial Krayon Biru MEKAAR: Miring Kiri 25°, Font Besar Terpotong Kontainer
-    final strokeColor = isDark
-        ? const Color(0xFFF1F5F9)
-        : const Color(0xFF1E293B);
-    final fontSize = innerSize * 1.05;
+    // Pola Inisial Biru MEKAAR: Font Acidic Murni, Miring Kiri 25°, Font Besar Terpotong Kontainer
+    final fontSize = innerSize * 1.12;
 
     return Center(
       child: Transform.rotate(
-        angle: -25 * (math.pi / 180), // Miring kiri 25 derajad
-        child: CustomPaint(
-          size: Size(innerSize * 1.2, innerSize * 1.2),
-          painter: _CrayonInitialPainter(
-            letter: letter,
+        angle: -25 * (math.pi / 180), // Miring kiri 25 derajat
+        child: Text(
+          letter,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Acidic',
             fontSize: fontSize,
-            crayonColor: AppColors.blue,
-            strokeColor: strokeColor,
-            textStyle: GoogleFonts.dynaPuff(
-              fontWeight: FontWeight.w700,
-              textStyle: const TextStyle(
-                fontFamilyFallback: ['Sniglet', 'Comic Neue', 'sans-serif'],
-              ),
-            ),
+            fontWeight: FontWeight.w700,
+            color: AppColors.blue,
+            fontFamilyFallback: const ['PlusJakartaSans', 'sans-serif'],
           ),
         ),
       ),
@@ -162,147 +154,5 @@ class Avatar extends StatelessWidget {
     ];
     final index = text.codeUnits.fold(0, (prev, element) => prev + element);
     return colors[index.abs() % colors.length];
-  }
-}
-
-/// CustomPainter untuk menggambar inisial dengan arsiran krayon bergaris
-/// dan kontur tinta tebal seperti pada sketsa tangan.
-class _CrayonInitialPainter extends CustomPainter {
-  final String letter;
-  final double fontSize;
-  final Color crayonColor;
-  final Color strokeColor;
-  final TextStyle textStyle;
-
-  const _CrayonInitialPainter({
-    required this.letter,
-    required this.fontSize,
-    required this.crayonColor,
-    required this.strokeColor,
-    required this.textStyle,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    // 1. TextPainter untuk masker bentuk huruf
-    final fillSpan = TextSpan(
-      text: letter,
-      style: textStyle.copyWith(
-        fontSize: fontSize,
-        fontWeight: FontWeight.w700,
-        color: Colors.white,
-      ),
-    );
-    final fillPainter = TextPainter(
-      text: fillSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    )..layout();
-
-    final textOffset = Offset(
-      center.dx - (fillPainter.width / 2),
-      center.dy - (fillPainter.height / 2),
-    );
-
-    final textRect = textOffset & fillPainter.size;
-
-    // 2. Render arsiran krayon yang di-mask ke bentuk huruf menggunakan saveLayer
-    canvas.saveLayer(textRect.inflate(16), Paint());
-
-    // Gambar siluet huruf sebagai tujuan (destination mask)
-    fillPainter.paint(canvas, textOffset);
-
-    // Gambar goresan krayon berulang dengan BlendMode.srcIn
-    final strokeW = (fontSize * 0.065).clamp(1.8, 3.6);
-    final scribblePaint = Paint()
-      ..color = crayonColor
-      ..blendMode = BlendMode.srcIn
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final step = strokeW * 1.25;
-    final startY = textRect.top - 6;
-    final endY = textRect.bottom + 6;
-
-    final scribblePath = Path();
-    bool leftToRight = true;
-    int index = 0;
-    for (double y = startY; y <= endY; y += step) {
-      final x1 = textRect.left - 12;
-      final x2 = textRect.right + 12;
-      final wave = (index % 2 == 0 ? 1 : -1) * (strokeW * 0.22);
-      if (leftToRight) {
-        scribblePath.moveTo(x1, y);
-        scribblePath.quadraticBezierTo(
-          (x1 + x2) / 2,
-          y + wave,
-          x2,
-          y + (strokeW * 0.15),
-        );
-      } else {
-        scribblePath.moveTo(x2, y);
-        scribblePath.quadraticBezierTo(
-          (x1 + x2) / 2,
-          y + wave,
-          x1,
-          y + (strokeW * 0.15),
-        );
-      }
-      leftToRight = !leftToRight;
-      index++;
-    }
-    canvas.drawPath(scribblePath, scribblePaint);
-
-    // Aksen goresan arsir kedua untuk memberi kedalaman tekstur lilin krayon
-    final secondaryPaint = Paint()
-      ..color = crayonColor.withValues(alpha: 0.85)
-      ..blendMode = BlendMode.srcIn
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW * 0.65
-      ..strokeCap = StrokeCap.round;
-
-    final secondaryPath = Path();
-    for (double y = startY + (step * 0.5); y <= endY; y += step * 1.6) {
-      secondaryPath.moveTo(textRect.left - 8, y + 0.8);
-      secondaryPath.lineTo(textRect.right + 8, y - 0.8);
-    }
-    canvas.drawPath(secondaryPath, secondaryPaint);
-
-    canvas.restore();
-
-    // 3. Garis Luar (Outlined Ink Contour) di sekeliling huruf dengan skala optik presisi
-    final outlineStrokeWidth = (fontSize * 0.026).clamp(1.0, 1.8);
-    final outlineSpan = TextSpan(
-      text: letter,
-      style: textStyle.copyWith(
-        fontSize: fontSize,
-        fontWeight: FontWeight.w700,
-        foreground: Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = outlineStrokeWidth
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..color = strokeColor,
-      ),
-    );
-    final outlinePainter = TextPainter(
-      text: outlineSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    )..layout();
-
-    outlinePainter.paint(canvas, textOffset);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CrayonInitialPainter oldDelegate) {
-    return oldDelegate.letter != letter ||
-        oldDelegate.fontSize != fontSize ||
-        oldDelegate.crayonColor != crayonColor ||
-        oldDelegate.strokeColor != strokeColor;
   }
 }
