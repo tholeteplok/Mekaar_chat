@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../data/services/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
@@ -191,7 +193,12 @@ class ChatAppBar extends ConsumerWidget {
     if (isSelectionMode) {
       final isSingle = totalSelectedCount == 1;
       final isForwardProtected = forwardingProtection?.effective ?? false;
-      final currentUserId = ref.read(authProvider).user?.id;
+      // Resolusi ID pengguna saat ini: gunakan fallback ke Supabase auth langsung
+      // agar tombol edit tidak menghilang saat state Riverpod belum sinkron penuh.
+      final currentUserId = ref.watch(authProvider).user?.id ??
+          (SupabaseService.isInitialized
+              ? Supabase.instance.client.auth.currentUser?.id
+              : null);
 
       final canReply = isSingle && selectedMessageIds.length == 1;
       final singleSelectedMsg = isSingle && selectedMessageIds.length == 1
@@ -200,12 +207,14 @@ class ChatAppBar extends ConsumerWidget {
               orElse: () => null,
             )
           : null;
+      // Tampilkan tombol edit untuk pesan teks milik pengirim sendiri.
+      // Pembatasan Guardian & batas waktu 30 menit ditangani secara transparan
+      // melalui snackbar edukasi saat tombol diketuk (bukan disembunyikan).
       final canEdit = singleSelectedMsg != null &&
           currentUserId != null &&
           singleSelectedMsg.senderId == currentUserId &&
           singleSelectedMsg.type == MessageType.text &&
-          !singleSelectedMsg.isDeleted &&
-          !isGuardian;
+          !singleSelectedMsg.isDeleted;
       final hasCopyableText = rawMessages.any(
         (m) =>
             selectedMessageIds.contains(m.id) &&

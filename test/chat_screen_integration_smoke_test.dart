@@ -110,7 +110,10 @@ class FakeChatRepository extends Fake implements ChatRepository {
   bool canForwardMessage(Message message, {bool forwardingProtectionActive = false}) => true;
 
   @override
-  bool canEditMessage(Message message, {required bool isGuardianRoom}) => true;
+  bool canEditMessage(Message message, {required bool isGuardianRoom, DateTime? now}) => true;
+
+  @override
+  String? getEditRestrictionReason(Message message, {required bool isGuardianRoom, DateTime? now}) => null;
 
   @override
   Future<Message> sendMessage(

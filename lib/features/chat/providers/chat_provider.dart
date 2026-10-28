@@ -385,6 +385,7 @@ class ChatActionsNotifier {
     String newContent, {
     required bool isGuardianRoom,
   }) async {
+    // Validasi ganda di sisi provider sebagai safety net
     if (isGuardianRoom) {
       throw Exception('Tidak dapat mengedit pesan di Chat Guardian');
     }
@@ -530,6 +531,18 @@ class ChatActionsNotifier {
 
   bool canEdit(Message message, {required bool isGuardianRoom}) {
     return _chatRepository.canEditMessage(
+      message,
+      isGuardianRoom: isGuardianRoom,
+    );
+  }
+
+  /// Kembalikan alasan pembatasan edit (Guardian, batas waktu, tipe pesan),
+  /// atau null jika pengeditan diizinkan.
+  String? getEditRestrictionReason(
+    Message message, {
+    required bool isGuardianRoom,
+  }) {
+    return _chatRepository.getEditRestrictionReason(
       message,
       isGuardianRoom: isGuardianRoom,
     );

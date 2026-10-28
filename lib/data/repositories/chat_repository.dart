@@ -1150,25 +1150,95 @@ class ChatRepository {
     return true;
   }
 
+  /// Batas waktu maksimum untuk mengedit pesan (30 menit setelah dikirim).
+  static const Duration maxEditWindow = Duration(minutes: 30);
+
   /// Guard: pesan di chat guardian TIDAK BOLEH diedit untuk menjaga integritas bukti hukum.
-  /// Chat normal boleh diedit. Gunakan ini sebelum menampilkan opsi edit di UI.
-  bool canEditMessage(Message message, {required bool isGuardianRoom}) {
+  /// Pesan yang melebihi batas waktu [maxEditWindow] juga tidak dapat diedit.
+  /// Gunakan ini sebelum menampilkan opsi edit di UI.
+  bool canEditMessage(
+    Message message, {
+    required bool isGuardianRoom,
+    DateTime? now,
+  }) {
     if (isGuardianRoom) return false;
     if (message.isDeleted) return false;
     if (message.type != MessageType.text) return false;
+    final currentTime = now ?? DateTime.now().toUtc();
+    if (currentTime.difference(message.createdAt.toUtc()) > maxEditWindow) {
+      return false;
+    }
     return true;
   }
 
+  /// Kembalikan alasan pembatasan edit yang dapat dibaca manusia, atau null jika diizinkan.
+  /// Digunakan oleh UI untuk menampilkan pesan edukasi yang transparan kepada pengguna.
+  String? getEditRestrictionReason(
+    Message message, {
+    required bool isGuardianRoom,
+    DateTime? now,
+  }) {
+    if (isGuardianRoom) {
+      return 'Pesan di ruang Guardian tidak dapat diedit demi integritas bukti hukum.';
+    }
+    if (message.isDeleted) {
+      return 'Pesan yang sudah dihapus tidak dapat diedit.';
+    }
+    if (message.type != MessageType.text) {
+      return 'Hanya pesan teks yang dapat diedit.';
+    }
+    final currentTime = now ?? DateTime.now().toUtc();
+    if (currentTime.difference(message.createdAt.toUtc()) > maxEditWindow) {
+      return 'Batas waktu edit pesan (30 menit) telah berakhir.';
+    }
+    return null;
+  }
+
   /// Edit isi teks pesan. Hanya pengirim di chat non-guardian yang boleh.
+  /// Menerapkan pembaruan lokal instan (0ms optimistic) ke memori, SQLite,
+  /// dan message pool sebelum transmisi ke Supabase.
   Future<void> editMessage(String messageId, String newContent) async {
-    _decryptedContentCache.remove(messageId);
+    final now = DateTime.now().toUtc();
+    final nowIso = now.toIso8601String();
+
+    // 1. Pembaruan optimistik instan ke cache memori & message pool aktif
+    _decryptedContentCache[messageId] = newContent;
+    for (final pool in _activeRoomMessagePools.values) {
+      final existing = pool[messageId];
+      if (existing != null) {
+        pool[messageId] = existing.copyWith(
+          content: newContent,
+          editedAt: now,
+        );
+      }
+    }
+    // Emit segera ke stream UI agar bubble berubah tanpa menunggu jaringan
+    for (final entry in _activeRoomControllers.entries) {
+      final pool = _activeRoomMessagePools[entry.key];
+      if (pool != null && pool.containsKey(messageId) && !entry.value.isClosed) {
+        final sorted = pool.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        entry.value.add(sorted);
+      }
+    }
+
+    // 2. Simpan ke SQLite lokal agar tersedia offline
+    for (final pool in _activeRoomMessagePools.values) {
+      final updated = pool[messageId];
+      if (updated != null) {
+        unawaited(LocalMessageDatabase.instance.saveMessage(updated));
+        break;
+      }
+    }
+
+    // 3. Re-enkripsi & kirim ke Supabase
     final contentToStore = await _reencryptIfNeeded(messageId, newContent);
     await _supabaseService.client
         .from('messages')
         .update({
           'content': contentToStore,
-          'edited_at': DateTime.now().toUtc().toIso8601String(),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
+          'edited_at': nowIso,
+          'updated_at': nowIso,
         })
         .eq('id', messageId);
   }

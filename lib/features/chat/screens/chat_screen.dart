@@ -1258,6 +1258,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     onClearSelection: _clearSelection,
                     onReplySelectedMessage: () => _replyToSelectedMessage(rawMessages),
                     onEditSelectedMessage: (msgToEdit) {
+                      // Periksa apakah ada pembatasan (Guardian, batas waktu, dll.)
+                      final actions = ref.read(chatActionsProvider);
+                      final reason = actions.getEditRestrictionReason(
+                        msgToEdit,
+                        isGuardianRoom: widget.isGuardian,
+                      );
+                      if (reason != null) {
+                        _clearSelection();
+                        MekaarSnackbar.warning(context, reason);
+                        return;
+                      }
                       setState(() {
                         _editingMessage = msgToEdit;
                         _textController.text = msgToEdit.content;
