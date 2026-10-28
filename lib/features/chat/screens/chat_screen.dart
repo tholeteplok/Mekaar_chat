@@ -725,6 +725,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (ref.read(activeRoomIdProvider) == widget.chatId) {
       ref.read(activeRoomIdProvider.notifier).state = null;
     }
+    // Pastikan status pesan ditandai telah dibaca dan unread count disegarkan saat keluar dari room
+    ref.read(chatActionsProvider).markRoomRead(widget.chatId);
+    ref.read(chatRoomsProvider.notifier).refreshRooms();
     _searchDebounceTimer?.cancel();
     _inChatSearchFocusNode.dispose();
     _composerFocusNode.dispose();
@@ -1990,8 +1993,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final selectedCount = _totalSelectedCount;
     final isSingle = selectedCount == 1;
     final isForwardProtected = forwardingProtection?.effective ?? false;
+    final currentUserId = ref.read(authProvider).user?.id;
 
     final canReply = isSingle && _selectedMessageIds.length == 1;
+    final singleSelectedMsg = isSingle && _selectedMessageIds.length == 1
+        ? rawMessages.cast<Message?>().firstWhere(
+            (m) => m?.id == _selectedMessageIds.first,
+            orElse: () => null,
+          )
+        : null;
+    final canEdit = singleSelectedMsg != null &&
+        currentUserId != null &&
+        singleSelectedMsg.senderId == currentUserId &&
+        singleSelectedMsg.type == MessageType.text &&
+        !singleSelectedMsg.isDeleted &&
+        !widget.isGuardian;
     final hasCopyableText = rawMessages.any(
       (m) =>
           _selectedMessageIds.contains(m.id) &&
@@ -2035,6 +2051,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     return ChatSelectionAppBar(
       selectedCount: selectedCount,
       canReply: canReply,
+      canEdit: canEdit,
       hasCopyableText: hasCopyableText,
       canForward: canForward,
       canDownload: canDownload,
@@ -2044,6 +2061,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       iconColor: roomThemeSpec.iconColor,
       onClose: _clearSelection,
       onReply: () => _replyToSelectedMessage(rawMessages),
+      onEdit: canEdit
+          ? () {
+              final msgToEdit = singleSelectedMsg;
+              setState(() {
+                _editingMessage = msgToEdit;
+                _textController.text = msgToEdit.content;
+                _replyMessage = null;
+                _clearSelection();
+              });
+              _composerFocusNode.requestFocus();
+            }
+          : null,
       onCopy: () => _copySelectedMessages(rawMessages),
       onForward: () => _forwardSelectedMessages(
         rawMessages,
@@ -2252,6 +2281,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
+    // Auto-read listener: saat pengguna aktif di dalam layar dan ada pesan baru masuk dari lawan bicara,
+    // langsung tandai telah dibaca secara reaktif agar unread count tidak menumpuk saat keluar.
+    ref.listen<AsyncValue<List<Message>>>(
+      chatMessagesProvider(widget.chatId),
+      (previous, next) {
+        final prevList = previous?.valueOrNull;
+        final nextList = next.valueOrNull;
+        if (nextList != null && nextList.isNotEmpty && currentUserId != null) {
+          final hasNewMessages =
+              prevList == null || nextList.length > prevList.length;
+          final lastIsFromOther = nextList.last.senderId != currentUserId;
+          if (hasNewMessages && lastIsFromOther && mounted) {
+            actions.markRoomRead(widget.chatId);
+          }
+        }
+      },
+    );
+
     final topAreaHeight =
         MediaQuery.paddingOf(context).top + kToolbarHeight + 6.0;
 
@@ -2272,6 +2319,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         if (didPop) {
           // Bersihkan status kamar aktif seketika layar mulai keluar (animasi pop)
           ref.read(activeRoomIdProvider.notifier).state = null;
+          ref.read(chatActionsProvider).markRoomRead(widget.chatId);
+          ref.read(chatRoomsProvider.notifier).refreshRooms();
           if (_burnOnExit) {
             _triggerBurnOnExit();
           }

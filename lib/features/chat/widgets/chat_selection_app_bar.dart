@@ -7,12 +7,14 @@ import '../../../core/constants/typography.dart';
 class ChatSelectionAppBar extends StatelessWidget {
   final int selectedCount;
   final bool canReply;
+  final bool canEdit;
   final bool hasCopyableText;
   final bool canForward;
   final bool canDownload;
   final bool canSaveToVault;
   final VoidCallback onClose;
   final VoidCallback? onReply;
+  final VoidCallback? onEdit;
   final VoidCallback? onCopy;
   final VoidCallback? onForward;
   final VoidCallback? onDownload;
@@ -26,12 +28,14 @@ class ChatSelectionAppBar extends StatelessWidget {
     super.key,
     required this.selectedCount,
     this.canReply = false,
+    this.canEdit = false,
     this.hasCopyableText = false,
     this.canForward = false,
     this.canDownload = false,
     this.canSaveToVault = false,
     required this.onClose,
     this.onReply,
+    this.onEdit,
     this.onCopy,
     this.onForward,
     this.onDownload,
@@ -100,6 +104,16 @@ class ChatSelectionAppBar extends StatelessWidget {
                 ),
                 tooltip: 'Balas',
                 onPressed: onReply,
+              ),
+            if (canEdit && onEdit != null)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.pen,
+                  size: 22,
+                  color: iconColor,
+                ),
+                tooltip: 'Edit',
+                onPressed: onEdit,
               ),
             if (hasCopyableText && onCopy != null)
               IconButton(
