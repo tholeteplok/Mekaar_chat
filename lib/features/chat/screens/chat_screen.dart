@@ -14,15 +14,11 @@ import '../../../data/services/file_export_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
-import '../../../core/constants/dimensions.dart';
-import '../../../core/constants/typography.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/bubbles/bubble_media_helper.dart';
-import '../../../core/widgets/mekaar_bottom_sheet.dart';
-import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
@@ -33,10 +29,13 @@ import '../../../data/services/local_message_database.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../controllers/chat_screen_controller.dart';
+import '../dialogs/chat_deletion_dialogs.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_bottom_area.dart';
 import '../widgets/chat_message_list_view.dart';
+import '../widgets/chat_forward_sheet.dart';
+import '../widgets/chat_e2ee_restore_sheet.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/image_send_preview_sheet.dart';
 import '../widgets/document_send_preview_sheet.dart';
@@ -960,269 +959,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
 
-  Future<void> _showE2eeRestoreBottomSheet(BuildContext context) async {
-    final pinController = TextEditingController();
-    bool isLoading = false;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (bottomSheetContext) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: MekaarColors.surfaceOf(ctx),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(MekaarRadius.xl),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: MekaarSpacing.xl,
-              vertical: MekaarSpacing.lg,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: MekaarColors.textSecondaryOf(ctx).withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: MekaarSpacing.md),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.sosCoral.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        SolarIconsOutline.keyMinimalisticSquare,
-                        color: MekaarColors.sosCoral,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: MekaarSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Pulihkan Kunci E2EE',
-                            style: MekaarTypography.headingMD.copyWith(
-                              color: MekaarColors.textPrimaryOf(ctx),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Masukkan 6-digit PIN akun Anda untuk membuka sesi privat.',
-                            style: MekaarTypography.caption.copyWith(
-                              color: MekaarColors.textSecondaryOf(ctx),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: MekaarSpacing.lg),
-                TextField(
-                  controller: pinController,
-                  autofocus: true,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  obscureText: true,
-                  textAlign: TextAlign.center,
-                  style: MekaarTypography.monoLG.copyWith(
-                    letterSpacing: 12,
-                    fontWeight: FontWeight.bold,
-                    color: MekaarColors.textPrimaryOf(ctx),
-                  ),
-                  decoration: InputDecoration(
-                    counterText: '',
-                    hintText: '••••••',
-                    hintStyle: TextStyle(
-                      letterSpacing: 12,
-                      color: MekaarColors.textSecondaryOf(ctx).withValues(alpha: 0.4),
-                    ),
-                    filled: true,
-                    fillColor: MekaarColors.surface2Of(ctx),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(MekaarRadius.md),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: MekaarSpacing.lg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: isLoading
-                            ? null
-                            : () async {
-                                final confirmed = await MekaarDialog.showConfirmation<bool>(
-                                  context: ctx,
-                                  title: 'Reset Kunci E2EE?',
-                                  message: 'Kunci enkripsi lama akan dihapus dan dibuatkan kunci baru. Riwayat pesan terenkripsi lama mungkin tidak dapat didekripsi.',
-                                  isDestructive: true,
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Batal'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      style: FilledButton.styleFrom(backgroundColor: MekaarColors.sosCoral),
-                                      child: const Text('Ya, Reset'),
-                                    ),
-                                  ],
-                                );
-                                if (confirmed == true && mounted) {
-                                  setSheetState(() => isLoading = true);
-                                  await E2eeService.instance.forceResetIdentity();
-                                  ref.read(authProvider.notifier).setE2eeNeedsRestore(false);
-                                  ref.read(e2eeRoomStatusProvider(widget.chatId).notifier).retry(isGroup: widget.isGroup);
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (context.mounted) {
-                                    MekaarSnackbar.success(context, 'Kunci enkripsi baru berhasil dibuat.');
-                                  }
-                                }
-                              },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: MekaarColors.sosCoral,
-                          side: BorderSide(color: MekaarColors.sosCoral.withValues(alpha: 0.5)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(MekaarRadius.md),
-                          ),
-                        ),
-                        child: const Text('Reset Kunci'),
-                      ),
-                    ),
-                    const SizedBox(width: MekaarSpacing.md),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: isLoading
-                            ? null
-                            : () async {
-                                final pin = pinController.text.trim();
-                                if (pin.length != 6) return;
-                                setSheetState(() => isLoading = true);
-                                final success = await E2eeService.instance.tryRestoreWithPin(pin);
-                                setSheetState(() => isLoading = false);
-                                if (success) {
-                                  ref.read(authProvider.notifier).setE2eeNeedsRestore(false);
-                                  ref.read(e2eeRoomStatusProvider(widget.chatId).notifier).retry(isGroup: widget.isGroup);
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (context.mounted) {
-                                    MekaarSnackbar.success(context, 'Kunci E2EE berhasil dipulihkan!');
-                                  }
-                                } else {
-                                  if (ctx.mounted) {
-                                    MekaarSnackbar.error(ctx, 'PIN salah. Silakan coba lagi.');
-                                  }
-                                }
-                              },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: MekaarColors.primaryOf(ctx),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(MekaarRadius.md),
-                          ),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text('Buka Kunci'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: MekaarSpacing.sm),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    pinController.dispose();
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: MekaarMotion.counter,
+        curve: Curves.easeOut,
+      );
+    }
   }
 
+  Future<void> _showE2eeRestoreBottomSheet(BuildContext context) =>
+      ChatE2eeRestoreSheet.show(
+        context,
+        ref: ref,
+        roomId: widget.chatId,
+        isGroup: widget.isGroup,
+      );
+
   void _handleDeleteMessage(Message msg) {
-    MekaarDialog.showConfirmation<void>(
-      context: context,
-      title: 'Hapus untuk Saya?',
-      message:
-          'Pesan akan disembunyikan untuk Anda saja. Lawan bicara tetap dapat melihat pesan ini.',
-      isDestructive: true,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () async {
-            await ref
-                .read(chatActionsProvider)
-                .hideMessageForMe(msg.id, roomId: widget.chatId);
-            if (!mounted) return;
-            Navigator.pop(context);
-          },
-          child: Text('Hapus', style: TextStyle(color: MekaarColors.sosRed)),
-        ),
-      ],
+    ChatDeletionDialogs.confirmDeleteSingleMessage(
+      context,
+      ref: ref,
+      roomId: widget.chatId,
+      message: msg,
     );
   }
 
   void _handleUnsendMessage(Message msg) {
-    MekaarDialog.showConfirmation<void>(
-      context: context,
-      title: 'Tarik Pesan?',
-      message: widget.isGuardian
-          ? 'Konten pesan akan hilang dari layar. Log sistem tetap mencatat snapshot penghapusan demi integritas bukti.'
-          : 'Pesan akan dihapus untuk semua orang. Jika belum dibaca, pesan ini akan ditarik tanpa jejak.',
-      isDestructive: true,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            await ref
-                .read(chatActionsProvider)
-                .deleteMessageForEveryone(msg.id, roomId: widget.chatId);
-          },
-          child: const Text(
-            'Tarik Pesan',
-            style: TextStyle(color: MekaarColors.sosRed),
-          ),
-        ),
-      ],
+    ChatDeletionDialogs.confirmUnsingleMessage(
+      context,
+      ref: ref,
+      roomId: widget.chatId,
+      message: msg,
+      isGuardian: widget.isGuardian,
     );
   }
 
@@ -1420,63 +1190,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void _handleForwardMessage(Message msg) {
-    final rooms = ref.read(chatRoomsProvider).value ?? [];
-    final targets = rooms.where((r) => r['id'] != widget.chatId).toList();
-
-    final hasTargets = targets.isNotEmpty;
-
-    MekaarBottomSheet.show(
-      context: context,
-      title: 'Teruskan ke',
-      builder: (ctx) => hasTargets
-          ? ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              children: targets.map((room) {
-                final name = room['name'] as String? ?? 'User';
-                final avatar = room['avatar'] as String? ?? '';
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    child: Text(
-                      avatar.isNotEmpty ? avatar : name[0],
-                      style: TextStyle(
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
-                    ),
-                  ),
-                  title: Text(name),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    try {
-                      await ref
-                          .read(chatActionsProvider)
-                          .forwardMessage(msg, room['id'] as String);
-                    } catch (e) {
-                      if (ctx.mounted) {
-                        MekaarSnackbar.error(
-                          ctx,
-                          'Gagal meneruskan pesan: ${ErrorResolver.resolve(e)}',
-                        );
-                      }
-                      return;
-                    }
-                    if (ctx.mounted) {
-                      MekaarSnackbar.success(ctx, 'Pesan diteruskan ke $name');
-                    }
-                  },
-                );
-              }).toList(),
-            )
-          : const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Tidak ada chat lain untuk meneruskan pesan.',
-                textAlign: TextAlign.center,
-              ),
-            ),
+    ChatForwardSheet.show(
+      context,
+      ref: ref,
+      currentRoomId: widget.chatId,
+      messages: [msg],
     );
   }
 
@@ -1544,161 +1262,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void _confirmDeleteSelectedItems(List<Message> allMessages) {
-    final currentUserId = ref.read(authProvider).user?.id;
     final selectedMsgs = allMessages
         .where((m) => _selectedMessageIds.contains(m.id))
         .toList();
-    final selectedCallIdsCopy = Set<String>.from(_selectedCallIds);
-
-    if (selectedMsgs.isEmpty && selectedCallIdsCopy.isEmpty) return;
-
-    final canDeleteForEveryone = selectedMsgs.any(
-      (m) => m.senderId == currentUserId,
+    ChatDeletionDialogs.confirmDeleteSelectedItems(
+      context,
+      ref: ref,
+      roomId: widget.chatId,
+      otherParticipantName: _effectiveChatName,
+      isGroup: widget.isGroup,
+      selectedMessages: selectedMsgs,
+      selectedCallIds: _selectedCallIds,
+      onHideCalls: _hideSelectedCalls,
+      onSelectionCleared: _clearSelection,
     );
-    final totalCount = selectedMsgs.length + selectedCallIdsCopy.length;
-    final isSingle = totalCount == 1;
-    final title = isSingle ? 'Hapus item obrolan?' : 'Hapus $totalCount item?';
-
-    bool deleteForEveryone = false;
-
-    showDialog<void>(
-      context: context,
-      builder: (dialogCtx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final textPrimary = MekaarColors.textPrimaryOf(ctx);
-            final textSecondary = MekaarColors.textSecondaryOf(ctx);
-
-            return AlertDialog(
-              backgroundColor: MekaarColors.surfaceOf(ctx),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MekaarRadius.lg),
-              ),
-              title: Text(
-                title,
-                style: TextStyle(
-                  color: textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Item yang dipilih akan dihapus dari obrolan ini.',
-                    style: TextStyle(
-                      color: textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  if (canDeleteForEveryone) ...[
-                    const SizedBox(height: 12),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(MekaarRadius.sm),
-                      onTap: () {
-                        setDialogState(() {
-                          deleteForEveryone = !deleteForEveryone;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: deleteForEveryone,
-                                activeColor: MekaarColors.sosRed,
-                                onChanged: (val) {
-                                  setDialogState(() {
-                                    deleteForEveryone = val ?? false;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Hapus juga untuk ${widget.isGroup ? 'semua anggota' : _effectiveChatName}',
-                                style: TextStyle(
-                                  color: textPrimary,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogCtx),
-                  child: Text(
-                    'Batal',
-                    style: TextStyle(color: textSecondary),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    Navigator.pop(dialogCtx);
-                    final actions = ref.read(chatActionsProvider);
-                    final toProcessMsgs = List<Message>.from(selectedMsgs);
-                    final toProcessCalls = Set<String>.from(selectedCallIdsCopy);
-                    _clearSelection();
-
-                    // 1. Proses penghapusan pesan
-                    for (final msg in toProcessMsgs) {
-                      if (deleteForEveryone && msg.senderId == currentUserId) {
-                        await actions.deleteMessageForEveryone(
-                          msg.id,
-                          roomId: widget.chatId,
-                        );
-                      } else {
-                        await actions.hideMessageForMe(
-                          msg.id,
-                          roomId: widget.chatId,
-                        );
-                      }
-                    }
-
-                    // 2. Proses penyembunyian/penghapusan riwayat panggilan
-                    if (toProcessCalls.isNotEmpty) {
-                      await _hideSelectedCalls(toProcessCalls);
-                    }
-
-                    if (mounted) {
-                      MekaarSnackbar.success(
-                        context,
-                        deleteForEveryone
-                            ? 'Item obrolan dihapus untuk semua orang'
-                            : 'Item obrolan dihapus untuk Anda',
-                      );
-                    }
-                  },
-                  child: Text(
-                    'Hapus',
-                    style: TextStyle(
-                      color: MekaarColors.sosRed,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((_) {
-      if (mounted && !_isSelectionMode) {
-        _clearSelection();
-      }
-    });
   }
 
   void _forwardSelectedMessages(
@@ -1718,106 +1295,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         .toList();
     selectedMsgs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    final actions = ref.read(chatActionsProvider);
-    final forwardableMsgs = selectedMsgs
-        .where((m) => actions.canForward(m, forwardingProtectionActive: false))
-        .toList();
-
-    if (forwardableMsgs.isEmpty) {
-      MekaarSnackbar.warning(
-        context,
-        'Pesan yang dipilih tidak dapat diteruskan.',
-      );
-      return;
-    }
-
-    final rooms = ref.read(chatRoomsProvider).value ?? [];
-    final targets = rooms.where((r) => r['id'] != widget.chatId).toList();
-    final hasTargets = targets.isNotEmpty;
-
-    MekaarBottomSheet.show(
-      context: context,
-      title: 'Teruskan ke',
-      builder: (ctx) => hasTargets
-          ? ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              children: targets.map((room) {
-                final name = room['name'] as String? ?? 'User';
-                final avatar = room['avatar'] as String? ?? '';
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    child: Text(
-                      avatar.isNotEmpty ? avatar : name[0],
-                      style: TextStyle(
-                        color: MekaarColors.textPrimaryOf(context),
-                      ),
-                    ),
-                  ),
-                  title: Text(name),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    // Verifikasi ulang filter privasi secara segar
-                    final currentForwarding = ref
-                        .read(
-                          roomForwardingProtectionProvider(widget.chatId),
-                        )
-                        .valueOrNull;
-                    if (currentForwarding?.effective ?? false) {
-                      if (context.mounted) {
-                        MekaarSnackbar.warning(
-                          context,
-                          'Penerusan pesan dibatasi di obrolan ini.',
-                        );
-                      }
-                      return;
-                    }
-
-                    _clearSelection();
-                    int successCount = 0;
-                    for (final msg in forwardableMsgs) {
-                      if (!actions.canForward(
-                        msg,
-                        forwardingProtectionActive:
-                            currentForwarding?.effective ?? false,
-                      )) {
-                        continue;
-                      }
-                      try {
-                        await actions.forwardMessage(
-                          msg,
-                          room['id'] as String,
-                        );
-                        successCount++;
-                      } catch (_) {}
-                    }
-
-                    if (mounted) {
-                      if (successCount > 0) {
-                        MekaarSnackbar.success(
-                          context,
-                          successCount == 1
-                              ? 'Pesan diteruskan ke $name'
-                              : '$successCount pesan diteruskan ke $name',
-                        );
-                      } else {
-                        MekaarSnackbar.error(context, 'Gagal meneruskan pesan.');
-                      }
-                    }
-                  },
-                );
-              }).toList(),
-            )
-          : const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Tidak ada chat lain untuk meneruskan pesan.',
-                textAlign: TextAlign.center,
-              ),
-            ),
+    ChatForwardSheet.show(
+      context,
+      ref: ref,
+      currentRoomId: widget.chatId,
+      messages: selectedMsgs,
+      onForwardCompleted: _clearSelection,
     );
   }
 
@@ -1893,79 +1376,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void _confirmClearHistory() {
-    MekaarDialog.showConfirmation<void>(
-      context: context,
-      title: 'Bersihkan Riwayat di Perangkat Ini?',
-      message: widget.isGuardian
-          ? 'Seluruh riwayat chat akan dibersihkan dari tampilan Anda saja, namun log percakapan tetap diarsipkan demi kepatuhan Room Guardian.'
-          : 'Semua pesan di ruangan ini hanya akan dibersihkan dari tampilan Anda. Rekan obrolan tetap dapat melihat riwayat percakapan di perangkat mereka.',
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context); // Close dialog
-            await ref.read(chatActionsProvider).clearChatHistory(widget.chatId);
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('hidden_call_ids_${widget.chatId}');
-            } catch (_) {}
-            if (mounted) {
-              setState(() => _hiddenCallIds.clear());
-              MekaarSnackbar.success(context, 'Riwayat obrolan & panggilan dibersihkan untuk perangkat ini.');
-            }
-          },
-          child: const Text(
-            'Bersihkan (Hanya Saya)',
-            style: TextStyle(color: MekaarColors.sosRed),
-          ),
-        ),
-      ],
+    ChatDeletionDialogs.confirmClearHistory(
+      context,
+      ref: ref,
+      roomId: widget.chatId,
+      isGuardian: widget.isGuardian,
+      onCleared: () {
+        if (mounted) {
+          setState(() => _hiddenCallIds.clear());
+        }
+      },
     );
   }
 
   void _confirmDeleteChat() {
-    MekaarDialog.showConfirmation<void>(
-      context: context,
-      title: 'Hapus Percakapan dari Daftar Anda?',
-      message:
-          'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Percakapan di sisi rekan obrolan tidak akan terhapus.',
-      isDestructive: true,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context); // Close dialog
-            await ref.read(chatActionsProvider).deleteChat(widget.chatId);
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('hidden_call_ids_${widget.chatId}');
-            } catch (_) {}
-            if (!mounted) return;
-            Navigator.pop(context); // Exit chat room to ChatListScreen
-          },
-          child: const Text(
-            'Hapus (Hanya Saya)',
-            style: TextStyle(color: MekaarColors.sosRed),
-          ),
-        ),
-      ],
+    ChatDeletionDialogs.confirmDeleteChat(
+      context,
+      ref: ref,
+      roomId: widget.chatId,
+      onDeleted: () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      },
     );
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0.0,
-        duration: MekaarMotion.counter,
-        curve: Curves.easeOut,
-      );
-    }
   }
 
   @override
