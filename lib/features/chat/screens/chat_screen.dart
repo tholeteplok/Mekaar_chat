@@ -20,26 +20,23 @@ import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/message_preview_resolver.dart';
-import '../../../core/widgets/chat_bubble.dart';
-import '../../../core/widgets/chat_date_separator.dart';
-import '../../../core/widgets/mekaar_banner.dart';
+import '../../../core/widgets/bubbles/bubble_media_helper.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/mekaar_state_view.dart';
-import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
-import '../../../core/widgets/scroll_to_bottom_button.dart';
 import '../../../data/repositories/forwarding_protection_repository.dart';
 import '../providers/chat_provider.dart';
 import '../providers/chat_draft_provider.dart';
 import '../../../data/services/local_message_database.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
+import '../controllers/chat_screen_controller.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_bottom_area.dart';
+import '../widgets/chat_message_list_view.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/image_send_preview_sheet.dart';
 import '../widgets/document_send_preview_sheet.dart';
@@ -53,13 +50,11 @@ import '../../settings/providers/chat_theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/call_model.dart';
 import '../../../data/repositories/call_repository.dart';
-import '../widgets/call_history_bubble.dart';
-import '../widgets/chat_floating_reaction_pill.dart';
-import '../widgets/chat_swipe_action_wrapper.dart';
 import '../providers/vault_provider.dart';
 
 export '../widgets/chat_reconnecting_badge.dart';
 export '../widgets/chat_swipe_action_wrapper.dart';
+export '../widgets/chat_message_list_view.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../data/services/local_vault_database.dart';
 
@@ -91,38 +86,9 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-enum _ChatItemKind { message, call, dateSeparator }
-
-class _ChatItemEntry {
-  final _ChatItemKind kind;
-  final Message? message;
-  final CallModel? call;
-  final DateTime? date;
-
-  const _ChatItemEntry.message(this.message)
-    : kind = _ChatItemKind.message,
-      call = null,
-      date = null;
-
-  const _ChatItemEntry.call(this.call)
-    : kind = _ChatItemKind.call,
-      message = null,
-      date = null;
-
-  const _ChatItemEntry.dateSeparator(this.date)
-    : kind = _ChatItemKind.dateSeparator,
-      message = null,
-      call = null;
-
-  DateTime get timestamp {
-    if (kind == _ChatItemKind.message) return message!.createdAt;
-    if (kind == _ChatItemKind.call) return call!.createdAt;
-    return date ?? DateTime.now();
-  }
-}
-
 class _ChatScreenState extends ConsumerState<ChatScreen>
     with WidgetsBindingObserver {
+  late final ChatScreenController _controller;
   final GlobalKey<ChatComposerState> _composerKey =
       GlobalKey<ChatComposerState>();
   final TextEditingController _textController = TextEditingController();
@@ -133,9 +99,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Timer? _searchDebounceTimer;
   bool _isSearching = false;
   String _searchQuery = '';
-  bool _isViewOnce = false;
-  bool _burnOnExit = false;
-  bool _burnTriggered = false;
   bool _isEmojiPickerOpen = false;
   bool _wasKeyboardOpenOnPause = false;
   Message? _replyMessage;
@@ -144,7 +107,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final Set<String> _selectedCallIds = <String>{};
   Set<String> _hiddenCallIds = <String>{};
   String? _reactionAnchorMessageId;
-  bool _isMuted = false;
+
+  int get _autoDeleteHours => _controller.autoDeleteHours;
+  bool get _burnOnExit => _controller.burnOnExit;
+  String get _scheduledWipeMode => _controller.scheduledWipeMode;
+  DateTime? get _scheduledWipeTargetAt => _controller.scheduledWipeTargetAt;
+  bool get _isViewOnce => _controller.isViewOnce;
+  set _isViewOnce(bool val) => _controller.setViewOnce(val);
+  bool get _isMuted => _controller.isMuted;
+  set _isMuted(bool val) => _controller.setMuted(val);
 
   bool get _isSelectionMode =>
       _selectedMessageIds.isNotEmpty || _selectedCallIds.isNotEmpty;
@@ -243,15 +214,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   DateTime? _otherLastRead;
   final ValueNotifier<DateTime?> _otherLastSeenNotifier =
       ValueNotifier<DateTime?>(null);
-  int _autoDeleteHours = 0;
-  String _scheduledWipeMode = 'off';
-  DateTime? _scheduledWipeTargetAt;
   final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
   final ValueNotifier<int> _newMessageCount = ValueNotifier<int>(0);
   Map<String, String> _participantNames = {};
-  Timer? _purgeTimer;
-  Timer? _scheduledWipeTimer;
-  StreamSubscription? _roomSettingsSub;
 
   String? _resolvedChatName;
   String? _resolvedAvatarInitial;
@@ -308,7 +273,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           _resolvedOtherUserId ??= cached['otherUserId'] as String?;
         });
         if (_resolvedOtherUserId != null) {
-          _startPresenceHeartbeat();
+          _controller.startPresenceHeartbeat();
         }
         return;
       }
@@ -348,7 +313,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             _resolvedAvatarInitial = avatar;
             _resolvedAvatarUrl = avatarUrl;
           });
-          _startPresenceHeartbeat();
+          _controller.startPresenceHeartbeat();
         }
       }
     } catch (_) {}
@@ -392,41 +357,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  Timer? _presenceHeartbeatTimer;
-
-  void _startPresenceHeartbeat() {
-    if (LocalMessageDatabase.instance.isDecoy || widget.chatId == 'room_welcome_mekaar') {
-      return;
-    }
-    _presenceHeartbeatTimer?.cancel();
-    _presenceHeartbeatTimer = Timer.periodic(const Duration(seconds: 30), (
-      _,
-    ) async {
-      if (!mounted) return;
-      // Jangan ganggu fokus input dan cegah penutupan keyboard virtual oleh IME Android:
-      // Jika composer sedang memiliki fokus atau keyboard sedang terbuka, tunda siklus heartbeat.
-      if (_composerFocusNode.hasFocus) return;
-      final viewInsetsBottom =
-          MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
-      if (viewInsetsBottom > 0) return;
-
-      final repo = ref.read(chatRepositoryProvider);
-      await repo.updateLastSeen();
-      final otherId = _effectiveOtherUserId;
-      if (otherId != null) {
-        final lastSeen = await repo.getLastSeen(otherId);
-        if (mounted && !_composerFocusNode.hasFocus) {
-          _otherLastSeenNotifier.value = lastSeen;
-        }
-      }
-    });
-  }
-
   @override
   void initState() {
     super.initState();
     _inChatSearchFocusNode = FocusNode();
     _composerFocusNode = FocusNode();
+    _controller = ChatScreenController(
+      chatId: widget.chatId,
+      effectiveOtherUserId: widget.otherUserId,
+      getOtherUserId: () => _effectiveOtherUserId,
+      ref: ref,
+      composerFocusNode: _composerFocusNode,
+      isKeyboardVisible: () =>
+          (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0,
+      isMounted: () => mounted,
+      otherLastSeenNotifier: _otherLastSeenNotifier,
+    );
+    _controller.addListener(_onControllerChanged);
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScrollChanged);
     _restoreDraftAndListenText();
@@ -445,64 +392,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         }
       }
     });
-    _startPresenceHeartbeat();
+    _controller.start();
     _resolveMissingRoomMetadata();
     _loadHiddenCalls();
-
-    // Timer periodik pembersihan pesan kedaluwarsa & sinkronisasi UI real-time
-    _purgeTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (!mounted) return;
-      // Jangan ganggu fokus input dan cegah penutupan keyboard virtual oleh IME Android:
-      // Jika composer sedang memiliki fokus atau keyboard sedang terbuka, tunda pembersihan berkala.
-      if (_composerFocusNode.hasFocus) return;
-      final viewInsetsBottom =
-          MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
-      if (viewInsetsBottom > 0) return;
-
-      try {
-        ref.read(chatRepositoryProvider).purgeExpiredMessages(targetRoomId: widget.chatId);
-      } catch (_) {}
-    });
 
     Future.microtask(() async {
       ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
 
-      await _loadRoomSettings();
-
-      // Muat preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
-      bool savedViewOnce = false;
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        savedViewOnce =
-            prefs.getBool('room_view_once_${widget.chatId}') ?? false;
-      } catch (_) {}
-
-      // Muat preferensi bisukan notifikasi per-room
-      bool loadedMuted = false;
-      try {
-        final participantPrefs = await repo.getRoomPreferences(widget.chatId);
-        loadedMuted = participantPrefs?.isMuted ?? false;
-      } catch (_) {}
-
-      if (!mounted) return;
-      setState(() {
-        _isViewOnce = savedViewOnce;
-        _isMuted = loadedMuted;
-      });
-
-
-
-      try {
-        _roomSettingsSub = Supabase.instance.client
-            .from('chat_rooms')
-            .stream(primaryKey: ['id'])
-            .eq('id', widget.chatId)
-            .listen((_) {
-              if (mounted) _loadRoomSettings();
-            });
-      } catch (_) {}
-
+      await _controller.loadRoomSettings();
 
       // Best-effort purge pesan kedaluwarsa saat pertama buka chat
       try {
@@ -522,6 +420,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         repo.updateLastSeen();
       }
     });
+  }
+
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
   }
 
   void _restoreDraftAndListenText() {
@@ -564,47 +466,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
 
-  Future<void> _loadRoomSettings() async {
-    try {
-      final repo = ref.read(chatRepositoryProvider);
-      final roomAutoDelete = await repo.getRoomDisappearingHours(widget.chatId);
-      final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.chatId);
-      String loadedWipeMode = 'off';
-      DateTime? loadedWipeTarget;
-      try {
-        final wipeData = await repo.getRoomScheduledWipe(widget.chatId);
-        if (wipeData != null) {
-          loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
-          final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
-          loadedWipeTarget = targetStr != null
-              ? DateTime.tryParse(targetStr)
-              : null;
-        }
-      } catch (_) {}
-
-      // Muat ulang preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
-      bool savedViewOnce = false;
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        savedViewOnce =
-            prefs.getBool('room_view_once_${widget.chatId}') ?? false;
-      } catch (_) {}
-
-      if (!mounted) return;
-      setState(() {
-        _autoDeleteHours = roomAutoDelete;
-        _burnOnExit = roomBurnOnExit;
-        _scheduledWipeMode = loadedWipeMode;
-        _scheduledWipeTargetAt = loadedWipeTarget;
-        _isViewOnce = savedViewOnce;
-      });
-
-      if (roomBurnOnExit) {
-        unawaited(LocalMessageDatabase.instance.deleteDraft(widget.chatId));
-      }
-      _scheduleWipeTimer();
-    } catch (_) {}
-  }
+  Future<void> _loadRoomSettings() => _controller.loadRoomSettings();
 
   void _restoreRepliedMessage(String replyToId) async {
     try {
@@ -643,14 +505,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  /// Format presence subtitle: online (< 2 min) > last seen (formatted) > hidden privacy
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _presenceHeartbeatTimer?.cancel();
-    _purgeTimer?.cancel();
-    _scheduledWipeTimer?.cancel();
-    _roomSettingsSub?.cancel();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
     if (_burnOnExit) {
       _triggerBurnOnExit();
       ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
@@ -727,18 +586,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  Future<void> _triggerBurnOnExit() async {
-    if (_burnTriggered || !_burnOnExit) return;
-    _burnTriggered = true;
-    try {
-      await ref
-          .read(chatRepositoryProvider)
-          .executeRoomBurnOnExit(widget.chatId);
-      if (mounted) {
-        ref.invalidate(chatMessagesProvider(widget.chatId));
-      }
-    } catch (_) {}
-  }
+  Future<void> _triggerBurnOnExit() => _controller.triggerBurnOnExit();
 
   void _handleSend() async {
     final text = _textController.text.trim();
@@ -1973,60 +1821,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  Widget _buildFloatingReactionPill(Message msg, bool isMe) {
-    return ChatFloatingReactionPill(
-      isMe: isMe,
-      onReact: (emoji) {
-        _handleReactToMessage(msg, emoji);
-        _clearSelection();
-      },
-    );
-  }
-
-
-
-  void _scheduleWipeTimer() {
-    _scheduledWipeTimer?.cancel();
-    if (_scheduledWipeMode == 'off' || _scheduledWipeTargetAt == null) return;
-
-    final now = DateTime.now().toUtc();
-    final diff = _scheduledWipeTargetAt!.difference(now);
-
-    if (diff.isNegative || diff.inSeconds <= 0) {
-      _triggerLocalScheduledWipe();
-      return;
-    }
-
-    _scheduledWipeTimer = Timer(diff, () {
-      _triggerLocalScheduledWipe();
-      if (_scheduledWipeMode == 'daily' && mounted) {
-        setState(() {
-          _scheduledWipeTargetAt = _scheduledWipeTargetAt!.add(
-            const Duration(days: 1),
-          );
-        });
-        _scheduleWipeTimer();
-      }
-    });
-  }
-
-  Future<void> _triggerLocalScheduledWipe() async {
-    try {
-      await ref
-          .read(chatRepositoryProvider)
-          .executeRoomScheduledWipe(widget.chatId);
-      if (mounted) {
-        ref.invalidate(chatMessagesProvider(widget.chatId));
-        if (_scheduledWipeMode == 'one_shot') {
-          setState(() {
-            _scheduledWipeMode = 'off';
-            _scheduledWipeTargetAt = null;
-          });
-        }
-      }
-    } catch (_) {}
-  }
-
   Future<T?> _pushNamedWithoutActiveRoom<T>(
     String routeName, {
     Object? arguments,
@@ -2176,9 +1970,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   Widget build(BuildContext context) {
-    final readReceiptsEnabled =
-        ref.watch(authProvider.select((a) => a.profile?.readReceiptsEnabled)) ??
-        true;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
@@ -2244,237 +2035,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               },
             ),
 
-            // ──── Layer 1: Daftar Pesan (Scoped Consumer) ────
+            // ──── Layer 1: Feed Pesan & Scroll Button (ChatMessageListView) ────
             Positioned.fill(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final chatPref =
-                      ref.watch(chatThemeProvider).valueOrNull ??
-                      const ChatThemePreference();
-                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
-                    chatPref,
-                    context,
-                  );
-                  final messagesStream = ref.watch(
-                    chatMessagesProvider(widget.chatId),
-                  );
-                  final reconnecting =
-                      ref
-                          .watch(chatReconnectingProvider(widget.chatId))
-                          .value ??
-                      false;
-                  final forwardingProtectionAsync = ref.watch(
-                    roomForwardingProtectionProvider(widget.chatId),
-                  );
-                  final forwardingProtection =
-                      forwardingProtectionAsync.valueOrNull;
-
-                  return Column(
-                    children: [
-                      SizedBox(height: topAreaHeight),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            // Stale-while-revalidate: selama masih ada data
-                            // termuat, jangan collapse ke error view — tampilkan
-                            // banner statis 'Mode Offline' saat menyambung ulang / offline.
-                            if (messagesStream.hasValue && reconnecting)
-                              MekaarBanner.offlineMode(),
-                            Expanded(
-                              child: Builder(
-                                builder: (context) {
-                                  switch (chatMessagesUiMode(messagesStream)) {
-                                    case ChatMessagesUiMode.data:
-                                      final rawDbMessages =
-                                          messagesStream.valueOrNull!;
-                                      final nowUtc = DateTime.now().toUtc();
-                                      final activeDbMessages = rawDbMessages.where((m) {
-                                        if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(nowUtc)) {
-                                          return false;
-                                        }
-                                        return true;
-                                      }).toList();
-                                      final pendingMessages = ref.watch(
-                                        pendingMessagesProvider(widget.chatId),
-                                      );
-                                      final callsAsync = ref.watch(
-                                        chatCallsProvider(widget.chatId),
-                                      );
-                                      final rawCallsUnfiltered =
-                                          callsAsync.valueOrNull ?? const [];
-                                      final rawCalls = _hiddenCallIds.isEmpty
-                                          ? rawCallsUnfiltered
-                                          : rawCallsUnfiltered
-                                              .where(
-                                                (c) => !_hiddenCallIds
-                                                    .contains(c.id),
-                                              )
-                                              .toList();
-                                      final dbIds = {
-                                        for (var m in activeDbMessages) m.id,
-                                      };
-                                      final activePending = pendingMessages
-                                          .where((p) =>
-                                              !dbIds.contains(p.id) &&
-                                              (p.autoDeleteAt == null || p.autoDeleteAt!.isAfter(nowUtc)))
-                                          .toList();
-                                      final rawMessages = [
-                                        ...activeDbMessages,
-                                        ...activePending,
-                                      ];
-
-                                       if (rawMessages.isEmpty &&
-                                           rawCalls.isEmpty) {
-                                        return const MekaarStateView(
-                                          pose: MikaPose.sleep,
-                                          title: 'Belum Ada Pesan',
-                                          message:
-                                              'Belum ada pesan atau panggilan. Mulai percakapan pertama!',
-                                        );
-                                      }
-
-                                      final messages = _searchQuery.isEmpty
-                                          ? rawMessages
-                                          : rawMessages
-                                                .where(
-                                                  (m) => m.content
-                                                      .toLowerCase()
-                                                      .contains(
-                                                        _searchQuery
-                                                            .toLowerCase(),
-                                                      ),
-                                                )
-                                                .toList();
-
-                                      final calls = _searchQuery.isEmpty
-                                          ? rawCalls
-                                          : rawCalls
-                                                .where(
-                                                  (c) =>
-                                                      c.callType
-                                                          .toLowerCase()
-                                                          .contains(
-                                                            _searchQuery
-                                                                .toLowerCase(),
-                                                          ) ||
-                                                      c
-                                                          .getDisplayStatus(
-                                                            c.callerId ==
-                                                                currentUserId,
-                                                          )
-                                                          .toLowerCase()
-                                                          .contains(
-                                                            _searchQuery
-                                                                .toLowerCase(),
-                                                          ),
-                                                )
-                                                .toList();
-
-                                      if (messages.isEmpty && calls.isEmpty) {
-                                        return MekaarStateView(
-                                          pose: MikaPose.confused,
-                                          title: 'Tidak Ditemukan',
-                                          message:
-                                              'Tidak ada pesan atau panggilan yang cocok dengan "$_searchQuery".',
-                                        );
-                                      }
-
-                                      final itemEntries = _buildItemEntries(
-                                        messages,
-                                        calls,
-                                      );
-                                      final messageMap = {
-                                        for (var m in rawMessages) m.id: m,
-                                      };
-
-                                      final emojiInset = _isEmojiPickerOpen
-                                          ? 270.0
-                                          : 0.0;
-                                      return Builder(
-                                        builder: (context) {
-                                          final keyboardHeight =
-                                              MediaQuery.viewInsetsOf(context)
-                                                  .bottom;
-                                          return ListView.builder(
-                                            controller: _scrollController,
-                                            keyboardDismissBehavior:
-                                                ScrollViewKeyboardDismissBehavior
-                                                    .manual,
-                                            reverse: true,
-                                            // Padding bawah memberi ruang untuk composer floating + inset keyboard + panel emoji
-                                            padding: EdgeInsets.only(
-                                              top: 8,
-                                              bottom:
-                                                  130 +
-                                                  math.max(
-                                                    keyboardHeight,
-                                                    MediaQuery.viewPaddingOf(
-                                                      context,
-                                                    ).bottom,
-                                                  ) +
-                                                  emojiInset,
-                                            ),
-                                             itemCount: itemEntries.length,
-                                             itemBuilder: (context, index) {
-                                               return _buildLazyMessageItem(
-                                                 itemEntries[index],
-                                                currentUserId,
-                                                actions,
-                                                messageMap,
-                                                forwardingProtection:
-                                                    forwardingProtection,
-                                                roomThemeSpec: roomThemeSpec,
-                                                showReadReceipts:
-                                                    readReceiptsEnabled,
-                                              );
-                                            },
-                                          );
-                                        },
-                                      );
-                                    case ChatMessagesUiMode.error:
-                                      final isNetworkErr =
-                                          ErrorResolver.isNetworkError(
-                                        messagesStream.error,
-                                      );
-                                      return MekaarStateView(
-                                        pose: isNetworkErr
-                                            ? MikaPose.confused
-                                            : ErrorResolver.resolvePose(
-                                                messagesStream.error,
-                                              ),
-                                        title: isNetworkErr
-                                            ? 'Mode Offline'
-                                            : 'Gagal Memuat',
-                                        message: isNetworkErr
-                                            ? 'Tidak ada koneksi internet dan belum ada riwayat obrolan tersimpan untuk obrolan ini.'
-                                            : ErrorResolver.resolve(
-                                                messagesStream.error,
-                                              ),
-                                        actionLabel: 'Coba Lagi',
-                                        onAction: () => ref.invalidate(
-                                          chatMessagesProvider(widget.chatId),
-                                        ),
-                                        icon: isNetworkErr
-                                            ? SolarIconsOutline.cloudCross
-                                            : SolarIconsOutline.refresh,
-                                      );
-                                    case ChatMessagesUiMode.loading:
-                                      return const MekaarStateView(
-                                        pose: MikaPose.neutral,
-                                        title: 'Memuat',
-                                        message: 'Memuat pesan...',
-                                      );
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    ],
-                  );
+              child: ChatMessageListView(
+                chatId: widget.chatId,
+                isGroup: widget.isGroup,
+                isGuardian: widget.isGuardian,
+                topAreaHeight: topAreaHeight,
+                searchQuery: _searchQuery,
+                scrollController: _scrollController,
+                isEmojiPickerOpen: _isEmojiPickerOpen,
+                hiddenCallIds: _hiddenCallIds,
+                otherLastRead: _otherLastRead,
+                selectedMessageIds: _selectedMessageIds,
+                selectedCallIds: _selectedCallIds,
+                reactionAnchorMessageId: _reactionAnchorMessageId,
+                participantNames: _participantNames,
+                showScrollButton: _showScrollButton,
+                newMessageCount: _newMessageCount,
+                onScrollToBottom: _scrollToBottom,
+                onToggleMessageSelection: _toggleMessageSelection,
+                onMessageLongPress: _handleMessageLongPress,
+                onToggleCallSelection: _toggleCallSelection,
+                onCallLongPress: _handleCallLongPress,
+                onInitiateCall: _initiateCall,
+                onDeleteSingleCall: _confirmDeleteSingleCall,
+                onDeleteMessage: _handleDeleteMessage,
+                onSwipeDeleteMessage: _confirmDeleteSingleMessage,
+                onUnsendMessage: _handleUnsendMessage,
+                onReplyMessage: _setReplyMessage,
+                onForwardMessage: _handleForwardMessage,
+                onReactToMessage: (msg, emoji) {
+                  _handleReactToMessage(msg, emoji);
+                  _clearSelection();
                 },
+                onSaveToVault: _handleSaveToVault,
+                getSenderDisplayName: _getSenderDisplayName,
               ),
             ),
 
@@ -2515,53 +2111,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 onSendLocation: _handleSendLocation,
                 onShareLiveLocation: _handleShareLiveLocation,
                 onRestoreE2ee: () => _showE2eeRestoreBottomSheet(context),
-              ),
-            ),
-
-            // ──── Layer 5: Scroll-to-bottom button (ValueListenableBuilder) ────
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom:
-                  math.max(
-                    MediaQuery.viewInsetsOf(context).bottom,
-                    MediaQuery.viewPaddingOf(context).bottom,
-                  ) +
-                  120 +
-                  (_isEmojiPickerOpen ? 270.0 : 0.0),
-              child: Center(
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final chatPref =
-                        ref.watch(chatThemeProvider).valueOrNull ??
-                        const ChatThemePreference();
-                    final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
-                      chatPref,
-                      context,
-                    );
-
-                    return ValueListenableBuilder<bool>(
-                      valueListenable: _showScrollButton,
-                      builder: (context, showButton, _) {
-                        return ValueListenableBuilder<int>(
-                          valueListenable: _newMessageCount,
-                          builder: (context, newCount, _) {
-                            return ScrollToBottomButton(
-                              visible: showButton,
-                              newMessageCount: newCount,
-                              accentColor: roomThemeSpec.primaryAccentColor,
-                              iconColor: roomThemeSpec.iconColor,
-                              onTap: () {
-                                _scrollToBottom();
-                                _newMessageCount.value = 0;
-                              },
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
               ),
             ),
 
@@ -2808,205 +2357,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
-  List<_ChatItemEntry> _buildItemEntries(
-    List<Message> messages,
-    List<CallModel> calls,
-  ) {
-    // 1. Kumpulkan seluruh pesan dan panggilan
-    final combinedRaw = <_ChatItemEntry>[];
-    for (final m in messages) {
-      combinedRaw.add(_ChatItemEntry.message(m));
-    }
-    for (final c in calls) {
-      combinedRaw.add(_ChatItemEntry.call(c));
-    }
-
-    // 2. Urutkan berdasarkan timestamp descending (terbaru di index 0 karena reverse: true pada ListView)
-    combinedRaw.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-    // 3. Sisipkan pemisah tanggal
-    // Pada ListView(reverse: true), index yang lebih tinggi dirender di posisi ATAS layar.
-    // Karena combinedRaw diurutkan descending (terbaru ke terlama), pesan-pesan suatu hari
-    // harus ditambahkan terlebih dahulu (index lebih rendah), lalu pemisah tanggal ditambahkan
-    // setelah pesan terakhir hari itu (index lebih tinggi), sehingga pemisah tanggal
-    // secara visual konsisten tampil di ATAS rentetan pesan pada hari tersebut.
-    final entries = <_ChatItemEntry>[];
-
-    for (var i = 0; i < combinedRaw.length; i++) {
-      final item = combinedRaw[i];
-      entries.add(item);
-
-      final localCreatedAt = item.timestamp.toLocal();
-      final itemDate = DateTime(
-        localCreatedAt.year,
-        localCreatedAt.month,
-        localCreatedAt.day,
-      );
-
-      final isLastItem = i == combinedRaw.length - 1;
-      if (isLastItem) {
-        entries.add(_ChatItemEntry.dateSeparator(localCreatedAt));
-      } else {
-        final nextLocalCreatedAt = combinedRaw[i + 1].timestamp.toLocal();
-        final nextItemDate = DateTime(
-          nextLocalCreatedAt.year,
-          nextLocalCreatedAt.month,
-          nextLocalCreatedAt.day,
-        );
-        if (itemDate != nextItemDate) {
-          entries.add(_ChatItemEntry.dateSeparator(localCreatedAt));
-        }
-      }
-    }
-    return entries;
-  }
-
-  /// Bangun widget pesan individual secara lazy pada index viewport yang sedang aktif.
-  Widget _buildLazyMessageItem(
-    _ChatItemEntry entry,
-    String? currentUserId,
-    ChatActionsNotifier actions,
-    Map<String, Message> messageMap, {
-    RoomForwardingProtection? forwardingProtection,
-    ChatRoomThemeSpec? roomThemeSpec,
-    bool showReadReceipts = true,
-  }) {
-    if (entry.kind == _ChatItemKind.dateSeparator) {
-      return ChatDateSeparator(
-        date: entry.date!,
-        accentColor: roomThemeSpec?.secondaryAccentColor,
-        textColor: roomThemeSpec?.textColor,
-      );
-    }
-
-    if (entry.kind == _ChatItemKind.call) {
-      final call = entry.call!;
-      final isMe = call.callerId == currentUserId;
-      final isSelected = _selectedCallIds.contains(call.id);
-      final callWidget = CallHistoryBubble(
-        call: call,
-        isMe: isMe,
-        isSelected: isSelected,
-        isSelectionMode: _isSelectionMode,
-        onSelectionTap: () => _toggleCallSelection(call.id),
-        onSelectionLongPress: () => _handleCallLongPress(call.id),
-        onCallBack: () => _initiateCall(call.callType),
-      );
-
-      return RepaintBoundary(
-        key: ValueKey('call_bubble_${call.id}'),
-        child: _isSelectionMode
-            ? callWidget
-            : _SwipeActionWrapper(
-                onDelete: () => _confirmDeleteSingleCall(call),
-                child: callWidget,
-              ),
-      );
-    }
-
-    final msg = entry.message!;
-    final isMe = msg.senderId == currentUserId;
-    final canEdit = actions.canEdit(msg, isGuardianRoom: widget.isGuardian);
-
-    Message? replyToMsg;
-    String? replyToSender;
-    if (msg.replyToId != null) {
-      replyToMsg = messageMap[msg.replyToId];
-      if (replyToMsg != null) {
-        replyToSender = _getSenderDisplayName(replyToMsg);
-      }
-    }
-
-    final isSelected = _selectedMessageIds.contains(msg.id);
-
-    final bubble = ChatBubble(
-      message: msg,
-      isMe: isMe,
-      isSelected: isSelected,
-      isSelectionMode: _isSelectionMode,
-      onSelectionTap: () => _toggleMessageSelection(msg.id),
-      onSelectionLongPress: () => _handleMessageLongPress(msg.id),
-      canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
-      canUnsend:
-          isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
-      canEdit: isMe && canEdit,
-      canForward: actions.canForward(
-        msg,
-        forwardingProtectionActive: forwardingProtection?.effective ?? false,
-      ),
-      otherLastReadAt: _otherLastRead,
-      showReadReceipts: showReadReceipts,
-      senderName: widget.isGroup ? _participantNames[msg.senderId] : null,
-      replyToMessage: replyToMsg,
-      replyToSenderName: replyToSender,
-      onDelete: () => _handleDeleteMessage(msg),
-      onUnsend: () => _handleUnsendMessage(msg),
-      onReply: (replyMsg) => _setReplyMessage(replyMsg),
-      onEdit: (editMsg, newContent) {
-        if (!actions.canEdit(editMsg, isGuardianRoom: widget.isGuardian)) {
-          return;
-        }
-        ref
-            .read(chatActionsProvider)
-            .editMessage(
-              editMsg.id,
-              newContent,
-              isGuardianRoom: widget.isGuardian,
-            );
-      },
-      onForward: (forwardingProtection?.effective ?? false)
-          ? null
-          : (forwardMsg) => _handleForwardMessage(forwardMsg),
-      onReact: (reactMsg, emoji) => _handleReactToMessage(reactMsg, emoji),
-      onSaveToVault: (saveMsg) => _handleSaveToVault(saveMsg),
-    );
-
-    final showFloatingReactions =
-        isSelected && _reactionAnchorMessageId == msg.id;
-
-    final bubbleWithPill = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        if (showFloatingReactions) _buildFloatingReactionPill(msg, isMe),
-        bubble,
-      ],
-    );
-
-    // Bungkus dengan RepaintBoundary untuk isolasi repaint dan SwipeActionWrapper
-    return RepaintBoundary(
-      key: ValueKey('bubble_${msg.id}'),
-      child: _isSelectionMode
-          ? bubbleWithPill
-          : _SwipeActionWrapper(
-              onReply: () => _setReplyMessage(msg),
-              onDelete: () => _confirmDeleteSingleMessage(msg),
-              child: bubbleWithPill,
-            ),
-    );
-  }
-
   Widget _buildWallpaperBackground(ChatThemePreference pref) {
     return ChatPresetResolver.buildWallpaper(pref, context);
   }
-}
-
-/// Alias backward-compatibility untuk ChatSwipeActionWrapper
-typedef _SwipeActionWrapper = ChatSwipeActionWrapper;
-
-/// Mode tampilan daftar pesan (murni, bisa diuji unit).
-///
-/// Stale-while-revalidate: selama masih ada data termuat ([AsyncValue.hasValue]),
-/// tampilkan data lama meski stream sempat error — jangan collapse ke error
-/// view. `error` hanya dipakai kalau tidak ada data sama sekali (kegagalan
-/// pertama buka chat), `loading` untuk state awal.
-enum ChatMessagesUiMode { data, error, loading }
-
-@visibleForTesting
-ChatMessagesUiMode chatMessagesUiMode(AsyncValue<List<Message>> stream) {
-  if (stream.hasValue) return ChatMessagesUiMode.data;
-  if (stream.hasError) return ChatMessagesUiMode.error;
-  return ChatMessagesUiMode.loading;
 }
