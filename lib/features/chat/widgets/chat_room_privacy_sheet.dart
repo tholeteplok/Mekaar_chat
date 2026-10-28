@@ -114,7 +114,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   String _autoDeleteLabel() {
     if (_autoDeleteHours <= 0) return 'Mati';
     if (_autoDeleteHours == 1) return '1 Jam';
-    if (_autoDeleteHours == 24) return '1 Hari';
+    if (_autoDeleteHours == 24) return '24 Jam';
     if (_autoDeleteHours == 168) return '7 Hari';
     return '$_autoDeleteHours Jam';
   }
@@ -185,7 +185,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
         final options = [
           (0, 'Mati', 'Pesan disimpan selamanya'),
           (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
-          (24, '1 Hari', 'Pesan otomatis terhapus setelah 1 hari'),
+          (24, '24 Jam', 'Pesan otomatis terhapus setelah 24 jam'),
           (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
         ];
         return MekaarBottomSheet(

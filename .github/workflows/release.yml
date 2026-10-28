@@ -181,6 +181,9 @@ jobs:
         env:
           BUILD_NAME: ${{ steps.semver.outputs.clean_version }}
           BUILD_NUMBER: ${{ steps.semver.outputs.build_number }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'mekaar_secure_key_2026' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'mekaar_secure_key_2026' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'mekaar' }}
         run: |
           mkdir -p symbols
           flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./symbols --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" --dart-define-from-file=.env

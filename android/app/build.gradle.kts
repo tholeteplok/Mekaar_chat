@@ -45,7 +45,7 @@ android {
             val keystoreFile = file("mekaar_release.jks")
             val envPass: String? = System.getenv("KEYSTORE_PASSWORD")
             val propPass: String? = keystoreProperties.getProperty("storePassword")
-            val pass = if (!envPass.isNullOrEmpty()) envPass else propPass
+            val pass = if (!envPass.isNullOrEmpty()) envPass else (propPass ?: "mekaar_secure_key_2026")
 
             if (keystoreFile.exists() && !pass.isNullOrEmpty()) {
                 val envKeyPass: String? = System.getenv("KEY_PASSWORD")

@@ -9,6 +9,7 @@ import '../../../data/repositories/chat_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../../data/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'forwarding_protection_provider.dart';
 
 // ─────────────────────────────────────────
 // Repository Provider
@@ -408,11 +409,33 @@ class ChatActionsNotifier {
   }
 
   Future<void> forwardMessage(Message message, String roomId) async {
-    await _chatRepository.sendMessage(
+    // 1. Validasi Proteksi Penerusan dari Ruang Asal
+    final sourceProtection = await _ref
+        .read(forwardingProtectionRepositoryProvider)
+        .getRoomState(message.roomId);
+    if (sourceProtection.effective) {
+      throw Exception('Pesan dari ruang obrolan ini dilindungi dari penerusan');
+    }
+
+    if (!_chatRepository.canForwardMessage(
+      message,
+      forwardingProtectionActive: sourceProtection.effective,
+    )) {
+      throw Exception('Tipe pesan ini tidak dapat diteruskan');
+    }
+
+    // 2. Ambil aturan pesan menghilang dari ruang tujuan
+    final targetDisappearingHours =
+        await _chatRepository.getRoomDisappearingHours(roomId);
+
+    // 3. Kirim pesan dengan mewarisi durasi auto-delete ruangan tujuan
+    await sendMessage(
       roomId,
       message.content,
       mediaUrl: message.mediaUrl,
       type: message.type,
+      autoDeleteHours:
+          targetDisappearingHours > 0 ? targetDisappearingHours : null,
     );
   }
 
