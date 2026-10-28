@@ -76,6 +76,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen>
     with WidgetsBindingObserver {
+  late ProviderContainer _container;
   late final ChatScreenController _controller;
   final GlobalKey<ChatComposerState> _composerKey =
       GlobalKey<ChatComposerState>();
@@ -494,15 +495,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _container = ProviderScope.containerOf(context, listen: false);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     if (_burnOnExit) {
       _triggerBurnOnExit();
-      ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
+      _container.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
     } else {
-      ref.read(chatDraftsProvider.notifier).setDraft(
+      _container.read(chatDraftsProvider.notifier).setDraft(
         roomId: widget.chatId,
         content: _textController.text,
         replyToId: _replyMessage?.id,
@@ -511,15 +518,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       );
     }
     // Hentikan live location sharing jika masih aktif saat meninggalkan room
-    ref.read(chatActionsProvider).stopLiveLocationShare();
+    _container.read(chatActionsProvider).stopLiveLocationShare();
     // Bersihkan penanda room aktif agar notif pesan kembali aktif
     // saat user meninggalkan percakapan ini.
-    if (ref.read(activeRoomIdProvider) == widget.chatId) {
-      ref.read(activeRoomIdProvider.notifier).state = null;
+    if (_container.read(activeRoomIdProvider) == widget.chatId) {
+      _container.read(activeRoomIdProvider.notifier).state = null;
     }
     // Pastikan status pesan ditandai telah dibaca dan unread count disegarkan saat keluar dari room
-    ref.read(chatActionsProvider).markRoomRead(widget.chatId);
-    ref.read(chatRoomsProvider.notifier).refreshRooms();
+    _container.read(chatActionsProvider).markRoomRead(widget.chatId);
+    _container.read(chatRoomsProvider.notifier).refreshRooms();
     _searchDebounceTimer?.cancel();
     _inChatSearchFocusNode.dispose();
     _composerFocusNode.dispose();
