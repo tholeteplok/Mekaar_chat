@@ -25,6 +25,7 @@ import 'bubbles/view_once_store.dart';
 import 'bubbles/voice_bubble_player.dart';
 import 'bubbles/themed_bubble_container.dart';
 import 'mekaar_bottom_sheet.dart';
+import 'mekaar_link_text.dart';
 
 // Re-exports untuk 100% backward compatibility
 export 'bubbles/animated_preset_bubble_entrance.dart';
@@ -737,9 +738,10 @@ class ChatBubble extends ConsumerWidget {
                 ),
           );
         }
-        return Text(
-          message.content,
-          style: customTextStyle ??
+        return MekaarLinkText(
+          text: message.content,
+          isMe: isMe,
+          baseStyle: customTextStyle ??
               resolveBubbleTextStyle(
                 color: textColor,
                 fontSize: 16,

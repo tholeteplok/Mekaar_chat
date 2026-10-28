@@ -224,6 +224,8 @@ class AppRoutes {
             isGuardian: args['isGuardian'] as bool? ?? false,
             isGroup: args['isGroup'] as bool? ?? false,
             otherUserId: args['otherUserId'] as String?,
+            initialSharedText: args['initialSharedText'] as String?,
+            initialSharedFiles: (args['initialSharedFiles'] as List?)?.cast<String>(),
           ),
         );
 
