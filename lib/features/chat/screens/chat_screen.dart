@@ -22,11 +22,9 @@ import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/chat_bubble.dart';
 import '../../../core/widgets/chat_date_separator.dart';
-import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -40,6 +38,8 @@ import '../../../data/services/local_message_database.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
+import '../widgets/chat_app_bar.dart';
+import '../widgets/chat_bottom_area.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
 import '../widgets/image_send_preview_sheet.dart';
 import '../widgets/document_send_preview_sheet.dart';
@@ -55,7 +55,6 @@ import '../../../data/models/call_model.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../widgets/call_history_bubble.dart';
 import '../widgets/chat_floating_reaction_pill.dart';
-import '../widgets/chat_selection_app_bar.dart';
 import '../widgets/chat_swipe_action_wrapper.dart';
 import '../providers/vault_provider.dart';
 
@@ -645,79 +644,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   /// Format presence subtitle: online (< 2 min) > last seen (formatted) > hidden privacy
-  String _formatPresenceSubtitle(DateTime? otherLastSeen) {
-    // Jika null: pengguna menyembunyikan "terakhir dilihat" (enforce di server via RPC get_last_seen_for)
-    if (otherLastSeen == null) return 'Terakhir dilihat baru-baru ini';
-
-    final now = DateTime.now();
-    final lastSeen = otherLastSeen.toLocal();
-    final diff = now.difference(lastSeen);
-
-    if (diff.inMinutes < 2) {
-      return 'Daring';
-    }
-
-    final isSameDay =
-        now.year == lastSeen.year &&
-        now.month == lastSeen.month &&
-        now.day == lastSeen.day;
-
-    final yesterday = now.subtract(const Duration(days: 1));
-    final isYesterday =
-        yesterday.year == lastSeen.year &&
-        yesterday.month == lastSeen.month &&
-        yesterday.day == lastSeen.day;
-
-    final hourStr = lastSeen.hour.toString().padLeft(2, '0');
-    final minuteStr = lastSeen.minute.toString().padLeft(2, '0');
-    final timeStr = '$hourStr:$minuteStr';
-
-    if (isSameDay) {
-      return 'Terakhir dilihat $timeStr';
-    } else if (isYesterday) {
-      return 'Terakhir kemarin $timeStr';
-    } else if (diff.inDays < 7) {
-      const days = [
-        'Senin',
-        'Selasa',
-        'Rabu',
-        'Kamis',
-        'Jumat',
-        'Sabtu',
-        'Minggu',
-      ];
-      final dayName = days[lastSeen.weekday - 1];
-      return 'Terakhir $dayName $timeStr';
-    } else if (now.year == lastSeen.year) {
-      const monthNames = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'Mei',
-        'Jun',
-        'Jul',
-        'Agu',
-        'Sep',
-        'Okt',
-        'Nov',
-        'Des',
-      ];
-      final monthName = monthNames[lastSeen.month - 1];
-      return 'Terakhir ${lastSeen.day} $monthName';
-    } else {
-      final dayStr = lastSeen.day.toString().padLeft(2, '0');
-      final monthStr = lastSeen.month.toString().padLeft(2, '0');
-      final yearShort = lastSeen.year.toString().substring(2);
-      return 'Terakhir $dayStr/$monthStr/$yearShort';
-    }
-  }
-
-  bool _isCurrentlyOnline(DateTime? otherLastSeen) {
-    if (otherLastSeen == null) return false;
-    return DateTime.now().difference(otherLastSeen).inMinutes < 2;
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -2057,105 +1983,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  Widget _buildSelectionAppBar(
-    BuildContext context, {
-    required ChatRoomThemeSpec roomThemeSpec,
-    required RoomForwardingProtection? forwardingProtection,
-    required List<Message> rawMessages,
-  }) {
-    final selectedCount = _totalSelectedCount;
-    final isSingle = selectedCount == 1;
-    final isForwardProtected = forwardingProtection?.effective ?? false;
-    final currentUserId = ref.read(authProvider).user?.id;
 
-    final canReply = isSingle && _selectedMessageIds.length == 1;
-    final singleSelectedMsg = isSingle && _selectedMessageIds.length == 1
-        ? rawMessages.cast<Message?>().firstWhere(
-            (m) => m?.id == _selectedMessageIds.first,
-            orElse: () => null,
-          )
-        : null;
-    final canEdit = singleSelectedMsg != null &&
-        currentUserId != null &&
-        singleSelectedMsg.senderId == currentUserId &&
-        singleSelectedMsg.type == MessageType.text &&
-        !singleSelectedMsg.isDeleted &&
-        !widget.isGuardian;
-    final hasCopyableText = rawMessages.any(
-      (m) =>
-          _selectedMessageIds.contains(m.id) &&
-          m.type == MessageType.text &&
-          !m.isDeleted &&
-          m.content.trim().isNotEmpty,
-    );
-    final canForward = !isForwardProtected &&
-        _selectedCallIds.isEmpty &&
-        _selectedMessageIds.isNotEmpty;
-
-    final savableMediaMessages = rawMessages.where(
-      (m) =>
-          _selectedMessageIds.contains(m.id) &&
-          !m.isDeleted &&
-          !m.isSilentDeleted &&
-          (m.type == MessageType.image ||
-              m.type == MessageType.video ||
-              m.type == MessageType.voice ||
-              m.type == MessageType.file ||
-              (m.mediaUrl != null && m.mediaUrl!.isNotEmpty)),
-    ).toList();
-    final canSaveToVault =
-        savableMediaMessages.isNotEmpty && _selectedCallIds.isEmpty;
-
-    final downloadableFileMessages = rawMessages.where(
-      (m) =>
-          _selectedMessageIds.contains(m.id) &&
-          !m.isDeleted &&
-          !m.isSilentDeleted &&
-          (m.type == MessageType.file ||
-              m.type == MessageType.image ||
-              m.type == MessageType.video ||
-              m.type == MessageType.voice) &&
-          m.mediaUrl != null &&
-          m.mediaUrl!.isNotEmpty,
-    ).toList();
-    final canDownload =
-        downloadableFileMessages.isNotEmpty && _selectedCallIds.isEmpty;
-
-    return ChatSelectionAppBar(
-      selectedCount: selectedCount,
-      canReply: canReply,
-      canEdit: canEdit,
-      hasCopyableText: hasCopyableText,
-      canForward: canForward,
-      canDownload: canDownload,
-      canSaveToVault: canSaveToVault,
-      surfaceColor: roomThemeSpec.glassBackgroundColor,
-      textColor: roomThemeSpec.textColor,
-      iconColor: roomThemeSpec.iconColor,
-      onClose: _clearSelection,
-      onReply: () => _replyToSelectedMessage(rawMessages),
-      onEdit: canEdit
-          ? () {
-              final msgToEdit = singleSelectedMsg;
-              setState(() {
-                _editingMessage = msgToEdit;
-                _textController.text = msgToEdit.content;
-                _replyMessage = null;
-                _clearSelection();
-              });
-              _composerFocusNode.requestFocus();
-            }
-          : null,
-      onCopy: () => _copySelectedMessages(rawMessages),
-      onForward: () => _forwardSelectedMessages(
-        rawMessages,
-        forwardingProtection: forwardingProtection,
-      ),
-      onDownload: () => _handleDownloadSelectedFiles(downloadableFileMessages),
-      onSaveToVault: () => _handleSaveSelectedToVault(savableMediaMessages),
-      onDelete: () => _confirmDeleteSelectedItems(rawMessages),
-    );
-  }
 
   void _scheduleWipeTimer() {
     _scheduledWipeTimer?.cancel();
@@ -2650,7 +2478,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
 
-            // ──── Layer 2: Composer Floating (Scoped Consumer) ────
+            // ──── Layer 2: Composer Floating (ChatBottomArea) ────
             Positioned(
               left: 0,
               right: 0,
@@ -2658,61 +2486,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 MediaQuery.viewInsetsOf(context).bottom,
                 MediaQuery.viewPaddingOf(context).bottom,
               ),
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final chatPref =
-                      ref.watch(chatThemeProvider).valueOrNull ??
-                      const ChatThemePreference();
-                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
-                    chatPref,
-                    context,
-                  );
-                  final e2eeStatus = ref.watch(
-                    e2eeRoomStatusProvider(widget.chatId),
-                  );
-                  final isComposerEnabled =
-                      widget.isGroup || (e2eeStatus == E2eeRoomStatus.ready);
-                  final isOtherTyping = ref.watch(
-                    typingStateProvider(widget.chatId),
-                  );
-
-                  return ChatComposer(
-                    key: _composerKey,
-                    isOtherTyping: isOtherTyping,
-                    e2eeStatus: widget.isGroup ? null : e2eeStatus,
-                    onRetryE2ee: () => ref
-                        .read(e2eeRoomStatusProvider(widget.chatId).notifier)
-                        .retry(isGroup: widget.isGroup),
-                    onRestoreE2ee: () => _showE2eeRestoreBottomSheet(context),
-                    controller: _textController,
-                    focusNode: _composerFocusNode,
-                    replyMessage: _replyMessage,
-                    replySenderName: _getSenderDisplayName(_replyMessage),
-                    editingMessage: _editingMessage,
-                    enabled: true,
-                    canSend: isComposerEnabled,
-                    roomThemeSpec: roomThemeSpec,
-                    onEmojiPanelVisibilityChanged: (isOpen) {
-                      if (_isEmojiPickerOpen != isOpen) {
-                        setState(() => _isEmojiPickerOpen = isOpen);
-                        if (isOpen) {
-                          WidgetsBinding.instance.addPostFrameCallback(
-                            (_) => _scrollToBottom(),
-                          );
-                        }
-                      }
-                    },
-                    onSend: _handleSend,
-                    onCancelReply: () => _setReplyMessage(null),
-                    onCancelEdit: () {
-                      setState(() => _editingMessage = null);
-                      _textController.clear();
-                    },
-                    onSendMedia: _handleSendMedia,
-                    onSendLocation: _handleSendLocation,
-                    onShareLiveLocation: _handleShareLiveLocation,
-                  );
+              child: ChatBottomArea(
+                chatId: widget.chatId,
+                isGroup: widget.isGroup,
+                composerKey: _composerKey,
+                textController: _textController,
+                composerFocusNode: _composerFocusNode,
+                replyMessage: _replyMessage,
+                replySenderName: _getSenderDisplayName(_replyMessage),
+                editingMessage: _editingMessage,
+                onEmojiPanelVisibilityChanged: (isOpen) {
+                  if (_isEmojiPickerOpen != isOpen) {
+                    setState(() => _isEmojiPickerOpen = isOpen);
+                    if (isOpen) {
+                      WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => _scrollToBottom(),
+                      );
+                    }
+                  }
                 },
+                onSend: _handleSend,
+                onCancelReply: () => _setReplyMessage(null),
+                onCancelEdit: () {
+                  setState(() => _editingMessage = null);
+                  _textController.clear();
+                },
+                onSendMedia: _handleSendMedia,
+                onSendLocation: _handleSendLocation,
+                onShareLiveLocation: _handleShareLiveLocation,
+                onRestoreE2ee: () => _showE2eeRestoreBottomSheet(context),
               ),
             ),
 
@@ -2763,409 +2565,159 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
 
-            // ──── Layer 4: Custom App Bar Floating Frosted Glass ────
+            // ──── Layer 4: Custom App Bar Floating Frosted Glass (ChatAppBar) ────
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: Consumer(
                 builder: (context, ref, _) {
-                  final chatPref =
-                      ref.watch(chatThemeProvider).valueOrNull ??
-                      const ChatThemePreference();
-                  final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
-                    chatPref,
-                    context,
+                  final forwardingProtection = ref
+                      .watch(roomForwardingProtectionProvider(widget.chatId))
+                      .valueOrNull;
+
+                  final messagesStream = ref.watch(
+                    chatMessagesProvider(widget.chatId),
                   );
+                  final rawDbMessages =
+                      messagesStream.valueOrNull ?? const [];
+                  final nowUtc = DateTime.now().toUtc();
+                  final activeDbMessages = rawDbMessages.where((m) {
+                    if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(nowUtc)) {
+                      return false;
+                    }
+                    return true;
+                  }).toList();
+                  final pendingMessages = ref.watch(
+                    pendingMessagesProvider(widget.chatId),
+                  );
+                  final dbIds = {for (var m in activeDbMessages) m.id};
+                  final activePending = pendingMessages
+                      .where((p) =>
+                          !dbIds.contains(p.id) &&
+                          (p.autoDeleteAt == null || p.autoDeleteAt!.isAfter(nowUtc)))
+                      .toList();
+                  final rawMessages = [...activeDbMessages, ...activePending];
 
-                  if (_isSelectionMode) {
-                    final forwardingProtection = ref
-                        .watch(roomForwardingProtectionProvider(widget.chatId))
-                        .valueOrNull;
-
-                    final messagesStream = ref.watch(
-                      chatMessagesProvider(widget.chatId),
-                    );
-                    final rawDbMessages =
-                        messagesStream.valueOrNull ?? const [];
-                    final nowUtc = DateTime.now().toUtc();
-                    final activeDbMessages = rawDbMessages.where((m) {
-                      if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(nowUtc)) {
-                        return false;
-                      }
-                      return true;
-                    }).toList();
-                    final pendingMessages = ref.watch(
-                      pendingMessagesProvider(widget.chatId),
-                    );
-                    final dbIds = {for (var m in activeDbMessages) m.id};
-                    final activePending = pendingMessages
-                        .where((p) =>
-                            !dbIds.contains(p.id) &&
-                            (p.autoDeleteAt == null || p.autoDeleteAt!.isAfter(nowUtc)))
-                        .toList();
-                    final rawMessages = [...activeDbMessages, ...activePending];
-
-                    return _buildSelectionAppBar(
-                      context,
-                      roomThemeSpec: roomThemeSpec,
+                  return ChatAppBar(
+                    chatId: widget.chatId,
+                    chatName: _effectiveChatName,
+                    avatarInitial: _effectiveAvatarInitial,
+                    avatarUrl: _effectiveAvatarUrl,
+                    isGuardian: widget.isGuardian,
+                    isGroup: widget.isGroup,
+                    otherUserId: _effectiveOtherUserId,
+                    participantCount: _participantNames.length,
+                    otherLastSeenNotifier: _otherLastSeenNotifier,
+                    isMuted: _isMuted,
+                    // Mode Seleksi Pesan
+                    isSelectionMode: _isSelectionMode,
+                    totalSelectedCount: _totalSelectedCount,
+                    selectedMessageIds: _selectedMessageIds,
+                    selectedCallIds: _selectedCallIds,
+                    rawMessages: rawMessages,
+                    forwardingProtection: forwardingProtection,
+                    onClearSelection: _clearSelection,
+                    onReplySelectedMessage: () => _replyToSelectedMessage(rawMessages),
+                    onEditSelectedMessage: (msgToEdit) {
+                      setState(() {
+                        _editingMessage = msgToEdit;
+                        _textController.text = msgToEdit.content;
+                        _replyMessage = null;
+                        _clearSelection();
+                      });
+                      _composerFocusNode.requestFocus();
+                    },
+                    onCopySelectedMessages: () => _copySelectedMessages(rawMessages),
+                    onForwardSelectedMessages: () => _forwardSelectedMessages(
+                      rawMessages,
                       forwardingProtection: forwardingProtection,
-                      rawMessages: rawMessages,
-                    );
-                  }
-
-                  final isDark = MekaarColors.isDarkContext(context);
-                  final frostedBg = isDark
-                      ? MekaarColors.composerOverlayDark
-                      : MekaarColors.composerOverlayLight;
-                  final frostedBorder = isDark
-                      ? Colors.white.withValues(alpha: 0.16)
-                      : Colors.black.withValues(alpha: 0.10);
-                  final textPrimary = MekaarColors.textPrimaryOf(context);
-
-                  if (_isSearching) {
-                    final topPadding = MediaQuery.of(context).padding.top;
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        top: topPadding + 4,
-                        left: 12,
-                        right: 12,
-                      ),
-                      child: MekaarGlassBlurContainer(
-                        height: 52,
-                        borderRadius: BorderRadius.circular(MekaarRadius.pill),
-                        border: Border.all(color: frostedBorder, width: 1),
-                        customColor: frostedBg,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.arrowLeft,
-                                color: roomThemeSpec.iconColor,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                _searchDebounceTimer?.cancel();
-                                _inChatSearchFocusNode.unfocus();
-                                setState(() {
-                                  _isSearching = false;
-                                  _searchQuery = '';
-                                  _searchController.clear();
-                                });
-                              },
-                            ),
-                            Expanded(
-                              child: TextField(
-                                key: const ValueKey('in_chat_search_input'),
-                                controller: _searchController,
-                                focusNode: _inChatSearchFocusNode,
-                                textInputAction: TextInputAction.search,
-                                style: TextStyle(
-                                  color: textPrimary,
-                                  fontSize: 14,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Cari dalam obrolan...',
-                                  hintStyle: TextStyle(
-                                    color: MekaarColors.textMutedOf(context),
-                                    fontSize: 14,
-                                  ),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                ),
-                                onChanged: (val) {
-                                  _searchDebounceTimer?.cancel();
-                                  _searchDebounceTimer = Timer(
-                                    const Duration(milliseconds: 180),
-                                    () {
-                                      if (mounted && _searchQuery != val.trim()) {
-                                        setState(() => _searchQuery = val.trim());
-                                      }
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                            if (_searchQuery.isNotEmpty)
-                              IconButton(
-                                icon: Icon(
-                                  SolarIconsOutline.closeCircle,
-                                  color: MekaarColors.textMutedOf(context),
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  final isTyping = ref.watch(
-                    typingStateProvider(widget.chatId),
-                  );
-
-                  return ValueListenableBuilder<DateTime?>(
-                    valueListenable: _otherLastSeenNotifier,
-                    builder: (context, lastSeen, _) {
-                      final isOnline = _isCurrentlyOnline(lastSeen);
-                      return CustomAppBar(
-                        isMaterialHeader: true,
-                        title: _effectiveChatName,
-                        avatarInitial: _effectiveAvatarInitial,
-                        avatarUrl: _effectiveAvatarUrl,
-                        isGuardian: widget.isGuardian,
-                        showOnlineIndicator: true,
-                        isOnline: isOnline || isTyping,
-                        subtitle: widget.isGroup
-                            ? '${_participantNames.isNotEmpty ? '${_participantNames.length} anggota • ' : ''}Enkripsi Server'
-                            : (isTyping
-                                ? 'sedang mengetik...'
-                                : _formatPresenceSubtitle(lastSeen)),
-                        glassBorder: roomThemeSpec.glassBorder,
-                        glassBackgroundColor:
-                            roomThemeSpec.glassBackgroundColor,
-                        iconColor: roomThemeSpec.iconColor,
-                        textColor: roomThemeSpec.textColor,
-                        subtitleColor: roomThemeSpec.subtitleColor,
-                        onAvatarTap: widget.isGroup
-                            ? () => _pushNamedWithoutActiveRoom(
-                                AppRoutes.groupDetails,
-                                arguments: {
-                                  'roomId': widget.chatId,
-                                  'groupName': _effectiveChatName,
-                                  'groupAvatarUrl': _effectiveAvatarUrl,
-                                },
-                              )
-                            : (_effectiveOtherUserId != null &&
-                                    !LocalMessageDatabase.instance.isDecoy &&
-                                    widget.chatId != 'room_welcome_mekaar'
-                                  ? () => _pushNamedWithoutActiveRoom(
-                                      AppRoutes.contactSettings,
-                                      arguments: {
-                                        'roomId': widget.chatId,
-                                        'chatName': _effectiveChatName,
-                                        'chatAvatar': _effectiveAvatarInitial,
-                                        'otherUserId': _effectiveOtherUserId!,
-                                        'isGuardian': widget.isGuardian,
-                                      },
-                                    )
-                                  : null),
-                        actions: [
-                          if (!LocalMessageDatabase.instance.isDecoy &&
-                              widget.chatId != 'room_welcome_mekaar') ...[
-                            // 1. Panggilan Video Langsung
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.videocamera,
-                                color: roomThemeSpec.iconColor,
-                                size: 22,
-                              ),
-                              tooltip: 'Panggilan Video',
-                              onPressed: () => _initiateCall('video'),
-                            ),
-                            // 2. Panggilan Suara Langsung
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.phoneRounded,
-                                color: roomThemeSpec.iconColor,
-                                size: 22,
-                              ),
-                              tooltip: 'Panggilan Suara',
-                              onPressed: () => _initiateCall('voice'),
-                            ),
-                          ],
-                          // 3. Actions Popup Menu (High-Contrast Frosted Glass)
-                          PopupMenuButton<String>(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                MekaarRadius.md,
-                              ),
-                              side: BorderSide(color: frostedBorder, width: 1),
-                            ),
-                            color: frostedBg,
-                            surfaceTintColor: Colors.transparent,
-                            elevation: 10,
-                            shadowColor: Colors.black.withValues(
-                              alpha: isDark ? 0.45 : 0.18,
-                            ),
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              SolarIconsOutline.menuDots,
-                              color: roomThemeSpec.iconColor,
-                            ),
-                            onSelected: (value) async {
-                              if (value == 'search') {
-                                setState(() => _isSearching = true);
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted &&
-                                      _inChatSearchFocusNode.canRequestFocus) {
-                                    _inChatSearchFocusNode.requestFocus();
-                                  }
-                                });
-                              } else if (value == 'mute') {
-                                _toggleMute();
-                              } else if (value == 'theme') {
-                                _pushNamedWithoutActiveRoom(
-                                  AppRoutes.chatThemeSettings,
-                                );
-                              } else if (value == 'privacy_settings') {
-                                ChatRoomPrivacySheet.show(
-                                  context,
-                                  roomId: widget.chatId,
-                                  onSettingsChanged: () {
-                                    if (mounted) _loadRoomSettings();
-                                  },
-                                );
-                              } else if (value == 'clear') {
-                                _confirmClearHistory();
-                              } else if (value == 'delete') {
-                                _confirmDeleteChat();
-                              }
-                            },
-                            itemBuilder: (BuildContext context) => [
-                              PopupMenuItem<String>(
-                                value: 'search',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      SolarIconsOutline.magnifier,
-                                      size: 20,
-                                      color: textPrimary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Cari Pesan',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'mute',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      _isMuted
-                                          ? SolarIconsOutline.volumeLoud
-                                          : SolarIconsOutline.volumeCross,
-                                      size: 20,
-                                      color: textPrimary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _isMuted
-                                          ? 'Bunyikan Notifikasi'
-                                          : 'Bisukan Notifikasi',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'theme',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      SolarIconsOutline.palette,
-                                      size: 20,
-                                      color: textPrimary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Tema & Wallpaper Chat',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'privacy_settings',
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      SolarIconsBold.shieldKeyhole,
-                                      size: 20,
-                                      color: AppColors.blue,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Pengaturan Privasi Obrolan',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuDivider(),
-                              PopupMenuItem<String>(
-                                value: 'clear',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      SolarIconsOutline.eraser,
-                                      size: 20,
-                                      color: MekaarColors.warning,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Bersihkan Riwayat (Hanya Saya)',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      SolarIconsOutline.trashBinTrash,
-                                      size: 20,
-                                      color: MekaarColors.sosRed,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Hapus Obrolan (Hanya Saya)',
-                                      style: TextStyle(
-                                        color: MekaarColors.sosRed,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    ),
+                    onDownloadSelectedFiles: _handleDownloadSelectedFiles,
+                    onSaveSelectedToVault: _handleSaveSelectedToVault,
+                    onDeleteSelectedMessages: _confirmDeleteSelectedItems,
+                    // Mode Pencarian
+                    isSearching: _isSearching,
+                    searchQuery: _searchQuery,
+                    searchController: _searchController,
+                    inChatSearchFocusNode: _inChatSearchFocusNode,
+                    onCloseSearch: () {
+                      _searchDebounceTimer?.cancel();
+                      _inChatSearchFocusNode.unfocus();
+                      setState(() {
+                        _isSearching = false;
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                    },
+                    onSearchChanged: (val) {
+                      _searchDebounceTimer?.cancel();
+                      _searchDebounceTimer = Timer(
+                        const Duration(milliseconds: 180),
+                        () {
+                          if (mounted && _searchQuery != val.trim()) {
+                            setState(() => _searchQuery = val.trim());
+                          }
+                        },
                       );
+                    },
+                    onClearSearchQuery: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                    // Aksi Menu & Kontak
+                    onAvatarTap: widget.isGroup
+                        ? () => _pushNamedWithoutActiveRoom(
+                            AppRoutes.groupDetails,
+                            arguments: {
+                              'roomId': widget.chatId,
+                              'groupName': _effectiveChatName,
+                              'groupAvatarUrl': _effectiveAvatarUrl,
+                            },
+                          )
+                        : (_effectiveOtherUserId != null &&
+                                !LocalMessageDatabase.instance.isDecoy &&
+                                widget.chatId != 'room_welcome_mekaar'
+                            ? () => _pushNamedWithoutActiveRoom(
+                                  AppRoutes.contactSettings,
+                                  arguments: {
+                                    'roomId': widget.chatId,
+                                    'chatName': _effectiveChatName,
+                                    'chatAvatar': _effectiveAvatarInitial,
+                                    'otherUserId': _effectiveOtherUserId!,
+                                    'isGuardian': widget.isGuardian,
+                                  },
+                                )
+                            : () {}),
+                    onInitiateCall: _initiateCall,
+                    onMenuActionSelected: (value) async {
+                      if (value == 'search') {
+                        setState(() => _isSearching = true);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted &&
+                              _inChatSearchFocusNode.canRequestFocus) {
+                            _inChatSearchFocusNode.requestFocus();
+                          }
+                        });
+                      } else if (value == 'mute') {
+                        _toggleMute();
+                      } else if (value == 'theme') {
+                        _pushNamedWithoutActiveRoom(
+                          AppRoutes.chatThemeSettings,
+                        );
+                      } else if (value == 'privacy_settings') {
+                        ChatRoomPrivacySheet.show(
+                          context,
+                          roomId: widget.chatId,
+                          onSettingsChanged: () {
+                            if (mounted) _loadRoomSettings();
+                          },
+                        );
+                      } else if (value == 'clear') {
+                        _confirmClearHistory();
+                      } else if (value == 'delete') {
+                        _confirmDeleteChat();
+                      }
                     },
                   );
                 },
