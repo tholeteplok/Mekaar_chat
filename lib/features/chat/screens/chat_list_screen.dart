@@ -39,6 +39,8 @@ import '../../settings/providers/block_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
 import '../widgets/chat_list_tile.dart';
 import '../widgets/send_chat_invite_dialog.dart';
+import '../widgets/mekaar_share_target_dialog.dart';
+import '../../../data/services/share_intent_service.dart';
 import '../../../core/widgets/mekaar_update_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_update_dialog.dart';
 import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
@@ -92,6 +94,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   bool _isCheckingSOSGuardians = false;
+  bool _isShareDialogActive = false;
+
+  void _showShareTargetDialog(SharedPayload payload) {
+    if (_isShareDialogActive || !mounted) return;
+    _isShareDialogActive = true;
+    MekaarShareTargetDialog.show(context, payload).whenComplete(() {
+      if (mounted) {
+        setState(() => _isShareDialogActive = false);
+      } else {
+        _isShareDialogActive = false;
+      }
+      ref.read(sharedPayloadProvider.notifier).clear();
+    });
+  }
   static bool _permissionPromptShownThisSession = false;
   static bool _updatePromptShownThisSession = false;
   Timer? _vaultDebounceTimer;
@@ -109,6 +125,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       ref.read(chatRoomsProvider.notifier).refreshRooms();
       _checkAndRequestPermissions();
       _checkForAppUpdate();
+      final pendingShare = ref.read(sharedPayloadProvider);
+      if (pendingShare != null && pendingShare.isNotEmpty) {
+        _showShareTargetDialog(pendingShare);
+      }
     });
   }
 
@@ -713,6 +733,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final authState = ref.watch(authProvider);
     final wasDuress = authState.lastUnlockWasDuress;
     final isDecoy = authState.isDecoyActive;
+
+    ref.listen<SharedPayload?>(sharedPayloadProvider, (prev, next) {
+      if (next != null && next.isNotEmpty && mounted) {
+        _showShareTargetDialog(next);
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.transparent,

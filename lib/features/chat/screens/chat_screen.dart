@@ -41,6 +41,8 @@ import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
+import '../widgets/image_send_preview_sheet.dart';
+import '../widgets/document_send_preview_sheet.dart';
 import '../providers/e2ee_room_status_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
@@ -70,6 +72,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   final bool isGuardian;
   final bool isGroup;
   final String? otherUserId;
+  final String? initialSharedText;
+  final List<String>? initialSharedFiles;
 
   const ChatScreen({
     super.key,
@@ -80,6 +84,8 @@ class ChatScreen extends ConsumerStatefulWidget {
     this.isGuardian = false,
     this.isGroup = false,
     this.otherUserId,
+    this.initialSharedText,
+    this.initialSharedFiles,
   });
 
   @override
@@ -433,6 +439,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref
             .read(e2eeRoomStatusProvider(widget.chatId).notifier)
             .configureForRoom(isGroup: widget.isGroup);
+
+        if (widget.initialSharedFiles != null &&
+            widget.initialSharedFiles!.isNotEmpty) {
+          _handleInitialSharedFiles(widget.initialSharedFiles!);
+        }
       }
     });
     _startPresenceHeartbeat();
@@ -515,32 +526,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void _restoreDraftAndListenText() {
-    final initialDraft = ref.read(chatDraftsProvider)[widget.chatId];
-    if (initialDraft != null) {
-      if (initialDraft.content.isNotEmpty) {
-        _textController.text = initialDraft.content;
-        _textController.selection = TextSelection.fromPosition(
-          TextPosition(offset: initialDraft.content.length),
-        );
-      }
-      if (initialDraft.replyToId != null) {
-        _restoreRepliedMessage(initialDraft.replyToId!);
-      }
+    if (widget.initialSharedText != null &&
+        widget.initialSharedText!.trim().isNotEmpty) {
+      _textController.text = widget.initialSharedText!.trim();
+      _textController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _textController.text.length),
+      );
     } else {
-      LocalMessageDatabase.instance.getDraft(widget.chatId).then((dbDraft) {
-        if (!mounted || dbDraft == null) return;
-        if (dbDraft.content.isNotEmpty && _textController.text.isEmpty) {
-          setState(() {
-            _textController.text = dbDraft.content;
-            _textController.selection = TextSelection.fromPosition(
-              TextPosition(offset: dbDraft.content.length),
-            );
-          });
+      final initialDraft = ref.read(chatDraftsProvider)[widget.chatId];
+      if (initialDraft != null) {
+        if (initialDraft.content.isNotEmpty) {
+          _textController.text = initialDraft.content;
+          _textController.selection = TextSelection.fromPosition(
+            TextPosition(offset: initialDraft.content.length),
+          );
         }
-        if (dbDraft.replyToId != null && _replyMessage == null) {
-          _restoreRepliedMessage(dbDraft.replyToId!);
+        if (initialDraft.replyToId != null) {
+          _restoreRepliedMessage(initialDraft.replyToId!);
         }
-      });
+      } else {
+        LocalMessageDatabase.instance.getDraft(widget.chatId).then((dbDraft) {
+          if (!mounted || dbDraft == null) return;
+          if (dbDraft.content.isNotEmpty && _textController.text.isEmpty) {
+            setState(() {
+              _textController.text = dbDraft.content;
+              _textController.selection = TextSelection.fromPosition(
+                TextPosition(offset: dbDraft.content.length),
+              );
+            });
+          }
+          if (dbDraft.replyToId != null && _replyMessage == null) {
+            _restoreRepliedMessage(dbDraft.replyToId!);
+          }
+        });
+      }
     }
     _textController.addListener(_onTextChanged);
   }
@@ -926,6 +945,60 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           context,
           'Gagal mengirim pesan: ${ErrorResolver.resolve(e)}',
         );
+      }
+    }
+  }
+
+  Future<void> _handleInitialSharedFiles(List<String> filePaths) async {
+    for (final path in filePaths) {
+      final file = File(path);
+      if (!await file.exists()) continue;
+
+      final mimeType = lookupMimeType(path) ?? '';
+      final chatPref = ref.read(chatThemeProvider).valueOrNull ??
+          const ChatThemePreference();
+      if (!mounted) return;
+      final spec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+
+      if (mimeType.startsWith('image/')) {
+        if (!mounted) return;
+        final result = await Navigator.of(context).push<ImageSendResult>(
+          MaterialPageRoute(
+            builder: (_) => ImageSendPreviewSheet(
+              imageFile: file,
+              roomThemeSpec: spec,
+            ),
+          ),
+        );
+        if (result != null && mounted) {
+          await _handleSendMedia(
+            result.file,
+            MessageType.image,
+            caption: result.caption,
+            isViewOnce: result.isViewOnce,
+          );
+        }
+      } else {
+        final fileName = path.split(Platform.pathSeparator).last;
+        final fileSize = await file.length();
+        if (!mounted) return;
+        final result = await Navigator.of(context).push<DocumentSendResult>(
+          MaterialPageRoute(
+            builder: (_) => DocumentSendPreviewSheet(
+              file: file,
+              fileName: fileName,
+              fileSize: fileSize,
+              roomThemeSpec: spec,
+            ),
+          ),
+        );
+        if (result != null && mounted) {
+          await _handleSendMedia(
+            result.file,
+            MessageType.file,
+            caption: result.caption,
+          );
+        }
       }
     }
   }
