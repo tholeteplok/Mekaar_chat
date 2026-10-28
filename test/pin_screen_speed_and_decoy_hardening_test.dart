@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/data/repositories/auth_repository.dart';
 import 'package:mekaar_chat/data/repositories/chat_repository.dart';
@@ -53,6 +54,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PinScreen Speed & Local-First Tests', () {
+    setUp(() {
+      FlutterSecureStorage.setMockInitialValues({});
+      DatabaseKeyService.instance.lockVault();
+    });
+
     test('ChatRoomsNotifier.reloadFromLocalCache memuat data seketika dan sync remote di background', () async {
       final mockRepo = MockChatRepository();
       mockRepo.cachedRooms = [
