@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -7,18 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
-import 'package:location/location.dart' as loc;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:mime/mime.dart';
-import '../../../data/services/file_export_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/utils/message_preview_resolver.dart';
-import '../../../core/widgets/bubbles/bubble_media_helper.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
@@ -30,6 +24,8 @@ import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../controllers/chat_screen_controller.dart';
 import '../dialogs/chat_deletion_dialogs.dart';
+import '../handlers/chat_media_handler.dart';
+import '../handlers/chat_file_action_handler.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_bottom_area.dart';
@@ -37,25 +33,18 @@ import '../widgets/chat_message_list_view.dart';
 import '../widgets/chat_forward_sheet.dart';
 import '../widgets/chat_e2ee_restore_sheet.dart';
 import '../widgets/chat_room_privacy_sheet.dart';
-import '../widgets/image_send_preview_sheet.dart';
-import '../widgets/document_send_preview_sheet.dart';
 import '../providers/e2ee_room_status_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/models/message_model.dart';
-import '../../../data/services/media_upload_service.dart';
-import '../../../data/services/e2ee_service.dart';
 import '../../../data/models/chat_theme_model.dart';
 import '../../settings/providers/chat_theme_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/call_model.dart';
 import '../../../data/repositories/call_repository.dart';
-import '../providers/vault_provider.dart';
 
 export '../widgets/chat_reconnecting_badge.dart';
 export '../widgets/chat_swipe_action_wrapper.dart';
 export '../widgets/chat_message_list_view.dart';
-import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
-import '../../../data/services/local_vault_database.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -722,241 +711,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  Future<void> _handleInitialSharedFiles(List<String> filePaths) async {
-    for (final path in filePaths) {
-      final file = File(path);
-      if (!await file.exists()) continue;
-
-      final mimeType = lookupMimeType(path) ?? '';
-      final chatPref = ref.read(chatThemeProvider).valueOrNull ??
-          const ChatThemePreference();
-      if (!mounted) return;
-      final spec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
-
-      if (mimeType.startsWith('image/')) {
-        if (!mounted) return;
-        final result = await Navigator.of(context).push<ImageSendResult>(
-          MaterialPageRoute(
-            builder: (_) => ImageSendPreviewSheet(
-              imageFile: file,
-              roomThemeSpec: spec,
-            ),
-          ),
-        );
-        if (result != null && mounted) {
-          await _handleSendMedia(
-            result.file,
-            MessageType.image,
-            caption: result.caption,
-            isViewOnce: result.isViewOnce,
-          );
-        }
-      } else {
-        final fileName = path.split(Platform.pathSeparator).last;
-        final fileSize = await file.length();
-        if (!mounted) return;
-        final result = await Navigator.of(context).push<DocumentSendResult>(
-          MaterialPageRoute(
-            builder: (_) => DocumentSendPreviewSheet(
-              file: file,
-              fileName: fileName,
-              fileSize: fileSize,
-              roomThemeSpec: spec,
-            ),
-          ),
-        );
-        if (result != null && mounted) {
-          await _handleSendMedia(
-            result.file,
-            MessageType.file,
-            caption: result.caption,
-          );
-        }
-      }
-    }
-  }
+  Future<void> _handleInitialSharedFiles(List<String> filePaths) =>
+      ChatMediaHandler.handleInitialSharedFiles(
+        context,
+        ref: ref,
+        filePaths: filePaths,
+        onSendMedia: _handleSendMedia,
+      );
 
   Future<void> _handleSendMedia(
     File file,
     MessageType type, {
     String? caption,
     bool? isViewOnce,
-  }) async {
-    String? uploadedUrl;
-    final uploader = MediaUploadService(Supabase.instance.client);
-
-    try {
-      String? fileKeyB64;
-      String url;
-
-      // Check whether room supports E2EE (peer key exists) without wasteful dummy encryption
-      final otherId = _effectiveOtherUserId;
-      final peerKey = otherId != null
-          ? await E2eeService.instance.getPeerPublicKey(otherId)
-          : null;
-      if (peerKey != null && peerKey.isNotEmpty) {
-        // Kamar chat mendukung E2EE, enkripsi & unggah media
-        final result = await uploader.uploadEncryptedChatMedia(
-          file,
-          widget.chatId,
-        );
-        url = result.url;
-        fileKeyB64 = result.keyB64;
-      } else {
-        // Fallback: unggah biasa
-        url = await uploader.uploadChatMedia(file, widget.chatId);
-      }
-
-      uploadedUrl = url;
-      final isViewOnceToSend = isViewOnce ?? _isViewOnce;
-
-      final trimmedCaption = caption?.trim();
-      String contentPayload;
-      if (type == MessageType.file) {
-        final originalFileName = file.path.split(Platform.pathSeparator).last;
-        final fileSize = await file.length();
-        final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-        contentPayload = FileAttachmentMeta(
-          fileName: originalFileName,
-          fileSize: fileSize,
-          mimeType: mimeType,
-          keyB64: fileKeyB64,
-          caption: trimmedCaption,
-        ).toContentJson();
-      } else if (fileKeyB64 != null && fileKeyB64.isNotEmpty) {
-        if (trimmedCaption != null && trimmedCaption.isNotEmpty) {
-          contentPayload = jsonEncode({
-            'key': fileKeyB64,
-            'caption': trimmedCaption,
-          });
-        } else {
-          contentPayload = fileKeyB64;
-        }
-      } else {
-        contentPayload = trimmedCaption ?? '';
-      }
-
-      final replyId = _replyMessage?.id;
-
-      await ref
-          .read(chatActionsProvider)
-          .sendMessage(
-            widget.chatId,
-            contentPayload,
-            mediaUrl: url,
-            type: type,
-            isViewOnce: isViewOnceToSend,
-            replyToId: replyId,
-            autoDeleteHours: _autoDeleteHours,
-            scheduledWipeTargetAt: _scheduledWipeTargetAt,
-            isGroup: widget.isGroup,
-          );
-
-      ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
-        roomId: widget.chatId,
-        previewText: MessagePreviewResolver.formatChatListPreview(
-          type: type,
-          content: contentPayload,
-          isUnreadFromOther: false,
-        ),
-        timestamp: DateTime.now(),
-        isFromOtherUser: false,
-        isCurrentlyInRoom: true,
+  }) =>
+      ChatMediaHandler.sendMedia(
+        context,
+        ref: ref,
+        chatId: widget.chatId,
+        isGroup: widget.isGroup,
+        otherUserId: _effectiveOtherUserId,
+        file: file,
+        type: type,
+        caption: caption,
+        isViewOnce: isViewOnce ?? _isViewOnce,
+        replyMessage: _replyMessage,
+        autoDeleteHours: _autoDeleteHours,
+        scheduledWipeTargetAt: _scheduledWipeTargetAt,
+        onScrollToBottom: _scrollToBottom,
+        onAfterSend: () {
+          if (mounted && _replyMessage != null) {
+            setState(() => _replyMessage = null);
+          }
+        },
       );
 
-      if (mounted && _replyMessage != null) {
-        setState(() => _replyMessage = null);
-      }
-      _scrollToBottom();
-    } catch (e) {
-      // Cleanup uploaded media if message creation fails
-      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-        try {
-          await uploader.deleteMediaByUrl(uploadedUrl);
-        } catch (_) {}
-      }
-      if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Gagal mengirim media: ${ErrorResolver.resolve(e)}',
-        );
-      }
-    }
-  }
-
-  Future<void> _handleSendLocation() async {
-    final location = loc.Location();
-    try {
-      bool serviceEnabled = await location.serviceEnabled();
-      if (!serviceEnabled) {
-        serviceEnabled = await location.requestService();
-        if (!serviceEnabled) return;
-      }
-
-      loc.PermissionStatus permissionGranted = await location.hasPermission();
-      if (permissionGranted == loc.PermissionStatus.denied) {
-        permissionGranted = await location.requestPermission();
-        if (permissionGranted != loc.PermissionStatus.granted) return;
-      }
-
-      final locationData = await location.getLocation();
-      final lat = locationData.latitude;
-      final lng = locationData.longitude;
-      if (lat == null || lng == null) return;
-
-      await ref
-          .read(chatActionsProvider)
-          .sendMessage(
-            widget.chatId,
-            '$lat, $lng',
-            type: MessageType.location,
-            autoDeleteHours: _autoDeleteHours,
-            scheduledWipeTargetAt: _scheduledWipeTargetAt,
-            isGroup: widget.isGroup,
-          );
-
-      ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
-        roomId: widget.chatId,
-        previewText: MessagePreviewResolver.formatChatListPreview(
-          type: MessageType.location,
-          content: '$lat, $lng',
-          isUnreadFromOther: false,
-        ),
-        timestamp: DateTime.now(),
-        isFromOtherUser: false,
-        isCurrentlyInRoom: true,
+  Future<void> _handleSendLocation() => ChatMediaHandler.sendLocation(
+        context,
+        ref: ref,
+        chatId: widget.chatId,
+        isGroup: widget.isGroup,
+        autoDeleteHours: _autoDeleteHours,
+        scheduledWipeTargetAt: _scheduledWipeTargetAt,
+        onScrollToBottom: _scrollToBottom,
       );
-      _scrollToBottom();
-    } catch (e) {
-      if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Gagal mendapatkan lokasi: ${ErrorResolver.resolve(e)}',
-        );
-      }
-    }
-  }
 
-  Future<void> _handleShareLiveLocation(int durationMinutes) async {
-    try {
-      await ref
-          .read(chatActionsProvider)
-          .shareLiveLocation(widget.chatId, durationMinutes);
-      if (mounted) {
-        MekaarSnackbar.success(
-          context,
-          'Lokasi live dibagikan selama $durationMinutes menit',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        MekaarSnackbar.error(
-          context,
-          'Gagal membagikan lokasi live: ${ErrorResolver.resolve(e)}',
-        );
-      }
-    }
-  }
+  Future<void> _handleShareLiveLocation(int durationMinutes) =>
+      ChatMediaHandler.shareLiveLocation(
+        context,
+        ref: ref,
+        chatId: widget.chatId,
+        durationMinutes: durationMinutes,
+      );
 
 
   void _scrollToBottom() {
@@ -1000,194 +806,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     ref.read(chatActionsProvider).reactToMessage(msg.id, emoji);
   }
 
-  Future<void> _handleSaveToVault(Message msg) async {
-    final mediaUrl = msg.mediaUrl;
-    if (mediaUrl == null || mediaUrl.isEmpty) {
-      MekaarSnackbar.error(context, 'Tidak ada berkas yang dapat disimpan.');
-      return;
-    }
-
-    MekaarSnackbar.info(context, 'Menyimpan berkas ke Brankas...');
-
-    try {
-      final payload = parseMediaPayload(msg);
-      final file = await getOrDecryptMedia(
-        messageId: msg.id,
-        url: mediaUrl,
-        isEncrypted: msg.isEncrypted,
-        fileKeyB64:
-            payload.fileKeyB64.isNotEmpty ? payload.fileKeyB64 : msg.content,
-      );
-
-      if (file == null || !await file.exists()) {
-        if (!mounted) return;
-        MekaarSnackbar.error(context, 'Gagal memproses berkas media.');
-        return;
-      }
-
-      if (!mounted) return;
-      if (!LocalVaultDatabase.instance.isUnlocked) {
-        final verified = await MekaarPinVerificationSheet.verify(
-          context,
-          title: 'Buka Brankas Berkas',
-          subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
-        );
-        if (!verified || !mounted) return;
-      }
-
-      final senderName = widget.isGroup
-          ? (_participantNames[msg.senderId] ?? _effectiveChatName)
-          : _effectiveChatName;
-
-      await ref.read(vaultRepositoryProvider).saveMediaToVault(
-            sourceFile: file,
-            originalMessageId: msg.id,
-            customFileName: null,
-            senderName: senderName,
-            senderId: msg.senderId,
-            roomId: widget.chatId,
-          );
-
-      if (!mounted) return;
-      HapticService.trigger(MekaarHapticIntent.success);
-      MekaarSnackbar.success(
+  Future<void> _handleSaveToVault(Message msg) =>
+      ChatFileActionHandler.saveToVault(
         context,
-        'Berkas berhasil disimpan ke Brankas Berkas',
+        ref: ref,
+        roomId: widget.chatId,
+        message: msg,
+        isGroup: widget.isGroup,
+        participantNames: _participantNames,
+        effectiveChatName: _effectiveChatName,
       );
-    } catch (e) {
-      if (!mounted) return;
-      MekaarSnackbar.error(
+
+  Future<void> _handleDownloadSelectedFiles(
+          List<Message> downloadableMessages) =>
+      ChatFileActionHandler.downloadSelectedFiles(
         context,
-        'Gagal menyimpan ke Brankas: $e',
+        downloadableMessages: downloadableMessages,
+        onCompleted: _clearSelection,
       );
-    }
-  }
 
-  Future<void> _handleDownloadSelectedFiles(List<Message> downloadableMessages) async {
-    _clearSelection();
-    if (downloadableMessages.isEmpty) return;
-
-    MekaarSnackbar.info(
-      context,
-      downloadableMessages.length == 1
-          ? 'Mengunduh dan mendekripsi berkas...'
-          : 'Mengunduh dan mendekripsi ${downloadableMessages.length} berkas...',
-    );
-
-    int successCount = 0;
-    String? lastExportedPath;
-
-    for (final msg in downloadableMessages) {
-      try {
-        final localFile = await FileExportService.resolveOrDownloadFile(msg);
-        if (localFile != null) {
-          final meta = msg.fileMeta;
-          final fileName = meta?.fileName ?? localFile.path.split(Platform.pathSeparator).last;
-          final exported = await FileExportService.exportToMekaarDownloads(
-            file: localFile,
-            fileName: fileName,
-            mimeType: meta?.mimeType,
-          );
-          if (exported != null) {
-            successCount++;
-            lastExportedPath = exported;
-          }
-        }
-      } catch (_) {}
-    }
-
-    if (!mounted) return;
-
-    if (successCount > 0) {
-      HapticService.trigger(MekaarHapticIntent.success);
-      MekaarSnackbar.success(
+  Future<void> _handleSaveSelectedToVault(List<Message> savableMessages) =>
+      ChatFileActionHandler.saveSelectedToVault(
         context,
-        successCount == 1
-            ? 'Berkas berhasil disimpan di $lastExportedPath'
-            : '$successCount berkas berhasil disimpan di folder Download/Mekaar/',
+        ref: ref,
+        roomId: widget.chatId,
+        savableMessages: savableMessages,
+        isGroup: widget.isGroup,
+        participantNames: _participantNames,
+        effectiveChatName: _effectiveChatName,
+        onCompleted: _clearSelection,
       );
-    } else {
-      HapticService.trigger(MekaarHapticIntent.warning);
-      MekaarSnackbar.error(
-        context,
-        'Gagal mengunduh berkas. Pastikan koneksi internet stabil.',
-      );
-    }
-  }
-
-  Future<void> _handleSaveSelectedToVault(List<Message> savableMessages) async {
-    if (savableMessages.isEmpty) return;
-
-    if (!LocalVaultDatabase.instance.isUnlocked) {
-      final verified = await MekaarPinVerificationSheet.verify(
-        context,
-        title: 'Buka Brankas Berkas',
-        subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
-      );
-      if (!verified || !mounted) return;
-    }
-
-    if (!mounted) return;
-    MekaarSnackbar.info(
-      context,
-      savableMessages.length == 1
-          ? 'Menyimpan berkas ke Brankas...'
-          : 'Menyimpan ${savableMessages.length} berkas ke Brankas...',
-    );
-
-    int savedCount = 0;
-    final vaultRepo = ref.read(vaultRepositoryProvider);
-
-    for (final msg in savableMessages) {
-      final mediaUrl = msg.mediaUrl;
-      if (mediaUrl == null || mediaUrl.isEmpty) continue;
-
-      try {
-        final payload = parseMediaPayload(msg);
-        final file = await getOrDecryptMedia(
-          messageId: msg.id,
-          url: mediaUrl,
-          isEncrypted: msg.isEncrypted,
-          fileKeyB64:
-              payload.fileKeyB64.isNotEmpty ? payload.fileKeyB64 : msg.content,
-        );
-
-        if (file != null && await file.exists()) {
-          final senderName = widget.isGroup
-              ? (_participantNames[msg.senderId] ?? _effectiveChatName)
-              : _effectiveChatName;
-
-          await vaultRepo.saveMediaToVault(
-            sourceFile: file,
-            originalMessageId: msg.id,
-            customFileName: null,
-            senderName: senderName,
-            senderId: msg.senderId,
-            roomId: widget.chatId,
-          );
-          savedCount++;
-        }
-      } catch (_) {}
-    }
-
-    if (!mounted) return;
-    _clearSelection();
-
-    if (savedCount > 0) {
-      HapticService.trigger(MekaarHapticIntent.success);
-      MekaarSnackbar.success(
-        context,
-        savedCount == 1
-            ? 'Berkas berhasil disimpan ke Brankas Berkas'
-            : '$savedCount berkas berhasil disimpan ke Brankas Berkas',
-      );
-    } else {
-      MekaarSnackbar.error(
-        context,
-        'Gagal memproses dan menyimpan berkas ke Brankas Berkas.',
-      );
-    }
-  }
 
   void _handleForwardMessage(Message msg) {
     ChatForwardSheet.show(
