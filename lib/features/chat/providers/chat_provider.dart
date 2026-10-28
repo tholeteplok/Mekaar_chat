@@ -350,6 +350,7 @@ class ChatActionsNotifier {
     String? replyToId,
     int? autoDeleteHours,
     DateTime? scheduledWipeTargetAt,
+    bool isGroup = false,
   }) async {
     DateTime? autoDeleteAt;
     if (scheduledWipeTargetAt != null &&
@@ -367,6 +368,7 @@ class ChatActionsNotifier {
       isViewOnce: isViewOnce,
       replyToId: replyToId,
       autoDeleteAt: autoDeleteAt,
+      isGroup: isGroup,
     );
 
     _chatRepository.updateLastSeen();

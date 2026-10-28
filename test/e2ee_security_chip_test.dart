@@ -45,7 +45,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Menunggu kunci penerima aktif'), findsOneWidget);
+      expect(find.text('Kunci penerima belum aktif (Pesan ditahan)'), findsOneWidget);
       expect(find.text('Coba Lagi'), findsOneWidget);
 
       await tester.tap(find.text('Coba Lagi'));

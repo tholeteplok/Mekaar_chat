@@ -871,6 +871,7 @@ class ChatRepository {
     bool isViewOnce = false,
     String? replyToId,
     DateTime? autoDeleteAt,
+    bool isGroup = false,
   }) async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) throw Exception('Not authenticated');
@@ -904,15 +905,12 @@ class ChatRepository {
       return decoyMsg;
     }
 
-    // Enkripsi E2EE bila lawan room sudah punya kunci publik;
-    // fallback plaintext (is_encrypted=false) HANYA untuk akun lama yang
-    // memang belum punya kunci publik E2EE (dipastikan oleh E2eeService).
-    // Kegagalan sementara (jaringan/server/kripto) TIDAK dianggap fallback —
-    // pengiriman dibatalkan (fail-closed) agar pesan tidak pernah diam-diam
-    // terkirim sebagai plaintext akibat error transient.
+    // Enkripsi E2EE wajib untuk seluruh obrolan 1:1 (Fail-Closed Murni).
+    // Tidak ada toleransi fallback plaintext pada chat privat 1:1 demi mencegah
+    // serangan Downgrade Attack dan kebocoran data di server Supabase.
     var finalContent = content;
     var isEncrypted = false;
-    if (content.isNotEmpty) {
+    if (content.isNotEmpty && !isGroup) {
       String? envelope;
       try {
         envelope = await E2eeService.instance.encryptForRoom(roomId, content);
@@ -921,10 +919,13 @@ class ChatRepository {
           'Gagal mengenkripsi pesan, pesan tidak dikirim. Coba lagi. ($e)',
         );
       }
-      if (envelope != null) {
-        finalContent = envelope;
-        isEncrypted = true;
+      if (envelope == null) {
+        throw Exception(
+          'Kunci enkripsi penerima belum aktif. Pesan ditahan demi keamanan (Fail-Closed).',
+        );
       }
+      finalContent = envelope;
+      isEncrypted = true;
     }
 
     final data = {

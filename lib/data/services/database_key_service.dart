@@ -48,10 +48,13 @@ class DatabaseKeyService {
       final salt = List<int>.generate(32, (_) => random.nextInt(256));
       await _secureStorage.write(key: storageKey, value: base64Encode(salt));
       return salt;
-    } catch (e) {
-      _logger.e('Gagal memuat atau membuat salt acak untuk brankas: $e');
-      final saltPrefix = isDuress ? 'mekaar_vault_decoy_salt_' : 'mekaar_vault_master_salt_';
-      return utf8.encode('${saltPrefix}v1_secure');
+    } catch (e, st) {
+      _logger.e(
+        'Gagal memuat atau membuat salt acak untuk brankas: $e',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
     }
   }
 

@@ -104,7 +104,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
       case E2eeRoomStatus.peerMissingKey:
         iconData = SolarIconsOutline.dangerTriangle;
         accentColor = MekaarColors.warnAmber;
-        message = 'Menunggu kunci penerima aktif';
+        message = 'Kunci penerima belum aktif (Pesan ditahan)';
         showSpinner = false;
         if (widget.onRetry != null) {
           actionWidget = _buildActionButton(

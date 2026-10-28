@@ -892,6 +892,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         replyToId: replyToMessage?.id,
         autoDeleteHours: _autoDeleteHours,
         scheduledWipeTargetAt: _scheduledWipeTargetAt,
+        isGroup: widget.isGroup,
       );
 
       // Setelah terkirim ke server, hapus item pending sementara
@@ -999,6 +1000,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             replyToId: replyId,
             autoDeleteHours: _autoDeleteHours,
             scheduledWipeTargetAt: _scheduledWipeTargetAt,
+            isGroup: widget.isGroup,
           );
 
       ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
@@ -1061,6 +1063,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             type: MessageType.location,
             autoDeleteHours: _autoDeleteHours,
             scheduledWipeTargetAt: _scheduledWipeTargetAt,
+            isGroup: widget.isGroup,
           );
 
       ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
