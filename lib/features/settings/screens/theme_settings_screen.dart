@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/theme_resolver.dart';
 import '../../../core/constants/theme_preference.dart';
@@ -343,7 +344,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               SizedBox(
                 height: 320,
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
+                  duration: context.motion(MekaarMotion.fast),
                   child: _buildFontListCategory(
                     context,
                     notifier,

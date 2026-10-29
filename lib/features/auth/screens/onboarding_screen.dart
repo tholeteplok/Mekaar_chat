@@ -81,7 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_currentPage < 4) {
       _pageController.nextPage(
         duration: MekaarMotion.counter,
-        curve: Curves.easeOutCubic,
+        curve: MekaarMotion.standard,
       );
     }
   }
@@ -192,7 +192,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             top: safePadding.top + 16,
             right: 16,
             child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 200),
+              duration: context.motion(MekaarMotion.fast),
               opacity: _isDocking ? 0.0 : 1.0,
               child: TextButton(
                 onPressed: _skipToLogin,
@@ -212,7 +212,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             left: 28,
             right: 28,
             child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 200),
+              duration: context.motion(MekaarMotion.fast),
               opacity: _isDocking ? 0.0 : 1.0,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -229,7 +229,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           _pageController.animateToPage(
                             index,
                             duration: MekaarMotion.counter,
-                            curve: Curves.easeOutCubic,
+                            curve: MekaarMotion.standard,
                           );
                         },
                         child: Padding(
@@ -239,7 +239,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           child: AnimatedContainer(
                             duration: MekaarMotion.counter,
-                            curve: Curves.easeOutCubic,
+                            curve: MekaarMotion.standard,
                             width: _currentPage == index ? 24 : 8,
                             height: 8,
                             decoration: BoxDecoration(
