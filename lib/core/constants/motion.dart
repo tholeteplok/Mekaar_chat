@@ -1,4 +1,4 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/widgets.dart';
 
 /// MekaarMotion — Durasi & kurva animasi terpusat.
 /// Semua animasi/transisi WAJIB memakai konstanta dari sini agar konsisten.
@@ -25,4 +25,13 @@ class MekaarMotion {
   static const Curve standard = Curves.easeOutCubic;
   static const Curve emphasized = Curves.easeInOutCubic;
   static const Curve bounce = Curves.easeOutBack;
+}
+
+/// Helper context untuk menghormati preferensi reduce-motion sistem.
+extension MekaarMotionContext on BuildContext {
+  /// True bila sistem meminta animasi dikurangi/dimatikan.
+  bool get reduceMotion => MediaQuery.maybeDisableAnimationsOf(this) ?? false;
+
+  /// Durasi efektif: Duration.zero bila reduce-motion aktif.
+  Duration motion(Duration d) => reduceMotion ? Duration.zero : d;
 }

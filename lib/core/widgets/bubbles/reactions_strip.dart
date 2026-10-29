@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
+import '../../constants/motion.dart';
 
 /// Komponen animasi reaksi emoji yang muncul saat tap/update
 class PopReaction extends StatefulWidget {
@@ -23,13 +24,27 @@ class _PopReactionState extends State<PopReaction>
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 280),
-  )..forward();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (context.reduceMotion) {
+      _ctrl.value = 1.0;
+    } else if (!_ctrl.isAnimating && _ctrl.value == 0.0) {
+      _ctrl.forward();
+    }
+  }
 
   @override
   void didUpdateWidget(covariant PopReaction oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.count != widget.count) {
-      _ctrl.forward(from: 0);
+      if (context.reduceMotion) {
+        _ctrl.value = 1.0;
+      } else {
+        _ctrl.forward(from: 0);
+      }
     }
   }
 
@@ -42,23 +57,27 @@ class _PopReactionState extends State<PopReaction>
   @override
   Widget build(BuildContext context) {
     final curved = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: MekaarColors.surface2Of(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: MekaarColors.borderLight),
+      ),
+      child: Text(
+        '${widget.emoji} ${widget.count}',
+        style: const TextStyle(fontSize: 12),
+      ),
+    );
+
     return GestureDetector(
       onTap: widget.onTap,
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 0.4, end: 1).animate(curved),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: MekaarColors.surface2Of(context),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: MekaarColors.borderLight),
-          ),
-          child: Text(
-            '${widget.emoji} ${widget.count}',
-            style: const TextStyle(fontSize: 12),
-          ),
-        ),
-      ),
+      child: context.reduceMotion
+          ? badge
+          : ScaleTransition(
+              scale: Tween<double>(begin: 0.4, end: 1).animate(curved),
+              child: badge,
+            ),
     );
   }
 }
