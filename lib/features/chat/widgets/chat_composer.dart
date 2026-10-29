@@ -30,6 +30,7 @@ import '../../../core/utils/error_resolver.dart';
 import 'package:file_picker/file_picker.dart';
 import 'image_send_preview_sheet.dart';
 import 'document_send_preview_sheet.dart';
+import '../screens/unified_camera_screen.dart';
 import 'typing_indicator.dart';
 import '../providers/e2ee_room_status_provider.dart';
 import 'e2ee_security_chip.dart';
@@ -350,75 +351,6 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    if (widget.onSendMedia == null) return;
-    try {
-      final picked = await _picker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
-      if (picked == null || !mounted) return;
-      setState(() => _isUploading = true);
-      final compressed = await MediaCompressor.compressImage(File(picked.path));
-      if (!mounted) return;
-      setState(() => _isUploading = false);
-
-      final result = await Navigator.of(context).push<ImageSendResult>(
-        MaterialPageRoute(
-          builder: (_) => ImageSendPreviewSheet(
-            imageFile: compressed,
-            replyMessage: widget.replyMessage,
-            onCancelReply: widget.onCancelReply,
-            roomThemeSpec: widget.roomThemeSpec,
-          ),
-        ),
-      );
-
-      if (result == null || !mounted) return;
-
-      setState(() => _isUploading = true);
-      await widget.onSendMedia!(
-        result.file,
-        MessageType.image,
-        caption: result.caption,
-        isViewOnce: result.isViewOnce,
-      );
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
-  }
-
-  Future<void> _pickVideo(ImageSource source) async {
-    if (widget.onSendMedia == null) return;
-    try {
-      final picked = await _picker.pickVideo(source: source);
-      if (picked == null || !mounted) return;
-      setState(() => _isUploading = true);
-      final compressed = await MediaCompressor.compressVideo(File(picked.path));
-
-      // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
-      const maxVideoBytes = 15 * 1024 * 1024;
-      final videoSize = await compressed.length();
-      if (videoSize > maxVideoBytes) {
-        if (mounted) {
-          MekaarSnackbar.error(
-            context,
-            'Ukuran video (${(videoSize / (1024 * 1024)).toStringAsFixed(1)} MB) melebihi batas maksimal 15 MB (paket gratis Supabase).',
-          );
-        }
-        return;
-      }
-
-      await widget.onSendMedia!(compressed, MessageType.video);
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
-  }
-
   Future<void> _pickDocument() async {
     if (widget.onSendMedia == null) return;
     try {
@@ -482,42 +414,79 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     }
   }
 
-  void _showCameraOptionSheet(BuildContext parentContext) {
+  Future<void> _openUnifiedCamera() async {
+    if (widget.onSendMedia == null) return;
     HapticService.trigger(MekaarHapticIntent.selection);
-    MekaarBottomSheet.show(
-      context: parentContext,
-      showDragHandle: true,
-      builder: (sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _attachItem(
-              sheetCtx,
-              step: 0,
-              icon: SolarIconsOutline.camera,
-              label: 'Ambil Foto',
-              color: MekaarColors.guardianTeal,
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            _attachItem(
-              sheetCtx,
-              step: 1,
-              icon: SolarIconsOutline.videocamera,
-              label: 'Rekam Video',
-              color: MekaarColors.pink,
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                _pickVideo(ImageSource.camera);
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
+
+    final result = await Navigator.of(context).push<CameraCaptureResult>(
+      MaterialPageRoute(
+        builder: (_) => const UnifiedCameraScreen(),
       ),
     );
+
+    if (result == null || !mounted) return;
+
+    if (result.isVideo) {
+      setState(() => _isUploading = true);
+      try {
+        final compressed = await MediaCompressor.compressVideo(result.file);
+
+        // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
+        const maxVideoBytes = 15 * 1024 * 1024;
+        final videoSize = await compressed.length();
+        if (videoSize > maxVideoBytes) {
+          if (mounted) {
+            MekaarSnackbar.error(
+              context,
+              'Ukuran video (${(videoSize / (1024 * 1024)).toStringAsFixed(1)} MB) melebihi batas maksimal 15 MB (paket gratis Supabase).',
+            );
+          }
+          return;
+        }
+
+        await widget.onSendMedia!(compressed, MessageType.video);
+      } catch (e) {
+        if (mounted) {
+          MekaarSnackbar.error(context, 'Gagal memproses video: $e');
+        }
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
+    } else {
+      setState(() => _isUploading = true);
+      try {
+        final compressed = await MediaCompressor.compressImage(result.file);
+        if (!mounted) return;
+        setState(() => _isUploading = false);
+
+        final previewResult = await Navigator.of(context).push<ImageSendResult>(
+          MaterialPageRoute(
+            builder: (_) => ImageSendPreviewSheet(
+              imageFile: compressed,
+              replyMessage: widget.replyMessage,
+              onCancelReply: widget.onCancelReply,
+              roomThemeSpec: widget.roomThemeSpec,
+            ),
+          ),
+        );
+
+        if (previewResult == null || !mounted) return;
+
+        setState(() => _isUploading = true);
+        await widget.onSendMedia!(
+          previewResult.file,
+          MessageType.image,
+          caption: previewResult.caption,
+          isViewOnce: previewResult.isViewOnce,
+        );
+      } catch (e) {
+        if (mounted) {
+          MekaarSnackbar.error(context, 'Gagal memproses foto: $e');
+        }
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
+    }
   }
 
   void _showAttachmentSheet() {
@@ -554,11 +523,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             ctx,
             step: 2,
             icon: SolarIconsOutline.camera,
-            label: 'Ambil Foto / Video',
+            label: 'Buka Kamera',
             color: MekaarColors.guardianTeal,
             onTap: () {
               Navigator.pop(ctx);
-              _showCameraOptionSheet(context);
+              _openUnifiedCamera();
             },
           ),
           _attachItem(
