@@ -23,7 +23,7 @@ class _PopReactionState extends State<PopReaction>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 280),
+    duration: MekaarMotion.pop,
   );
 
   @override
@@ -56,7 +56,7 @@ class _PopReactionState extends State<PopReaction>
 
   @override
   Widget build(BuildContext context) {
-    final curved = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
+    final curved = CurvedAnimation(parent: _ctrl, curve: MekaarMotion.bounce);
     final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

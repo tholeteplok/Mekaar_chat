@@ -149,7 +149,7 @@ class MekaarBottomNav extends StatelessWidget {
                                             duration: animationsDisabled
                                                 ? Duration.zero
                                                 : MekaarMotion.fast,
-                                            curve: Curves.easeOutBack,
+                                            curve: MekaarMotion.bounce,
                                             child: Icon(
                                               isActive
                                                   ? item.activeIcon

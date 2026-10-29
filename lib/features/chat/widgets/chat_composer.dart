@@ -1084,8 +1084,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             ),
           // ──── Indikator Lawan Bicara Mengetik (Floating Docked di atas Composer) ────
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            reverseDuration: const Duration(milliseconds: 200),
+            duration: context.motion(MekaarMotion.normal),
+            reverseDuration: context.motion(MekaarMotion.fast),
             transitionBuilder: (child, animation) {
               return FadeTransition(
                 opacity: animation,
@@ -1466,7 +1466,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                 ),
                                 child: Center(
                                   child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 200),
+                                    duration: context.motion(MekaarMotion.fast),
                                     transitionBuilder: (child, anim) =>
                                         ScaleTransition(scale: anim, child: child),
                                     child: Icon(

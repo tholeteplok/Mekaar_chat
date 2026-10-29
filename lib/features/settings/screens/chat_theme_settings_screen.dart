@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
@@ -608,12 +609,12 @@ class _ChatThemeSettingsScreenState
                   0.0,
                   _presetScrollController.position.maxScrollExtent,
                 ),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
+                duration: MekaarMotion.counter,
+                curve: MekaarMotion.standard,
               );
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: context.motion(MekaarMotion.fast),
               width: 108,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               decoration: BoxDecoration(
@@ -712,7 +713,7 @@ class _ChatThemeSettingsScreenState
       children: List.generate(8, (index) {
         final isActive = _activePresetScrollIndex == index;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+          duration: context.motion(MekaarMotion.normal),
           margin: const EdgeInsets.symmetric(horizontal: 3),
           width: isActive ? 18 : 6,
           height: 5,

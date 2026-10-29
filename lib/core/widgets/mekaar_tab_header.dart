@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../constants/colors.dart';
+import '../constants/motion.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 
@@ -125,7 +126,7 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
           ),
           AnimatedOpacity(
             opacity: (widget.searchController?.text.isNotEmpty ?? false) ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 150),
+            duration: context.motion(MekaarMotion.fast),
             curve: Curves.easeInOut,
             child: IgnorePointer(
               ignoring: !(widget.searchController?.text.isNotEmpty ?? false),
@@ -212,8 +213,8 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          switchInCurve: Curves.easeOutCubic,
+          duration: context.motion(MekaarMotion.normal),
+          switchInCurve: MekaarMotion.standard,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
             return FadeTransition(

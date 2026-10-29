@@ -262,8 +262,8 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
       },
       child: AnimatedScale(
         scale: scale,
-        duration: context.motion(const Duration(milliseconds: 120)),
-        curve: Curves.easeOutCubic,
+        duration: context.motion(MekaarMotion.micro),
+        curve: MekaarMotion.standard,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
