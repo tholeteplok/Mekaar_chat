@@ -24,7 +24,7 @@ class ScrollToBottomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final motionDuration = context.motion(const Duration(milliseconds: 200));
+    final motionDuration = context.motion(MekaarMotion.fast);
 
     return AnimatedOpacity(
       opacity: visible ? 1.0 : 0.0,
@@ -32,7 +32,7 @@ class ScrollToBottomButton extends StatelessWidget {
       child: AnimatedScale(
         scale: visible ? 1.0 : (context.reduceMotion ? 1.0 : 0.5),
         duration: motionDuration,
-        curve: Curves.easeOutBack,
+        curve: MekaarMotion.bounce,
         child: Semantics(
           button: true,
           label: 'Ke pesan terbaru',
