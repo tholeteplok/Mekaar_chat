@@ -1,9 +1,14 @@
 import 'dart:io';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/data/services/database_key_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+  });
 
   group('DatabaseKeyService Cryptographic Tests', () {
     test('deriveVaultKey produces distinct keys for master vs duress with same PIN', () async {

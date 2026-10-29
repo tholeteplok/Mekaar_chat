@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/storage/mekaar_secure_storage.dart';
+import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'aegis_memory_guard_service.dart';
 
@@ -49,11 +50,17 @@ class DatabaseKeyService {
       await _secureStorage.write(key: storageKey, value: base64Encode(salt));
       return salt;
     } catch (e, st) {
-      _logger.e(
-        'Gagal memuat atau membuat salt acak untuk brankas: $e',
-        error: e,
-        stackTrace: st,
-      );
+      if (e is MissingPluginException) {
+        _logger.w(
+          'Platform secure storage tidak tersedia (MissingPluginException), memicu fallback: $e',
+        );
+      } else {
+        _logger.e(
+          'Gagal memuat atau membuat salt acak untuk brankas: $e',
+          error: e,
+          stackTrace: st,
+        );
+      }
       rethrow;
     }
   }
