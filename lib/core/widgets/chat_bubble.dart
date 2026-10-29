@@ -18,6 +18,7 @@ import 'bubbles/bubble_media_helper.dart';
 import 'bubbles/custom_emoji_glyph.dart';
 import 'bubbles/file_bubble_card.dart';
 import 'bubbles/image_bubble.dart';
+import 'bubbles/video_bubble.dart';
 import 'bubbles/message_context_menu.dart';
 import 'bubbles/reactions_strip.dart';
 import 'bubbles/read_receipt_icon.dart';
@@ -34,6 +35,7 @@ export 'bubbles/custom_emoji_glyph.dart';
 export 'bubbles/file_bubble_card.dart';
 export 'bubbles/full_screen_image_viewer.dart';
 export 'bubbles/image_bubble.dart';
+export 'bubbles/video_bubble.dart';
 export 'bubbles/message_context_menu.dart';
 export 'bubbles/reactions_strip.dart';
 export 'bubbles/read_receipt_icon.dart';
@@ -247,12 +249,15 @@ class ChatBubble extends ConsumerWidget {
       fontFamily: activeFontFamily,
     );
 
-    // Deteksi gambar & payload caption cerdas
+    // Deteksi media (gambar & video) & payload caption cerdas
     final isImage = message.type == MessageType.image && !isDeleted;
-    final mediaPayload = isImage
+    final isVideo = message.type == MessageType.video && !isDeleted;
+    final isMedia = isImage || isVideo;
+    final mediaPayload = isMedia
         ? parseMediaPayload(message)
         : (fileKeyB64: '', caption: '');
     final hasImageCaption = isImage && mediaPayload.caption.trim().isNotEmpty;
+    final hasMediaCaption = isMedia && mediaPayload.caption.trim().isNotEmpty;
     final hasReply = message.replyToId != null && !isDeleted;
     final hasHeader = spec.headerWidget != null && !isDeleted;
     final hasSenderName =
@@ -490,7 +495,7 @@ class ChatBubble extends ConsumerWidget {
                           caption: mediaPayload.caption,
                           metaWidget: buildTimestampWidget(),
                         ),
-                        if (!isPureFramelessImage && !hasImageCaption) ...[
+                        if (!isPureFramelessImage && !hasMediaCaption && !isVideo) ...[
                           const SizedBox(height: 2),
                           buildTimestampWidget(),
                         ],
@@ -507,7 +512,7 @@ class ChatBubble extends ConsumerWidget {
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.76,
                 ),
-                customPadding: isImage && hasImageCaption
+                customPadding: (isImage && hasImageCaption) || isVideo
                     ? EdgeInsets.zero
                     : null,
                 child: Builder(
@@ -576,7 +581,7 @@ class ChatBubble extends ConsumerWidget {
                           caption: mediaPayload.caption,
                           metaWidget: buildTimestampWidget(),
                         ),
-                        if (!isPureFramelessImage && !hasImageCaption) ...[
+                        if (!isPureFramelessImage && !hasMediaCaption && !isVideo) ...[
                           const SizedBox(height: 2),
                           buildTimestampWidget(),
                         ],
@@ -900,34 +905,19 @@ class ChatBubble extends ConsumerWidget {
                 onSaveToVault != null ? () => onSaveToVault!(message) : null,
           );
         }
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                message.mediaUrl ?? '',
-                height: 180,
-                width: 220,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 180,
-                  width: 220,
-                  color: Colors.black.withValues(alpha: 0.85),
-                  child: const Icon(
-                    MekaarIcons.videoLibrary,
-                    color: Colors.white24,
-                    size: 40,
-                  ),
-                ),
-              ),
-            ),
-            const Icon(
-              MekaarIcons.playCircleOutline,
-              color: Colors.white,
-              size: 48,
-            ),
-          ],
+        return VideoBubble(
+          message: message,
+          textColor: textColor,
+          isMe: isMe,
+          borderRadius:
+              borderRadius ?? const BorderRadius.all(Radius.circular(16)),
+          isSelected: isSelected,
+          receiptStatus: receiptStatus,
+          caption: caption,
+          metaWidget: metaWidget,
+          fontFamily: fontFamily,
+          onSaveToVault:
+              onSaveToVault != null ? () => onSaveToVault!(message) : null,
         );
 
       default:
