@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/services/haptic_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -104,7 +104,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   }
 
   void _onMapTap(TapPosition tapPosition, LatLng latLng) {
-    HapticFeedback.lightImpact();
+    HapticService.trigger(MekaarHapticIntent.success);
     _searchFocusNode.unfocus();
     setState(() {
       _destinationLocation = latLng;
@@ -190,7 +190,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   }
 
   void _applySearchResult(GeocodingResult result) {
-    HapticFeedback.selectionClick();
+    HapticService.trigger(MekaarHapticIntent.selection);
     _searchFocusNode.unfocus();
     setState(() {
       _destinationLocation = result.location;
@@ -207,7 +207,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     String name,
     Map<String, SavedPlace> savedPlacesMap,
   ) {
-    HapticFeedback.selectionClick();
+    HapticService.trigger(MekaarHapticIntent.selection);
     _destLabelController.text = name;
 
     final existingPlace = savedPlacesMap[id];
@@ -234,7 +234,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   }
 
   Future<void> _selectExpectedTime() async {
-    HapticFeedback.selectionClick();
+    HapticService.trigger(MekaarHapticIntent.selection);
     TimeOfDay initial = const TimeOfDay(hour: 18, minute: 30);
     final parts = _expectedTimeController.text.split(':');
     if (parts.length == 2) {
@@ -523,7 +523,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                     backgroundColor: MekaarColors.surfaceOf(context),
                     foregroundColor: MekaarColors.accentTextOf(context),
                     onPressed: () {
-                      HapticFeedback.selectionClick();
+                      HapticService.trigger(MekaarHapticIntent.selection);
                       _fetchRealGpsLocation();
                     },
                     child: _isLoadingGps
@@ -654,7 +654,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                           ),
                           onSelected: (selected) {
                             if (selected) {
-                              HapticFeedback.selectionClick();
+                              HapticService.trigger(MekaarHapticIntent.selection);
                               setState(() => _originChoice = choice);
                               if (choice == 'ðŸ“ Lokasi Saat Ini') {
                                 _fetchRealGpsLocation();
@@ -810,7 +810,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                             ),
                           ),
                           onSelected: (selected) {
-                            HapticFeedback.selectionClick();
+                            HapticService.trigger(MekaarHapticIntent.selection);
                             setState(() {
                               if (selected) {
                                 _selectedActiveDays.add(dayInt);

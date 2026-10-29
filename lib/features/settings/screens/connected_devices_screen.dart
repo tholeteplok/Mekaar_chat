@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/services/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
@@ -148,7 +148,7 @@ class _ConnectedDevicesScreenState
   }
 
   Future<void> _confirmRevoke(UserDevice device) async {
-    HapticFeedback.mediumImpact();
+    HapticService.trigger(MekaarHapticIntent.destructive);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => MekaarDialog(
@@ -194,7 +194,7 @@ class _ConnectedDevicesScreenState
   }
 
   Future<void> _confirmRevokeAll(int count) async {
-    HapticFeedback.mediumImpact();
+    HapticService.trigger(MekaarHapticIntent.destructive);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => MekaarDialog(

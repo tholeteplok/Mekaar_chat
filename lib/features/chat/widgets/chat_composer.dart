@@ -1015,7 +1015,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
     try {
       setState(() => _isUploading = true);
-      HapticFeedback.selectionClick();
+      HapticService.trigger(MekaarHapticIntent.selection);
 
       Uint8List? bytes = content.data;
       if (bytes == null || bytes.isEmpty) {

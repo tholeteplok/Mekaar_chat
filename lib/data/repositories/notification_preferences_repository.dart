@@ -2,12 +2,17 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/services/haptic_service.dart';
 import '../models/notification_preferences.dart';
 
 class NotificationPreferencesRepository {
   Future<NotificationPreferences> load() async {
     final preferences = await SharedPreferences.getInstance();
     await _migrateLegacyPreferences(preferences);
+
+    final haptics =
+        preferences.getBool(NotificationPreferences.hapticsEnabledKey) ?? true;
+    HapticService.updateEnabled(haptics);
 
     return NotificationPreferences(
       messageSound: _validatedPath(
@@ -28,8 +33,7 @@ class NotificationPreferencesRepository {
       callSoundEnabled:
           preferences.getBool(NotificationPreferences.callSoundEnabledKey) ??
           true,
-      hapticsEnabled:
-          preferences.getBool(NotificationPreferences.hapticsEnabledKey) ?? true,
+      hapticsEnabled: haptics,
     );
   }
 
@@ -61,11 +65,10 @@ class NotificationPreferencesRepository {
         value.hapticsEnabled,
       ),
     ]);
+    HapticService.updateEnabled(value.hapticsEnabled);
   }
 
-  Future<void> _migrateLegacyPreferences(
-    SharedPreferences preferences,
-  ) async {
+  Future<void> _migrateLegacyPreferences(SharedPreferences preferences) async {
     if (preferences.containsKey(NotificationPreferences.messageSoundKey)) {
       return;
     }
