@@ -180,8 +180,8 @@ class ChatAppBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chatPref = ref.watch(chatThemeProvider).valueOrNull ??
-        const ChatThemePreference();
+    final chatPref =
+        ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
     final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
       chatPref,
       context,
@@ -195,7 +195,8 @@ class ChatAppBar extends ConsumerWidget {
       final isForwardProtected = forwardingProtection?.effective ?? false;
       // Resolusi ID pengguna saat ini: gunakan fallback ke Supabase auth langsung
       // agar tombol edit tidak menghilang saat state Riverpod belum sinkron penuh.
-      final currentUserId = ref.watch(authProvider).user?.id ??
+      final currentUserId =
+          ref.watch(authProvider).user?.id ??
           (SupabaseService.isInitialized
               ? Supabase.instance.client.auth.currentUser?.id
               : null);
@@ -210,7 +211,8 @@ class ChatAppBar extends ConsumerWidget {
       // Tampilkan tombol edit untuk pesan teks milik pengirim sendiri.
       // Pembatasan Guardian & batas waktu 30 menit ditangani secara transparan
       // melalui snackbar edukasi saat tombol diketuk (bukan disembunyikan).
-      final canEdit = singleSelectedMsg != null &&
+      final canEdit =
+          singleSelectedMsg != null &&
           currentUserId != null &&
           singleSelectedMsg.senderId == currentUserId &&
           singleSelectedMsg.type == MessageType.text &&
@@ -222,36 +224,41 @@ class ChatAppBar extends ConsumerWidget {
             !m.isDeleted &&
             m.content.trim().isNotEmpty,
       );
-      final canForward = !isForwardProtected &&
+      final canForward =
+          !isForwardProtected &&
           selectedCallIds.isEmpty &&
           selectedMessageIds.isNotEmpty;
 
-      final savableMediaMessages = rawMessages.where(
-        (m) =>
-            selectedMessageIds.contains(m.id) &&
-            !m.isDeleted &&
-            !m.isSilentDeleted &&
-            (m.type == MessageType.image ||
-                m.type == MessageType.video ||
-                m.type == MessageType.voice ||
-                m.type == MessageType.file ||
-                (m.mediaUrl != null && m.mediaUrl!.isNotEmpty)),
-      ).toList();
+      final savableMediaMessages = rawMessages
+          .where(
+            (m) =>
+                selectedMessageIds.contains(m.id) &&
+                !m.isDeleted &&
+                !m.isSilentDeleted &&
+                (m.type == MessageType.image ||
+                    m.type == MessageType.video ||
+                    m.type == MessageType.voice ||
+                    m.type == MessageType.file ||
+                    (m.mediaUrl != null && m.mediaUrl!.isNotEmpty)),
+          )
+          .toList();
       final canSaveToVault =
           savableMediaMessages.isNotEmpty && selectedCallIds.isEmpty;
 
-      final downloadableFileMessages = rawMessages.where(
-        (m) =>
-            selectedMessageIds.contains(m.id) &&
-            !m.isDeleted &&
-            !m.isSilentDeleted &&
-            (m.type == MessageType.file ||
-                m.type == MessageType.image ||
-                m.type == MessageType.video ||
-                m.type == MessageType.voice) &&
-            m.mediaUrl != null &&
-            m.mediaUrl!.isNotEmpty,
-      ).toList();
+      final downloadableFileMessages = rawMessages
+          .where(
+            (m) =>
+                selectedMessageIds.contains(m.id) &&
+                !m.isDeleted &&
+                !m.isSilentDeleted &&
+                (m.type == MessageType.file ||
+                    m.type == MessageType.image ||
+                    m.type == MessageType.video ||
+                    m.type == MessageType.voice) &&
+                m.mediaUrl != null &&
+                m.mediaUrl!.isNotEmpty,
+          )
+          .toList();
       final canDownload =
           downloadableFileMessages.isNotEmpty && selectedCallIds.isEmpty;
 
@@ -268,9 +275,7 @@ class ChatAppBar extends ConsumerWidget {
         iconColor: roomThemeSpec.iconColor,
         onClose: onClearSelection,
         onReply: onReplySelectedMessage,
-        onEdit: canEdit
-            ? () => onEditSelectedMessage(singleSelectedMsg)
-            : null,
+        onEdit: canEdit ? () => onEditSelectedMessage(singleSelectedMsg) : null,
         onCopy: onCopySelectedMessages,
         onForward: onForwardSelectedMessages,
         onDownload: () => onDownloadSelectedFiles(downloadableFileMessages),
@@ -294,11 +299,7 @@ class ChatAppBar extends ConsumerWidget {
     if (isSearching) {
       final topPadding = MediaQuery.of(context).padding.top;
       return Padding(
-        padding: EdgeInsets.only(
-          top: topPadding + 4,
-          left: 12,
-          right: 12,
-        ),
+        padding: EdgeInsets.only(top: topPadding + 4, left: 12, right: 12),
         child: MekaarGlassBlurContainer(
           height: 52,
           borderRadius: BorderRadius.circular(MekaarRadius.pill),
@@ -321,10 +322,7 @@ class ChatAppBar extends ConsumerWidget {
                   controller: searchController,
                   focusNode: inChatSearchFocusNode,
                   textInputAction: TextInputAction.search,
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Cari dalam obrolan...',
                     hintStyle: TextStyle(
@@ -333,9 +331,7 @@ class ChatAppBar extends ConsumerWidget {
                     ),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                   onChanged: onSearchChanged,
                 ),
@@ -364,7 +360,8 @@ class ChatAppBar extends ConsumerWidget {
       valueListenable: otherLastSeenNotifier,
       builder: (context, lastSeen, _) {
         final isOnline = _isCurrentlyOnline(lastSeen);
-        final showCalls = !LocalMessageDatabase.instance.isDecoy &&
+        final showCalls =
+            !LocalMessageDatabase.instance.isDecoy &&
             chatId != 'room_welcome_mekaar';
 
         return CustomAppBar(
@@ -372,14 +369,15 @@ class ChatAppBar extends ConsumerWidget {
           title: chatName,
           avatarInitial: avatarInitial,
           avatarUrl: avatarUrl,
+          avatarHeroTag: 'avatar-room-$chatId',
           isGuardian: isGuardian,
           showOnlineIndicator: true,
           isOnline: isOnline || isTyping,
           subtitle: isGroup
               ? '${participantCount > 0 ? '$participantCount anggota • ' : ''}Enkripsi Server'
               : (isTyping
-                  ? 'sedang mengetik...'
-                  : _formatPresenceSubtitle(lastSeen)),
+                    ? 'sedang mengetik...'
+                    : _formatPresenceSubtitle(lastSeen)),
           glassBorder: roomThemeSpec.glassBorder,
           glassBackgroundColor: roomThemeSpec.glassBackgroundColor,
           iconColor: roomThemeSpec.iconColor,
@@ -415,9 +413,7 @@ class ChatAppBar extends ConsumerWidget {
               color: frostedBg,
               surfaceTintColor: Colors.transparent,
               elevation: 10,
-              shadowColor: Colors.black.withValues(
-                alpha: isDark ? 0.45 : 0.18,
-              ),
+              shadowColor: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
               padding: EdgeInsets.zero,
               icon: Icon(
                 SolarIconsOutline.menuDots,
@@ -459,9 +455,7 @@ class ChatAppBar extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isMuted
-                            ? 'Bunyikan Notifikasi'
-                            : 'Bisukan Notifikasi',
+                        isMuted ? 'Bunyikan Notifikasi' : 'Bisukan Notifikasi',
                         style: TextStyle(
                           color: textPrimary,
                           fontSize: 14,

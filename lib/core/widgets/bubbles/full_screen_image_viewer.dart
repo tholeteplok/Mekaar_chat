@@ -7,16 +7,19 @@ import '../../../data/repositories/screen_protection_repository.dart';
 import '../../../data/services/aegis_shredder_service.dart';
 
 /// Full-screen image viewer (photo_view) dengan perlindungan tangkapan layar
+/// dan dukungan transisi Hero (heroAttributes).
 class FullScreenImageViewer extends StatefulWidget {
   final ImageProvider imageProvider;
   final File? tempFileToPurge;
   final VoidCallback? onSaveToVault;
+  final Object? heroTag;
 
   const FullScreenImageViewer({
     super.key,
     required this.imageProvider,
     this.tempFileToPurge,
     this.onSaveToVault,
+    this.heroTag,
   });
 
   @override
@@ -62,6 +65,9 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 3,
         backgroundDecoration: const BoxDecoration(color: Colors.black),
+        heroAttributes: widget.heroTag != null
+            ? PhotoViewHeroAttributes(tag: widget.heroTag!)
+            : null,
       ),
     );
   }

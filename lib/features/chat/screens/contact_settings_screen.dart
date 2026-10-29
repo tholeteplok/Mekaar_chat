@@ -341,6 +341,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                         imageUrl: _avatarUrl,
                         size: 88,
                         isGuardian: widget.isGuardian,
+                        heroTag: 'avatar-room-${widget.roomId}',
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -440,7 +441,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   builder: (context, ref, _) {
                     final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
                     final hiddenUsers = ref.watch(hiddenContactUserIdsProvider);
-                    final isHidden = hiddenUsers.contains(widget.otherUserId) ||
+                    final isHidden =
+                        hiddenUsers.contains(widget.otherUserId) ||
                         hiddenRooms.contains(widget.roomId);
 
                     return Padding(
@@ -856,7 +858,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               color: MekaarColors.sosRed,
                             ),
                             title: const Text('Hapus Chat (Hanya Saya)'),
-                            subtitle: const Text('Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak'),
+                            subtitle: const Text(
+                              'Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak',
+                            ),
                             titleTextStyle: const TextStyle(
                               color: MekaarColors.sosRed,
                               fontWeight: FontWeight.w600,
@@ -906,7 +910,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                               color: MekaarColors.sosRed,
                             ),
                             title: const Text('Hapus Kontak'),
-                            subtitle: const Text('Hapus dari buku kontak dan bersihkan seluruh riwayat chat'),
+                            subtitle: const Text(
+                              'Hapus dari buku kontak dan bersihkan seluruh riwayat chat',
+                            ),
                             titleTextStyle: const TextStyle(
                               color: MekaarColors.sosRed,
                               fontWeight: FontWeight.w600,
