@@ -66,15 +66,15 @@ class MekaarBottomSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: effectiveBg,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(MekaarRadius.xl),
-          ),
+      child: Material(
+        color: effectiveBg,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(MekaarRadius.xl),
         ),
-        child: SafeArea(
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: double.infinity,
+          child: SafeArea(
           top: false,
           child: Padding(
             padding: padding ??
@@ -135,6 +135,7 @@ class MekaarBottomSheet extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

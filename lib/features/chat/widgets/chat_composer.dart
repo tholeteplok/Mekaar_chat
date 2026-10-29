@@ -613,22 +613,25 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     // Entrance staggered via AnimatedAppear — token motion + reduced motion.
     return AnimatedAppear(
       delay: MekaarMotion.staggerStep * step,
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            shape: BoxShape.circle,
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          child: Icon(icon, color: color, size: 20),
+          title: Text(label,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: MekaarColors.textPrimaryOf(context))),
+          onTap: onTap,
         ),
-        title: Text(label,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: MekaarColors.textPrimaryOf(context))),
-        onTap: onTap,
       ),
     );
   }
