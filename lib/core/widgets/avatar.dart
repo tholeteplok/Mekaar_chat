@@ -9,6 +9,7 @@ class Avatar extends StatelessWidget {
   final bool isGuardian;
   final Color? backgroundColor;
   final bool useCrayonStyle;
+  final Object? heroTag;
 
   const Avatar({
     super.key,
@@ -18,6 +19,7 @@ class Avatar extends StatelessWidget {
     this.isGuardian = false,
     this.backgroundColor,
     this.useCrayonStyle = true,
+    this.heroTag,
   });
 
   @override
@@ -77,8 +79,9 @@ class Avatar extends StatelessWidget {
       child: ClipOval(child: avatarChild),
     );
 
+    final Widget result;
     if (isGuardian) {
-      return Container(
+      result = Container(
         width: size,
         height: size,
         padding: const EdgeInsets.all(2),
@@ -88,9 +91,15 @@ class Avatar extends StatelessWidget {
         ),
         child: coreWidget,
       );
+    } else {
+      result = coreWidget;
     }
 
-    return coreWidget;
+    if (heroTag != null) {
+      return Hero(tag: heroTag!, child: result);
+    }
+
+    return result;
   }
 
   Widget _buildInitialWidget(

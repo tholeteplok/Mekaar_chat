@@ -61,7 +61,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Keluar dari Grup'),
-        content: Text('Apakah Anda yakin ingin keluar dari "${widget.groupName}"?'),
+        content: Text(
+          'Apakah Anda yakin ingin keluar dari "${widget.groupName}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -101,7 +103,8 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
   Widget build(BuildContext context) {
     final name = _groupData?['name'] as String? ?? widget.groupName;
     final description = _groupData?['description'] as String? ?? '';
-    final avatarUrl = _groupData?['avatar_url'] as String? ?? widget.groupAvatarUrl;
+    final avatarUrl =
+        _groupData?['avatar_url'] as String? ?? widget.groupAvatarUrl;
 
     return Scaffold(
       backgroundColor: MekaarColors.backgroundOf(context),
@@ -129,6 +132,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                           imageUrl: avatarUrl,
                           initial: name.isNotEmpty ? name[0] : 'G',
                           backgroundColor: AppColors.blue,
+                          heroTag: 'avatar-room-${widget.roomId}',
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -175,17 +179,22 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                       itemCount: _participants.length,
                       separatorBuilder: (ctx, idx) => Divider(
                         height: 1,
-                        color: MekaarColors.borderOf(context).withValues(alpha: 0.05),
+                        color: MekaarColors.borderOf(
+                          context,
+                        ).withValues(alpha: 0.05),
                       ),
                       itemBuilder: (context, index) {
                         final p = _participants[index];
                         final role = p['role'] as String? ?? 'member';
-                        final profile = p['public_profiles'] as Map<String, dynamic>? ?? {};
-                        final memberName = (profile['display_name'] as String?)?.isNotEmpty == true
+                        final profile =
+                            p['public_profiles'] as Map<String, dynamic>? ?? {};
+                        final memberName =
+                            (profile['display_name'] as String?)?.isNotEmpty ==
+                                true
                             ? profile['display_name'] as String
                             : profile['full_name'] as String? ??
-                                profile['username'] as String? ??
-                                'Anggota';
+                                  profile['username'] as String? ??
+                                  'Anggota';
                         final username = profile['username'] as String? ?? '';
                         final memberAvatar = profile['avatar_url'] as String?;
 
@@ -193,7 +202,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                           leading: Avatar(
                             size: 36,
                             imageUrl: memberAvatar,
-                            initial: memberName.isNotEmpty ? memberName[0] : 'A',
+                            initial: memberName.isNotEmpty
+                                ? memberName[0]
+                                : 'A',
                           ),
                           title: Text(
                             memberName,
@@ -213,10 +224,16 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                           trailing: role == 'owner' || role == 'admin'
                               ? Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.blue.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(MekaarRadius.sm),
+                                    color: AppColors.blue.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      MekaarRadius.sm,
+                                    ),
                                   ),
                                   child: Text(
                                     role == 'owner' ? 'Pembuat' : 'Admin',

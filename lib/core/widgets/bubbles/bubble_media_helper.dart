@@ -51,13 +51,12 @@ Future<File?> getOrDecryptMedia({
   required String? url,
   required bool isEncrypted,
   required String fileKeyB64,
-}) =>
-    _getOrDecryptMedia(
-      messageId: messageId,
-      url: url,
-      isEncrypted: isEncrypted,
-      fileKeyB64: fileKeyB64,
-    );
+}) => _getOrDecryptMedia(
+  messageId: messageId,
+  url: url,
+  isEncrypted: isEncrypted,
+  fileKeyB64: fileKeyB64,
+);
 
 /// In-memory cache untuk berkas media yang sudah selesai diunduh/didekripsi
 /// Menghindari I/O disk berulang dan menghilangkan kedipan (flickering) saat widget di-rebuild.
@@ -95,6 +94,16 @@ File? getDecryptedFromMemory(String messageId) {
     return cached;
   }
   return null;
+}
+
+@visibleForTesting
+void setDecryptedMemoryCacheForTesting(String messageId, File file) {
+  _decryptedFileMemoryCache[messageId] = file;
+}
+
+@visibleForTesting
+void clearDecryptedMemoryCacheForTesting() {
+  _decryptedFileMemoryCache.clear();
 }
 
 // Helper function to download, decrypt, and cache E2EE media locally with memory caching.

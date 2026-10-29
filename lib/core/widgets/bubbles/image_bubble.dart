@@ -6,16 +6,20 @@ import 'package:intl/intl.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/aegis_shredder_service.dart';
 import '../../../features/chat/providers/chat_provider.dart';
+import '../../../features/chat/providers/private_vault_provider.dart';
+import '../../../features/chat/providers/screen_protection_provider.dart';
 import '../../constants/colors.dart';
 import '../../constants/dimensions.dart';
 import '../../constants/icons.dart';
+import '../../constants/motion.dart';
 import 'bubble_media_helper.dart';
 import 'full_screen_image_viewer.dart';
 import 'read_receipt_icon.dart';
 import 'view_once_store.dart';
 
 /// Bungkus image bubble agar pesan "Sekali Lihat" tersembunyi setelah dibuka
-/// serta mendukung layout frameless dan caption ala Telegram & WhatsApp.
+/// serta mendukung layout frameless, caption ala Telegram & WhatsApp,
+/// dan transisi Hero mulus untuk media yang tidak dilindungi.
 class ImageBubble extends ConsumerWidget {
   final Message message;
   final Color textColor;
@@ -46,17 +50,42 @@ class ImageBubble extends ConsumerWidget {
     this.onSaveToVault,
   });
 
-  void _openViewer(BuildContext context, File file, {File? tempFileToPurge}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => FullScreenImageViewer(
-          imageProvider: FileImage(file),
-          tempFileToPurge: tempFileToPurge,
-          onSaveToVault: onSaveToVault,
+  void _openViewer(
+    BuildContext context,
+    File file, {
+    File? tempFileToPurge,
+    Object? heroTag,
+  }) {
+    if (heroTag != null) {
+      Navigator.push(
+        context,
+        PageRouteBuilder<void>(
+          opaque: false,
+          barrierColor: Colors.black87,
+          transitionDuration: context.motion(MekaarMotion.normal),
+          reverseTransitionDuration: context.motion(MekaarMotion.normal),
+          pageBuilder: (_, _, _) => FullScreenImageViewer(
+            imageProvider: FileImage(file),
+            tempFileToPurge: tempFileToPurge,
+            onSaveToVault: onSaveToVault,
+            heroTag: heroTag,
+          ),
+          transitionsBuilder: (_, anim, _, child) =>
+              FadeTransition(opacity: anim, child: child),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullScreenImageViewer(
+            imageProvider: FileImage(file),
+            tempFileToPurge: tempFileToPurge,
+            onSaveToVault: onSaveToVault,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -103,7 +132,9 @@ class ImageBubble extends ConsumerWidget {
                         ),
                       );
                       if (file.existsSync()) {
-                        unawaited(AegisShredderService.instance.shredFile(file.path));
+                        unawaited(
+                          AegisShredderService.instance.shredFile(file.path),
+                        );
                       }
                     }
                   }
@@ -148,10 +179,23 @@ class ImageBubble extends ConsumerWidget {
       );
     }
 
+    // Evaluasi aturan privasi dan proteksi layar untuk Hero
+    final isScreenProtected =
+        ref
+            .watch(roomScreenProtectionProvider(message.roomId))
+            .valueOrNull
+            ?.effective ??
+        false;
+    final isCloaked = ref
+        .watch(cloakedRoomIdsProvider)
+        .contains(message.roomId);
+    final allowHero = !isScreenProtected && !isCloaked;
+    final heroTag = allowHero ? 'chat-media-${message.id}' : null;
+
     // 1. Cek memory cache sinkron: jika ada, render langsung tanpa FutureBuilder & tanpa kedipan!
     final cached = getDecryptedFromMemory(message.id);
     if (cached != null) {
-      return _buildImageContent(context, cached);
+      return _buildImageContent(context, cached, heroTag: heroTag);
     }
 
     // 2. Jika belum ada di memori RAM, muat via FutureBuilder sekali saja
@@ -203,15 +247,28 @@ class ImageBubble extends ConsumerWidget {
           );
         }
 
-        return _buildImageContent(context, file);
+        return _buildImageContent(context, file, heroTag: heroTag);
       },
     );
   }
 
-  Widget _buildImageContent(BuildContext context, File file) {
+  Widget _buildImageContent(
+    BuildContext context,
+    File file, {
+    Object? heroTag,
+  }) {
     if (isSticker) {
+      Widget stickerWidget = Image.file(
+        file,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      );
+      if (heroTag != null) {
+        stickerWidget = Hero(tag: heroTag, child: stickerWidget);
+      }
+
       return GestureDetector(
-        onTap: () => _openViewer(context, file),
+        onTap: () => _openViewer(context, file, heroTag: heroTag),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             maxWidth: 180,
@@ -219,32 +276,33 @@ class ImageBubble extends ConsumerWidget {
             minWidth: 80,
             minHeight: 80,
           ),
-          child: Image.file(
-            file,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.medium,
-          ),
+          child: stickerWidget,
         ),
       );
     }
 
     final bubbleWidth = MediaQuery.of(context).size.width * 0.76;
 
+    Widget imageFileWidget = Image.file(
+      file,
+      width: bubbleWidth,
+      height: 220,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.medium,
+    );
+    if (heroTag != null) {
+      imageFileWidget = Hero(tag: heroTag, child: imageFileWidget);
+    }
+
     if (isPureFrameless) {
       return GestureDetector(
-        onTap: () => _openViewer(context, file),
+        onTap: () => _openViewer(context, file, heroTag: heroTag),
         child: ClipRRect(
           borderRadius: borderRadius,
           child: Stack(
             alignment: Alignment.bottomRight,
             children: [
-              Image.file(
-                file,
-                width: bubbleWidth,
-                height: 220,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.medium,
-              ),
+              imageFileWidget,
               if (isSelected)
                 Positioned.fill(
                   child: Container(
@@ -259,8 +317,10 @@ class ImageBubble extends ConsumerWidget {
                 bottom: 6,
                 right: 8,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(MekaarRadius.pill),
@@ -303,7 +363,7 @@ class ImageBubble extends ConsumerWidget {
 
     final hasCaption = caption.isNotEmpty;
     return GestureDetector(
-      onTap: () => _openViewer(context, file),
+      onTap: () => _openViewer(context, file, heroTag: heroTag),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -317,13 +377,7 @@ class ImageBubble extends ConsumerWidget {
             ),
             child: Stack(
               children: [
-                Image.file(
-                  file,
-                  width: bubbleWidth,
-                  height: 220,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.medium,
-                ),
+                imageFileWidget,
                 if (isSelected)
                   Positioned.fill(
                     child: Container(
@@ -341,8 +395,9 @@ class ImageBubble extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 7, 10, 4),
               child: Column(
-                crossAxisAlignment:
-                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
