@@ -35,6 +35,9 @@ import 'typing_indicator.dart';
 import '../providers/e2ee_room_status_provider.dart';
 import 'e2ee_security_chip.dart';
 
+/// Mode aksi cepat tombol kanan pada chat composer (Mic atau Kamera).
+enum QuickActionMode { mic, camera }
+
 class ChatComposer extends ConsumerStatefulWidget {
   final TextEditingController controller;
   final Message? replyMessage;
@@ -90,6 +93,9 @@ class ChatComposer extends ConsumerStatefulWidget {
 
 class ChatComposerState extends ConsumerState<ChatComposer> {
   final ImagePicker _picker = ImagePicker();
+  QuickActionMode _quickActionMode = QuickActionMode.mic;
+  double _quickActionDragDistance = 0.0;
+  QuickActionMode get quickActionMode => _quickActionMode;
   FocusNode? _internalFocusNode;
   FocusNode get _effectiveFocusNode =>
       widget.focusNode ?? (_internalFocusNode ??= FocusNode());
@@ -113,6 +119,30 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     super.initState();
     widget.controller.addListener(_onTextChanged);
     _loadRecentEmojis();
+    _loadQuickActionMode();
+  }
+
+  Future<void> _loadQuickActionMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('chat_composer_quick_action_mode');
+      if (saved == QuickActionMode.camera.name && mounted) {
+        setState(() => _quickActionMode = QuickActionMode.camera);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleQuickActionMode() async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    final nextMode = _quickActionMode == QuickActionMode.mic
+        ? QuickActionMode.camera
+        : QuickActionMode.mic;
+    setState(() => _quickActionMode = nextMode);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('chat_composer_quick_action_mode', nextMode.name);
+    } catch (_) {}
   }
 
   /// Menutup panel emoji secara eksplisit (misalnya saat tombol Back ditekan)
@@ -519,17 +549,30 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
               _pickMediaFromGallery();
             },
           ),
-          _attachItem(
-            ctx,
-            step: 2,
-            icon: SolarIconsOutline.camera,
-            label: 'Buka Kamera',
-            color: MekaarColors.guardianTeal,
-            onTap: () {
-              Navigator.pop(ctx);
-              _openUnifiedCamera();
-            },
-          ),
+          if (_quickActionMode == QuickActionMode.mic)
+            _attachItem(
+              ctx,
+              step: 2,
+              icon: SolarIconsOutline.camera,
+              label: 'Buka Kamera',
+              color: MekaarColors.guardianTeal,
+              onTap: () {
+                Navigator.pop(ctx);
+                _openUnifiedCamera();
+              },
+            )
+          else
+            _attachItem(
+              ctx,
+              step: 2,
+              icon: SolarIconsOutline.microphone,
+              label: 'Rekam Suara',
+              color: MekaarColors.sosRed,
+              onTap: () {
+                Navigator.pop(ctx);
+                _startRecording();
+              },
+            ),
           _attachItem(
             ctx,
             step: 3,
@@ -1303,43 +1346,151 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
                     const SizedBox(width: 8),
 
-                    // ──── Container 3 (Kanan): Mikrofon / Kirim 🎤 / ✈️ (Solid Circle Dinamis Tema) ────
-                    Semantics(
-                      button: true,
-                      label: _isEditMode ? 'Simpan edit' : (_hasText ? 'Kirim pesan' : 'Rekam suara'),
-                      child: PressableScale(
-                        onTap: !widget.enabled
-                            ? null
-                            : (_isEditMode || _hasText ? _handleSend : _startRecording),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: widget.enabled
-                                ? (widget.canSend
-                                    ? primaryAccent
-                                    : primaryAccent.withValues(alpha: 0.5))
-                                : primaryAccent.withValues(alpha: 0.35),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryAccent.withValues(alpha: 0.28),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                    // ──── Container 3 (Kanan): Mikrofon / Kamera / Kirim 🎤 / 📷 / ✈️ ────
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!_hasText && !_isEditMode && !_isRecording)
+                          Semantics(
+                            button: true,
+                            label: _quickActionMode == QuickActionMode.mic
+                                ? 'Beralih ke kamera'
+                                : 'Beralih ke mikrofon',
+                            child: GestureDetector(
+                              onTap: _toggleQuickActionMode,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (Theme.of(context).brightness == Brightness.dark)
+                                      ? Colors.black.withValues(alpha: 0.5)
+                                      : Colors.white.withValues(alpha: 0.85),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: primaryAccent.withValues(alpha: 0.35),
+                                    width: 0.8,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: (Theme.of(context).brightness == Brightness.dark) ? 0.3 : 0.08,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _quickActionMode == QuickActionMode.mic
+                                          ? SolarIconsOutline.camera
+                                          : SolarIconsOutline.microphone,
+                                      size: 11,
+                                      color: primaryAccent,
+                                    ),
+                                    const SizedBox(width: 1),
+                                    Icon(
+                                      SolarIconsOutline.altArrowUp,
+                                      size: 9,
+                                      color: primaryAccent,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                          child: Center(
-                            child: Icon(
-                              _isEditMode
-                                  ? SolarIconsOutline.checkCircle
-                                  : (_hasText ? SolarIconsOutline.plain : SolarIconsOutline.microphone),
-                              color: Colors.white,
-                              size: 22,
+                        Semantics(
+                          button: true,
+                          label: _isEditMode
+                              ? 'Simpan edit'
+                              : (_hasText
+                                  ? 'Kirim pesan'
+                                  : (_quickActionMode == QuickActionMode.mic
+                                      ? 'Rekam suara'
+                                      : 'Buka kamera')),
+                          child: GestureDetector(
+                            onVerticalDragStart: !widget.enabled || _hasText || _isEditMode
+                                ? null
+                                : (_) => _quickActionDragDistance = 0,
+                            onVerticalDragUpdate: !widget.enabled || _hasText || _isEditMode
+                                ? null
+                                : (details) {
+                                    _quickActionDragDistance += details.primaryDelta ?? 0;
+                                    if (_quickActionDragDistance <= -20.0) {
+                                      _toggleQuickActionMode();
+                                      _quickActionDragDistance = 0;
+                                    }
+                                  },
+                            onVerticalDragEnd: !widget.enabled || _hasText || _isEditMode
+                                ? null
+                                : (details) {
+                                    if ((details.primaryVelocity ?? 0) <= -200.0) {
+                                      _toggleQuickActionMode();
+                                    }
+                                    _quickActionDragDistance = 0;
+                                  },
+                            onVerticalDragCancel: () => _quickActionDragDistance = 0,
+                            child: PressableScale(
+                              onTap: !widget.enabled
+                                  ? null
+                                  : (_isEditMode || _hasText
+                                      ? _handleSend
+                                      : (_quickActionMode == QuickActionMode.mic
+                                          ? _startRecording
+                                          : _openUnifiedCamera)),
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: widget.enabled
+                                      ? (widget.canSend
+                                          ? primaryAccent
+                                          : primaryAccent.withValues(alpha: 0.5))
+                                      : primaryAccent.withValues(alpha: 0.35),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: primaryAccent.withValues(alpha: 0.28),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    transitionBuilder: (child, anim) =>
+                                        ScaleTransition(scale: anim, child: child),
+                                    child: Icon(
+                                      _isEditMode
+                                          ? SolarIconsOutline.checkCircle
+                                          : (_hasText
+                                              ? SolarIconsOutline.plain
+                                              : (_quickActionMode == QuickActionMode.mic
+                                                  ? SolarIconsOutline.microphone
+                                                  : SolarIconsOutline.camera)),
+                                      key: ValueKey(
+                                        _isEditMode
+                                            ? 'check'
+                                            : (_hasText
+                                                ? 'send'
+                                                : _quickActionMode.name),
+                                      ),
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
