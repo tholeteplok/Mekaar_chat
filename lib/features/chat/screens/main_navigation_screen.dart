@@ -142,7 +142,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             _pageController.animateToPage(
               0,
               duration: MekaarMotion.counter,
-              curve: Curves.easeOutCubic,
+              curve: MekaarMotion.standard,
             );
           }
         }
@@ -174,7 +174,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                     _pageController.animateToPage(
                       index,
                       duration: MekaarMotion.counter,
-                      curve: Curves.easeOutCubic,
+                      curve: MekaarMotion.standard,
                     );
                   }
                 }
@@ -194,7 +194,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
                   return AnimatedSwitcher(
                     duration: MekaarMotion.counter,
-                    switchInCurve: Curves.easeOutCubic,
+                    switchInCurve: MekaarMotion.standard,
                     switchOutCurve: Curves.easeInCubic,
                     transitionBuilder: (child, animation) {
                       return SlideTransition(

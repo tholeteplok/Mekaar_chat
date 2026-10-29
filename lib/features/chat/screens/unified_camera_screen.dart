@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/services/haptic_service.dart';
 
 /// Hasil tangkapan dari layar kamera terpadu (foto atau video).
@@ -69,12 +70,12 @@ class _UnifiedCameraScreenState extends State<UnifiedCameraScreen>
 
     _shutterAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: MekaarMotion.normal,
     );
     _shutterScaleAnim = Tween<double>(begin: 1.0, end: 1.25).animate(
       CurvedAnimation(
         parent: _shutterAnimController,
-        curve: Curves.easeOutBack,
+        curve: MekaarMotion.bounce,
       ),
     );
 
@@ -596,7 +597,7 @@ class _UnifiedCameraScreenState extends State<UnifiedCameraScreen>
                                 ),
                                 child: Center(
                                   child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
+                                    duration: context.motion(MekaarMotion.fast),
                                     width: _isRecording ? 36 : 64,
                                     height: _isRecording ? 36 : 64,
                                     decoration: BoxDecoration(
