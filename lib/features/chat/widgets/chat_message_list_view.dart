@@ -319,10 +319,13 @@ class ChatMessageListView extends ConsumerWidget {
                                           p.autoDeleteAt!.isAfter(nowUtc)),
                                 )
                                 .toList();
-                            final rawMessages = [
-                              ...activeDbMessages,
-                              ...activePending,
-                            ];
+                            final pendingHidden = ref.watch(
+                              pendingHiddenMessagesProvider(chatId),
+                            );
+                            final rawMessages =
+                                [...activeDbMessages, ...activePending]
+                                    .where((m) => !pendingHidden.contains(m.id))
+                                    .toList();
 
                             if (rawMessages.isEmpty && rawCalls.isEmpty) {
                               return const MekaarStateView(

@@ -215,6 +215,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final ValueNotifier<String?> _flashId = ValueNotifier<String?>(null);
   Timer? _flashTimer;
   bool _hasJumpedToUnread = false;
+  final Map<String, Timer> _pendingHideTimers = {};
   Map<String, String> _participantNames = {};
 
   String? _resolvedChatName;
@@ -564,6 +565,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _newMessageCount.dispose();
     _flashTimer?.cancel();
     _flashId.dispose();
+    // Commit instan untuk pesan yang sedang dalam masa tunggu Undo sebelum layar ditutup (UX-11)
+    for (final timer in _pendingHideTimers.values) {
+      timer.cancel();
+    }
+    _pendingHideTimers.clear();
+    final pendingToCommit = _container.read(
+      pendingHiddenMessagesProvider(widget.chatId),
+    );
+    if (pendingToCommit.isNotEmpty) {
+      for (final id in pendingToCommit) {
+        unawaited(
+          _container
+              .read(chatActionsProvider)
+              .hideMessageForMe(id, roomId: widget.chatId),
+        );
+      }
+      _container
+              .read(pendingHiddenMessagesProvider(widget.chatId).notifier)
+              .state =
+          {};
+    }
     super.dispose();
   }
 
@@ -856,13 +878,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         isGroup: widget.isGroup,
       );
 
-  void _handleDeleteMessage(Message msg) {
-    ChatDeletionDialogs.confirmDeleteSingleMessage(
-      context,
-      ref: ref,
-      roomId: widget.chatId,
-      message: msg,
+  void _hideMessagesWithUndo(List<String> messageIds, {required String label}) {
+    if (messageIds.isEmpty) return;
+    final idsSet = messageIds.toSet();
+    final notifier = ref.read(
+      pendingHiddenMessagesProvider(widget.chatId).notifier,
     );
+    notifier.state = {...notifier.state, ...idsSet};
+
+    final timerKey = messageIds.join(',');
+    Timer? commitTimer;
+    commitTimer = Timer(const Duration(seconds: 5), () async {
+      _pendingHideTimers.remove(timerKey);
+      for (final id in messageIds) {
+        try {
+          await ref
+              .read(chatActionsProvider)
+              .hideMessageForMe(id, roomId: widget.chatId);
+        } catch (_) {}
+      }
+      if (mounted) {
+        notifier.state = notifier.state.difference(idsSet);
+      }
+    });
+    _pendingHideTimers[timerKey] = commitTimer;
+
+    MekaarSnackbar.undo(
+      context,
+      label,
+      onUndo: () {
+        commitTimer?.cancel();
+        _pendingHideTimers.remove(timerKey);
+        notifier.state = notifier.state.difference(idsSet);
+      },
+    );
+  }
+
+  void _handleDeleteMessage(Message msg) {
+    _clearSelection();
+    _hideMessagesWithUndo([msg.id], label: 'Pesan disembunyikan untuk Anda');
   }
 
   void _handleUnsendMessage(Message msg) {
@@ -969,10 +1023,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void _confirmDeleteSingleMessage(Message msg) {
-    _selectedMessageIds.clear();
-    _selectedCallIds.clear();
-    _selectedMessageIds.add(msg.id);
-    _confirmDeleteSelectedItems([msg]);
+    _clearSelection();
+    _hideMessagesWithUndo([msg.id], label: 'Pesan disembunyikan untuk Anda');
   }
 
   void _confirmDeleteSingleCall(CallModel call) {
@@ -983,9 +1035,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void _confirmDeleteSelectedItems(List<Message> allMessages) {
+    final currentUserId = ref.read(authProvider).user?.id;
     final selectedMsgs = allMessages
         .where((m) => _selectedMessageIds.contains(m.id))
         .toList();
+    final canDeleteForEveryone = selectedMsgs.any(
+      (m) => m.senderId == currentUserId,
+    );
+
+    // Jika seluruh pesan yang dipilih bukan milik sendiri (hanya pesan lawan bicara),
+    // langsung sembunyikan dengan Undo tanpa membuka dialog konfirmasi (UX-11).
+    if (!canDeleteForEveryone &&
+        selectedMsgs.isNotEmpty &&
+        _selectedCallIds.isEmpty) {
+      final ids = selectedMsgs.map((m) => m.id).toList();
+      _clearSelection();
+      _hideMessagesWithUndo(
+        ids,
+        label: ids.length == 1
+            ? 'Pesan disembunyikan untuk Anda'
+            : '${ids.length} pesan disembunyikan untuk Anda',
+      );
+      return;
+    }
+
     ChatDeletionDialogs.confirmDeleteSelectedItems(
       context,
       ref: ref,
@@ -996,6 +1069,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       selectedCallIds: _selectedCallIds,
       onHideCalls: _hideSelectedCalls,
       onSelectionCleared: _clearSelection,
+      onHideMessagesWithUndo: _hideMessagesWithUndo,
     );
   }
 
