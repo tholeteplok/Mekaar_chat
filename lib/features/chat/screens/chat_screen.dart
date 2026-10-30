@@ -26,6 +26,7 @@ import '../controllers/chat_screen_controller.dart';
 import '../dialogs/chat_deletion_dialogs.dart';
 import '../handlers/chat_media_handler.dart';
 import '../handlers/chat_file_action_handler.dart';
+import '../utils/chat_jump.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_bottom_area.dart';
@@ -56,6 +57,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String? otherUserId;
   final String? initialSharedText;
   final List<String>? initialSharedFiles;
+  final String? jumpToMessageId;
 
   const ChatScreen({
     super.key,
@@ -68,6 +70,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     this.otherUserId,
     this.initialSharedText,
     this.initialSharedFiles,
+    this.jumpToMessageId,
   });
 
   @override
@@ -200,11 +203,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       unawaited(ref.read(callRepositoryProvider).hideCalls(callIds));
     } catch (_) {}
   }
+
   DateTime? _otherLastRead;
   final ValueNotifier<DateTime?> _otherLastSeenNotifier =
       ValueNotifier<DateTime?>(null);
   final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
   final ValueNotifier<int> _newMessageCount = ValueNotifier<int>(0);
+  final ValueNotifier<String?> _flashId = ValueNotifier<String?>(null);
+  Timer? _flashTimer;
   Map<String, String> _participantNames = {};
 
   String? _resolvedChatName;
@@ -212,17 +218,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   String? _resolvedAvatarUrl;
   String? _resolvedOtherUserId;
 
-  String get _effectiveChatName =>
-      (_resolvedChatName?.isNotEmpty == true)
-          ? _resolvedChatName!
-          : (widget.chatName.isNotEmpty ? widget.chatName : 'Percakapan');
+  String get _effectiveChatName => (_resolvedChatName?.isNotEmpty == true)
+      ? _resolvedChatName!
+      : (widget.chatName.isNotEmpty ? widget.chatName : 'Percakapan');
 
   String get _effectiveAvatarInitial =>
       (_resolvedAvatarInitial?.isNotEmpty == true)
-          ? _resolvedAvatarInitial!
-          : (widget.chatAvatar.isNotEmpty
-              ? widget.chatAvatar
-              : (_effectiveChatName.isNotEmpty
+      ? _resolvedAvatarInitial!
+      : (widget.chatAvatar.isNotEmpty
+            ? widget.chatAvatar
+            : (_effectiveChatName.isNotEmpty
                   ? _effectiveChatName[0].toUpperCase()
                   : '💬'));
 
@@ -232,7 +237,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   String _getSenderDisplayName(Message? msg) {
     if (msg == null) return '';
-    final myId = ref.read(authProvider).user?.id ?? Supabase.instance.client.auth.currentUser?.id;
+    final myId =
+        ref.read(authProvider).user?.id ??
+        Supabase.instance.client.auth.currentUser?.id;
     if (msg.senderId == myId) return 'Anda';
     if (!widget.isGroup) return _effectiveChatName;
     return _participantNames[msg.senderId] ?? 'Anggota';
@@ -291,8 +298,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           final name = (profile['display_name'] as String?)?.isNotEmpty == true
               ? profile['display_name'] as String
               : profile['full_name'] as String? ??
-                  profile['username'] as String? ??
-                  'User';
+                    profile['username'] as String? ??
+                    'User';
           final avatar = name.isNotEmpty ? name[0].toUpperCase() : 'U';
           final avatarUrl = profile['avatar_url'] as String?;
 
@@ -379,6 +386,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             widget.initialSharedFiles!.isNotEmpty) {
           _handleInitialSharedFiles(widget.initialSharedFiles!);
         }
+        if (widget.jumpToMessageId != null) {
+          _jumpToMessage(widget.jumpToMessageId!, fromBottom: true);
+        }
       }
     });
     _controller.start();
@@ -454,7 +464,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _textController.addListener(_onTextChanged);
   }
 
-
   Future<void> _loadRoomSettings() => _controller.loadRoomSettings();
 
   void _restoreRepliedMessage(String replyToId) async {
@@ -475,23 +484,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         _editingMessage = null;
       }
     });
-    ref.read(chatDraftsProvider.notifier).setDraft(
-      roomId: widget.chatId,
-      content: _textController.text,
-      replyToId: msg?.id,
-      isBurnOnExit: _burnOnExit,
-    );
+    ref
+        .read(chatDraftsProvider.notifier)
+        .setDraft(
+          roomId: widget.chatId,
+          content: _textController.text,
+          replyToId: msg?.id,
+          isBurnOnExit: _burnOnExit,
+        );
   }
 
   void _onTextChanged() {
     final isTyping = _textController.text.isNotEmpty;
     ref.read(typingStateProvider(widget.chatId).notifier).setTyping(isTyping);
-    ref.read(chatDraftsProvider.notifier).setDraft(
-      roomId: widget.chatId,
-      content: _textController.text,
-      replyToId: _replyMessage?.id,
-      isBurnOnExit: _burnOnExit,
-    );
+    ref
+        .read(chatDraftsProvider.notifier)
+        .setDraft(
+          roomId: widget.chatId,
+          content: _textController.text,
+          replyToId: _replyMessage?.id,
+          isBurnOnExit: _burnOnExit,
+        );
   }
 
   @override
@@ -509,13 +522,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _triggerBurnOnExit();
       _container.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
     } else {
-      _container.read(chatDraftsProvider.notifier).setDraft(
-        roomId: widget.chatId,
-        content: _textController.text,
-        replyToId: _replyMessage?.id,
-        isBurnOnExit: false,
-        flushNow: true,
-      );
+      _container
+          .read(chatDraftsProvider.notifier)
+          .setDraft(
+            roomId: widget.chatId,
+            content: _textController.text,
+            replyToId: _replyMessage?.id,
+            isBurnOnExit: false,
+            flushNow: true,
+          );
     }
     // Hentikan live location sharing jika masih aktif saat meninggalkan room
     _container.read(chatActionsProvider).stopLiveLocationShare();
@@ -536,6 +551,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _scrollController.dispose();
     _showScrollButton.dispose();
     _newMessageCount.dispose();
+    _flashTimer?.cancel();
+    _flashId.dispose();
     super.dispose();
   }
 
@@ -543,19 +560,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _wasKeyboardOpenOnPause = _composerFocusNode.hasFocus ||
+      _wasKeyboardOpenOnPause =
+          _composerFocusNode.hasFocus ||
           ((MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0);
       if (_burnOnExit) {
         _triggerBurnOnExit();
         ref.read(chatDraftsProvider.notifier).deleteDraft(widget.chatId);
       } else {
-        ref.read(chatDraftsProvider.notifier).setDraft(
-          roomId: widget.chatId,
-          content: _textController.text,
-          replyToId: _replyMessage?.id,
-          isBurnOnExit: false,
-          flushNow: true,
-        );
+        ref
+            .read(chatDraftsProvider.notifier)
+            .setDraft(
+              roomId: widget.chatId,
+              content: _textController.text,
+              replyToId: _replyMessage?.id,
+              isBurnOnExit: false,
+              flushNow: true,
+            );
       }
     } else if (state == AppLifecycleState.resumed) {
       if (_wasKeyboardOpenOnPause && mounted) {
@@ -666,13 +686,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _scrollToBottom();
 
     // Mutasi lokal list room agar pesan langsung tampil di daftar percakapan (0 ms)
-    ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
-      roomId: widget.chatId,
-      previewText: textToSend,
-      timestamp: now,
-      isFromOtherUser: false,
-      isCurrentlyInRoom: true,
-    );
+    ref
+        .read(chatRoomsProvider.notifier)
+        .updateLastMessageLocally(
+          roomId: widget.chatId,
+          previewText: textToSend,
+          timestamp: now,
+          isFromOtherUser: false,
+          isCurrentlyInRoom: true,
+        );
 
     try {
       await actions.sendMessage(
@@ -703,13 +725,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           _replyMessage = replyToMessage;
           _isViewOnce = isViewOnceToSend;
         });
-        ref.read(chatDraftsProvider.notifier).setDraft(
-          roomId: widget.chatId,
-          content: textToSend,
-          replyToId: replyToMessage?.id,
-          isBurnOnExit: _burnOnExit,
-          flushNow: true,
-        );
+        ref
+            .read(chatDraftsProvider.notifier)
+            .setDraft(
+              roomId: widget.chatId,
+              content: textToSend,
+              replyToId: replyToMessage?.id,
+              isBurnOnExit: _burnOnExit,
+              flushNow: true,
+            );
         MekaarSnackbar.error(
           context,
           'Gagal mengirim pesan: ${ErrorResolver.resolve(e)}',
@@ -731,37 +755,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     MessageType type, {
     String? caption,
     bool? isViewOnce,
-  }) =>
-      ChatMediaHandler.sendMedia(
-        context,
-        ref: ref,
-        chatId: widget.chatId,
-        isGroup: widget.isGroup,
-        otherUserId: _effectiveOtherUserId,
-        file: file,
-        type: type,
-        caption: caption,
-        isViewOnce: isViewOnce ?? _isViewOnce,
-        replyMessage: _replyMessage,
-        autoDeleteHours: _autoDeleteHours,
-        scheduledWipeTargetAt: _scheduledWipeTargetAt,
-        onScrollToBottom: _scrollToBottom,
-        onAfterSend: () {
-          if (mounted && _replyMessage != null) {
-            setState(() => _replyMessage = null);
-          }
-        },
-      );
+  }) => ChatMediaHandler.sendMedia(
+    context,
+    ref: ref,
+    chatId: widget.chatId,
+    isGroup: widget.isGroup,
+    otherUserId: _effectiveOtherUserId,
+    file: file,
+    type: type,
+    caption: caption,
+    isViewOnce: isViewOnce ?? _isViewOnce,
+    replyMessage: _replyMessage,
+    autoDeleteHours: _autoDeleteHours,
+    scheduledWipeTargetAt: _scheduledWipeTargetAt,
+    onScrollToBottom: _scrollToBottom,
+    onAfterSend: () {
+      if (mounted && _replyMessage != null) {
+        setState(() => _replyMessage = null);
+      }
+    },
+  );
 
   Future<void> _handleSendLocation() => ChatMediaHandler.sendLocation(
-        context,
-        ref: ref,
-        chatId: widget.chatId,
-        isGroup: widget.isGroup,
-        autoDeleteHours: _autoDeleteHours,
-        scheduledWipeTargetAt: _scheduledWipeTargetAt,
-        onScrollToBottom: _scrollToBottom,
-      );
+    context,
+    ref: ref,
+    chatId: widget.chatId,
+    isGroup: widget.isGroup,
+    autoDeleteHours: _autoDeleteHours,
+    scheduledWipeTargetAt: _scheduledWipeTargetAt,
+    onScrollToBottom: _scrollToBottom,
+  );
 
   Future<void> _handleShareLiveLocation(int durationMinutes) =>
       ChatMediaHandler.shareLiveLocation(
@@ -771,7 +794,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         durationMinutes: durationMinutes,
       );
 
-
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -780,6 +802,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         curve: Curves.easeOut,
       );
     }
+  }
+
+  Future<void> _jumpToMessage(String id, {bool fromBottom = false}) async {
+    final ok = await jumpToKeyedItem(
+      context: context,
+      controller: _scrollController,
+      itemKey: GlobalObjectKey('msg-$id'),
+      startFromBottom: fromBottom,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      MekaarSnackbar.info(
+        context,
+        'Pesan asli tidak ditemukan atau belum dapat dimuat.',
+      );
+      return;
+    }
+    HapticService.trigger(MekaarHapticIntent.selection);
+    _flashId.value = id;
+    _flashTimer?.cancel();
+    _flashTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) _flashId.value = null;
+    });
   }
 
   Future<void> _showE2eeRestoreBottomSheet(BuildContext context) =>
@@ -825,12 +870,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       );
 
   Future<void> _handleDownloadSelectedFiles(
-          List<Message> downloadableMessages) =>
-      ChatFileActionHandler.downloadSelectedFiles(
-        context,
-        downloadableMessages: downloadableMessages,
-        onCompleted: _clearSelection,
-      );
+    List<Message> downloadableMessages,
+  ) => ChatFileActionHandler.downloadSelectedFiles(
+    context,
+    downloadableMessages: downloadableMessages,
+    onCompleted: _clearSelection,
+  );
 
   Future<void> _handleSaveSelectedToVault(List<Message> savableMessages) =>
       ChatFileActionHandler.saveSelectedToVault(
@@ -1064,21 +1109,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
     // Auto-read listener: saat pengguna aktif di dalam layar dan ada pesan baru masuk dari lawan bicara,
     // langsung tandai telah dibaca secara reaktif agar unread count tidak menumpuk saat keluar.
-    ref.listen<AsyncValue<List<Message>>>(
-      chatMessagesProvider(widget.chatId),
-      (previous, next) {
-        final prevList = previous?.valueOrNull;
-        final nextList = next.valueOrNull;
-        if (nextList != null && nextList.isNotEmpty && currentUserId != null) {
-          final hasNewMessages =
-              prevList == null || nextList.length > prevList.length;
-          final lastIsFromOther = nextList.last.senderId != currentUserId;
-          if (hasNewMessages && lastIsFromOther && mounted) {
-            actions.markRoomRead(widget.chatId);
-          }
+    ref.listen<AsyncValue<List<Message>>>(chatMessagesProvider(widget.chatId), (
+      previous,
+      next,
+    ) {
+      final prevList = previous?.valueOrNull;
+      final nextList = next.valueOrNull;
+      if (nextList != null && nextList.isNotEmpty && currentUserId != null) {
+        final hasNewMessages =
+            prevList == null || nextList.length > prevList.length;
+        final lastIsFromOther = nextList.last.senderId != currentUserId;
+        if (hasNewMessages && lastIsFromOther && mounted) {
+          actions.markRoomRead(widget.chatId);
         }
-      },
-    );
+      }
+    });
 
     final topAreaHeight =
         MediaQuery.paddingOf(context).top + kToolbarHeight + 6.0;
@@ -1160,6 +1205,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 },
                 onSaveToVault: _handleSaveToVault,
                 getSenderDisplayName: _getSenderDisplayName,
+                flashIdListenable: _flashId,
+                onReplyTap: (id) => _jumpToMessage(id),
               ),
             ),
 
@@ -1217,11 +1264,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   final messagesStream = ref.watch(
                     chatMessagesProvider(widget.chatId),
                   );
-                  final rawDbMessages =
-                      messagesStream.valueOrNull ?? const [];
+                  final rawDbMessages = messagesStream.valueOrNull ?? const [];
                   final nowUtc = DateTime.now().toUtc();
                   final activeDbMessages = rawDbMessages.where((m) {
-                    if (m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(nowUtc)) {
+                    if (m.autoDeleteAt != null &&
+                        m.autoDeleteAt!.isBefore(nowUtc)) {
                       return false;
                     }
                     return true;
@@ -1231,9 +1278,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   );
                   final dbIds = {for (var m in activeDbMessages) m.id};
                   final activePending = pendingMessages
-                      .where((p) =>
-                          !dbIds.contains(p.id) &&
-                          (p.autoDeleteAt == null || p.autoDeleteAt!.isAfter(nowUtc)))
+                      .where(
+                        (p) =>
+                            !dbIds.contains(p.id) &&
+                            (p.autoDeleteAt == null ||
+                                p.autoDeleteAt!.isAfter(nowUtc)),
+                      )
                       .toList();
                   final rawMessages = [...activeDbMessages, ...activePending];
 
@@ -1256,7 +1306,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     rawMessages: rawMessages,
                     forwardingProtection: forwardingProtection,
                     onClearSelection: _clearSelection,
-                    onReplySelectedMessage: () => _replyToSelectedMessage(rawMessages),
+                    onReplySelectedMessage: () =>
+                        _replyToSelectedMessage(rawMessages),
                     onEditSelectedMessage: (msgToEdit) {
                       // Periksa apakah ada pembatasan (Guardian, batas waktu, dll.)
                       final actions = ref.read(chatActionsProvider);
@@ -1277,7 +1328,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       });
                       _composerFocusNode.requestFocus();
                     },
-                    onCopySelectedMessages: () => _copySelectedMessages(rawMessages),
+                    onCopySelectedMessages: () =>
+                        _copySelectedMessages(rawMessages),
                     onForwardSelectedMessages: () => _forwardSelectedMessages(
                       rawMessages,
                       forwardingProtection: forwardingProtection,
@@ -1325,9 +1377,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             },
                           )
                         : (_effectiveOtherUserId != null &&
-                                !LocalMessageDatabase.instance.isDecoy &&
-                                widget.chatId != 'room_welcome_mekaar'
-                            ? () => _pushNamedWithoutActiveRoom(
+                                  !LocalMessageDatabase.instance.isDecoy &&
+                                  widget.chatId != 'room_welcome_mekaar'
+                              ? () => _pushNamedWithoutActiveRoom(
                                   AppRoutes.contactSettings,
                                   arguments: {
                                     'roomId': widget.chatId,
@@ -1337,7 +1389,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     'isGuardian': widget.isGuardian,
                                   },
                                 )
-                            : () {}),
+                              : () {}),
                     onInitiateCall: _initiateCall,
                     onMenuActionSelected: (value) async {
                       if (value == 'search') {
@@ -1393,40 +1445,52 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
                   final activeItems = <RoomPrivacyIndicatorItem>[];
                   if (isScreenProtected) {
-                    activeItems.add(const RoomPrivacyIndicatorItem(
-                      icon: SolarIconsBold.shieldCheck,
-                      color: MekaarColors.safeTeal,
-                    ));
+                    activeItems.add(
+                      const RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.shieldCheck,
+                        color: MekaarColors.safeTeal,
+                      ),
+                    );
                   }
                   if (isForwardingProtected) {
-                    activeItems.add(const RoomPrivacyIndicatorItem(
-                      icon: SolarIconsBold.forbiddenCircle,
-                      color: MekaarColors.blue,
-                    ));
+                    activeItems.add(
+                      const RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.forbiddenCircle,
+                        color: MekaarColors.blue,
+                      ),
+                    );
                   }
                   if (_isViewOnce) {
-                    activeItems.add(const RoomPrivacyIndicatorItem(
-                      icon: SolarIconsBold.eyeClosed,
-                      color: MekaarColors.blue,
-                    ));
+                    activeItems.add(
+                      const RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.eyeClosed,
+                        color: MekaarColors.blue,
+                      ),
+                    );
                   }
                   if (_autoDeleteHours > 0) {
-                    activeItems.add(const RoomPrivacyIndicatorItem(
-                      icon: SolarIconsBold.history,
-                      color: MekaarColors.warnAmber,
-                    ));
+                    activeItems.add(
+                      const RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.history,
+                        color: MekaarColors.warnAmber,
+                      ),
+                    );
                   }
                   if (_scheduledWipeMode != 'off') {
-                    activeItems.add(const RoomPrivacyIndicatorItem(
-                      icon: SolarIconsBold.clockCircle,
-                      color: MekaarColors.warnAmber,
-                    ));
+                    activeItems.add(
+                      const RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.clockCircle,
+                        color: MekaarColors.warnAmber,
+                      ),
+                    );
                   }
                   if (_burnOnExit) {
-                    activeItems.add(const RoomPrivacyIndicatorItem(
-                      icon: SolarIconsBold.fire,
-                      color: MekaarColors.sosCoral,
-                    ));
+                    activeItems.add(
+                      const RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.fire,
+                        color: MekaarColors.sosCoral,
+                      ),
+                    );
                   }
 
                   if (activeItems.isEmpty) return const SizedBox.shrink();

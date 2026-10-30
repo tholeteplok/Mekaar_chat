@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mekaar_chat/core/widgets/scroll_to_bottom_button.dart';
+import 'package:mekaar_chat/core/widgets/chat_bubble.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
 import 'package:mekaar_chat/features/chat/controllers/chat_screen_controller.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_message_list_view.dart';
@@ -56,117 +57,118 @@ void main() {
       expect(controller.isDisposed, isTrue);
     });
 
-    testWidgets('setViewOnce dan setMuted memperbarui state dan memanggil listeners', (
-      tester,
-    ) async {
-      late WidgetRef widgetRef;
-      await tester.pumpWidget(
-        ProviderScope(
-          child: Consumer(
-            builder: (context, ref, _) {
-              widgetRef = ref;
-              return const SizedBox.shrink();
-            },
+    testWidgets(
+      'setViewOnce dan setMuted memperbarui state dan memanggil listeners',
+      (tester) async {
+        late WidgetRef widgetRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: Consumer(
+              builder: (context, ref, _) {
+                widgetRef = ref;
+                return const SizedBox.shrink();
+              },
+            ),
           ),
-        ),
-      );
+        );
 
-      final focusNode = FocusNode();
-      final lastSeenNotifier = ValueNotifier<DateTime?>(null);
-      addTearDown(() {
-        focusNode.dispose();
-        lastSeenNotifier.dispose();
-      });
+        final focusNode = FocusNode();
+        final lastSeenNotifier = ValueNotifier<DateTime?>(null);
+        addTearDown(() {
+          focusNode.dispose();
+          lastSeenNotifier.dispose();
+        });
 
-      final controller = ChatScreenController(
-        chatId: 'room_test_123',
-        ref: widgetRef,
-        composerFocusNode: focusNode,
-        isKeyboardVisible: () => false,
-        isMounted: () => true,
-        otherLastSeenNotifier: lastSeenNotifier,
-      );
+        final controller = ChatScreenController(
+          chatId: 'room_test_123',
+          ref: widgetRef,
+          composerFocusNode: focusNode,
+          isKeyboardVisible: () => false,
+          isMounted: () => true,
+          otherLastSeenNotifier: lastSeenNotifier,
+        );
 
-      var notifiedCount = 0;
-      controller.addListener(() => notifiedCount++);
+        var notifiedCount = 0;
+        controller.addListener(() => notifiedCount++);
 
-      controller.setViewOnce(true);
-      expect(controller.isViewOnce, isTrue);
-      expect(notifiedCount, 1);
+        controller.setViewOnce(true);
+        expect(controller.isViewOnce, isTrue);
+        expect(notifiedCount, 1);
 
-      controller.setViewOnce(true); // idempoten, tidak trigger lagi
-      expect(notifiedCount, 1);
+        controller.setViewOnce(true); // idempoten, tidak trigger lagi
+        expect(notifiedCount, 1);
 
-      controller.setMuted(true);
-      expect(controller.isMuted, isTrue);
-      expect(notifiedCount, 2);
+        controller.setMuted(true);
+        expect(controller.isMuted, isTrue);
+        expect(notifiedCount, 2);
 
-      controller.dispose();
-    });
+        controller.dispose();
+      },
+    );
   });
 
   group('ChatMessageListView Item Entries & UiMode Tests', () {
-    test('chatMessagesUiMode memetakan status stream secara tepat (stale-while-revalidate)', () {
-      expect(
-        chatMessagesUiMode(const AsyncLoading()),
-        ChatMessagesUiMode.loading,
-      );
+    test(
+      'chatMessagesUiMode memetakan status stream secara tepat (stale-while-revalidate)',
+      () {
+        expect(
+          chatMessagesUiMode(const AsyncLoading()),
+          ChatMessagesUiMode.loading,
+        );
 
-      final errorWithoutData = AsyncValue<List<Message>>.error(
-        Exception('Network error'),
-        StackTrace.empty,
-      );
-      expect(
-        chatMessagesUiMode(errorWithoutData),
-        ChatMessagesUiMode.error,
-      );
+        final errorWithoutData = AsyncValue<List<Message>>.error(
+          Exception('Network error'),
+          StackTrace.empty,
+        );
+        expect(chatMessagesUiMode(errorWithoutData), ChatMessagesUiMode.error);
 
-      final dataValid = AsyncValue.data(<Message>[]);
-      expect(
-        chatMessagesUiMode(dataValid),
-        ChatMessagesUiMode.data,
-      );
-    });
+        final dataValid = AsyncValue.data(<Message>[]);
+        expect(chatMessagesUiMode(dataValid), ChatMessagesUiMode.data);
+      },
+    );
 
-    test('buildItemEntries menyortir descending dan menyisipkan ChatDateSeparator', () {
-      final now = DateTime.now();
-      final yesterday = now.subtract(const Duration(days: 1));
+    test(
+      'buildItemEntries menyortir descending dan menyisipkan ChatDateSeparator',
+      () {
+        final now = DateTime.now();
+        final yesterday = now.subtract(const Duration(days: 1));
 
-      final msg1 = Message(
-        id: 'msg_1',
-        roomId: 'room_1',
-        senderId: 'user_a',
-        content: 'Pesan hari ini',
-        type: MessageType.text,
-        createdAt: now,
-        updatedAt: now,
-      );
+        final msg1 = Message(
+          id: 'msg_1',
+          roomId: 'room_1',
+          senderId: 'user_a',
+          content: 'Pesan hari ini',
+          type: MessageType.text,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      final msg2 = Message(
-        id: 'msg_2',
-        roomId: 'room_1',
-        senderId: 'user_b',
-        content: 'Pesan kemarin',
-        type: MessageType.text,
-        createdAt: yesterday,
-        updatedAt: yesterday,
-      );
+        final msg2 = Message(
+          id: 'msg_2',
+          roomId: 'room_1',
+          senderId: 'user_b',
+          content: 'Pesan kemarin',
+          type: MessageType.text,
+          createdAt: yesterday,
+          updatedAt: yesterday,
+        );
 
-      final entries = ChatMessageListView.buildItemEntries([msg1, msg2], []);
+        final entries = ChatMessageListView.buildItemEntries([msg1, msg2], []);
 
-      // Ekspektasi:
-      // index 0: msg1 (terbaru)
-      // index 1: separator tanggal hari ini
-      // index 2: msg2 (kemarin)
-      // index 3: separator tanggal kemarin
-      expect(entries.length, 4);
-      expect(entries[0].kind, ChatItemKind.message);
-      expect(entries[0].message?.id, 'msg_1');
-      expect(entries[1].kind, ChatItemKind.dateSeparator);
-      expect(entries[2].kind, ChatItemKind.message);
-      expect(entries[2].message?.id, 'msg_2');
-      expect(entries[3].kind, ChatItemKind.dateSeparator);
-    });
+        // Ekspektasi:
+        // index 0: msg1 (terbaru)
+        // index 1: separator tanggal hari ini
+        // index 2: msg2 (kemarin)
+        // index 3: separator tanggal kemarin
+        expect(entries.length, 4);
+        expect(entries[0].kind, ChatItemKind.message);
+        expect(entries[0].message?.id, 'msg_1');
+        expect(entries[1].kind, ChatItemKind.dateSeparator);
+        expect(entries[2].kind, ChatItemKind.message);
+        expect(entries[2].message?.id, 'msg_2');
+        expect(entries[3].kind, ChatItemKind.dateSeparator);
+      },
+    );
   });
 
   group('ChatMessageListView Widget Rendering Tests', () {
@@ -230,5 +232,148 @@ void main() {
       expect(find.byType(ScrollToBottomButton), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
     });
+
+    testWidgets(
+      'Ketukan pada pratinjau kutipan balasan memicu onReplyTap dengan target replyId',
+      (tester) async {
+        final now = DateTime.now();
+        final replyTarget = Message(
+          id: 'msg_target_reply',
+          roomId: 'room_test',
+          senderId: 'user_target',
+          content: 'Ini pesan target yang dibalas',
+          type: MessageType.text,
+          createdAt: now.subtract(const Duration(minutes: 5)),
+          updatedAt: now.subtract(const Duration(minutes: 5)),
+        );
+
+        final replyingMsg = Message(
+          id: 'msg_replying',
+          roomId: 'room_test',
+          senderId: 'user_me',
+          content: 'Saya membalas pesan di atas',
+          type: MessageType.text,
+          replyToId: 'msg_target_reply',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        String? tappedReplyId;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(
+                body: ChatBubble(
+                  message: replyingMsg,
+                  replyToMessage: replyTarget,
+                  isMe: true,
+                  onReplyTap: (id) {
+                    tappedReplyId = id;
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final replyBoxFinder = find.text('Ini pesan target yang dibalas');
+        expect(replyBoxFinder, findsOneWidget);
+
+        await tester.tap(replyBoxFinder);
+        await tester.pumpAndSettle();
+
+        expect(tappedReplyId, equals('msg_target_reply'));
+      },
+    );
+
+    testWidgets(
+      'Ketukan pada balasan tidak memicu onReplyTap saat mode seleksi aktif atau pesan dihapus',
+      (tester) async {
+        final now = DateTime.now();
+        final replyTarget = Message(
+          id: 'msg_target_reply',
+          roomId: 'room_test',
+          senderId: 'user_target',
+          content: 'Ini pesan target yang dibalas',
+          type: MessageType.text,
+          createdAt: now.subtract(const Duration(minutes: 5)),
+          updatedAt: now.subtract(const Duration(minutes: 5)),
+        );
+
+        final replyingMsg = Message(
+          id: 'msg_replying',
+          roomId: 'room_test',
+          senderId: 'user_me',
+          content: 'Saya membalas pesan di atas',
+          type: MessageType.text,
+          replyToId: 'msg_target_reply',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        String? tappedReplyId;
+
+        // Kasus 1: isSelectionMode = true
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(
+                body: ChatBubble(
+                  message: replyingMsg,
+                  replyToMessage: replyTarget,
+                  isMe: true,
+                  isSelectionMode: true,
+                  onReplyTap: (id) {
+                    tappedReplyId = id;
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Ini pesan target yang dibalas'));
+        await tester.pumpAndSettle();
+        expect(tappedReplyId, isNull);
+
+        // Kasus 2: replyToMessage.isDeleted = true
+        final deletedReplyTarget = Message(
+          id: 'msg_target_reply',
+          roomId: 'room_test',
+          senderId: 'user_target',
+          content: 'Pesan telah dihapus',
+          type: MessageType.text,
+          isDeleted: true,
+          createdAt: now.subtract(const Duration(minutes: 5)),
+          updatedAt: now.subtract(const Duration(minutes: 5)),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(
+                body: ChatBubble(
+                  message: replyingMsg,
+                  replyToMessage: deletedReplyTarget,
+                  isMe: true,
+                  isSelectionMode: false,
+                  onReplyTap: (id) {
+                    tappedReplyId = id;
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('🚫 Pesan telah dihapus'));
+        await tester.pumpAndSettle();
+        expect(tappedReplyId, isNull);
+      },
+    );
   });
 }
