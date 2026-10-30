@@ -58,6 +58,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String? initialSharedText;
   final List<String>? initialSharedFiles;
   final String? jumpToMessageId;
+  final DateTime? initialLastReadAt;
 
   const ChatScreen({
     super.key,
@@ -71,6 +72,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     this.initialSharedText,
     this.initialSharedFiles,
     this.jumpToMessageId,
+    this.initialLastReadAt,
   });
 
   @override
@@ -205,12 +207,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   DateTime? _otherLastRead;
+  DateTime? _entryLastReadAt;
   final ValueNotifier<DateTime?> _otherLastSeenNotifier =
       ValueNotifier<DateTime?>(null);
   final ValueNotifier<bool> _showScrollButton = ValueNotifier<bool>(false);
   final ValueNotifier<int> _newMessageCount = ValueNotifier<int>(0);
   final ValueNotifier<String?> _flashId = ValueNotifier<String?>(null);
   Timer? _flashTimer;
+  bool _hasJumpedToUnread = false;
   Map<String, String> _participantNames = {};
 
   String? _resolvedChatName;
@@ -356,6 +360,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void initState() {
     super.initState();
+    _entryLastReadAt = widget.initialLastReadAt;
     _inChatSearchFocusNode = FocusNode();
     _composerFocusNode = FocusNode();
     _controller = ChatScreenController(
@@ -396,8 +401,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _loadHiddenCalls();
 
     Future.microtask(() async {
-      ref.read(chatActionsProvider).markRoomRead(widget.chatId);
       final repo = ref.read(chatRepositoryProvider);
+      if (_entryLastReadAt == null && !LocalMessageDatabase.instance.isDecoy) {
+        final myLastRead = await repo.getMyLastRead(widget.chatId);
+        if (mounted && myLastRead != null) {
+          setState(() => _entryLastReadAt = myLastRead);
+        }
+      }
+      ref.read(chatActionsProvider).markRoomRead(widget.chatId);
 
       await _controller.loadRoomSettings();
 
@@ -804,22 +815,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  Future<void> _jumpToMessage(String id, {bool fromBottom = false}) async {
+  Future<void> _jumpToMessage(
+    String id, {
+    bool fromBottom = false,
+    Duration? duration,
+    bool triggerHaptic = true,
+  }) async {
     final ok = await jumpToKeyedItem(
       context: context,
       controller: _scrollController,
       itemKey: GlobalObjectKey('msg-$id'),
       startFromBottom: fromBottom,
+      duration: duration,
     );
     if (!mounted) return;
     if (!ok) {
-      MekaarSnackbar.info(
-        context,
-        'Pesan asli tidak ditemukan atau belum dapat dimuat.',
-      );
+      if (duration != Duration.zero) {
+        MekaarSnackbar.info(
+          context,
+          'Pesan asli tidak ditemukan atau belum dapat dimuat.',
+        );
+      }
       return;
     }
-    HapticService.trigger(MekaarHapticIntent.selection);
+    if (triggerHaptic) {
+      HapticService.trigger(MekaarHapticIntent.selection);
+    }
     _flashId.value = id;
     _flashTimer?.cancel();
     _flashTimer = Timer(const Duration(milliseconds: 1400), () {
@@ -1122,6 +1143,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         if (hasNewMessages && lastIsFromOther && mounted) {
           actions.markRoomRead(widget.chatId);
         }
+
+        // Lompat ke pesan unread tertua saat layar pertama kali dibuka (UX-08)
+        if (!_hasJumpedToUnread &&
+            _entryLastReadAt != null &&
+            widget.jumpToMessageId == null) {
+          final unreadMessages = nextList
+              .where(
+                (m) =>
+                    m.senderId != currentUserId &&
+                    !m.isDeleted &&
+                    m.createdAt.isAfter(_entryLastReadAt!),
+              )
+              .toList();
+          if (unreadMessages.isNotEmpty) {
+            _hasJumpedToUnread = true;
+            unreadMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            final oldestUnread = unreadMessages.first;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _jumpToMessage(
+                  oldestUnread.id,
+                  fromBottom: true,
+                  duration: Duration.zero,
+                  triggerHaptic: false,
+                );
+              }
+            });
+          }
+        }
       }
     });
 
@@ -1207,6 +1257,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 getSenderDisplayName: _getSenderDisplayName,
                 flashIdListenable: _flashId,
                 onReplyTap: (id) => _jumpToMessage(id),
+                entryLastReadAt: _entryLastReadAt,
+                currentUserId: currentUserId,
               ),
             ),
 

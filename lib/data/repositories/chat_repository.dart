@@ -22,7 +22,8 @@ class ChatRepository {
 
   /// Registry stream controller dan message pool per room yang sedang aktif di layar.
   /// Memungkinkan eviksi optimistik 0ms saat pesan dihapus oleh pengguna.
-  final Map<String, StreamController<List<Message>>> _activeRoomControllers = {};
+  final Map<String, StreamController<List<Message>>> _activeRoomControllers =
+      {};
   final Map<String, Map<String, Message>> _activeRoomMessagePools = {};
 
   @visibleForTesting
@@ -90,7 +91,11 @@ class ChatRepository {
     try {
       final rpcResult = await _supabaseService.client.rpc('get_user_inbox');
       if (rpcResult is List) {
-        final parsedRooms = await _parseInboxRpcResult(rpcResult, userId, hiddenMsgIds);
+        final parsedRooms = await _parseInboxRpcResult(
+          rpcResult,
+          userId,
+          hiddenMsgIds,
+        );
         unawaited(LocalMessageDatabase.instance.saveRoomsCache(parsedRooms));
         return parsedRooms;
       }
@@ -121,7 +126,9 @@ class ChatRepository {
       DateTime? lastMessageTime;
 
       if (item['timestamp'] != null) {
-        lastMessageTime = DateTime.tryParse(item['timestamp'].toString())?.toLocal();
+        lastMessageTime = DateTime.tryParse(
+          item['timestamp'].toString(),
+        )?.toLocal();
       }
 
       if (lastMsgRaw != null) {
@@ -129,13 +136,12 @@ class ChatRepository {
         if (msgId != null && !hiddenMsgIds.contains(msgId)) {
           Message? localMsg;
           try {
-            localMsg = await LocalMessageDatabase.instance.getLastActiveMessageForRoom(
-              roomId,
-              hiddenIds: hiddenMsgIds,
-            );
+            localMsg = await LocalMessageDatabase.instance
+                .getLastActiveMessageForRoom(roomId, hiddenIds: hiddenMsgIds);
           } catch (_) {}
 
-          final bool isUnreadFromOther = unreadCount > 0 &&
+          final bool isUnreadFromOther =
+              unreadCount > 0 &&
               (lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id']) != userId;
 
           final contentSource = (localMsg != null && localMsg.id == msgId)
@@ -143,15 +149,23 @@ class ChatRepository {
               : Message(
                   id: msgId,
                   roomId: roomId,
-                  senderId: (lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id'] ?? '') as String,
+                  senderId:
+                      (lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id'] ?? '')
+                          as String,
                   content: (lastMsgRaw['content'] ?? '') as String,
                   type: MessageType.values.firstWhere(
-                    (e) => e.name == (lastMsgRaw['msgType'] ?? lastMsgRaw['msg_type'] ?? 'text'),
+                    (e) =>
+                        e.name ==
+                        (lastMsgRaw['msgType'] ??
+                            lastMsgRaw['msg_type'] ??
+                            'text'),
                     orElse: () => MessageType.text,
                   ),
                   createdAt: lastMessageTime ?? DateTime.now(),
                   updatedAt: lastMessageTime ?? DateTime.now(),
-                  isEncrypted: (lastMsgRaw['isEncrypted'] == true || lastMsgRaw['is_encrypted'] == 1),
+                  isEncrypted:
+                      (lastMsgRaw['isEncrypted'] == true ||
+                      lastMsgRaw['is_encrypted'] == 1),
                 );
 
           if (contentSource.isEncrypted &&
@@ -203,7 +217,6 @@ class ChatRepository {
     String userId,
     Set<String> hiddenMsgIds,
   ) async {
-
     // Get rooms the current user participates in, filtering out deleted rooms
     final roomsResponse = await _supabaseService.client
         .from('room_participants')
@@ -296,6 +309,7 @@ class ChatRepository {
 
       // Count unread messages (messages after our last_read_at, NOT sent by us, and after history_cleared_at)
       int unreadCount = 0;
+      DateTime? myLastReadTime;
       try {
         final myParticipant = await _supabaseService.client
             .from('room_participants')
@@ -307,6 +321,7 @@ class ChatRepository {
         final myHistoryCleared =
             myParticipant?['history_cleared_at'] as String?;
         if (myLastRead != null) {
+          myLastReadTime = DateTime.tryParse(myLastRead);
           var unreadQuery = _supabaseService.client
               .from('messages')
               .select('id')
@@ -358,11 +373,8 @@ class ChatRepository {
       // Cek apakah pesan aktif terakhir sudah terdekripsi di database lokal (0ms, direct indexed query)
       Message? localLastMsg;
       try {
-        localLastMsg =
-            await LocalMessageDatabase.instance.getLastActiveMessageForRoom(
-          roomId,
-          hiddenIds: hiddenMsgIds,
-        );
+        localLastMsg = await LocalMessageDatabase.instance
+            .getLastActiveMessageForRoom(roomId, hiddenIds: hiddenMsgIds);
       } catch (_) {}
 
       // Tentukan pesan aktif paling mutakhir antara lokal dan remote
@@ -390,8 +402,8 @@ class ChatRepository {
         // Gunakan pesan lokal yang sudah terdekripsi jika ID-nya cocok
         final contentSource =
             (localLastMsg != null && localLastMsg.id == chosenMsg.id)
-                ? localLastMsg
-                : chosenMsg;
+            ? localLastMsg
+            : chosenMsg;
 
         if (contentSource.isEncrypted &&
             contentSource.content.isNotEmpty &&
@@ -422,6 +434,7 @@ class ChatRepository {
         'otherEmail': profile?['email'] ?? '',
         'isMuted': row['is_muted'] as bool? ?? false,
         'isArchived': row['is_archived'] as bool? ?? false,
+        'lastReadAt': myLastReadTime,
       };
     });
 
@@ -563,8 +576,8 @@ class ChatRepository {
       Set<String>? hiddenIds,
     }) async {
       try {
-        final localMsgs =
-            await LocalMessageDatabase.instance.getMessagesForRoom(roomId);
+        final localMsgs = await LocalMessageDatabase.instance
+            .getMessagesForRoom(roomId);
         if (localMsgs.isNotEmpty && !controller.isClosed) {
           final now = DateTime.now().toUtc();
           final validLocal = localMsgs.where((m) {
@@ -663,10 +676,14 @@ class ChatRepository {
             final isExpired =
                 m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now);
             final isHidden = hiddenMsgIds.contains(m.id);
-            final isHistoryCleared = historyClearedAt != null &&
+            final isHistoryCleared =
+                historyClearedAt != null &&
                 !m.createdAt.isAfter(historyClearedAt);
 
-            if (m.isSilentDeleted || isHidden || isExpired || isHistoryCleared) {
+            if (m.isSilentDeleted ||
+                isHidden ||
+                isExpired ||
+                isHistoryCleared) {
               messagePool.remove(m.id);
               _decryptedContentCache.remove(m.id);
               unawaited(LocalMessageDatabase.instance.deleteMessage(m.id));
@@ -695,8 +712,9 @@ class ChatRepository {
                 }
 
                 // 2. Cek database lokal SQLite
-                final localMsg =
-                    await LocalMessageDatabase.instance.getMessage(m.id);
+                final localMsg = await LocalMessageDatabase.instance.getMessage(
+                  m.id,
+                );
                 if (localMsg != null && localMsg.content.isNotEmpty) {
                   _decryptedContentCache[m.id] = localMsg.content;
                   return m.copyWith(content: localMsg.content);
@@ -710,8 +728,9 @@ class ChatRepository {
                   );
                   // Batasi kapasitas cache dengan safe pruning (hapus 500 entri terlama, bukan .clear() total)
                   if (_decryptedContentCache.length > 2000) {
-                    final keysToRemove =
-                        _decryptedContentCache.keys.take(500).toList();
+                    final keysToRemove = _decryptedContentCache.keys
+                        .take(500)
+                        .toList();
                     for (final k in keysToRemove) {
                       _decryptedContentCache.remove(k);
                     }
@@ -726,12 +745,11 @@ class ChatRepository {
                   );
                   return decrypted;
                 } catch (_) {
-                  final failed =
-                      m.copyWith(content: E2eeService.undecryptableText);
-                  _decryptedContentCache[m.id] = E2eeService.undecryptableText;
-                  unawaited(
-                    LocalMessageDatabase.instance.saveMessage(failed),
+                  final failed = m.copyWith(
+                    content: E2eeService.undecryptableText,
                   );
+                  _decryptedContentCache[m.id] = E2eeService.undecryptableText;
+                  unawaited(LocalMessageDatabase.instance.saveMessage(failed));
                   return failed;
                 }
               }
@@ -770,12 +788,16 @@ class ChatRepository {
 
         // Debounce status reconnecting / offline (2.5s) agar fluktuasi mikro socket
         // tidak langsung memunculkan banner "Mode Offline" di layar obrolan pengguna.
-        if (reconnectDebounceTimer == null || !reconnectDebounceTimer!.isActive) {
-          reconnectDebounceTimer = Timer(const Duration(milliseconds: 2500), () {
-            if (!controller.isClosed) {
-              onReconnectChange?.call(true);
-            }
-          });
+        if (reconnectDebounceTimer == null ||
+            !reconnectDebounceTimer!.isActive) {
+          reconnectDebounceTimer = Timer(
+            const Duration(milliseconds: 2500),
+            () {
+              if (!controller.isClosed) {
+                onReconnectChange?.call(true);
+              }
+            },
+          );
         }
 
         // Coba subscribe ulang dengan backoff
@@ -986,7 +1008,10 @@ class ChatRepository {
   }
 
   // Advanced delete: deletes silently if unread in general chat, otherwise leaves tombstone
-  Future<void> deleteMessageForEveryone(String messageId, {String? roomId}) async {
+  Future<void> deleteMessageForEveryone(
+    String messageId, {
+    String? roomId,
+  }) async {
     if (roomId != null) {
       evictMessageLocally(roomId, messageId);
     } else {
@@ -1206,16 +1231,15 @@ class ChatRepository {
     for (final pool in _activeRoomMessagePools.values) {
       final existing = pool[messageId];
       if (existing != null) {
-        pool[messageId] = existing.copyWith(
-          content: newContent,
-          editedAt: now,
-        );
+        pool[messageId] = existing.copyWith(content: newContent, editedAt: now);
       }
     }
     // Emit segera ke stream UI agar bubble berubah tanpa menunggu jaringan
     for (final entry in _activeRoomControllers.entries) {
       final pool = _activeRoomMessagePools[entry.key];
-      if (pool != null && pool.containsKey(messageId) && !entry.value.isClosed) {
+      if (pool != null &&
+          pool.containsKey(messageId) &&
+          !entry.value.isClosed) {
         final sorted = pool.values.toList()
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
         entry.value.add(sorted);
@@ -1266,6 +1290,25 @@ class ChatRepository {
           .select('last_read_at')
           .eq('room_id', roomId)
           .neq('profile_id', userId)
+          .maybeSingle();
+      if (response != null && response['last_read_at'] != null) {
+        return DateTime.parse(response['last_read_at'] as String);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Returns the last_read_at of the CURRENT user in a room before marking it read.
+  /// Used to display the unread messages divider ("N pesan belum dibaca").
+  Future<DateTime?> getMyLastRead(String roomId) async {
+    final userId = _supabaseService.currentUserId;
+    if (userId == null) return null;
+    try {
+      final response = await _supabaseService.client
+          .from('room_participants')
+          .select('last_read_at')
+          .eq('room_id', roomId)
+          .eq('profile_id', userId)
           .maybeSingle();
       if (response != null && response['last_read_at'] != null) {
         return DateTime.parse(response['last_read_at'] as String);
@@ -1326,7 +1369,9 @@ class ChatRepository {
       final controller = _activeRoomControllers[rId];
       if (pool != null && pool.isNotEmpty) {
         final expiredIds = pool.values
-            .where((m) => m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now))
+            .where(
+              (m) => m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now),
+            )
             .map((m) => m.id)
             .toList();
 
@@ -1374,7 +1419,10 @@ class ChatRepository {
   /// setting via the `get_last_seen_for` RPC. Returns null when hidden.
   Future<DateTime?> getLastSeen(String profileId) async {
     // Zero-Network Decoy: Jangan sentuh Supabase jika dalam mode Decoy/Duress
-    if (LocalMessageDatabase.instance.isDecoy || profileId == 'mekaar_official') return null;
+    if (LocalMessageDatabase.instance.isDecoy ||
+        profileId == 'mekaar_official') {
+      return null;
+    }
     try {
       final response = await _supabaseService.client.rpc(
         'get_last_seen_for',
@@ -1628,7 +1676,9 @@ class ChatRepository {
     try {
       final tempDir = await getTemporaryDirectory();
       if (await tempDir.exists()) {
-        await AegisShredderService.instance.shredDirectoryContents(tempDir.path);
+        await AegisShredderService.instance.shredDirectoryContents(
+          tempDir.path,
+        );
       }
     } catch (_) {}
   }

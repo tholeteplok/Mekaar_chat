@@ -228,6 +228,7 @@ class AppRoutes {
             initialSharedFiles: (args['initialSharedFiles'] as List?)
                 ?.cast<String>(),
             jumpToMessageId: args['jumpToMessageId'] as String?,
+            initialLastReadAt: args['initialLastReadAt'] as DateTime?,
           ),
         );
 

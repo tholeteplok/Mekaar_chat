@@ -25,9 +25,10 @@ import 'call_history_bubble.dart';
 import 'chat_floating_reaction_pill.dart';
 import 'message_flash.dart';
 import 'chat_swipe_action_wrapper.dart';
+import 'chat_unread_divider.dart';
 
 /// Jenis entri tampilan dalam daftar obrolan.
-enum ChatItemKind { message, call, dateSeparator }
+enum ChatItemKind { message, call, dateSeparator, unreadDivider }
 
 /// Model pembungkus entri daftar obrolan untuk rendering performan O(N).
 class ChatItemEntry {
@@ -35,21 +36,31 @@ class ChatItemEntry {
   final Message? message;
   final CallModel? call;
   final DateTime? date;
+  final int? unreadCount;
 
   const ChatItemEntry.message(this.message)
     : kind = ChatItemKind.message,
+      unreadCount = null,
       call = null,
       date = null;
 
   const ChatItemEntry.call(this.call)
     : kind = ChatItemKind.call,
+      unreadCount = null,
       message = null,
       date = null;
 
   const ChatItemEntry.dateSeparator(this.date)
     : kind = ChatItemKind.dateSeparator,
+      unreadCount = null,
       message = null,
       call = null;
+
+  const ChatItemEntry.unreadDivider(this.unreadCount, DateTime anchor)
+    : kind = ChatItemKind.unreadDivider,
+      message = null,
+      call = null,
+      date = anchor;
 
   DateTime get timestamp {
     if (kind == ChatItemKind.message) return message!.createdAt;
@@ -110,6 +121,8 @@ class ChatMessageListView extends ConsumerWidget {
   final String Function(Message? msg) getSenderDisplayName;
   final ValueListenable<String?>? flashIdListenable;
   final void Function(String messageId)? onReplyTap;
+  final DateTime? entryLastReadAt;
+  final String? currentUserId;
 
   const ChatMessageListView({
     super.key,
@@ -145,6 +158,8 @@ class ChatMessageListView extends ConsumerWidget {
     required this.getSenderDisplayName,
     this.flashIdListenable,
     this.onReplyTap,
+    this.entryLastReadAt,
+    this.currentUserId,
   });
 
   bool get isSelectionMode =>
@@ -153,8 +168,10 @@ class ChatMessageListView extends ConsumerWidget {
   /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
   static List<ChatItemEntry> buildItemEntries(
     List<Message> messages,
-    List<CallModel> calls,
-  ) {
+    List<CallModel> calls, {
+    DateTime? entryLastReadAt,
+    String? currentUserId,
+  }) {
     final combinedRaw = <ChatItemEntry>[];
     for (final m in messages) {
       combinedRaw.add(ChatItemEntry.message(m));
@@ -194,6 +211,36 @@ class ChatMessageListView extends ConsumerWidget {
         }
       }
     }
+    if (entryLastReadAt != null && currentUserId != null) {
+      final unreadIncoming = messages
+          .where(
+            (m) =>
+                m.senderId != currentUserId &&
+                !m.isDeleted &&
+                m.createdAt.isAfter(entryLastReadAt),
+          )
+          .toList();
+
+      if (unreadIncoming.isNotEmpty) {
+        final count = unreadIncoming.length;
+        unreadIncoming.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final oldestUnread = unreadIncoming.first;
+
+        final idx = entries.indexWhere(
+          (e) =>
+              e.kind == ChatItemKind.message &&
+              e.message?.id == oldestUnread.id,
+        );
+
+        if (idx != -1) {
+          entries.insert(
+            idx + 1,
+            ChatItemEntry.unreadDivider(count, oldestUnread.createdAt),
+          );
+        }
+      }
+    }
+
     return entries;
   }
 
@@ -327,6 +374,8 @@ class ChatMessageListView extends ConsumerWidget {
                             final itemEntries = buildItemEntries(
                               messages,
                               calls,
+                              entryLastReadAt: entryLastReadAt,
+                              currentUserId: currentUserId,
                             );
                             final messageMap = {
                               for (var m in rawMessages) m.id: m,
@@ -463,6 +512,13 @@ class ChatMessageListView extends ConsumerWidget {
         date: entry.date!,
         accentColor: roomThemeSpec?.secondaryAccentColor,
         textColor: roomThemeSpec?.textColor,
+      );
+    }
+
+    if (entry.kind == ChatItemKind.unreadDivider) {
+      return ChatUnreadDivider(
+        count: entry.unreadCount ?? 1,
+        accentColor: roomThemeSpec?.primaryAccentColor,
       );
     }
 
