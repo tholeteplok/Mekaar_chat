@@ -76,6 +76,7 @@ class ChatBubble extends ConsumerWidget {
   final VoidCallback? onSelectionTap;
   final VoidCallback? onSelectionLongPress;
   final Function(Message)? onSaveToVault;
+  final void Function(String messageId)? onReplyTap;
 
   const ChatBubble({
     super.key,
@@ -101,6 +102,7 @@ class ChatBubble extends ConsumerWidget {
     this.isSelectionMode = false,
     this.onSelectionTap,
     this.onSelectionLongPress,
+    this.onReplyTap,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
@@ -128,8 +130,9 @@ class ChatBubble extends ConsumerWidget {
           arguments: {
             'latitude': parsed.$1,
             'longitude': parsed.$2,
-            'locationName':
-                isLive ? 'Lokasi Live (Real-time)' : 'Lokasi Terbagikan',
+            'locationName': isLive
+                ? 'Lokasi Live (Real-time)'
+                : 'Lokasi Terbagikan',
           },
         );
       }
@@ -238,7 +241,8 @@ class ChatBubble extends ConsumerWidget {
         : false;
     final isOnlyEmoji = emojiCount > 0 || singleCustom;
 
-    final activeFontFamily = ref.watch(fontFamilyProvider).valueOrNull ??
+    final activeFontFamily =
+        ref.watch(fontFamilyProvider).valueOrNull ??
         MekaarTypography.fontFamily;
 
     // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
@@ -262,7 +266,8 @@ class ChatBubble extends ConsumerWidget {
     final hasHeader = spec.headerWidget != null && !isDeleted;
     final hasSenderName =
         !isMe && senderName != null && senderName!.isNotEmpty && !isDeleted;
-    final isPureFramelessImage = isImage &&
+    final isPureFramelessImage =
+        isImage &&
         !hasImageCaption &&
         !hasReply &&
         !hasHeader &&
@@ -285,8 +290,8 @@ class ChatBubble extends ConsumerWidget {
 
     final textColor = isFrameless
         ? (isMe
-            ? MekaarColors.outgoingTextOf(context)
-            : MekaarColors.textPrimaryOf(context))
+              ? MekaarColors.outgoingTextOf(context)
+              : MekaarColors.textPrimaryOf(context))
         : activeSpec.textColor;
     final fontFamily = activeSpec.fontFamily ?? activeFontFamily;
     final radius = activeSpec.borderRadius;
@@ -300,34 +305,35 @@ class ChatBubble extends ConsumerWidget {
 
     final bubbleBody = Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: GestureDetector(
-          onTap: isSelectionMode ? onSelectionTap : null,
-          onLongPress: !isDeleted
-              ? () {
-                  if (onSelectionLongPress != null) {
-                    onSelectionLongPress!();
-                  } else {
-                    _showContextMenu(context);
-                  }
+      child: GestureDetector(
+        onTap: isSelectionMode ? onSelectionTap : null,
+        onLongPress: !isDeleted
+            ? () {
+                if (onSelectionLongPress != null) {
+                  onSelectionLongPress!();
+                } else {
+                  _showContextMenu(context);
                 }
-              : null,
-          onDoubleTap: (!isDeleted && onReact != null && !isSelectionMode)
-              ? () {
-                  HapticService.trigger(MekaarHapticIntent.selection);
-                  onReact!(message, '❤️');
-                }
-              : null,
-          child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
-                child: isFrameless
-                    ? Container(
-                        padding: isPureFramelessImage
-                            ? EdgeInsets.zero
-                            : (isOnlyEmoji
+              }
+            : null,
+        onDoubleTap: (!isDeleted && onReact != null && !isSelectionMode)
+            ? () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                onReact!(message, '❤️');
+              }
+            : null,
+        child: Column(
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
+              child: isFrameless
+                  ? Container(
+                      padding: isPureFramelessImage
+                          ? EdgeInsets.zero
+                          : (isOnlyEmoji
                                 ? const EdgeInsets.symmetric(
                                     horizontal: 6,
                                     vertical: 2,
@@ -336,283 +342,291 @@ class ChatBubble extends ConsumerWidget {
                                     horizontal: 4,
                                     vertical: 2,
                                   )),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.76,
-                        ),
-                        child: Builder(
-                  builder: (context) {
-                    final metaColor = isOnlyEmoji
-                        ? MekaarColors.textMutedOf(context)
-                        : (isMe
-                            ? textColor.withValues(alpha: 0.7)
-                            : MekaarColors.textMutedOf(context));
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.76,
+                      ),
+                      child: Builder(
+                        builder: (context) {
+                          final metaColor = isOnlyEmoji
+                              ? MekaarColors.textMutedOf(context)
+                              : (isMe
+                                    ? textColor.withValues(alpha: 0.7)
+                                    : MekaarColors.textMutedOf(context));
 
-                    Widget buildTimestampWidget() {
-                      if (isSticker && !isDeleted) {
-                        return Container(
-                          margin: const EdgeInsets.only(top: 2),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.38),
-                            borderRadius: BorderRadius.circular(
-                              MekaarRadius.pill,
-                            ),
-                          ),
-                          child: Row(
+                          Widget buildTimestampWidget() {
+                            if (isSticker && !isDeleted) {
+                              return Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.38),
+                                  borderRadius: BorderRadius.circular(
+                                    MekaarRadius.pill,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      DateFormat(
+                                        'HH:mm',
+                                      ).format(message.createdAt.toLocal()),
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+
+                                    if (isMe) ...[
+                                      const SizedBox(width: 4),
+                                      ReadReceiptIcon(
+                                        status: receiptStatus,
+                                        color: Colors.white,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                if (message.isEdited && !isDeleted) ...[
+                                  Text(
+                                    'diedit ',
+                                    style: resolveBubbleTextStyle(
+                                      fontSize: 10,
+                                      fontStyle: FontStyle.italic,
+                                      color: metaColor,
+                                      fontFamily: fontFamily,
+                                    ),
+                                  ),
+                                ],
+                                Text(
+                                  DateFormat(
+                                    'HH:mm',
+                                  ).format(message.createdAt.toLocal()),
+                                  style: resolveBubbleTextStyle(
+                                    fontSize: 10.5,
+                                    color: metaColor,
+                                    fontWeight: FontWeight.w400,
+                                    fontFamily: fontFamily,
+                                  ),
+                                ),
+
+                                if (isMe && !isDeleted) ...[
+                                  const SizedBox(width: 3),
+                                  ReadReceiptIcon(
+                                    status: receiptStatus,
+                                    color: metaColor,
+                                  ),
+                                ],
+                              ],
+                            );
+                          }
+
+                          // Mode Inline ala WhatsApp: jika pesan teks biasa tanpa kutipan balas,
+                          // teks dan waktu mengalir berdampingan dalam satu baris.
+                          final isNormalText =
+                              message.type == MessageType.text &&
+                              !isOnlyEmoji &&
+                              !isSticker &&
+                              !isDeleted &&
+                              message.replyToId == null &&
+                              spec.headerWidget == null &&
+                              (isMe ||
+                                  senderName == null ||
+                                  senderName!.isEmpty);
+
+                          if (isNormalText) {
+                            return Wrap(
+                              alignment: WrapAlignment.end,
+                              crossAxisAlignment: WrapCrossAlignment.end,
+                              spacing: 8,
+                              runSpacing: 2,
+                              children: [
+                                _buildContentWidget(
+                                  context,
+                                  textColor,
+                                  fontFamily,
+                                  spec.textStyle,
+                                  isSticker: isSticker,
+                                ),
+                                buildTimestampWidget(),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: isMe
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                DateFormat('HH:mm')
-                                    .format(message.createdAt.toLocal()),
-                                style: const TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              
-                              if (isMe) ...[
-                                const SizedBox(width: 4),
-                                ReadReceiptIcon(
-                                  status: receiptStatus,
-                                  color: Colors.white,
+                              if (spec.headerWidget != null && !isDeleted)
+                                spec.headerWidget!,
+                              if (!isMe &&
+                                  senderName != null &&
+                                  senderName!.isNotEmpty &&
+                                  !isDeleted) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    senderName!,
+                                    style: resolveBubbleTextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: MekaarColors.accentOf(context),
+                                      fontFamily: fontFamily,
+                                    ),
+                                  ),
                                 ),
                               ],
+                              // Reply preview
+                              if (message.replyToId != null && !isDeleted)
+                                _buildQuotedReplyBox(context, fontFamily),
+                              // Main content
+                              _buildContentWidget(
+                                context,
+                                textColor,
+                                fontFamily,
+                                spec.textStyle,
+                                isSticker: isSticker,
+                                borderRadius: radius,
+                                isPureFrameless: isPureFramelessImage,
+                                isSelected: isSelected,
+                                receiptStatus: receiptStatus,
+                                caption: mediaPayload.caption,
+                                metaWidget: buildTimestampWidget(),
+                              ),
+                              if (!isPureFramelessImage &&
+                                  !hasMediaCaption &&
+                                  !isVideo) ...[
+                                const SizedBox(height: 2),
+                                buildTimestampWidget(),
+                              ],
                             ],
-                          ),
-                        );
-                      }
+                          );
+                        },
+                      ),
+                    )
+                  : ThemedBubbleContainer(
+                      spec: activeSpec,
+                      isMe: isMe,
+                      isSelected: isSelected,
+                      selectionColor: MekaarColors.blue,
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.76,
+                      ),
+                      customPadding: (isImage && hasImageCaption) || isVideo
+                          ? EdgeInsets.zero
+                          : null,
+                      child: Builder(
+                        builder: (context) {
+                          final metaColor = isOnlyEmoji
+                              ? MekaarColors.textMutedOf(context)
+                              : (isMe
+                                    ? textColor.withValues(alpha: 0.7)
+                                    : MekaarColors.textMutedOf(context));
 
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (message.isEdited && !isDeleted) ...[
-                            Text(
-                              'diedit ',
-                              style: resolveBubbleTextStyle(
-                                fontSize: 10,
-                                fontStyle: FontStyle.italic,
-                                color: metaColor,
-                                fontFamily: fontFamily,
+                          Widget buildTimestampWidget() {
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  DateFormat(
+                                    'HH:mm',
+                                  ).format(message.createdAt.toLocal()),
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: metaColor,
+                                  ),
+                                ),
+
+                                if (isMe) ...[
+                                  const SizedBox(width: 4),
+                                  ReadReceiptIcon(
+                                    status: receiptStatus,
+                                    color: metaColor,
+                                  ),
+                                ],
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasHeader) spec.headerWidget!,
+                              if (hasSenderName) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Text(
+                                    senderName!,
+                                    style: resolveBubbleTextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: MekaarColors.accentOf(context),
+                                      fontFamily: fontFamily,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (message.replyToId != null && !isDeleted)
+                                _buildQuotedReplyBox(context, fontFamily),
+                              _buildContentWidget(
+                                context,
+                                textColor,
+                                fontFamily,
+                                spec.textStyle,
+                                isSticker: isSticker,
+                                borderRadius: radius,
+                                isPureFrameless: isPureFramelessImage,
+                                isSelected: isSelected,
+                                receiptStatus: receiptStatus,
+                                caption: mediaPayload.caption,
+                                metaWidget: buildTimestampWidget(),
                               ),
-                            ),
-                          ],
-                          Text(
-                            DateFormat('HH:mm')
-                                .format(message.createdAt.toLocal()),
-                            style: resolveBubbleTextStyle(
-                              fontSize: 10.5,
-                              color: metaColor,
-                              fontWeight: FontWeight.w400,
-                              fontFamily: fontFamily,
-                            ),
-                          ),
-                          
-                          if (isMe && !isDeleted) ...[
-                            const SizedBox(width: 3),
-                            ReadReceiptIcon(
-                              status: receiptStatus,
-                              color: metaColor,
-                            ),
-                          ],
-                        ],
-                      );
-                    }
-
-                    // Mode Inline ala WhatsApp: jika pesan teks biasa tanpa kutipan balas,
-                    // teks dan waktu mengalir berdampingan dalam satu baris.
-                    final isNormalText = message.type == MessageType.text &&
-                        !isOnlyEmoji &&
-                        !isSticker &&
-                        !isDeleted &&
-                        message.replyToId == null &&
-                        spec.headerWidget == null &&
-                        (isMe || senderName == null || senderName!.isEmpty);
-
-                    if (isNormalText) {
-                      return Wrap(
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.end,
-                        spacing: 8,
-                        runSpacing: 2,
-                        children: [
-                          _buildContentWidget(
-                            context,
-                            textColor,
-                            fontFamily,
-                            spec.textStyle,
-                            isSticker: isSticker,
-                          ),
-                          buildTimestampWidget(),
-                        ],
-                      );
-                    }
-
-                    return Column(
-                      crossAxisAlignment: isMe
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (spec.headerWidget != null && !isDeleted)
-                          spec.headerWidget!,
-                        if (!isMe &&
-                            senderName != null &&
-                            senderName!.isNotEmpty &&
-                            !isDeleted) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              senderName!,
-                              style: resolveBubbleTextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: MekaarColors.accentOf(context),
-                                fontFamily: fontFamily,
-                              ),
-                            ),
-                          ),
-                        ],
-                        // Reply preview
-                        if (message.replyToId != null && !isDeleted)
-                          _buildQuotedReplyBox(context, fontFamily),
-                        // Main content
-                        _buildContentWidget(
-                          context,
-                          textColor,
-                          fontFamily,
-                          spec.textStyle,
-                          isSticker: isSticker,
-                          borderRadius: radius,
-                          isPureFrameless: isPureFramelessImage,
-                          isSelected: isSelected,
-                          receiptStatus: receiptStatus,
-                          caption: mediaPayload.caption,
-                          metaWidget: buildTimestampWidget(),
-                        ),
-                        if (!isPureFramelessImage && !hasMediaCaption && !isVideo) ...[
-                          const SizedBox(height: 2),
-                          buildTimestampWidget(),
-                        ],
-                      ],
-                    );
-                  },
-                ),
-              )
-            : ThemedBubbleContainer(
-                spec: activeSpec,
+                              if (!isPureFramelessImage &&
+                                  !hasMediaCaption &&
+                                  !isVideo) ...[
+                                const SizedBox(height: 2),
+                                buildTimestampWidget(),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+            ),
+            // Emoji reactions strip below bubble
+            if (message.reactions.isNotEmpty && !isDeleted)
+              ReactionsStrip(
+                reactions: message.reactions,
                 isMe: isMe,
-                isSelected: isSelected,
-                selectionColor: MekaarColors.blue,
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.76,
-                ),
-                customPadding: (isImage && hasImageCaption) || isVideo
-                    ? EdgeInsets.zero
+                onReact: onReact != null
+                    ? (emoji) => onReact!(message, emoji)
                     : null,
-                child: Builder(
-                  builder: (context) {
-                    final metaColor = isOnlyEmoji
-                        ? MekaarColors.textMutedOf(context)
-                        : (isMe
-                            ? textColor.withValues(alpha: 0.7)
-                            : MekaarColors.textMutedOf(context));
-
-                    Widget buildTimestampWidget() {
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            DateFormat('HH:mm').format(message.createdAt.toLocal()),
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w500,
-                              color: metaColor,
-                            ),
-                          ),
-                          
-                          if (isMe) ...[
-                            const SizedBox(width: 4),
-                            ReadReceiptIcon(
-                              status: receiptStatus,
-                              color: metaColor,
-                            ),
-                          ],
-                        ],
-                      );
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (hasHeader) spec.headerWidget!,
-                        if (hasSenderName) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              senderName!,
-                              style: resolveBubbleTextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: MekaarColors.accentOf(context),
-                                fontFamily: fontFamily,
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (message.replyToId != null && !isDeleted)
-                          _buildQuotedReplyBox(context, fontFamily),
-                        _buildContentWidget(
-                          context,
-                          textColor,
-                          fontFamily,
-                          spec.textStyle,
-                          isSticker: isSticker,
-                          borderRadius: radius,
-                          isPureFrameless: isPureFramelessImage,
-                          isSelected: isSelected,
-                          receiptStatus: receiptStatus,
-                          caption: mediaPayload.caption,
-                          metaWidget: buildTimestampWidget(),
-                        ),
-                        if (!isPureFramelessImage && !hasMediaCaption && !isVideo) ...[
-                          const SizedBox(height: 2),
-                          buildTimestampWidget(),
-                        ],
-                      ],
-                    );
-                  },
-                ),
               ),
-              ),
-              // Emoji reactions strip below bubble
-              if (message.reactions.isNotEmpty && !isDeleted)
-                ReactionsStrip(
-                  reactions: message.reactions,
-                  isMe: isMe,
-                  onReact: onReact != null
-                      ? (emoji) => onReact!(message, emoji)
-                      : null,
-                ),
-            ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
 
     if (!shouldAnimateEntrance) {
       return bubbleBody;
     }
 
-    return AnimatedPresetBubbleEntrance(
-      spec: entranceSpec,
-      child: bubbleBody,
-    );
+    return AnimatedPresetBubbleEntrance(spec: entranceSpec, child: bubbleBody);
   }
 
   Widget _buildContentWidget(
@@ -734,7 +748,8 @@ class ChatBubble extends ConsumerWidget {
         if (RegExp(r':([a-z0-9_]{2,32}):').hasMatch(message.content)) {
           return RichEmojiContent(
             content: message.content,
-            baseStyle: customTextStyle ??
+            baseStyle:
+                customTextStyle ??
                 resolveBubbleTextStyle(
                   color: textColor,
                   fontSize: 16,
@@ -746,7 +761,8 @@ class ChatBubble extends ConsumerWidget {
         return MekaarLinkText(
           text: message.content,
           isMe: isMe,
-          baseStyle: customTextStyle ??
+          baseStyle:
+              customTextStyle ??
               resolveBubbleTextStyle(
                 color: textColor,
                 fontSize: 16,
@@ -761,8 +777,9 @@ class ChatBubble extends ConsumerWidget {
           isMe: isMe,
           textColor: textColor,
           fontFamily: fontFamily,
-          onSaveToVault:
-              onSaveToVault != null ? () => onSaveToVault!(message) : null,
+          onSaveToVault: onSaveToVault != null
+              ? () => onSaveToVault!(message)
+              : null,
         );
 
       case MessageType.image:
@@ -779,8 +796,9 @@ class ChatBubble extends ConsumerWidget {
           caption: caption,
           metaWidget: metaWidget,
           onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
-          onSaveToVault:
-              onSaveToVault != null ? () => onSaveToVault!(message) : null,
+          onSaveToVault: onSaveToVault != null
+              ? () => onSaveToVault!(message)
+              : null,
         );
 
       case MessageType.voice:
@@ -792,8 +810,9 @@ class ChatBubble extends ConsumerWidget {
 
       case MessageType.location:
         final isLive = message.content.startsWith('LIVE:');
-        final liveRemaining =
-            isLive ? _parseLiveRemaining(message.content) : null;
+        final liveRemaining = isLive
+            ? _parseLiveRemaining(message.content)
+            : null;
         return InkWell(
           onTap: () => _handleLocationTap(context),
           borderRadius: BorderRadius.circular(10),
@@ -867,8 +886,8 @@ class ChatBubble extends ConsumerWidget {
                           Text(
                             isLive
                                 ? (liveRemaining != null
-                                    ? 'Kedaluwarsa ${liveRemaining}s • Ketuk untuk buka'
-                                    : 'Ketuk untuk buka peta')
+                                      ? 'Kedaluwarsa ${liveRemaining}s • Ketuk untuk buka'
+                                      : 'Ketuk untuk buka peta')
                                 : 'Ketuk untuk buka peta',
                             style: TextStyle(
                               color: isMe
@@ -901,8 +920,9 @@ class ChatBubble extends ConsumerWidget {
             receiptStatus: receiptStatus,
             caption: caption,
             onViewOnceOpened: () => ViewOnceStore.markViewed(message.id),
-            onSaveToVault:
-                onSaveToVault != null ? () => onSaveToVault!(message) : null,
+            onSaveToVault: onSaveToVault != null
+                ? () => onSaveToVault!(message)
+                : null,
           );
         }
         return VideoBubble(
@@ -916,8 +936,9 @@ class ChatBubble extends ConsumerWidget {
           caption: caption,
           metaWidget: metaWidget,
           fontFamily: fontFamily,
-          onSaveToVault:
-              onSaveToVault != null ? () => onSaveToVault!(message) : null,
+          onSaveToVault: onSaveToVault != null
+              ? () => onSaveToVault!(message)
+              : null,
         );
 
       default:
@@ -977,21 +998,21 @@ class ChatBubble extends ConsumerWidget {
     final accentColor = isMe
         ? MekaarColors.accentOf(context)
         : (Theme.of(context).brightness == Brightness.dark
-            ? MekaarColors.cyan
-            : MekaarColors.guardianTeal);
+              ? MekaarColors.cyan
+              : MekaarColors.guardianTeal);
 
     final quoteBg = isMe
         ? Colors.black.withValues(alpha: 0.15)
         : (Theme.of(context).brightness == Brightness.dark
-            ? Colors.black.withValues(alpha: 0.25)
-            : Colors.black.withValues(alpha: 0.05));
+              ? Colors.black.withValues(alpha: 0.25)
+              : Colors.black.withValues(alpha: 0.05));
 
     final titleColor = isMe ? Colors.white : accentColor;
     final bodyColor = isMe
         ? Colors.white.withValues(alpha: 0.85)
         : MekaarColors.textSecondaryOf(context);
 
-    return Container(
+    final box = Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -1027,6 +1048,22 @@ class ChatBubble extends ConsumerWidget {
           ),
         ],
       ),
+    );
+
+    final replyId = message.replyToId;
+    final isTargetDeleted = replyToMessage?.isDeleted ?? false;
+    final canTap =
+        onReplyTap != null &&
+        replyId != null &&
+        !isSelectionMode &&
+        !isTargetDeleted;
+
+    if (!canTap) return box;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onReplyTap!(replyId),
+      child: box,
     );
   }
 }

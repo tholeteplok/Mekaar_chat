@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -22,6 +23,7 @@ import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
 import 'call_history_bubble.dart';
 import 'chat_floating_reaction_pill.dart';
+import 'message_flash.dart';
 import 'chat_swipe_action_wrapper.dart';
 
 /// Jenis entri tampilan dalam daftar obrolan.
@@ -35,19 +37,19 @@ class ChatItemEntry {
   final DateTime? date;
 
   const ChatItemEntry.message(this.message)
-      : kind = ChatItemKind.message,
-        call = null,
-        date = null;
+    : kind = ChatItemKind.message,
+      call = null,
+      date = null;
 
   const ChatItemEntry.call(this.call)
-      : kind = ChatItemKind.call,
-        message = null,
-        date = null;
+    : kind = ChatItemKind.call,
+      message = null,
+      date = null;
 
   const ChatItemEntry.dateSeparator(this.date)
-      : kind = ChatItemKind.dateSeparator,
-        message = null,
-        call = null;
+    : kind = ChatItemKind.dateSeparator,
+      message = null,
+      call = null;
 
   DateTime get timestamp {
     if (kind == ChatItemKind.message) return message!.createdAt;
@@ -106,6 +108,8 @@ class ChatMessageListView extends ConsumerWidget {
   final void Function(Message msg, String emoji) onReactToMessage;
   final void Function(Message msg) onSaveToVault;
   final String Function(Message? msg) getSenderDisplayName;
+  final ValueListenable<String?>? flashIdListenable;
+  final void Function(String messageId)? onReplyTap;
 
   const ChatMessageListView({
     super.key,
@@ -139,6 +143,8 @@ class ChatMessageListView extends ConsumerWidget {
     required this.onReactToMessage,
     required this.onSaveToVault,
     required this.getSenderDisplayName,
+    this.flashIdListenable,
+    this.onReplyTap,
   });
 
   bool get isSelectionMode =>
@@ -208,9 +214,7 @@ class ChatMessageListView extends ConsumerWidget {
     final forwardingProtection = forwardingProtectionAsync.valueOrNull;
 
     final readReceiptsEnabled =
-        ref.watch(
-          authProvider.select((a) => a.profile?.readReceiptsEnabled),
-        ) ??
+        ref.watch(authProvider.select((a) => a.profile?.readReceiptsEnabled)) ??
         true;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
@@ -253,8 +257,10 @@ class ChatMessageListView extends ConsumerWidget {
                             final rawCalls = hiddenCallIds.isEmpty
                                 ? rawCallsUnfiltered
                                 : rawCallsUnfiltered
-                                    .where((c) => !hiddenCallIds.contains(c.id))
-                                    .toList();
+                                      .where(
+                                        (c) => !hiddenCallIds.contains(c.id),
+                                      )
+                                      .toList();
                             final dbIds = {
                               for (var m in activeDbMessages) m.id,
                             };
@@ -283,31 +289,31 @@ class ChatMessageListView extends ConsumerWidget {
                             final messages = searchQuery.isEmpty
                                 ? rawMessages
                                 : rawMessages
-                                    .where(
-                                      (m) => m.content.toLowerCase().contains(
-                                        searchQuery.toLowerCase(),
-                                      ),
-                                    )
-                                    .toList();
+                                      .where(
+                                        (m) => m.content.toLowerCase().contains(
+                                          searchQuery.toLowerCase(),
+                                        ),
+                                      )
+                                      .toList();
 
                             final calls = searchQuery.isEmpty
                                 ? rawCalls
                                 : rawCalls
-                                    .where(
-                                      (c) =>
-                                          c.callType.toLowerCase().contains(
-                                            searchQuery.toLowerCase(),
-                                          ) ||
-                                          c
-                                              .getDisplayStatus(
-                                                c.callerId == currentUserId,
-                                              )
-                                              .toLowerCase()
-                                              .contains(
-                                                searchQuery.toLowerCase(),
-                                              ),
-                                    )
-                                    .toList();
+                                      .where(
+                                        (c) =>
+                                            c.callType.toLowerCase().contains(
+                                              searchQuery.toLowerCase(),
+                                            ) ||
+                                            c
+                                                .getDisplayStatus(
+                                                  c.callerId == currentUserId,
+                                                )
+                                                .toLowerCase()
+                                                .contains(
+                                                  searchQuery.toLowerCase(),
+                                                ),
+                                      )
+                                      .toList();
 
                             if (messages.isEmpty && calls.isEmpty) {
                               return MekaarStateView(
@@ -377,13 +383,10 @@ class ChatMessageListView extends ConsumerWidget {
                                   : 'Gagal Memuat',
                               message: isNetworkErr
                                   ? 'Tidak ada koneksi internet dan belum ada riwayat obrolan tersimpan untuk obrolan ini.'
-                                  : ErrorResolver.resolve(
-                                      messagesStream.error,
-                                    ),
+                                  : ErrorResolver.resolve(messagesStream.error),
                               actionLabel: 'Coba Lagi',
-                              onAction: () => ref.invalidate(
-                                chatMessagesProvider(chatId),
-                              ),
+                              onAction: () =>
+                                  ref.invalidate(chatMessagesProvider(chatId)),
                               icon: isNetworkErr
                                   ? SolarIconsOutline.cloudCross
                                   : SolarIconsOutline.refresh,
@@ -526,17 +529,14 @@ class ChatMessageListView extends ConsumerWidget {
       onDelete: () => onDeleteMessage(msg),
       onUnsend: () => onUnsendMessage(msg),
       onReply: (replyMsg) => onReplyMessage(replyMsg),
+      onReplyTap: onReplyTap,
       onEdit: (editMsg, newContent) {
         if (!actions.canEdit(editMsg, isGuardianRoom: isGuardian)) {
           return;
         }
         ref
             .read(chatActionsProvider)
-            .editMessage(
-              editMsg.id,
-              newContent,
-              isGuardianRoom: isGuardian,
-            );
+            .editMessage(editMsg.id, newContent, isGuardianRoom: isGuardian);
       },
       onForward: (forwardingProtection?.effective ?? false)
           ? null
@@ -550,8 +550,9 @@ class ChatMessageListView extends ConsumerWidget {
 
     final bubbleWithPill = Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isMe
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         if (showFloatingReactions)
           ChatFloatingReactionPill(
@@ -562,16 +563,26 @@ class ChatMessageListView extends ConsumerWidget {
       ],
     );
 
-    // Bungkus dengan RepaintBoundary untuk isolasi repaint dan ChatSwipeActionWrapper
-    return RepaintBoundary(
-      key: ValueKey('bubble_${msg.id}'),
-      child: isSelectionMode
-          ? bubbleWithPill
-          : ChatSwipeActionWrapper(
-              onReply: () => onReplyMessage(msg),
-              onDelete: () => onSwipeDeleteMessage(msg),
-              child: bubbleWithPill,
-            ),
+    // Bungkus dengan KeyedSubtree untuk jumpToKeyedItem, RepaintBoundary untuk isolasi repaint,
+    // dan MessageFlash untuk sorotan pudar saat melompat ke pesan yang dibalas.
+    final wrappedBubble = isSelectionMode
+        ? bubbleWithPill
+        : ChatSwipeActionWrapper(
+            onReply: () => onReplyMessage(msg),
+            onDelete: () => onSwipeDeleteMessage(msg),
+            child: bubbleWithPill,
+          );
+
+    return KeyedSubtree(
+      key: GlobalObjectKey('msg-${msg.id}'),
+      child: RepaintBoundary(
+        key: ValueKey('bubble_${msg.id}'),
+        child: MessageFlash(
+          messageId: msg.id,
+          flashIdListenable: flashIdListenable,
+          child: wrappedBubble,
+        ),
+      ),
     );
   }
 }
