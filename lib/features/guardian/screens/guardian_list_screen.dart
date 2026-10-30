@@ -86,8 +86,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                               color: MekaarColors.primaryOf(context),
                             ),
                             tooltip: 'Tambah Guardian Baru',
-                            onPressed: () =>
-                                Navigator.pushNamed(context, AppRoutes.guardianAdd),
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.guardianAdd,
+                            ),
                           ),
                         IconButton(
                           icon: Icon(
@@ -95,8 +97,19 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                             color: MekaarColors.primaryOf(context),
                           ),
                           tooltip: 'Lacak Guardian',
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.guardianTracking,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.shieldCheck,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: 'Latihan SOS (Simulasi)',
                           onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.guardianTracking),
+                              Navigator.pushNamed(context, AppRoutes.sosDrill),
                         ),
                       ],
                     ),
@@ -143,8 +156,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
             )
           : status == GuardianLoadStatus.error
           ? _buildLoadError(
-              () =>
-                  ref.read(guardianProvider.notifier).refreshGuardians(),
+              () => ref.read(guardianProvider.notifier).refreshGuardians(),
             )
           : guardians.isEmpty
           ? AnimatedAppear(
@@ -195,6 +207,21 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                           elevation: 0,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, AppRoutes.sosDrill),
+                        icon: const Icon(
+                          SolarIconsOutline.shieldCheck,
+                          size: 18,
+                        ),
+                        label: Text(
+                          'Coba Latihan SOS (Simulasi)',
+                          style: MekaarTypography.labelMD.copyWith(
+                            color: MekaarColors.textSecondaryOf(context),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -207,9 +234,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: AnimatedAppear(
-                    delay: Duration(
-                      milliseconds: (index * 40).clamp(0, 240),
-                    ),
+                    delay: Duration(milliseconds: (index * 40).clamp(0, 240)),
                     child: _buildGuardianCard(guardian, true),
                   ),
                 );
@@ -488,7 +513,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
         stateIcon: SolarIconsOutline.serverSquare,
         stateIconColor: MekaarColors.warnAmber,
         title: 'Gagal Memuat Guardian',
-        message: 'Daftar Guardian tidak dapat dimuat. Silakan periksa jaringan Anda lalu coba lagi.',
+        message:
+            'Daftar Guardian tidak dapat dimuat. Silakan periksa jaringan Anda lalu coba lagi.',
         actionLabel: 'Coba Lagi',
         onAction: () => onRetry(),
       ),

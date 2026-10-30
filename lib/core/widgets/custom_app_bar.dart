@@ -15,6 +15,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? subtitle;
   final String? avatarInitial;
   final String? avatarUrl;
+  final Object? avatarHeroTag;
   final bool isGuardian;
   final bool showOnlineIndicator;
   final bool isOnline;
@@ -36,6 +37,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.avatarInitial,
     this.avatarUrl,
+    this.avatarHeroTag,
     this.isGuardian = false,
     this.showOnlineIndicator = false,
     this.isOnline = false,
@@ -71,7 +73,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildMaterialHeader(BuildContext context, bool canPop) {
     final topPadding = MediaQuery.of(context).padding.top;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = glassBackgroundColor ?? MekaarColors.surfaceOf(context);
+    final surfaceColor =
+        glassBackgroundColor ?? MekaarColors.surfaceOf(context);
 
     return Container(
       padding: EdgeInsets.only(top: topPadding),
@@ -79,7 +82,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: surfaceColor,
         border: Border(
           bottom: BorderSide(
-            color: MekaarColors.borderOf(context).withValues(alpha: isDark ? 0.3 : 0.1),
+            color: MekaarColors.borderOf(
+              context,
+            ).withValues(alpha: isDark ? 0.3 : 0.1),
             width: 1.0,
           ),
         ),
@@ -116,6 +121,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   imageUrl: avatarUrl,
                   size: 38,
                   isGuardian: isGuardian,
+                  heroTag: avatarHeroTag,
                 ),
               ),
               const SizedBox(width: 10),
@@ -130,10 +136,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: textColor ?? MekaarColors.textPrimaryOf(context),
+                            color:
+                                textColor ??
+                                MekaarColors.textPrimaryOf(context),
                             letterSpacing: -0.2,
                           ),
                       maxLines: 1,
@@ -151,7 +160,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 shape: BoxShape.circle,
                                 color: isOnline
                                     ? MekaarColors.success
-                                    : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                                    : (subtitleColor ??
+                                          MekaarColors.textMutedOf(context)),
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -164,7 +174,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 fontWeight: FontWeight.w500,
                                 color: isOnline && showOnlineIndicator
                                     ? MekaarColors.success
-                                    : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                                    : (subtitleColor ??
+                                          MekaarColors.textMutedOf(context)),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -245,6 +256,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           imageUrl: avatarUrl,
                           size: 38,
                           isGuardian: isGuardian,
+                          heroTag: avatarHeroTag,
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -255,10 +267,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           children: [
                             Text(
                               title,
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
-                                    color: textColor ?? MekaarColors.textPrimaryOf(context),
+                                    color:
+                                        textColor ??
+                                        MekaarColors.textPrimaryOf(context),
                                     letterSpacing: -0.2,
                                   ),
                               overflow: TextOverflow.ellipsis,
@@ -275,20 +290,27 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                         shape: BoxShape.circle,
                                         color: isOnline
                                             ? MekaarColors.success
-                                            : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                                            : (subtitleColor ??
+                                                  MekaarColors.textMutedOf(
+                                                    context,
+                                                  )),
                                       ),
                                     ),
                                     const SizedBox(width: 4),
                                   ],
                                   Expanded(
                                     child: Text(
-                                      subtitle ?? (isOnline ? 'Online' : 'Offline'),
+                                      subtitle ??
+                                          (isOnline ? 'Online' : 'Offline'),
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                         color: isOnline && showOnlineIndicator
                                             ? MekaarColors.success
-                                            : (subtitleColor ?? MekaarColors.textMutedOf(context)),
+                                            : (subtitleColor ??
+                                                  MekaarColors.textMutedOf(
+                                                    context,
+                                                  )),
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -311,11 +333,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             const SizedBox(width: 6),
             MekaarGlassBlurContainer(
               isFloating: true,
-              shape: actions!.length == 1 ? BoxShape.circle : BoxShape.rectangle,
+              shape: actions!.length == 1
+                  ? BoxShape.circle
+                  : BoxShape.rectangle,
               width: actions!.length == 1 ? 50 : null,
               height: 50,
-              borderRadius: actions!.length == 1 ? null : BorderRadius.circular(25),
-              padding: EdgeInsets.symmetric(horizontal: actions!.length == 1 ? 0 : 6),
+              borderRadius: actions!.length == 1
+                  ? null
+                  : BorderRadius.circular(25),
+              padding: EdgeInsets.symmetric(
+                horizontal: actions!.length == 1 ? 0 : 6,
+              ),
               border: glassBorder,
               customColor: glassBackgroundColor,
               child: Row(
@@ -349,11 +377,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 tooltip: 'Kembali',
                 icon: const Icon(SolarIconsOutline.altArrowLeft, size: 20),
                 style: IconButton.styleFrom(
-                  backgroundColor:
-                      MekaarColors.surface2Of(context).withValues(alpha: 0.85),
+                  backgroundColor: MekaarColors.surface2Of(
+                    context,
+                  ).withValues(alpha: 0.85),
                   side: BorderSide(
-                    color: MekaarColors.cardBorderOf(context)
-                        .withValues(alpha: 0.8),
+                    color: MekaarColors.cardBorderOf(
+                      context,
+                    ).withValues(alpha: 0.8),
                     width: 1.0,
                   ),
                   shape: const CircleBorder(),
@@ -373,6 +403,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 imageUrl: avatarUrl,
                 size: 38,
                 isGuardian: isGuardian,
+                heroTag: avatarHeroTag,
               ),
             ),
             const SizedBox(width: 12),
@@ -389,10 +420,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      ),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (showOnlineIndicator || subtitle != null) ...[
@@ -436,5 +467,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(isFloating ? (kToolbarHeight + 20.0) : kToolbarHeight);
+  Size get preferredSize =>
+      Size.fromHeight(isFloating ? (kToolbarHeight + 20.0) : kToolbarHeight);
 }

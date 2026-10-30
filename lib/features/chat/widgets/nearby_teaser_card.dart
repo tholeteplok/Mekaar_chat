@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../data/models/nearby_friend_model.dart';
@@ -65,7 +66,7 @@ class NearbyTeaserCard extends StatelessWidget {
         // ── 2. Compact CTA & Reassurance Bar (Hanya tampil penuh saat expanded, fade saat collapse) ──
         AnimatedOpacity(
           opacity: (1.0 - progress * 1.5).clamp(0.0, 1.0),
-          duration: const Duration(milliseconds: 150),
+          duration: context.motion(MekaarMotion.fast),
           child: progress > 0.75
               ? const SizedBox.shrink()
               : Padding(

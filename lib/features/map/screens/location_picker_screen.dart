@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/services/haptic_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -105,7 +105,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   void _onMapTap(TapPosition tapPosition, LatLng latLng) {
-    HapticFeedback.lightImpact();
+    HapticService.trigger(MekaarHapticIntent.success);
     setState(() {
       _selectedLocation = latLng;
     });
@@ -193,7 +193,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   void _applySearchResult(GeocodingResult result) {
-    HapticFeedback.selectionClick();
+    HapticService.trigger(MekaarHapticIntent.selection);
     _searchFocusNode.unfocus();
     setState(() {
       _selectedLocation = result.location;
@@ -321,7 +321,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               backgroundColor: surfaceColor,
               foregroundColor: MekaarColors.accentTextOf(context),
               onPressed: () {
-                HapticFeedback.selectionClick();
+                HapticService.trigger(MekaarHapticIntent.selection);
                 _fetchCurrentGpsLocation();
               },
               child: _isLoadingGps
@@ -394,7 +394,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        HapticFeedback.selectionClick();
+                        HapticService.trigger(MekaarHapticIntent.selection);
                         Navigator.pop(
                           context,
                           LocationPickerResult(location: _selectedLocation),

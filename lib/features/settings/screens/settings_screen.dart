@@ -142,7 +142,10 @@ class SettingsScreen extends ConsumerWidget {
                 icon: SolarIconsBold.shieldKeyhole,
                 iconColor: MekaarColors.guardianTeal,
                 title: 'Privasi Lanjutan',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.advancedPrivacySettings),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.advancedPrivacySettings,
+                ),
               ),
             ],
           ),
@@ -177,7 +180,8 @@ class SettingsScreen extends ConsumerWidget {
                     final verified = await MekaarPinVerificationSheet.verify(
                       context,
                       title: 'Verifikasi PIN Utama',
-                      subtitle: 'Masukkan PIN utama Anda untuk menonaktifkan kunci PIN aplikasi',
+                      subtitle:
+                          'Masukkan PIN utama Anda untuk menonaktifkan kunci PIN aplikasi',
                       allowDuress: false,
                       allowDecoy: false,
                     );
@@ -215,8 +219,7 @@ class SettingsScreen extends ConsumerWidget {
                   iconColor: MekaarColors.primary,
                   title: 'PIN Tamu (Decoy)',
                   subtitle: 'Akses mode bersih tanpa sinyal SOS',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.decoyPin),
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.decoyPin),
                 ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.lockKeyhole,
@@ -245,6 +248,13 @@ class SettingsScreen extends ConsumerWidget {
                   iconColor: MekaarColors.sosRed,
                   title: 'Riwayat SOS',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
+                ),
+                SettingsNavTile(
+                  icon: SolarIconsOutline.shieldCheck,
+                  iconColor: MekaarColors.warnAmber,
+                  title: 'Latihan SOS (Simulasi)',
+                  subtitle: 'Simulasi alur darurat tanpa sinyal nyata',
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
                 ),
               ],
             ],

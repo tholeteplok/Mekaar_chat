@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/motion.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 
@@ -66,8 +67,8 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
               AnimatedPositioned(
                 duration: animationsDisabled
                     ? Duration.zero
-                    : const Duration(milliseconds: 280),
-                curve: Curves.easeOutBack,
+                    : MekaarMotion.pop,
+                curve: MekaarMotion.bounce,
                 left: safeIndex * tabWidth,
                 top: 0,
                 bottom: 0,

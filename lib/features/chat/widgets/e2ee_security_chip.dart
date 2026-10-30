@@ -157,7 +157,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
     final borderColor = accentColor.withValues(alpha: 0.35);
 
     return AnimatedSize(
-      duration: MekaarMotion.normal,
+      duration: context.motion(MekaarMotion.normal),
       curve: Curves.easeInOut,
       child: Center(
         child: Padding(
@@ -171,7 +171,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
               onTap: chipTapAction,
               borderRadius: BorderRadius.circular(MekaarRadius.pill),
               child: AnimatedContainer(
-                duration: MekaarMotion.counter,
+                duration: context.motion(MekaarMotion.counter),
                 curve: Curves.easeInOut,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -198,6 +198,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
+                          value: context.reduceMotion ? 0.8 : null,
                           valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                         ),
                       ),

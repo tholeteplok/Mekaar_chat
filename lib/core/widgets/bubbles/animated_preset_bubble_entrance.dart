@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/motion.dart';
 import '../../theme/chat_preset_resolver.dart';
 
 /// Generic Entrance Animation Wrapper for all 12 Presets.
@@ -35,6 +36,14 @@ class _AnimatedPresetBubbleEntranceState
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (context.reduceMotion) {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -42,6 +51,9 @@ class _AnimatedPresetBubbleEntranceState
 
   @override
   Widget build(BuildContext context) {
+    if (context.reduceMotion) {
+      return widget.child;
+    }
     switch (widget.spec.type) {
       // 1. Neumorphism: Scale 0.97 -> 1.0 + fade
       case EntranceType.neumorphismSoft:

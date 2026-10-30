@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:logger/logger.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../models/chat_draft_model.dart';
+import '../../features/chat/utils/message_search_helper.dart';
 import '../models/message_model.dart';
 import 'database_key_service.dart';
 
@@ -22,7 +23,13 @@ class LocalMessageDatabase {
   static const String _draftsTableName = 'chat_drafts';
   static const String _masterDbFileName = 'mekaar_local_messages.db';
   static const String _decoyDbFileName = 'mekaar_decoy.db';
-  static const int _dbVersion = 3;
+  static const String _ftsTableName = 'local_messages_fts';
+  static const String _searchMetaTableName = 'search_index_meta';
+  static const int _dbVersion = 4;
+  bool _ftsAvailable = true;
+
+  /// Status apakah SQLite FTS5 aktif & tersedia di engine lokal
+  bool get isFtsAvailable => _ftsAvailable;
 
   Database? _db;
   Completer<Database>? _dbInitCompleter;
@@ -69,10 +76,19 @@ class LocalMessageDatabase {
         path,
         password: key,
         version: _dbVersion,
+        onOpen: (db) async {
+          try {
+            await db.rawQuery('PRAGMA secure_delete = ON');
+          } catch (e) {
+            _logger.w('Gagal mengaktifkan PRAGMA secure_delete: $e');
+          }
+          await _checkFtsAvailability(db);
+        },
         onCreate: (db, version) async {
           await _onCreate(db, version);
           await _createRoomsCacheTable(db);
           await _createDraftsTable(db);
+          await _setupFtsAndSearchMetaTable(db);
           if (_isDecoy) {
             await _seedDecoyWelcomeMessage(db);
           }
@@ -84,13 +100,21 @@ class LocalMessageDatabase {
           if (oldVersion < 3) {
             await _createDraftsTable(db);
           }
+          if (oldVersion < 4) {
+            await _setupFtsAndSearchMetaTable(db);
+            _triggerBackgroundFtsBackfill(db);
+          }
         },
       );
 
       _dbInitCompleter!.complete(_db!);
       return _db!;
     } catch (e, st) {
-      _logger.e('Gagal menginisialisasi LocalMessageDatabase SQLCipher: $e', error: e, stackTrace: st);
+      _logger.e(
+        'Gagal menginisialisasi LocalMessageDatabase SQLCipher: $e',
+        error: e,
+        stackTrace: st,
+      );
       _dbInitCompleter?.completeError(e, st);
       rethrow;
     } finally {
@@ -104,7 +128,8 @@ class LocalMessageDatabase {
       'id': 'msg_welcome_decoy',
       'room_id': 'room_welcome_mekaar',
       'sender_id': 'mekaar_official',
-      'content': 'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar. Mulai percakapan aman Anda sekarang.',
+      'content':
+          'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar. Mulai percakapan aman Anda sekarang.',
       'media_url': null,
       'msg_type': 'text',
       'is_view_once': 0,
@@ -120,6 +145,111 @@ class LocalMessageDatabase {
       'updated_at': now,
       'is_encrypted': 0,
     });
+    if (_ftsAvailable) {
+      try {
+        await db.insert(_ftsTableName, {
+          'body':
+              'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar. Mulai percakapan aman Anda sekarang.',
+          'msg_id': 'msg_welcome_decoy',
+          'room_id': 'room_welcome_mekaar',
+        });
+      } catch (_) {}
+    }
+  }
+
+  /// Memeriksa ketersediaan modul virtual table FTS5
+  Future<void> _checkFtsAvailability(Database db) async {
+    try {
+      final rows = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='$_ftsTableName'",
+      );
+      _ftsAvailable = rows.isNotEmpty;
+    } catch (_) {
+      _ftsAvailable = false;
+    }
+  }
+
+  /// Membuat tabel virtual FTS5 mandiri dan tabel metadata pencarian
+  Future<void> _setupFtsAndSearchMetaTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_searchMetaTableName (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    ''');
+
+    try {
+      await db.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS $_ftsTableName USING fts5(
+          body,
+          msg_id UNINDEXED,
+          room_id UNINDEXED,
+          tokenize = 'unicode61 remove_diacritics 2'
+        )
+      ''');
+      _ftsAvailable = true;
+    } catch (e) {
+      _logger.w(
+        'SQLite FTS5 tidak didukung pada engine ini: $e. Fallback ke LIKE query.',
+      );
+      _ftsAvailable = false;
+    }
+  }
+
+  /// Menjalankan backfill FTS di latar belakang tanpa memblokir thread UI atau proses migrasi DB
+  void _triggerBackgroundFtsBackfill(Database db) {
+    if (!_ftsAvailable) return;
+    unawaited(() async {
+      try {
+        final metaRows = await db.query(
+          _searchMetaTableName,
+          where: 'key = ?',
+          whereArgs: ['fts_backfill_complete'],
+          limit: 1,
+        );
+        if (metaRows.isNotEmpty && metaRows.first['value'] == '1') {
+          return;
+        }
+
+        final rows = await db.query(
+          _tableName,
+          where:
+              'is_deleted = 0 AND is_silent_deleted = 0 AND is_view_once = 0',
+        );
+
+        final batch = db.batch();
+        int batchCount = 0;
+        for (final row in rows) {
+          final msg = _mapToMessage(row);
+          final text = msg.searchableText;
+          if (text != null && text.trim().isNotEmpty) {
+            batch.delete(
+              _ftsTableName,
+              where: 'msg_id = ?',
+              whereArgs: [msg.id],
+            );
+            batch.insert(_ftsTableName, {
+              'body': text,
+              'msg_id': msg.id,
+              'room_id': msg.roomId,
+            });
+            batchCount++;
+          }
+        }
+
+        if (batchCount > 0) {
+          await batch.commit(noResult: true);
+        }
+
+        await db.insert(_searchMetaTableName, {
+          'key': 'fts_backfill_complete',
+          'value': '1',
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        _logger.i('✅ FTS backfill selesai: $batchCount pesan terindeks.');
+      } catch (e) {
+        _logger.w('Gagal melakukan background FTS backfill: $e');
+      }
+    }());
   }
 
   /// Mengembalikan daftar kamar decoy alami untuk mode tamu / duress
@@ -131,7 +261,8 @@ class LocalMessageDatabase {
       } catch (_) {}
     }
     final createdAt = lastMsg?.createdAt ?? DateTime.now();
-    final content = lastMsg?.content ??
+    final content =
+        lastMsg?.content ??
         'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar.';
     return [
       {
@@ -161,7 +292,7 @@ class LocalMessageDatabase {
         'timestamp': createdAt,
         'lastMessage': content,
         'last_message': content,
-      }
+      },
     ];
   }
 
@@ -263,25 +394,29 @@ class LocalMessageDatabase {
         final rawJson = jsonEncode(serializableMap);
         final timestampStr = r['timestamp']?.toString() ?? now;
 
-        batch.insert(
-          _roomsCacheTableName,
-          {
-            'room_id': roomId,
-            'room_type': r['roomType'] as String? ?? r['room_type'] as String? ?? 'direct',
-            'chat_name': r['name'] as String? ?? r['chat_name'] as String? ?? '',
-            'avatar_url': r['avatarUrl'] as String? ?? r['avatar_url'] as String?,
-            'other_user_id': r['otherUserId'] as String? ?? r['other_user_id'] as String?,
-            'is_guardian': (r['isGuardian'] == true || r['is_guardian'] == true) ? 1 : 0,
-            'is_muted': (r['isMuted'] == true || r['is_muted'] == true) ? 1 : 0,
-            'is_archived': (r['isArchived'] == true || r['is_archived'] == true) ? 1 : 0,
-            'unread_count': r['unreadCount'] as int? ?? r['unread_count'] as int? ?? 0,
-            'is_group': (r['isGroup'] == true || r['is_group'] == true) ? 1 : 0,
-            'member_count': r['memberCount'] as int? ?? r['member_count'] as int? ?? 0,
-            'raw_json': rawJson,
-            'updated_at': timestampStr,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        batch.insert(_roomsCacheTableName, {
+          'room_id': roomId,
+          'room_type':
+              r['roomType'] as String? ?? r['room_type'] as String? ?? 'direct',
+          'chat_name': r['name'] as String? ?? r['chat_name'] as String? ?? '',
+          'avatar_url': r['avatarUrl'] as String? ?? r['avatar_url'] as String?,
+          'other_user_id':
+              r['otherUserId'] as String? ?? r['other_user_id'] as String?,
+          'is_guardian': (r['isGuardian'] == true || r['is_guardian'] == true)
+              ? 1
+              : 0,
+          'is_muted': (r['isMuted'] == true || r['is_muted'] == true) ? 1 : 0,
+          'is_archived': (r['isArchived'] == true || r['is_archived'] == true)
+              ? 1
+              : 0,
+          'unread_count':
+              r['unreadCount'] as int? ?? r['unread_count'] as int? ?? 0,
+          'is_group': (r['isGroup'] == true || r['is_group'] == true) ? 1 : 0,
+          'member_count':
+              r['memberCount'] as int? ?? r['member_count'] as int? ?? 0,
+          'raw_json': rawJson,
+          'updated_at': timestampStr,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit(noResult: true);
     } catch (e) {
@@ -327,21 +462,21 @@ class LocalMessageDatabase {
   }
 
   /// Menyimpan atau memperbarui draf pesan untuk room tertentu di database SQLCipher lokal
-  Future<void> saveDraft(String roomId, String content, {String? replyToId}) async {
+  Future<void> saveDraft(
+    String roomId,
+    String content, {
+    String? replyToId,
+  }) async {
     if (roomId.trim().isEmpty) return;
     try {
       final db = await database;
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      await db.insert(
-        _draftsTableName,
-        {
-          'room_id': roomId,
-          'content': content,
-          'reply_to_id': replyToId,
-          'updated_at': nowMs,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert(_draftsTableName, {
+        'room_id': roomId,
+        'content': content,
+        'reply_to_id': replyToId,
+        'updated_at': nowMs,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       _logger.w('Gagal menyimpan draf pesan lokal: $e');
     }
@@ -387,10 +522,7 @@ class LocalMessageDatabase {
   Future<Map<String, ChatDraft>> getAllDrafts() async {
     try {
       final db = await database;
-      final rows = await db.query(
-        _draftsTableName,
-        orderBy: 'updated_at DESC',
-      );
+      final rows = await db.query(_draftsTableName, orderBy: 'updated_at DESC');
       final Map<String, ChatDraft> drafts = {};
       for (final row in rows) {
         final draft = ChatDraft.fromMap(row);
@@ -405,7 +537,10 @@ class LocalMessageDatabase {
 
   /// Memeriksa apakah file lokal masih berformat SQLite teks polos (legacy).
   /// Jika ya, migrasikan datanya ke database SQLCipher terenkripsi, lalu musnahkan file lama.
-  Future<void> _checkAndMigrateLegacyPlaintextDb(String path, String key) async {
+  Future<void> _checkAndMigrateLegacyPlaintextDb(
+    String path,
+    String key,
+  ) async {
     final file = File(path);
     if (!await file.exists()) return;
 
@@ -416,8 +551,22 @@ class LocalMessageDatabase {
 
       // SQLite plaintext magic header adalah "SQLite format 3\x00"
       const sqliteMagic = [
-        0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66,
-        0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00,
+        0x53,
+        0x51,
+        0x4c,
+        0x69,
+        0x74,
+        0x65,
+        0x20,
+        0x66,
+        0x6f,
+        0x72,
+        0x6d,
+        0x61,
+        0x74,
+        0x20,
+        0x33,
+        0x00,
       ];
 
       bool isLegacyPlaintext = true;
@@ -434,7 +583,9 @@ class LocalMessageDatabase {
 
       if (!isLegacyPlaintext) return;
 
-      _logger.w('⚠️ Terdeteksi database pesan lama (plaintext). Memulai auto-migrasi ke SQLCipher...');
+      _logger.w(
+        '⚠️ Terdeteksi database pesan lama (plaintext). Memulai auto-migrasi ke SQLCipher...',
+      );
       final legacyPath = '$path.legacy_plaintext';
       await file.rename(legacyPath);
 
@@ -451,13 +602,25 @@ class LocalMessageDatabase {
         path,
         password: key,
         version: _dbVersion,
+        onOpen: (db) async {
+          try {
+            await db.rawQuery('PRAGMA secure_delete = ON');
+          } catch (e) {
+            _logger.w('Gagal mengaktifkan PRAGMA secure_delete: $e');
+          }
+          await _checkFtsAvailability(db);
+        },
         onCreate: _onCreate,
       );
 
       if (rows.isNotEmpty) {
         final batch = encryptedDb.batch();
         for (final row in rows) {
-          batch.insert(_tableName, row, conflictAlgorithm: ConflictAlgorithm.replace);
+          batch.insert(
+            _tableName,
+            row,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
         }
         await batch.commit(noResult: true);
       }
@@ -465,27 +628,54 @@ class LocalMessageDatabase {
 
       // Musnahkan file legacy secara forensik
       await DatabaseKeyService.instance.shredFile(File(legacyPath));
-      _logger.i('✅ Auto-migrasi ke SQLCipher selesai. File plaintext lama telah dimusnahkan secara forensik.');
+      _logger.i(
+        '✅ Auto-migrasi ke SQLCipher selesai. File plaintext lama telah dimusnahkan secara forensik.',
+      );
     } catch (e, st) {
-      _logger.e('Gagal melakukan migrasi database pesan legacy: $e', error: e, stackTrace: st);
+      _logger.e(
+        'Gagal melakukan migrasi database pesan legacy: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
-  /// Simpan satu pesan bersih (terdekripsi) ke SQLite
+  /// Simpan satu pesan bersih (terdekripsi) ke SQLite serta perbarui indeks FTS
   Future<void> saveMessage(Message message) async {
     try {
       final db = await database;
-      await db.insert(
-        _tableName,
-        _messageToMap(message),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.transaction((txn) async {
+        await txn.insert(
+          _tableName,
+          _messageToMap(message),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        if (_ftsAvailable) {
+          try {
+            await txn.delete(
+              _ftsTableName,
+              where: 'msg_id = ?',
+              whereArgs: [message.id],
+            );
+            final text = message.searchableText;
+            if (text != null && text.trim().isNotEmpty) {
+              await txn.insert(_ftsTableName, {
+                'body': text,
+                'msg_id': message.id,
+                'room_id': message.roomId,
+              });
+            }
+          } catch (ftsErr) {
+            _logger.w('Gagal memperbarui FTS (${message.id}): $ftsErr');
+          }
+        }
+      });
     } catch (e) {
       _logger.w('Gagal menyimpan pesan ke SQLite (${message.id}): $e');
     }
   }
 
-  /// Simpan batch pesan bersih ke SQLite secara atomic
+  /// Simpan batch pesan bersih ke SQLite secara atomic dan perbarui indeks FTS
   Future<void> saveMessagesBatch(List<Message> messages) async {
     if (messages.isEmpty) return;
     try {
@@ -497,6 +687,17 @@ class LocalMessageDatabase {
           _messageToMap(msg),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+        if (_ftsAvailable) {
+          batch.delete(_ftsTableName, where: 'msg_id = ?', whereArgs: [msg.id]);
+          final text = msg.searchableText;
+          if (text != null && text.trim().isNotEmpty) {
+            batch.insert(_ftsTableName, {
+              'body': text,
+              'msg_id': msg.id,
+              'room_id': msg.roomId,
+            });
+          }
+        }
       }
       await batch.commit(noResult: true);
     } catch (e) {
@@ -568,30 +769,48 @@ class LocalMessageDatabase {
     }
   }
 
-  /// Hapus satu pesan dari database lokal
+  /// Hapus satu pesan dari database lokal dan indeks FTS
   Future<void> deleteMessage(String messageId) async {
     try {
       final db = await database;
-      await db.delete(
-        _tableName,
-        where: 'id = ?',
-        whereArgs: [messageId],
-      );
+      await db.transaction((txn) async {
+        await txn.delete(_tableName, where: 'id = ?', whereArgs: [messageId]);
+        if (_ftsAvailable) {
+          try {
+            await txn.delete(
+              _ftsTableName,
+              where: 'msg_id = ?',
+              whereArgs: [messageId],
+            );
+          } catch (_) {}
+        }
+      });
     } catch (e) {
       _logger.w('Gagal menghapus pesan dari SQLite ($messageId): $e');
     }
   }
 
-  /// Tandai pesan sebagai disembunyikan untuk user ini
+  /// Tandai pesan sebagai disembunyikan untuk user ini dan hapus dari indeks FTS
   Future<void> markSilentDeleted(String messageId) async {
     try {
       final db = await database;
-      await db.update(
-        _tableName,
-        {'is_silent_deleted': 1},
-        where: 'id = ?',
-        whereArgs: [messageId],
-      );
+      await db.transaction((txn) async {
+        await txn.update(
+          _tableName,
+          {'is_silent_deleted': 1},
+          where: 'id = ?',
+          whereArgs: [messageId],
+        );
+        if (_ftsAvailable) {
+          try {
+            await txn.delete(
+              _ftsTableName,
+              where: 'msg_id = ?',
+              whereArgs: [messageId],
+            );
+          } catch (_) {}
+        }
+      });
     } catch (e) {
       _logger.w('Gagal menyembunyikan pesan di SQLite ($messageId): $e');
     }
@@ -601,11 +820,18 @@ class LocalMessageDatabase {
   Future<void> deleteRoomMessages(String roomId) async {
     try {
       final db = await database;
-      await db.delete(
-        _tableName,
-        where: 'room_id = ?',
-        whereArgs: [roomId],
-      );
+      await db.transaction((txn) async {
+        await txn.delete(_tableName, where: 'room_id = ?', whereArgs: [roomId]);
+        if (_ftsAvailable) {
+          try {
+            await txn.delete(
+              _ftsTableName,
+              where: 'room_id = ?',
+              whereArgs: [roomId],
+            );
+          } catch (_) {}
+        }
+      });
     } catch (e) {
       _logger.w('Gagal membersihkan riwayat room dari SQLite ($roomId): $e');
     }
@@ -616,11 +842,27 @@ class LocalMessageDatabase {
     try {
       final db = await database;
       final nowIso = DateTime.now().toUtc().toIso8601String();
-      await db.delete(
-        _tableName,
-        where: 'auto_delete_at IS NOT NULL AND auto_delete_at <= ?',
-        whereArgs: [nowIso],
-      );
+      await db.transaction((txn) async {
+        if (_ftsAvailable) {
+          try {
+            await txn.rawDelete(
+              '''
+              DELETE FROM $_ftsTableName
+              WHERE msg_id IN (
+                SELECT id FROM $_tableName
+                WHERE auto_delete_at IS NOT NULL AND auto_delete_at <= ?
+              )
+            ''',
+              [nowIso],
+            );
+          } catch (_) {}
+        }
+        await txn.delete(
+          _tableName,
+          where: 'auto_delete_at IS NOT NULL AND auto_delete_at <= ?',
+          whereArgs: [nowIso],
+        );
+      });
     } catch (e) {
       _logger.w('Gagal membersihkan pesan kedaluwarsa di SQLite: $e');
     }
@@ -630,9 +872,145 @@ class LocalMessageDatabase {
   Future<void> clearAll() async {
     try {
       final db = await database;
-      await db.delete(_tableName);
+      await db.transaction((txn) async {
+        await txn.delete(_tableName);
+        if (_ftsAvailable) {
+          try {
+            await txn.delete(_ftsTableName);
+          } catch (_) {}
+        }
+        try {
+          await txn.delete(_searchMetaTableName);
+        } catch (_) {}
+      });
     } catch (e) {
       _logger.w('Gagal mengosongkan LocalMessageDatabase: $e');
+    }
+  }
+
+  /// Optimasi indeks pencarian FTS5 dan bersihkan baris yatim (orphan rows)
+  Future<void> optimizeSearchIndex() async {
+    if (!_ftsAvailable) return;
+    try {
+      final db = await database;
+      await db.transaction((txn) async {
+        await txn.rawDelete('''
+          DELETE FROM $_ftsTableName
+          WHERE msg_id NOT IN (SELECT id FROM $_tableName)
+        ''');
+        await txn.rawInsert(
+          "INSERT INTO $_ftsTableName($_ftsTableName) VALUES('optimize')",
+        );
+      });
+    } catch (e) {
+      _logger.w('Gagal melakukan optimize search index: $e');
+    }
+  }
+
+  /// Melakukan pencarian pesan lintas-room menggunakan FTS5 atau fallback LIKE query ter-escape.
+  Future<List<Message>> searchMessagesAcrossRooms({
+    required String query,
+    Set<String> excludedRoomIds = const {},
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.length < 2) return [];
+
+    try {
+      final db = await database;
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+
+      if (_ftsAvailable) {
+        final ftsQuery = MessageSearchHelper.buildFtsQuery(trimmed);
+        if (ftsQuery == null) return [];
+
+        final whereClauses = <String>[
+          '$_ftsTableName MATCH ?',
+          'lm.is_deleted = 0',
+          'lm.is_silent_deleted = 0',
+          'lm.is_view_once = 0',
+          '(lm.auto_delete_at IS NULL OR lm.auto_delete_at > ?)',
+        ];
+        final whereArgs = <dynamic>[ftsQuery, nowIso];
+
+        if (excludedRoomIds.isNotEmpty) {
+          final placeholders = List.filled(
+            excludedRoomIds.length,
+            '?',
+          ).join(',');
+          whereClauses.add('lm.room_id NOT IN ($placeholders)');
+          whereArgs.addAll(excludedRoomIds);
+        }
+
+        whereArgs.add(limit);
+        whereArgs.add(offset);
+
+        final sql =
+            '''
+          SELECT lm.* FROM $_ftsTableName f
+          JOIN $_tableName lm ON lm.id = f.msg_id
+          WHERE ${whereClauses.join(' AND ')}
+          ORDER BY lm.created_at DESC
+          LIMIT ? OFFSET ?
+        ''';
+
+        final rows = await db.rawQuery(sql, whereArgs);
+        return rows.map(_mapToMessage).toList();
+      } else {
+        // Fallback LIKE query jika FTS5 tidak didukung pada engine
+        final escapedQuery = trimmed
+            .replaceAll(r'\', r'\\')
+            .replaceAll('%', r'\%')
+            .replaceAll('_', r'\_');
+
+        final whereClauses = <String>[
+          'is_deleted = 0',
+          'is_silent_deleted = 0',
+          'is_view_once = 0',
+          '(auto_delete_at IS NULL OR auto_delete_at > ?)',
+          "content LIKE ? ESCAPE '\\'",
+        ];
+        final whereArgs = <dynamic>[nowIso, '%$escapedQuery%'];
+
+        if (excludedRoomIds.isNotEmpty) {
+          final placeholders = List.filled(
+            excludedRoomIds.length,
+            '?',
+          ).join(',');
+          whereClauses.add('room_id NOT IN ($placeholders)');
+          whereArgs.addAll(excludedRoomIds);
+        }
+
+        whereArgs.add(limit);
+        whereArgs.add(offset);
+
+        final sql =
+            '''
+          SELECT * FROM $_tableName
+          WHERE ${whereClauses.join(' AND ')}
+          ORDER BY created_at DESC
+          LIMIT ? OFFSET ?
+        ''';
+
+        final rows = await db.rawQuery(sql, whereArgs);
+        final lowerTrimmed = trimmed.toLowerCase();
+        return rows
+            .map(_mapToMessage)
+            .where(
+              (m) =>
+                  m.searchableText?.toLowerCase().contains(lowerTrimmed) ==
+                  true,
+            )
+            .toList();
+      }
+    } catch (e, st) {
+      _logger.w(
+        'Gagal melakukan pencarian pesan lintas-chat: $e',
+        error: e,
+        stackTrace: st,
+      );
+      return [];
     }
   }
 
@@ -679,8 +1057,9 @@ class LocalMessageDatabase {
         if (decoded is Map) {
           decoded.forEach((key, value) {
             if (value is List) {
-              parsedReactions[key.toString()] =
-                  value.map((e) => e.toString()).toList();
+              parsedReactions[key.toString()] = value
+                  .map((e) => e.toString())
+                  .toList();
             }
           });
         }
@@ -709,8 +1088,10 @@ class LocalMessageDatabase {
           ? DateTime.tryParse(row['edited_at'] as String)
           : null,
       reactions: parsedReactions,
-      createdAt: DateTime.tryParse(row['created_at'] as String) ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(row['updated_at'] as String) ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(row['created_at'] as String) ?? DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(row['updated_at'] as String) ?? DateTime.now(),
       isEncrypted: (row['is_encrypted'] as int? ?? 0) == 1,
       isSending: false,
     );

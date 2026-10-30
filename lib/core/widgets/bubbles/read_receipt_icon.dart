@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/icons.dart';
+import '../../constants/motion.dart';
 
 /// Enum status tanda terima baca pesan
 enum ReadReceiptStatus {
@@ -11,6 +12,9 @@ enum ReadReceiptStatus {
 }
 
 /// Read Receipt Icon (uses MekaarColors — no hardcoded colors)
+///
+/// Dibungkus dalam kotak stabil 16x16 dengan transisi mikro [AnimatedSwitcher]
+/// berskala 0.6 -> 1.0 yang menghormati preferensi reduce-motion sistem.
 class ReadReceiptIcon extends StatelessWidget {
   final ReadReceiptStatus status;
   final Color color;
@@ -21,8 +25,7 @@ class ReadReceiptIcon extends StatelessWidget {
     required this.color,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _iconFor(ReadReceiptStatus status) {
     switch (status) {
       case ReadReceiptStatus.pending:
         return Icon(MekaarIcons.timerOutlined, size: 12, color: color);
@@ -37,5 +40,27 @@ class ReadReceiptIcon extends StatelessWidget {
           color: MekaarColors.readReceiptGreen,
         );
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 16,
+      height: 16,
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: context.motion(MekaarMotion.fast),
+          switchInCurve: MekaarMotion.bounce,
+          transitionBuilder: (child, anim) => ScaleTransition(
+            scale: Tween<double>(begin: 0.6, end: 1.0).animate(anim),
+            child: FadeTransition(opacity: anim, child: child),
+          ),
+          child: KeyedSubtree(
+            key: ValueKey(status),
+            child: _iconFor(status),
+          ),
+        ),
+      ),
+    );
   }
 }

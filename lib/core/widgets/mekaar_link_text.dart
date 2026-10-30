@@ -1,10 +1,13 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/colors.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
+import '../utils/link_risk.dart';
+import 'mekaar_snackbar.dart';
 
 /// Regex standar deteksi tautan (http, https, dan www)
 final RegExp _urlRegex = RegExp(
@@ -17,18 +20,36 @@ Future<void> showMekaarLinkConfirmationDialog(
   BuildContext context,
   String rawUrl,
 ) async {
-  HapticService.trigger(MekaarHapticIntent.selection);
+  final assessment = assessLink(rawUrl);
+  if (assessment.isHighRisk) {
+    HapticService.trigger(MekaarHapticIntent.warning);
+  } else {
+    HapticService.trigger(MekaarHapticIntent.selection);
+  }
+
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final surface = MekaarColors.surfaceOf(context);
   final textPrimary = MekaarColors.textPrimaryOf(context);
   final textMuted = MekaarColors.textMutedOf(context);
   final primary = MekaarColors.primaryOf(context);
 
-  final normalizedUrl = rawUrl.startsWith(RegExp(r'https?:\/\/', caseSensitive: false))
-      ? rawUrl
-      : 'https://$rawUrl';
-  final uri = Uri.tryParse(normalizedUrl);
-  final host = uri?.host.isNotEmpty == true ? uri!.host : rawUrl;
+  final Color headerColor;
+  final IconData headerIcon;
+  final String headerTitle;
+
+  if (assessment.isBlocked) {
+    headerColor = MekaarColors.sosRed;
+    headerIcon = SolarIconsOutline.dangerCircle;
+    headerTitle = 'Tautan Berbahaya / Diblokir';
+  } else if (assessment.isHighRisk) {
+    headerColor = MekaarColors.warnAmber;
+    headerIcon = SolarIconsOutline.shieldWarning;
+    headerTitle = 'Peringatan Keamanan Tautan';
+  } else {
+    headerColor = primary;
+    headerIcon = SolarIconsOutline.linkCircle;
+    headerTitle = 'Buka Tautan Eksternal';
+  }
 
   await showDialog<void>(
     context: context,
@@ -38,7 +59,9 @@ Future<void> showMekaarLinkConfirmationDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(
-            color: MekaarColors.borderOf(ctx).withValues(alpha: isDark ? 0.3 : 0.15),
+            color: MekaarColors.borderOf(
+              ctx,
+            ).withValues(alpha: isDark ? 0.3 : 0.15),
           ),
         ),
         child: Padding(
@@ -52,19 +75,15 @@ Future<void> showMekaarLinkConfirmationDialog(
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.12),
+                      color: headerColor.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      SolarIconsOutline.linkCircle,
-                      color: primary,
-                      size: 24,
-                    ),
+                    child: Icon(headerIcon, color: headerColor, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Buka Tautan Eksternal',
+                      headerTitle,
                       style: MekaarTypography.headingSM.copyWith(
                         color: textPrimary,
                         fontSize: 16,
@@ -75,7 +94,9 @@ Future<void> showMekaarLinkConfirmationDialog(
               ),
               const SizedBox(height: 14),
               Text(
-                'Anda akan meninggalkan aplikasi MEKAAR menuju domain:',
+                assessment.isBlocked
+                    ? 'Tautan ini mengandung skema protokol yang tidak diizinkan:'
+                    : 'Anda akan meninggalkan aplikasi MEKAAR menuju domain:',
                 style: MekaarTypography.bodySM.copyWith(
                   color: textMuted,
                   fontSize: 13,
@@ -84,7 +105,10 @@ Future<void> showMekaarLinkConfirmationDialog(
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.05)
@@ -94,54 +118,119 @@ Future<void> showMekaarLinkConfirmationDialog(
                     color: MekaarColors.borderOf(ctx).withValues(alpha: 0.15),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      host,
-                      style: MekaarTypography.bodySM.copyWith(
-                        color: textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            assessment.host,
+                            style: MekaarTypography.bodySM.copyWith(
+                              color: textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            assessment.normalizedUrl,
+                            style: MekaarTypography.labelSM.copyWith(
+                              color: textMuted,
+                              fontSize: 11,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      normalizedUrl,
-                      style: MekaarTypography.labelSM.copyWith(
-                        color: textMuted,
-                        fontSize: 11,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(SolarIconsOutline.copy, size: 18),
+                      tooltip: 'Salin Tautan',
+                      color: primary,
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: assessment.normalizedUrl),
+                        );
+                        if (context.mounted) {
+                          MekaarSnackbar.success(context, 'Tautan disalin');
+                        }
+                      },
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    SolarIconsOutline.shieldWarning,
-                    size: 16,
-                    color: MekaarColors.warnAmber,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Pastikan Anda mempercayai situs ini untuk menghindari potensi penipuan atau phishing.',
-                      style: MekaarTypography.labelSM.copyWith(
-                        color: textMuted,
-                        fontSize: 11,
-                        height: 1.3,
+              if (assessment.risks.isNotEmpty) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: assessment.risks.map((risk) {
+                    final isHigh =
+                        risk == LinkRisk.punycode ||
+                        risk == LinkRisk.userInfo ||
+                        risk == LinkRisk.blockedScheme;
+                    final warnColor = isHigh
+                        ? MekaarColors.sosCoral
+                        : MekaarColors.warnAmber;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            SolarIconsOutline.dangerTriangle,
+                            size: 15,
+                            color: warnColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              LinkAssessment.descriptionOf(
+                                risk,
+                                port: assessment.uri?.port,
+                              ),
+                              style: MekaarTypography.labelSM.copyWith(
+                                color: warnColor,
+                                fontSize: 11,
+                                height: 1.3,
+                                fontWeight: isHigh
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      SolarIconsOutline.shieldCheck,
+                      size: 16,
+                      color: MekaarColors.safeTeal,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Pastikan Anda mempercayai situs ini untuk menghindari potensi penipuan atau phishing.',
+                        style: MekaarTypography.labelSM.copyWith(
+                          color: textMuted,
+                          fontSize: 11,
+                          height: 1.3,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -157,27 +246,100 @@ Future<void> showMekaarLinkConfirmationDialog(
                     ),
                   ),
                   const SizedBox(width: 8),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  if (assessment.isBlocked)
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.08),
+                        foregroundColor: textMuted,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
-                    icon: const Icon(SolarIconsOutline.arrowRightUp, size: 16),
-                    label: const Text('Buka Tautan'),
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      if (uri != null) {
-                        try {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        } catch (_) {
-                          await launchUrl(uri, mode: LaunchMode.platformDefault);
+                      icon: const Icon(
+                        SolarIconsOutline.forbiddenCircle,
+                        size: 16,
+                      ),
+                      label: const Text('Tautan Diblokir'),
+                      onPressed: null,
+                    )
+                  else if (assessment.isHighRisk)
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: MekaarColors.sosCoral,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                      ),
+                      icon: const Icon(
+                        SolarIconsOutline.arrowRightUp,
+                        size: 16,
+                      ),
+                      label: const Text('Tetap Buka'),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        if (assessment.uri != null &&
+                            (assessment.uri!.scheme == 'http' ||
+                                assessment.uri!.scheme == 'https')) {
+                          try {
+                            await launchUrl(
+                              assessment.uri!,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } catch (_) {
+                            await launchUrl(
+                              assessment.uri!,
+                              mode: LaunchMode.platformDefault,
+                            );
+                          }
                         }
-                      }
-                    },
-                  ),
+                      },
+                    )
+                  else
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                      ),
+                      icon: const Icon(
+                        SolarIconsOutline.arrowRightUp,
+                        size: 16,
+                      ),
+                      label: const Text('Buka Tautan'),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        if (assessment.uri != null &&
+                            (assessment.uri!.scheme == 'http' ||
+                                assessment.uri!.scheme == 'https')) {
+                          try {
+                            await launchUrl(
+                              assessment.uri!,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } catch (_) {
+                            await launchUrl(
+                              assessment.uri!,
+                              mode: LaunchMode.platformDefault,
+                            );
+                          }
+                        }
+                      },
+                    ),
                 ],
               ),
             ],
@@ -189,11 +351,13 @@ Future<void> showMekaarLinkConfirmationDialog(
 }
 
 /// Widget perender teks dengan deteksi tautan otomatis (hyperlink)
+/// serta dukungan penandaan sorotan kata (highlighting) saat mode pencarian aktif.
 class MekaarLinkText extends StatefulWidget {
   final String text;
   final TextStyle baseStyle;
   final Color? linkColor;
   final bool isMe;
+  final String? highlightQuery;
 
   const MekaarLinkText({
     super.key,
@@ -201,6 +365,7 @@ class MekaarLinkText extends StatefulWidget {
     required this.baseStyle,
     this.linkColor,
     this.isMe = false,
+    this.highlightQuery,
   });
 
   @override
@@ -219,6 +384,68 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
     super.dispose();
   }
 
+  /// Memecah string menjadi daftar InlineSpan dengan latar belakang sorotan (highlight)
+  /// pada segmen yang cocok dengan kueri pencarian (case-insensitive).
+  List<InlineSpan> _buildHighlightedSpans({
+    required String text,
+    required TextStyle style,
+    required String? highlightQuery,
+    GestureRecognizer? recognizer,
+  }) {
+    final query = highlightQuery?.trim();
+    if (query == null || query.isEmpty) {
+      return [TextSpan(text: text, style: style, recognizer: recognizer)];
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    if (!lowerText.contains(lowerQuery)) {
+      return [TextSpan(text: text, style: style, recognizer: recognizer)];
+    }
+
+    final spans = <InlineSpan>[];
+    int start = 0;
+    final highlightStyle = style.copyWith(
+      backgroundColor: MekaarColors.warnAmber.withValues(alpha: 0.35),
+    );
+
+    while (start < text.length) {
+      final index = lowerText.indexOf(lowerQuery, start);
+      if (index == -1) {
+        spans.add(
+          TextSpan(
+            text: text.substring(start),
+            style: style,
+            recognizer: recognizer,
+          ),
+        );
+        break;
+      }
+
+      if (index > start) {
+        spans.add(
+          TextSpan(
+            text: text.substring(start, index),
+            style: style,
+            recognizer: recognizer,
+          ),
+        );
+      }
+
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + query.length),
+          style: highlightStyle,
+          recognizer: recognizer,
+        ),
+      );
+
+      start = index + query.length;
+    }
+
+    return spans;
+  }
+
   @override
   Widget build(BuildContext context) {
     for (final recognizer in _recognizers) {
@@ -228,14 +455,23 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
 
     final matches = _urlRegex.allMatches(widget.text).toList();
     if (matches.isEmpty) {
+      if (widget.highlightQuery != null &&
+          widget.highlightQuery!.trim().isNotEmpty) {
+        final spans = _buildHighlightedSpans(
+          text: widget.text,
+          style: widget.baseStyle,
+          highlightQuery: widget.highlightQuery,
+        );
+        return Text.rich(TextSpan(children: spans), style: widget.baseStyle);
+      }
       return Text(widget.text, style: widget.baseStyle);
     }
 
     final spans = <InlineSpan>[];
     int lastMatchEnd = 0;
 
-    final effectiveLinkColor = widget.linkColor ??
-        (widget.isMe ? Colors.white : MekaarColors.cyan);
+    final effectiveLinkColor =
+        widget.linkColor ?? (widget.isMe ? Colors.white : MekaarColors.cyan);
 
     final linkStyle = widget.baseStyle.copyWith(
       color: effectiveLinkColor,
@@ -246,10 +482,12 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
 
     for (final match in matches) {
       if (match.start > lastMatchEnd) {
-        spans.add(
-          TextSpan(
-            text: widget.text.substring(lastMatchEnd, match.start),
+        final nonLinkText = widget.text.substring(lastMatchEnd, match.start);
+        spans.addAll(
+          _buildHighlightedSpans(
+            text: nonLinkText,
             style: widget.baseStyle,
+            highlightQuery: widget.highlightQuery,
           ),
         );
       }
@@ -261,10 +499,11 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
         };
       _recognizers.add(recognizer);
 
-      spans.add(
-        TextSpan(
+      spans.addAll(
+        _buildHighlightedSpans(
           text: urlString,
           style: linkStyle,
+          highlightQuery: widget.highlightQuery,
           recognizer: recognizer,
         ),
       );
@@ -273,17 +512,16 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
     }
 
     if (lastMatchEnd < widget.text.length) {
-      spans.add(
-        TextSpan(
-          text: widget.text.substring(lastMatchEnd),
+      final remainingText = widget.text.substring(lastMatchEnd);
+      spans.addAll(
+        _buildHighlightedSpans(
+          text: remainingText,
           style: widget.baseStyle,
+          highlightQuery: widget.highlightQuery,
         ),
       );
     }
 
-    return Text.rich(
-      TextSpan(children: spans),
-      style: widget.baseStyle,
-    );
+    return Text.rich(TextSpan(children: spans), style: widget.baseStyle);
   }
 }

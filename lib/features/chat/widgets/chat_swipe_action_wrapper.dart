@@ -121,7 +121,7 @@ class _ChatSwipeActionWrapperState extends State<ChatSwipeActionWrapper>
     if (_dragOffset != 0.0) {
       final startOffset = _dragOffset;
       final anim = Tween<double>(begin: startOffset, end: 0.0).animate(
-        CurvedAnimation(parent: _recoilController, curve: Curves.easeOutCubic),
+        CurvedAnimation(parent: _recoilController, curve: MekaarMotion.standard),
       );
       anim.addListener(() {
         setState(() {

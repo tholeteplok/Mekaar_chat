@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
@@ -88,6 +89,18 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
           }
         });
       });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (context.reduceMotion && _springController.isAnimating) {
+      _springController.stop();
+      setState(() {
+        _dragOffsets.clear();
+        _springStartOffsets.clear();
+      });
+    }
   }
 
   @override
@@ -228,8 +241,15 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
         setState(() {
           _activeDragIndex = null;
           if (currentOffset != Offset.zero) {
-            _springStartOffsets[index] = currentOffset;
-            _springController.forward(from: 0.0);
+            if (context.reduceMotion) {
+              _dragOffsets.remove(index);
+              _springStartOffsets.remove(index);
+            } else {
+              _springStartOffsets[index] = currentOffset;
+              _springController.forward(from: 0.0);
+  
+            }
+
           }
         });
         if (!_didDragMove) {
@@ -242,8 +262,8 @@ class _NearbyOrbitalCanvasState extends State<NearbyOrbitalCanvas>
       },
       child: AnimatedScale(
         scale: scale,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
+        duration: context.motion(MekaarMotion.micro),
+        curve: MekaarMotion.standard,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,

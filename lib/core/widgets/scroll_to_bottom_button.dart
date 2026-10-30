@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
+import '../constants/motion.dart';
 
 /// Tombol scroll-to-bottom mengambang. Muncul saat user scroll menjauh dari
 /// bottom chat. Opsional menampilkan badge jumlah pesan baru.
@@ -23,13 +24,15 @@ class ScrollToBottomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final motionDuration = context.motion(MekaarMotion.fast);
+
     return AnimatedOpacity(
       opacity: visible ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 200),
+      duration: motionDuration,
       child: AnimatedScale(
-        scale: visible ? 1.0 : 0.5,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutBack,
+        scale: visible ? 1.0 : (context.reduceMotion ? 1.0 : 0.5),
+        duration: motionDuration,
+        curve: MekaarMotion.bounce,
         child: Semantics(
           button: true,
           label: 'Ke pesan terbaru',

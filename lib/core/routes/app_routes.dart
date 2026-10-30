@@ -39,6 +39,7 @@ import 'package:mekaar_chat/features/settings/screens/connected_devices_screen.d
 import 'package:mekaar_chat/features/map/screens/location_picker_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
+import 'package:mekaar_chat/features/sos/screens/sos_drill_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_lock_screen.dart';
@@ -52,6 +53,7 @@ import 'package:mekaar_chat/features/chat/screens/create_group_details_screen.da
 import 'package:mekaar_chat/features/chat/screens/group_details_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/vault_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/archived_chats_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/message_search_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/contact_vault_settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/advanced_privacy_settings_screen.dart';
 import '../constants/motion.dart';
@@ -63,43 +65,41 @@ import '../constants/motion.dart';
 /// dan menghormati [MediaQuery.disableAnimationsOf].
 class MekaarPageRoute extends PageRouteBuilder {
   MekaarPageRoute({required WidgetBuilder builder})
-      : super(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              builder(context),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            if (MediaQuery.disableAnimationsOf(context)) return child;
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: MekaarMotion.bounce,
-            );
-            final reverse = CurvedAnimation(
-              parent: animation,
-              curve: MekaarMotion.standard,
-              reverseCurve: MekaarMotion.standard,
-            );
-            return AnimatedBuilder(
-              animation: animation,
-              builder: (context, _) {
-                final isForward = animation.status == AnimationStatus.forward;
-                final t = isForward ? curved.value : reverse.value;
-                return Opacity(
-                  opacity: t.clamp(0.0, 1.0),
-                  child: Transform.translate(
-                    offset: Offset(0, 20 * (1 - t)),
-                    child: Transform.scale(
-                      scale: 0.96 + 0.04 * t,
-                      child: child,
-                    ),
-                  ),
-                );
-              },
-              child: child,
-            );
-          },
-          transitionDuration: MekaarMotion.normal,
-          reverseTransitionDuration: MekaarMotion.fast,
-        );
+    : super(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            builder(context),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          if (MediaQuery.disableAnimationsOf(context)) return child;
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: MekaarMotion.bounce,
+          );
+          final reverse = CurvedAnimation(
+            parent: animation,
+            curve: MekaarMotion.standard,
+            reverseCurve: MekaarMotion.standard,
+          );
+          return AnimatedBuilder(
+            animation: animation,
+            builder: (context, _) {
+              final isForward = animation.status == AnimationStatus.forward;
+              final t = isForward ? curved.value : reverse.value;
+              return Opacity(
+                opacity: t.clamp(0.0, 1.0),
+                child: Transform.translate(
+                  offset: Offset(0, 20 * (1 - t)),
+                  child: Transform.scale(scale: 0.96 + 0.04 * t, child: child),
+                ),
+              );
+            },
+            child: child,
+          );
+        },
+        transitionDuration: MekaarMotion.normal,
+        reverseTransitionDuration: MekaarMotion.fast,
+      );
 }
+
 class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
@@ -135,6 +135,7 @@ class AppRoutes {
   static const String sosActive = '/sos/active';
   static const String sosViewer = '/sos/viewer';
   static const String sosVideo = '/sos/video';
+  static const String sosDrill = '/sos/drill';
   static const String deviceLost = '/sos/lost';
   static const String deviceLostLock = '/sos/lost/lock';
   static const String map = '/map';
@@ -153,22 +154,30 @@ class AppRoutes {
   static const String connectedDevices = '/settings/devices';
   static const String vault = '/chat/vault';
   static const String archivedChats = '/chat/archived';
+  static const String messageSearch = '/chat/search';
   static const String contactVaultSettings = '/settings/contact-vault';
   static const String advancedPrivacySettings = '/settings/advanced-privacy';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.advancedPrivacySettings:
-        return MekaarPageRoute(builder: (_) => const AdvancedPrivacySettingsScreen());
+        return MekaarPageRoute(
+          builder: (_) => const AdvancedPrivacySettingsScreen(),
+        );
 
       case AppRoutes.contactVaultSettings:
-        return MekaarPageRoute(builder: (_) => const ContactVaultSettingsScreen());
+        return MekaarPageRoute(
+          builder: (_) => const ContactVaultSettingsScreen(),
+        );
 
       case AppRoutes.vault:
         return MekaarPageRoute(builder: (_) => const VaultScreen());
 
       case AppRoutes.archivedChats:
         return MekaarPageRoute(builder: (_) => const ArchivedChatsScreen());
+
+      case AppRoutes.messageSearch:
+        return MekaarPageRoute(builder: (_) => const MessageSearchScreen());
 
       case AppRoutes.chatRequests:
         return MekaarPageRoute(builder: (_) => const ChatRequestsScreen());
@@ -197,12 +206,10 @@ class AppRoutes {
 
       case AppRoutes.pin:
         final isSetup = settings.arguments as bool? ?? false;
-        return MekaarPageRoute(
-            builder: (_) => PinScreen(isSetup: isSetup));
+        return MekaarPageRoute(builder: (_) => PinScreen(isSetup: isSetup));
 
       case AppRoutes.home:
-        return MekaarPageRoute(
-            builder: (_) => const MainNavigationScreen());
+        return MekaarPageRoute(builder: (_) => const MainNavigationScreen());
 
       case AppRoutes.chat:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
@@ -225,7 +232,10 @@ class AppRoutes {
             isGroup: args['isGroup'] as bool? ?? false,
             otherUserId: args['otherUserId'] as String?,
             initialSharedText: args['initialSharedText'] as String?,
-            initialSharedFiles: (args['initialSharedFiles'] as List?)?.cast<String>(),
+            initialSharedFiles: (args['initialSharedFiles'] as List?)
+                ?.cast<String>(),
+            jumpToMessageId: args['jumpToMessageId'] as String?,
+            initialLastReadAt: args['initialLastReadAt'] as DateTime?,
           ),
         );
 
@@ -244,20 +254,16 @@ class AppRoutes {
         );
 
       case AppRoutes.guardian:
-        return MekaarPageRoute(
-            builder: (_) => const GuardianListScreen());
+        return MekaarPageRoute(builder: (_) => const GuardianListScreen());
 
       case AppRoutes.guardianAdd:
-        return MekaarPageRoute(
-            builder: (_) => const AddGuardianScreen());
+        return MekaarPageRoute(builder: (_) => const AddGuardianScreen());
 
       case AppRoutes.guardianQrInvite:
-        return MekaarPageRoute(
-            builder: (_) => const QrInviteScreen());
+        return MekaarPageRoute(builder: (_) => const QrInviteScreen());
 
       case AppRoutes.guardianQrScan:
-        return MekaarPageRoute(
-            builder: (_) => const QrScanScreen());
+        return MekaarPageRoute(builder: (_) => const QrScanScreen());
 
       case AppRoutes.guardianDetail:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
@@ -269,14 +275,10 @@ class AppRoutes {
       case AppRoutes.guardianSwap:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         final g = args['guardian'] as Guardian;
-        return MekaarPageRoute(
-          builder: (_) => SwapGuardianScreen(guardian: g),
-        );
+        return MekaarPageRoute(builder: (_) => SwapGuardianScreen(guardian: g));
 
       case AppRoutes.guardianTracking:
-        return MekaarPageRoute(
-          builder: (_) => const GuardianTrackingScreen(),
-        );
+        return MekaarPageRoute(builder: (_) => const GuardianTrackingScreen());
 
       case AppRoutes.settings:
         return MekaarPageRoute(builder: (_) => const SettingsScreen());
@@ -306,8 +308,7 @@ class AppRoutes {
       case AppRoutes.about:
         return MekaarPageRoute(builder: (_) => const AboutMekaarScreen());
       case AppRoutes.connectedDevices:
-        return MekaarPageRoute(
-            builder: (_) => const ConnectedDevicesScreen());
+        return MekaarPageRoute(builder: (_) => const ConnectedDevicesScreen());
       case AppRoutes.blockedList:
         return MekaarPageRoute(builder: (_) => const BlockedListScreen());
       case AppRoutes.tripList:
@@ -315,7 +316,10 @@ class AppRoutes {
       case AppRoutes.addTrip:
         return MekaarPageRoute(builder: (_) => const AddTripScreen());
       case AppRoutes.tripArrivalConfirm:
-        final tripId = (settings.arguments as Map<String, dynamic>?)?['tripId'] as String? ?? '';
+        final tripId =
+            (settings.arguments as Map<String, dynamic>?)?['tripId']
+                as String? ??
+            '';
         return MekaarPageRoute(
           builder: (_) => TripArrivalConfirmScreen(tripId: tripId),
         );
@@ -329,7 +333,8 @@ class AppRoutes {
       case AppRoutes.twoFactor:
         final secret = settings.arguments as String? ?? '';
         return MekaarPageRoute(
-            builder: (_) => TwoFactorScreen(twoFaSecret: secret));
+          builder: (_) => TwoFactorScreen(twoFaSecret: secret),
+        );
 
       case AppRoutes.forgotPassword:
         return MekaarPageRoute(builder: (_) => const ForgotPasswordScreen());
@@ -353,6 +358,9 @@ class AppRoutes {
 
       case AppRoutes.sosVideo:
         return MekaarPageRoute(builder: (_) => const VideoEmergencyScreen());
+
+      case AppRoutes.sosDrill:
+        return MekaarPageRoute(builder: (_) => const SosDrillScreen());
 
       case AppRoutes.deviceLost:
         return MekaarPageRoute(builder: (_) => const DeviceLostScreen());
@@ -393,12 +401,14 @@ class AppRoutes {
 
       case AppRoutes.createGroupSelectMembers:
         return MekaarPageRoute(
-            builder: (_) => const CreateGroupSelectMembersScreen());
+          builder: (_) => const CreateGroupSelectMembersScreen(),
+        );
 
       case AppRoutes.createGroupDetails:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         final ids = (args['selectedUserIds'] as List?)?.cast<String>() ?? [];
-        final profiles = (args['selectedUserProfiles'] as List?)
+        final profiles =
+            (args['selectedUserProfiles'] as List?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
         return MekaarPageRoute(

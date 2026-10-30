@@ -188,13 +188,17 @@ class FileAttachmentMeta {
     this.caption,
   });
 
-  factory FileAttachmentMeta.fromContent(String content, {String? fallbackName}) {
+  factory FileAttachmentMeta.fromContent(
+    String content, {
+    String? fallbackName,
+  }) {
     final trimmed = content.trim();
     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
       try {
         final map = jsonDecode(trimmed) as Map<String, dynamic>;
         return FileAttachmentMeta(
-          fileName: map['file_name'] as String? ?? fallbackName ?? 'Berkas Dokumen',
+          fileName:
+              map['file_name'] as String? ?? fallbackName ?? 'Berkas Dokumen',
           fileSize: (map['file_size'] as num?)?.toInt() ?? 0,
           mimeType: map['mime_type'] as String?,
           keyB64: map['key'] as String?,
@@ -215,14 +219,21 @@ class FileAttachmentMeta {
       'file_name': fileName,
       'file_size': fileSize,
       if (mimeType != null) 'mime_type': mimeType,
-      if (caption != null && caption!.trim().isNotEmpty) 'caption': caption!.trim(),
+      if (caption != null && caption!.trim().isNotEmpty)
+        'caption': caption!.trim(),
     });
   }
 
   String get formattedFileSize {
-    if (fileSize <= 0) return '';
-    if (fileSize < 1024) return '$fileSize B';
-    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    if (fileSize <= 0) {
+      return '';
+    }
+    if (fileSize < 1024) {
+      return '$fileSize B';
+    }
+    if (fileSize < 1024 * 1024) {
+      return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    }
     return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
@@ -232,5 +243,57 @@ class FileAttachmentMeta {
       return fileName.substring(dotIdx + 1).toUpperCase();
     }
     return 'FILE';
+  }
+}
+
+/// Ekstensi untuk ekstraksi teks yang aman dicari (searchable text) pada [Message].
+/// Menjamin privasi dan keamanan: tidak pernah membocorkan kunci enkripsi atau metadata JSON internal.
+extension MessageSearchText on Message {
+  /// Teks yang aman dan diizinkan untuk dicari dalam obrolan.
+  /// Mengembalikan null jika pesan tidak boleh muncul di hasil pencarian.
+  String? get searchableText {
+    if (isDeleted || isSilentDeleted || isViewOnce) return null;
+    if (autoDeleteAt != null &&
+        autoDeleteAt!.toUtc().isBefore(DateTime.now().toUtc())) {
+      return null;
+    }
+
+    switch (type) {
+      case MessageType.text:
+        final trimmed = content.trim();
+        return trimmed.isEmpty ? null : content;
+
+      case MessageType.file:
+        final m = fileMeta;
+        if (m == null) return null;
+        final parts = [m.fileName, m.caption]
+            .whereType<String>()
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        return parts.isEmpty ? null : parts.join(' ');
+
+      case MessageType.image:
+      case MessageType.video:
+        final trimmed = content.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            final decoded = jsonDecode(trimmed);
+            if (decoded is Map<String, dynamic>) {
+              final caption = (decoded['caption'] as String? ?? '').trim();
+              return caption.isEmpty ? null : caption;
+            }
+          } catch (_) {}
+        }
+        if (!isEncrypted && trimmed.isNotEmpty) {
+          return trimmed;
+        }
+        return null;
+
+      case MessageType.voice:
+      case MessageType.location:
+      case MessageType.system:
+        return null;
+    }
   }
 }

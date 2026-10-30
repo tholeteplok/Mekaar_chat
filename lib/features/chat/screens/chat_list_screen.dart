@@ -108,6 +108,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       ref.read(sharedPayloadProvider.notifier).clear();
     });
   }
+
   static bool _permissionPromptShownThisSession = false;
   static bool _updatePromptShownThisSession = false;
   Timer? _vaultDebounceTimer;
@@ -151,10 +152,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             context: context,
             info: info,
             onUpdate: () {
-              showInAppUpdateDialog(
-                context: context,
-                info: info,
-              );
+              showInAppUpdateDialog(context: context, info: info);
             },
           );
         }
@@ -203,10 +201,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
       final slotName = await repo.getSlotName(matchedSlot);
       if (mounted) {
-        MekaarSnackbar.success(
-          context,
-          '$slotName Terbuka',
-        );
+        MekaarSnackbar.success(context, '$slotName Terbuka');
       }
     }
   }
@@ -245,7 +240,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   Future<void> _triggerSOS() async {
     final wasDuress = ref.read(authProvider).lastUnlockWasDuress;
-    final isSosActive = ref.read(sosProvider).status == SOSStatus.active ||
+    final isSosActive =
+        ref.read(sosProvider).status == SOSStatus.active ||
         ref.read(sosProvider).status == SOSStatus.queuedOffline;
     if (isSosActive && !wasDuress) {
       Navigator.pushNamed(context, AppRoutes.sosActive);
@@ -299,16 +295,24 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
-  void _showChatTileContextMenu(BuildContext context, Map<String, dynamic> room) {
+  void _showChatTileContextMenu(
+    BuildContext context,
+    Map<String, dynamic> room,
+  ) {
     HapticService.trigger(MekaarHapticIntent.selection);
     final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
-    final chatName = (room['name'] ?? room['chat_name']) as String? ?? 'Obrolan';
-    final chatAvatar = (room['avatar'] as String?) ?? (chatName.isNotEmpty ? chatName[0] : '');
+    final chatName =
+        (room['name'] ?? room['chat_name']) as String? ?? 'Obrolan';
+    final chatAvatar =
+        (room['avatar'] as String?) ?? (chatName.isNotEmpty ? chatName[0] : '');
     final chatAvatarUrl = (room['avatarUrl'] ?? room['avatar_url']) as String?;
-    final otherUserId = (room['otherUserId'] ?? room['other_user_id']) as String?;
-    final isGuardian = (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false;
+    final otherUserId =
+        (room['otherUserId'] ?? room['other_user_id']) as String?;
+    final isGuardian =
+        (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false;
     final isMuted = (room['isMuted'] ?? room['is_muted']) as bool? ?? false;
-    final unreadCount = (room['unreadCount'] ?? room['unread_count']) as int? ?? 0;
+    final unreadCount =
+        (room['unreadCount'] ?? room['unread_count']) as int? ?? 0;
 
     MekaarBottomSheet.show(
       context: context,
@@ -360,7 +364,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           // 1. Tandai Sudah Dibaca
           if (unreadCount > 0)
             ListTile(
-              leading: const Icon(SolarIconsOutline.checkCircle, color: AppColors.blue),
+              leading: const Icon(
+                SolarIconsOutline.checkCircle,
+                color: AppColors.blue,
+              ),
               title: const Text('Tandai Sudah Dibaca'),
               onTap: () {
                 Navigator.pop(sheetCtx);
@@ -383,7 +390,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
           // 3. Arsipkan Obrolan
           ListTile(
-            leading: Icon(SolarIconsOutline.archive, color: MekaarColors.accentTextOf(context)),
+            leading: Icon(
+              SolarIconsOutline.archive,
+              color: MekaarColors.accentTextOf(context),
+            ),
             title: const Text('Arsipkan Obrolan'),
             onTap: () {
               Navigator.pop(sheetCtx);
@@ -393,7 +403,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
           // 4. Info Kontak & Pengaturan
           ListTile(
-            leading: const Icon(SolarIconsOutline.infoCircle, color: AppColors.blue),
+            leading: const Icon(
+              SolarIconsOutline.infoCircle,
+              color: AppColors.blue,
+            ),
             title: const Text('Info Kontak & Pengaturan'),
             onTap: () {
               Navigator.pop(sheetCtx);
@@ -415,10 +428,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
           // 6. Hapus Obrolan
           ListTile(
-            leading: const Icon(SolarIconsOutline.trashBinTrash, color: MekaarColors.sosRed),
+            leading: const Icon(
+              SolarIconsOutline.trashBinTrash,
+              color: MekaarColors.sosRed,
+            ),
             title: const Text(
               'Hapus Chat',
-              style: TextStyle(color: MekaarColors.sosRed, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: MekaarColors.sosRed,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             onTap: () {
               Navigator.pop(sheetCtx);
@@ -436,8 +455,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final repo = ref.read(chatRepositoryProvider);
     await repo.archiveRoom(roomId);
     if (!mounted) return;
-    MekaarSnackbar.info(context, 'Chat diarsipkan');
     ref.read(chatRoomsProvider.notifier).refreshRooms();
+    MekaarSnackbar.undo(
+      context,
+      'Chat diarsipkan',
+      onUndo: () async {
+        await repo.unarchiveRoom(roomId);
+        ref.read(chatRoomsProvider.notifier).refreshRooms();
+      },
+    );
   }
 
   void _confirmDeleteRoom(Map<String, dynamic> room) {
@@ -515,7 +541,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   ),
                   onTap: () {
                     Navigator.pop(stateCtx);
-                    Navigator.pushNamed(context, AppRoutes.createGroupSelectMembers);
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.createGroupSelectMembers,
+                    );
                   },
                 ),
                 const Divider(height: 24),
@@ -578,8 +607,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   if (profile == null) {
                                     setSheetState(() {
                                       isSearching = false;
-                                      errorMessage =
-                                          'Pengguna tidak ditemukan';
+                                      errorMessage = 'Pengguna tidak ditemukan';
                                     });
                                     return;
                                   }
@@ -599,8 +627,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   // Cegah memulai chat dengan pengguna yang diblokir.
                                   final alreadyBlocked = await ref
                                       .read(blockRepositoryProvider)
-                                      .isBlocked(
-                                          profile['id'] as String);
+                                      .isBlocked(profile['id'] as String);
                                   if (alreadyBlocked) {
                                     setSheetState(() {
                                       isSearching = false;
@@ -611,8 +638,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   }
 
                                   // Cek proteksi undangan chat
-                                  final chatReqRepo = ref.read(chatRequestRepositoryProvider);
-                                  final isApproved = await chatReqRepo.isChatApproved(profile['id'] as String);
+                                  final chatReqRepo = ref.read(
+                                    chatRequestRepositoryProvider,
+                                  );
+                                  final isApproved = await chatReqRepo
+                                      .isChatApproved(profile['id'] as String);
 
                                   if (!isApproved) {
                                     if (!stateCtx.mounted) return;
@@ -620,7 +650,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     await SendChatInviteDialog.show(
                                       stateCtx,
                                       receiverId: profile['id'] as String,
-                                      receiverUsername: profile['username'] as String? ?? 'User',
+                                      receiverUsername:
+                                          profile['username'] as String? ??
+                                          'User',
                                     );
                                     if (stateCtx.mounted) {
                                       Navigator.pop(stateCtx);
@@ -634,15 +666,24 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   // Proteksi Private Vault: jika user tujuan disembunyikan & vault terkunci, verifikasi PIN terlebih dahulu
                                   if (!stateCtx.mounted) return;
                                   final targetUserId = profile['id'] as String;
-                                  final isCloaked = VaultIsolationHelper.isContactCloaked(ref, targetUserId);
-                                  final targetSlot = VaultIsolationHelper.getContactVaultSlot(ref, targetUserId);
+                                  final isCloaked =
+                                      VaultIsolationHelper.isContactCloaked(
+                                        ref,
+                                        targetUserId,
+                                      );
+                                  final targetSlot =
+                                      VaultIsolationHelper.getContactVaultSlot(
+                                        ref,
+                                        targetUserId,
+                                      );
 
                                   if (isCloaked) {
-                                    final unlocked = await PrivateVaultDialogs.showUnlockPasscodeDialog(
-                                      stateCtx,
-                                      ref,
-                                      targetSlot,
-                                    );
+                                    final unlocked =
+                                        await PrivateVaultDialogs.showUnlockPasscodeDialog(
+                                          stateCtx,
+                                          ref,
+                                          targetSlot,
+                                        );
                                     if (!unlocked || !stateCtx.mounted) return;
                                   }
 
@@ -652,7 +693,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       .getOrCreateRoom(
                                         profile['id'],
                                         'normal',
-                                        screenshotEnabled: ref.read(screenshotBlockProvider),
+                                        screenshotEnabled: ref.read(
+                                          screenshotBlockProvider,
+                                        ),
                                       );
 
                                   if (stateCtx.mounted) {
@@ -662,31 +705,27 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       AppRoutes.chat,
                                       arguments: {
                                         'chatId': roomId,
-                                        'chatName': (profile['display_name']
+                                        'chatName':
+                                            (profile['display_name'] as String?)
+                                                    ?.isNotEmpty ==
+                                                true
+                                            ? profile['display_name'] as String
+                                            : profile['full_name'] as String? ??
+                                                  profile['username']
+                                                      as String? ??
+                                                  'User',
+                                        'chatAvatar':
+                                            ((profile['display_name']
                                                         as String?)
                                                     ?.isNotEmpty ==
                                                 true
-                                            ? profile['display_name']
-                                                as String
-                                            : profile['full_name']
-                                                    as String? ??
-                                                profile['username']
-                                                    as String? ??
-                                                'User',
-                                        'chatAvatar': ((profile['display_name']
-                                                            as String?)
-                                                        ?.isNotEmpty ==
-                                                    true
-                                                ? profile['display_name']
-                                                    as String
-                                                : profile['full_name']
-                                                        as String? ??
-                                                    profile['username']
-                                                        as String? ??
-                                                    'U')[0],
+                                            ? profile['display_name'] as String
+                                            : profile['full_name'] as String? ??
+                                                  profile['username']
+                                                      as String? ??
+                                                  'U')[0],
                                         'isGuardian': false,
-                                        'otherUserId':
-                                            profile['id'] as String?,
+                                        'otherUserId': profile['id'] as String?,
                                         'chatAvatarUrl':
                                             profile['avatar_url'] as String?,
                                       },
@@ -695,8 +734,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 } catch (e) {
                                   setSheetState(() {
                                     isSearching = false;
-                                    errorMessage =
-                                        'Gagal membuat chat: $e';
+                                    errorMessage = 'Gagal membuat chat: $e';
                                   });
                                 }
                               },
@@ -746,53 +784,61 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         children: [
           SafeArea(
             child: Column(
-          children: [
-            MekaarTabHeader(
-              key: const ValueKey('chat_list_tab_header'),
-              title: 'Mekaar',
-              isSearchActive: _isSearchActive,
-              searchController: _searchController,
-              searchFocusNode: _searchFocusNode,
-              onSearchChanged: (value) {
-                _searchDebounceTimer?.cancel();
-                _searchDebounceTimer =
-                    Timer(const Duration(milliseconds: 180), () {
-                  if (mounted && _searchQuery != value) {
-                    setState(() => _searchQuery = value);
-                  }
-                });
-                _vaultDebounceTimer?.cancel();
-                if (value.trim().length >= 4) {
-                  _vaultDebounceTimer =
-                      Timer(const Duration(milliseconds: 400), () {
-                    _checkVaultPasscode(value);
-                  });
-                }
-              },
-              onSearchClosed: () {
-                _searchDebounceTimer?.cancel();
-                _vaultDebounceTimer?.cancel();
-                setState(() {
-                  _isSearchActive = false;
-                  _searchQuery = '';
-                  _searchController.clear();
-                });
-              },
-              action: (wasDuress || isDecoy)
-                  ? null
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            SolarIconsOutline.magnifier,
-                            color: MekaarColors.primaryOf(context),
-                          ),
-                          tooltip: 'Cari Chat',
-                          onPressed: () =>
-                              setState(() => _isSearchActive = true),
-                        ),
-                        PopupMenuButton<String>(
+              children: [
+                MekaarTabHeader(
+                  key: const ValueKey('chat_list_tab_header'),
+                  title: 'Mekaar',
+                  isSearchActive: _isSearchActive,
+                  searchController: _searchController,
+                  searchFocusNode: _searchFocusNode,
+                  onSearchChanged: (value) {
+                    _searchDebounceTimer?.cancel();
+                    _searchDebounceTimer = Timer(
+                      const Duration(milliseconds: 180),
+                      () {
+                        if (mounted && _searchQuery != value) {
+                          setState(() => _searchQuery = value);
+                        }
+                      },
+                    );
+                    _vaultDebounceTimer?.cancel();
+                    if (value.trim().length >= 4) {
+                      _vaultDebounceTimer = Timer(
+                        const Duration(milliseconds: 400),
+                        () {
+                          _checkVaultPasscode(value);
+                        },
+                      );
+                    }
+                  },
+                  onSearchClosed: () {
+                    _searchDebounceTimer?.cancel();
+                    _vaultDebounceTimer?.cancel();
+                    setState(() {
+                      _isSearchActive = false;
+                      _searchQuery = '';
+                      _searchController.clear();
+                    });
+                  },
+                  action: (wasDuress || isDecoy)
+                      ? null
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                SolarIconsOutline.magnifier,
+                                color: MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: 'Cari Pesan',
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.messageSearch,
+                                );
+                              },
+                            ),
+                            PopupMenuButton<String>(
                               icon: Icon(
                                 SolarIconsOutline.menuDotsCircle,
                                 color: MekaarColors.primaryOf(context),
@@ -807,11 +853,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 if (value == 'vault') {
                                   final verified =
                                       await MekaarPinVerificationSheet.verify(
-                                    context,
-                                    title: 'Buka Brankas Berkas',
-                                    subtitle:
-                                        'Masukkan PIN untuk mengakses berkas rahasia',
-                                  );
+                                        context,
+                                        title: 'Buka Brankas Berkas',
+                                        subtitle:
+                                            'Masukkan PIN untuk mengakses berkas rahasia',
+                                      );
                                   if (verified && context.mounted) {
                                     Navigator.pushNamed(
                                       context,
@@ -839,7 +885,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       Text(
                                         'Brankas Berkas',
                                         style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(context),
+                                          color: MekaarColors.textPrimaryOf(
+                                            context,
+                                          ),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -859,7 +907,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       Text(
                                         'Arsip Percakapan',
                                         style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(context),
+                                          color: MekaarColors.textPrimaryOf(
+                                            context,
+                                          ),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -870,80 +920,101 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                             ),
                           ],
                         ),
-            ),
-            // Banner Darurat SOS untuk Guardian (jika orang yang dijaga dalam bahaya)
-            const GuardianSOSAlertBanner(),
-            // Banner Private Vault Aktif (jika vault sedang terbuka)
-            const PrivateVaultActiveBanner(),
-            // Chat Requests Banner (jika ada permintaan pending)
-            Consumer(
-              builder: (context, ref, _) {
-                final count =
-                    ref.watch(pendingRequestsCountStreamProvider).valueOrNull ??
+                ),
+                // Banner Darurat SOS untuk Guardian (jika orang yang dijaga dalam bahaya)
+                const GuardianSOSAlertBanner(),
+                // Banner Private Vault Aktif (jika vault sedang terbuka)
+                const PrivateVaultActiveBanner(),
+                // Chat Requests Banner (jika ada permintaan pending)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final count =
+                        ref
+                            .watch(pendingRequestsCountStreamProvider)
+                            .valueOrNull ??
                         0;
-                if (count == 0) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: InkWell(
-                    onTap: () =>
-                        Navigator.pushNamed(context, AppRoutes.chatRequests),
-                    borderRadius: BorderRadius.circular(MekaarRadius.md),
-                    child: MekaarBanner(
-                      color: AppColors.blue,
-                      margin: EdgeInsets.zero,
+                    if (count == 0) return const SizedBox.shrink();
+                    return Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      icon: SolarIconsOutline.shieldUser,
-                      content: Text(
-                        '$count Permintaan Chat Masuk Baru',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.blue),
+                        horizontal: 20,
+                        vertical: 4,
                       ),
-                      action: const Icon(SolarIconsOutline.altArrowRight,
-                          size: 16, color: AppColors.blue),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 6),
-            // Sliding Segment Tabs Bar
-            MekaarSlidingSegmentBar(
-              tabs: _tabs,
-              selectedIndex: _selectedTabIndex,
-              onTabSelected: (index) => setState(() => _selectedTabIndex = index),
-            ),
-            const SizedBox(height: 8),
-            // Chat List Content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(chatRoomsProvider.notifier).refreshRooms(),
-                child: chatRoomsState.when(
-                  data: (rooms) => _buildChatList(rooms),
-                  loading: () => const ChatListSkeleton(),
-                  error: (err, stack) => Center(
-                    child: MekaarStateView(
-                      illustration: ErrorResolver.resolveIllustration(err),
-                      stateIcon: ErrorResolver.resolveIllustration(err) == null
-                          ? ErrorResolver.resolveIcon(err)
-                          : null,
-                      stateIconColor:
-                          ErrorResolver.resolveIconColor(err, context),
-                      title: 'Gagal Memuat Chat',
-                      message: ErrorResolver.resolve(err),
-                      actionLabel: 'Coba Lagi',
-                      onAction: () =>
-                          ref.read(chatRoomsProvider.notifier).refreshRooms(),
-                      icon: SolarIconsOutline.refresh,
+                      child: InkWell(
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.chatRequests,
+                        ),
+                        borderRadius: BorderRadius.circular(MekaarRadius.md),
+                        child: MekaarBanner(
+                          color: AppColors.blue,
+                          margin: EdgeInsets.zero,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          icon: SolarIconsOutline.shieldUser,
+                          content: Text(
+                            '$count Permintaan Chat Masuk Baru',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppColors.blue,
+                            ),
+                          ),
+                          action: const Icon(
+                            SolarIconsOutline.altArrowRight,
+                            size: 16,
+                            color: AppColors.blue,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 6),
+                // Sliding Segment Tabs Bar
+                MekaarSlidingSegmentBar(
+                  tabs: _tabs,
+                  selectedIndex: _selectedTabIndex,
+                  onTabSelected: (index) =>
+                      setState(() => _selectedTabIndex = index),
+                ),
+                const SizedBox(height: 8),
+                // Chat List Content
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () =>
+                        ref.read(chatRoomsProvider.notifier).refreshRooms(),
+                    child: chatRoomsState.when(
+                      data: (rooms) => _buildChatList(rooms),
+                      loading: () => const ChatListSkeleton(),
+                      error: (err, stack) => Center(
+                        child: MekaarStateView(
+                          illustration: ErrorResolver.resolveIllustration(err),
+                          stateIcon:
+                              ErrorResolver.resolveIllustration(err) == null
+                              ? ErrorResolver.resolveIcon(err)
+                              : null,
+                          stateIconColor: ErrorResolver.resolveIconColor(
+                            err,
+                            context,
+                          ),
+                          title: 'Gagal Memuat Chat',
+                          message: ErrorResolver.resolve(err),
+                          actionLabel: 'Coba Lagi',
+                          onAction: () => ref
+                              .read(chatRoomsProvider.notifier)
+                              .refreshRooms(),
+                          icon: SolarIconsOutline.refresh,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-      ],
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
@@ -1025,12 +1096,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final cloakedContactUserIds = ref.watch(cloakedContactUserIdsProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
-    final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
-    final vaultedContactIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
+    final contactsList =
+        ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+    final vaultedContactIds = contactsList
+        .where((c) => c.isVaulted)
+        .map((c) => c.contactUserId)
+        .toSet();
 
     // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
     final roomsSignature = _computeRoomsSignature(rooms);
-    final bool isCacheValid = _cachedFiltered != null &&
+    final bool isCacheValid =
+        _cachedFiltered != null &&
         _lastRoomsSignature == roomsSignature &&
         _lastSearchQuery == _searchQuery &&
         _lastTabIndex == _selectedTabIndex &&
@@ -1061,10 +1137,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             final roomTime = _extractRoomTimestamp(room['timestamp']);
 
             // Prioritaskan room dengan pesan & aktivitas paling mutakhir
-            final dominantRoom = roomTime.isAfter(existingTime) ? room : existing;
-            final isGuardian = (existing['isGuardian'] == true) || (room['isGuardian'] == true);
-            final totalUnread = (existing['unreadCount'] as int? ?? 0) + (room['unreadCount'] as int? ?? 0);
-            final isArchived = (existing['isArchived'] == true) && (room['isArchived'] == true);
+            final dominantRoom = roomTime.isAfter(existingTime)
+                ? room
+                : existing;
+            final isGuardian =
+                (existing['isGuardian'] == true) ||
+                (room['isGuardian'] == true);
+            final totalUnread =
+                (existing['unreadCount'] as int? ?? 0) +
+                (room['unreadCount'] as int? ?? 0);
+            final isArchived =
+                (existing['isArchived'] == true) &&
+                (room['isArchived'] == true);
 
             final merged = Map<String, dynamic>.from(dominantRoom);
             merged['isGuardian'] = isGuardian;
@@ -1087,7 +1171,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         final name = (room['name'] ?? room['chat_name'] ?? 'Obrolan') as String;
         final username = room['otherUsername'] as String? ?? '';
         final email = room['otherEmail'] as String? ?? '';
-        final otherUserId = (room['otherUserId'] ?? room['other_user_id']) as String?;
+        final otherUserId =
+            (room['otherUserId'] ?? room['other_user_id']) as String?;
 
         // 1. Jangan tampilkan chat dengan pengguna yang diblokir.
         if (otherUserId != null && blockedIds.contains(otherUserId)) {
@@ -1096,7 +1181,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
         // 2. Cloaking Private Vault terisolasi: Sembunyikan obrolan jika kontak/room terselubung
         if (cloakedRoomIds.contains(roomId)) return false;
-        if (otherUserId != null && cloakedContactUserIds.contains(otherUserId)) {
+        if (otherUserId != null &&
+            cloakedContactUserIds.contains(otherUserId)) {
           return false;
         }
 
@@ -1133,10 +1219,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       final MikaIllustrationType emptyIllustration = hasSearch
           ? MikaIllustrationType.emptySearch
           : isGuardianFilter
-              ? MikaIllustrationType.emptyGuardian
-              : isArchiveFilter
-                  ? MikaIllustrationType.emptyArchive
-                  : MikaIllustrationType.emptyChat;
+          ? MikaIllustrationType.emptyGuardian
+          : isArchiveFilter
+          ? MikaIllustrationType.emptyArchive
+          : MikaIllustrationType.emptyChat;
 
       return _EmptyChats(
         onStart: _showNewChatDialog,
@@ -1181,13 +1267,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 thickness: 1,
                 indent: 74,
                 endIndent: 16,
-                color: MekaarColors.cardBorderOf(context).withValues(alpha: 0.5),
+                color: MekaarColors.cardBorderOf(
+                  context,
+                ).withValues(alpha: 0.5),
               ),
               itemBuilder: (context, index) {
                 final room = filtered[index];
                 final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
-                final otherUserId = (room['otherUserId'] ?? room['other_user_id']) as String?;
-                final isHidden = hiddenRoomIds.contains(roomId) ||
+                final otherUserId =
+                    (room['otherUserId'] ?? room['other_user_id']) as String?;
+                final isHidden =
+                    hiddenRoomIds.contains(roomId) ||
                     (otherUserId != null &&
                         (hiddenContactUserIds.contains(otherUserId) ||
                             vaultedContactIds.contains(otherUserId)));
@@ -1196,8 +1286,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   room: room,
                   isHidden: isHidden,
                   onTap: () {
-                    final chatName = (room['name'] ?? room['chat_name']) as String? ?? 'Obrolan';
-                    final chatAvatar = (room['avatar'] as String?) ?? (chatName.isNotEmpty ? chatName[0] : '💬');
+                    final chatName =
+                        (room['name'] ?? room['chat_name']) as String? ??
+                        'Obrolan';
+                    final chatAvatar =
+                        (room['avatar'] as String?) ??
+                        (chatName.isNotEmpty ? chatName[0] : '💬');
                     Navigator.pushNamed(
                       context,
                       AppRoutes.chat,
@@ -1205,9 +1299,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         'chatId': roomId,
                         'chatName': chatName,
                         'chatAvatar': chatAvatar,
-                        'chatAvatarUrl': (room['avatarUrl'] ?? room['avatar_url']) as String?,
-                        'isGuardian': (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false,
+                        'chatAvatarUrl':
+                            (room['avatarUrl'] ?? room['avatar_url'])
+                                as String?,
+                        'isGuardian':
+                            (room['isGuardian'] ?? room['is_guardian'])
+                                as bool? ??
+                            false,
                         'otherUserId': otherUserId,
+                        'initialLastReadAt': room['lastReadAt'] as DateTime?,
                       },
                     );
                   },
