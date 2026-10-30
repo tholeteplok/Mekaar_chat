@@ -1413,6 +1413,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       .toList();
                   final rawMessages = [...activeDbMessages, ...activePending];
 
+                  int? searchResultCount;
+                  if (_isSearching && _searchQuery.isNotEmpty) {
+                    final q = _searchQuery.toLowerCase();
+                    final pendingHidden = ref.watch(
+                      pendingHiddenMessagesProvider(widget.chatId),
+                    );
+                    final searchMsgs = rawMessages
+                        .where((m) => !pendingHidden.contains(m.id))
+                        .where((m) {
+                          final text = m.searchableText;
+                          if (text == null) return false;
+                          return text.toLowerCase().contains(q);
+                        });
+                    final callsAsync = ref.watch(
+                      chatCallsProvider(widget.chatId),
+                    );
+                    final rawCalls = callsAsync.valueOrNull ?? const [];
+                    final searchCalls = rawCalls
+                        .where((c) => !_hiddenCallIds.contains(c.id))
+                        .where((c) {
+                          return c.callType.toLowerCase().contains(q) ||
+                              c
+                                  .getDisplayStatus(
+                                    c.callerId ==
+                                        ref.read(authProvider).user?.id,
+                                  )
+                                  .toLowerCase()
+                                  .contains(q);
+                        });
+                    searchResultCount = searchMsgs.length + searchCalls.length;
+                  }
+
                   return ChatAppBar(
                     chatId: widget.chatId,
                     chatName: _effectiveChatName,
@@ -1465,6 +1497,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     onDeleteSelectedMessages: _confirmDeleteSelectedItems,
                     // Mode Pencarian
                     isSearching: _isSearching,
+                    searchResultCount: searchResultCount,
                     searchQuery: _searchQuery,
                     searchController: _searchController,
                     inChatSearchFocusNode: _inChatSearchFocusNode,

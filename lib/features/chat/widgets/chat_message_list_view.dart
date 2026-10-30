@@ -338,13 +338,13 @@ class ChatMessageListView extends ConsumerWidget {
 
                             final messages = searchQuery.isEmpty
                                 ? rawMessages
-                                : rawMessages
-                                      .where(
-                                        (m) => m.content.toLowerCase().contains(
-                                          searchQuery.toLowerCase(),
-                                        ),
-                                      )
-                                      .toList();
+                                : rawMessages.where((m) {
+                                    final text = m.searchableText;
+                                    if (text == null) return false;
+                                    return text.toLowerCase().contains(
+                                      searchQuery.toLowerCase(),
+                                    );
+                                  }).toList();
 
                             final calls = searchQuery.isEmpty
                                 ? rawCalls
@@ -589,6 +589,7 @@ class ChatMessageListView extends ConsumerWidget {
       onUnsend: () => onUnsendMessage(msg),
       onReply: (replyMsg) => onReplyMessage(replyMsg),
       onReplyTap: onReplyTap,
+      highlightQuery: searchQuery.isNotEmpty ? searchQuery : null,
       onEdit: (editMsg, newContent) {
         if (!actions.canEdit(editMsg, isGuardianRoom: isGuardian)) {
           return;
