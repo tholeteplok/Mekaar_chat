@@ -18,6 +18,8 @@ import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
+import '../widgets/active_trip_card.dart';
+import '../widgets/quick_trip_sheet.dart';
 
 class GuardianListScreen extends ConsumerStatefulWidget {
   const GuardianListScreen({super.key});
@@ -111,8 +113,19 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                           onPressed: () =>
                               Navigator.pushNamed(context, AppRoutes.sosDrill),
                         ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.routing,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: 'Antar Aku Pulang',
+                          onPressed: () => QuickTripSheet.show(context),
+                        ),
                       ],
                     ),
+            ),
+            const ActiveTripCard(
+              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             ),
             const SizedBox(height: 6),
             MekaarSlidingSegmentBar(
@@ -217,6 +230,17 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                         ),
                         label: Text(
                           'Coba Latihan SOS (Simulasi)',
+                          style: MekaarTypography.labelMD.copyWith(
+                            color: MekaarColors.textSecondaryOf(context),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: () => QuickTripSheet.show(context),
+                        icon: const Icon(SolarIconsOutline.routing, size: 18),
+                        label: Text(
+                          'Antar Aku Pulang (Mulai Cepat)',
                           style: MekaarTypography.labelMD.copyWith(
                             color: MekaarColors.textSecondaryOf(context),
                           ),
