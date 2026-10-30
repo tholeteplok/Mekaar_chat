@@ -39,6 +39,7 @@ import 'package:mekaar_chat/features/settings/screens/connected_devices_screen.d
 import 'package:mekaar_chat/features/map/screens/location_picker_screen.dart';
 import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
+import 'package:mekaar_chat/features/sos/screens/sos_drill_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/device_lost_lock_screen.dart';
@@ -134,6 +135,7 @@ class AppRoutes {
   static const String sosActive = '/sos/active';
   static const String sosViewer = '/sos/viewer';
   static const String sosVideo = '/sos/video';
+  static const String sosDrill = '/sos/drill';
   static const String deviceLost = '/sos/lost';
   static const String deviceLostLock = '/sos/lost/lock';
   static const String map = '/map';
@@ -356,6 +358,9 @@ class AppRoutes {
 
       case AppRoutes.sosVideo:
         return MekaarPageRoute(builder: (_) => const VideoEmergencyScreen());
+
+      case AppRoutes.sosDrill:
+        return MekaarPageRoute(builder: (_) => const SosDrillScreen());
 
       case AppRoutes.deviceLost:
         return MekaarPageRoute(builder: (_) => const DeviceLostScreen());
