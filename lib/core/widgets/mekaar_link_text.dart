@@ -351,11 +351,13 @@ Future<void> showMekaarLinkConfirmationDialog(
 }
 
 /// Widget perender teks dengan deteksi tautan otomatis (hyperlink)
+/// serta dukungan penandaan sorotan kata (highlighting) saat mode pencarian aktif.
 class MekaarLinkText extends StatefulWidget {
   final String text;
   final TextStyle baseStyle;
   final Color? linkColor;
   final bool isMe;
+  final String? highlightQuery;
 
   const MekaarLinkText({
     super.key,
@@ -363,6 +365,7 @@ class MekaarLinkText extends StatefulWidget {
     required this.baseStyle,
     this.linkColor,
     this.isMe = false,
+    this.highlightQuery,
   });
 
   @override
@@ -381,6 +384,68 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
     super.dispose();
   }
 
+  /// Memecah string menjadi daftar InlineSpan dengan latar belakang sorotan (highlight)
+  /// pada segmen yang cocok dengan kueri pencarian (case-insensitive).
+  List<InlineSpan> _buildHighlightedSpans({
+    required String text,
+    required TextStyle style,
+    required String? highlightQuery,
+    GestureRecognizer? recognizer,
+  }) {
+    final query = highlightQuery?.trim();
+    if (query == null || query.isEmpty) {
+      return [TextSpan(text: text, style: style, recognizer: recognizer)];
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    if (!lowerText.contains(lowerQuery)) {
+      return [TextSpan(text: text, style: style, recognizer: recognizer)];
+    }
+
+    final spans = <InlineSpan>[];
+    int start = 0;
+    final highlightStyle = style.copyWith(
+      backgroundColor: MekaarColors.warnAmber.withValues(alpha: 0.35),
+    );
+
+    while (start < text.length) {
+      final index = lowerText.indexOf(lowerQuery, start);
+      if (index == -1) {
+        spans.add(
+          TextSpan(
+            text: text.substring(start),
+            style: style,
+            recognizer: recognizer,
+          ),
+        );
+        break;
+      }
+
+      if (index > start) {
+        spans.add(
+          TextSpan(
+            text: text.substring(start, index),
+            style: style,
+            recognizer: recognizer,
+          ),
+        );
+      }
+
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + query.length),
+          style: highlightStyle,
+          recognizer: recognizer,
+        ),
+      );
+
+      start = index + query.length;
+    }
+
+    return spans;
+  }
+
   @override
   Widget build(BuildContext context) {
     for (final recognizer in _recognizers) {
@@ -390,6 +455,15 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
 
     final matches = _urlRegex.allMatches(widget.text).toList();
     if (matches.isEmpty) {
+      if (widget.highlightQuery != null &&
+          widget.highlightQuery!.trim().isNotEmpty) {
+        final spans = _buildHighlightedSpans(
+          text: widget.text,
+          style: widget.baseStyle,
+          highlightQuery: widget.highlightQuery,
+        );
+        return Text.rich(TextSpan(children: spans), style: widget.baseStyle);
+      }
       return Text(widget.text, style: widget.baseStyle);
     }
 
@@ -408,10 +482,12 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
 
     for (final match in matches) {
       if (match.start > lastMatchEnd) {
-        spans.add(
-          TextSpan(
-            text: widget.text.substring(lastMatchEnd, match.start),
+        final nonLinkText = widget.text.substring(lastMatchEnd, match.start);
+        spans.addAll(
+          _buildHighlightedSpans(
+            text: nonLinkText,
             style: widget.baseStyle,
+            highlightQuery: widget.highlightQuery,
           ),
         );
       }
@@ -423,18 +499,25 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
         };
       _recognizers.add(recognizer);
 
-      spans.add(
-        TextSpan(text: urlString, style: linkStyle, recognizer: recognizer),
+      spans.addAll(
+        _buildHighlightedSpans(
+          text: urlString,
+          style: linkStyle,
+          highlightQuery: widget.highlightQuery,
+          recognizer: recognizer,
+        ),
       );
 
       lastMatchEnd = match.end;
     }
 
     if (lastMatchEnd < widget.text.length) {
-      spans.add(
-        TextSpan(
-          text: widget.text.substring(lastMatchEnd),
+      final remainingText = widget.text.substring(lastMatchEnd);
+      spans.addAll(
+        _buildHighlightedSpans(
+          text: remainingText,
           style: widget.baseStyle,
+          highlightQuery: widget.highlightQuery,
         ),
       );
     }

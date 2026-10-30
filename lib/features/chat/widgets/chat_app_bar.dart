@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/typography.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
@@ -59,6 +60,7 @@ class ChatAppBar extends ConsumerWidget {
   final VoidCallback onCloseSearch;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearchQuery;
+  final int? searchResultCount;
 
   // Aksi Header & Menu
   final VoidCallback onAvatarTap;
@@ -100,6 +102,7 @@ class ChatAppBar extends ConsumerWidget {
     required this.onCloseSearch,
     required this.onSearchChanged,
     required this.onClearSearchQuery,
+    this.searchResultCount,
     // Actions
     required this.onAvatarTap,
     required this.onInitiateCall,
@@ -336,6 +339,28 @@ class ChatAppBar extends ConsumerWidget {
                   onChanged: onSearchChanged,
                 ),
               ),
+              if (searchQuery.isNotEmpty && searchResultCount != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    color: roomThemeSpec.primaryAccentColor.withValues(
+                      alpha: 0.15,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$searchResultCount hasil',
+                    style: MekaarTypography.labelSM.copyWith(
+                      color: roomThemeSpec.textColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               if (searchQuery.isNotEmpty)
                 IconButton(
                   icon: Icon(

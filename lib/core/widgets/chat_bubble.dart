@@ -77,6 +77,7 @@ class ChatBubble extends ConsumerWidget {
   final VoidCallback? onSelectionLongPress;
   final Function(Message)? onSaveToVault;
   final void Function(String messageId)? onReplyTap;
+  final String? highlightQuery;
 
   const ChatBubble({
     super.key,
@@ -103,6 +104,7 @@ class ChatBubble extends ConsumerWidget {
     this.onSelectionTap,
     this.onSelectionLongPress,
     this.onReplyTap,
+    this.highlightQuery,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
@@ -761,6 +763,7 @@ class ChatBubble extends ConsumerWidget {
         return MekaarLinkText(
           text: message.content,
           isMe: isMe,
+          highlightQuery: highlightQuery,
           baseStyle:
               customTextStyle ??
               resolveBubbleTextStyle(
