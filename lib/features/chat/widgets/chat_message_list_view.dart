@@ -123,6 +123,7 @@ class ChatMessageListView extends ConsumerWidget {
   final void Function(String messageId)? onReplyTap;
   final DateTime? entryLastReadAt;
   final String? currentUserId;
+  final bool isFilterMode;
 
   const ChatMessageListView({
     super.key,
@@ -160,6 +161,7 @@ class ChatMessageListView extends ConsumerWidget {
     this.onReplyTap,
     this.entryLastReadAt,
     this.currentUserId,
+    this.isFilterMode = false,
   });
 
   bool get isSelectionMode =>
@@ -336,7 +338,8 @@ class ChatMessageListView extends ConsumerWidget {
                               );
                             }
 
-                            final messages = searchQuery.isEmpty
+                            final messages =
+                                (searchQuery.isEmpty || !isFilterMode)
                                 ? rawMessages
                                 : rawMessages.where((m) {
                                     final text = m.searchableText;
@@ -346,7 +349,7 @@ class ChatMessageListView extends ConsumerWidget {
                                     );
                                   }).toList();
 
-                            final calls = searchQuery.isEmpty
+                            final calls = (searchQuery.isEmpty || !isFilterMode)
                                 ? rawCalls
                                 : rawCalls
                                       .where(
@@ -365,7 +368,9 @@ class ChatMessageListView extends ConsumerWidget {
                                       )
                                       .toList();
 
-                            if (messages.isEmpty && calls.isEmpty) {
+                            if (isFilterMode &&
+                                messages.isEmpty &&
+                                calls.isEmpty) {
                               return MekaarStateView(
                                 pose: MikaPose.confused,
                                 title: 'Tidak Ditemukan',
