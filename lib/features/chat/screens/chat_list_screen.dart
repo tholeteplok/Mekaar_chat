@@ -455,8 +455,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final repo = ref.read(chatRepositoryProvider);
     await repo.archiveRoom(roomId);
     if (!mounted) return;
-    MekaarSnackbar.info(context, 'Chat diarsipkan');
     ref.read(chatRoomsProvider.notifier).refreshRooms();
+    MekaarSnackbar.undo(
+      context,
+      'Chat diarsipkan',
+      onUndo: () async {
+        await repo.unarchiveRoom(roomId);
+        ref.read(chatRoomsProvider.notifier).refreshRooms();
+      },
+    );
   }
 
   void _confirmDeleteRoom(Map<String, dynamic> room) {

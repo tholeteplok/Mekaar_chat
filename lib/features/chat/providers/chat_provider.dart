@@ -25,6 +25,13 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 final activeRoomIdProvider = StateProvider<String?>((ref) => null);
 
 // ─────────────────────────────────────────
+// Pending Hidden Messages (Deferred Commit UX-11)
+// ─────────────────────────────────────────
+final pendingHiddenMessagesProvider = StateProvider.family<Set<String>, String>(
+  (ref, roomId) => <String>{},
+);
+
+// ─────────────────────────────────────────
 // Chat Rooms List
 // ─────────────────────────────────────────
 class ChatRoomsNotifier
@@ -49,7 +56,9 @@ class ChatRoomsNotifier
 
   /// Memuat snapshot daftar chat rooms dari cache SQLite lokal secara instan (0-5 ms, zero network)
   /// dan secara opsional memicu sinkronisasi data remote di latar belakang (stale-while-revalidate).
-  Future<void> reloadFromLocalCache({bool syncRemoteInBackground = true}) async {
+  Future<void> reloadFromLocalCache({
+    bool syncRemoteInBackground = true,
+  }) async {
     try {
       final cached = await _chatRepository.getCachedRooms();
       state = AsyncValue.data(cached);
@@ -78,7 +87,11 @@ class ChatRoomsNotifier
         }
       }
       if (roomToUserIdMap.isNotEmpty) {
-        unawaited(PrivateContactRepository().migrateLegacyHiddenRoomsToContacts(roomToUserIdMap));
+        unawaited(
+          PrivateContactRepository().migrateLegacyHiddenRoomsToContacts(
+            roomToUserIdMap,
+          ),
+        );
       }
     } catch (e, stack) {
       if (!state.hasValue) {
@@ -396,7 +409,10 @@ class ChatActionsNotifier {
     await _chatRepository.reactToMessage(messageId, emoji);
   }
 
-  Future<void> deleteMessageForEveryone(String messageId, {String? roomId}) async {
+  Future<void> deleteMessageForEveryone(
+    String messageId, {
+    String? roomId,
+  }) async {
     await _chatRepository.deleteMessageForEveryone(messageId, roomId: roomId);
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
@@ -426,8 +442,8 @@ class ChatActionsNotifier {
     }
 
     // 2. Ambil aturan pesan menghilang dari ruang tujuan
-    final targetDisappearingHours =
-        await _chatRepository.getRoomDisappearingHours(roomId);
+    final targetDisappearingHours = await _chatRepository
+        .getRoomDisappearingHours(roomId);
 
     // 3. Kirim pesan dengan mewarisi durasi auto-delete ruangan tujuan
     await sendMessage(
@@ -435,8 +451,9 @@ class ChatActionsNotifier {
       message.content,
       mediaUrl: message.mediaUrl,
       type: message.type,
-      autoDeleteHours:
-          targetDisappearingHours > 0 ? targetDisappearingHours : null,
+      autoDeleteHours: targetDisappearingHours > 0
+          ? targetDisappearingHours
+          : null,
     );
   }
 
@@ -618,7 +635,12 @@ class PaginatedContactsNotifier extends StateNotifier<PaginatedContactsState> {
 
   Future<void> loadInitial({String? query}) async {
     final q = query ?? state.searchQuery;
-    state = state.copyWith(isLoading: true, searchQuery: q, page: 0, hasMore: true);
+    state = state.copyWith(
+      isLoading: true,
+      searchQuery: q,
+      page: 0,
+      hasMore: true,
+    );
 
     try {
       final supabase = _ref.read(supabaseServiceProvider);
@@ -707,9 +729,11 @@ class PaginatedContactsNotifier extends StateNotifier<PaginatedContactsState> {
 }
 
 final paginatedContactsProvider =
-    StateNotifierProvider<PaginatedContactsNotifier, PaginatedContactsState>((ref) {
-  return PaginatedContactsNotifier(ref);
-});
+    StateNotifierProvider<PaginatedContactsNotifier, PaginatedContactsState>((
+      ref,
+    ) {
+      return PaginatedContactsNotifier(ref);
+    });
 
 final contactsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,

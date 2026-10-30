@@ -28,8 +28,13 @@ class MekaarSnackbar {
     Duration duration = _durationShort,
   }) {
     HapticService.trigger(MekaarHapticIntent.success);
-    _show(context, message, MekaarColors.safeTeal, SolarIconsOutline.checkCircle,
-        duration);
+    _show(
+      context,
+      message,
+      MekaarColors.safeTeal,
+      SolarIconsOutline.checkCircle,
+      duration,
+    );
   }
 
   /// Info netral — cyan, ikon info.
@@ -39,8 +44,13 @@ class MekaarSnackbar {
     Duration duration = _durationShort,
   }) {
     HapticService.trigger(MekaarHapticIntent.selection);
-    _show(context, message, MekaarColors.info, SolarIconsOutline.infoCircle,
-        duration);
+    _show(
+      context,
+      message,
+      MekaarColors.info,
+      SolarIconsOutline.infoCircle,
+      duration,
+    );
   }
 
   /// Error / destruktif — coral, ikon warning.
@@ -50,8 +60,13 @@ class MekaarSnackbar {
     Duration duration = _durationLong,
   }) {
     HapticService.trigger(MekaarHapticIntent.destructive);
-    _show(context, message, MekaarColors.sosCoral,
-        SolarIconsOutline.dangerCircle, duration);
+    _show(
+      context,
+      message,
+      MekaarColors.sosCoral,
+      SolarIconsOutline.dangerCircle,
+      duration,
+    );
   }
 
   /// Peringatan — amber, ikon segitiga.
@@ -61,8 +76,39 @@ class MekaarSnackbar {
     Duration duration = _durationShort,
   }) {
     HapticService.trigger(MekaarHapticIntent.warning);
-    _show(context, message, MekaarColors.warnAmber,
-        SolarIconsOutline.dangerTriangle, duration);
+    _show(
+      context,
+      message,
+      MekaarColors.warnAmber,
+      SolarIconsOutline.dangerTriangle,
+      duration,
+    );
+  }
+
+  /// Urungkan (Undo) — aksi dapat dibalik, durasi 5 detik, aksi SnackBarAction.
+  static void undo(
+    BuildContext context,
+    String message, {
+    required VoidCallback onUndo,
+    Duration duration = const Duration(seconds: 5),
+    String actionLabel = 'Urungkan',
+  }) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    _show(
+      context,
+      message,
+      MekaarColors.info,
+      SolarIconsOutline.infoCircle,
+      duration,
+      action: SnackBarAction(
+        label: actionLabel,
+        textColor: MekaarColors.primaryOf(context),
+        onPressed: () {
+          HapticService.trigger(MekaarHapticIntent.success);
+          onUndo();
+        },
+      ),
+    );
   }
 
   static void _show(
@@ -70,14 +116,16 @@ class MekaarSnackbar {
     String message,
     Color accentColor,
     IconData icon,
-    Duration duration,
-  ) {
+    Duration duration, {
+    SnackBarAction? action,
+  }) {
     final messenger = ScaffoldMessenger.of(context);
     // Hapus snackbar existing agar tidak bertumpuk
     messenger.hideCurrentSnackBar();
 
     messenger.showSnackBar(
       SnackBar(
+        action: action,
         content: Row(
           children: [
             Container(

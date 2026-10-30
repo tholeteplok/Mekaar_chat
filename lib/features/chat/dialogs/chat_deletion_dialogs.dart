@@ -110,6 +110,8 @@ class ChatDeletionDialogs {
     required Set<String> selectedCallIds,
     required Future<void> Function(Set<String>) onHideCalls,
     required VoidCallback onSelectionCleared,
+    void Function(List<String> messageIds, {required String label})?
+    onHideMessagesWithUndo,
   }) {
     final currentUserId = ref.read(authProvider).user?.id;
     final selectedMsgs = List<Message>.from(selectedMessages);
@@ -153,10 +155,7 @@ class ChatDeletionDialogs {
                 children: [
                   Text(
                     'Item yang dipilih akan dihapus dari obrolan ini.',
-                    style: TextStyle(
-                      color: textSecondary,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: textSecondary, fontSize: 14),
                   ),
                   if (canDeleteForEveryone) ...[
                     const SizedBox(height: 12),
@@ -204,31 +203,41 @@ class ChatDeletionDialogs {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogCtx),
-                  child: Text(
-                    'Batal',
-                    style: TextStyle(color: textSecondary),
-                  ),
+                  child: Text('Batal', style: TextStyle(color: textSecondary)),
                 ),
                 TextButton(
                   onPressed: () async {
                     Navigator.pop(dialogCtx);
                     final actions = ref.read(chatActionsProvider);
                     final toProcessMsgs = List<Message>.from(selectedMsgs);
-                    final toProcessCalls = Set<String>.from(selectedCallIdsCopy);
+                    final toProcessCalls = Set<String>.from(
+                      selectedCallIdsCopy,
+                    );
                     onSelectionCleared();
 
                     // 1. Proses penghapusan pesan
-                    for (final msg in toProcessMsgs) {
-                      if (deleteForEveryone && msg.senderId == currentUserId) {
-                        await actions.deleteMessageForEveryone(
-                          msg.id,
-                          roomId: roomId,
-                        );
-                      } else {
-                        await actions.hideMessageForMe(
-                          msg.id,
-                          roomId: roomId,
-                        );
+                    if (!deleteForEveryone && onHideMessagesWithUndo != null) {
+                      final label = toProcessMsgs.length == 1
+                          ? 'Pesan disembunyikan untuk Anda'
+                          : '${toProcessMsgs.length} pesan disembunyikan untuk Anda';
+                      onHideMessagesWithUndo(
+                        toProcessMsgs.map((m) => m.id).toList(),
+                        label: label,
+                      );
+                    } else {
+                      for (final msg in toProcessMsgs) {
+                        if (deleteForEveryone &&
+                            msg.senderId == currentUserId) {
+                          await actions.deleteMessageForEveryone(
+                            msg.id,
+                            roomId: roomId,
+                          );
+                        } else {
+                          await actions.hideMessageForMe(
+                            msg.id,
+                            roomId: roomId,
+                          );
+                        }
                       }
                     }
 
@@ -238,12 +247,17 @@ class ChatDeletionDialogs {
                     }
 
                     if (context.mounted) {
-                      MekaarSnackbar.success(
-                        context,
-                        deleteForEveryone
-                            ? 'Item obrolan dihapus untuk semua orang'
-                            : 'Item obrolan dihapus untuk Anda',
-                      );
+                      if (deleteForEveryone) {
+                        MekaarSnackbar.success(
+                          context,
+                          'Item obrolan dihapus untuk semua orang',
+                        );
+                      } else if (onHideMessagesWithUndo == null) {
+                        MekaarSnackbar.success(
+                          context,
+                          'Item obrolan dihapus untuk Anda',
+                        );
+                      }
                     }
                   },
                   child: const Text(
