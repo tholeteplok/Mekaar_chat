@@ -27,6 +27,7 @@ import '../dialogs/chat_deletion_dialogs.dart';
 import '../handlers/chat_media_handler.dart';
 import '../handlers/chat_file_action_handler.dart';
 import '../utils/chat_jump.dart';
+import '../utils/chat_search_helper.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_bottom_area.dart';
@@ -93,6 +94,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Timer? _searchDebounceTimer;
   bool _isSearching = false;
   String _searchQuery = '';
+  bool _isFilterMode = false;
+  int _activeHitIndex = 0;
   bool _isEmojiPickerOpen = false;
   bool _wasKeyboardOpenOnPause = false;
   Message? _replyMessage;
@@ -837,6 +840,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
+  void _navigatePreviousHit(List<SearchHit> hits) {
+    if (hits.isEmpty) return;
+    if (_activeHitIndex + 1 < hits.length) {
+      setState(() => _activeHitIndex++);
+      _jumpToMessage(hits[_activeHitIndex].messageId, fromBottom: true);
+    } else {
+      HapticService.trigger(MekaarHapticIntent.warning);
+    }
+  }
+
+  void _navigateNextHit(List<SearchHit> hits) {
+    if (hits.isEmpty) return;
+    if (_activeHitIndex > 0) {
+      setState(() => _activeHitIndex--);
+      _jumpToMessage(hits[_activeHitIndex].messageId, fromBottom: true);
+    } else {
+      HapticService.trigger(MekaarHapticIntent.warning);
+    }
+  }
+
   Future<void> _jumpToMessage(
     String id, {
     bool fromBottom = false,
@@ -1301,6 +1324,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 isGuardian: widget.isGuardian,
                 topAreaHeight: topAreaHeight,
                 searchQuery: _searchQuery,
+                isFilterMode: _isFilterMode,
                 scrollController: _scrollController,
                 isEmojiPickerOpen: _isEmojiPickerOpen,
                 hiddenCallIds: _hiddenCallIds,
@@ -1414,18 +1438,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   final rawMessages = [...activeDbMessages, ...activePending];
 
                   int? searchResultCount;
+                  List<SearchHit> searchHits = const [];
                   if (_isSearching && _searchQuery.isNotEmpty) {
                     final q = _searchQuery.toLowerCase();
                     final pendingHidden = ref.watch(
                       pendingHiddenMessagesProvider(widget.chatId),
                     );
-                    final searchMsgs = rawMessages
-                        .where((m) => !pendingHidden.contains(m.id))
-                        .where((m) {
-                          final text = m.searchableText;
-                          if (text == null) return false;
-                          return text.toLowerCase().contains(q);
-                        });
+                    searchHits = computeSearchHits(
+                      messages: rawMessages,
+                      query: _searchQuery,
+                      hiddenMessageIds: pendingHidden,
+                    );
                     final callsAsync = ref.watch(
                       chatCallsProvider(widget.chatId),
                     );
@@ -1442,8 +1465,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                   .toLowerCase()
                                   .contains(q);
                         });
-                    searchResultCount = searchMsgs.length + searchCalls.length;
+                    searchResultCount = searchHits.length + searchCalls.length;
                   }
+                  final safeHitIndex = searchHits.isEmpty
+                      ? 0
+                      : _activeHitIndex.clamp(0, searchHits.length - 1);
 
                   return ChatAppBar(
                     chatId: widget.chatId,
@@ -1498,6 +1524,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     // Mode Pencarian
                     isSearching: _isSearching,
                     searchResultCount: searchResultCount,
+                    isFilterMode: _isFilterMode,
+                    onToggleFilterMode: () {
+                      setState(() => _isFilterMode = !_isFilterMode);
+                    },
+                    currentHitIndex: safeHitIndex,
+                    totalHitCount: searchHits.length,
+                    onPreviousHit: () => _navigatePreviousHit(searchHits),
+                    onNextHit: () => _navigateNextHit(searchHits),
                     searchQuery: _searchQuery,
                     searchController: _searchController,
                     inChatSearchFocusNode: _inChatSearchFocusNode,
@@ -1507,6 +1541,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       setState(() {
                         _isSearching = false;
                         _searchQuery = '';
+                        _activeHitIndex = 0;
+                        _isFilterMode = false;
                         _searchController.clear();
                       });
                     },
@@ -1515,15 +1551,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       _searchDebounceTimer = Timer(
                         const Duration(milliseconds: 180),
                         () {
-                          if (mounted && _searchQuery != val.trim()) {
-                            setState(() => _searchQuery = val.trim());
+                          final trimmed = val.trim();
+                          if (mounted && _searchQuery != trimmed) {
+                            setState(() {
+                              _searchQuery = trimmed;
+                              _activeHitIndex = 0;
+                            });
+                            if (!_isFilterMode && trimmed.isNotEmpty) {
+                              final pendingHidden = ref.read(
+                                pendingHiddenMessagesProvider(widget.chatId),
+                              );
+                              final currentHits = computeSearchHits(
+                                messages: rawMessages,
+                                query: trimmed,
+                                hiddenMessageIds: pendingHidden,
+                              );
+                              if (currentHits.isNotEmpty) {
+                                _jumpToMessage(
+                                  currentHits[0].messageId,
+                                  fromBottom: true,
+                                );
+                              }
+                            }
                           }
                         },
                       );
                     },
                     onClearSearchQuery: () {
                       _searchController.clear();
-                      setState(() => _searchQuery = '');
+                      setState(() {
+                        _searchQuery = '';
+                        _activeHitIndex = 0;
+                      });
                     },
                     // Aksi Menu & Kontak
                     onAvatarTap: widget.isGroup

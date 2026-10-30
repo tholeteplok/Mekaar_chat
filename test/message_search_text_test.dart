@@ -313,6 +313,7 @@ void main() {
                   isSearching: true,
                   searchQuery: 'halo',
                   searchResultCount: 7,
+                  isFilterMode: true,
                   searchController: TextEditingController(text: 'halo'),
                   inChatSearchFocusNode: FocusNode(),
                   onCloseSearch: () {},

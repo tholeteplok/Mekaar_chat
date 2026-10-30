@@ -61,6 +61,12 @@ class ChatAppBar extends ConsumerWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearchQuery;
   final int? searchResultCount;
+  final bool isFilterMode;
+  final VoidCallback? onToggleFilterMode;
+  final int currentHitIndex;
+  final int totalHitCount;
+  final VoidCallback? onPreviousHit;
+  final VoidCallback? onNextHit;
 
   // Aksi Header & Menu
   final VoidCallback onAvatarTap;
@@ -103,6 +109,12 @@ class ChatAppBar extends ConsumerWidget {
     required this.onSearchChanged,
     required this.onClearSearchQuery,
     this.searchResultCount,
+    this.isFilterMode = false,
+    this.onToggleFilterMode,
+    this.currentHitIndex = 0,
+    this.totalHitCount = 0,
+    this.onPreviousHit,
+    this.onNextHit,
     // Actions
     required this.onAvatarTap,
     required this.onInitiateCall,
@@ -339,37 +351,117 @@ class ChatAppBar extends ConsumerWidget {
                   onChanged: onSearchChanged,
                 ),
               ),
-              if (searchQuery.isNotEmpty && searchResultCount != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(
-                    color: roomThemeSpec.primaryAccentColor.withValues(
-                      alpha: 0.15,
+              if (searchQuery.isNotEmpty) ...[
+                if (onToggleFilterMode != null)
+                  IconButton(
+                    icon: Icon(
+                      isFilterMode
+                          ? SolarIconsOutline.list
+                          : SolarIconsOutline.magnifier,
+                      color: isFilterMode
+                          ? roomThemeSpec.primaryAccentColor
+                          : MekaarColors.textMutedOf(context),
+                      size: 18,
                     ),
-                    borderRadius: BorderRadius.circular(10),
+                    tooltip: isFilterMode
+                        ? 'Beralih ke mode sorot & lompat'
+                        : 'Beralih ke mode saring',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    padding: EdgeInsets.zero,
+                    onPressed: onToggleFilterMode,
                   ),
-                  child: Text(
-                    '$searchResultCount hasil',
-                    style: MekaarTypography.labelSM.copyWith(
-                      color: roomThemeSpec.textColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                if (!isFilterMode) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    margin: const EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      color: roomThemeSpec.primaryAccentColor.withValues(
+                        alpha: 0.15,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      totalHitCount > 0
+                          ? '${currentHitIndex + 1}/$totalHitCount'
+                          : '0/0',
+                      style: MekaarTypography.labelSM.copyWith(
+                        color: roomThemeSpec.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-              if (searchQuery.isNotEmpty)
+                  IconButton(
+                    key: const ValueKey('search_prev_hit_button'),
+                    icon: const Icon(SolarIconsOutline.altArrowUp, size: 16),
+                    tooltip: 'Hasil lebih lama',
+                    color: roomThemeSpec.iconColor,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                    padding: EdgeInsets.zero,
+                    onPressed: onPreviousHit,
+                  ),
+                  IconButton(
+                    key: const ValueKey('search_next_hit_button'),
+                    icon: const Icon(SolarIconsOutline.altArrowDown, size: 16),
+                    tooltip: 'Hasil lebih baru',
+                    color: roomThemeSpec.iconColor,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                    padding: EdgeInsets.zero,
+                    onPressed: onNextHit,
+                  ),
+                ] else if (searchResultCount != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: roomThemeSpec.primaryAccentColor.withValues(
+                        alpha: 0.15,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$searchResultCount hasil',
+                      style: MekaarTypography.labelSM.copyWith(
+                        color: roomThemeSpec.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
                 IconButton(
                   icon: Icon(
                     SolarIconsOutline.closeCircle,
                     color: MekaarColors.textMutedOf(context),
                     size: 18,
                   ),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
                   onPressed: onClearSearchQuery,
                 ),
+              ],
             ],
           ),
         ),
