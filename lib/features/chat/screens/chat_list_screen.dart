@@ -830,9 +830,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 SolarIconsOutline.magnifier,
                                 color: MekaarColors.primaryOf(context),
                               ),
-                              tooltip: 'Cari Chat',
-                              onPressed: () =>
-                                  setState(() => _isSearchActive = true),
+                              tooltip: 'Cari Pesan',
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.messageSearch,
+                                );
+                              },
                             ),
                             PopupMenuButton<String>(
                               icon: Icon(

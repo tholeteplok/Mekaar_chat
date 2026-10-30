@@ -52,6 +52,7 @@ import 'package:mekaar_chat/features/chat/screens/create_group_details_screen.da
 import 'package:mekaar_chat/features/chat/screens/group_details_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/vault_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/archived_chats_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/message_search_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/contact_vault_settings_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/advanced_privacy_settings_screen.dart';
 import '../constants/motion.dart';
@@ -151,6 +152,7 @@ class AppRoutes {
   static const String connectedDevices = '/settings/devices';
   static const String vault = '/chat/vault';
   static const String archivedChats = '/chat/archived';
+  static const String messageSearch = '/chat/search';
   static const String contactVaultSettings = '/settings/contact-vault';
   static const String advancedPrivacySettings = '/settings/advanced-privacy';
 
@@ -171,6 +173,9 @@ class AppRoutes {
 
       case AppRoutes.archivedChats:
         return MekaarPageRoute(builder: (_) => const ArchivedChatsScreen());
+
+      case AppRoutes.messageSearch:
+        return MekaarPageRoute(builder: (_) => const MessageSearchScreen());
 
       case AppRoutes.chatRequests:
         return MekaarPageRoute(builder: (_) => const ChatRequestsScreen());
