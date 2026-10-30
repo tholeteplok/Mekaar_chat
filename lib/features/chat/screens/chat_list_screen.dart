@@ -46,6 +46,8 @@ import '../../../core/widgets/mekaar_update_dialog.dart';
 import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../data/services/update_service.dart';
+import '../../guardian/widgets/active_trip_card.dart';
+import '../../guardian/widgets/quick_trip_sheet.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
@@ -869,9 +871,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     context,
                                     AppRoutes.archivedChats,
                                   );
+                                } else if (value == 'quick_trip') {
+                                  QuickTripSheet.show(context);
                                 }
                               },
                               itemBuilder: (ctx) => [
+                                PopupMenuItem<String>(
+                                  value: 'quick_trip',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        SolarIconsOutline.routing,
+                                        color: MekaarColors.primaryOf(context),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Antar Aku Pulang',
+                                        style: MekaarTypography.bodyMD.copyWith(
+                                          color: MekaarColors.textPrimaryOf(
+                                            context,
+                                          ),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 PopupMenuItem<String>(
                                   value: 'vault',
                                   child: Row(
@@ -970,6 +996,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       ),
                     );
                   },
+                ),
+                const ActiveTripCard(
+                  margin: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 ),
                 const SizedBox(height: 6),
                 // Sliding Segment Tabs Bar

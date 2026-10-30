@@ -7,19 +7,48 @@ import '../../../data/repositories/trip_repository.dart';
 import '../../guardian/providers/guardian_provider.dart';
 
 /// Provider terpusat untuk mengambil seluruh rute pengguna
-final userTripsProvider = FutureProvider.autoDispose<List<UserTrip>>((ref) async {
+final userTripsProvider = FutureProvider.autoDispose<List<UserTrip>>((
+  ref,
+) async {
   final repo = ref.watch(tripRepositoryProvider);
   return repo.getUserTrips();
 });
 
 /// Provider terpusat untuk mengambil daftar Guardian aktif milik pengguna
-final activeGuardiansProvider = FutureProvider.autoDispose<List<Guardian>>((ref) async {
+final activeGuardiansProvider = FutureProvider.autoDispose<List<Guardian>>((
+  ref,
+) async {
   final repo = ref.watch(guardianRepositoryProvider);
   return repo.getMyGuardians();
 });
 
 /// Provider terpusat untuk mengambil lokasi bookmark tersimpan (Rumah, Kantor, Kampus)
-final savedPlacesProvider = FutureProvider.autoDispose<Map<String, SavedPlace>>((ref) async {
-  final repo = ref.watch(savedPlacesRepositoryProvider);
-  return repo.getSavedPlaces();
+final savedPlacesProvider = FutureProvider.autoDispose<Map<String, SavedPlace>>(
+  (ref) async {
+    final repo = ref.watch(savedPlacesRepositoryProvider);
+    return repo.getSavedPlaces();
+  },
+);
+
+/// Provider terpusat untuk memantau perjalanan aktif pengguna hari ini.
+/// Mengambil UserTrip pertama yang isActive == true dan statusnya
+/// masih berjalan (scheduled, delayedWarned, atau snoozed) untuk hari ini.
+final activeTripTodayProvider = Provider.autoDispose<UserTrip?>((ref) {
+  final tripsAsync = ref.watch(userTripsProvider);
+  return tripsAsync.maybeWhen(
+    data: (trips) {
+      for (final trip in trips) {
+        if (!trip.isActive) continue;
+        if (!trip.isScheduledForToday) continue;
+        final status = trip.effectiveStatus;
+        if (status == TripStatus.scheduled ||
+            status == TripStatus.delayedWarned ||
+            status == TripStatus.snoozed) {
+          return trip;
+        }
+      }
+      return null;
+    },
+    orElse: () => null,
+  );
 });
