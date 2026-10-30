@@ -192,13 +192,13 @@ class ImageBubble extends ConsumerWidget {
     final allowHero = !isScreenProtected && !isCloaked;
     final heroTag = allowHero ? 'chat-media-${message.id}' : null;
 
-    // 1. Cek memory cache sinkron: jika ada, render langsung tanpa FutureBuilder & tanpa kedipan!
-    final cached = getDecryptedFromMemory(message.id);
+    // 1. Cek memory cache sinkron (RAM & disk sync): jika ada, render langsung tanpa FutureBuilder & tanpa kedipan!
+    final cached = getDecryptedFromMemory(message.id, message.mediaUrl);
     if (cached != null) {
       return _buildImageContent(context, cached, heroTag: heroTag);
     }
 
-    // 2. Jika belum ada di memori RAM, muat via FutureBuilder sekali saja
+    // 2. Jika belum ada di memori RAM/disk, muat via FutureBuilder sekali saja
     final payload = parseMediaPayload(message);
     return FutureBuilder<File?>(
       future: getOrDecryptMedia(
@@ -211,21 +211,25 @@ class ImageBubble extends ConsumerWidget {
         final file = snapshot.data;
         if (snapshot.connectionState == ConnectionState.waiting &&
             file == null) {
-          return SizedBox(
+          return Container(
             height: isSticker ? 140 : 200,
             width: isSticker ? 140 : 240,
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context),
+              borderRadius: borderRadius,
+            ),
             child: Center(
               child: Container(
                 width: 32,
                 height: 32,
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.35),
+                  color: Colors.black.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: MekaarColors.accentOf(context),
                 ),
               ),
             ),

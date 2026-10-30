@@ -78,6 +78,7 @@ class ChatBubble extends ConsumerWidget {
   final Function(Message)? onSaveToVault;
   final void Function(String messageId)? onReplyTap;
   final String? highlightQuery;
+  final bool animateEntrance;
 
   const ChatBubble({
     super.key,
@@ -105,6 +106,7 @@ class ChatBubble extends ConsumerWidget {
     this.onSelectionLongPress,
     this.onReplyTap,
     this.highlightQuery,
+    this.animateEntrance = false,
   });
 
   ReadReceiptStatus _getReceiptStatus() {
@@ -303,7 +305,7 @@ class ChatBubble extends ConsumerWidget {
       chatPref.preset,
     );
 
-    final shouldAnimateEntrance = !isMe || message.isSending;
+    final shouldAnimateEntrance = animateEntrance || message.isSending;
 
     final bubbleBody = Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

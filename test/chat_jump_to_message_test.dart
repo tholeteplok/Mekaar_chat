@@ -131,6 +131,57 @@ void main() {
         expect(result, isFalse);
       },
     );
+
+    testWidgets(
+      'melompat pada ListView reverse dengan targetIndex dan totalItems',
+      (tester) async {
+        final controller = ScrollController();
+        const targetIndex = 45;
+        final targetKey = GlobalKey(debugLabel: 'msg-45');
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ListView.builder(
+                controller: controller,
+                reverse: true,
+                itemCount: 100,
+                itemBuilder: (context, index) {
+                  return Container(
+                    key: index == targetIndex ? targetKey : null,
+                    height: 70,
+                    alignment: Alignment.center,
+                    child: Text('Message $index'),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Index 45 awalnya di luar viewport
+        expect(find.text('Message 45'), findsNothing);
+
+        final context = tester.element(find.byType(ListView));
+        final future = jumpToKeyedItem(
+          context: context,
+          controller: controller,
+          itemKey: targetKey,
+          targetIndex: targetIndex,
+          totalItems: 100,
+        );
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+          if (find.text('Message 45').evaluate().isNotEmpty) break;
+        }
+        await tester.pumpAndSettle();
+        final result = await future;
+
+        expect(result, isTrue);
+        expect(find.text('Message 45'), findsOneWidget);
+      },
+    );
   });
 
   group('MessageFlash Widget', () {

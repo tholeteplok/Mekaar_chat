@@ -21,6 +21,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../settings/providers/chat_theme_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
+import '../utils/chat_key_registry.dart';
 import 'call_history_bubble.dart';
 import 'chat_floating_reaction_pill.dart';
 import 'message_flash.dart';
@@ -88,7 +89,7 @@ ChatMessagesUiMode chatMessagesUiMode(AsyncValue<List<Message>> stream) {
 /// 4. Overlay tombol floating reaksi pesan terpilih (ChatFloatingReactionPill).
 /// 5. Tombol scroll ke bawah dengan indikator pesan baru (ScrollToBottomButton).
 /// 6. Penanganan state kosong, pencarian kosong, banner offline, dan error resolver.
-class ChatMessageListView extends ConsumerWidget {
+class ChatMessageListView extends ConsumerStatefulWidget {
   final String chatId;
   final bool isGroup;
   final bool isGuardian;
@@ -163,9 +164,6 @@ class ChatMessageListView extends ConsumerWidget {
     this.currentUserId,
     this.isFilterMode = false,
   });
-
-  bool get isSelectionMode =>
-      selectedMessageIds.isNotEmpty || selectedCallIds.isNotEmpty;
 
   /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
   static List<ChatItemEntry> buildItemEntries(
@@ -247,7 +245,37 @@ class ChatMessageListView extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatMessageListView> createState() =>
+      _ChatMessageListViewState();
+}
+
+class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
+  final Set<String> _initialMessageIds = <String>{};
+  bool _hasRecordedInitialBatch = false;
+
+  bool get isSelectionMode =>
+      widget.selectedMessageIds.isNotEmpty || widget.selectedCallIds.isNotEmpty;
+
+  @override
+  void dispose() {
+    ChatKeyRegistry.clear();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chatId = widget.chatId;
+    final topAreaHeight = widget.topAreaHeight;
+    final searchQuery = widget.searchQuery;
+    final scrollController = widget.scrollController;
+    final isEmojiPickerOpen = widget.isEmojiPickerOpen;
+    final hiddenCallIds = widget.hiddenCallIds;
+    final showScrollButton = widget.showScrollButton;
+    final newMessageCount = widget.newMessageCount;
+    final onScrollToBottom = widget.onScrollToBottom;
+    final entryLastReadAt = widget.entryLastReadAt;
+    final isFilterMode = widget.isFilterMode;
+
     final chatPref =
         ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
     final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(
@@ -329,6 +357,16 @@ class ChatMessageListView extends ConsumerWidget {
                                     .where((m) => !pendingHidden.contains(m.id))
                                     .toList();
 
+                            // Catat ID pesan batch inisial saat room pertama kali terbuka
+                            // agar riwayat obrolan tidak memicu animasi entrance (flicker-free)
+                            if (!_hasRecordedInitialBatch &&
+                                rawMessages.isNotEmpty) {
+                              _initialMessageIds.addAll(
+                                rawMessages.map((m) => m.id),
+                              );
+                              _hasRecordedInitialBatch = true;
+                            }
+
                             if (rawMessages.isEmpty && rawCalls.isEmpty) {
                               return const MekaarStateView(
                                 pose: MikaPose.sleep,
@@ -379,12 +417,13 @@ class ChatMessageListView extends ConsumerWidget {
                               );
                             }
 
-                            final itemEntries = buildItemEntries(
-                              messages,
-                              calls,
-                              entryLastReadAt: entryLastReadAt,
-                              currentUserId: currentUserId,
-                            );
+                            final itemEntries =
+                                ChatMessageListView.buildItemEntries(
+                                  messages,
+                                  calls,
+                                  entryLastReadAt: entryLastReadAt,
+                                  currentUserId: currentUserId,
+                                );
                             final messageMap = {
                               for (var m in rawMessages) m.id: m,
                             };
@@ -533,15 +572,15 @@ class ChatMessageListView extends ConsumerWidget {
     if (entry.kind == ChatItemKind.call) {
       final call = entry.call!;
       final isMe = call.callerId == currentUserId;
-      final isSelected = selectedCallIds.contains(call.id);
+      final isSelected = widget.selectedCallIds.contains(call.id);
       final callWidget = CallHistoryBubble(
         call: call,
         isMe: isMe,
         isSelected: isSelected,
         isSelectionMode: isSelectionMode,
-        onSelectionTap: () => onToggleCallSelection(call.id),
-        onSelectionLongPress: () => onCallLongPress(call.id),
-        onCallBack: () => onInitiateCall(call.callType),
+        onSelectionTap: () => widget.onToggleCallSelection(call.id),
+        onSelectionLongPress: () => widget.onCallLongPress(call.id),
+        onCallBack: () => widget.onInitiateCall(call.callType),
       );
 
       return RepaintBoundary(
@@ -549,7 +588,7 @@ class ChatMessageListView extends ConsumerWidget {
         child: isSelectionMode
             ? callWidget
             : ChatSwipeActionWrapper(
-                onDelete: () => onDeleteSingleCall(call),
+                onDelete: () => widget.onDeleteSingleCall(call),
                 child: callWidget,
               ),
       );
@@ -557,26 +596,34 @@ class ChatMessageListView extends ConsumerWidget {
 
     final msg = entry.message!;
     final isMe = msg.senderId == currentUserId;
-    final canEdit = actions.canEdit(msg, isGuardianRoom: isGuardian);
+    final canEdit = actions.canEdit(msg, isGuardianRoom: widget.isGuardian);
 
     Message? replyToMsg;
     String? replyToSender;
     if (msg.replyToId != null) {
       replyToMsg = messageMap[msg.replyToId];
       if (replyToMsg != null) {
-        replyToSender = getSenderDisplayName(replyToMsg);
+        replyToSender = widget.getSenderDisplayName(replyToMsg);
       }
     }
 
-    final isSelected = selectedMessageIds.contains(msg.id);
+    final isSelected = widget.selectedMessageIds.contains(msg.id);
+
+    // Evaluasi animasi entrance: hanya untuk pesan baru yang tiba secara realtime
+    final isInitial = _initialMessageIds.contains(msg.id);
+    final animateEntrance = !isInitial || msg.isSending;
+    if (!isInitial && !msg.isSending) {
+      // Tandai sudah di-render sehingga scroll berikutnya tidak memicu animasi ulang
+      _initialMessageIds.add(msg.id);
+    }
 
     final bubble = ChatBubble(
       message: msg,
       isMe: isMe,
       isSelected: isSelected,
       isSelectionMode: isSelectionMode,
-      onSelectionTap: () => onToggleMessageSelection(msg.id),
-      onSelectionLongPress: () => onMessageLongPress(msg.id),
+      onSelectionTap: () => widget.onToggleMessageSelection(msg.id),
+      onSelectionLongPress: () => widget.onMessageLongPress(msg.id),
       canDelete: true, // Semua pesan bisa dihapus secara lokal (hide for me)
       canUnsend:
           isMe, // Hanya pengirim yang bisa tarik pesan (delete for everyone)
@@ -585,33 +632,38 @@ class ChatMessageListView extends ConsumerWidget {
         msg,
         forwardingProtectionActive: forwardingProtection?.effective ?? false,
       ),
-      otherLastReadAt: otherLastRead,
+      otherLastReadAt: widget.otherLastRead,
       showReadReceipts: showReadReceipts,
-      senderName: isGroup ? participantNames[msg.senderId] : null,
+      senderName: widget.isGroup ? widget.participantNames[msg.senderId] : null,
       replyToMessage: replyToMsg,
       replyToSenderName: replyToSender,
-      onDelete: () => onDeleteMessage(msg),
-      onUnsend: () => onUnsendMessage(msg),
-      onReply: (replyMsg) => onReplyMessage(replyMsg),
-      onReplyTap: onReplyTap,
-      highlightQuery: searchQuery.isNotEmpty ? searchQuery : null,
+      onDelete: () => widget.onDeleteMessage(msg),
+      onUnsend: () => widget.onUnsendMessage(msg),
+      onReply: (replyMsg) => widget.onReplyMessage(replyMsg),
+      onReplyTap: widget.onReplyTap,
+      highlightQuery: widget.searchQuery.isNotEmpty ? widget.searchQuery : null,
+      animateEntrance: animateEntrance,
       onEdit: (editMsg, newContent) {
-        if (!actions.canEdit(editMsg, isGuardianRoom: isGuardian)) {
+        if (!actions.canEdit(editMsg, isGuardianRoom: widget.isGuardian)) {
           return;
         }
         ref
             .read(chatActionsProvider)
-            .editMessage(editMsg.id, newContent, isGuardianRoom: isGuardian);
+            .editMessage(
+              editMsg.id,
+              newContent,
+              isGuardianRoom: widget.isGuardian,
+            );
       },
       onForward: (forwardingProtection?.effective ?? false)
           ? null
-          : (forwardMsg) => onForwardMessage(forwardMsg),
-      onReact: (reactMsg, emoji) => onReactToMessage(reactMsg, emoji),
-      onSaveToVault: (saveMsg) => onSaveToVault(saveMsg),
+          : (forwardMsg) => widget.onForwardMessage(forwardMsg),
+      onReact: (reactMsg, emoji) => widget.onReactToMessage(reactMsg, emoji),
+      onSaveToVault: (saveMsg) => widget.onSaveToVault(saveMsg),
     );
 
     final showFloatingReactions =
-        isSelected && reactionAnchorMessageId == msg.id;
+        isSelected && widget.reactionAnchorMessageId == msg.id;
 
     final bubbleWithPill = Column(
       mainAxisSize: MainAxisSize.min,
@@ -622,29 +674,29 @@ class ChatMessageListView extends ConsumerWidget {
         if (showFloatingReactions)
           ChatFloatingReactionPill(
             isMe: isMe,
-            onReact: (emoji) => onReactToMessage(msg, emoji),
+            onReact: (emoji) => widget.onReactToMessage(msg, emoji),
           ),
         bubble,
       ],
     );
 
-    // Bungkus dengan KeyedSubtree untuk jumpToKeyedItem, RepaintBoundary untuk isolasi repaint,
+    // Bungkus dengan KeyedSubtree untuk ChatKeyRegistry, RepaintBoundary untuk isolasi repaint,
     // dan MessageFlash untuk sorotan pudar saat melompat ke pesan yang dibalas.
     final wrappedBubble = isSelectionMode
         ? bubbleWithPill
         : ChatSwipeActionWrapper(
-            onReply: () => onReplyMessage(msg),
-            onDelete: () => onSwipeDeleteMessage(msg),
+            onReply: () => widget.onReplyMessage(msg),
+            onDelete: () => widget.onSwipeDeleteMessage(msg),
             child: bubbleWithPill,
           );
 
     return KeyedSubtree(
-      key: GlobalObjectKey('msg-${msg.id}'),
+      key: ChatKeyRegistry.getKey(msg.id),
       child: RepaintBoundary(
         key: ValueKey('bubble_${msg.id}'),
         child: MessageFlash(
           messageId: msg.id,
-          flashIdListenable: flashIdListenable,
+          flashIdListenable: widget.flashIdListenable,
           child: wrappedBubble,
         ),
       ),

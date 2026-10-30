@@ -106,6 +106,10 @@ class FakeChatRepository extends Fake implements ChatRepository {
   Future<DateTime?> getMyLastRead(String roomId) async => null;
 
   @override
+  Future<Message?> ensureMessageLoaded(String roomId, String messageId) async =>
+      null;
+
+  @override
   Future<int> purgeExpiredMessages({String? targetRoomId}) async => 0;
 
   @override

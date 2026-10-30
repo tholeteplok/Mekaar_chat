@@ -884,6 +884,64 @@ class ChatRepository {
     return controller.stream;
   }
 
+  /// Memastikan satu pesan tertentu (misalnya pesan yang dibalas atau hasil pencarian)
+  /// termuat ke dalam memory pool obrolan aktif dan dipancarkan ke ListView.
+  Future<Message?> ensureMessageLoaded(String roomId, String messageId) async {
+    final activePool = _activeRoomMessagePools[roomId];
+    if (activePool != null && activePool.containsKey(messageId)) {
+      return activePool[messageId];
+    }
+
+    // 1. Coba baca dari database SQLite lokal
+    Message? resolvedMsg = await LocalMessageDatabase.instance.getMessage(
+      messageId,
+    );
+
+    // 2. Jika tidak ada di lokal dan bukan mode Decoy, coba ambil dari Supabase
+    if (resolvedMsg == null && !LocalMessageDatabase.instance.isDecoy) {
+      try {
+        final row = await _supabaseService.client
+            .from('messages')
+            .select()
+            .eq('id', messageId)
+            .maybeSingle();
+        if (row != null) {
+          final raw = Message.fromJson(row);
+          if (raw.isEncrypted && raw.content.isNotEmpty && !raw.isDeleted) {
+            try {
+              final plain = await E2eeService.instance.decryptForRoom(
+                roomId,
+                raw.content,
+              );
+              _decryptedContentCache[raw.id] = plain;
+              resolvedMsg = raw.copyWith(content: plain);
+            } catch (_) {
+              resolvedMsg = raw.copyWith(
+                content: E2eeService.undecryptableText,
+              );
+            }
+          } else {
+            resolvedMsg = raw;
+          }
+          unawaited(LocalMessageDatabase.instance.saveMessage(resolvedMsg));
+        }
+      } catch (_) {}
+    }
+
+    // 3. Masukkan ke pool aktif dan pancarkan pembaruan ke stream controller
+    if (resolvedMsg != null && activePool != null) {
+      activePool[resolvedMsg.id] = resolvedMsg;
+      final activeCtrl = _activeRoomControllers[roomId];
+      if (activeCtrl != null && !activeCtrl.isClosed) {
+        final sorted = activePool.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        activeCtrl.add(sorted);
+      }
+    }
+
+    return resolvedMsg;
+  }
+
   // Send message
   Future<Message> sendMessage(
     String roomId,

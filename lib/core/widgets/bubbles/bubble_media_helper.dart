@@ -64,6 +64,41 @@ final Map<String, File> _decryptedFileMemoryCache = <String, File>{};
 final Map<String, Future<File?>> _inFlightMediaFutures =
     <String, Future<File?>>{};
 
+/// Direktori temporer yang di-cache di memori agar pengecekan disk dapat berjalan sinkron (0ms)
+String? _cachedTempDirPath;
+
+/// Inisialisasi awal direktori temporer (dapat dipanggil saat startup atau pre-warming)
+Future<void> prewarmMediaCacheDir() async {
+  try {
+    final dir = await getTemporaryDirectory();
+    _cachedTempDirPath = dir.path;
+  } catch (_) {}
+}
+
+/// Mendaftarkan berkas lokal (misalnya media yang baru dikirim oleh pengguna)
+/// ke memory cache seketika agar tidak terjadi kedipan / spinner pada pengirim.
+void registerLocalMedia(String messageId, File file, {String? url}) {
+  if (file.existsSync()) {
+    _decryptedFileMemoryCache[messageId] = file;
+    if (_cachedTempDirPath != null) {
+      try {
+        final ext = (url != null && url.isNotEmpty)
+            ? (Uri.tryParse(url)?.pathSegments.isNotEmpty == true
+                  ? Uri.tryParse(url)!.pathSegments.last.split('.').last
+                  : file.path.split('.').last)
+            : file.path.split('.').last;
+        final targetPath = '$_cachedTempDirPath/decrypted_$messageId.$ext';
+        if (file.path != targetPath) {
+          final targetFile = File(targetPath);
+          if (!targetFile.existsSync()) {
+            file.copy(targetPath).catchError((_) => file);
+          }
+        }
+      } catch (_) {}
+    }
+  }
+}
+
 /// Parser payload media cerdas: mengekstrak fileKeyB64 dan caption.
 /// Kompatibel 100% dengan pesan E2EE JSON baru maupun pesan lawas plain text / raw key.
 ({String fileKeyB64, String caption}) parseMediaPayload(Message message) {
@@ -87,13 +122,65 @@ final Map<String, Future<File?>> _inFlightMediaFutures =
   }
 }
 
-/// Mendapatkan file media dari RAM memory cache jika sudah ada
-File? getDecryptedFromMemory(String messageId) {
+/// Mendapatkan file media dari RAM memory cache atau disk cache lokal secara sinkron (0ms).
+/// Menghilangkan kedipan (flicker) layout saat layar chat baru dibuka.
+File? getDecryptedFromMemory(String messageId, [String? url]) {
+  // 1. Cek memory cache tercepat di RAM
   final cached = _decryptedFileMemoryCache[messageId];
   if (cached != null && cached.existsSync()) {
     return cached;
   }
+
+  // 2. Jika path temp sudah diketahui, lakukan pengecekan sinkron ke disk
+  if (_cachedTempDirPath != null) {
+    try {
+      String? ext;
+      if (url != null && url.isNotEmpty) {
+        final uri = Uri.tryParse(url);
+        if (uri != null && uri.pathSegments.isNotEmpty) {
+          ext = uri.pathSegments.last.split('.').last;
+        }
+      }
+
+      if (ext != null && ext.isNotEmpty) {
+        final directCheck = File(
+          '$_cachedTempDirPath/decrypted_$messageId.$ext',
+        );
+        if (directCheck.existsSync() && directCheck.lengthSync() > 0) {
+          _decryptedFileMemoryCache[messageId] = directCheck;
+          return directCheck;
+        }
+      }
+
+      // Cek kemungkinan ekstensi umum jika url tidak memuat ekstensi pasti
+      for (final candidateExt in const [
+        'jpg',
+        'png',
+        'jpeg',
+        'webp',
+        'mp4',
+        'bin',
+      ]) {
+        final candidate = File(
+          '$_cachedTempDirPath/decrypted_$messageId.$candidateExt',
+        );
+        if (candidate.existsSync() && candidate.lengthSync() > 0) {
+          _decryptedFileMemoryCache[messageId] = candidate;
+          return candidate;
+        }
+      }
+    } catch (_) {}
+  } else {
+    // Picu prewarm di latar belakang untuk query berikutnya
+    prewarmMediaCacheDir();
+  }
+
   return null;
+}
+
+@visibleForTesting
+void setDecryptedTempDirPathForTesting(String? path) {
+  _cachedTempDirPath = path;
 }
 
 @visibleForTesting
@@ -116,7 +203,7 @@ Future<File?> _getOrDecryptMedia({
   if (url == null || url.isEmpty) return null;
 
   // 1. Cek memory cache tercepat (0ms delay)
-  final inMemory = _decryptedFileMemoryCache[messageId];
+  final inMemory = getDecryptedFromMemory(messageId, url);
   if (inMemory != null && inMemory.existsSync()) {
     return inMemory;
   }
@@ -166,13 +253,14 @@ Future<File?> _doGetOrDecryptMedia({
     }
 
     final tempDir = await getTemporaryDirectory();
+    _cachedTempDirPath = tempDir.path;
     final uri = Uri.parse(url);
     final ext = uri.pathSegments.isNotEmpty
         ? uri.pathSegments.last.split('.').last
         : 'bin';
     final cachedFile = File('${tempDir.path}/decrypted_$messageId.$ext');
 
-    if (await cachedFile.exists()) {
+    if (await cachedFile.exists() && await cachedFile.length() > 0) {
       return cachedFile;
     }
 

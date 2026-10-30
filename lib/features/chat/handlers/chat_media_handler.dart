@@ -11,6 +11,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/message_preview_resolver.dart';
+import '../../../core/widgets/bubbles/bubble_media_helper.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/models/chat_theme_model.dart';
@@ -37,14 +38,16 @@ class ChatMediaHandler {
       MessageType type, {
       String? caption,
       bool? isViewOnce,
-    }) onSendMedia,
+    })
+    onSendMedia,
   }) async {
     for (final path in filePaths) {
       final file = File(path);
       if (!await file.exists()) continue;
 
       final mimeType = lookupMimeType(path) ?? '';
-      final chatPref = ref.read(chatThemeProvider).valueOrNull ??
+      final chatPref =
+          ref.read(chatThemeProvider).valueOrNull ??
           const ChatThemePreference();
       if (!context.mounted) return;
       final spec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
@@ -53,10 +56,8 @@ class ChatMediaHandler {
         if (!context.mounted) return;
         final result = await Navigator.of(context).push<ImageSendResult>(
           MaterialPageRoute(
-            builder: (_) => ImageSendPreviewSheet(
-              imageFile: file,
-              roomThemeSpec: spec,
-            ),
+            builder: (_) =>
+                ImageSendPreviewSheet(imageFile: file, roomThemeSpec: spec),
           ),
         );
         if (result != null && context.mounted) {
@@ -123,10 +124,7 @@ class ChatMediaHandler {
           : null;
       if (peerKey != null && peerKey.isNotEmpty) {
         // Kamar chat mendukung E2EE, enkripsi & unggah media
-        final result = await uploader.uploadEncryptedChatMedia(
-          file,
-          chatId,
-        );
+        final result = await uploader.uploadEncryptedChatMedia(file, chatId);
         url = result.url;
         fileKeyB64 = result.keyB64;
       } else {
@@ -166,7 +164,9 @@ class ChatMediaHandler {
 
       final replyId = replyMessage?.id;
 
-      await ref.read(chatActionsProvider).sendMessage(
+      final sentMsg = await ref
+          .read(chatActionsProvider)
+          .sendMessage(
             chatId,
             contentPayload,
             mediaUrl: url,
@@ -178,7 +178,12 @@ class ChatMediaHandler {
             isGroup: isGroup,
           );
 
-      ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+      // Daftarkan langsung berkas lokal ke memory & disk cache agar tidak berkedip
+      registerLocalMedia(sentMsg.id, file, url: url);
+
+      ref
+          .read(chatRoomsProvider.notifier)
+          .updateLastMessageLocally(
             roomId: chatId,
             previewText: MessagePreviewResolver.formatChatListPreview(
               type: type,
@@ -237,7 +242,9 @@ class ChatMediaHandler {
       final lng = locationData.longitude;
       if (lat == null || lng == null) return;
 
-      await ref.read(chatActionsProvider).sendMessage(
+      await ref
+          .read(chatActionsProvider)
+          .sendMessage(
             chatId,
             '$lat, $lng',
             type: MessageType.location,
@@ -246,7 +253,9 @@ class ChatMediaHandler {
             isGroup: isGroup,
           );
 
-      ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+      ref
+          .read(chatRoomsProvider.notifier)
+          .updateLastMessageLocally(
             roomId: chatId,
             previewText: MessagePreviewResolver.formatChatListPreview(
               type: MessageType.location,

@@ -27,6 +27,7 @@ import '../dialogs/chat_deletion_dialogs.dart';
 import '../handlers/chat_media_handler.dart';
 import '../handlers/chat_file_action_handler.dart';
 import '../utils/chat_jump.dart';
+import '../utils/chat_key_registry.dart';
 import '../utils/chat_search_helper.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_app_bar.dart';
@@ -866,11 +867,52 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     Duration? duration,
     bool triggerHaptic = true,
   }) async {
+    // 1. Cek apakah pesan sudah termuat di list obrolan aktif
+    final currentMsgs =
+        ref.read(chatMessagesProvider(widget.chatId)).valueOrNull ?? [];
+    var exists = currentMsgs.any((m) => m.id == id);
+
+    // 2. Jika belum termuat di memori aktif, muat dari SQLite lokal atau Supabase
+    if (!exists) {
+      final loaded = await ref
+          .read(chatRepositoryProvider)
+          .ensureMessageLoaded(widget.chatId, id);
+      if (loaded != null) {
+        exists = true;
+        try {
+          await WidgetsBinding.instance.endOfFrame;
+        } catch (_) {
+          await Future<void>.delayed(const Duration(milliseconds: 30));
+        }
+      }
+    }
+
+    final updatedMsgs =
+        ref.read(chatMessagesProvider(widget.chatId)).valueOrNull ?? [];
+    final currentCalls =
+        ref.read(chatCallsProvider(widget.chatId)).valueOrNull ?? [];
+    final currentUserId =
+        ref.read(authProvider).user?.id ??
+        Supabase.instance.client.auth.currentUser?.id;
+
+    final entries = ChatMessageListView.buildItemEntries(
+      updatedMsgs,
+      currentCalls,
+      currentUserId: currentUserId,
+    );
+    final targetIndex = entries.indexWhere(
+      (e) => e.kind == ChatItemKind.message && e.message?.id == id,
+    );
+
+    if (!mounted) return;
+
     final ok = await jumpToKeyedItem(
       context: context,
       controller: _scrollController,
-      itemKey: GlobalObjectKey('msg-$id'),
+      itemKey: ChatKeyRegistry.getKey(id),
       startFromBottom: fromBottom,
+      targetIndex: targetIndex != -1 ? targetIndex : null,
+      totalItems: entries.length,
       duration: duration,
     );
     if (!mounted) return;
