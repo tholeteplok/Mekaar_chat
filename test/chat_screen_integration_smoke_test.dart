@@ -67,7 +67,8 @@ class FakeChatActionsNotifier extends Fake implements ChatActionsNotifier {
   bool canEdit(Message message, {required bool isGuardianRoom}) => true;
 
   @override
-  bool canForward(Message message, {bool forwardingProtectionActive = false}) => true;
+  bool canForward(Message message, {bool forwardingProtectionActive = false}) =>
+      true;
 }
 
 class FakeCallRepository extends Fake implements CallRepository {
@@ -89,7 +90,8 @@ class FakeChatRepository extends Fake implements ChatRepository {
   Future<bool> getRoomBurnOnExit(String roomId) async => false;
 
   @override
-  Future<Map<String, dynamic>?> getRoomScheduledWipe(String roomId) async => null;
+  Future<Map<String, dynamic>?> getRoomScheduledWipe(String roomId) async =>
+      null;
 
   @override
   Future<void> updateLastSeen() async {}
@@ -101,19 +103,33 @@ class FakeChatRepository extends Fake implements ChatRepository {
   Future<DateTime?> getOtherParticipantLastRead(String roomId) async => null;
 
   @override
+  Future<DateTime?> getMyLastRead(String roomId) async => null;
+
+  @override
   Future<int> purgeExpiredMessages({String? targetRoomId}) async => 0;
 
   @override
   Future<void> markRoomRead(String roomId) async {}
 
   @override
-  bool canForwardMessage(Message message, {bool forwardingProtectionActive = false}) => true;
+  bool canForwardMessage(
+    Message message, {
+    bool forwardingProtectionActive = false,
+  }) => true;
 
   @override
-  bool canEditMessage(Message message, {required bool isGuardianRoom, DateTime? now}) => true;
+  bool canEditMessage(
+    Message message, {
+    required bool isGuardianRoom,
+    DateTime? now,
+  }) => true;
 
   @override
-  String? getEditRestrictionReason(Message message, {required bool isGuardianRoom, DateTime? now}) => null;
+  String? getEditRestrictionReason(
+    Message message, {
+    required bool isGuardianRoom,
+    DateTime? now,
+  }) => null;
 
   @override
   Future<Message> sendMessage(
@@ -151,7 +167,9 @@ class FakeE2eeRoomStatusNotifier extends E2eeRoomStatusNotifier {
 
   @override
   Future<void> initializeRoomSecurity({bool isGroup = false}) async {
-    state = isGroup ? E2eeRoomStatus.groupServerEncrypted : E2eeRoomStatus.ready;
+    state = isGroup
+        ? E2eeRoomStatus.groupServerEncrypted
+        : E2eeRoomStatus.ready;
   }
 }
 
@@ -177,76 +195,66 @@ void main() {
     ),
   ];
 
-  Widget buildSmokeHarness({
-    required Widget child,
-    List<Message>? messages,
-  }) {
+  Widget buildSmokeHarness({required Widget child, List<Message>? messages}) {
     return ProviderScope(
       overrides: [
         authProvider.overrideWith((ref) => FakeAuthNotifier()),
         chatActionsProvider.overrideWithValue(FakeChatActionsNotifier()),
-        chatRoomsProvider.overrideWith(
-          (ref) => FakeChatRoomsNotifier(),
-        ),
+        chatRoomsProvider.overrideWith((ref) => FakeChatRoomsNotifier()),
         callRepositoryProvider.overrideWithValue(FakeCallRepository()),
         chatRepositoryProvider.overrideWithValue(FakeChatRepository()),
-        chatMessagesProvider(testRoomId).overrideWith(
-          (ref) => Stream.value(messages ?? initialMessages),
-        ),
+        chatMessagesProvider(
+          testRoomId,
+        ).overrideWith((ref) => Stream.value(messages ?? initialMessages)),
         roomScreenProtectionProvider(testRoomId).overrideWith(
           (ref) => Stream.value(const RoomScreenProtection.failClosed()),
         ),
         roomForwardingProtectionProvider(testRoomId).overrideWith(
           (ref) => Stream.value(const RoomForwardingProtection.failClosed()),
         ),
-        chatThemeProvider.overrideWith(
-          (ref) => _FakeChatThemeNotifier(),
-        ),
-        e2eeRoomStatusProvider(testRoomId).overrideWith(
-          (ref) => FakeE2eeRoomStatusNotifier(testRoomId),
-        ),
-        timeTickProvider.overrideWith(
-          (ref) => Stream.value(DateTime.now()),
-        ),
+        chatThemeProvider.overrideWith((ref) => _FakeChatThemeNotifier()),
+        e2eeRoomStatusProvider(
+          testRoomId,
+        ).overrideWith((ref) => FakeE2eeRoomStatusNotifier(testRoomId)),
+        timeTickProvider.overrideWith((ref) => Stream.value(DateTime.now())),
       ],
-      child: MaterialApp(
-        home: child,
-      ),
+      child: MaterialApp(home: child),
     );
   }
 
   group('ChatScreen Integration Smoke Tests (Post-Refactoring)', () {
-    testWidgets('1. Full-Tree Mounting merender ChatAppBar, ChatMessageListView, dan ChatBottomArea secara harmonis', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        buildSmokeHarness(
-          child: const ChatScreen(
-            chatId: testRoomId,
-            chatName: 'Kontak Smoke Test',
-            chatAvatar: 'K',
-            isGroup: false,
-            otherUserId: 'user_other_1',
+    testWidgets(
+      '1. Full-Tree Mounting merender ChatAppBar, ChatMessageListView, dan ChatBottomArea secara harmonis',
+      (tester) async {
+        await tester.pumpWidget(
+          buildSmokeHarness(
+            child: const ChatScreen(
+              chatId: testRoomId,
+              chatName: 'Kontak Smoke Test',
+              chatAvatar: 'K',
+              isGroup: false,
+              otherUserId: 'user_other_1',
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      // Verifikasi layer terpasang lengkap
-      expect(find.byType(ChatAppBar), findsOneWidget);
-      expect(find.byType(ChatMessageListView), findsOneWidget);
-      expect(find.byType(ChatBottomArea), findsOneWidget);
+        // Verifikasi layer terpasang lengkap
+        expect(find.byType(ChatAppBar), findsOneWidget);
+        expect(find.byType(ChatMessageListView), findsOneWidget);
+        expect(find.byType(ChatBottomArea), findsOneWidget);
 
-      // Verifikasi data kontak di app bar
-      expect(find.text('Kontak Smoke Test'), findsOneWidget);
-      expect(find.text('Halo dari rekan chat'), findsOneWidget);
+        // Verifikasi data kontak di app bar
+        expect(find.text('Kontak Smoke Test'), findsOneWidget);
+        expect(find.text('Halo dari rekan chat'), findsOneWidget);
 
-      // Pastikan tidak ada exception layout overflow
-      expect(tester.takeException(), isNull);
-      await tester.pump(const Duration(milliseconds: 300));
-    });
+        // Pastikan tidak ada exception layout overflow
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(milliseconds: 300));
+      },
+    );
 
     testWidgets('2. Input Composer & Typing State merespons pengetikan teks', (
       tester,
@@ -278,77 +286,75 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     });
 
-    testWidgets('3. Safe Route Disposal & Lifecycle Cleanup berjalan bersih tanpa memory leak', (
-      tester,
-    ) async {
-      final key = GlobalKey<NavigatorState>();
+    testWidgets(
+      '3. Safe Route Disposal & Lifecycle Cleanup berjalan bersih tanpa memory leak',
+      (tester) async {
+        final key = GlobalKey<NavigatorState>();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            authProvider.overrideWith((ref) => FakeAuthNotifier()),
-            chatActionsProvider.overrideWithValue(FakeChatActionsNotifier()),
-            chatRoomsProvider.overrideWith(
-          (ref) => FakeChatRoomsNotifier(),
-        ),
-            callRepositoryProvider.overrideWithValue(FakeCallRepository()),
-            chatRepositoryProvider.overrideWithValue(FakeChatRepository()),
-            chatMessagesProvider(testRoomId).overrideWith(
-              (ref) => Stream.value(initialMessages),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authProvider.overrideWith((ref) => FakeAuthNotifier()),
+              chatActionsProvider.overrideWithValue(FakeChatActionsNotifier()),
+              chatRoomsProvider.overrideWith((ref) => FakeChatRoomsNotifier()),
+              callRepositoryProvider.overrideWithValue(FakeCallRepository()),
+              chatRepositoryProvider.overrideWithValue(FakeChatRepository()),
+              chatMessagesProvider(
+                testRoomId,
+              ).overrideWith((ref) => Stream.value(initialMessages)),
+              roomScreenProtectionProvider(testRoomId).overrideWith(
+                (ref) => Stream.value(const RoomScreenProtection.failClosed()),
+              ),
+              roomForwardingProtectionProvider(testRoomId).overrideWith(
+                (ref) =>
+                    Stream.value(const RoomForwardingProtection.failClosed()),
+              ),
+              chatThemeProvider.overrideWith((ref) => _FakeChatThemeNotifier()),
+              e2eeRoomStatusProvider(
+                testRoomId,
+              ).overrideWith((ref) => FakeE2eeRoomStatusNotifier(testRoomId)),
+              timeTickProvider.overrideWith(
+                (ref) => Stream.value(DateTime.now()),
+              ),
+            ],
+            child: MaterialApp(
+              navigatorKey: key,
+              home: const Scaffold(body: Text('Halaman Root')),
             ),
-            roomScreenProtectionProvider(testRoomId).overrideWith(
-              (ref) => Stream.value(const RoomScreenProtection.failClosed()),
-            ),
-            roomForwardingProtectionProvider(testRoomId).overrideWith(
-              (ref) => Stream.value(const RoomForwardingProtection.failClosed()),
-            ),
-            chatThemeProvider.overrideWith(
-              (ref) => _FakeChatThemeNotifier(),
-            ),
-            e2eeRoomStatusProvider(testRoomId).overrideWith(
-              (ref) => FakeE2eeRoomStatusNotifier(testRoomId),
-            ),
-            timeTickProvider.overrideWith(
-              (ref) => Stream.value(DateTime.now()),
-            ),
-          ],
-          child: MaterialApp(
-            navigatorKey: key,
-            home: const Scaffold(body: Text('Halaman Root')),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      // Navigasi masuk ke ChatScreen
-      key.currentState?.push(
-        MaterialPageRoute<void>(
-          builder: (_) => const ChatScreen(
-            chatId: testRoomId,
-            chatName: 'Kontak Smoke Test',
-            chatAvatar: 'K',
-            isGroup: false,
-            otherUserId: 'user_other_1',
+        // Navigasi masuk ke ChatScreen
+        key.currentState?.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ChatScreen(
+              chatId: testRoomId,
+              chatName: 'Kontak Smoke Test',
+              chatAvatar: 'K',
+              isGroup: false,
+              otherUserId: 'user_other_1',
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(ChatScreen), findsOneWidget);
+        expect(find.byType(ChatScreen), findsOneWidget);
 
-      // Navigasi keluar (Pop)
-      key.currentState?.pop();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+        // Navigasi keluar (Pop)
+        key.currentState?.pop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.byType(ChatScreen), findsNothing);
-      expect(find.text('Halaman Root'), findsOneWidget);
+        expect(find.byType(ChatScreen), findsNothing);
+        expect(find.text('Halaman Root'), findsOneWidget);
 
-      // Pastikan seluruh focus node dan controller ter-dispose tanpa exception
-      expect(tester.takeException(), isNull);
-    });
+        // Pastikan seluruh focus node dan controller ter-dispose tanpa exception
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
