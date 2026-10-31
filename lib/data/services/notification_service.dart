@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/supabase_service.dart';
 import 'alarm_service.dart';
 import '../../core/services/haptic_service.dart';
+import '../../core/widgets/mekaar_in_app_notification_banner.dart';
 
 /// Jenis navigasi yang dihasilkan dari tap notifikasi.
 enum NotificationRouteType { message, call, sos }
@@ -57,22 +60,22 @@ class NotificationRoute {
   });
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'roomId': roomId,
-        'chatName': chatName,
-        'chatAvatar': chatAvatar,
-        'chatAvatarUrl': chatAvatarUrl,
-        'isGuardian': isGuardian,
-        'otherUserId': otherUserId,
-        'callId': callId,
-        'callerId': callerId,
-        'callerName': callerName,
-        'callerAvatarUrl': callerAvatarUrl,
-        'callType': callType,
-        'sessionId': sessionId,
-        'userId': userId,
-        'userName': userName,
-      };
+    'type': type.name,
+    'roomId': roomId,
+    'chatName': chatName,
+    'chatAvatar': chatAvatar,
+    'chatAvatarUrl': chatAvatarUrl,
+    'isGuardian': isGuardian,
+    'otherUserId': otherUserId,
+    'callId': callId,
+    'callerId': callerId,
+    'callerName': callerName,
+    'callerAvatarUrl': callerAvatarUrl,
+    'callType': callType,
+    'sessionId': sessionId,
+    'userId': userId,
+    'userName': userName,
+  };
 
   String encodePayload() => jsonEncode(toJson());
 
@@ -138,10 +141,11 @@ class NotificationService {
   /// Callback saat pengguna menekan action button LANGSUNG di notification
   /// tray ("Sudah Sampai"/"Tunda 15 Menit") tanpa membuka app.
   static Function(String tripId, {required bool arrived, int? snoozeMinutes})?
-      _onTripAction;
+  _onTripAction;
 
   /// Callback khusus saat pengguna menekan tombol aksi "Jawab" atau "Tolak" pada notifikasi panggilan masuk.
-  static Function(NotificationRoute route, {required bool accept})? _onCallAction;
+  static Function(NotificationRoute route, {required bool accept})?
+  _onCallAction;
 
   /// Prefix payload untuk membedakan notifikasi trip dari notifikasi chat biasa.
   static const String _tripPayloadPrefix = 'trip:';
@@ -150,7 +154,7 @@ class NotificationService {
     Function(NotificationRoute route)? onNotificationTap,
     Function(String tripId)? onTripNotificationTap,
     Function(String tripId, {required bool arrived, int? snoozeMinutes})?
-        onTripAction,
+    onTripAction,
     Function(NotificationRoute route, {required bool accept})? onCallAction,
   }) async {
     _onNotificationTap = onNotificationTap;
@@ -158,13 +162,18 @@ class NotificationService {
     _onTripAction = onTripAction;
     _onCallAction = onCallAction;
     try {
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
         requestSoundPermission: true,
       );
-      const initSettings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
       await _localNotificationsPlugin.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onDidReceiveNotificationResponse,
@@ -174,12 +183,17 @@ class NotificationService {
       // Minta izin notifikasi runtime Android 13+ (POST_NOTIFICATIONS)
       final androidImpl = _localNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await androidImpl?.requestNotificationsPermission();
 
-      _logger.i("Notification Service Initialized (Flutter Local Notifications)");
+      _logger.i(
+        "Notification Service Initialized (Flutter Local Notifications)",
+      );
     } catch (e) {
-      _logger.w("Notification Service: Gagal inisialisasi native driver (fallback aktif): $e");
+      _logger.w(
+        "Notification Service: Gagal inisialisasi native driver (fallback aktif): $e",
+      );
     }
   }
 
@@ -188,7 +202,8 @@ class NotificationService {
   static Future<void> _createNotificationChannels() async {
     final androidImpl = _localNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidImpl == null) return;
 
     try {
@@ -296,14 +311,46 @@ class NotificationService {
   /// Menghitung ID notifikasi deterministik berbasis roomId atau route.
   /// Memastikan notifikasi baru dalam percakapan yang sama saling menimpa
   /// (in-place update) di status bar dan tidak memunculkan notifikasi ganda.
-  static int getMessageNotificationId(String? roomId, [NotificationRoute? route]) {
+  static int getMessageNotificationId(
+    String? roomId, [
+    NotificationRoute? route,
+  ]) {
     final effectiveKey = (roomId != null && roomId.isNotEmpty)
         ? 'room_$roomId'
         : (route?.roomId != null && route!.roomId!.isNotEmpty)
-            ? 'room_${route.roomId}'
-            : (route?.chatName ?? 'mekaar_msg');
+        ? 'room_${route.roomId}'
+        : (route?.chatName ?? 'mekaar_msg');
     final rawId = effectiveKey.hashCode.abs().remainder(1 << 31);
     return rawId == 0 ? 1 : rawId;
+  }
+
+  /// Override status izin notifikasi sistem OS (khusus unit/widget testing).
+  @visibleForTesting
+  static bool? overrideNotificationsEnabled;
+
+  /// Memeriksa apakah notifikasi aplikasi diizinkan oleh sistem operasi Android/iOS.
+  static Future<bool> areNotificationsEnabled() async {
+    if (overrideNotificationsEnabled != null) {
+      return overrideNotificationsEnabled!;
+    }
+
+    try {
+      if (Platform.isAndroid) {
+        final androidImpl = _localNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        final areEnabled = await androidImpl?.areNotificationsEnabled();
+        if (areEnabled != null) return areEnabled;
+        return await Permission.notification.status.isGranted;
+      } else if (Platform.isIOS) {
+        return await Permission.notification.status.isGranted;
+      }
+      return true;
+    } catch (e) {
+      _logger.w('Gagal memeriksa status izin notifikasi OS: $e');
+      return true;
+    }
   }
 
   /// Batalkan notifikasi pesan untuk [roomId] tertentu (misal saat room dibuka).
@@ -319,6 +366,40 @@ class NotificationService {
     NotificationRoute? route,
     String? groupKey,
   }) async {
+    final systemNotificationsEnabled = await areNotificationsEnabled();
+
+    if (!systemNotificationsEnabled) {
+      // OS mematikan notifikasi aplikasi di pengaturan ponsel:
+      // 1. Bungkam pemutaran suara AlarmService (tidak ada bunyi .wav)
+      // 2. Bungkam getaran HapticService
+      // 3. Lewati pendaftaran native _localNotificationsPlugin.show (karena akan di-drop OS)
+      // 4. Jika sedang berada di dalam aplikasi (foreground), tampilkan in-app banner senyap
+      //    (ala WhatsApp / Telegram in-app notification).
+      //    Jika aplikasi sedang minimize/background, hening total (zero alert).
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      final isForeground =
+          lifecycle == null || lifecycle == AppLifecycleState.resumed;
+
+      if (isForeground) {
+        final effectiveRoute =
+            route ??
+            NotificationRoute(
+              type: NotificationRouteType.message,
+              roomId: roomId,
+            );
+        MekaarInAppNotificationBanner.show(
+          title: title,
+          body: body,
+          avatarInitial: effectiveRoute.chatAvatar,
+          avatarUrl: effectiveRoute.chatAvatarUrl,
+          onTap: () {
+            _onNotificationTap?.call(effectiveRoute);
+          },
+        );
+      }
+      return;
+    }
+
     AlarmService.playMessageSound();
     await HapticService.trigger(MekaarHapticIntent.success);
 
@@ -354,12 +435,13 @@ class NotificationService {
         title,
         body,
         details,
-        payload: (route ??
-                NotificationRoute(
-                  type: NotificationRouteType.message,
-                  roomId: roomId,
-                ))
-            .encodePayload(),
+        payload:
+            (route ??
+                    NotificationRoute(
+                      type: NotificationRouteType.message,
+                      roomId: roomId,
+                    ))
+                .encodePayload(),
       );
     } catch (e) {
       _logger.e("NotificationService: Gagal menampilkan notifikasi pesan: $e");
@@ -373,13 +455,41 @@ class NotificationService {
     String? callId,
     String? callerId,
   }) async {
+    final systemNotificationsEnabled = await areNotificationsEnabled();
+    if (!systemNotificationsEnabled) {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      final isForeground =
+          lifecycle == null || lifecycle == AppLifecycleState.resumed;
+
+      if (isForeground) {
+        final route = NotificationRoute(
+          type: NotificationRouteType.message,
+          roomId: roomId,
+          chatName: callerName,
+          otherUserId: callerId,
+        );
+        MekaarInAppNotificationBanner.show(
+          title: 'Panggilan Tak Terjawab',
+          body:
+              '$callerName mencoba menghubungi Anda (${callType == "video" ? "Video" : "Suara"})',
+          avatarInitial: callerName.isNotEmpty
+              ? callerName[0].toUpperCase()
+              : 'U',
+          onTap: () {
+            _onNotificationTap?.call(route);
+          },
+        );
+      }
+      return;
+    }
+
     await HapticService.trigger(MekaarHapticIntent.warning);
 
     final effectiveKey = (callId != null && callId.isNotEmpty)
         ? 'missed_call_$callId'
         : (roomId != null && roomId.isNotEmpty)
-            ? 'missed_room_$roomId'
-            : 'missed_call';
+        ? 'missed_room_$roomId'
+        : 'missed_call';
     final rawId = effectiveKey.hashCode.abs().remainder(1 << 31);
     final notificationId = rawId == 0 ? 1 : rawId;
 
@@ -427,8 +537,7 @@ class NotificationService {
     required String body,
   }) => showMessageNotification(title: title, body: body);
 
-  static int _tripNotificationId(String tripId) =>
-      0x54524950 ^ tripId.hashCode;
+  static int _tripNotificationId(String tripId) => 0x54524950 ^ tripId.hashCode;
 
   static Future<void> showTripConfirmationNotification({
     required String tripId,
@@ -526,17 +635,18 @@ class NotificationService {
       callType == 'video' ? 'Panggilan video masuk' : 'Panggilan masuk',
       callerName,
       details,
-      payload: (route ??
-              NotificationRoute(
-                type: NotificationRouteType.call,
-                roomId: roomId,
-                callId: callId,
-                callerId: callerId,
-                callerName: callerName,
-                callerAvatarUrl: callerAvatarUrl,
-                callType: callType,
-              ))
-          .encodePayload(),
+      payload:
+          (route ??
+                  NotificationRoute(
+                    type: NotificationRouteType.call,
+                    roomId: roomId,
+                    callId: callId,
+                    callerId: callerId,
+                    callerName: callerName,
+                    callerAvatarUrl: callerAvatarUrl,
+                    callType: callType,
+                  ))
+              .encodePayload(),
     );
   }
 
@@ -571,24 +681,27 @@ class NotificationService {
       priority: Priority.high,
       playSound: false,
     );
-    const iosDetails = DarwinNotificationDetails(
-      presentSound: false,
+    const iosDetails = DarwinNotificationDetails(presentSound: false);
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
     );
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _localNotificationsPlugin.show(
       999,
       title,
       body,
       details,
-      payload: (route ??
-              NotificationRoute(
-                type: NotificationRouteType.sos,
-                sessionId: data?['sessionId'] as String?,
-                userId: data?['userId'] as String?,
-                userName: (data?['victimName'] ?? data?['userName']) as String?,
-              ))
-          .encodePayload(),
+      payload:
+          (route ??
+                  NotificationRoute(
+                    type: NotificationRouteType.sos,
+                    sessionId: data?['sessionId'] as String?,
+                    userId: data?['userId'] as String?,
+                    userName:
+                        (data?['victimName'] ?? data?['userName']) as String?,
+                  ))
+              .encodePayload(),
     );
   }
 
@@ -603,10 +716,11 @@ class NotificationService {
       priority: Priority.low,
       playSound: false,
     );
-    const iosDetails = DarwinNotificationDetails(
-      presentSound: false,
+    const iosDetails = DarwinNotificationDetails(presentSound: false);
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
     );
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _localNotificationsPlugin.show(
       888,
