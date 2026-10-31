@@ -28,6 +28,10 @@ import '../providers/emoji_pack_provider.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../settings/providers/chat_theme_provider.dart';
+import '../../../data/models/chat_theme_model.dart';
+import '../../../core/providers/font_provider.dart';
 import 'image_send_preview_sheet.dart';
 import 'document_send_preview_sheet.dart';
 import '../screens/unified_camera_screen.dart';
@@ -51,7 +55,8 @@ class ChatComposer extends ConsumerStatefulWidget {
     MessageType type, {
     String? caption,
     bool? isViewOnce,
-  })? onSendMedia;
+  })?
+  onSendMedia;
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;
   final bool enabled;
@@ -223,13 +228,17 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       final hasPermission = await _audioRecorder!.hasPermission();
       if (!hasPermission) {
         if (mounted) {
-          MekaarSnackbar.error(context, 'Izin mikrofon diperlukan untuk merekam suara.');
+          MekaarSnackbar.error(
+            context,
+            'Izin mikrofon diperlukan untuk merekam suara.',
+          );
         }
         return;
       }
 
       final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path =
+          '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       _recordingPath = path;
 
       await _audioRecorder!.start(
@@ -321,7 +330,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
       final path = picked.path.toLowerCase();
       final mime = picked.mimeType?.toLowerCase() ?? '';
-      final isVideo = mime.startsWith('video/') ||
+      final isVideo =
+          mime.startsWith('video/') ||
           path.endsWith('.mp4') ||
           path.endsWith('.mov') ||
           path.endsWith('.m4v') ||
@@ -332,7 +342,9 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
       if (isVideo) {
         setState(() => _isUploading = true);
-        final compressed = await MediaCompressor.compressVideo(File(picked.path));
+        final compressed = await MediaCompressor.compressVideo(
+          File(picked.path),
+        );
 
         // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
         const maxVideoBytes = 15 * 1024 * 1024;
@@ -350,7 +362,9 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         await widget.onSendMedia!(compressed, MessageType.video);
       } else {
         setState(() => _isUploading = true);
-        final compressed = await MediaCompressor.compressImage(File(picked.path));
+        final compressed = await MediaCompressor.compressImage(
+          File(picked.path),
+        );
         if (!mounted) return;
         setState(() => _isUploading = false);
 
@@ -449,9 +463,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     HapticService.trigger(MekaarHapticIntent.selection);
 
     final result = await Navigator.of(context).push<CameraCaptureResult>(
-      MaterialPageRoute(
-        builder: (_) => const UnifiedCameraScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const UnifiedCameraScreen()),
     );
 
     if (result == null || !mounted) return;
@@ -625,11 +637,14 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          title: Text(label,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: MekaarColors.textPrimaryOf(context))),
+          title: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: MekaarColors.textPrimaryOf(context),
+            ),
+          ),
           onTap: onTap,
         ),
       ),
@@ -661,8 +676,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                   color: MekaarColors.guardianTeal.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(SolarIconsOutline.gps,
-                    color: MekaarColors.guardianTeal, size: 20),
+                child: const Icon(
+                  SolarIconsOutline.gps,
+                  color: MekaarColors.guardianTeal,
+                  size: 20,
+                ),
               ),
               title: Text('$m menit'),
               onTap: () async {
@@ -697,8 +715,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     final packs = catalog.valueOrNull == null
         ? const <EmojiPack>[]
         : (catalog.valueOrNull!)
-            .where((p) => installed.isInstalled(p.slug))
-            .toList();
+              .where((p) => installed.isInstalled(p.slug))
+              .toList();
     // Jaga tab aktif tetap valid.
     if (_activeEmojiPack != null &&
         !packs.any((p) => p.slug == _activeEmojiPack)) {
@@ -727,8 +745,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             height: 40,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: MekaarSpacing.md),
+              padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.md),
               children: [
                 _emojiTabChip(
                   label: 'Standar',
@@ -740,14 +757,15 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                     label: pack.name,
                     coverUrl: pack.coverUrl,
                     selected: _activeEmojiPack == pack.slug,
-                    onTap: () =>
-                        setState(() => _activeEmojiPack = pack.slug),
+                    onTap: () => setState(() => _activeEmojiPack = pack.slug),
                   ),
                 IconButton(
                   tooltip: 'Toko Emoji',
                   padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                   splashRadius: 20,
                   icon: Icon(
                     SolarIconsOutline.bagSmile,
@@ -764,8 +782,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
           ),
           Divider(
             height: 1,
-            color:
-                MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
+            color: MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
           ),
           // ──── Konten grid ────
           Expanded(
@@ -774,7 +791,9 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                 : SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: _buildStandardEmojiGrid(),
                   ),
           ),
@@ -847,25 +866,94 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
   Widget _buildStandardEmojiGrid() {
     final emojiCategories = <String, List<String>>{
-      if (_recentEmojis.isNotEmpty)
-        'Sering Digunakan': _recentEmojis,
+      if (_recentEmojis.isNotEmpty) 'Sering Digunakan': _recentEmojis,
       'Ekspresi & Wajah': [
-        '😀', '😂', '😍', '🥰', '😎', '🥳', '🤩', '😇',
-        '😋', '🤪', '😜', '🤗', '🤔', '🫣', '😌', '😏',
-        '😤', '😭', '🥺', '😱', '🤯', '😴', '😷', '😈',
+        '😀',
+        '😂',
+        '😍',
+        '🥰',
+        '😎',
+        '🥳',
+        '🤩',
+        '😇',
+        '😋',
+        '🤪',
+        '😜',
+        '🤗',
+        '🤔',
+        '🫣',
+        '😌',
+        '😏',
+        '😤',
+        '😭',
+        '🥺',
+        '😱',
+        '🤯',
+        '😴',
+        '😷',
+        '😈',
       ],
       'Isyarat & Tangan': [
-        '👍', '👎', '👏', '🙌', '🤝', '🙏', '✌️', '🤞',
-        '🤟', '🤘', '👌', '🤏', '👈', '👉', '👆', '👇',
-        '💪', '🔥', '✨', '⭐', '⚡', '💥', '🎉', '🎊',
+        '👍',
+        '👎',
+        '👏',
+        '🙌',
+        '🤝',
+        '🙏',
+        '✌️',
+        '🤞',
+        '🤟',
+        '🤘',
+        '👌',
+        '🤏',
+        '👈',
+        '👉',
+        '👆',
+        '👇',
+        '💪',
+        '🔥',
+        '✨',
+        '⭐',
+        '⚡',
+        '💥',
+        '🎉',
+        '🎊',
       ],
       'Hati & Cinta': [
-        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
-        '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+        '❤️',
+        '🧡',
+        '💛',
+        '💚',
+        '💙',
+        '💜',
+        '🖤',
+        '🤍',
+        '🤎',
+        '💔',
+        '❣️',
+        '💕',
+        '💞',
+        '💓',
+        '💗',
+        '💖',
       ],
       'Simbol & Benda': [
-        '🎈', '🎁', '🏆', '💯', '🌟', '☀️', '🌙', '☕',
-        '🍕', '🚀', '🛡️', '🔒', '🔑', '💬', '📢', '🔔',
+        '🎈',
+        '🎁',
+        '🏆',
+        '💯',
+        '🌟',
+        '☀️',
+        '🌙',
+        '☕',
+        '🍕',
+        '🚀',
+        '🛡️',
+        '🔒',
+        '🔑',
+        '💬',
+        '📢',
+        '🔔',
       ],
     };
 
@@ -898,10 +986,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                     _saveRecentEmoji(emoji);
                     _insertAtCursor(emoji);
                   },
-                  child: Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 26),
-                  ),
+                  child: Text(emoji, style: const TextStyle(fontSize: 26)),
                 );
               }).toList(),
             ),
@@ -914,9 +999,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   /// Grid item pack terpasang — membaca file dari disk (luring).
   Widget _buildPackGrid(EmojiPack pack, InstalledPacksState installed) {
     final service = ref.read(emojiPackServiceProvider);
-    final items = ref
-        .read(emojiCatalogProvider.notifier)
-        .itemsOf(pack.slug);
+    final items = ref.read(emojiCatalogProvider.notifier).itemsOf(pack.slug);
     final downloading = installed.downloading[pack.slug];
 
     if (downloading != null) {
@@ -924,10 +1007,12 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Mengunduh ${pack.name}...',
-                style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.textSecondaryOf(context),
-                )),
+            Text(
+              'Mengunduh ${pack.name}...',
+              style: MekaarTypography.bodySM.copyWith(
+                color: MekaarColors.textSecondaryOf(context),
+              ),
+            ),
             const SizedBox(height: MekaarSpacing.sm),
             SizedBox(
               width: 160,
@@ -1064,10 +1149,20 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryAccent = widget.roomThemeSpec?.primaryAccentColor ?? MekaarColors.primaryOf(context);
-    final secondaryAccent = widget.roomThemeSpec?.secondaryAccentColor ?? MekaarColors.textSecondaryOf(context);
+    final primaryAccent =
+        widget.roomThemeSpec?.primaryAccentColor ??
+        MekaarColors.primaryOf(context);
+    final secondaryAccent =
+        widget.roomThemeSpec?.secondaryAccentColor ??
+        MekaarColors.textSecondaryOf(context);
     final glassBorder = widget.roomThemeSpec?.glassBorder;
     final glassBg = widget.roomThemeSpec?.glassBackgroundColor;
+    final chatPref =
+        ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
+    final activeFontFamily =
+        ref.watch(fontFamilyProvider).valueOrNull ??
+        MekaarTypography.fontFamily;
+    final effectiveFontSize = 16.0 * chatPref.textScale;
 
     return Padding(
       padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8, top: 4),
@@ -1102,9 +1197,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                     alignment: Alignment.centerLeft,
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: TypingIndicator(
-                        dotColor: primaryAccent,
-                      ),
+                      child: TypingIndicator(dotColor: primaryAccent),
                     ),
                   )
                 : const SizedBox.shrink(
@@ -1137,10 +1230,17 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                 border: glassBorder,
                 customColor: glassBg,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
-                      Icon(SolarIconsOutline.pen, size: 16, color: primaryAccent),
+                      Icon(
+                        SolarIconsOutline.pen,
+                        size: 16,
+                        color: primaryAccent,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1154,7 +1254,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                       ),
                       GestureDetector(
                         onTap: widget.onCancelEdit,
-                        child: Icon(SolarIconsOutline.closeSquare, size: 18, color: primaryAccent),
+                        child: Icon(
+                          SolarIconsOutline.closeSquare,
+                          size: 18,
+                          color: primaryAccent,
+                        ),
                       ),
                     ],
                   ),
@@ -1186,7 +1290,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                       setState(() => _recordingSwipeOffset += details.delta.dx);
                     },
                     onHorizontalDragEnd: (details) {
-                      if (_recordingSwipeOffset.abs() > _recordingSwipeThreshold) {
+                      if (_recordingSwipeOffset.abs() >
+                          _recordingSwipeThreshold) {
                         _cancelRecording();
                       }
                       setState(() => _recordingSwipeOffset = 0);
@@ -1263,7 +1368,10 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                           maxHeight: 130,
                         ),
                         borderRadius: BorderRadius.circular(24),
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 0,
+                        ),
                         border: glassBorder,
                         customColor: glassBg,
                         child: Row(
@@ -1272,16 +1380,34 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                             if (!_isEditMode)
                               IconButton(
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints.tightFor(width: 40, height: 48),
-                                icon: Icon(
-                                  MekaarIcons.smile,
-                                  color: _showEmojiPicker
-                                      ? primaryAccent
-                                      : secondaryAccent,
-                                  size: 22,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 40,
+                                  height: 48,
                                 ),
-                                onPressed: widget.enabled ? _toggleEmojiPicker : null,
-                                tooltip: 'Emoji',
+                                icon: AnimatedSwitcher(
+                                  duration: context.motion(MekaarMotion.fast),
+                                  transitionBuilder: (child, animation) =>
+                                      ScaleTransition(
+                                        scale: animation,
+                                        child: child,
+                                      ),
+                                  child: Icon(
+                                    _showEmojiPicker
+                                        ? MekaarIcons.keyboard
+                                        : MekaarIcons.smile,
+                                    key: ValueKey<bool>(_showEmojiPicker),
+                                    color: _showEmojiPicker
+                                        ? primaryAccent
+                                        : secondaryAccent,
+                                    size: 22,
+                                  ),
+                                ),
+                                onPressed: widget.enabled
+                                    ? _toggleEmojiPicker
+                                    : null,
+                                tooltip: _showEmojiPicker
+                                    ? 'Keyboard'
+                                    : 'Emoji',
                               ),
                             Expanded(
                               child: TextField(
@@ -1293,24 +1419,33 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                 textInputAction: TextInputAction.newline,
                                 minLines: 1,
                                 maxLines: 5,
-                                textCapitalization: TextCapitalization.sentences,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
                                 textAlignVertical: TextAlignVertical.center,
-                                contentInsertionConfiguration: ContentInsertionConfiguration(
-                                  allowedMimeTypes: const <String>[
-                                    'image/gif',
-                                    'image/png',
-                                    'image/jpeg',
-                                    'image/webp',
-                                  ],
-                                  onContentInserted: _handleKeyboardContentInserted,
-                                ),
+                                contentInsertionConfiguration:
+                                    ContentInsertionConfiguration(
+                                      allowedMimeTypes: const <String>[
+                                        'image/gif',
+                                        'image/png',
+                                        'image/jpeg',
+                                        'image/webp',
+                                      ],
+                                      onContentInserted:
+                                          _handleKeyboardContentInserted,
+                                    ),
                                 decoration: InputDecoration(
                                   hintText: !widget.enabled
                                       ? 'Menyiapkan enkripsi...'
-                                      : (_isEditMode ? 'Edit pesan...' : 'Ketik pesan...'),
-                                  hintStyle: TextStyle(
-                                    fontSize: 14,
-                                    color: widget.roomThemeSpec?.subtitleColor ?? MekaarColors.textMutedOf(context),
+                                      : (_isEditMode
+                                            ? 'Edit pesan...'
+                                            : 'Ketik pesan...'),
+                                  hintStyle: GoogleFonts.getFont(
+                                    activeFontFamily,
+                                    fontSize: effectiveFontSize,
+                                    height: 1.3,
+                                    color:
+                                        widget.roomThemeSpec?.subtitleColor ??
+                                        MekaarColors.textMutedOf(context),
                                   ),
                                   border: InputBorder.none,
                                   focusedBorder: InputBorder.none,
@@ -1322,24 +1457,34 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   ),
                                   isDense: true,
                                 ),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: widget.roomThemeSpec?.textColor ?? MekaarColors.textPrimaryOf(context),
+                                style: GoogleFonts.getFont(
+                                  activeFontFamily,
+                                  fontSize: effectiveFontSize,
+                                  height: 1.3,
+                                  color:
+                                      widget.roomThemeSpec?.textColor ??
+                                      MekaarColors.textPrimaryOf(context),
                                 ),
-                                onSubmitted: (_) => widget.enabled ? _handleSend() : null,
+                                onSubmitted: (_) =>
+                                    widget.enabled ? _handleSend() : null,
                                 onTap: closeEmojiPicker,
                               ),
                             ),
                             if (!_isEditMode)
                               IconButton(
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints.tightFor(width: 40, height: 48),
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 40,
+                                  height: 48,
+                                ),
                                 icon: Icon(
                                   SolarIconsOutline.paperclip,
                                   color: secondaryAccent,
                                   size: 22,
                                 ),
-                                onPressed: widget.enabled ? _showAttachmentSheet : null,
+                                onPressed: widget.enabled
+                                    ? _showAttachmentSheet
+                                    : null,
                                 tooltip: 'Lampiran',
                               ),
                           ],
@@ -1368,18 +1513,26 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: (Theme.of(context).brightness == Brightness.dark)
+                                  color:
+                                      (Theme.of(context).brightness ==
+                                          Brightness.dark)
                                       ? Colors.black.withValues(alpha: 0.5)
                                       : Colors.white.withValues(alpha: 0.85),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: primaryAccent.withValues(alpha: 0.35),
+                                    color: primaryAccent.withValues(
+                                      alpha: 0.35,
+                                    ),
                                     width: 0.8,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withValues(
-                                        alpha: (Theme.of(context).brightness == Brightness.dark) ? 0.3 : 0.08,
+                                        alpha:
+                                            (Theme.of(context).brightness ==
+                                                Brightness.dark)
+                                            ? 0.3
+                                            : 0.08,
                                       ),
                                       blurRadius: 4,
                                       offset: const Offset(0, 1),
@@ -1412,40 +1565,47 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                           label: _isEditMode
                               ? 'Simpan edit'
                               : (_hasText
-                                  ? 'Kirim pesan'
-                                  : (_quickActionMode == QuickActionMode.mic
-                                      ? 'Rekam suara'
-                                      : 'Buka kamera')),
+                                    ? 'Kirim pesan'
+                                    : (_quickActionMode == QuickActionMode.mic
+                                          ? 'Rekam suara'
+                                          : 'Buka kamera')),
                           child: GestureDetector(
-                            onVerticalDragStart: !widget.enabled || _hasText || _isEditMode
+                            onVerticalDragStart:
+                                !widget.enabled || _hasText || _isEditMode
                                 ? null
                                 : (_) => _quickActionDragDistance = 0,
-                            onVerticalDragUpdate: !widget.enabled || _hasText || _isEditMode
+                            onVerticalDragUpdate:
+                                !widget.enabled || _hasText || _isEditMode
                                 ? null
                                 : (details) {
-                                    _quickActionDragDistance += details.primaryDelta ?? 0;
+                                    _quickActionDragDistance +=
+                                        details.primaryDelta ?? 0;
                                     if (_quickActionDragDistance <= -20.0) {
                                       _toggleQuickActionMode();
                                       _quickActionDragDistance = 0;
                                     }
                                   },
-                            onVerticalDragEnd: !widget.enabled || _hasText || _isEditMode
+                            onVerticalDragEnd:
+                                !widget.enabled || _hasText || _isEditMode
                                 ? null
                                 : (details) {
-                                    if ((details.primaryVelocity ?? 0) <= -200.0) {
+                                    if ((details.primaryVelocity ?? 0) <=
+                                        -200.0) {
                                       _toggleQuickActionMode();
                                     }
                                     _quickActionDragDistance = 0;
                                   },
-                            onVerticalDragCancel: () => _quickActionDragDistance = 0,
+                            onVerticalDragCancel: () =>
+                                _quickActionDragDistance = 0,
                             child: PressableScale(
                               onTap: !widget.enabled
                                   ? null
                                   : (_isEditMode || _hasText
-                                      ? _handleSend
-                                      : (_quickActionMode == QuickActionMode.mic
-                                          ? _startRecording
-                                          : _openUnifiedCamera)),
+                                        ? _handleSend
+                                        : (_quickActionMode ==
+                                                  QuickActionMode.mic
+                                              ? _startRecording
+                                              : _openUnifiedCamera)),
                               child: Container(
                                 width: 48,
                                 height: 48,
@@ -1453,12 +1613,16 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   shape: BoxShape.circle,
                                   color: widget.enabled
                                       ? (widget.canSend
-                                          ? primaryAccent
-                                          : primaryAccent.withValues(alpha: 0.5))
+                                            ? primaryAccent
+                                            : primaryAccent.withValues(
+                                                alpha: 0.5,
+                                              ))
                                       : primaryAccent.withValues(alpha: 0.35),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: primaryAccent.withValues(alpha: 0.28),
+                                      color: primaryAccent.withValues(
+                                        alpha: 0.28,
+                                      ),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1468,21 +1632,27 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                   child: AnimatedSwitcher(
                                     duration: context.motion(MekaarMotion.fast),
                                     transitionBuilder: (child, anim) =>
-                                        ScaleTransition(scale: anim, child: child),
+                                        ScaleTransition(
+                                          scale: anim,
+                                          child: child,
+                                        ),
                                     child: Icon(
                                       _isEditMode
                                           ? SolarIconsOutline.checkCircle
                                           : (_hasText
-                                              ? SolarIconsOutline.plain
-                                              : (_quickActionMode == QuickActionMode.mic
-                                                  ? SolarIconsOutline.microphone
-                                                  : SolarIconsOutline.camera)),
+                                                ? SolarIconsOutline.plain
+                                                : (_quickActionMode ==
+                                                          QuickActionMode.mic
+                                                      ? SolarIconsOutline
+                                                            .microphone
+                                                      : SolarIconsOutline
+                                                            .camera)),
                                       key: ValueKey(
                                         _isEditMode
                                             ? 'check'
                                             : (_hasText
-                                                ? 'send'
-                                                : _quickActionMode.name),
+                                                  ? 'send'
+                                                  : _quickActionMode.name),
                                       ),
                                       color: Colors.white,
                                       size: 22,
@@ -1528,10 +1698,8 @@ class _BlinkingDotState extends State<_BlinkingDot>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: MekaarMotion.loop,
-    )..repeat(reverse: true);
+    _controller = AnimationController(vsync: this, duration: MekaarMotion.loop)
+      ..repeat(reverse: true);
   }
 
   @override
@@ -1634,15 +1802,16 @@ class _ReplyPreview extends StatelessWidget {
                       text: prefix,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    TextSpan(
-                      text: previewBody,
-                    ),
+                    TextSpan(text: previewBody),
                   ],
                 ),
               ),
             ),
             IconButton(
-              icon: const Icon(SolarIconsOutline.closeCircle, size: MekaarSizes.iconSm),
+              icon: const Icon(
+                SolarIconsOutline.closeCircle,
+                size: MekaarSizes.iconSm,
+              ),
               onPressed: onCancel,
             ),
           ],

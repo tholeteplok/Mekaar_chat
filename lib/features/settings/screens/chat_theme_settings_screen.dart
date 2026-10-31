@@ -36,10 +36,30 @@ const Color _kSwatchCustom = Color(0xFF8B5CF6);
 
 /// Daftar warna swatch palet inline cepat (24 pilihan warna).
 const List<String> _kColorSwatches = [
-  '#136CFC', '#38BDF8', '#2DD4BF', '#10B981', '#4ECDC4', '#55EFC4',
-  '#FBBF24', '#F59E0B', '#FF8E53', '#FF5D5D', '#FB7185', '#FF6B9D',
-  '#8B5CF6', '#7F77DD', '#0F172A', '#1E1535', '#2D2D2D', '#64748B',
-  '#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9', '#FFFFFF', '#000000',
+  '#136CFC',
+  '#38BDF8',
+  '#2DD4BF',
+  '#10B981',
+  '#4ECDC4',
+  '#55EFC4',
+  '#FBBF24',
+  '#F59E0B',
+  '#FF8E53',
+  '#FF5D5D',
+  '#FB7185',
+  '#FF6B9D',
+  '#8B5CF6',
+  '#7F77DD',
+  '#0F172A',
+  '#1E1535',
+  '#2D2D2D',
+  '#64748B',
+  '#94A3B8',
+  '#CBD5E1',
+  '#E2E8F0',
+  '#F1F5F9',
+  '#FFFFFF',
+  '#000000',
 ];
 
 /// Daftar gradasi cepat siap pakai untuk Pesan Keluar (Saya).
@@ -81,7 +101,8 @@ class _ChatThemeSettingsScreenState
 
   int _activePresetScrollIndex = 0;
   int _selectedTabIndex = 0; // 0: Bentuk Gelembung, 1: Warna, 2: Wallpaper
-  bool _isOutgoingColorTab = true; // Sub-tab warna: true = Keluar (Saya), false = Masuk (Teman)
+  bool _isOutgoingColorTab =
+      true; // Sub-tab warna: true = Keluar (Saya), false = Masuk (Teman)
   bool _enableGradient = false;
 
   @override
@@ -93,8 +114,10 @@ class _ChatThemeSettingsScreenState
   void _onPresetScroll() {
     if (!_presetScrollController.hasClients) return;
     const cardExtent = 116.0; // 108px width + 8px gap
-    final index =
-        (_presetScrollController.offset / cardExtent).round().clamp(0, 7);
+    final index = (_presetScrollController.offset / cardExtent).round().clamp(
+      0,
+      7,
+    );
     if (index != _activePresetScrollIndex) {
       setState(() {
         _activePresetScrollIndex = index;
@@ -112,10 +135,9 @@ class _ChatThemeSettingsScreenState
   Future<void> _pickImageFromGallery() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      await ref.read(chatThemeProvider.notifier).setWallpaper(
-            WallpaperType.customImage,
-            value: image.path,
-          );
+      await ref
+          .read(chatThemeProvider.notifier)
+          .setWallpaper(WallpaperType.customImage, value: image.path);
       if (mounted) {
         MekaarSnackbar.success(
           context,
@@ -283,12 +305,17 @@ class _ChatThemeSettingsScreenState
     Color textPrimary,
     Color textSecondary,
   ) {
-    final outgoingSpec =
-        ChatPresetResolver.getBubbleSpec(pref, context, isMe: true);
-    final incomingSpec =
-        ChatPresetResolver.getBubbleSpec(pref, context, isMe: false);
-    final roomThemeSpec =
-        ChatPresetResolver.getRoomThemeSpec(pref, context);
+    final outgoingSpec = ChatPresetResolver.getBubbleSpec(
+      pref,
+      context,
+      isMe: true,
+    );
+    final incomingSpec = ChatPresetResolver.getBubbleSpec(
+      pref,
+      context,
+      isMe: false,
+    );
+    final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(pref, context);
     final isDark = MekaarColors.isDarkContext(context);
 
     final headerIconColor = roomThemeSpec.iconColor;
@@ -390,9 +417,7 @@ class _ChatThemeSettingsScreenState
           // Wallpaper Canvas Preview Box
           Container(
             height: 126,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Stack(
@@ -477,7 +502,7 @@ class _ChatThemeSettingsScreenState
                           child: Text(
                             'Ketik pesan…',
                             style: MekaarTypography.bodySM.copyWith(
-                              fontSize: 12,
+                              fontSize: 13 * pref.textScale,
                               color: textPrimary.withValues(alpha: 0.5),
                             ),
                           ),
@@ -649,11 +674,7 @@ class _ChatThemeSettingsScreenState
                           color: item.color.withValues(alpha: 0.2),
                         ),
                         child: Center(
-                          child: Icon(
-                            item.icon,
-                            size: 15,
-                            color: item.color,
-                          ),
+                          child: Icon(item.icon, size: 15, color: item.color),
                         ),
                       ),
                       if (isSelected)
@@ -680,8 +701,9 @@ class _ChatThemeSettingsScreenState
                         overflow: TextOverflow.ellipsis,
                         style: MekaarTypography.labelLG.copyWith(
                           fontSize: 13.5,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w600,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
                           color: isSelected ? AppColors.blue : textPrimary,
                         ),
                       ),
@@ -852,8 +874,10 @@ class _ChatThemeSettingsScreenState
                   bottom: isLast ? const Radius.circular(14) : Radius.zero,
                 ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -885,8 +909,9 @@ class _ChatThemeSettingsScreenState
                                 fontWeight: isSelected
                                     ? FontWeight.w700
                                     : FontWeight.w600,
-                                color:
-                                    isSelected ? AppColors.blue : textPrimary,
+                                color: isSelected
+                                    ? AppColors.blue
+                                    : textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -947,12 +972,17 @@ class _ChatThemeSettingsScreenState
     final currentIncomingC1 = chatPref.incomingColor1 ?? '#E2E8F0';
     final currentIncomingC2 = chatPref.incomingColor2;
 
-    final targetC1 = _isOutgoingColorTab ? currentOutgoingC1 : currentIncomingC1;
-    final targetC2 = _isOutgoingColorTab ? currentOutgoingC2 : currentIncomingC2;
+    final targetC1 = _isOutgoingColorTab
+        ? currentOutgoingC1
+        : currentIncomingC1;
+    final targetC2 = _isOutgoingColorTab
+        ? currentOutgoingC2
+        : currentIncomingC2;
     final isGradActive = _enableGradient || targetC2 != null;
 
-    final activePresetGradients =
-        _isOutgoingColorTab ? _kOutgoingGradients : _kIncomingGradients;
+    final activePresetGradients = _isOutgoingColorTab
+        ? _kOutgoingGradients
+        : _kIncomingGradients;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1146,7 +1176,7 @@ class _ChatThemeSettingsScreenState
                             BoxShadow(
                               color: color.withValues(alpha: 0.6),
                               blurRadius: 5,
-                            )
+                            ),
                           ]
                         : null,
                   ),
@@ -1181,7 +1211,8 @@ class _ChatThemeSettingsScreenState
               runSpacing: 8,
               children: _kColorSwatches.map((hex) {
                 final color = _parseHex(hex);
-                final isSelected = targetC2 != null &&
+                final isSelected =
+                    targetC2 != null &&
                     targetC2.toUpperCase() == hex.toUpperCase();
 
                 return GestureDetector(
@@ -1210,13 +1241,13 @@ class _ChatThemeSettingsScreenState
                         width: isSelected ? 2.5 : 1.0,
                       ),
                       boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: color.withValues(alpha: 0.6),
-                              blurRadius: 5,
-                            )
-                          ]
-                        : null,
+                          ? [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.6),
+                                blurRadius: 5,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: isSelected
                         ? Icon(
@@ -1363,8 +1394,10 @@ class _ChatThemeSettingsScreenState
                   bottom: isLast ? const Radius.circular(14) : Radius.zero,
                 ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -1375,11 +1408,7 @@ class _ChatThemeSettingsScreenState
                           color: item.color.withValues(alpha: 0.18),
                         ),
                         child: Center(
-                          child: Icon(
-                            item.icon,
-                            size: 16,
-                            color: item.color,
-                          ),
+                          child: Icon(item.icon, size: 16, color: item.color),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1394,8 +1423,9 @@ class _ChatThemeSettingsScreenState
                                 fontWeight: isSelected
                                     ? FontWeight.w700
                                     : FontWeight.w600,
-                                color:
-                                    isSelected ? AppColors.blue : textPrimary,
+                                color: isSelected
+                                    ? AppColors.blue
+                                    : textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -1523,18 +1553,11 @@ class _ChatThemeSettingsScreenState
         },
         borderRadius: BorderRadius.circular(MekaarRadius.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 8,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                SolarIconsOutline.restart,
-                size: 16,
-                color: textSecondary,
-              ),
+              Icon(SolarIconsOutline.restart, size: 16, color: textSecondary),
               const SizedBox(width: 8),
               Text(
                 'Reset ke Mekaar (default)',

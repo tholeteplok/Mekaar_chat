@@ -173,6 +173,9 @@ class MekaarIcons {
   /// Emoticon senyum
   static const smile = SolarIconsOutline.smileCircle;
 
+  /// Papan ketik / keyboard (saat panel emoji terbuka)
+  static const keyboard = SolarIconsOutline.keyboard;
+
   /// Data seluler (G)
   static const mobileData = SolarIconsOutline.globus; // alternatif
 
@@ -233,7 +236,8 @@ class MekaarIcons {
   static const videocamOutlined = SolarIconsOutline.videocamera;
 
   /// Video cam off
-  static const videocamOffOutlined = SolarIconsOutline.videocamera; // alternatif
+  static const videocamOffOutlined =
+      SolarIconsOutline.videocamera; // alternatif
 
   /// Play circle outline
   static const playCircleOutline = SolarIconsOutline.play;
