@@ -22,7 +22,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 // State definition
 enum AuthUnlockMode {
   master, // Master PIN (Akses Penuh)
-  decoy,  // Guest/Decoy PIN (Mode Bersih, Tanpa SOS)
+  decoy, // Guest/Decoy PIN (Mode Bersih, Tanpa SOS)
   duress, // Duress Emergency PIN (Mode Bersih, Silent SOS)
 }
 
@@ -62,10 +62,7 @@ class AuthState {
       lastUnlockWasDuress;
 
   bool get needsUsername =>
-      !isLoading &&
-      user != null &&
-      profile != null &&
-      !profile!.hasUsername;
+      !isLoading && user != null && profile != null && !profile!.hasUsername;
 
   bool get isPinLocked {
     if (pinLockedUntil == null) return false;
@@ -91,12 +88,13 @@ class AuthState {
     bool? newDeviceLogin,
     bool? e2eeNeedsRestore,
   }) {
-    final effectiveUnlockMode = unlockMode ??
+    final effectiveUnlockMode =
+        unlockMode ??
         (lastUnlockWasDuress == true
             ? AuthUnlockMode.duress
             : (lastUnlockWasDuress == false && this.lastUnlockWasDuress
-                ? AuthUnlockMode.master
-                : this.unlockMode));
+                  ? AuthUnlockMode.master
+                  : this.unlockMode));
 
     return AuthState(
       user: user ?? this.user,
@@ -139,8 +137,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Menangani token refresh, sign-in, sign-out, dan user update
   /// agar Riverpod state selalu sinkron dengan kondisi autentikasi.
   void _listenAuthChanges() {
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
       switch (data.event) {
         case AuthChangeEvent.signedIn:
         case AuthChangeEvent.tokenRefreshed:
@@ -172,26 +171,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(user: session.user);
       }
 
-      // 2. Baru kemudian baca data lokal dari FlutterSecureStorage
-      //    (operasi ini bisa lambat 200-800ms di perangkat low-end).
-      final lockout = await _authRepository.getPinLockout();
-      final unlockModeStr = await _authRepository.getUnlockMode();
+      // 2. Baca seluruh data lokal (lockout, unlockMode, isPinSet, cachedProfile) secara paralel (<50ms).
+      final results = await Future.wait([
+        _authRepository.getPinLockout(),
+        _authRepository.getUnlockMode(),
+        _authRepository.isPINSet(),
+        if (session != null)
+          _authRepository.getCachedProfile(session.user.id)
+        else
+          Future<Profile?>.value(null),
+      ]);
+
+      final lockout = results[0] as Map<String, dynamic>;
+      final unlockModeStr = results[1] as String?;
+      final isPinSet = results[2] as bool;
+      final cachedProfile = results[3] as Profile?;
+
       final unlockMode = unlockModeStr == 'duress'
           ? AuthUnlockMode.duress
           : (unlockModeStr == 'decoy'
-              ? AuthUnlockMode.decoy
-              : AuthUnlockMode.master);
+                ? AuthUnlockMode.decoy
+                : AuthUnlockMode.master);
+
       state = state.copyWith(
+        user: session?.user ?? state.user,
+        profile: cachedProfile,
+        isPinSet: isPinSet,
         pinAttempts: lockout['attempts'] as int,
         pinLockedUntil: lockout['lockedUntil'] as DateTime?,
         unlockMode: unlockMode,
+        isLoading: false,
       );
 
-      // 3. Jika ada sesi, muat profil dari server.
+      // 3. Jika ada sesi, sinkronkan profil terbaru dari server secara asinkron (non-blocking)
+      //    agar tidak menyandera transisi splash screen (Stale-While-Revalidate pattern).
       if (session != null) {
-        await loadProfile();
-      } else {
-        state = state.copyWith(isLoading: false);
+        unawaited(loadProfile());
       }
     } catch (e) {
       // Graceful offline handling: jika startup gagal (mis. network error),
@@ -418,8 +433,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       final errorStr = e.toString();
       if (errorStr.contains('tunggu')) {
-        final match = RegExp(r'Silakan tunggu \d+ hari lagi').firstMatch(errorStr);
-        throw Exception(match?.group(0) ?? 'Username baru saja diubah. Silakan tunggu masa cooldown.');
+        final match = RegExp(
+          r'Silakan tunggu \d+ hari lagi',
+        ).firstMatch(errorStr);
+        throw Exception(
+          match?.group(0) ??
+              'Username baru saja diubah. Silakan tunggu masa cooldown.',
+        );
       }
       if (errorStr.contains('unique') ||
           errorStr.contains('duplicate') ||
@@ -428,7 +448,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         throw Exception('Username sudah digunakan oleh orang lain.');
       }
       if (errorStr.contains('karakter') || errorStr.contains('huruf kecil')) {
-        throw Exception('Username hanya boleh 3-30 karakter (huruf kecil, angka, underscore).');
+        throw Exception(
+          'Username hanya boleh 3-30 karakter (huruf kecil, angka, underscore).',
+        );
       }
       throw Exception('Gagal memperbarui username: $e');
     }
@@ -442,7 +464,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     try {
-      final updatedProfile = await _authRepository.updateDisplayName(displayName);
+      final updatedProfile = await _authRepository.updateDisplayName(
+        displayName,
+      );
       state = state.copyWith(profile: updatedProfile);
     } catch (e) {
       throw Exception('Gagal memperbarui nama tampilan: $e');
@@ -559,10 +583,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: _translateError(e),
-      );
+      state = state.copyWith(isLoading: false, error: _translateError(e));
       return false;
     }
   }
@@ -907,7 +928,9 @@ class PinLockEnabledNotifier extends StateNotifier<bool> {
 
   Future<void> toggle(bool enabled, {bool isDecoySession = false}) async {
     if (!enabled && isDecoySession) {
-      throw StateError('Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.');
+      throw StateError(
+        'Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.',
+      );
     }
     final prefs = await _preferences;
     final saved = await prefs.setBool(preferenceKey, enabled);

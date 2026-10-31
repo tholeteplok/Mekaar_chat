@@ -7,6 +7,8 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/models/device_lost_model.dart';
+import '../../../data/models/sos_session_model.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../../sos/providers/device_lost_provider.dart';
 import '../providers/auth_provider.dart';
@@ -40,84 +42,69 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigateToNext() async {
-    // Wait 800ms for smooth splash presentation
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // Tunggu inisialisasi AuthNotifier selesai secara deterministik.
-    // Menggunakan Completer alih-alih polling isLoading yang rawan
-    // race condition (isLoading bisa false sebelum _checkInitialAuth dimulai).
+    // 1. Paralelisasi Presentasi Visual (500ms) dengan Inisialisasi Auth & PinLock
+    final minPresentation = Future.delayed(const Duration(milliseconds: 500));
     final authNotifier = ref.read(authProvider.notifier);
-    try {
-      await authNotifier.initializationComplete.timeout(
-        const Duration(seconds: 15),
-      );
-    } catch (_) {
-      // Timeout: lanjutkan dengan state yang ada (fail-forward)
-    }
-
-    if (!mounted) return;
-
     final pinLockNotifier = ref.read(pinLockEnabledProvider.notifier);
-    try {
-      await pinLockNotifier.initialized;
-    } catch (_) {
-      // Fail secure: nilai default tetap aktif jika preferensi gagal dimuat.
-    }
+
+    // Tunggu inisialisasi lokal + batas waktu presentasi visual selesai secara paralel
+    await Future.wait([
+      minPresentation,
+      authNotifier.initializationComplete.timeout(
+        const Duration(milliseconds: 1500),
+        onTimeout: () {},
+      ),
+      pinLockNotifier.initialized,
+    ]);
 
     if (!mounted) return;
 
     final authState = ref.read(authProvider);
     if (authState.user != null) {
-      // 0. Device Lost Lockout Check
+      // 2. Paralelisasi Pengecekan Pra-Navigasi (Device Lost, Duress, Active SOS)
       final deviceLostRepo = ref.read(deviceLostRepositoryProvider);
-      final lostState = await deviceLostRepo.getDeviceLostState();
+      final sosRepo = ref.read(sosRepositoryProvider);
+      final authRepo = ref.read(authRepositoryProvider);
+
+      final preNavChecks = await Future.wait([
+        deviceLostRepo.getDeviceLostState(),
+        authRepo.getDuressUnlockStatus(),
+        sosRepo.getActiveSOS().timeout(
+          const Duration(milliseconds: 600),
+          onTimeout: () => null,
+        ),
+      ]);
+
+      if (!mounted) return;
+
+      final lostState = preNavChecks[0] as DeviceLostState;
+      final isDuress = preNavChecks[1] as bool;
+      final activeSos = preNavChecks[2] as SOSSession?;
+
+      // 0. Device Lost Lockout Check
       if (lostState.isLocked) {
-        if (!mounted) return;
         Navigator.pushReplacementNamed(context, AppRoutes.deviceLostLock);
         return;
       }
 
       // 0b. Active SOS Lockdown Check (Bypass normal navigation straight to SOSActiveScreen)
       // Mode duress adalah mode senyap (stealth): jangan bypass ke SOSActiveScreen
-      try {
-        final activeSos = await ref.read(sosRepositoryProvider).getActiveSOS();
-        final isDuress =
-            await ref.read(authRepositoryProvider).getDuressUnlockStatus();
-        if (activeSos != null && !isDuress) {
-          if (!mounted) return;
-          Navigator.pushReplacementNamed(context, AppRoutes.sosActive);
-          return;
-        }
-      } catch (_) {}
+      if (activeSos != null && !isDuress) {
+        Navigator.pushReplacementNamed(context, AppRoutes.sosActive);
+        return;
+      }
 
       // 1. Suspension Lockout Check (dengan SOS immunity guard)
-      if (authState.profile?.isSuspended == true) {
-        try {
-          final activeSos = await ref.read(sosRepositoryProvider).getActiveSOS();
-          if (activeSos == null) {
-            if (!mounted) return;
-            Navigator.pushReplacementNamed(
-              context,
-              AppRoutes.accountSuspended,
-              arguments: {
-                'reason': authState.profile?.suspensionReason,
-                'suspendedAt': authState.profile?.suspendedAt?.toIso8601String(),
-              },
-            );
-            return;
-          }
-        } catch (_) {
-          // Fallback if SOS fetch fails
-          if (!mounted) return;
-          Navigator.pushReplacementNamed(
-            context,
-            AppRoutes.accountSuspended,
-            arguments: {
-              'reason': authState.profile?.suspensionReason,
-            },
-          );
-          return;
-        }
+      if (authState.profile?.isSuspended == true && activeSos == null) {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.accountSuspended,
+          arguments: {
+            'reason': authState.profile?.suspensionReason,
+            'suspendedAt': authState.profile?.suspendedAt?.toIso8601String(),
+          },
+        );
+        return;
       }
 
       // 2. 2FA Gatekeeping Check

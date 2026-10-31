@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/storage/mekaar_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -264,15 +266,17 @@ class AuthRepository {
         if (sessionMap != null) {
           final refreshToken = sessionMap['refresh_token'] as String?;
           if (refreshToken != null && refreshToken.isNotEmpty) {
-            final authResponse =
-                await _supabaseService.client.auth.setSession(refreshToken);
+            final authResponse = await _supabaseService.client.auth.setSession(
+              refreshToken,
+            );
             return authResponse.user;
           }
         }
       }
 
       final errorMsg = response.data is Map
-          ? (response.data['error'] as String? ?? 'Username atau kata sandi tidak valid')
+          ? (response.data['error'] as String? ??
+                'Username atau kata sandi tidak valid')
           : 'Username atau kata sandi tidak valid';
       throw Exception(errorMsg);
     } catch (e) {
@@ -334,7 +338,9 @@ class AuthRepository {
           .from('profiles')
           .update({
             'username': clean,
-            'username_last_changed_at': DateTime.now().toUtc().toIso8601String(),
+            'username_last_changed_at': DateTime.now()
+                .toUtc()
+                .toIso8601String(),
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', userId)
@@ -517,6 +523,11 @@ class AuthRepository {
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
     try {
+      final userId = _supabaseService.currentUserId;
+      if (userId != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('$_kProfileCachePrefix$userId');
+      }
       E2eeService.instance.clearSession();
       await LocalMessageDatabase.instance.clearAll();
     } catch (_) {}
@@ -526,7 +537,33 @@ class AuthRepository {
     }
   }
 
-  // Get current user profile from database
+  static const _kProfileCachePrefix = 'cached_profile_';
+
+  /// Memuat profil dari disk lokal (SharedPreferences) secara offline-first (<5ms).
+  Future<Profile?> getCachedProfile(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('$_kProfileCachePrefix$userId');
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final Map<String, dynamic> map = jsonDecode(jsonStr);
+        return Profile.fromJson(map);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Menyimpan profil pengguna ke disk lokal untuk startup cepat dan akses offline.
+  Future<void> cacheProfile(Profile profile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        '$_kProfileCachePrefix${profile.id}',
+        jsonEncode(profile.toJson()),
+      );
+    } catch (_) {}
+  }
+
+  // Get current user profile from database with automatic local caching & fallback
   Future<Profile?> getProfile() async {
     final userId = _supabaseService.currentUserId;
     if (userId == null) return null;
@@ -537,9 +574,11 @@ class AuthRepository {
           .select()
           .eq('id', userId)
           .single();
-      return Profile.fromJson(response);
+      final profile = Profile.fromJson(response);
+      unawaited(cacheProfile(profile));
+      return profile;
     } catch (e) {
-      return null;
+      return getCachedProfile(userId);
     }
   }
 
@@ -738,7 +777,9 @@ class AuthRepository {
   /// Sinkronkan status hash duress ke secure storage lokal agar tidak memicu query HTTP remote.
   Future<void> cacheDuressPinStatus(String? remoteHash) async {
     try {
-      final val = (remoteHash != null && remoteHash.isNotEmpty) ? remoteHash : 'none';
+      final val = (remoteHash != null && remoteHash.isNotEmpty)
+          ? remoteHash
+          : 'none';
       await _secureStorage
           .write(key: 'duress_pin_hash', value: val)
           .timeout(const Duration(seconds: 1));
@@ -762,7 +803,9 @@ class AuthRepository {
 
     if (storedHash == null || storedHash.isEmpty) {
       final profile = await getProfile();
-      if (profile != null && profile.duressPinHash != null && profile.duressPinHash!.isNotEmpty) {
+      if (profile != null &&
+          profile.duressPinHash != null &&
+          profile.duressPinHash!.isNotEmpty) {
         storedHash = profile.duressPinHash;
         try {
           await _secureStorage
