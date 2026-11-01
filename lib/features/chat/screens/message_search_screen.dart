@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -87,9 +88,15 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
       final repo = ref.read(privateContactRepositoryProvider);
       final matchedSlot = await repo.checkAnySlotPasscode(query.trim());
       if (matchedSlot != null && mounted) {
+        // 1. Unfocus dan tutup keyboard seketika via platform channel
+        _searchFocusNode.unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
+        SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+
+        // 2. Bersihkan query
         _searchController.clear();
         ref.read(messageSearchQueryProvider.notifier).state = '';
-        _searchFocusNode.unfocus();
+
         HapticService.trigger(MekaarHapticIntent.success);
         ref.read(unlockedVaultSlotsProvider.notifier).state = {matchedSlot};
         ref.read(privateVaultUnlockedProvider.notifier).state = true;

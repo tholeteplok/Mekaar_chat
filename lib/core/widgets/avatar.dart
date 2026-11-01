@@ -95,11 +95,32 @@ class Avatar extends StatelessWidget {
       result = coreWidget;
     }
 
+    final heroChild = Material(
+      type: MaterialType.transparency,
+      child: result,
+    );
+
     if (heroTag != null) {
-      return Hero(tag: heroTag!, child: result);
+      return Hero(
+        tag: heroTag!,
+        flightShuttleBuilder: (
+          flightContext,
+          animation,
+          flightDirection,
+          fromHeroContext,
+          toHeroContext,
+        ) {
+          final Hero toHero = toHeroContext.widget as Hero;
+          return Material(
+            type: MaterialType.transparency,
+            child: toHero.child,
+          );
+        },
+        child: heroChild,
+      );
     }
 
-    return result;
+    return heroChild;
   }
 
   Widget _buildInitialWidget(
@@ -112,12 +133,15 @@ class Avatar extends StatelessWidget {
       final avatarColor = backgroundColor ?? _getAvatarColor(initial);
       final inkColor = _inkFor(avatarColor);
       return Center(
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: inkColor,
-            fontSize: innerSize * 0.42,
-            fontWeight: FontWeight.w700,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            letter,
+            style: TextStyle(
+              color: inkColor,
+              fontSize: innerSize * 0.42,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       );
@@ -129,15 +153,18 @@ class Avatar extends StatelessWidget {
     return Center(
       child: Transform.rotate(
         angle: -25 * (math.pi / 180), // Miring kiri 25 derajat
-        child: Text(
-          letter,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Acidic',
-            fontSize: fontSize,
-            fontWeight: FontWeight.w700,
-            color: AppColors.blue,
-            fontFamilyFallback: const ['PlusJakartaSans', 'sans-serif'],
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            letter,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Acidic',
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              color: AppColors.blue,
+              fontFamilyFallback: const ['PlusJakartaSans', 'sans-serif'],
+            ),
           ),
         ),
       ),

@@ -136,5 +136,38 @@ void main() {
       );
       expect(transformFinder, findsNothing);
     });
+
+    testWidgets('6. Avatar dengan heroTag membungkus child dengan Material transparan dan flightShuttleBuilder', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Avatar(
+              initial: 'H',
+              size: 48,
+              heroTag: 'test-avatar-hero',
+            ),
+          ),
+        ),
+      );
+
+      final heroFinder = find.byType(Hero);
+      expect(heroFinder, findsOneWidget);
+
+      final heroWidget = tester.widget<Hero>(heroFinder);
+      expect(heroWidget.tag, 'test-avatar-hero');
+      expect(heroWidget.flightShuttleBuilder, isNotNull);
+
+      // Pastikan child di dalam Hero dibungkus Material type transparency untuk stabilitas Overlay
+      final materialFinder = find.descendant(
+        of: heroFinder,
+        matching: find.byType(Material),
+      );
+      expect(materialFinder, findsWidgets);
+
+      final materialWidget = tester.widget<Material>(materialFinder.first);
+      expect(materialWidget.type, MaterialType.transparency);
+    });
   });
 }
