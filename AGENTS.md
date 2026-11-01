@@ -50,9 +50,24 @@ lib/
 
 ## Testing
 
-- Tests in `test/`: `unit_test.dart`, `widget_test.dart`, `webrtc_signaling_test.dart`.
+- Tests in `test/`: `unit_test.dart`, `widget_test.dart`, `webrtc_signaling_test.dart`, `read_receipt_and_wipe_test.dart`, dll.
 - Run a single file with `flutter test test/<file>.dart`.
+- Run all tests with expanded reporter for CI parity: `flutter test --reporter expanded`.
 - No integration/E2E suite configured. `webrtc_signaling_test.dart` covers WebRTC signaling.
+
+### Testing Standards (Timezone & Locale Parity)
+- **Timezone Agnostic (UTC vs Host Timezone):**
+  - Runner CI GitHub Actions (`ubuntu-latest`) berjalan di zona waktu **UTC (UTC+0)**.
+  - Lingkungan pengembang lokal umumnya berjalan di zona waktu **WIB (`Asia/Jakarta`, UTC+7)**.
+  - **Dilarang** menggunakan konstruktor implisit `DateTime(y, m, d, h, m)` pada unit test yang menguji komparasi waktu spesifik atau normalisasi UTC, karena konstruktor tersebut mengambil timezone host OS secara implisit.
+  - **Wajib** menggunakan format ISO-8601 eksplisit:
+    - Untuk waktu UTC: `DateTime.utc(...)` atau `DateTime.parse('2026-11-01T10:00:00Z')`.
+    - Untuk waktu lokal bertimestamp spesifik: `DateTime.parse('2026-11-01T17:00:00+07:00')`.
+- **Locale Agnostic:**
+  - Pastikan pengujian pemformatan tanggal/waktu bahasa Indonesia memanggil `initializeDateFormatting('id_ID', null)` di `setUpAll()` atau menggunakan helper statis internal, agar tidak gagal di mesin yang default locale-nya `en_US`.
+- **Verifikasi Sebelum Push:**
+  - Jalankan `flutter analyze` (wajib 0 issues).
+  - Jalankan `flutter test` (seluruh test wajib lulus di lokal sebelum melakukan commit/push).
 
 ## Platform-Specific Notes
 

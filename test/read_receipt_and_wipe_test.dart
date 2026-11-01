@@ -24,7 +24,8 @@ void main() {
 
     test('Pesan lokal dengan zona waktu WIB tetap ekuivalen saat dinormalisasi ke UTC', () {
       // 17:00 WIB (+7) sama dengan 10:00 UTC
-      final localCreatedAt = DateTime(2026, 11, 1, 17, 0, 0);
+      // Gunakan ISO-8601 dengan offset eksplisit agar kebal zona waktu OS runner CI (UTC)
+      final localCreatedAt = DateTime.parse('2026-11-01T17:00:00+07:00');
       final readAtUtc = DateTime.utc(2026, 11, 1, 10, 5, 0);
 
       final msg = Message(

@@ -175,7 +175,7 @@ jobs:
         run: flutter pub get
 
       - name: Run Test Suite
-        run: flutter test
+        run: flutter test --reporter expanded
 
       - name: Build Release APKs (Split per ABI & Universal)
         env:
