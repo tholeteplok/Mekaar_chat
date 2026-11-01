@@ -14,10 +14,7 @@ import 'mekaar_update_bottom_sheet.dart';
 class MekaarUpdateOverlay extends ConsumerWidget {
   final Widget child;
 
-  const MekaarUpdateOverlay({
-    super.key,
-    required this.child,
-  });
+  const MekaarUpdateOverlay({super.key, required this.child});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,7 +41,8 @@ class MekaarUpdateOverlay extends ConsumerWidget {
     });
 
     final downloadState = ref.watch(updateDownloadProvider);
-    final shouldShowPill = downloadState.isMinimized &&
+    final shouldShowPill =
+        downloadState.isMinimized &&
         (downloadState.hasActiveTask ||
             downloadState.status == UpdateDownloadStatus.error);
 
@@ -53,7 +51,7 @@ class MekaarUpdateOverlay extends ConsumerWidget {
         child,
         if (shouldShowPill)
           Positioned(
-            bottom: 24 + MediaQuery.of(context).padding.bottom,
+            bottom: 84 + MediaQuery.of(context).padding.bottom,
             right: 16,
             child: const MekaarFloatingUpdatePill(),
           ),

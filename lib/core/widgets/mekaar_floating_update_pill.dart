@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../constants/colors.dart';
-import '../constants/dimensions.dart';
+import '../constants/shadows.dart';
 import '../constants/typography.dart';
 import '../providers/update_download_provider.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_update_bottom_sheet.dart';
 
-/// FloatingUpdatePill bergaya MEKAAR yang muncul ketika unduhan pembaruan
-/// diminimalkan atau berstatus siap pasang di latar belakang.
+/// MekaarFloatingUpdatePill — Tombol melayang berbentuk lingkaran kompak
+/// yang muncul ketika unduhan pembaruan diminimalkan atau siap dipasang.
+///
+/// Karakteristik:
+/// - Bentuk lingkaran 50x50 agar ergonomis dan tidak menutup bilah navigasi bawah
+/// - Menampilkan CircularProgressIndicator dengan teks persentase tengah (misal "45%") saat mengunduh (<100%)
+/// - Menampilkan ikon roket [SolarIconsBold.rocket2] berwarna hijau sukses saat unduhan 100% (siap dipasang)
+/// - Men-tap lingkaran langsung memicu Bottom Sheet instalasi (jika 100%) atau lembar progres (jika aktif)
 class MekaarFloatingUpdatePill extends ConsumerWidget {
   const MekaarFloatingUpdatePill({super.key});
 
@@ -26,202 +32,156 @@ class MekaarFloatingUpdatePill extends ConsumerWidget {
     final isCompleted = downloadState.isCompleted;
     final isPaused = downloadState.isPaused;
     final isError = downloadState.status == UpdateDownloadStatus.error;
-    final pct = (downloadState.progress * 100).toInt();
+    final pct = (downloadState.progress * 100).toInt().clamp(0, 100);
 
     final Color accentColor = isCompleted
         ? MekaarColors.successTextOf(context)
         : (isError
-            ? MekaarColors.sosCoral
-            : (isPaused
-                ? MekaarColors.warning
-                : MekaarColors.accentOf(context)));
-
-    final String labelText = isCompleted
-        ? 'Siap Pasang 🚀'
-        : (isError
-            ? 'Unduhan Gagal'
-            : (isPaused ? 'Unduhan Dijeda' : 'Update $pct%'));
-
-    final IconData statusIcon = isCompleted
-        ? SolarIconsOutline.checkCircle
-        : (isError
-            ? SolarIconsOutline.dangerCircle
-            : (isPaused
-                ? SolarIconsOutline.pause
-                : SolarIconsOutline.cloudDownload));
+              ? MekaarColors.sosCoral
+              : (isPaused
+                    ? MekaarColors.warning
+                    : MekaarColors.accentOf(context)));
 
     final isDark = MekaarColors.isDarkContext(context);
-    final borderColor =
-        isDark ? MekaarColors.borderDark : MekaarColors.borderLight;
+    final borderColor = isCompleted
+        ? MekaarColors.successTextOf(context).withValues(alpha: 0.5)
+        : (isError
+              ? MekaarColors.sosCoral.withValues(alpha: 0.5)
+              : (isPaused
+                    ? MekaarColors.warning.withValues(alpha: 0.5)
+                    : (isDark
+                          ? MekaarColors.borderDark
+                          : MekaarColors.borderLight)));
+
+    final String tooltipMessage = isCompleted
+        ? 'Pembaruan siap dipasang. Ketuk untuk pasang'
+        : (isError
+              ? 'Unduhan gagal. Ketuk untuk coba lagi'
+              : (isPaused
+                    ? 'Unduhan dijeda ($pct%). Ketuk untuk buka'
+                    : 'Mengunduh pembaruan ($pct%). Ketuk untuk lihat'));
 
     return Material(
       color: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          color: MekaarColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
+      child: Tooltip(
+        message: tooltipMessage,
+        child: InkWell(
+          onTap: () {
+            HapticService.trigger(MekaarHapticIntent.selection);
+            if (isCompleted && downloadState.info != null) {
+              MekaarUpdateBottomSheet.showInstallSheet(
+                context: context,
+                info: downloadState.info!,
+              );
+            } else if (downloadState.info != null) {
+              ref.read(updateDownloadProvider.notifier).maximize();
+              MekaarUpdateBottomSheet.showProgressSheet(
+                context: context,
+                info: downloadState.info!,
+              );
+            }
+          },
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: MekaarColors.surfaceOf(context),
+              border: Border.all(color: borderColor, width: 1.5),
+              boxShadow: MekaarShadows.floating,
+            ),
+            child: Center(
+              child: _buildContent(
+                context: context,
+                isCompleted: isCompleted,
+                isPaused: isPaused,
+                isError: isError,
+                progress: downloadState.progress,
+                pct: pct,
+                accentColor: accentColor,
+              ),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              offset: const Offset(0, 4),
-              blurRadius: 10,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Badan Pill (membuka lembar progres / instalasi)
-            InkWell(
-              onTap: () {
-                HapticService.trigger(MekaarHapticIntent.selection);
-                if (isCompleted && downloadState.info != null) {
-                  MekaarUpdateBottomSheet.showInstallSheet(
-                    context: context,
-                    info: downloadState.info!,
-                  );
-                } else if (downloadState.info != null) {
-                  ref.read(updateDownloadProvider.notifier).maximize();
-                  MekaarUpdateBottomSheet.showProgressSheet(
-                    context: context,
-                    info: downloadState.info!,
-                  );
-                }
-              },
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(24),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 12,
-                  top: 8,
-                  bottom: 8,
-                  right: 8,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Badge Ikon Status
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: accentColor.withValues(alpha: 0.14),
-                        border: Border.all(
-                          color: accentColor.withValues(alpha: 0.35),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          statusIcon,
-                          size: 16,
-                          color: accentColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Kolom Info
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          labelText,
-                          style: MekaarTypography.caption.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: MekaarColors.textPrimaryOf(context),
-                            fontSize: 12.5,
-                          ),
-                        ),
-                        if (!isCompleted && !isError && !isPaused) ...[
-                          const SizedBox(height: 3),
-                          Container(
-                            width: 96,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: MekaarColors.surface2Of(context),
-                              borderRadius:
-                                  BorderRadius.circular(MekaarRadius.pill),
-                            ),
-                            child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(MekaarRadius.pill),
-                              child: LinearProgressIndicator(
-                                value: downloadState.progress > 0
-                                    ? downloadState.progress
-                                    : null,
-                                backgroundColor: Colors.transparent,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(accentColor),
-                              ),
-                            ),
-                          ),
-                        ] else ...[
-                          Text(
-                            isCompleted
-                                ? 'Ketuk untuk pasang'
-                                : (isError
-                                    ? 'Ketuk untuk unduh ulang'
-                                    : (isPaused
-                                        ? 'Ketuk untuk lanjut'
-                                        : 'Ketuk untuk coba lagi')),
-                            style: MekaarTypography.caption.copyWith(
-                              fontSize: 10.5,
-                              color: MekaarColors.textSecondaryOf(context),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      SolarIconsOutline.altArrowRight,
-                      size: 15,
-                      color: MekaarColors.textSecondaryOf(context),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Pembatas Vertikal Halus
-            Container(
-              width: 1,
-              height: 22,
-              color: borderColor.withValues(alpha: 0.6),
-            ),
-
-            // Tombol Tutup (Dismiss) — Langsung Menghilangkan Pill
-            Tooltip(
-              message: 'Tutup pembaruan',
-              child: InkWell(
-                onTap: () {
-                  HapticService.trigger(MekaarHapticIntent.selection);
-                  ref.read(updateDownloadProvider.notifier).dismiss();
-                },
-                borderRadius: const BorderRadius.horizontal(
-                  right: Radius.circular(24),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                  child: Icon(
-                    SolarIconsOutline.closeCircle,
-                    size: 16,
-                    color: MekaarColors.textSecondaryOf(context),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildContent({
+    required BuildContext context,
+    required bool isCompleted,
+    required bool isPaused,
+    required bool isError,
+    required double progress,
+    required int pct,
+    required Color accentColor,
+  }) {
+    if (isCompleted) {
+      return Icon(
+        SolarIconsBold.rocket2,
+        color: MekaarColors.successTextOf(context),
+        size: 22,
+      );
+    }
+
+    if (isError) {
+      return const Icon(
+        SolarIconsBold.dangerCircle,
+        color: MekaarColors.sosCoral,
+        size: 22,
+      );
+    }
+
+    if (isPaused) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 42,
+            height: 42,
+            child: CircularProgressIndicator(
+              value: progress > 0 ? progress : 0,
+              strokeWidth: 3.2,
+              backgroundColor: MekaarColors.warning.withValues(alpha: 0.15),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                MekaarColors.warning,
+              ),
+            ),
+          ),
+          const Icon(
+            SolarIconsBold.pause,
+            color: MekaarColors.warning,
+            size: 18,
+          ),
+        ],
+      );
+    }
+
+    // Mengunduh normal (< 100%)
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        SizedBox(
+          width: 42,
+          height: 42,
+          child: CircularProgressIndicator(
+            value: progress > 0 ? progress : null,
+            strokeWidth: 3.2,
+            backgroundColor: accentColor.withValues(alpha: 0.15),
+            valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+          ),
+        ),
+        Text(
+          '$pct%',
+          style: MekaarTypography.caption.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: MekaarColors.textPrimaryOf(context),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

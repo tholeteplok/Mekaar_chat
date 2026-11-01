@@ -7,6 +7,7 @@ import '../../data/services/update_service.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/typography.dart';
+import '../navigation/app_navigator.dart';
 import '../providers/update_download_provider.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_bottom_sheet.dart';
@@ -61,6 +62,23 @@ class MekaarUpdateBottomSheet {
       showDragHandle: true,
       builder: (sheetContext) => _UpdateProgressSheet(info: info),
     );
+
+    // Auto-minimize jika sheet ditutup (baik via tap luar/barrier maupun swipe down)
+    final targetContext = context.mounted
+        ? context
+        : AppNavigator.currentContext;
+    if (targetContext != null && targetContext.mounted) {
+      try {
+        final container = ProviderScope.containerOf(
+          targetContext,
+          listen: false,
+        );
+        final downloadState = container.read(updateDownloadProvider);
+        if (downloadState.hasActiveTask || downloadState.isCompleted) {
+          container.read(updateDownloadProvider.notifier).minimize();
+        }
+      } catch (_) {}
+    }
   }
 
   /// 3. Menampilkan Bottom Sheet prompt pemasangan saat unduhan selesai
@@ -75,6 +93,23 @@ class MekaarUpdateBottomSheet {
       showDragHandle: true,
       builder: (sheetContext) => _UpdateInstallPromptSheet(info: info),
     );
+
+    // Auto-minimize jika sheet ditutup di luar (barrier dismiss) agar tombol lingkaran roket tetap tersedia
+    final targetContext = context.mounted
+        ? context
+        : AppNavigator.currentContext;
+    if (targetContext != null && targetContext.mounted) {
+      try {
+        final container = ProviderScope.containerOf(
+          targetContext,
+          listen: false,
+        );
+        final downloadState = container.read(updateDownloadProvider);
+        if (downloadState.isCompleted) {
+          container.read(updateDownloadProvider.notifier).minimize();
+        }
+      } catch (_) {}
+    }
   }
 }
 
@@ -97,7 +132,8 @@ class _UpdateNotificationSheet extends ConsumerWidget {
     final isDark = MekaarColors.isDarkContext(context);
     final accentColor = MekaarColors.accentOf(context);
     final downloadState = ref.watch(updateDownloadProvider);
-    final isAlreadyDownloaded = downloadState.isCompleted &&
+    final isAlreadyDownloaded =
+        downloadState.isCompleted &&
         downloadState.info?.latestVersion == info.latestVersion;
 
     return Column(
@@ -114,11 +150,7 @@ class _UpdateNotificationSheet extends ConsumerWidget {
                 color: accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                SolarIconsBold.rocket2,
-                color: accentColor,
-                size: 26,
-              ),
+              child: Icon(SolarIconsBold.rocket2, color: accentColor, size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -254,8 +286,10 @@ class _UpdateNotificationSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildReleaseNotesContainer(BuildContext context,
-      {required bool isDark}) {
+  Widget _buildReleaseNotesContainer(
+    BuildContext context, {
+    required bool isDark,
+  }) {
     final updateService = UpdateService();
     final items = updateService.parseReleaseNotes(info.releaseNotes);
 
@@ -333,9 +367,7 @@ class _UpdateNotificationSheet extends ConsumerWidget {
       decoration: BoxDecoration(
         color: accentColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: accentColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -407,8 +439,8 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
         ? downloadState.statusMessage
         : 'Menghubungi server rilis...';
 
-    final receivedMb =
-        (downloadState.receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+    final receivedMb = (downloadState.receivedBytes / (1024 * 1024))
+        .toStringAsFixed(1);
     final effectiveTotal = downloadState.totalBytes > 0
         ? downloadState.totalBytes
         : widget.info.downloadSizeBytes;
@@ -419,10 +451,10 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
     final accentColor = isCompleted
         ? MekaarColors.successTextOf(context)
         : (errorMessage != null
-            ? MekaarColors.sosCoral
-            : (isPaused
-                ? MekaarColors.warning
-                : MekaarColors.accentOf(context)));
+              ? MekaarColors.sosCoral
+              : (isPaused
+                    ? MekaarColors.warning
+                    : MekaarColors.accentOf(context)));
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -444,10 +476,10 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                     isCompleted
                         ? SolarIconsBold.checkCircle
                         : (errorMessage != null
-                            ? SolarIconsBold.dangerCircle
-                            : (isPaused
-                                ? SolarIconsBold.pause
-                                : SolarIconsBold.cloudDownload)),
+                              ? SolarIconsBold.dangerCircle
+                              : (isPaused
+                                    ? SolarIconsBold.pause
+                                    : SolarIconsBold.cloudDownload)),
                     color: accentColor,
                     size: 22,
                   ),
@@ -512,8 +544,8 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                   color: errorMessage != null
                       ? MekaarColors.sosCoral
                       : (isPaused
-                          ? MekaarColors.warning
-                          : MekaarColors.textSecondaryOf(context)),
+                            ? MekaarColors.warning
+                            : MekaarColors.textSecondaryOf(context)),
                   fontWeight: FontWeight.w600,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -606,10 +638,12 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     HapticService.trigger(MekaarHapticIntent.selection);
-                    Navigator.pop(context);
                     await ref
                         .read(updateDownloadProvider.notifier)
                         .deleteCacheAndReset();
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
                   },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -636,9 +670,7 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                   onPressed: () {
                     HapticService.trigger(MekaarHapticIntent.selection);
                     if (isDownloading) {
-                      ref
-                          .read(updateDownloadProvider.notifier)
-                          .pauseDownload();
+                      ref.read(updateDownloadProvider.notifier).pauseDownload();
                     } else if (isPaused) {
                       ref
                           .read(updateDownloadProvider.notifier)
@@ -646,9 +678,7 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
                     }
                   },
                   icon: Icon(
-                    isPaused
-                        ? SolarIconsBold.play
-                        : SolarIconsBold.pause,
+                    isPaused ? SolarIconsBold.play : SolarIconsBold.pause,
                     size: 16,
                   ),
                   label: Text(isPaused ? 'Lanjutkan' : 'Jeda'),
@@ -692,10 +722,12 @@ class _UpdateProgressSheetState extends ConsumerState<_UpdateProgressSheet> {
             child: TextButton.icon(
               onPressed: () async {
                 HapticService.trigger(MekaarHapticIntent.selection);
-                Navigator.pop(context);
                 await ref
                     .read(updateDownloadProvider.notifier)
                     .deleteCacheAndReset();
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
               },
               icon: const Icon(
                 SolarIconsOutline.trashBinTrash,
@@ -741,8 +773,9 @@ class _UpdateInstallPromptSheet extends ConsumerWidget {
             shape: BoxShape.circle,
             color: MekaarColors.successTextOf(context).withValues(alpha: 0.16),
             border: Border.all(
-              color:
-                  MekaarColors.successTextOf(context).withValues(alpha: 0.40),
+              color: MekaarColors.successTextOf(
+                context,
+              ).withValues(alpha: 0.40),
               width: 2,
             ),
           ),
@@ -907,10 +940,12 @@ class _ReadyToInstallActions extends ConsumerWidget {
                   HapticService.trigger(MekaarHapticIntent.selection);
                   final rootNav = Navigator.of(context, rootNavigator: true);
                   final scaffoldCtx = rootNav.context;
-                  Navigator.pop(context);
                   await ref
                       .read(updateDownloadProvider.notifier)
                       .deleteCacheAndReset();
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                   if (scaffoldCtx.mounted) {
                     MekaarSnackbar.info(
                       scaffoldCtx,
