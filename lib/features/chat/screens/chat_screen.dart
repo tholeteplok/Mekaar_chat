@@ -422,6 +422,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         await repo.purgeExpiredMessages(targetRoomId: widget.chatId);
       } catch (_) {}
       _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
+      if (mounted && _otherLastRead != null) {
+        ref.read(otherParticipantLastReadProvider(widget.chatId).notifier).updateReadAt(_otherLastRead!);
+        setState(() {});
+      }
       if (widget.isGroup) {
         _loadGroupParticipants();
       }
@@ -703,7 +707,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // Buat pesan optimistik agar bubble langsung muncul seketika di layar
     final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final optimisticMessage = Message(
       id: tempId,
       roomId: widget.chatId,
@@ -1370,7 +1374,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 scrollController: _scrollController,
                 isEmojiPickerOpen: _isEmojiPickerOpen,
                 hiddenCallIds: _hiddenCallIds,
-                otherLastRead: _otherLastRead,
+                otherLastRead: ref.watch(otherParticipantLastReadProvider(widget.chatId)) ?? _otherLastRead,
                 selectedMessageIds: _selectedMessageIds,
                 selectedCallIds: _selectedCallIds,
                 reactionAnchorMessageId: _reactionAnchorMessageId,

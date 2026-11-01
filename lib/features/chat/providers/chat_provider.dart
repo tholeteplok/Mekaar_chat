@@ -241,13 +241,110 @@ final pendingMessagesProvider =
     >((ref, roomId) => PendingMessagesNotifier());
 
 // ─────────────────────────────────────────
-// Read receipts: other participant's last_read_at
+// Read receipts: other participant's last_read_at (StateNotifier + Realtime Broadcast)
 // ─────────────────────────────────────────
-final otherParticipantLastReadProvider =
-    FutureProvider.family<DateTime?, String>((ref, roomId) async {
-      final repo = ref.watch(chatRepositoryProvider);
-      return repo.getOtherParticipantLastRead(roomId);
+class OtherParticipantLastReadNotifier extends StateNotifier<DateTime?> {
+  final Ref _ref;
+  final String _roomId;
+  RealtimeChannel? _channel;
+  Timer? _subscribeDebounceTimer;
+
+  OtherParticipantLastReadNotifier(this._ref, this._roomId) : super(null) {
+    _initInitialState();
+    _subscribeDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _subscribe();
+      }
     });
+  }
+
+  Future<void> _initInitialState() async {
+    try {
+      final repo = _ref.read(chatRepositoryProvider);
+      final initial = await repo.getOtherParticipantLastRead(_roomId);
+      if (mounted && initial != null) {
+        final utc = initial.toUtc();
+        if (state == null || utc.isAfter(state!)) {
+          state = utc;
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _subscribe() {
+    try {
+      final client = _ref.read(supabaseServiceProvider).client;
+      final currentUserId = client.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      _channel = client.channel('room_read:$_roomId');
+      _channel?.onBroadcast(
+        event: 'read_receipt',
+        callback: (payload) {
+          final readerId = payload['reader_id'] as String?;
+          final readAtStr = payload['read_at'] as String?;
+
+          // Abaikan sinyal dari diri sendiri (echo broadcast)
+          if (readerId == null || readerId == currentUserId) return;
+
+          if (readAtStr != null && mounted) {
+            final readAt = DateTime.tryParse(readAtStr)?.toUtc();
+            if (readAt != null) {
+              if (state == null || readAt.isAfter(state!)) {
+                state = readAt;
+              }
+            }
+          }
+        },
+      );
+      _channel?.subscribe();
+    } catch (_) {}
+  }
+
+  /// Menyiarkan sinyal bahwa pengguna saat ini telah membaca obrolan ke peserta lain
+  void broadcastRead(DateTime readAt) {
+    try {
+      final client = _ref.read(supabaseServiceProvider).client;
+      final currentUserId = client.auth.currentUser?.id;
+      if (currentUserId != null && _channel != null) {
+        _channel?.sendBroadcastMessage(
+          event: 'read_receipt',
+          payload: {
+            'reader_id': currentUserId,
+            'read_at': readAt.toUtc().toIso8601String(),
+          },
+        );
+      }
+    } catch (_) {}
+  }
+
+  /// Memperbarui timestamp secara manual
+  void updateReadAt(DateTime newReadAt) {
+    final utc = newReadAt.toUtc();
+    if (state == null || utc.isAfter(state!)) {
+      state = utc;
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscribeDebounceTimer?.cancel();
+    if (_channel != null) {
+      try {
+        _ref.read(supabaseServiceProvider).client.removeChannel(_channel!);
+      } catch (_) {
+        _channel?.unsubscribe();
+      }
+      _channel = null;
+    }
+    super.dispose();
+  }
+}
+
+final otherParticipantLastReadProvider =
+    StateNotifierProvider.family<OtherParticipantLastReadNotifier, DateTime?, String>(
+  (ref, roomId) => OtherParticipantLastReadNotifier(ref, roomId),
+);
 
 // ─────────────────────────────────────────
 // Typing indicator state (per room via Realtime Broadcast)
@@ -367,11 +464,12 @@ class ChatActionsNotifier {
     bool isGroup = false,
   }) async {
     DateTime? autoDeleteAt;
+    final nowUtc = DateTime.now().toUtc();
     if (scheduledWipeTargetAt != null &&
-        scheduledWipeTargetAt.isAfter(DateTime.now())) {
-      autoDeleteAt = scheduledWipeTargetAt;
+        scheduledWipeTargetAt.toUtc().isAfter(nowUtc)) {
+      autoDeleteAt = scheduledWipeTargetAt.toUtc();
     } else if (autoDeleteHours != null && autoDeleteHours > 0) {
-      autoDeleteAt = DateTime.now().add(Duration(hours: autoDeleteHours));
+      autoDeleteAt = nowUtc.add(Duration(hours: autoDeleteHours));
     }
 
     final sentMessage = await _chatRepository.sendMessage(
@@ -530,8 +628,11 @@ class ChatActionsNotifier {
   }
 
   Future<void> markRoomRead(String roomId) async {
+    final now = DateTime.now().toUtc();
     await _chatRepository.markRoomRead(roomId);
-    _ref.invalidate(otherParticipantLastReadProvider(roomId));
+    try {
+      _ref.read(otherParticipantLastReadProvider(roomId).notifier).broadcastRead(now);
+    } catch (_) {}
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 

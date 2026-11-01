@@ -12,6 +12,7 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/chat/providers/screen_protection_provider.dart';
 import 'data/services/aegis_memory_guard_service.dart';
 import 'data/services/database_key_service.dart';
+import 'features/chat/providers/chat_provider.dart';
 import 'data/services/notification_service.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/widgets/mekaar_update_overlay.dart';
@@ -42,6 +43,9 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
       // Hapus seluruh kunci kriptografi dari memori fisik RAM seketika saat aplikasi di-minimize/background
       unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
       unawaited(DatabaseKeyService.instance.lockVault());
+    } else if (state == AppLifecycleState.resumed) {
+      // Pemicu otomatis pembersihan pesan kedaluwarsa & pembersihan terjadwal saat aplikasi aktif kembali
+      unawaited(ref.read(chatRepositoryProvider).purgeExpiredMessages());
     }
   }
 

@@ -115,8 +115,9 @@ class ChatBubble extends ConsumerWidget {
     // Jika pengguna mematikan bukti baca, jangan perlihatkan status "dibaca".
     if (!showReadReceipts) return ReadReceiptStatus.delivered;
     if (otherLastReadAt == null) return ReadReceiptStatus.delivered;
-    if (message.createdAt.isBefore(otherLastReadAt!) ||
-        message.createdAt.isAtSameMomentAs(otherLastReadAt!)) {
+    final msgUtc = message.createdAt.toUtc();
+    final otherUtc = otherLastReadAt!.toUtc();
+    if (msgUtc.isBefore(otherUtc) || msgUtc.isAtSameMomentAs(otherUtc)) {
       return ReadReceiptStatus.read;
     }
     return ReadReceiptStatus.delivered;

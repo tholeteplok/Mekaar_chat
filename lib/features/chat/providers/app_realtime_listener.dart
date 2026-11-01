@@ -9,6 +9,7 @@ import '../../guardian/providers/guardian_provider.dart';
 import 'call_invitation_listener.dart';
 import 'message_notification_listener.dart';
 import 'sos_alert_listener.dart';
+import 'chat_provider.dart';
 
 /// Channel Realtime global terpadu untuk seluruh listener notifikasi berbasis
 /// database (`messages`, `calls`, `sos_sessions`, `profiles`).
@@ -26,6 +27,7 @@ class AppRealtimeListener {
   StreamSubscription<AuthState>? _authSub;
   String? _subscribedUserId;
   Timer? _reconnectTimer;
+  Timer? _periodicPurgeTimer;
   int _reconnectAttempts = 0;
 
   AppRealtimeListener(this._ref) {
@@ -50,6 +52,8 @@ class AppRealtimeListener {
   void _stopChannel() {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _periodicPurgeTimer?.cancel();
+    _periodicPurgeTimer = null;
     _reconnectAttempts = 0;
     if (_channel != null) {
       final supabaseService = _ref.read(supabaseServiceProvider);
@@ -130,6 +134,14 @@ class AppRealtimeListener {
 
     // Satu channel dengan beberapa binding onPostgresChanges, bukan 4 channel
     // yang subscribe bersamaan di window waktu yang sama.
+    _periodicPurgeTimer?.cancel();
+    _periodicPurgeTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      try {
+        _ref.read(chatRepositoryProvider).purgeExpiredMessages();
+      } catch (_) {}
+    });
+    unawaited(_ref.read(chatRepositoryProvider).purgeExpiredMessages());
+
     _channel = supabaseService.client
         .channel('public:app_events_$userId')
         .onPostgresChanges(
@@ -223,6 +235,8 @@ class AppRealtimeListener {
   void dispose() {
     _authSub?.cancel();
     _authSub = null;
+    _periodicPurgeTimer?.cancel();
+    _periodicPurgeTimer = null;
     _stopChannel();
   }
 }

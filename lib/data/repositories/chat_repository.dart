@@ -1348,9 +1348,11 @@ class ChatRepository {
           .select('last_read_at')
           .eq('room_id', roomId)
           .neq('profile_id', userId)
+          .order('last_read_at', ascending: false)
+          .limit(1)
           .maybeSingle();
       if (response != null && response['last_read_at'] != null) {
-        return DateTime.parse(response['last_read_at'] as String);
+        return DateTime.parse(response['last_read_at'] as String).toUtc();
       }
     } catch (_) {}
     return null;
@@ -1367,9 +1369,10 @@ class ChatRepository {
           .select('last_read_at')
           .eq('room_id', roomId)
           .eq('profile_id', userId)
+          .limit(1)
           .maybeSingle();
       if (response != null && response['last_read_at'] != null) {
-        return DateTime.parse(response['last_read_at'] as String);
+        return DateTime.parse(response['last_read_at'] as String).toUtc();
       }
     } catch (_) {}
     return null;

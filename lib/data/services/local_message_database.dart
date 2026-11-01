@@ -841,7 +841,9 @@ class LocalMessageDatabase {
   Future<void> purgeExpiredMessages() async {
     try {
       final db = await database;
-      final nowIso = DateTime.now().toUtc().toIso8601String();
+      final nowUtc = DateTime.now().toUtc();
+      final nowIsoUtc = nowUtc.toIso8601String();
+      final nowIsoLocal = nowUtc.toLocal().toIso8601String();
       await db.transaction((txn) async {
         if (_ftsAvailable) {
           try {
@@ -850,17 +852,18 @@ class LocalMessageDatabase {
               DELETE FROM $_ftsTableName
               WHERE msg_id IN (
                 SELECT id FROM $_tableName
-                WHERE auto_delete_at IS NOT NULL AND auto_delete_at <= ?
+                WHERE auto_delete_at IS NOT NULL AND (auto_delete_at <= ? OR auto_delete_at <= ?)
               )
             ''',
-              [nowIso],
+              [nowIsoUtc, nowIsoLocal],
             );
           } catch (_) {}
         }
         await txn.delete(
           _tableName,
-          where: 'auto_delete_at IS NOT NULL AND auto_delete_at <= ?',
-          whereArgs: [nowIso],
+          where:
+              'auto_delete_at IS NOT NULL AND (auto_delete_at <= ? OR auto_delete_at <= ?)',
+          whereArgs: [nowIsoUtc, nowIsoLocal],
         );
       });
     } catch (e) {
@@ -1030,11 +1033,11 @@ class LocalMessageDatabase {
       'reply_to_id': m.replyToId,
       'is_deleted': m.isDeleted ? 1 : 0,
       'is_silent_deleted': m.isSilentDeleted ? 1 : 0,
-      'auto_delete_at': m.autoDeleteAt?.toIso8601String(),
-      'edited_at': m.editedAt?.toIso8601String(),
+      'auto_delete_at': m.autoDeleteAt?.toUtc().toIso8601String(),
+      'edited_at': m.editedAt?.toUtc().toIso8601String(),
       'reactions': jsonEncode(m.reactions),
-      'created_at': m.createdAt.toIso8601String(),
-      'updated_at': m.updatedAt.toIso8601String(),
+      'created_at': m.createdAt.toUtc().toIso8601String(),
+      'updated_at': m.updatedAt.toUtc().toIso8601String(),
       'is_encrypted': m.isEncrypted ? 1 : 0,
     };
   }
@@ -1082,16 +1085,16 @@ class LocalMessageDatabase {
       isDeleted: (row['is_deleted'] as int? ?? 0) == 1,
       isSilentDeleted: (row['is_silent_deleted'] as int? ?? 0) == 1,
       autoDeleteAt: row['auto_delete_at'] != null
-          ? DateTime.tryParse(row['auto_delete_at'] as String)
+          ? DateTime.tryParse(row['auto_delete_at'] as String)?.toUtc()
           : null,
       editedAt: row['edited_at'] != null
           ? DateTime.tryParse(row['edited_at'] as String)
           : null,
       reactions: parsedReactions,
       createdAt:
-          DateTime.tryParse(row['created_at'] as String) ?? DateTime.now(),
+          (DateTime.tryParse(row['created_at'] as String) ?? DateTime.now()).toUtc(),
       updatedAt:
-          DateTime.tryParse(row['updated_at'] as String) ?? DateTime.now(),
+          (DateTime.tryParse(row['updated_at'] as String) ?? DateTime.now()).toUtc(),
       isEncrypted: (row['is_encrypted'] as int? ?? 0) == 1,
       isSending: false,
     );

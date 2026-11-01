@@ -51,7 +51,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.wait([
       minPresentation,
       authNotifier.initializationComplete.timeout(
-        const Duration(milliseconds: 1500),
+        const Duration(milliseconds: 2500),
         onTimeout: () {},
       ),
       pinLockNotifier.initialized,
@@ -132,7 +132,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       // agar kunci E2EE bisa dipulihkan sebelum user masuk chat.
       final e2eeNeedsRestore = E2eeService.instance.needsRestore;
 
-      if (authState.isPinSet) {
+      // Defensive re-check ke repository (memeriksa Fast Cache SharedPreferences & profil lokal)
+      // untuk mengantisipasi race-condition jika inisialisasi awal sempat terpotong timeout
+      bool isPinSet = authState.isPinSet;
+      if (!isPinSet) {
+        isPinSet = await authRepo.isPINSet();
+      }
+      if (!mounted) return;
+
+      if (isPinSet) {
         if (isPinLockEnabled || e2eeNeedsRestore) {
           // Go to validation screen (1x input)
           Navigator.pushReplacementNamed(

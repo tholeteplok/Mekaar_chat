@@ -82,20 +82,20 @@ class Message {
       isViewOnce: json['is_view_once'] as bool? ?? false,
       isOpened: json['is_opened'] as bool? ?? false,
       openedAt: json['opened_at'] != null
-          ? DateTime.parse(json['opened_at'] as String)
+          ? DateTime.parse(json['opened_at'] as String).toUtc()
           : null,
       replyToId: json['reply_to_id'] as String?,
       isDeleted: json['is_deleted'] as bool? ?? false,
       isSilentDeleted: json['is_silent_deleted'] as bool? ?? false,
       autoDeleteAt: json['auto_delete_at'] != null
-          ? DateTime.parse(json['auto_delete_at'] as String)
+          ? DateTime.parse(json['auto_delete_at'] as String).toUtc()
           : null,
       editedAt: json['edited_at'] != null
-          ? DateTime.parse(json['edited_at'] as String)
+          ? DateTime.parse(json['edited_at'] as String).toUtc()
           : null,
       reactions: parsedReactions,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toUtc(),
+      updatedAt: DateTime.parse(json['updated_at'] as String).toUtc(),
       isEncrypted: json['is_encrypted'] as bool? ?? false,
     );
   }
@@ -110,15 +110,15 @@ class Message {
       'msg_type': type.name,
       'is_view_once': isViewOnce,
       'is_opened': isOpened,
-      'opened_at': openedAt?.toIso8601String(),
+      'opened_at': openedAt?.toUtc().toIso8601String(),
       'reply_to_id': replyToId,
       'is_deleted': isDeleted,
       'is_silent_deleted': isSilentDeleted,
-      'auto_delete_at': autoDeleteAt?.toIso8601String(),
-      'edited_at': editedAt?.toIso8601String(),
+      'auto_delete_at': autoDeleteAt?.toUtc().toIso8601String(),
+      'edited_at': editedAt?.toUtc().toIso8601String(),
       'reactions': reactions,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
       'is_encrypted': isEncrypted,
     };
   }

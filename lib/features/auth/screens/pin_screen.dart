@@ -83,6 +83,12 @@ class _PinScreenState extends ConsumerState<PinScreen>
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
 
+    // Self-healing: verifikasi kelayakan setup PIN agar pengguna yang sudah
+    // memiliki PIN tidak pernah terjebak di mode pembuatan PIN baru (2x input)
+    if (_isSetupMode) {
+      _verifySetupEligibility();
+    }
+
     // Keamanan Mutlak: Pastikan seluruh sesi vault (slot 1, 2, 3) terkunci seketika saat layar PIN aktif
     // dan seluruh residu draf pesan di RAM dibersihkan (anti-forensik)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -92,6 +98,25 @@ class _PinScreenState extends ConsumerState<PinScreen>
         ref.read(chatDraftsProvider.notifier).clearMemoryDrafts();
       }
     });
+  }
+
+  Future<void> _verifySetupEligibility() async {
+    try {
+      final authState = ref.read(authProvider);
+      bool hasPin = authState.isPinSet;
+      if (!hasPin) {
+        hasPin = await ref.read(authRepositoryProvider).isPINSet();
+      }
+      if (hasPin && mounted) {
+        setState(() {
+          _isSetupMode = false;
+          _isConfirming = false;
+          _pin = '';
+          _confirmPin = '';
+          _statusMessage = 'Masukkan PIN 6 digit Anda untuk masuk.';
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -139,6 +164,21 @@ class _PinScreenState extends ConsumerState<PinScreen>
     final notifier = ref.read(authProvider.notifier);
 
     if (_isSetupMode) {
+      // Defensive guard: jika akun sebenarnya sudah memiliki PIN, tolak penimpaan PIN tanpa otentikasi
+      final hasPin = ref.read(authProvider).isPinSet ||
+          await ref.read(authRepositoryProvider).isPINSet();
+      if (!mounted) return;
+      if (hasPin) {
+        setState(() {
+          _isSetupMode = false;
+          _isConfirming = false;
+          _pin = '';
+          _confirmPin = '';
+          _statusMessage = 'Masukkan PIN 6 digit Anda untuk masuk.';
+        });
+        return;
+      }
+
       if (!_isConfirming) {
         // First PIN entry in setup
         HapticService.trigger(MekaarHapticIntent.selection);

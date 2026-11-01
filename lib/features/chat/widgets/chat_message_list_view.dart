@@ -293,6 +293,9 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
     final readReceiptsEnabled =
         ref.watch(authProvider.select((a) => a.profile?.readReceiptsEnabled)) ??
         true;
+    final reactiveOtherLastRead =
+        ref.watch(otherParticipantLastReadProvider(chatId)) ??
+        widget.otherLastRead;
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
@@ -460,6 +463,7 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
                                   forwardingProtection: forwardingProtection,
                                   roomThemeSpec: roomThemeSpec,
                                   showReadReceipts: readReceiptsEnabled,
+                                  otherLastRead: reactiveOtherLastRead,
                                 );
                               },
                             );
@@ -553,6 +557,7 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
     RoomForwardingProtection? forwardingProtection,
     ChatRoomThemeSpec? roomThemeSpec,
     bool showReadReceipts = true,
+    DateTime? otherLastRead,
   }) {
     if (entry.kind == ChatItemKind.dateSeparator) {
       return ChatDateSeparator(
@@ -632,7 +637,7 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
         msg,
         forwardingProtectionActive: forwardingProtection?.effective ?? false,
       ),
-      otherLastReadAt: widget.otherLastRead,
+      otherLastReadAt: otherLastRead ?? widget.otherLastRead,
       showReadReceipts: showReadReceipts,
       senderName: widget.isGroup ? widget.participantNames[msg.senderId] : null,
       replyToMessage: replyToMsg,

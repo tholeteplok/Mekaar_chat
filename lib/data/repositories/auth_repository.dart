@@ -527,6 +527,8 @@ class AuthRepository {
       if (userId != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('$_kProfileCachePrefix$userId');
+        await prefs.remove('$_kHasPinSetPrefix$userId');
+        await prefs.remove(_kHasPinSetKey);
       }
       E2eeService.instance.clearSession();
       await LocalMessageDatabase.instance.clearAll();
@@ -538,6 +540,19 @@ class AuthRepository {
   }
 
   static const _kProfileCachePrefix = 'cached_profile_';
+  static const _kHasPinSetPrefix = 'has_pin_set_';
+  static const _kHasPinSetKey = 'has_pin_set';
+
+  /// Simpan atau hapus flag fast-cache status PIN di SharedPreferences (<1ms)
+  Future<void> _setFastPinCache(String? userId, bool isSet) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (userId != null && userId.isNotEmpty) {
+        await prefs.setBool('$_kHasPinSetPrefix$userId', isSet);
+      }
+      await prefs.setBool(_kHasPinSetKey, isSet);
+    } catch (_) {}
+  }
 
   /// Memuat profil dari disk lokal (SharedPreferences) secara offline-first (<5ms).
   Future<Profile?> getCachedProfile(String userId) async {
@@ -560,6 +575,9 @@ class AuthRepository {
         '$_kProfileCachePrefix${profile.id}',
         jsonEncode(profile.toJson()),
       );
+      if (profile.pinHash.isNotEmpty) {
+        unawaited(_setFastPinCache(profile.id, true));
+      }
     } catch (_) {}
   }
 
@@ -652,6 +670,9 @@ class AuthRepository {
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
 
+    // Bersihkan fast cache SharedPreferences
+    await _setFastPinCache(userId, false);
+
     await _supabaseService.client
         .from('profiles')
         .update({
@@ -674,6 +695,9 @@ class AuthRepository {
           .write(key: 'pin_hash', value: pinHash)
           .timeout(const Duration(seconds: 1));
     } catch (_) {}
+
+    // Simpan status PIN di Fast Local Cache (SharedPreferences)
+    await _setFastPinCache(userId, true);
 
     // Save to remote profiles table
     await _supabaseService.client
@@ -727,15 +751,52 @@ class AuthRepository {
 
   // Check if PIN has been set
   Future<bool> isPINSet() async {
+    final userId = _supabaseService.currentUserId;
+
+    // 1. Fast path: Periksa cache sinkron/lokal SharedPreferences (<1ms, in-memory)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (userId != null && prefs.containsKey('$_kHasPinSetPrefix$userId')) {
+        final hasPin = prefs.getBool('$_kHasPinSetPrefix$userId');
+        if (hasPin != null) return hasPin;
+      }
+      if (prefs.containsKey(_kHasPinSetKey)) {
+        final hasPin = prefs.getBool(_kHasPinSetKey);
+        if (hasPin != null) return hasPin;
+      }
+    } catch (_) {}
+
+    // 2. Fast path: Periksa profil lokal yang di-cache di SharedPreferences (<2ms)
+    if (userId != null) {
+      final cachedProfile = await getCachedProfile(userId);
+      if (cachedProfile != null && cachedProfile.pinHash.isNotEmpty) {
+        await _setFastPinCache(userId, true);
+        return true;
+      }
+    }
+
+    // 3. Hardware Keystore check (FlutterSecureStorage) dengan batas waktu 1.5 detik
     try {
       final localHash = await _secureStorage
           .read(key: 'pin_hash')
-          .timeout(const Duration(seconds: 1));
-      if (localHash != null && localHash.isNotEmpty) return true;
+          .timeout(const Duration(milliseconds: 1500));
+      if (localHash != null && localHash.isNotEmpty) {
+        await _setFastPinCache(userId, true);
+        return true;
+      }
     } catch (_) {}
 
-    final profile = await getProfile();
-    return profile != null && profile.pinHash.isNotEmpty;
+    // 4. Remote profile fallback (hanya jika lokal tidak memiliki data, timeout 2 detik)
+    try {
+      final profile = await getProfile().timeout(const Duration(seconds: 2));
+      final hasPin = profile != null && profile.pinHash.isNotEmpty;
+      if (hasPin) {
+        await _setFastPinCache(userId, true);
+      }
+      return hasPin;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ── Duress PIN (PIN Paksaan) ──────────────────────────────

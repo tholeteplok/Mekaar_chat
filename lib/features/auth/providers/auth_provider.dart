@@ -193,10 +193,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
                 ? AuthUnlockMode.decoy
                 : AuthUnlockMode.master);
 
+      final effectivePinSet =
+          isPinSet || (cachedProfile != null && cachedProfile.pinHash.isNotEmpty);
+
       state = state.copyWith(
         user: session?.user ?? state.user,
         profile: cachedProfile,
-        isPinSet: isPinSet,
+        isPinSet: effectivePinSet,
         pinAttempts: lockout['attempts'] as int,
         pinLockedUntil: lockout['lockedUntil'] as DateTime?,
         unlockMode: unlockMode,
@@ -246,7 +249,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
         profile: profile,
         user: Supabase.instance.client.auth.currentUser,
-        isPinSet: isPinSet,
+        isPinSet: isPinSet || (profile != null && profile.pinHash.isNotEmpty),
         pinAttempts: lockout['attempts'] as int,
         pinLockedUntil: lockout['lockedUntil'] as DateTime?,
         isLoading: false,
