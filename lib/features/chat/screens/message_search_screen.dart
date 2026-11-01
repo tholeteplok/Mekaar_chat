@@ -103,6 +103,9 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
         final slotName = await repo.getSlotName(matchedSlot);
         if (mounted) {
           MekaarSnackbar.success(context, '$slotName Terbuka');
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
         }
       }
     } catch (_) {}

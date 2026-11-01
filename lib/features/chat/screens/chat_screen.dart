@@ -405,40 +405,70 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _resolveMissingRoomMetadata();
     _loadHiddenCalls();
 
-    Future.microtask(() async {
-      final repo = ref.read(chatRepositoryProvider);
-      if (_entryLastReadAt == null && !LocalMessageDatabase.instance.isDecoy) {
-        final myLastRead = await repo.getMyLastRead(widget.chatId);
-        if (mounted && myLastRead != null) {
-          setState(() => _entryLastReadAt = myLastRead);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      bool executed = false;
+      void runTasks() {
+        if (!executed && mounted) {
+          executed = true;
+          _performPostEntranceTasks();
         }
       }
-      ref.read(chatActionsProvider).markRoomRead(widget.chatId);
 
-      await _controller.loadRoomSettings();
-
-      // Best-effort purge pesan kedaluwarsa saat pertama buka chat
-      try {
-        await repo.purgeExpiredMessages(targetRoomId: widget.chatId);
-      } catch (_) {}
-      _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
-      if (mounted && _otherLastRead != null) {
-        ref.read(otherParticipantLastReadProvider(widget.chatId).notifier).updateReadAt(_otherLastRead!);
-        setState(() {});
-      }
-      if (widget.isGroup) {
-        _loadGroupParticipants();
-      }
-      if (!LocalMessageDatabase.instance.isDecoy &&
-          widget.chatId != 'room_welcome_mekaar') {
-        if (widget.otherUserId != null) {
-          _otherLastSeenNotifier.value = await repo.getLastSeen(
-            widget.otherUserId!,
-          );
+      if (route != null &&
+          route.animation != null &&
+          !route.animation!.isCompleted) {
+        void onStatus(AnimationStatus status) {
+          if (status == AnimationStatus.completed) {
+            route.animation?.removeStatusListener(onStatus);
+            runTasks();
+          }
         }
-        repo.updateLastSeen();
+
+        route.animation!.addStatusListener(onStatus);
+        // Fallback safety jika animation listener tidak terpanggil dalam 350ms
+        Future.delayed(const Duration(milliseconds: 350), runTasks);
+      } else {
+        runTasks();
       }
     });
+  }
+
+  Future<void> _performPostEntranceTasks() async {
+    if (!mounted) return;
+    final repo = ref.read(chatRepositoryProvider);
+    if (_entryLastReadAt == null && !LocalMessageDatabase.instance.isDecoy) {
+      final myLastRead = await repo.getMyLastRead(widget.chatId);
+      if (mounted && myLastRead != null) {
+        setState(() => _entryLastReadAt = myLastRead);
+      }
+    }
+    ref.read(chatActionsProvider).markRoomRead(widget.chatId);
+
+    await _controller.loadRoomSettings();
+
+    // Best-effort purge pesan kedaluwarsa saat pertama buka chat
+    try {
+      await repo.purgeExpiredMessages(targetRoomId: widget.chatId);
+    } catch (_) {}
+    _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
+    if (mounted && _otherLastRead != null) {
+      ref.read(otherParticipantLastReadProvider(widget.chatId).notifier).updateReadAt(_otherLastRead!);
+      setState(() {});
+    }
+    if (widget.isGroup) {
+      _loadGroupParticipants();
+    }
+    if (!LocalMessageDatabase.instance.isDecoy &&
+        widget.chatId != 'room_welcome_mekaar') {
+      if (widget.otherUserId != null) {
+        _otherLastSeenNotifier.value = await repo.getLastSeen(
+          widget.otherUserId!,
+        );
+      }
+      repo.updateLastSeen();
+    }
   }
 
   void _onControllerChanged() {

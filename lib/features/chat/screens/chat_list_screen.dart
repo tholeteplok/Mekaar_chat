@@ -839,12 +839,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 SolarIconsOutline.magnifier,
                                 color: MekaarColors.primaryOf(context),
                               ),
-                              tooltip: 'Cari Pesan',
+                              tooltip: 'Cari Obrolan',
                               onPressed: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.messageSearch,
-                                );
+                                setState(() => _isSearchActive = true);
                               },
                             ),
                             PopupMenuButton<String>(
@@ -1278,8 +1275,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             ? 'Belum ada obrolan yang diarsipkan.'
             : 'Mulai obrolan baru dengan kontak atau bagikan kode QR.',
         showStartButton: !hasSearch && !isGuardianFilter && !isArchiveFilter,
+        searchQuery: hasSearch ? _searchQuery.trim() : null,
       );
     }
+
+    final hasSearch = _searchQuery.trim().isNotEmpty;
 
     return ListView(
       padding: const EdgeInsets.symmetric(
@@ -1357,6 +1357,61 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             ),
           ),
         ),
+        if (hasSearch)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: InkWell(
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.messageSearch,
+                  arguments: {'initialQuery': _searchQuery.trim()},
+                );
+              },
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: MekaarColors.surfaceOf(context),
+                  borderRadius: BorderRadius.circular(MekaarRadius.md),
+                  border: Border.all(
+                    color: MekaarColors.borderOf(
+                      context,
+                    ).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      SolarIconsOutline.minimalisticMagnifier,
+                      size: 18,
+                      color: MekaarColors.primaryOf(context),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Cari "${_searchQuery.trim()}" di seluruh isi pesan...',
+                        style: MekaarTypography.bodySM.copyWith(
+                          color: MekaarColors.primaryOf(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      SolarIconsOutline.altArrowRight,
+                      size: 16,
+                      color: MekaarColors.primaryOf(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1368,6 +1423,7 @@ class _EmptyChats extends StatelessWidget {
   final String title;
   final String message;
   final bool showStartButton;
+  final String? searchQuery;
 
   const _EmptyChats({
     required this.onStart,
@@ -1375,10 +1431,13 @@ class _EmptyChats extends StatelessWidget {
     required this.title,
     required this.message,
     required this.showStartButton,
+    this.searchQuery,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasSearch = searchQuery != null && searchQuery!.isNotEmpty;
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 110),
       children: [
@@ -1412,6 +1471,23 @@ class _EmptyChats extends StatelessWidget {
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
+                ),
+              ],
+              if (hasSearch) ...[
+                const SizedBox(height: MekaarSpacing.xl),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.messageSearch,
+                      arguments: {'initialQuery': searchQuery},
+                    );
+                  },
+                  icon: const Icon(
+                    SolarIconsOutline.minimalisticMagnifier,
+                    size: 18,
+                  ),
+                  label: const Text('Cari di Seluruh Isi Pesan'),
                 ),
               ],
             ],

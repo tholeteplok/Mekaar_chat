@@ -133,15 +133,12 @@ class Avatar extends StatelessWidget {
       final avatarColor = backgroundColor ?? _getAvatarColor(initial);
       final inkColor = _inkFor(avatarColor);
       return Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            letter,
-            style: TextStyle(
-              color: inkColor,
-              fontSize: innerSize * 0.42,
-              fontWeight: FontWeight.w700,
-            ),
+        child: Text(
+          letter,
+          style: TextStyle(
+            color: inkColor,
+            fontSize: innerSize * 0.42,
+            fontWeight: FontWeight.w700,
           ),
         ),
       );
@@ -153,18 +150,15 @@ class Avatar extends StatelessWidget {
     return Center(
       child: Transform.rotate(
         angle: -25 * (math.pi / 180), // Miring kiri 25 derajat
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            letter,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Acidic',
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
-              color: AppColors.blue,
-              fontFamilyFallback: const ['PlusJakartaSans', 'sans-serif'],
-            ),
+        child: Text(
+          letter,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Acidic',
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+            color: AppColors.blue,
+            fontFamilyFallback: const ['PlusJakartaSans', 'sans-serif'],
           ),
         ),
       ),
