@@ -108,22 +108,61 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
   }
 
   String _formatTimestamp(DateTime dt) {
-    final localDt = dt.toLocal();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final msgDate = DateTime(localDt.year, localDt.month, localDt.day);
+    try {
+      final localDt = dt.toLocal();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final msgDate = DateTime(localDt.year, localDt.month, localDt.day);
 
-    if (msgDate == today) {
-      return DateFormat('HH:mm').format(localDt);
+      if (msgDate == today) {
+        return DateFormat('HH:mm').format(localDt);
+      }
+      final yesterday = today.subtract(const Duration(days: 1));
+      if (msgDate == yesterday) {
+        return 'Kemarin ${DateFormat('HH:mm').format(localDt)}';
+      }
+      final diff = today.difference(msgDate).inDays;
+      if (diff < 7) {
+        const days = [
+          'Minggu',
+          'Senin',
+          'Selasa',
+          'Rabu',
+          'Kamis',
+          'Jumat',
+          'Sabtu',
+        ];
+        final dayName = days[msgDate.weekday % 7];
+        final timeStr = DateFormat('HH:mm').format(localDt);
+        return '$dayName, $timeStr';
+      }
+
+      // Format tanggal lengkap
+      try {
+        return DateFormat('d MMM yyyy', 'id_ID').format(localDt);
+      } catch (_) {
+        const months = [
+          '',
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'Mei',
+          'Jun',
+          'Jul',
+          'Agu',
+          'Sep',
+          'Okt',
+          'Nov',
+          'Des',
+        ];
+        final m = localDt.month.clamp(1, 12);
+        return '${localDt.day} ${months[m]} ${localDt.year}';
+      }
+    } catch (_) {
+      // Fallback defensif jika terjadi kendala format lokal tak terduga
+      return '${dt.day}/${dt.month}/${dt.year}';
     }
-    final yesterday = today.subtract(const Duration(days: 1));
-    if (msgDate == yesterday) {
-      return 'Kemarin ${DateFormat('HH:mm').format(localDt)}';
-    }
-    if (now.difference(msgDate).inDays < 7) {
-      return DateFormat('EEEE, HH:mm', 'id_ID').format(localDt);
-    }
-    return DateFormat('d MMM yyyy', 'id_ID').format(localDt);
   }
 
   void _navigateToChat({

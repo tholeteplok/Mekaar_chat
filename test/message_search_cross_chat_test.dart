@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +76,9 @@ class _FakeChatRoomsNotifier
 }
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('id_ID', null);
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('UX-10 Fase C: MessageSearchHelper.buildFtsQuery Unit Tests', () {
@@ -316,8 +320,8 @@ void main() {
           senderId: 'user_target',
           content: 'Halo, ini nomor darurat saya',
           type: MessageType.text,
-          createdAt: DateTime(2026, 10, 30, 8, 30),
-          updatedAt: DateTime(2026, 10, 30, 8, 30),
+          createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
+          updatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
         ),
         Message(
           id: 'msg_102',
@@ -325,8 +329,8 @@ void main() {
           senderId: 'my_id',
           content: 'Siaga satu darurat',
           type: MessageType.text,
-          createdAt: DateTime(2026, 10, 30, 9, 0),
-          updatedAt: DateTime(2026, 10, 30, 9, 0),
+          createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
+          updatedAt: DateTime.now().subtract(const Duration(minutes: 15)),
         ),
       ];
     });
