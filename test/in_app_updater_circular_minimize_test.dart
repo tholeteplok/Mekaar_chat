@@ -389,5 +389,85 @@ void main() {
         expect(positioned.right, equals(16.0));
       },
     );
+
+    testWidgets(
+      'MekaarUpdateBottomSheet alur in-place morphing: idle -> downloading tanpa menutup sheet & tombol murni teks',
+      (tester) async {
+        final fakeController = FakeUpdateDownloadController(
+          UpdateService(),
+          const UpdateDownloadState(
+            status: UpdateDownloadStatus.idle,
+            info: testInfo,
+          ),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              updateDownloadProvider.overrideWith((ref) => fakeController),
+            ],
+            child: MaterialApp(
+              navigatorKey: AppNavigator.navigatorKey,
+              home: Scaffold(
+                body: Builder(
+                  builder: (context) {
+                    return ElevatedButton(
+                      onPressed: () {
+                        MekaarUpdateBottomSheet.show(
+                          context: context,
+                          info: testInfo,
+                        );
+                      },
+                      child: const Text('Buka Update'),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Buka Update Sheet
+        await tester.tap(find.text('Buka Update'));
+        await tester.pumpAndSettle();
+
+        // 1. Verifikasi Header, Emblem Sentral, dan Pill Versi
+        expect(find.text('Pembaruan Tersedia'), findsOneWidget);
+        expect(find.text('Versi 2.0.0 • 20 MB'), findsOneWidget);
+        expect(find.text('Apa yang baru:'), findsOneWidget);
+
+        // 2. Verifikasi Tombol Idle: Teks murni tanpa ikon/emoji
+        expect(find.text('Perbarui Sekarang'), findsOneWidget);
+        expect(find.text('Ingatkan Nanti'), findsOneWidget);
+
+        // 3. Ketuk 'Perbarui Sekarang'
+        await tester.tap(find.text('Perbarui Sekarang'));
+        await tester.pump();
+
+        // Simulasikan state berubah menjadi downloading
+        fakeController.updateState(
+          const UpdateDownloadState(
+            status: UpdateDownloadStatus.downloading,
+            progress: 0.35,
+            receivedBytes: 7 * 1024 * 1024,
+            totalBytes: 20 * 1024 * 1024,
+            info: testInfo,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // 4. Verifikasi sheet TIDAK tertutup (tetap terbuka) dan bertransisi in-place
+        expect(find.text('Mengunduh MEKAAR'), findsOneWidget);
+        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(find.text('Jeda Unduhan'), findsOneWidget);
+        expect(find.text('Minimalkan'), findsOneWidget);
+
+        // Memastikan tidak ada tombol ikon di dalam area aksi
+        final actionButtons = tester.widgetList<ElevatedButton>(find.byType(ElevatedButton));
+        for (final btn in actionButtons) {
+          expect(btn.child is Row, isFalse, reason: 'Tombol tidak boleh menggabungkan ikon dan teks');
+        }
+      },
+    );
   });
 }
