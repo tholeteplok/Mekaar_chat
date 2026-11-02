@@ -137,6 +137,7 @@ class Message {
     bool? isDeleted,
     bool? isSilentDeleted,
     DateTime? autoDeleteAt,
+    bool clearAutoDeleteAt = false,
     DateTime? editedAt,
     Map<String, List<String>>? reactions,
     DateTime? createdAt,
@@ -157,7 +158,8 @@ class Message {
       replyToId: replyToId ?? this.replyToId,
       isDeleted: isDeleted ?? this.isDeleted,
       isSilentDeleted: isSilentDeleted ?? this.isSilentDeleted,
-      autoDeleteAt: autoDeleteAt ?? this.autoDeleteAt,
+      autoDeleteAt:
+          clearAutoDeleteAt ? null : (autoDeleteAt ?? this.autoDeleteAt),
       editedAt: editedAt ?? this.editedAt,
       reactions: reactions ?? this.reactions,
       createdAt: createdAt ?? this.createdAt,

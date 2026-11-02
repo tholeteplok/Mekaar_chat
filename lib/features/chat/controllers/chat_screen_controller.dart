@@ -153,7 +153,7 @@ class ChatScreenController extends ChangeNotifier {
           loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
           final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
           loadedWipeTarget = targetStr != null
-              ? DateTime.tryParse(targetStr)
+              ? DateTime.tryParse(targetStr)?.toUtc()
               : null;
         }
       } catch (_) {}
@@ -199,6 +199,13 @@ class ChatScreenController extends ChangeNotifier {
 
     if (diff.isNegative || diff.inSeconds <= 0) {
       triggerLocalScheduledWipe();
+      if (_scheduledWipeMode == 'daily' && !_isDisposed && isMounted()) {
+        _scheduledWipeTargetAt = _scheduledWipeTargetAt!.add(
+          const Duration(days: 1),
+        );
+        notifyListeners();
+        scheduleWipeTimer();
+      }
       return;
     }
 
@@ -256,6 +263,12 @@ class ChatScreenController extends ChangeNotifier {
       _isMuted = value;
       notifyListeners();
     }
+  }
+
+  @visibleForTesting
+  void testSetScheduledWipe({required String mode, DateTime? targetAt}) {
+    _scheduledWipeMode = mode;
+    _scheduledWipeTargetAt = targetAt;
   }
 
   @override

@@ -145,5 +145,44 @@ void main() {
       repo.activeRoomControllers.remove(testRoomId);
       repo.activeRoomMessagePools.remove(testRoomId);
     });
+
+    test('setRoomScheduledWipe updates active in-memory messages autoDeleteAt', () async {
+      final messagePool = <String, Message>{};
+      repo.activeRoomMessagePools[testRoomId] = messagePool;
+
+      final now = DateTime.now().toUtc();
+      final msg = Message(
+        id: 'msg_before_schedule',
+        roomId: testRoomId,
+        senderId: 'user_a',
+        content: 'Pesan sebelum scheduled wipe disetel',
+        type: MessageType.text,
+        createdAt: now.subtract(const Duration(minutes: 5)),
+        updatedAt: now.subtract(const Duration(minutes: 5)),
+        autoDeleteAt: null,
+      );
+      messagePool[msg.id] = msg;
+
+      final targetUtc = now.add(const Duration(hours: 2));
+
+      await repo.setRoomScheduledWipe(
+        roomId: testRoomId,
+        mode: 'one_shot',
+        timeString: '14:00:00',
+        targetAtUtc: targetUtc,
+      );
+
+      // Verifikasi autoDeleteAt pada in-memory messagePool terupdate
+      expect(messagePool[msg.id]?.autoDeleteAt, equals(targetUtc));
+
+      // Saat dimatikan (mode 'off'), autoDeleteAt dikembalikan ke null
+      await repo.setRoomScheduledWipe(
+        roomId: testRoomId,
+        mode: 'off',
+      );
+      expect(messagePool[msg.id]?.autoDeleteAt, isNull);
+
+      repo.activeRoomMessagePools.remove(testRoomId);
+    });
   });
 }

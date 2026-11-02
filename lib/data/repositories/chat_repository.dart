@@ -670,8 +670,36 @@ class ChatRepository {
         try {
           final now = DateTime.now().toUtc();
           final rawMsgs = maps.map((map) => Message.fromJson(map)).toList();
+          final serverMsgIds = rawMsgs.map((m) => m.id).toSet();
 
-          // Eviksi pesan yang di-silent delete, disembunyikan, atau kedaluwarsa dari messagePool
+          // 1. Rekonsiliasi pesan yang terhapus di backend (misal scheduled wipe atau remote delete):
+          // Jika backend mengirim daftar pesan (terutama jika kosong atau kurang dari batas window 100),
+          // eviksi pesan di messagePool yang tidak ada di server (kecuali pesan pending lokal temp_).
+          DateTime? oldestServerCreatedAt;
+          if (rawMsgs.isNotEmpty) {
+            oldestServerCreatedAt = rawMsgs
+                .map((m) => m.createdAt)
+                .reduce((a, b) => a.isBefore(b) ? a : b);
+          }
+
+          final poolIds = messagePool.keys.toList();
+          for (final pId in poolIds) {
+            if (!serverMsgIds.contains(pId) && !pId.startsWith('temp_')) {
+              final poolMsg = messagePool[pId];
+              if (poolMsg != null && !poolMsg.isSending) {
+                if (rawMsgs.isEmpty ||
+                    rawMsgs.length < 100 ||
+                    (oldestServerCreatedAt != null &&
+                        !poolMsg.createdAt.isBefore(oldestServerCreatedAt))) {
+                  messagePool.remove(pId);
+                  _decryptedContentCache.remove(pId);
+                  unawaited(LocalMessageDatabase.instance.deleteMessage(pId));
+                }
+              }
+            }
+          }
+
+          // 2. Eviksi pesan yang di-silent delete, disembunyikan, atau kedaluwarsa dari messagePool
           for (final m in rawMsgs) {
             final isExpired =
                 m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now);
@@ -1626,15 +1654,41 @@ class ChatRepository {
     String? timeString, // e.g. '14:00:00'
     DateTime? targetAtUtc,
   }) async {
-    await _supabaseService.client.rpc(
-      'set_room_scheduled_wipe',
-      params: {
-        'p_room_id': roomId,
-        'p_time': timeString,
-        'p_mode': mode,
-        'p_target_at': targetAtUtc?.toIso8601String(),
-      },
+    final effectiveTargetUtc = mode == 'off' ? null : targetAtUtc?.toUtc();
+
+    // 1. Sinkronkan ke database lokal SQLite seketika agar konsisten secara offline & online
+    await LocalMessageDatabase.instance.updateRoomMessagesAutoDelete(
+      roomId,
+      effectiveTargetUtc,
     );
+
+    // 2. Perbarui pool in-memory RAM jika room sedang aktif dibuka
+    final pool = _activeRoomMessagePools[roomId];
+    if (pool != null && pool.isNotEmpty) {
+      for (final msg in pool.values) {
+        if (effectiveTargetUtc != null) {
+          if (msg.autoDeleteAt == null ||
+              msg.autoDeleteAt!.isAfter(effectiveTargetUtc)) {
+            pool[msg.id] = msg.copyWith(autoDeleteAt: effectiveTargetUtc);
+          }
+        } else {
+          pool[msg.id] = msg.copyWith(clearAutoDeleteAt: true);
+        }
+      }
+    }
+
+    // 3. Panggil RPC di Supabase backend jika Supabase telah terinisialisasi
+    if (SupabaseService.isInitialized) {
+      await _supabaseService.client.rpc(
+        'set_room_scheduled_wipe',
+        params: {
+          'p_room_id': roomId,
+          'p_time': timeString,
+          'p_mode': mode,
+          'p_target_at': effectiveTargetUtc?.toIso8601String(),
+        },
+      );
+    }
   }
 
   /// Ambil setelan pembersihan terjadwal level ruangan.
@@ -1669,7 +1723,8 @@ class ChatRepository {
       }
     }
 
-    unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
+    // Await pembersihan SQLite lokal agar tuntas sebelum stream provider direfresh
+    await LocalMessageDatabase.instance.deleteRoomMessages(roomId);
     try {
       final result = await _supabaseService.client.rpc(
         'execute_room_scheduled_wipe',

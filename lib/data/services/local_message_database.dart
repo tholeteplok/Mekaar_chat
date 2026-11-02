@@ -837,6 +837,40 @@ class LocalMessageDatabase {
     }
   }
 
+  /// Perbarui auto_delete_at untuk seluruh pesan non-deleted di suatu room saat
+  /// jadwal pembersihan (scheduled wipe) diaktifkan atau dinonaktifkan.
+  Future<void> updateRoomMessagesAutoDelete(
+    String roomId,
+    DateTime? targetAtUtc,
+  ) async {
+    try {
+      final db = await database;
+      final targetIso = targetAtUtc?.toUtc().toIso8601String();
+      await db.transaction((txn) async {
+        if (targetIso != null) {
+          // Kunci auto_delete_at ke target pembersihan terjadwal jika sebelumnya NULL atau lebih lama dari target
+          await txn.update(
+            _tableName,
+            {'auto_delete_at': targetIso},
+            where:
+                'room_id = ? AND is_deleted = 0 AND (auto_delete_at IS NULL OR auto_delete_at > ?)',
+            whereArgs: [roomId, targetIso],
+          );
+        } else {
+          // Jika jadwal dimatikan (mode 'off'), reset auto_delete_at ke NULL
+          await txn.update(
+            _tableName,
+            {'auto_delete_at': null},
+            where: 'room_id = ? AND is_deleted = 0',
+            whereArgs: [roomId],
+          );
+        }
+      });
+    } catch (e) {
+      _logger.w('Gagal memperbarui auto_delete_at lokal untuk room $roomId: $e');
+    }
+  }
+
   /// Hapus pesan-pesan yang waktu autoDeleteAt sudah kedaluwarsa
   Future<void> purgeExpiredMessages() async {
     try {
@@ -845,6 +879,18 @@ class LocalMessageDatabase {
       final nowIsoUtc = nowUtc.toIso8601String();
       final nowIsoLocal = nowUtc.toLocal().toIso8601String();
       await db.transaction((txn) async {
+        // Logika komparasi timezone-safe:
+        // 1. Timestamp berakhiran 'Z' atau berisi offset '+' dibandingkan dengan nowIsoUtc murni.
+        // 2. Timestamp lokal lawas (tanpa penanda zona) dibandingkan dengan nowIsoLocal.
+        const purgeWhere = '''
+          auto_delete_at IS NOT NULL AND (
+            ((auto_delete_at LIKE '%Z' OR auto_delete_at LIKE '%+%') AND auto_delete_at <= ?)
+            OR
+            (auto_delete_at NOT LIKE '%Z' AND auto_delete_at NOT LIKE '%+%' AND auto_delete_at <= ?)
+          )
+        ''';
+        final purgeArgs = [nowIsoUtc, nowIsoLocal];
+
         if (_ftsAvailable) {
           try {
             await txn.rawDelete(
@@ -852,18 +898,17 @@ class LocalMessageDatabase {
               DELETE FROM $_ftsTableName
               WHERE msg_id IN (
                 SELECT id FROM $_tableName
-                WHERE auto_delete_at IS NOT NULL AND (auto_delete_at <= ? OR auto_delete_at <= ?)
+                WHERE $purgeWhere
               )
             ''',
-              [nowIsoUtc, nowIsoLocal],
+              purgeArgs,
             );
           } catch (_) {}
         }
         await txn.delete(
           _tableName,
-          where:
-              'auto_delete_at IS NOT NULL AND (auto_delete_at <= ? OR auto_delete_at <= ?)',
-          whereArgs: [nowIsoUtc, nowIsoLocal],
+          where: purgeWhere,
+          whereArgs: purgeArgs,
         );
       });
     } catch (e) {

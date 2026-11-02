@@ -105,6 +105,52 @@ void main() {
         controller.dispose();
       },
     );
+
+    testWidgets(
+      'scheduleWipeTimer memajukan target ke hari esok saat mode daily terlewat waktu',
+      (tester) async {
+        late WidgetRef widgetRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: Consumer(
+              builder: (context, ref, _) {
+                widgetRef = ref;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+
+        final focusNode = FocusNode();
+        final lastSeenNotifier = ValueNotifier<DateTime?>(null);
+        addTearDown(() {
+          focusNode.dispose();
+          lastSeenNotifier.dispose();
+        });
+
+        final controller = ChatScreenController(
+          chatId: 'room_test_wipe_daily',
+          ref: widgetRef,
+          composerFocusNode: focusNode,
+          isKeyboardVisible: () => false,
+          isMounted: () => true,
+          otherLastSeenNotifier: lastSeenNotifier,
+        );
+
+        final pastTarget =
+            DateTime.now().toUtc().subtract(const Duration(minutes: 10));
+        controller.testSetScheduledWipe(mode: 'daily', targetAt: pastTarget);
+        controller.scheduleWipeTimer();
+
+        expect(controller.scheduledWipeTargetAt, isNotNull);
+        expect(
+          controller.scheduledWipeTargetAt!.isAfter(DateTime.now().toUtc()),
+          isTrue,
+        );
+
+        controller.dispose();
+      },
+    );
   });
 
   group('ChatMessageListView Item Entries & UiMode Tests', () {
