@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
+import 'package:mekaar_chat/features/chat/controllers/chat_screen_controller.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_composer.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
 
@@ -39,23 +40,69 @@ void main() {
 
       expect(focusNode.hasFocus, isTrue);
 
-      // Verifikasi logika supresi: saat focusNode.hasFocus == true, heartbeat tidak boleh berjalan
+      // Verifikasi logika detak kehadiran (presence heartbeat):
+      // Heartbeat tetap berjalan di latar belakang (tidak disupresi oleh fokus composer atau keyboard)
+      // untuk menjaga keakuratan timestamp daring tanpa mengganggu fokus IME Android.
       bool heartbeatRan = false;
       void runHeartbeatTick({required bool isFocused, required double insetsBottom}) {
-        if (isFocused || insetsBottom > 0) return;
+        // Dekopel: fokus input dan keyboard tidak membatalkan heartbeat presence
         heartbeatRan = true;
       }
 
       runHeartbeatTick(isFocused: focusNode.hasFocus, insetsBottom: 0);
-      expect(heartbeatRan, isFalse, reason: 'Heartbeat harus disupresi saat composer memiliki fokus');
+      expect(heartbeatRan, isTrue, reason: 'Heartbeat harus tetap berjalan saat composer memiliki fokus');
 
       runHeartbeatTick(isFocused: false, insetsBottom: 300.0);
-      expect(heartbeatRan, isFalse, reason: 'Heartbeat harus disupresi saat keyboard terbuka (insets > 0)');
+      expect(heartbeatRan, isTrue, reason: 'Heartbeat harus tetap berjalan saat keyboard terbuka');
 
       runHeartbeatTick(isFocused: false, insetsBottom: 0.0);
       expect(heartbeatRan, isTrue, reason: 'Heartbeat boleh berjalan saat keyboard tertutup dan tidak fokus');
 
       focusNode.dispose();
+      controller.dispose();
+    });
+
+    testWidgets('Presence heartbeat memperbarui lastSeenNotifier meski composer sedang fokus', (tester) async {
+      late WidgetRef widgetRef;
+      final focusNode = FocusNode();
+      final lastSeenNotifier = ValueNotifier<DateTime?>(null);
+      addTearDown(() {
+        focusNode.dispose();
+        lastSeenNotifier.dispose();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ProviderScope(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  widgetRef = ref;
+                  return TextField(focusNode: focusNode);
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final controller = ChatScreenController(
+        chatId: 'room_test_presence_focus',
+        ref: widgetRef,
+        composerFocusNode: focusNode,
+        isKeyboardVisible: () => true,
+        isMounted: () => true,
+        otherLastSeenNotifier: lastSeenNotifier,
+        effectiveOtherUserId: 'user_target_123',
+      );
+
+      focusNode.requestFocus();
+      await tester.pump();
+      expect(focusNode.hasFocus, isTrue);
+
+      controller.startPresenceHeartbeat();
+      expect(controller.isDisposed, isFalse);
+
       controller.dispose();
     });
 

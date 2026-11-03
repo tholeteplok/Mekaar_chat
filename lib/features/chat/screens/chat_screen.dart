@@ -279,6 +279,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         });
         if (_resolvedOtherUserId != null) {
           _controller.startPresenceHeartbeat();
+          if (!LocalMessageDatabase.instance.isDecoy &&
+              widget.chatId != 'room_welcome_mekaar') {
+            unawaited(
+              ref
+                  .read(chatRepositoryProvider)
+                  .getLastSeen(_resolvedOtherUserId!)
+                  .then((ls) {
+                    if (mounted) _otherLastSeenNotifier.value = ls;
+                  }),
+            );
+          }
         }
         return;
       }
@@ -319,6 +330,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             _resolvedAvatarUrl = avatarUrl;
           });
           _controller.startPresenceHeartbeat();
+          if (!LocalMessageDatabase.instance.isDecoy &&
+              widget.chatId != 'room_welcome_mekaar') {
+            unawaited(
+              ref
+                  .read(chatRepositoryProvider)
+                  .getLastSeen(otherId)
+                  .then((ls) {
+                    if (mounted) _otherLastSeenNotifier.value = ls;
+                  }),
+            );
+          }
         }
       }
     } catch (_) {}
@@ -462,9 +484,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
     if (!LocalMessageDatabase.instance.isDecoy &&
         widget.chatId != 'room_welcome_mekaar') {
-      if (widget.otherUserId != null) {
+      final targetUserId = _effectiveOtherUserId ?? widget.otherUserId;
+      if (targetUserId != null) {
         _otherLastSeenNotifier.value = await repo.getLastSeen(
-          widget.otherUserId!,
+          targetUserId,
         );
       }
       repo.updateLastSeen();

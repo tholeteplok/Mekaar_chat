@@ -84,9 +84,6 @@ class ChatScreenController extends ChangeNotifier {
       const Duration(seconds: 30),
       (_) async {
         if (_isDisposed || !isMounted()) return;
-        // Jangan ganggu fokus input dan cegah penutupan keyboard virtual oleh IME Android:
-        // Jika composer sedang memiliki fokus atau keyboard sedang terbuka, tunda siklus heartbeat.
-        if (composerFocusNode.hasFocus || isKeyboardVisible()) return;
 
         try {
           final repo = ref.read(chatRepositoryProvider);
@@ -94,7 +91,7 @@ class ChatScreenController extends ChangeNotifier {
           final otherId = currentOtherUserId;
           if (otherId != null) {
             final lastSeen = await repo.getLastSeen(otherId);
-            if (!_isDisposed && isMounted() && !composerFocusNode.hasFocus) {
+            if (!_isDisposed && isMounted()) {
               otherLastSeenNotifier.value = lastSeen;
             }
           }

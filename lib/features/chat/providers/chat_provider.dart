@@ -387,7 +387,7 @@ class TypingNotifier extends StateNotifier<bool> {
             state = isTyping;
             if (isTyping) {
               _hideTimer?.cancel();
-              _hideTimer = Timer(const Duration(seconds: 3), () {
+              _hideTimer = Timer(const Duration(seconds: 5), () {
                 if (mounted) state = false;
               });
             }
