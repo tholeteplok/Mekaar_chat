@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/mika_illustration.dart';
 import 'colors.dart';
 
 /// Data class terstruktur untuk tiap slide onboarding MEKAAR.
@@ -6,12 +7,14 @@ class MekaarOnboardingSlideData {
   final String title;
   final String desc;
   final String lottieAsset;
+  final MikaIllustrationType fallbackIllustration;
   final Color themeColor;
 
   const MekaarOnboardingSlideData({
     required this.title,
     required this.desc,
     required this.lottieAsset,
+    required this.fallbackIllustration,
     required this.themeColor,
   });
 }
@@ -23,8 +26,8 @@ class MekaarOnboardingTokens {
 
   // ── Dimensi Panggung Konveyor ──
   static const double stageWidth = 145.0;
-  static const double groundlineWidth = 250.0;
-  static const double groundlineHeight = 1.5;
+  static const double groundlineWidth = 240.0;
+  static const double groundlineHeight = 2.0;
   static const double mascotSize = 200.0;
 
   // ── Rasio Paralaks & Kedalaman ──
@@ -32,10 +35,8 @@ class MekaarOnboardingTokens {
   static const double maxMascotScale = 1.0;
   static const double minMascotOpacity = 0.40;
   static const double maxMascotOpacity = 1.0;
-  static const double maxMascotBlur = 3.5;
 
   // ── Rasio Kecepatan Paralaks Layer ──
-  static const double auraSpeed = 0.20;
   static const double textParallaxOffset = 36.0;
 
   // ── Aset Animasi Lottie ──
@@ -55,6 +56,7 @@ class MekaarOnboardingTokens {
       desc:
           'Aplikasi obrolan pribadi dengan perlindungan keselamatan terintegrasi, tombol SOS satu sentuhan, dan privasi penuh.',
       lottieAsset: lottieWelcome,
+      fallbackIllustration: MikaIllustrationType.onboardingWelcome,
       themeColor: AppColors.blue,
     ),
     MekaarOnboardingSlideData(
@@ -62,6 +64,7 @@ class MekaarOnboardingTokens {
       desc:
           'Guardian adalah pelindung Anda. Akses lokasi GPS dan audio hanya aktif saat Anda menekan tombol SOS darurat.',
       lottieAsset: lottieGuardian,
+      fallbackIllustration: MikaIllustrationType.onboardingGuardian,
       themeColor: AppColors.warnAmber,
     ),
     MekaarOnboardingSlideData(
@@ -69,6 +72,7 @@ class MekaarOnboardingTokens {
       desc:
           'Amankan obrolan pribadi, sembunyikan kontak sensitif, dan simpan berkas penting dalam Brankas terenkripsi PIN.',
       lottieAsset: lottieSecurity,
+      fallbackIllustration: MikaIllustrationType.onboardingSecurity,
       themeColor: Color(0xFF6366F1), // Indigo Vault
     ),
     MekaarOnboardingSlideData(
@@ -76,6 +80,7 @@ class MekaarOnboardingTokens {
       desc:
           'Semua pesan diamankan dengan enkripsi end-to-end tanpa pelacakan data. Anda memegang kendali sepenuhnya.',
       lottieAsset: lottieSuccess,
+      fallbackIllustration: MikaIllustrationType.onboardingSuccess,
       themeColor: AppColors.green,
     ),
   ];

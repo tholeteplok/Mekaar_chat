@@ -1,25 +1,27 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../core/constants/motion.dart';
+import '../../../core/constants/colors.dart';
 import '../../../core/constants/onboarding_tokens.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/mika_illustration.dart';
 
 /// Item Maskot Lottie untuk Panggung Konveyor Paralaks Onboarding MEKAAR.
-/// Mengoptimalkan siklus CPU/GPU dengan menghentikan animasi saat berada di luar
-/// viewport pandang, serta mendukung interaksi Tap Spring Bounce (Easter Egg).
+/// Menampilkan animasi karakter kodok Mika yang berdiri kokoh di atas garis pijakan,
+/// mendukung interaksi Tap Spring Bounce (Easter Egg), dan fallback aman.
 class MekaarLottieParallaxItem extends StatefulWidget {
   const MekaarLottieParallaxItem({
     super.key,
     required this.assetPath,
     required this.distance,
+    this.fallbackType,
     this.size = MekaarOnboardingTokens.mascotSize,
     this.semanticLabel,
   });
 
   final String assetPath;
   final double distance;
+  final MikaIllustrationType? fallbackType;
   final double size;
   final String? semanticLabel;
 
@@ -77,31 +79,36 @@ class _MekaarLottieParallaxItemState extends State<MekaarLottieParallaxItem>
     // Hanya putar animasi saat karakter berada dalam fokus atau mengintip di panggung
     final shouldAnimate = widget.distance < 1.1;
 
-    // Kalkulasi Depth of Field Blur (0 di tengah, s.d. 3.5 di tepi panggung)
-    final double rawBlur = (widget.distance * 2.8).clamp(0.0, MekaarOnboardingTokens.maxMascotBlur);
-    final double effectiveBlur = context.reduceMotion ? 0.0 : rawBlur;
-
-    Widget lottieWidget = Lottie.asset(
-      widget.assetPath,
+    Widget lottieWidget = SizedBox(
       width: widget.size,
       height: widget.size,
-      fit: BoxFit.contain,
-      animate: shouldAnimate,
-      repeat: true,
-      frameRate: FrameRate.composition,
+      child: Lottie.asset(
+        widget.assetPath,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+        animate: shouldAnimate,
+        repeat: true,
+        frameRate: FrameRate.max,
+        errorBuilder: (context, error, stackTrace) {
+          if (widget.fallbackType != null) {
+            return MikaIllustration(
+              type: widget.fallbackType!,
+              size: widget.size * 0.9,
+              semanticLabel: widget.semanticLabel,
+            );
+          }
+          return Center(
+            child: Icon(
+              Icons.sentiment_satisfied_alt_rounded,
+              size: widget.size * 0.5,
+              color: AppColors.blue,
+            ),
+          );
+        },
+      ),
     );
-
-    // Terapkan filter blur bila karakter sedang mengintip di tepi panggung
-    if (effectiveBlur > 0.4) {
-      lottieWidget = ImageFiltered(
-        imageFilter: ui.ImageFilter.blur(
-          sigmaX: effectiveBlur,
-          sigmaY: effectiveBlur,
-          tileMode: TileMode.decal,
-        ),
-        child: lottieWidget,
-      );
-    }
 
     return Semantics(
       label: widget.semanticLabel ?? 'Maskot Mika',
