@@ -7,6 +7,7 @@ import '../constants/typography.dart';
 import '../routes/app_routes.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_bottom_sheet.dart';
+import 'mekaar_pin_dots_indicator.dart';
 import '../../data/services/database_key_service.dart';
 import '../../data/services/local_vault_database.dart';
 import '../../features/auth/providers/auth_provider.dart';
@@ -55,57 +56,11 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
 }
 
 class _MekaarPinVerificationSheetState
-    extends ConsumerState<MekaarPinVerificationSheet>
-    with SingleTickerProviderStateMixin {
+    extends ConsumerState<MekaarPinVerificationSheet> {
   String _pin = '';
   static const int _pinLength = 6;
   bool _isVerifying = false;
   String? _errorMessage;
-
-  late final AnimationController _shakeController;
-  late final Animation<double> _shakeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: MekaarMotion.slow,
-    );
-    _shakeAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween:
-            Tween(begin: 0.0, end: -10.0).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween:
-            Tween(begin: -10.0, end: 10.0).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 2,
-      ),
-      TweenSequenceItem(
-        tween:
-            Tween(begin: 10.0, end: -6.0).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 2,
-      ),
-      TweenSequenceItem(
-        tween:
-            Tween(begin: -6.0, end: 6.0).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 2,
-      ),
-      TweenSequenceItem(
-        tween:
-            Tween(begin: 6.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)),
-        weight: 1,
-      ),
-    ]).animate(_shakeController);
-  }
-
-  @override
-  void dispose() {
-    _shakeController.dispose();
-    super.dispose();
-  }
 
   void _handleKey(String key) {
     if (_isVerifying) return;
@@ -134,6 +89,7 @@ class _MekaarPinVerificationSheetState
 
   Future<void> _submitPin() async {
     setState(() => _isVerifying = true);
+    final stopwatch = Stopwatch()..start();
 
     try {
       final isValid = await ref
@@ -165,11 +121,24 @@ class _MekaarPinVerificationSheetState
         } catch (_) {}
 
         if (!mounted) return;
+
+        // Anti-Timing Attack Floor: Samarkan durasi eksekusi
+        final elapsed = stopwatch.elapsedMilliseconds;
+        if (elapsed < 450 && !context.reduceMotion) {
+          await Future.delayed(Duration(milliseconds: 450 - elapsed));
+        }
+
+        if (!mounted) return;
         HapticService.trigger(MekaarHapticIntent.success);
         Navigator.of(context).pop(true);
       } else {
+        final elapsed = stopwatch.elapsedMilliseconds;
+        if (elapsed < 450 && !context.reduceMotion) {
+          await Future.delayed(Duration(milliseconds: 450 - elapsed));
+        }
+
+        if (!mounted) return;
         HapticService.trigger(MekaarHapticIntent.destructive);
-        _shakeController.forward(from: 0.0);
         setState(() {
           _pin = '';
           _isVerifying = false;
@@ -332,40 +301,16 @@ class _MekaarPinVerificationSheetState
           ),
           const SizedBox(height: 20),
 
-          // Indikator 6-digit dots dengan shake animation
-          AnimatedBuilder(
-            animation: _shakeAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(_shakeAnimation.value, 0),
-                child: child,
-              );
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _pinLength,
-                (index) => Container(
-                  width: 14,
-                  height: 14,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _errorMessage != null
-                          ? MekaarColors.sosRed
-                          : MekaarColors.primaryOf(context).withValues(alpha: 0.5),
-                      width: 2,
-                    ),
-                    color: _pin.length > index
-                        ? (_errorMessage != null
-                            ? MekaarColors.sosRed
-                            : MekaarColors.primaryOf(context))
-                        : Colors.transparent,
-                  ),
-                ),
-              ),
-            ),
+          // Indikator 6-digit dots (MekaarPinDotsIndicator)
+          MekaarPinDotsIndicator(
+            pinLength: _pinLength,
+            enteredLength: _pin.length,
+            isValidating: _isVerifying,
+            hasError: _errorMessage != null,
+            dotSize: 14.0,
+            dotSpacing: 16.0,
+            activeColor: MekaarColors.primaryOf(context),
+            errorColor: MekaarColors.sosRed,
           ),
 
           if (_errorMessage != null) ...[

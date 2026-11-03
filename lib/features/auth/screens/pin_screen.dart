@@ -7,6 +7,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_pin_dots_indicator.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/sos_button.dart';
@@ -31,49 +32,18 @@ class PinScreen extends ConsumerStatefulWidget {
   ConsumerState<PinScreen> createState() => _PinScreenState();
 }
 
-class _PinScreenState extends ConsumerState<PinScreen>
-    with TickerProviderStateMixin {
+class _PinScreenState extends ConsumerState<PinScreen> {
   late bool _isSetupMode;
   String _pin = '';
   String _confirmPin = '';
   bool _isConfirming = false;
   String _statusMessage = '';
   bool _hasError = false;
+  bool _isValidating = false;
   bool _isCheckingSOSGuardians = false;
   bool _obscurePin = true;
 
   static const int pinLength = 6;
-
-  late final AnimationController _shakeController = AnimationController(
-    vsync: this,
-    duration: MekaarMotion.slow,
-  );
-  late final Animation<double> _shakeAnimation = TweenSequence<double>([
-    TweenSequenceItem(
-      tween: Tween(begin: 0.0, end: -12.0).chain(CurveTween(curve: Curves.easeOut)),
-      weight: 1,
-    ),
-    TweenSequenceItem(
-      tween: Tween(begin: -12.0, end: 12.0).chain(CurveTween(curve: Curves.easeInOut)),
-      weight: 2,
-    ),
-    TweenSequenceItem(
-      tween: Tween(begin: 12.0, end: -8.0).chain(CurveTween(curve: Curves.easeInOut)),
-      weight: 2,
-    ),
-    TweenSequenceItem(
-      tween: Tween(begin: -8.0, end: 8.0).chain(CurveTween(curve: Curves.easeInOut)),
-      weight: 2,
-    ),
-    TweenSequenceItem(
-      tween: Tween(begin: 8.0, end: -4.0).chain(CurveTween(curve: Curves.easeInOut)),
-      weight: 2,
-    ),
-    TweenSequenceItem(
-      tween: Tween(begin: -4.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)),
-      weight: 1,
-    ),
-  ]).animate(_shakeController);
 
   @override
   void initState() {
@@ -119,23 +89,8 @@ class _PinScreenState extends ConsumerState<PinScreen>
     } catch (_) {}
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _shakeController.stop();
-      _shakeController.value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _shakeController.dispose();
-    super.dispose();
-  }
-
   void _handleKeyPress(String key) {
-    if (ref.read(authProvider).isPinLocked) return;
+    if (_isValidating || ref.read(authProvider).isPinLocked) return;
     if (_pin.length >= pinLength && key != '⌫') return;
 
     if (key == '⌫') {
@@ -191,12 +146,18 @@ class _PinScreenState extends ConsumerState<PinScreen>
       } else {
         // Confirmation entry in setup
         if (_pin == _confirmPin) {
+          setState(() {
+            _isValidating = true;
+            _hasError = false;
+            _statusMessage = 'Menyiapkan PIN keamanan...';
+          });
           await notifier.setupPIN(_pin);
           if (mounted) {
             final authState = ref.read(authProvider);
             if (authState.error != null) {
               HapticService.trigger(MekaarHapticIntent.destructive);
               setState(() {
+                _isValidating = false;
                 _pin = '';
                 _hasError = true;
                 _statusMessage = authState.error!;
@@ -212,10 +173,8 @@ class _PinScreenState extends ConsumerState<PinScreen>
           }
         } else {
           HapticService.trigger(MekaarHapticIntent.destructive);
-          if (!MediaQuery.disableAnimationsOf(context)) {
-            _shakeController.forward(from: 0);
-          }
           setState(() {
+            _isValidating = false;
             _pin = '';
             _hasError = true;
             _isConfirming = false;
@@ -225,12 +184,16 @@ class _PinScreenState extends ConsumerState<PinScreen>
       }
     } else {
       // PIN validation
-      final disableAnimations = MediaQuery.disableAnimationsOf(context);
+      setState(() {
+        _isValidating = true;
+        _hasError = false;
+        _statusMessage = 'Memverifikasi PIN...';
+      });
+
+      final stopwatch = Stopwatch()..start();
       final isValid = await notifier.validatePIN(_pin);
       if (isValid) {
         if (mounted) {
-          HapticService.trigger(MekaarHapticIntent.success);
-
           final authState = ref.read(authProvider);
           final isDecoy = authState.isDecoyActive;
           final isDuress = authState.lastUnlockWasDuress;
@@ -295,6 +258,16 @@ class _PinScreenState extends ConsumerState<PinScreen>
                 .activateSOS(gps: true, mic: false, video: false);
           }
 
+          // Anti-Timing Attack Floor: Samarkan perbedaan waktu eksekusi
+          // antara Master, Decoy, dan Duress PIN
+          final elapsed = stopwatch.elapsedMilliseconds;
+          if (elapsed < 450 && !context.reduceMotion) {
+            await Future.delayed(Duration(milliseconds: 450 - elapsed));
+          }
+
+          if (!mounted) return;
+          HapticService.trigger(MekaarHapticIntent.success);
+
           if (authState.needsUsername) {
             Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
           } else {
@@ -303,12 +276,16 @@ class _PinScreenState extends ConsumerState<PinScreen>
         }
       } else {
         if (mounted) {
-          HapticService.trigger(MekaarHapticIntent.destructive);
-          if (!disableAnimations) {
-            _shakeController.forward(from: 0);
+          final elapsed = stopwatch.elapsedMilliseconds;
+          if (elapsed < 450 && !context.reduceMotion) {
+            await Future.delayed(Duration(milliseconds: 450 - elapsed));
           }
+
+          if (!mounted) return;
+          HapticService.trigger(MekaarHapticIntent.destructive);
           final state = ref.read(authProvider);
           setState(() {
+            _isValidating = false;
             _pin = '';
             _hasError = true;
             if (state.isPinLocked) {
@@ -446,52 +423,48 @@ class _PinScreenState extends ConsumerState<PinScreen>
 
               // ── Section PIN Dots & Eye Toggle (100% Center Horizontal) ──
               Center(
-                child: AnimatedBuilder(
-                  animation: _shakeAnimation,
-                  builder: (context, child) => Transform.translate(
-                    offset: Offset(
-                      animationsDisabled ? 0 : _shakeAnimation.value,
-                      0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Tombol Toggle Mata di atas input PIN
+                    IconButton(
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      icon: Icon(
+                        _obscurePin
+                            ? SolarIconsOutline.eyeClosed
+                            : SolarIconsOutline.eye,
+                        size: 22,
+                        color: textSecondary,
+                      ),
+                      tooltip: _obscurePin
+                          ? 'Tampilkan angka PIN'
+                          : 'Sembunyikan angka PIN',
+                      onPressed: _isValidating
+                          ? null
+                          : () {
+                              setState(() => _obscurePin = !_obscurePin);
+                            },
                     ),
-                    child: child,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Tombol Toggle Mata di atas input PIN
-                      IconButton(
-                        constraints: const BoxConstraints(),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        icon: Icon(
-                          _obscurePin
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
-                          size: 22,
-                          color: textSecondary,
-                        ),
-                        tooltip: _obscurePin
-                            ? 'Tampilkan angka PIN'
-                            : 'Sembunyikan angka PIN',
-                        onPressed: () {
-                          setState(() => _obscurePin = !_obscurePin);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      // 6 Bulatan PIN (Murni Center Horizontal)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          pinLength,
-                          (index) => _buildPinCircle(index),
-                        ),
-                      ),
-                    ],
-                  ),
+                    const SizedBox(height: 8),
+                    // 6 Bulatan PIN (MekaarPinDotsIndicator)
+                    MekaarPinDotsIndicator(
+                      pinLength: pinLength,
+                      enteredLength: _pin.length,
+                      isValidating: _isValidating,
+                      hasError: _hasError,
+                      obscurePin: _obscurePin,
+                      pinText: _pin,
+                      dotSize: 20.0,
+                      dotSpacing: 10.0,
+                      activeColor: AppColors.blue,
+                      errorColor: MekaarColors.sosCoral,
+                    ),
+                  ],
                 ),
               ),
 
@@ -558,65 +531,6 @@ class _PinScreenState extends ConsumerState<PinScreen>
     );
   }
 
-  Widget _buildPinCircle(int index) {
-    final isFilled = _pin.length > index;
-    final isCurrent = _pin.length == index;
-    final textPrimary = MekaarColors.textPrimaryOf(context);
-
-    Color borderColor;
-    if (_hasError) {
-      borderColor = MekaarColors.sosCoral;
-    } else if (isFilled) {
-      borderColor = AppColors.blue;
-    } else if (isCurrent) {
-      borderColor = AppColors.blue.withValues(alpha: 0.7);
-    } else {
-      borderColor = AppColors.blue.withValues(alpha: 0.4);
-    }
-
-    return Container(
-      width: 20,
-      height: 20,
-      margin: const EdgeInsets.symmetric(horizontal: 5),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: borderColor,
-          width: isCurrent || isFilled ? 2.5 : 1.8,
-        ),
-        color: isFilled
-            ? (_obscurePin
-                ? (_hasError ? MekaarColors.sosCoral : AppColors.blue)
-                : Colors.transparent)
-            : (isCurrent
-                ? AppColors.blue.withValues(alpha: 0.15)
-                : Colors.transparent),
-        boxShadow: (isFilled && _obscurePin)
-            ? [
-                BoxShadow(
-                  color: (_hasError ? MekaarColors.sosCoral : AppColors.blue)
-                      .withValues(alpha: 0.45),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
-      ),
-      child: Center(
-        child: isFilled && !_obscurePin
-            ? Text(
-                _pin[index],
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _hasError ? MekaarColors.sosCoral : textPrimary,
-                ),
-              )
-            : null,
-      ),
-    );
-  }
-
   Widget _buildKeypadRow(List<String> keys) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -637,13 +551,15 @@ class _PinScreenState extends ConsumerState<PinScreen>
       return const SizedBox(width: 74, height: 74);
     }
 
+    final isButtonDisabled = _isValidating;
+
     if (key == 'Lupa') {
       return SizedBox(
         width: 74,
         height: 74,
         child: Center(
           child: TextButton(
-            onPressed: _showForgotPinDialog,
+            onPressed: isButtonDisabled ? null : _showForgotPinDialog,
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: const Size(70, 70),
@@ -653,7 +569,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
               'Lupa\nPIN?',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: textSecondary,
+                color: isButtonDisabled ? textSecondary.withValues(alpha: 0.4) : textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
@@ -669,7 +585,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
     return Semantics(
       button: true,
       label: isBackspace ? 'Hapus digit terakhir' : 'Angka $key',
-      onTap: () => _handleKeyPress(key),
+      onTap: isButtonDisabled ? null : () => _handleKeyPress(key),
       child: ExcludeSemantics(
         child: Container(
           width: 74,
@@ -688,12 +604,12 @@ class _PinScreenState extends ConsumerState<PinScreen>
             color: Colors.transparent,
             child: InkResponse(
               customBorder: const CircleBorder(),
-              onTap: () => _handleKeyPress(key),
+              onTap: isButtonDisabled ? null : () => _handleKeyPress(key),
               child: Center(
                 child: isBackspace
                     ? Icon(
                         SolarIconsOutline.closeSquare,
-                        color: textPrimary,
+                        color: isButtonDisabled ? textPrimary.withValues(alpha: 0.4) : textPrimary,
                         size: 26,
                       )
                     : Text(
@@ -701,7 +617,7 @@ class _PinScreenState extends ConsumerState<PinScreen>
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w400,
-                          color: textPrimary,
+                          color: isButtonDisabled ? textPrimary.withValues(alpha: 0.4) : textPrimary,
                         ),
                       ),
               ),
