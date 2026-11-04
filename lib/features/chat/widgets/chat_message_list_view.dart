@@ -309,9 +309,9 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
             Expanded(
               child: Column(
                 children: [
-                  // Banner Stale-while-revalidate saat offline / reconnecting
+                  // Banner Stale-while-revalidate saat reconnecting
                   if (messagesStream.hasValue && reconnecting)
-                    MekaarBanner.offlineMode(),
+                    MekaarBanner.reconnecting(),
                   Expanded(
                     child: Builder(
                       builder: (context) {

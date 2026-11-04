@@ -115,4 +115,22 @@ void main() {
       expect(find.byIcon(SolarIconsOutline.cloudCross), findsOneWidget);
     });
   });
+
+  group('P0: MekaarBanner.reconnecting', () {
+    testWidgets('merender banner reconnecting dengan judul Menghubungkan dan subtitle baru', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MekaarBanner.reconnecting(),
+          ),
+        ),
+      );
+
+      expect(find.text('Menghubungkan'), findsOneWidget);
+      expect(find.text('Menyambungkan kembali ke server...'), findsOneWidget);
+      expect(find.byIcon(SolarIconsOutline.restart), findsOneWidget);
+    });
+  });
 }

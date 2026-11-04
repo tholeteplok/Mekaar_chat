@@ -81,6 +81,53 @@ class MekaarBanner extends StatelessWidget {
     );
   }
 
+  /// Banner Menghubungkan kembali standar aplikasi MEKAAR
+  factory MekaarBanner.reconnecting({
+    Key? key,
+    EdgeInsetsGeometry? margin,
+    String title = 'Menghubungkan',
+    String subtitle = 'Menyambungkan kembali ke server...',
+  }) {
+    return MekaarBanner(
+      key: key,
+      color: MekaarColors.warnAmber,
+      icon: SolarIconsOutline.restart,
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      content: Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final textColor =
+              isDark ? const Color(0xFFFFD54F) : const Color(0xFF8D6E00);
+          final subColor =
+              isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF6D4C00);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: MekaarTypography.labelLG.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: MekaarTypography.caption.copyWith(
+                  color: subColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
