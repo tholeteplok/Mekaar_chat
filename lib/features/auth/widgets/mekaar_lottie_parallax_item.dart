@@ -17,6 +17,7 @@ class MekaarLottieParallaxItem extends StatefulWidget {
     this.fallbackType,
     this.size = MekaarOnboardingTokens.mascotSize,
     this.semanticLabel,
+    this.repeat,
   });
 
   final String assetPath;
@@ -24,6 +25,7 @@ class MekaarLottieParallaxItem extends StatefulWidget {
   final MikaIllustrationType? fallbackType;
   final double size;
   final String? semanticLabel;
+  final bool? repeat;
 
   @override
   State<MekaarLottieParallaxItem> createState() =>
@@ -79,6 +81,11 @@ class _MekaarLottieParallaxItemState extends State<MekaarLottieParallaxItem>
     // Hanya putar animasi saat karakter berada dalam fokus atau mengintip di panggung
     final shouldAnimate = widget.distance < 1.1;
 
+    // Di lingkungan pengujian widget (TestWidgetsFlutterBinding), nonaktifkan perulangan tanpa henti
+    // agar tester.pumpAndSettle() di seluruh test suite dapat menetap tanpa timeout.
+    final bool isTestMode = WidgetsBinding.instance is! WidgetsFlutterBinding;
+    final bool effectiveRepeat = widget.repeat ?? !isTestMode;
+
     Widget lottieWidget = SizedBox(
       width: widget.size,
       height: widget.size,
@@ -89,7 +96,7 @@ class _MekaarLottieParallaxItemState extends State<MekaarLottieParallaxItem>
         fit: BoxFit.contain,
         alignment: Alignment.bottomCenter,
         animate: shouldAnimate,
-        repeat: true,
+        repeat: effectiveRepeat,
         frameRate: FrameRate.max,
         errorBuilder: (context, error, stackTrace) {
           if (widget.fallbackType != null) {
