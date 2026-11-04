@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mekaar_chat/core/widgets/bubbles/themed_bubble_container.dart';
 import 'package:mekaar_chat/data/models/call_model.dart';
 import 'package:mekaar_chat/data/repositories/call_repository.dart';
 import 'package:mekaar_chat/data/services/local_message_database.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
+import 'package:mekaar_chat/features/chat/widgets/call_history_bubble.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FakeCallSupabaseClient extends SupabaseClient {
@@ -174,6 +178,74 @@ void main() {
         ),
         completes,
       );
+    });
+  });
+
+  group('CallHistoryBubble Themed Shape & Contextual Text Tests', () {
+    testWidgets('CallHistoryBubble merender ThemedBubbleContainer dan mempertahankan teks kontekstual', (tester) async {
+      final now = DateTime.utc(2026, 11, 4, 15, 30);
+      final call = CallModel(
+        id: 'call_test_1',
+        roomId: 'room_1',
+        callerId: 'user_me',
+        receiverId: 'user_other',
+        callType: 'voice',
+        status: 'ended',
+        durationSeconds: 125,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: CallHistoryBubble(
+                call: call,
+                isMe: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Pastikan ThemedBubbleContainer digunakan
+      expect(find.byType(ThemedBubbleContainer), findsOneWidget);
+
+      // Pastikan teks judul dan status kontekstual dirender
+      expect(find.text('Panggilan suara'), findsOneWidget);
+      expect(find.text('Terhubung • 02:05'), findsOneWidget);
+    });
+
+    testWidgets('CallHistoryBubble merender status panggilan tak terjawab (missed) dengan warna kontekstual', (tester) async {
+      final now = DateTime.utc(2026, 11, 4, 15, 30);
+      final missedCall = CallModel(
+        id: 'call_test_2',
+        roomId: 'room_1',
+        callerId: 'user_other',
+        receiverId: 'user_me',
+        callType: 'video',
+        status: 'missed',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: CallHistoryBubble(
+                call: missedCall,
+                isMe: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(ThemedBubbleContainer), findsOneWidget);
+      expect(find.text('Panggilan video'), findsOneWidget);
+      expect(find.text('Panggilan tak terjawab'), findsOneWidget);
     });
   });
 }
