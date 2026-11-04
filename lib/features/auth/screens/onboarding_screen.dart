@@ -125,7 +125,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
 
                           // ── Konveyor 4 Maskot Mika (Peeking Staggered) ──
-                          if (isReduceMotion)
+                          if (isReduceMotion) ...[
                             // Mode Aksesibilitas: Tampilkan hanya karakter aktif di tengah tanpa translasi
                             if (_currentPage < 4)
                               Positioned(
@@ -139,8 +139,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   semanticLabel:
                                       'Ilustrasi ${_slides[_currentPage].title}',
                                 ),
-                              )
-                          else
+                              ),
+                          ] else ...[
                             // Mode Normal: 4 Maskot berselancar di atas konveyor panggung
                             ...List.generate(4, (index) {
                               final double delta = index - page;
@@ -191,6 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 ),
                               );
                             }),
+                          ],
                         ],
                       ),
                     ),
@@ -331,18 +332,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(4),
                               color: _currentPage == index
-                                  ? AppColors.green
+                                  ? AppColors.blue
                                   : cardBorder,
-                              boxShadow: _currentPage == index
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.green
-                                            .withValues(alpha: 0.65),
-                                        blurRadius: 10,
-                                        spreadRadius: 1,
-                                      ),
-                                    ]
-                                  : null,
                             ),
                           ),
                         ),

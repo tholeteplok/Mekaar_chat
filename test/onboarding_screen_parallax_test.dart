@@ -28,7 +28,7 @@ void main() {
   }
 
   group('OnboardingScreen Parallax Stage Tests', () {
-    testWidgets('Merender halaman awal dengan Garis Pijakan Bersama dan Slide 0',
+    testWidgets('Merender halaman awal dengan Garis Pijakan, Maskot Lottie, dan Slide 0',
         (tester) async {
       await tester.pumpWidget(buildTestableOnboarding());
       await tester.pump();
@@ -38,6 +38,9 @@ void main() {
       expect(find.text('Selamat Datang di MEKAAR'), findsOneWidget);
       expect(find.text('Lewati'), findsOneWidget);
       expect(find.text('Lanjut'), findsOneWidget);
+
+      // Memastikan Maskot Lottie terpasang aktif di widget tree (tidak kosong)
+      expect(find.byType(MekaarLottieParallaxItem), findsWidgets);
 
       // Memastikan teks MEKAAR.chat TIDAK ada di layar
       expect(find.text('MEKAAR.chat'), findsNothing);
@@ -51,9 +54,11 @@ void main() {
 
       // Ketuk tombol Lanjut
       await tester.tap(find.byKey(const ValueKey('onboarding_btn_next')));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('Guardian Tepercaya'), findsOneWidget);
+      expect(find.byType(MekaarLottieParallaxItem), findsWidgets);
     });
 
     testWidgets('Halaman terakhir (Slide 4) menampilkan Mulai Sekarang',
@@ -64,13 +69,30 @@ void main() {
       expect(find.text('Mulai Sekarang'), findsOneWidget);
     });
 
-    testWidgets('Mendukung mode Reduce Motion sistem tanpa translasi bergerak',
+    testWidgets('Mendukung mode Reduce Motion sistem dan tetap merender maskot tunggal',
         (tester) async {
       await tester.pumpWidget(buildTestableOnboarding(disableAnimations: true));
       await tester.pump();
 
       expect(find.byType(MekaarStageGroundingLine), findsOneWidget);
       expect(find.text('Selamat Datang di MEKAAR'), findsOneWidget);
+      expect(find.byType(MekaarLottieParallaxItem), findsOneWidget);
+    });
+
+    testWidgets('Indikator dot aktif berwarna solid Biru Mekaar tanpa pendaran glow',
+        (tester) async {
+      await tester.pumpWidget(buildTestableOnboarding());
+      await tester.pump();
+
+      final activeDotFinder = find.byKey(const ValueKey('onboarding_dot_0'));
+      expect(activeDotFinder, findsOneWidget);
+
+      final animatedContainer = tester.widget<AnimatedContainer>(
+        find.descendant(of: activeDotFinder, matching: find.byType(AnimatedContainer)),
+      );
+      final decoration = animatedContainer.decoration as BoxDecoration;
+      expect(decoration.color, AppColors.blue);
+      expect(decoration.boxShadow, isNull);
     });
 
     testWidgets('MekaarStageGroundingLine merender garis flat minimalis solid Biru Mekaar',
