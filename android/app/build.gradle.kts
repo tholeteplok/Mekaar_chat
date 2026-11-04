@@ -25,7 +25,15 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mekaar.app"
+        val isCI = System.getenv("CI") == "true" || System.getenv("GITHUB_ACTIONS") == "true"
+        val isExplicitProd = project.hasProperty("prod") || System.getenv("MEKAAR_PROD") == "true"
+        val isProduction = isCI || isExplicitProd
+
+        val targetApplicationId = if (isProduction) "com.mekaar.app" else "com.mekaar.dev"
+        val targetAppName = if (isProduction) "Mekaar" else "MEKAAR Dev"
+
+        applicationId = targetApplicationId
+        manifestPlaceholders["appName"] = targetAppName
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -47,7 +55,11 @@ android {
             val propPass: String? = keystoreProperties.getProperty("storePassword")
             val pass = if (!envPass.isNullOrEmpty()) envPass else (propPass ?: "mekaar_secure_key_2026")
 
-            if (keystoreFile.exists() && !pass.isNullOrEmpty()) {
+            val isCI = System.getenv("CI") == "true" || System.getenv("GITHUB_ACTIONS") == "true"
+            val isExplicitProd = project.hasProperty("prod") || System.getenv("MEKAAR_PROD") == "true"
+            val isProduction = isCI || isExplicitProd
+
+            if (isProduction && keystoreFile.exists() && !pass.isNullOrEmpty()) {
                 val envKeyPass: String? = System.getenv("KEY_PASSWORD")
                 val propKeyPass: String? = keystoreProperties.getProperty("keyPassword")
                 val keyPass = if (!envKeyPass.isNullOrEmpty()) envKeyPass else (propKeyPass ?: pass)
