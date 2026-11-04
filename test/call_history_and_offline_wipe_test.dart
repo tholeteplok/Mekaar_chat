@@ -209,8 +209,10 @@ void main() {
         ),
       );
 
-      // Pastikan ThemedBubbleContainer digunakan
-      expect(find.byType(ThemedBubbleContainer), findsOneWidget);
+      // Pastikan ThemedBubbleContainer digunakan dengan warna solid abu-abu netral (Slate-200) tanpa gradien
+      final container = tester.widget<ThemedBubbleContainer>(find.byType(ThemedBubbleContainer));
+      expect(container.spec.backgroundColor, const Color(0xFFE2E8F0));
+      expect(container.spec.gradient, isNull);
 
       // Pastikan teks judul dan status kontekstual dirender
       expect(find.text('Panggilan suara'), findsOneWidget);
@@ -243,9 +245,46 @@ void main() {
         ),
       );
 
-      expect(find.byType(ThemedBubbleContainer), findsOneWidget);
+      final container = tester.widget<ThemedBubbleContainer>(find.byType(ThemedBubbleContainer));
+      expect(container.spec.backgroundColor, Colors.white);
+      expect(container.spec.gradient, isNull);
+
       expect(find.text('Panggilan video'), findsOneWidget);
       expect(find.text('Panggilan tak terjawab'), findsOneWidget);
+    });
+
+    testWidgets('CallHistoryBubble panggilan keluar dibatalkan (isMe: true, missed) menampilkan Panggilan dibatalkan', (tester) async {
+      final now = DateTime.utc(2026, 11, 4, 15, 30);
+      final cancelledCall = CallModel(
+        id: 'call_test_3',
+        roomId: 'room_1',
+        callerId: 'user_me',
+        receiverId: 'user_other',
+        callType: 'voice',
+        status: 'missed',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: CallHistoryBubble(
+                call: cancelledCall,
+                isMe: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final container = tester.widget<ThemedBubbleContainer>(find.byType(ThemedBubbleContainer));
+      expect(container.spec.backgroundColor, const Color(0xFFE2E8F0));
+      expect(container.spec.gradient, isNull);
+
+      expect(find.text('Panggilan suara'), findsOneWidget);
+      expect(find.text('Panggilan dibatalkan'), findsOneWidget);
     });
   });
 }

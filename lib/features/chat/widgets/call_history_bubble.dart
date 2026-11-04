@@ -56,6 +56,8 @@ class CallHistoryBubble extends ConsumerWidget {
     final String statusText;
     final IconData statusIcon;
 
+    final mutedColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
+
     if (isConnected) {
       statusColor = MekaarColors.successTextOf(context);
       statusText = call.durationSeconds > 0
@@ -73,9 +75,7 @@ class CallHistoryBubble extends ConsumerWidget {
       statusText = 'Sedang sibuk';
       statusIcon = SolarIconsOutline.closeCircle;
     } else if (call.status == 'missed') {
-      statusColor = isMe
-          ? MekaarColors.textSecondaryOf(context)
-          : MekaarColors.sosCoral;
+      statusColor = isMe ? mutedColor : MekaarColors.sosCoral;
       statusText = isMe ? 'Panggilan dibatalkan' : 'Panggilan tak terjawab';
       statusIcon = isMe
           ? SolarIconsOutline.arrowRightUp
@@ -85,34 +85,34 @@ class CallHistoryBubble extends ConsumerWidget {
       statusText = 'Panggilan gagal';
       statusIcon = SolarIconsOutline.closeCircle;
     } else if (call.status == 'calling') {
-      statusColor = MekaarColors.textSecondaryOf(context);
+      statusColor = mutedColor;
       statusText = isMe ? 'Memanggil...' : 'Panggilan masuk...';
       statusIcon = isMe
           ? SolarIconsOutline.arrowRightUp
           : SolarIconsOutline.arrowLeftDown;
     } else if (call.status == 'ringing') {
-      statusColor = MekaarColors.textSecondaryOf(context);
+      statusColor = mutedColor;
       statusText = isMe ? 'Berdering...' : 'Panggilan masuk...';
       statusIcon = isMe
           ? SolarIconsOutline.arrowRightUp
           : SolarIconsOutline.arrowLeftDown;
     } else {
-      statusColor = MekaarColors.textSecondaryOf(context);
+      statusColor = mutedColor;
       statusText = call.getDisplayStatus(isMe);
       statusIcon = SolarIconsOutline.phoneRounded;
     }
 
     final title = isVideo ? 'Panggilan video' : 'Panggilan suara';
     final timeStr = DateFormat('HH:mm').format(call.createdAt.toLocal());
+    final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final timeColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    // Opsi B: Mengadopsi bentuk (shape, tail, border, shadow) tema,
-    // namun latar belakang tetap menggunakan tint netral lembut
-    // agar warna semantik status panggilan (hijau/merah/amber) tetap kontras dan terbaca optimal.
+    // Abu-abu Netral Solid (100% Opaque):
+    // Menghilangkan tembusnya bayangan hitam (hard shadow) pada tema Comic / Voxel,
+    // serta menjamin kontras warna teks dan warna semantik status panggilan (hijau, merah, kuning).
     final normalBg = isMe
-        ? (isDark
-            ? MekaarColors.blue.withValues(alpha: 0.22)
-            : MekaarColors.blue.withValues(alpha: 0.12))
-        : MekaarColors.surfaceOf(context);
+        ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
+        : (isDark ? const Color(0xFF1E293B) : Colors.white);
 
     final bubbleBg = isSelected
         ? Color.alphaBlend(
@@ -126,7 +126,7 @@ class CallHistoryBubble extends ConsumerWidget {
     final effectiveBorder = baseSpec.border ??
         Border.all(
           color: isMe
-              ? MekaarColors.blue.withValues(alpha: isDark ? 0.4 : 0.25)
+              ? (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))
               : (isDark ? MekaarColors.borderDark : MekaarColors.borderLight),
           width: 1,
         );
@@ -199,7 +199,7 @@ class CallHistoryBubble extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: MekaarColors.textPrimaryOf(context),
+                            color: titleColor,
                             letterSpacing: -0.1,
                             fontFamily: effectiveSpec.fontFamily,
                           ),
@@ -244,9 +244,7 @@ class CallHistoryBubble extends ConsumerWidget {
                         timeStr,
                         style: TextStyle(
                           fontSize: 10,
-                          color: isMe
-                              ? MekaarColors.textSecondaryOf(context)
-                              : MekaarColors.textMutedOf(context),
+                          color: timeColor,
                           fontFamily: effectiveSpec.fontFamily,
                         ),
                       ),
