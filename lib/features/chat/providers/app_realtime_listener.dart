@@ -28,6 +28,7 @@ class AppRealtimeListener {
   String? _subscribedUserId;
   Timer? _reconnectTimer;
   Timer? _periodicPurgeTimer;
+  Timer? _heartbeatTimer;
   int _reconnectAttempts = 0;
 
   AppRealtimeListener(this._ref) {
@@ -54,6 +55,8 @@ class AppRealtimeListener {
     _reconnectTimer = null;
     _periodicPurgeTimer?.cancel();
     _periodicPurgeTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _reconnectAttempts = 0;
     if (_channel != null) {
       final supabaseService = _ref.read(supabaseServiceProvider);
@@ -141,6 +144,8 @@ class AppRealtimeListener {
       } catch (_) {}
     });
     unawaited(_ref.read(chatRepositoryProvider).purgeExpiredMessages());
+
+    _startHeartbeatTimer();
 
     _channel = supabaseService.client
         .channel('public:app_events_$userId')
@@ -232,11 +237,27 @@ class AppRealtimeListener {
     );
   }
 
+  void _startHeartbeatTimer() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      final userId = _ref.read(supabaseServiceProvider).currentUserId;
+      if (userId == null) return;
+
+      // Cek apakah channel masih eksis dan berstatus subscribed
+      if (_channel == null || _subscribedUserId != userId) {
+        _log.w('AppRealtimeListener: heartbeat mendeteksi channel mati, auto-healing...');
+        start(force: true);
+      }
+    });
+  }
+
   void dispose() {
     _authSub?.cancel();
     _authSub = null;
     _periodicPurgeTimer?.cancel();
     _periodicPurgeTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _stopChannel();
   }
 }

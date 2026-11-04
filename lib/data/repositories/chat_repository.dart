@@ -1661,6 +1661,14 @@ class ChatRepository {
       roomId,
       effectiveTargetUtc,
     );
+    unawaited(
+      LocalMessageDatabase.instance.saveRoomScheduledWipe(
+        roomId: roomId,
+        mode: mode,
+        timeString: timeString,
+        targetAtUtc: effectiveTargetUtc,
+      ),
+    );
 
     // 2. Perbarui pool in-memory RAM jika room sedang aktif dibuka
     final pool = _activeRoomMessagePools[roomId];
@@ -1700,8 +1708,30 @@ class ChatRepository {
             'scheduled_wipe_time, scheduled_wipe_mode, scheduled_wipe_target_at, disappearing_hours',
           )
           .eq('id', roomId)
-          .maybeSingle();
-      return room;
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
+      if (room != null) {
+        final mode = room['scheduled_wipe_mode'] as String? ?? 'off';
+        final timeStr = room['scheduled_wipe_time'] as String?;
+        final targetStr = room['scheduled_wipe_target_at'] as String?;
+        final targetUtc = targetStr != null
+            ? DateTime.tryParse(targetStr)?.toUtc()
+            : null;
+        unawaited(
+          LocalMessageDatabase.instance.saveRoomScheduledWipe(
+            roomId: roomId,
+            mode: mode,
+            timeString: timeStr,
+            targetAtUtc: targetUtc,
+          ),
+        );
+        return room;
+      }
+    } catch (_) {}
+
+    // Fallback: baca dari cache lokal jika offline / network gagal
+    try {
+      return await LocalMessageDatabase.instance.getRoomScheduledWipe(roomId);
     } catch (_) {
       return null;
     }
@@ -1725,6 +1755,14 @@ class ChatRepository {
 
     // Await pembersihan SQLite lokal agar tuntas sebelum stream provider direfresh
     await LocalMessageDatabase.instance.deleteRoomMessages(roomId);
+    unawaited(
+      LocalMessageDatabase.instance.saveRoomScheduledWipe(
+        roomId: roomId,
+        mode: 'off',
+        timeString: null,
+        targetAtUtc: null,
+      ),
+    );
     try {
       final result = await _supabaseService.client.rpc(
         'execute_room_scheduled_wipe',

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/call_model.dart';
+import '../services/local_message_database.dart';
 import '../services/push_notification_service.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
@@ -70,6 +71,12 @@ class CallRepository {
         record: response,
       ),
     );
+
+    // Simpan panggilan ke cache lokal seketika
+    try {
+      final callObj = CallModel.fromJson(response);
+      unawaited(LocalMessageDatabase.instance.saveCall(callObj));
+    } catch (_) {}
 
     return response;
   }
@@ -245,63 +252,174 @@ class CallRepository {
     }
   }
 
-  /// Stream riwayat panggilan untuk room tertentu secara realtime dengan filter riwayat dibersihkan & hidden_calls
-  Stream<List<CallModel>> streamCalls(String roomId) async* {
-    final userId = _client.auth.currentUser?.id;
+  /// Stream riwayat panggilan untuk room tertentu secara offline-first (0 ms) & realtime
+  Stream<List<CallModel>> streamCalls(String roomId) {
+    final controller = StreamController<List<CallModel>>();
+    StreamSubscription? streamSubscription;
+    final Map<String, CallModel> callPool = {};
 
-    // 1. Ambil stempel waktu pembersihan obrolan (history_cleared_at)
-    DateTime? historyClearedAt;
-    if (userId != null) {
+    // Helper untuk memancarkan cache dari SQLite lokal seketika (0 ms)
+    Future<void> emitLocalCache({
+      DateTime? historyCleared,
+      Set<String>? hiddenIds,
+    }) async {
+      try {
+        final localCalls = await LocalMessageDatabase.instance.getCallsForRoom(
+          roomId,
+          historyClearedAt: historyCleared,
+          hiddenCallIds: hiddenIds,
+        );
+        if (localCalls.isNotEmpty && !controller.isClosed) {
+          for (final c in localCalls) {
+            callPool[c.id] = c;
+          }
+          final sorted = callPool.values.toList()
+            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          controller.add(sorted);
+        }
+      } catch (_) {}
+    }
+
+    Future<void> initStream() async {
+      // 1. 0ms Offline-First: Render riwayat dari SQLite lokal seketika tanpa menunggu query jaringan
+      await emitLocalCache();
+
+      // Zero-Leak Decoy: Jangan jalankan query jaringan atau streaming Supabase
+      if (LocalMessageDatabase.instance.isDecoy) {
+        return;
+      }
+
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || controller.isClosed) return;
+
+      // 2. Ambil stempel waktu pembersihan obrolan (history_cleared_at) dengan timeout aman
+      DateTime? historyClearedAt;
       try {
         final p = await _client
             .from('room_participants')
             .select('history_cleared_at')
             .eq('room_id', roomId)
             .eq('profile_id', userId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         if (p != null && p['history_cleared_at'] != null) {
-          historyClearedAt = DateTime.parse(p['history_cleared_at'] as String);
+          historyClearedAt =
+              DateTime.tryParse(p['history_cleared_at'] as String)?.toUtc();
         }
       } catch (_) {}
-    }
 
-    // 2. Ambil ID panggilan yang disembunyikan (hidden_calls)
-    final hiddenCallIds = <String>{};
-    if (userId != null) {
+      // 3. Ambil ID panggilan yang disembunyikan (hidden_calls) dengan timeout aman
+      final hiddenCallIds = <String>{};
       try {
         final rows = await _client
             .from('hidden_calls')
             .select('call_id')
-            .eq('profile_id', userId);
+            .eq('profile_id', userId)
+            .timeout(const Duration(seconds: 4));
         for (final r in rows as List) {
           final cid = r['call_id'] as String?;
           if (cid != null) hiddenCallIds.add(cid);
         }
       } catch (_) {}
+
+      // Perbarui tampilan cache lokal jika filter jaringan berhasil didapatkan
+      if (historyClearedAt != null || hiddenCallIds.isNotEmpty) {
+        await emitLocalCache(
+          historyCleared: historyClearedAt,
+          hiddenIds: hiddenCallIds,
+        );
+      }
+
+      if (controller.isClosed) return;
+
+      // 4. REST fetch cepat untuk inisialisasi awal (stale-while-revalidate)
+      try {
+        final rows = await _client
+            .from('calls')
+            .select()
+            .eq('room_id', roomId)
+            .order('created_at', ascending: true)
+            .limit(50)
+            .timeout(const Duration(seconds: 4));
+        final calls =
+            (rows as List).map((r) => CallModel.fromJson(r)).toList();
+        if (calls.isNotEmpty) {
+          unawaited(LocalMessageDatabase.instance.saveCalls(calls));
+          for (final c in calls) {
+            if (hiddenCallIds.contains(c.id)) continue;
+            if (historyClearedAt != null &&
+                !c.createdAt.toUtc().isAfter(historyClearedAt)) {
+              continue;
+            }
+            callPool[c.id] = c;
+          }
+          if (!controller.isClosed) {
+            final sorted = callPool.values.toList()
+              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            controller.add(sorted);
+          }
+        }
+      } catch (_) {}
+
+      if (controller.isClosed) return;
+
+      // 5. Berlangganan Supabase Realtime stream
+      try {
+        streamSubscription = _client
+            .from('calls')
+            .stream(primaryKey: ['id'])
+            .eq('room_id', roomId)
+            .order('created_at', ascending: true)
+            .listen(
+              (rows) {
+                final calls =
+                    rows.map((r) => CallModel.fromJson(r)).toList();
+                if (calls.isNotEmpty) {
+                  unawaited(LocalMessageDatabase.instance.saveCalls(calls));
+                }
+                for (final c in calls) {
+                  if (hiddenCallIds.contains(c.id)) {
+                    callPool.remove(c.id);
+                    continue;
+                  }
+                  if (historyClearedAt != null &&
+                      !c.createdAt.toUtc().isAfter(historyClearedAt)) {
+                    callPool.remove(c.id);
+                    continue;
+                  }
+                  callPool[c.id] = c;
+                }
+                if (!controller.isClosed) {
+                  final sorted = callPool.values.toList()
+                    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                  controller.add(sorted);
+                }
+              },
+              onError: (_) {},
+            );
+      } catch (_) {}
     }
 
-    // 3. Dengarkan stream realtime dari tabel calls dan filter
-    yield* _client
-        .from('calls')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('created_at', ascending: true)
-        .map((rows) {
-          final calls = rows.map((r) => CallModel.fromJson(r));
-          return calls.where((c) {
-            if (hiddenCallIds.contains(c.id)) return false;
-            if (historyClearedAt != null && !c.createdAt.isAfter(historyClearedAt)) {
-              return false;
-            }
-            return true;
-          }).toList();
-        });
+    controller.onListen = () {
+      initStream();
+    };
+
+    controller.onCancel = () {
+      streamSubscription?.cancel();
+      controller.close();
+    };
+
+    return controller.stream;
   }
 
-  /// Menyembunyikan panggilan tertentu secara permanen di database cloud
+  /// Menyembunyikan panggilan tertentu secara permanen di database cloud & lokal
   Future<void> hideCalls(Set<String> callIds) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null || callIds.isEmpty) return;
+
+    for (final cid in callIds) {
+      unawaited(LocalMessageDatabase.instance.deleteCall(cid));
+    }
 
     final records = callIds
         .map((cid) => {

@@ -80,24 +80,24 @@ class CallModel {
 
   factory CallModel.fromJson(Map<String, dynamic> json) {
     return CallModel(
-      id: json['id'] as String,
-      roomId: json['room_id'] as String? ?? '',
-      callerId: json['caller_id'] as String? ?? '',
-      receiverId: json['receiver_id'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      roomId: json['room_id']?.toString() ?? '',
+      callerId: json['caller_id']?.toString() ?? '',
+      receiverId: json['receiver_id']?.toString() ?? '',
       callType: json['call_type'] as String? ?? 'voice',
       status: json['status'] as String? ?? 'ended',
       startedAt: json['started_at'] != null
-          ? DateTime.tryParse(json['started_at'] as String)
+          ? DateTime.tryParse(json['started_at'].toString())
           : null,
       endedAt: json['ended_at'] != null
-          ? DateTime.tryParse(json['ended_at'] as String)
+          ? DateTime.tryParse(json['ended_at'].toString())
           : null,
       durationSeconds: (json['duration_seconds'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? (DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now())
           : DateTime.now(),
     );
   }

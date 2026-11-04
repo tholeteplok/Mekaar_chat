@@ -6,6 +6,7 @@ import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../models/chat_draft_model.dart';
 import '../../features/chat/utils/message_search_helper.dart';
 import '../models/message_model.dart';
+import '../models/call_model.dart';
 import 'database_key_service.dart';
 
 /// Database lokal SQLite terenkripsi (SQLCipher AES-256) untuk persistensi pesan yang sudah didekripsi.
@@ -20,12 +21,13 @@ class LocalMessageDatabase {
   static final Logger _logger = Logger();
   static const String _tableName = 'local_messages';
   static const String _roomsCacheTableName = 'local_rooms_cache';
+  static const String _callsTableName = 'local_calls';
   static const String _draftsTableName = 'chat_drafts';
   static const String _masterDbFileName = 'mekaar_local_messages.db';
   static const String _decoyDbFileName = 'mekaar_decoy.db';
   static const String _ftsTableName = 'local_messages_fts';
   static const String _searchMetaTableName = 'search_index_meta';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
   bool _ftsAvailable = true;
 
   /// Status apakah SQLite FTS5 aktif & tersedia di engine lokal
@@ -58,7 +60,10 @@ class LocalMessageDatabase {
       return _dbInitCompleter!.future;
     }
 
-    _dbInitCompleter = Completer<Database>();
+    final completer = Completer<Database>();
+    _dbInitCompleter = completer;
+    // Cegah unhandled asynchronous error bila init gagal dan belum ada listener kedua
+    completer.future.catchError((_) => Completer<Database>().future);
     try {
       final dbPath = await getDatabasesPath();
       final fileName = _isDecoy ? _decoyDbFileName : _masterDbFileName;
@@ -89,6 +94,7 @@ class LocalMessageDatabase {
           await _createRoomsCacheTable(db);
           await _createDraftsTable(db);
           await _setupFtsAndSearchMetaTable(db);
+          await _createCallsTable(db);
           if (_isDecoy) {
             await _seedDecoyWelcomeMessage(db);
           }
@@ -103,6 +109,24 @@ class LocalMessageDatabase {
           if (oldVersion < 4) {
             await _setupFtsAndSearchMetaTable(db);
             _triggerBackgroundFtsBackfill(db);
+          }
+          if (oldVersion < 5) {
+            await _createCallsTable(db);
+            try {
+              await db.execute(
+                'ALTER TABLE $_roomsCacheTableName ADD COLUMN scheduled_wipe_mode TEXT DEFAULT \'off\'',
+              );
+            } catch (_) {}
+            try {
+              await db.execute(
+                'ALTER TABLE $_roomsCacheTableName ADD COLUMN scheduled_wipe_time TEXT',
+              );
+            } catch (_) {}
+            try {
+              await db.execute(
+                'ALTER TABLE $_roomsCacheTableName ADD COLUMN scheduled_wipe_target_at TEXT',
+              );
+            } catch (_) {}
           }
         },
       );
@@ -345,6 +369,9 @@ class LocalMessageDatabase {
         unread_count INTEGER NOT NULL DEFAULT 0,
         is_group INTEGER NOT NULL DEFAULT 0,
         member_count INTEGER NOT NULL DEFAULT 0,
+        scheduled_wipe_mode TEXT DEFAULT 'off',
+        scheduled_wipe_time TEXT,
+        scheduled_wipe_target_at TEXT,
         raw_json TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -353,6 +380,29 @@ class LocalMessageDatabase {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_rooms_cache_updated
       ON $_roomsCacheTableName (updated_at DESC)
+    ''');
+  }
+
+  Future<void> _createCallsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_callsTableName (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        caller_id TEXT NOT NULL,
+        receiver_id TEXT NOT NULL,
+        call_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        started_at TEXT,
+        ended_at TEXT,
+        duration_seconds INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_local_calls_room_created
+      ON $_callsTableName (room_id, created_at DESC)
     ''');
   }
 
@@ -414,6 +464,12 @@ class LocalMessageDatabase {
           'is_group': (r['isGroup'] == true || r['is_group'] == true) ? 1 : 0,
           'member_count':
               r['memberCount'] as int? ?? r['member_count'] as int? ?? 0,
+          'scheduled_wipe_mode':
+              r['scheduled_wipe_mode'] as String? ?? 'off',
+          'scheduled_wipe_time':
+              r['scheduled_wipe_time'] as String?,
+          'scheduled_wipe_target_at':
+              r['scheduled_wipe_target_at'] as String?,
           'raw_json': rawJson,
           'updated_at': timestampStr,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
@@ -458,6 +514,103 @@ class LocalMessageDatabase {
     } catch (e) {
       _logger.w('Gagal memuat local rooms cache: $e');
       return [];
+    }
+  }
+
+  /// Update snapshot pesan terakhir dan unread count suatu room di local rooms cache
+  Future<void> updateRoomCacheLastMessage({
+    required String roomId,
+    required String previewText,
+    required DateTime timestamp,
+    int? unreadCount,
+  }) async {
+    try {
+      final db = await database;
+      final existing = await db.query(
+        _roomsCacheTableName,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+        limit: 1,
+      );
+      if (existing.isEmpty) return;
+
+      final row = existing.first;
+      final rawJsonStr = row['raw_json'] as String?;
+      Map<String, dynamic> decoded = {};
+      if (rawJsonStr != null && rawJsonStr.isNotEmpty) {
+        try {
+          decoded = jsonDecode(rawJsonStr) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+
+      decoded['lastMessage'] = previewText;
+      decoded['timestamp'] = timestamp.toIso8601String();
+      if (unreadCount != null) {
+        decoded['unreadCount'] = unreadCount;
+      }
+
+      final updates = <String, dynamic>{
+        'raw_json': jsonEncode(decoded),
+        'updated_at': timestamp.toIso8601String(),
+      };
+      if (unreadCount != null) {
+        updates['unread_count'] = unreadCount;
+      }
+
+      await db.update(
+        _roomsCacheTableName,
+        updates,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+      );
+    } catch (e) {
+      _logger.w('Gagal memperbarui room cache last message: $e');
+    }
+  }
+
+  /// Menyimpan konfigurasi pembersihan terjadwal ke cache lokal suatu room
+  Future<void> saveRoomScheduledWipe({
+    required String roomId,
+    required String mode,
+    String? timeString,
+    DateTime? targetAtUtc,
+  }) async {
+    try {
+      final db = await database;
+      await db.update(
+        _roomsCacheTableName,
+        {
+          'scheduled_wipe_mode': mode,
+          'scheduled_wipe_time': timeString,
+          'scheduled_wipe_target_at': targetAtUtc?.toUtc().toIso8601String(),
+        },
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+      );
+    } catch (e) {
+      _logger.w('Gagal menyimpan scheduled wipe cache: $e');
+    }
+  }
+
+  /// Membaca konfigurasi pembersihan terjadwal dari cache lokal suatu room
+  Future<Map<String, dynamic>?> getRoomScheduledWipe(String roomId) async {
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _roomsCacheTableName,
+        columns: [
+          'scheduled_wipe_mode',
+          'scheduled_wipe_time',
+          'scheduled_wipe_target_at',
+        ],
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      return rows.first;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -837,6 +990,45 @@ class LocalMessageDatabase {
     }
   }
 
+  /// Menghapus semua pesan di room lokal yang created_at <= targetTime
+  /// (paritas penuh dengan execute_room_scheduled_wipe di Postgres).
+  Future<int> executeRoomScheduledWipeLocal(
+    String roomId,
+    DateTime targetTime,
+  ) async {
+    try {
+      final db = await database;
+      final targetIsoUtc = targetTime.toUtc().toIso8601String();
+      final targetIsoLocal = targetTime.toLocal().toIso8601String();
+
+      return await db.transaction((txn) async {
+        if (_ftsAvailable) {
+          try {
+            await txn.rawDelete(
+              '''
+              DELETE FROM $_ftsTableName
+              WHERE msg_id IN (
+                SELECT id FROM $_tableName
+                WHERE room_id = ? AND (created_at <= ? OR created_at <= ?)
+              )
+            ''',
+              [roomId, targetIsoUtc, targetIsoLocal],
+            );
+          } catch (_) {}
+        }
+        final deleted = await txn.delete(
+          _tableName,
+          where: 'room_id = ? AND (created_at <= ? OR created_at <= ?)',
+          whereArgs: [roomId, targetIsoUtc, targetIsoLocal],
+        );
+        return deleted;
+      });
+    } catch (e) {
+      _logger.w('Gagal mengeksekusi scheduled wipe lokal untuk room $roomId: $e');
+      return 0;
+    }
+  }
+
   /// Perbarui auto_delete_at untuk seluruh pesan non-deleted di suatu room saat
   /// jadwal pembersihan (scheduled wipe) diaktifkan atau dinonaktifkan.
   Future<void> updateRoomMessagesAutoDelete(
@@ -911,6 +1103,25 @@ class LocalMessageDatabase {
           whereArgs: purgeArgs,
         );
       });
+
+      // Evaluasi dan bersihkan pesan pada kamar yang scheduled wipe-nya sudah jatuh tempo
+      try {
+        final dueRooms = await db.query(
+          _roomsCacheTableName,
+          columns: ['room_id', 'scheduled_wipe_target_at'],
+          where:
+              'scheduled_wipe_target_at IS NOT NULL AND scheduled_wipe_target_at <= ?',
+          whereArgs: [nowIsoUtc],
+        );
+        for (final r in dueRooms) {
+          final rId = r['room_id'] as String?;
+          final targetStr = r['scheduled_wipe_target_at'] as String?;
+          if (rId != null && targetStr != null) {
+            final targetTime = DateTime.tryParse(targetStr)?.toUtc() ?? nowUtc;
+            await executeRoomScheduledWipeLocal(rId, targetTime);
+          }
+        }
+      } catch (_) {}
     } catch (e) {
       _logger.w('Gagal membersihkan pesan kedaluwarsa di SQLite: $e');
     }
@@ -930,9 +1141,111 @@ class LocalMessageDatabase {
         try {
           await txn.delete(_searchMetaTableName);
         } catch (_) {}
+        try {
+          await txn.delete(_callsTableName);
+        } catch (_) {}
       });
     } catch (e) {
       _logger.w('Gagal mengosongkan LocalMessageDatabase: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // Local Calls DAO (Riwayat Panggilan Offline-First)
+  // ─────────────────────────────────────────
+
+  /// Menyimpan satu data panggilan ke database lokal
+  Future<void> saveCall(CallModel call) async {
+    try {
+      final db = await database;
+      await db.insert(
+        _callsTableName,
+        call.toJson(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      _logger.w('Gagal menyimpan call lokal (${call.id}): $e');
+    }
+  }
+
+  /// Menyimpan batch data panggilan ke database lokal
+  Future<void> saveCalls(List<CallModel> calls) async {
+    if (calls.isEmpty) return;
+    try {
+      final db = await database;
+      final batch = db.batch();
+      for (final c in calls) {
+        batch.insert(
+          _callsTableName,
+          c.toJson(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      _logger.w('Gagal menyimpan batch calls lokal: $e');
+    }
+  }
+
+  /// Mengambil riwayat panggilan untuk room tertentu dari database lokal
+  Future<List<CallModel>> getCallsForRoom(
+    String roomId, {
+    DateTime? historyClearedAt,
+    Set<String>? hiddenCallIds,
+  }) async {
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _callsTableName,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+        orderBy: 'created_at ASC',
+      );
+
+      final List<CallModel> result = [];
+      for (final r in rows) {
+        final call = CallModel.fromJson(r);
+        if (hiddenCallIds != null && hiddenCallIds.contains(call.id)) {
+          continue;
+        }
+        if (historyClearedAt != null &&
+            !call.createdAt.toUtc().isAfter(historyClearedAt.toUtc())) {
+          continue;
+        }
+        result.add(call);
+      }
+      return result;
+    } catch (e) {
+      _logger.w('Gagal mengambil calls untuk room $roomId: $e');
+      return [];
+    }
+  }
+
+  /// Menghapus satu panggilan dari database lokal
+  Future<void> deleteCall(String callId) async {
+    try {
+      final db = await database;
+      await db.delete(
+        _callsTableName,
+        where: 'id = ?',
+        whereArgs: [callId],
+      );
+    } catch (e) {
+      _logger.w('Gagal menghapus call lokal ($callId): $e');
+    }
+  }
+
+  /// Menghapus seluruh riwayat panggilan untuk room tertentu
+  Future<void> deleteRoomCalls(String roomId) async {
+    try {
+      final db = await database;
+      await db.delete(
+        _callsTableName,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+      );
+    } catch (e) {
+      _logger.w('Gagal menghapus room calls lokal ($roomId): $e');
     }
   }
 

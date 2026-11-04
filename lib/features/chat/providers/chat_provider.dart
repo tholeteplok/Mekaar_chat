@@ -7,6 +7,7 @@ import '../../../data/models/message_model.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
+import '../../../data/services/local_message_database.dart';
 import '../../../data/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'forwarding_protection_provider.dart';
@@ -126,12 +127,15 @@ class ChatRoomsNotifier
     required bool isCurrentlyInRoom,
   }) {
     final currentList = state.value;
-    if (currentList == null) return;
+    if (currentList == null) {
+      unawaited(refreshRooms(forceLoading: false));
+      return;
+    }
 
     final index = currentList.indexWhere((r) => r['id'] == roomId);
     if (index == -1) {
       // Room baru yang belum ada di daftar lokal: muat dari backend
-      refreshRooms();
+      unawaited(refreshRooms(forceLoading: false));
       return;
     }
 
@@ -151,6 +155,16 @@ class ChatRoomsNotifier
     newList.insert(0, updatedRoom);
 
     state = AsyncValue.data(newList);
+
+    // Sinkronkan ke SQLite local_rooms_cache agar tidak ada disparitas antara RAM dan disk
+    unawaited(
+      LocalMessageDatabase.instance.updateRoomCacheLastMessage(
+        roomId: roomId,
+        previewText: previewText,
+        timestamp: timestamp,
+        unreadCount: newUnread,
+      ),
+    );
   }
 }
 

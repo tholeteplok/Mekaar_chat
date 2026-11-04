@@ -59,8 +59,29 @@ class MessageNotificationListener {
     final isCurrentlyInRoom = activeRoomId == roomId;
     final isFromOtherUser = senderId != currentUserId;
 
-    // Pembaruan Optimistik Local-First:
-    // Dekripsi background, simpan ke database SQLite lokal, dan mutasi RAM seketika (0 ms).
+    // 0ms Instant Inbox Mutation:
+    // Langsung pindahkan room ke paling atas dan update unread count seketika (0 ms)
+    // tanpa menunggu round-trip HTTP dekripsi E2EE yang dapat memakan waktu beberapa detik.
+    final instantPreview = formatPreviewText(
+      msgType: msgType,
+      content: content,
+      isEncrypted: isEncrypted,
+      isFromOtherUser: isFromOtherUser,
+    );
+    final createdAt =
+        DateTime.tryParse(newRow['created_at'] as String? ?? '')?.toUtc() ??
+            DateTime.now().toUtc();
+
+    _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+      roomId: roomId,
+      previewText: instantPreview,
+      timestamp: createdAt,
+      isFromOtherUser: isFromOtherUser,
+      isCurrentlyInRoom: isCurrentlyInRoom,
+    );
+
+    // Pembaruan Background Local-First:
+    // Dekripsi background, simpan ke database SQLite lokal, dan kirim notifikasi sistem.
     unawaited(
       _processLocalFirstUpdate(
         newRow: newRow,
@@ -72,6 +93,7 @@ class MessageNotificationListener {
         isFromOtherUser: isFromOtherUser,
         isCurrentlyInRoom: isCurrentlyInRoom,
         currentUserId: currentUserId,
+        createdAt: createdAt,
       ),
     );
   }
@@ -86,6 +108,7 @@ class MessageNotificationListener {
     required bool isFromOtherUser,
     required bool isCurrentlyInRoom,
     required String currentUserId,
+    required DateTime createdAt,
   }) async {
     String decryptedContent = rawContent;
     Message? messageObj;
@@ -119,18 +142,16 @@ class MessageNotificationListener {
       isFromOtherUser: isFromOtherUser,
     );
 
-    final createdAt = messageObj?.createdAt ??
-        (DateTime.tryParse(newRow['created_at'] as String? ?? '') ??
-            DateTime.now());
-
-    // Update RAM seketika tanpa query HTTP monolitik
-    _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
-      roomId: roomId,
-      previewText: previewText,
-      timestamp: createdAt,
-      isFromOtherUser: isFromOtherUser,
-      isCurrentlyInRoom: isCurrentlyInRoom,
-    );
+    // Perbarui preview teks jika berbeda dari instant generic preview (misal jika non-encrypted)
+    if (!isStillEncrypted) {
+      _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+        roomId: roomId,
+        previewText: previewText,
+        timestamp: createdAt,
+        isFromOtherUser: isFromOtherUser,
+        isCurrentlyInRoom: isCurrentlyInRoom,
+      );
+    }
 
     // Filter notifikasi sistem (suara, banner, dsb)
     if (!shouldNotify(

@@ -65,6 +65,7 @@ class ChatScreenController extends ChangeNotifier {
   /// Memulai semua timer background dan listener stream pengaturan ruangan.
   void start() {
     if (_isDisposed) return;
+    unawaited(loadRoomSettings());
     _startPresenceHeartbeat();
     _startPurgeTimer();
     _startRoomSettingsStream();
