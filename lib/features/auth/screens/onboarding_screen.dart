@@ -112,13 +112,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 120),
                     child: SizedBox(
-                      height: 240,
+                      height: MekaarOnboardingTokens.stageHeight,
                       width: double.infinity,
                       child: Stack(
                         alignment: Alignment.bottomCenter,
                         clipBehavior: Clip.none,
                         children: [
-                          // ── Garis Pijakan Bersama (Minimalis 2px Flat Solid Biru Mekaar) ──
+                          // ── Garis Pijakan Bersama (Minimalis Meruncing Solid Biru Mekaar) ──
                           const Positioned(
                             bottom: 0,
                             child: MekaarStageGroundingLine(),
@@ -129,7 +129,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             // Mode Aksesibilitas: Tampilkan hanya karakter aktif di tengah tanpa translasi
                             if (_currentPage < 4)
                               Positioned(
-                                bottom: 0,
+                                bottom: _slides[_currentPage].bottomOffsetFactor *
+                                    MekaarOnboardingTokens.mascotSize,
                                 child: MekaarLottieParallaxItem(
                                   key: ValueKey('mascot_static_$_currentPage'),
                                   assetPath: _slides[_currentPage].lottieAsset,
@@ -151,7 +152,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 return const SizedBox.shrink();
                               }
 
-                              // Translasi horizontal sepanjang garis panggung (145px peeking offset)
+                              // Translasi horizontal sepanjang garis panggung (peeking offset)
                               final double translateX = delta *
                                   MekaarOnboardingTokens.stageWidth;
 
@@ -168,8 +169,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       (0.60 * math.min(distance, 1.2)))
                                   .clamp(0.0, 1.0);
 
+                              // Kompensasi padding transparan Lottie dikalikan skala
+                              // agar dasar visual kaki selalu menempel sempurna pada garis pijakan
+                              final double bottomOffset =
+                                  _slides[index].bottomOffsetFactor *
+                                      MekaarOnboardingTokens.mascotSize *
+                                      scale;
+
                               return Positioned(
-                                bottom: 0,
+                                bottom: bottomOffset,
                                 child: Transform.translate(
                                   offset: Offset(translateX, 0),
                                   child: Transform.scale(

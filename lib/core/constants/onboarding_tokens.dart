@@ -9,6 +9,7 @@ class MekaarOnboardingSlideData {
   final String lottieAsset;
   final MikaIllustrationType fallbackIllustration;
   final Color themeColor;
+  final double bottomOffsetFactor;
 
   const MekaarOnboardingSlideData({
     required this.title,
@@ -16,6 +17,7 @@ class MekaarOnboardingSlideData {
     required this.lottieAsset,
     required this.fallbackIllustration,
     required this.themeColor,
+    this.bottomOffsetFactor = 0.0,
   });
 }
 
@@ -25,10 +27,13 @@ class MekaarOnboardingTokens {
   MekaarOnboardingTokens._();
 
   // ── Dimensi Panggung Konveyor ──
-  static const double stageWidth = 145.0;
-  static const double groundlineWidth = 240.0;
+  static const double stageWidth = 190.0;
+  static const double groundlineWidth = 280.0;
+  static const double groundlineCenterThickness = 2.0;
+  static const double groundlineEndThickness = 0.5;
   static const double groundlineHeight = 2.0;
-  static const double mascotSize = 200.0;
+  static const double mascotSize = 300.0;
+  static const double stageHeight = 340.0;
 
   // ── Rasio Paralaks & Kedalaman ──
   static const double minMascotScale = 0.72;
@@ -58,6 +63,7 @@ class MekaarOnboardingTokens {
       lottieAsset: lottieWelcome,
       fallbackIllustration: MikaIllustrationType.onboardingWelcome,
       themeColor: AppColors.blue,
+      bottomOffsetFactor: -0.115,
     ),
     MekaarOnboardingSlideData(
       title: 'Guardian Tepercaya',
@@ -66,6 +72,7 @@ class MekaarOnboardingTokens {
       lottieAsset: lottieGuardian,
       fallbackIllustration: MikaIllustrationType.onboardingGuardian,
       themeColor: AppColors.warnAmber,
+      bottomOffsetFactor: -0.096,
     ),
     MekaarOnboardingSlideData(
       title: 'PIN & Brankas Rahasia',
@@ -74,6 +81,7 @@ class MekaarOnboardingTokens {
       lottieAsset: lottieSecurity,
       fallbackIllustration: MikaIllustrationType.onboardingSecurity,
       themeColor: Color(0xFF6366F1), // Indigo Vault
+      bottomOffsetFactor: -0.207,
     ),
     MekaarOnboardingSlideData(
       title: 'Privasi Penuh di Tanganmu',
@@ -82,6 +90,7 @@ class MekaarOnboardingTokens {
       lottieAsset: lottieSuccess,
       fallbackIllustration: MikaIllustrationType.onboardingSuccess,
       themeColor: AppColors.green,
+      bottomOffsetFactor: -0.103,
     ),
   ];
 }

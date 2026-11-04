@@ -95,7 +95,7 @@ void main() {
       expect(decoration.boxShadow, isNull);
     });
 
-    testWidgets('MekaarStageGroundingLine merender garis flat minimalis solid Biru Mekaar',
+    testWidgets('MekaarStageGroundingLine merender garis meruncing solid Biru Mekaar',
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -110,12 +110,16 @@ void main() {
       final lineFinder = find.byType(MekaarStageGroundingLine);
       expect(lineFinder, findsOneWidget);
 
-      final container = tester.widget<Container>(
-        find.descendant(of: lineFinder, matching: find.byType(Container)),
+      final lineWidget = tester.widget<MekaarStageGroundingLine>(lineFinder);
+      expect(lineWidget.color, AppColors.blue);
+      expect(lineWidget.centerThickness, 2.0);
+      expect(lineWidget.endThickness, 0.5);
+
+      final customPaintFinder = find.descendant(
+        of: lineFinder,
+        matching: find.byType(CustomPaint),
       );
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.blue);
-      expect(decoration.boxShadow, isNull);
+      expect(customPaintFinder, findsOneWidget);
     });
 
     testWidgets('MekaarLottieParallaxItem merender animasi Lottie dengan benar',
