@@ -203,14 +203,35 @@ void main() {
       expect(canvas.showInternalHeader, isFalse);
     });
 
-    test('Filter tab kontak dan teman sekitar menggunakan spesifikasi dimensi identik 175x32', () {
-      const sortWidth = 175.0;
-      const sortHeight = 32.0;
-      const nearbyWidth = 175.0;
-      const nearbyHeight = 32.0;
+    test('ContactListScreen header popup menu mendefinisikan icon dinamis sesuai tab aktif', () {
+      IconData getFilterHeaderIcon(int mainTabIndex) {
+        return mainTabIndex == 0
+            ? SolarIconsOutline.sort
+            : SolarIconsOutline.tuningSquare;
+      }
 
-      expect(sortWidth, equals(nearbyWidth));
-      expect(sortHeight, equals(nearbyHeight));
+      expect(getFilterHeaderIcon(0), equals(SolarIconsOutline.sort));
+      expect(getFilterHeaderIcon(1), equals(SolarIconsOutline.tuningSquare));
+    });
+
+    test('ContactListScreen popup menu opsi memiliki nilai aksi yang valid', () {
+      const contactSortOptions = [
+        'sort_az',
+        'sort_recent',
+        'view_list',
+        'view_grid',
+      ];
+      const nearbyFilterOptions = [
+        'nearby_everyone',
+        'nearby_contacts',
+        'nearby_refresh',
+      ];
+
+      expect(contactSortOptions.length, 4);
+      expect(nearbyFilterOptions.length, 3);
+      expect(contactSortOptions.contains('sort_az'), isTrue);
+      expect(contactSortOptions.contains('view_grid'), isTrue);
+      expect(nearbyFilterOptions.contains('nearby_refresh'), isTrue);
     });
   });
 

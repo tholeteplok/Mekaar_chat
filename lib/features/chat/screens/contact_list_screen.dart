@@ -51,7 +51,6 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   int _selectedMainTabIndex = 0;
   final List<String> _mainTabs = const ['Semua Kontak', 'Teman Sekitar'];
   int _selectedSortIndex = 0;
-  final List<String> _sortTabs = const ['A-Z', 'Baru Ditambahkan'];
 
   bool _isGridView = false;
   static const String _gridPrefKey = 'contact_list_is_grid_view';
@@ -93,15 +92,15 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     } catch (_) {}
   }
 
-  Future<void> _toggleViewMode() async {
+  Future<void> _setViewMode(bool isGrid) async {
+    if (_isGridView == isGrid) return;
     HapticService.trigger(MekaarHapticIntent.selection);
-    final next = !_isGridView;
     setState(() {
-      _isGridView = next;
+      _isGridView = isGrid;
     });
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_gridPrefKey, next);
+      await prefs.setBool(_gridPrefKey, isGrid);
     } catch (_) {}
   }
 
@@ -293,6 +292,136 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            PopupMenuButton<String>(
+                              icon: Icon(
+                                _selectedMainTabIndex == 0
+                                    ? SolarIconsOutline.sort
+                                    : SolarIconsOutline.tuningSquare,
+                                color: MekaarColors.primaryOf(context),
+                              ),
+                              tooltip: _selectedMainTabIndex == 0
+                                  ? 'Filter & Tampilan Kontak'
+                                  : 'Filter & Radar Sekitar',
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              color: MekaarColors.surfaceOf(context),
+                              onSelected: (value) async {
+                                HapticService.trigger(
+                                  MekaarHapticIntent.selection,
+                                );
+                                switch (value) {
+                                  case 'sort_az':
+                                    if (_selectedSortIndex != 0) {
+                                      setState(() => _selectedSortIndex = 0);
+                                    }
+                                    break;
+                                  case 'sort_recent':
+                                    if (_selectedSortIndex != 1) {
+                                      setState(() => _selectedSortIndex = 1);
+                                    }
+                                    break;
+                                  case 'view_list':
+                                    await _setViewMode(false);
+                                    break;
+                                  case 'view_grid':
+                                    await _setViewMode(true);
+                                    break;
+                                  case 'nearby_everyone':
+                                    ref
+                                        .read(nearbyFriendsProvider.notifier)
+                                        .setVisibilityMode('everyone');
+                                    break;
+                                  case 'nearby_contacts':
+                                    ref
+                                        .read(nearbyFriendsProvider.notifier)
+                                        .setVisibilityMode('contacts_only');
+                                    break;
+                                  case 'nearby_refresh':
+                                    ref
+                                        .read(nearbyFriendsProvider.notifier)
+                                        .refreshNearby(force: true);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (ctx) {
+                                if (_selectedMainTabIndex == 0) {
+                                  return [
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'sort_az',
+                                      icon: SolarIconsOutline.sortByAlphabet,
+                                      label: 'A - Z (Nama)',
+                                      isSelected: _selectedSortIndex == 0,
+                                    ),
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'sort_recent',
+                                      icon: SolarIconsOutline.sortByTime,
+                                      label: 'Baru Ditambahkan',
+                                      isSelected: _selectedSortIndex == 1,
+                                    ),
+                                    const PopupMenuDivider(height: 1),
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'view_list',
+                                      icon: SolarIconsOutline.list,
+                                      label: 'Tampilan Daftar (List)',
+                                      isSelected: !_isGridView,
+                                    ),
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'view_grid',
+                                      icon: SolarIconsOutline.menuDotsSquare,
+                                      label: 'Tampilan Kotak (Grid)',
+                                      isSelected: _isGridView,
+                                    ),
+                                  ];
+                                } else {
+                                  return [
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'nearby_everyone',
+                                      icon: SolarIconsOutline.usersGroupRounded,
+                                      label: 'Semua Orang di Sekitar',
+                                      isSelected:
+                                          nearbyState.visibilityMode ==
+                                          'everyone',
+                                    ),
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'nearby_contacts',
+                                      icon: SolarIconsOutline.userCheck,
+                                      label: 'Hanya Kontak Saya',
+                                      isSelected:
+                                          nearbyState.visibilityMode !=
+                                          'everyone',
+                                    ),
+                                    const PopupMenuDivider(height: 1),
+                                    _buildFilterMenuItem(
+                                      context: ctx,
+                                      value: 'nearby_refresh',
+                                      icon: SolarIconsOutline.restart,
+                                      label: 'Segarkan Radar Sekitar',
+                                      isSelected: false,
+                                      enabled: !nearbyState.isLoading,
+                                      trailing: nearbyState.isLoading
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color:
+                                                    MekaarColors.guardianTeal,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  ];
+                                }
+                              },
+                            ),
                             IconButton(
                               icon: Icon(
                                 SolarIconsOutline.qrCode,
@@ -326,90 +455,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     setState(() => _selectedMainTabIndex = index);
                   },
                 ),
-                // Baris Kontrol Luar Kartu (Identik & Simetris)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      if (_selectedMainTabIndex == 0) ...[
-                        MekaarSlidingSegmentBar(
-                          tabs: _sortTabs,
-                          selectedIndex: _selectedSortIndex,
-                          onTabSelected: (index) {
-                            HapticService.trigger(MekaarHapticIntent.selection);
-                            setState(() => _selectedSortIndex = index);
-                          },
-                          height: 32,
-                          width: 175,
-                          margin: EdgeInsets.zero,
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            _isGridView
-                                ? SolarIconsOutline.list
-                                : SolarIconsOutline.menuDotsSquare,
-                            color: MekaarColors.primaryOf(context),
-                            size: 20,
-                          ),
-                          tooltip: _isGridView
-                              ? 'Tampilan Daftar'
-                              : 'Tampilan Grid',
-                          onPressed: _toggleViewMode,
-                        ),
-                      ] else ...[
-                        MekaarSlidingSegmentBar(
-                          tabs: const ['Semua', 'Kontak'],
-                          selectedIndex:
-                              nearbyState.visibilityMode == 'everyone' ? 0 : 1,
-                          onTabSelected: (index) {
-                            HapticService.trigger(MekaarHapticIntent.selection);
-                            ref
-                                .read(nearbyFriendsProvider.notifier)
-                                .setVisibilityMode(
-                                  index == 0 ? 'everyone' : 'contacts_only',
-                                );
-                          },
-                          height: 32,
-                          width: 175,
-                          margin: EdgeInsets.zero,
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: nearbyState.isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: MekaarColors.guardianTeal,
-                                  ),
-                                )
-                              : Icon(
-                                  SolarIconsOutline.restart,
-                                  color: MekaarColors.primaryOf(context),
-                                  size: 20,
-                                ),
-                          tooltip: 'Sinkronisasi Teman Sekitar',
-                          onPressed: nearbyState.isLoading
-                              ? null
-                              : () {
-                                  HapticService.trigger(
-                                    MekaarHapticIntent.selection,
-                                  );
-                                  ref
-                                      .read(nearbyFriendsProvider.notifier)
-                                      .refreshNearby(force: true);
-                                },
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 10),
                 Expanded(
                   child: _selectedMainTabIndex == 0
                       ? (filteredContacts.isEmpty
@@ -515,6 +561,54 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           child: const Text('Hapus Kontak & Chat'),
         ),
       ],
+    );
+  }
+
+  PopupMenuItem<String> _buildFilterMenuItem({
+    required BuildContext context,
+    required String value,
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    Widget? trailing,
+    bool enabled = true,
+  }) {
+    final activeColor = MekaarColors.primaryOf(context);
+    final inactiveColor = MekaarColors.textSecondaryOf(context);
+    final textColor = isSelected
+        ? MekaarColors.textPrimaryOf(context)
+        : MekaarColors.textSecondaryOf(context);
+
+    return PopupMenuItem<String>(
+      value: value,
+      enabled: enabled,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? activeColor : inactiveColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: MekaarTypography.bodyMD.copyWith(
+                color: textColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ),
+          if (trailing != null)
+            trailing
+          else if (isSelected)
+            Icon(
+              SolarIconsOutline.checkCircle,
+              color: activeColor,
+              size: 18,
+            ),
+        ],
+      ),
     );
   }
 
