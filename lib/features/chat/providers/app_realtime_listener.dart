@@ -168,6 +168,12 @@ class AppRealtimeListener {
           callback: callListener.handleInsertCall,
         )
         .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'calls',
+          callback: callListener.handleUpdateCall,
+        )
+        .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'sos_sessions',

@@ -31,6 +31,42 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final roomId = data['roomId'] as String? ?? data['room_id'] as String?;
 
     if (type == 'call') {
+      final callId = data['callId'] as String? ?? data['call_id'] as String?;
+      final callStatus = data['status'] as String? ?? 'calling';
+      final isCallCancelled = callStatus == 'missed' ||
+          callStatus == 'ended' ||
+          callStatus == 'failed' ||
+          callStatus == 'declined';
+
+      if (isCallCancelled) {
+        await NotificationService.cancelIncomingCallNotification();
+        if (callStatus == 'missed' && callId != null && callId.isNotEmpty) {
+          final dedupKey = 'missed_$callId';
+          if (!await NotificationDedupService.isDuplicateAsync(dedupKey)) {
+            NotificationDedupService.markNotified(dedupKey);
+            String callerName = data['callerName'] as String? ?? 'Seseorang';
+            final callType = data['callType'] as String? ?? 'voice';
+            final callerId = data['callerId'] as String? ?? data['caller_id'] as String?;
+            await NotificationService.showMissedCallNotification(
+              callerName: callerName,
+              callType: callType,
+              roomId: roomId,
+              callId: callId,
+              callerId: callerId,
+            );
+          }
+        }
+        return;
+      }
+
+      // Deduplikasi panggilan masuk: cegah notifikasi ganda jika sudah diproses via Realtime / push lain
+      if (callId != null && callId.isNotEmpty) {
+        if (NotificationDedupService.isDuplicate('call_$callId')) {
+          return;
+        }
+        NotificationDedupService.markNotified('call_$callId');
+      }
+
       String callerName = data['callerName'] as String? ?? 'Seseorang';
       String? callerAvatarUrl = data['callerAvatarUrl'] as String?;
       final callType = data['callType'] as String? ?? 'voice';
@@ -187,6 +223,34 @@ class PushNotificationService {
         final roomId = data['roomId'] as String? ?? data['room_id'] as String?;
 
         if (type == 'call') {
+          final callStatus = data['status'] as String? ?? 'calling';
+          final isCallCancelled = callStatus == 'missed' ||
+              callStatus == 'ended' ||
+              callStatus == 'failed' ||
+              callStatus == 'declined';
+
+          if (isCallCancelled) {
+            await NotificationService.cancelIncomingCallNotification();
+            final callId = (data['callId'] ?? data['call_id'] ?? data['id']) as String?;
+            if (callStatus == 'missed' && callId != null && callId.isNotEmpty) {
+              final dedupKey = 'missed_$callId';
+              if (!await NotificationDedupService.isDuplicateAsync(dedupKey)) {
+                NotificationDedupService.markNotified(dedupKey);
+                String callerName = data['callerName'] as String? ?? 'Seseorang';
+                final callType = data['callType'] as String? ?? 'voice';
+                final callerId = data['callerId'] as String? ?? data['caller_id'] as String?;
+                await NotificationService.showMissedCallNotification(
+                  callerName: callerName,
+                  callType: callType,
+                  roomId: roomId,
+                  callId: callId,
+                  callerId: callerId,
+                );
+              }
+            }
+            return;
+          }
+
           // Dedup: cek apakah call sudah dinotifikasi dari jalur Realtime
           final dedupKey = _getDedupKey(type, data);
           if (dedupKey != null &&

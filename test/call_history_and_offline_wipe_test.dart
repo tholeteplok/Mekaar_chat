@@ -8,8 +8,11 @@ import 'package:mekaar_chat/core/widgets/bubbles/themed_bubble_container.dart';
 import 'package:mekaar_chat/data/models/call_model.dart';
 import 'package:mekaar_chat/data/repositories/call_repository.dart';
 import 'package:mekaar_chat/data/services/local_message_database.dart';
+import 'package:mekaar_chat/data/services/notification_dedup_service.dart';
+import 'package:mekaar_chat/features/chat/providers/call_invitation_listener.dart';
 import 'package:mekaar_chat/features/chat/providers/message_notification_listener.dart';
 import 'package:mekaar_chat/features/chat/widgets/call_history_bubble.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FakeCallSupabaseClient extends SupabaseClient {
@@ -285,6 +288,61 @@ void main() {
 
       expect(find.text('Panggilan suara'), findsOneWidget);
       expect(find.text('Panggilan dibatalkan'), findsOneWidget);
+    });
+  });
+
+  group('NotificationDedupService & Call Realtime Auto-Dismiss Tests', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      NotificationDedupService.reset();
+    });
+
+    test('NotificationDedupService marks and identifies duplicates synchronously and asynchronously', () async {
+      SharedPreferences.setMockInitialValues({});
+      await NotificationDedupService.initPersisted();
+
+      expect(NotificationDedupService.isDuplicate('call_123'), isFalse);
+      expect(await NotificationDedupService.isDuplicateAsync('call_123'), isFalse);
+
+      NotificationDedupService.markNotified('call_123');
+
+      expect(NotificationDedupService.isDuplicate('call_123'), isTrue);
+      expect(await NotificationDedupService.isDuplicateAsync('call_123'), isTrue);
+      expect(NotificationDedupService.isDuplicate('call_999'), isFalse);
+    });
+
+    test('NotificationDedupService persists keys across memory resets', () async {
+      SharedPreferences.setMockInitialValues({});
+      await NotificationDedupService.initPersisted();
+
+      await NotificationDedupService.markNotifiedAsync('missed_call_persisted_1');
+
+      // Simulasi reset memori (aplikasi dibuka kembali / cold start)
+      NotificationDedupService.reset();
+
+      // Memori kosong
+      expect(NotificationDedupService.isDuplicate('missed_call_persisted_1'), isFalse);
+
+      // Pengecekan asinkron membaca dari disk
+      expect(await NotificationDedupService.isDuplicateAsync('missed_call_persisted_1'), isTrue);
+    });
+
+    test('CallInvitationListener handleUpdateCall processes terminal status safely', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final refProvider = Provider((ref) => ref);
+      final ref = container.read(refProvider);
+      final listener = CallInvitationListener(ref);
+      await expectLater(
+        listener.processUpdatedCallRecord({
+          'id': 'call_test_term',
+          'room_id': 'room_term_1',
+          'caller_id': 'caller_user',
+          'receiver_id': 'different_user',
+          'status': 'missed',
+        }),
+        completes,
+      );
     });
   });
 }

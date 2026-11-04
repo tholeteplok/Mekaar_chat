@@ -411,6 +411,7 @@ class _NotificationListenerHostState
     ref.read(activeRoomIdProvider.notifier).state = null;
     ref.read(appRealtimeListenerProvider).start();
     ref.read(tripMonitorSchedulerProvider).start();
+    unawaited(NotificationDedupService.initPersisted());
     // Cek antrian panggilan offline saat cold start
     Future.microtask(() {
       ref.read(callInvitationListenerProvider).checkPendingCallsOnResume();

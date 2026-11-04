@@ -257,8 +257,9 @@ Deno.serve(async (req: Request) => {
 
     const payload: WebhookPayload = await req.json();
 
-    // Hanya proses INSERT
-    if (payload.type !== "INSERT" || !payload.record) {
+    // Hanya proses INSERT dan UPDATE (khusus tabel calls status terminal/batal)
+    const isCallUpdate = payload.type === "UPDATE" && payload.table === "calls" && payload.record;
+    if ((payload.type !== "INSERT" && !isCallUpdate) || !payload.record) {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -430,8 +431,14 @@ Deno.serve(async (req: Request) => {
     if (payload.table === "calls") {
       const call = payload.record as CallRecord;
 
-      // Izinkan status 'ringing' dan 'calling'
-      if (call.status !== "ringing" && call.status !== "calling") {
+      const isIncoming = call.status === "ringing" || call.status === "calling";
+      const isTerminalOrCancelled =
+        call.status === "missed" ||
+        call.status === "ended" ||
+        call.status === "declined" ||
+        call.status === "failed";
+
+      if (!isIncoming && !isTerminalOrCancelled) {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -476,9 +483,6 @@ Deno.serve(async (req: Request) => {
 
       const isVaultedForCallReceiver = !!vaultCallContact;
       const finalCallTitle = isVaultedForCallReceiver ? "MEKAAR" : callLabel;
-      const finalCallBody = isVaultedForCallReceiver
-        ? "Panggilan masuk"
-        : `${callerName} memanggil Anda`;
       const finalCallerName = isVaultedForCallReceiver ? "MEKAAR" : callerName;
 
       const messaging = getMessaging(getFirebaseApp());
@@ -488,15 +492,12 @@ Deno.serve(async (req: Request) => {
         callResults.push(
           messaging.send({
             token: dt.token,
-            // Hybrid payload: Sertakan notification block agar OS agresif (seperti Xiaomi/MIUI)
-            // tetap menampilkan banner notifikasi di tray/lockscreen sekalipun background handler
-            // dibatasi oleh sistem manajemen baterai OEM.
-            notification: {
-              title: finalCallTitle,
-              body: finalCallBody,
-            },
+            // Pure Data-Only VoIP Push:
+            // Tidak menyertakan blok notification agar sistem Android OS tidak otomatis
+            // membuat notifikasi native ganda di luar kendali NotificationService aplikasi.
             data: {
               type: "call",
+              status: call.status,
               roomId: call.room_id,
               callId: call.id,
               callerId: isVaultedForCallReceiver ? "" : call.caller_id,
@@ -508,20 +509,10 @@ Deno.serve(async (req: Request) => {
             },
             android: {
               priority: "high",
-              notification: {
-                channelId: "mekaar_call_channel",
-                sound: "default",
-                priority: "max",
-              },
             },
             apns: {
               payload: {
                 aps: {
-                  alert: {
-                    title: finalCallTitle,
-                    body: isVaultedForCallReceiver ? "Panggilan masuk" : callerName,
-                  },
-                  sound: "default",
                   "content-available": 1,
                 },
               },
@@ -542,7 +533,7 @@ Deno.serve(async (req: Request) => {
       const sentCount = (await Promise.all(callResults)).filter(Boolean).length;
 
       return new Response(
-        JSON.stringify({ ok: true, sent: sentCount, type: "call" }),
+        JSON.stringify({ ok: true, sent: sentCount, type: "call", status: call.status }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

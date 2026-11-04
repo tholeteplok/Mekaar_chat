@@ -31,6 +31,88 @@ class CallInvitationListener {
     processIncomingCallRecord(payload.newRecord);
   }
 
+  /// Dipanggil oleh `AppRealtimeListener` saat ada UPDATE di tabel calls.
+  void handleUpdateCall(PostgresChangePayload payload) {
+    if (_disposed) return;
+    processUpdatedCallRecord(payload.newRecord, oldRow: payload.oldRecord);
+  }
+
+  /// Memproses pembaruan status panggilan (missed, ended, declined, failed, busy)
+  /// untuk membatalkan ringtone, menghapus notifikasi panggilan masuk secara instan,
+  /// dan menggantikannya dengan 1 notifikasi Panggilan Tak Terjawab jika statusnya 'missed'.
+  Future<void> processUpdatedCallRecord(
+    Map<String, dynamic> newRow, {
+    Map<String, dynamic>? oldRow,
+  }) async {
+    if (_disposed) return;
+
+    final callId = newRow['id'] as String?;
+    final roomId = newRow['room_id'] as String?;
+    final callerId = newRow['caller_id'] as String?;
+    final receiverId = newRow['receiver_id'] as String?;
+    final callType = newRow['call_type'] as String? ?? 'voice';
+    final status = newRow['status'] as String?;
+
+    final currentUserId = _ref.read(supabaseServiceProvider).currentUserId;
+    if (currentUserId == null || callId == null) return;
+
+    // Hanya proses pembaruan di sisi penerima
+    if (receiverId != currentUserId) return;
+
+    _log.i(
+      '[CALL_UPDATE] Menerima pembaruan status call $callId -> $status (caller: $callerId)',
+    );
+
+    final isTerminal = status == 'missed' ||
+        status == 'ended' ||
+        status == 'declined' ||
+        status == 'failed' ||
+        status == 'busy';
+
+    if (isTerminal) {
+      // 1. Batalkan notifikasi panggilan masuk & hentikan dering seketika
+      await NotificationService.cancelIncomingCallNotification();
+
+      // 2. Jika status adalah 'missed' (dibatalkan oleh pemanggil atau timeout sebelum dijawab):
+      // Gantikan dengan notifikasi Panggilan Tak Terjawab (hanya 1 notifikasi deterministik)
+      if (status == 'missed') {
+        final dedupKey = 'missed_$callId';
+        if (!await NotificationDedupService.isDuplicateAsync(dedupKey)) {
+          NotificationDedupService.markNotified(dedupKey);
+
+          final chatRepo = _ref.read(chatRepositoryProvider);
+          String callerName = 'Seseorang';
+          if (callerId != null && callerId.isNotEmpty) {
+            try {
+              final profile = await chatRepo.searchProfileById(callerId);
+              if (profile != null) {
+                callerName = (profile['display_name'] as String?)?.isNotEmpty == true
+                    ? profile['display_name'] as String
+                    : (profile['full_name'] as String?) ??
+                        (profile['username'] as String?) ??
+                        'Seseorang';
+              }
+            } catch (_) {}
+          }
+
+          final isVaultLocked = VaultIsolationHelper.isRoomCloaked(
+            _ref,
+            roomId: roomId,
+            otherUserId: callerId,
+          );
+
+          await NotificationService.showMissedCallNotification(
+            callerName: isVaultLocked ? 'MEKAAR' : callerName,
+            callType: callType,
+            roomId: roomId,
+            callId: callId,
+            callerId: isVaultLocked ? null : callerId,
+          );
+        }
+      }
+    }
+  }
+
   /// Memproses data panggilan masuk baik dari realtime listener maupun recovery queue
   Future<void> processIncomingCallRecord(Map<String, dynamic> newRow) async {
     if (_disposed) return;
@@ -215,10 +297,16 @@ class CallInvitationListener {
           await processIncomingCallRecord(pendingCall);
           return;
         }
+      } else {
+        // Jika tidak ada panggilan yang masih aktif, bersihkan notifikasi panggilan masuk lama dari tray
+        await NotificationService.cancelIncomingCallNotification();
       }
 
-      // 2. Cek apakah ada panggilan tak terjawab yang terjadi saat offline
-      final missedCalls = await callRepo.getRecentMissedCalls(currentUserId);
+      // 2. Cek apakah ada panggilan tak terjawab yang terjadi saat offline (persempit ke window 5 menit)
+      final missedCalls = await callRepo.getRecentMissedCalls(
+        currentUserId,
+        window: const Duration(minutes: 5),
+      );
       for (final missed in missedCalls) {
         final callId = missed['id'] as String?;
         final callerId = missed['caller_id'] as String?;
@@ -226,8 +314,9 @@ class CallInvitationListener {
         final callType = missed['call_type'] as String? ?? 'voice';
         if (callId == null || callerId == null) continue;
 
-        if (!NotificationDedupService.isDuplicate('missed_$callId')) {
-          NotificationDedupService.markNotified('missed_$callId');
+        final dedupKey = 'missed_$callId';
+        if (!await NotificationDedupService.isDuplicateAsync(dedupKey)) {
+          NotificationDedupService.markNotified(dedupKey);
 
           final chatRepo = _ref.read(chatRepositoryProvider);
           String callerName = 'Seseorang';
