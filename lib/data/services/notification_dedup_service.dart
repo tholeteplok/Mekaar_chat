@@ -18,58 +18,92 @@ class NotificationDedupService {
   static const Duration _dedupeWindow = Duration(seconds: 120);
   static const int _maxEntries = 500;
   static const String _prefKey = 'mekaar_notified_dedup_keys';
-  static Set<String>? _persistedKeysCache;
+  static Map<String, DateTime>? _persistedCache;
 
-  /// Inisialisasi awal membaca cache persisten dari SharedPreferences
+  /// Inisialisasi awal membaca cache persisten dari SharedPreferences dengan TTL
   static Future<void> initPersisted([SharedPreferences? preferences]) async {
     try {
       final prefs = preferences ?? await SharedPreferences.getInstance();
       final list = prefs.getStringList(_prefKey) ?? [];
-      _persistedKeysCache = list.toSet();
+      final now = DateTime.now();
+      final map = <String, DateTime>{};
+
+      for (final item in list) {
+        final parts = item.split('|');
+        final key = parts[0];
+        final millis = parts.length > 1 ? int.tryParse(parts[1]) : null;
+        if (millis != null) {
+          final time = DateTime.fromMillisecondsSinceEpoch(millis);
+          if (now.difference(time) < _dedupeWindow) {
+            map[key] = time;
+          }
+        }
+      }
+      _persistedCache = map;
     } catch (_) {}
   }
 
-  /// Returns true jika ID ini sudah pernah dinotifikasi dalam dedup window atau cache persisten.
+  /// Returns true jika ID ini sudah pernah dinotifikasi dalam dedup window (RAM atau disk cache valid).
   static bool isDuplicate(String id) {
     _cleanup();
-    if (_persistedKeysCache != null && _persistedKeysCache!.contains(id)) {
+    final now = DateTime.now();
+
+    final persistedTime = _persistedCache?[id];
+    if (persistedTime != null && now.difference(persistedTime) < _dedupeWindow) {
       return true;
     }
+
     final lastNotified = _notifiedIds[id];
-    if (lastNotified == null) return false;
-    return DateTime.now().difference(lastNotified) < _dedupeWindow;
+    if (lastNotified != null && now.difference(lastNotified) < _dedupeWindow) {
+      return true;
+    }
+
+    return false;
   }
 
   /// Pengecekan asinkron dengan fallback ke disk jika cache memori belum diinisialisasi
   static Future<bool> isDuplicateAsync(String id, [SharedPreferences? preferences]) async {
     if (isDuplicate(id)) return true;
     try {
-      final prefs = preferences ?? await SharedPreferences.getInstance();
-      final list = prefs.getStringList(_prefKey) ?? [];
-      _persistedKeysCache = list.toSet();
-      return _persistedKeysCache!.contains(id);
+      await initPersisted(preferences);
+      return isDuplicate(id);
     } catch (_) {
       return false;
     }
   }
 
-  /// Tandai ID sebagai sudah dinotifikasi dan simpan ke disk.
+  /// Tandai ID sebagai sudah dinotifikasi dan simpan ke disk beserta timestamp (TTL).
   static Future<void> markNotifiedAsync(String id, [SharedPreferences? preferences]) async {
-    _notifiedIds[id] = DateTime.now();
+    final now = DateTime.now();
+    _notifiedIds[id] = now;
     _cleanup();
-    _persistedKeysCache ??= {};
-    _persistedKeysCache!.add(id);
+
+    _persistedCache ??= {};
+    _persistedCache![id] = now;
+
     try {
       final prefs = preferences ?? await SharedPreferences.getInstance();
       final list = prefs.getStringList(_prefKey) ?? [];
-      if (!list.contains(id)) {
-        list.add(id);
-        if (list.length > 200) {
-          list.removeRange(0, list.length - 200);
+      final updatedList = <String>[];
+
+      for (final item in list) {
+        final parts = item.split('|');
+        final key = parts[0];
+        if (key == id) continue; // Timpa dengan entri baru
+        final millis = parts.length > 1 ? int.tryParse(parts[1]) : null;
+        if (millis != null) {
+          final time = DateTime.fromMillisecondsSinceEpoch(millis);
+          if (now.difference(time) < _dedupeWindow) {
+            updatedList.add(item);
+          }
         }
-        await prefs.setStringList(_prefKey, list);
-        _persistedKeysCache = list.toSet();
       }
+
+      updatedList.add('$id|${now.millisecondsSinceEpoch}');
+      if (updatedList.length > 200) {
+        updatedList.removeRange(0, updatedList.length - 200);
+      }
+      await prefs.setStringList(_prefKey, updatedList);
     } catch (_) {}
   }
 
@@ -80,17 +114,26 @@ class NotificationDedupService {
 
   /// Bersihkan entries yang sudah expired atau melebihi batas.
   static void _cleanup() {
-    if (_notifiedIds.length <= _maxEntries) return;
     final now = DateTime.now();
     _notifiedIds.removeWhere(
       (_, time) => now.difference(time) > _dedupeWindow,
     );
+    _persistedCache?.removeWhere(
+      (_, time) => now.difference(time) > _dedupeWindow,
+    );
+    if (_notifiedIds.length > _maxEntries) {
+      final excess = _notifiedIds.length - _maxEntries;
+      final keysToRemove = _notifiedIds.keys.take(excess).toList();
+      for (final k in keysToRemove) {
+        _notifiedIds.remove(k);
+      }
+    }
   }
 
   /// Reset semua tracking (untuk testing atau logout).
   static void reset({bool clearDisk = false}) {
     _notifiedIds.clear();
-    _persistedKeysCache = null;
+    _persistedCache = null;
     if (clearDisk) {
       SharedPreferences.getInstance().then((prefs) => prefs.remove(_prefKey));
     }

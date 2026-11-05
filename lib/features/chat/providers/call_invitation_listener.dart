@@ -21,6 +21,7 @@ import '../screens/incoming_call_screen.dart';
 class CallInvitationListener {
   final Ref _ref;
   final Logger _log = Logger();
+  final Set<String> _shownCallScreenIds = <String>{};
   bool _disposed = false;
 
   CallInvitationListener(this._ref);
@@ -70,6 +71,7 @@ class CallInvitationListener {
         status == 'busy';
 
     if (isTerminal) {
+      _shownCallScreenIds.remove(callId);
       // 1. Batalkan notifikasi panggilan masuk & hentikan dering seketika
       await NotificationService.cancelIncomingCallNotification();
 
@@ -182,15 +184,6 @@ class CallInvitationListener {
       return;
     }
 
-    // Dedup: cek apakah sudah dinotifikasi dari jalur FCM atau Realtime sebelumnya
-    if (NotificationDedupService.isDuplicate('call_$callId')) {
-      _log.w(
-        '[CALL_INVITE] Diabaikan: Panggilan $callId sudah pernah diproses (dedup match).',
-      );
-      return;
-    }
-    NotificationDedupService.markNotified('call_$callId');
-
     final repo = _ref.read(chatRepositoryProvider);
     String callerName = 'Panggilan Masuk';
     String? callerAvatarUrl;
@@ -237,44 +230,52 @@ class CallInvitationListener {
       );
     }
 
-    final context = AppNavigator.currentContext;
-    if (context != null && context.mounted) {
-      _log.i('[CALL_INVITE] Membuka IncomingCallScreen untuk callId=$callId (isVaultLocked: $isVaultLocked)');
-      navigateToIncomingScreen(context);
-    } else {
-      _log.w(
-        '[CALL_INVITE] PERINGATAN: AppNavigator.currentContext bernilai null atau unmounted! '
-        'Mencoba via addPostFrameCallback...',
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final retryContext = AppNavigator.currentContext;
-        if (retryContext != null && retryContext.mounted) {
-          _log.i(
-            '[CALL_INVITE] Membuka IncomingCallScreen (via post-frame retry) untuk callId=$callId (isVaultLocked: $isVaultLocked)',
-          );
-          navigateToIncomingScreen(retryContext);
-        } else {
-          _log.e(
-            '[CALL_INVITE] GAGAL TOTAL: Tidak ada context aktif untuk membuka IncomingCallScreen',
-          );
-        }
-      });
+    if (!_shownCallScreenIds.contains(callId)) {
+      _shownCallScreenIds.add(callId);
+      final context = AppNavigator.currentContext;
+      if (context != null && context.mounted) {
+        _log.i('[CALL_INVITE] Membuka IncomingCallScreen untuk callId=$callId (isVaultLocked: $isVaultLocked)');
+        navigateToIncomingScreen(context);
+      } else {
+        _log.w(
+          '[CALL_INVITE] PERINGATAN: AppNavigator.currentContext bernilai null atau unmounted! '
+          'Mencoba via addPostFrameCallback...',
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final retryContext = AppNavigator.currentContext;
+          if (retryContext != null && retryContext.mounted) {
+            _log.i(
+              '[CALL_INVITE] Membuka IncomingCallScreen (via post-frame retry) untuk callId=$callId (isVaultLocked: $isVaultLocked)',
+            );
+            navigateToIncomingScreen(retryContext);
+          } else {
+            _log.e(
+              '[CALL_INVITE] GAGAL TOTAL: Tidak ada context aktif untuk membuka IncomingCallScreen',
+            );
+          }
+        });
+      }
     }
 
     // 2. Bunyikan ringtone & tampilkan notifikasi secara terpisah (disamarkan jika vault terkunci)
-    final notificationCallerName = isVaultLocked ? 'MEKAAR' : callerName;
-    final notificationAvatarUrl = isVaultLocked ? null : callerAvatarUrl;
+    // Terapkan deduplikasi khusus notifikasi tray agar tidak berdering ganda
+    final notifyDedupKey = 'notify_call_$callId';
+    if (!NotificationDedupService.isDuplicate(notifyDedupKey)) {
+      NotificationDedupService.markNotified(notifyDedupKey);
+      final notificationCallerName = isVaultLocked ? 'MEKAAR' : callerName;
+      final notificationAvatarUrl = isVaultLocked ? null : callerAvatarUrl;
 
-    NotificationService.showIncomingCallNotification(
-      callerName: notificationCallerName,
-      callType: callType,
-      roomId: roomId,
-      callId: callId,
-      callerId: callerId,
-      callerAvatarUrl: notificationAvatarUrl,
-    ).catchError((e) {
-      _log.e('[CALL_INVITE] Gagal menyalakan notifikasi/ringtone panggilan masuk: $e');
-    });
+      NotificationService.showIncomingCallNotification(
+        callerName: notificationCallerName,
+        callType: callType,
+        roomId: roomId,
+        callId: callId,
+        callerId: callerId,
+        callerAvatarUrl: notificationAvatarUrl,
+      ).catchError((e) {
+        _log.e('[CALL_INVITE] Gagal menyalakan notifikasi/ringtone panggilan masuk: $e');
+      });
+    }
   }
 
   /// Memeriksa panggilan masuk yang tertunda atau panggilan tak terjawab saat aplikasi
@@ -353,6 +354,7 @@ class CallInvitationListener {
 
   void dispose() {
     _disposed = true;
+    _shownCallScreenIds.clear();
   }
 }
 

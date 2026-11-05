@@ -1021,6 +1021,13 @@ class LocalMessageDatabase {
           where: 'room_id = ? AND (created_at <= ? OR created_at <= ?)',
           whereArgs: [roomId, targetIsoUtc, targetIsoLocal],
         );
+        try {
+          await txn.delete(
+            _callsTableName,
+            where: 'room_id = ? AND (created_at <= ? OR created_at <= ?)',
+            whereArgs: [roomId, targetIsoUtc, targetIsoLocal],
+          );
+        } catch (_) {}
         return deleted;
       });
     } catch (e) {

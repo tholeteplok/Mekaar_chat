@@ -381,6 +381,10 @@ Deno.serve(async (req: Request) => {
           results.push(
             messaging.send({
               token: dt.token,
+              notification: {
+                title: finalTitle,
+                body: finalBody,
+              },
               data: {
                 type: "message",
                 roomId: msg.room_id,
@@ -392,6 +396,11 @@ Deno.serve(async (req: Request) => {
               },
               android: {
                 priority: "high",
+                notification: {
+                  channelId: "mekaar_chat_channel",
+                  priority: "high",
+                  tag: `msg_${msg.room_id}`,
+                },
               },
               apns: {
                 payload: {
@@ -482,8 +491,14 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       const isVaultedForCallReceiver = !!vaultCallContact;
-      const finalCallTitle = isVaultedForCallReceiver ? "MEKAAR" : callLabel;
+      const isMissed = call.status === "missed";
+      const finalCallTitle = isVaultedForCallReceiver
+        ? "MEKAAR"
+        : (isMissed ? "Panggilan Tak Terjawab" : callLabel);
       const finalCallerName = isVaultedForCallReceiver ? "MEKAAR" : callerName;
+      const finalCallBody = isVaultedForCallReceiver
+        ? (isMissed ? "Panggilan tak terjawab" : "Panggilan masuk")
+        : (isMissed ? `${callerName} mencoba menghubungi Anda` : `${callerName} memanggil Anda`);
 
       const messaging = getMessaging(getFirebaseApp());
       const callResults = [];
@@ -492,9 +507,14 @@ Deno.serve(async (req: Request) => {
         callResults.push(
           messaging.send({
             token: dt.token,
-            // Pure Data-Only VoIP Push:
-            // Tidak menyertakan blok notification agar sistem Android OS tidak otomatis
-            // membuat notifikasi native ganda di luar kendali NotificationService aplikasi.
+            // Hybrid Notification + Data Payload:
+            // Menyertakan blok notification dengan tag unik per-panggilan agar Android OS
+            // (termasuk Xiaomi/Poco/Samsung) menampilkan notifikasi native di tray/lockscreen
+            // bahkan saat proses background tertidur, tanpa menumpuk kartu notifikasi ganda.
+            notification: {
+              title: finalCallTitle,
+              body: finalCallBody,
+            },
             data: {
               type: "call",
               status: call.status,
@@ -502,17 +522,28 @@ Deno.serve(async (req: Request) => {
               callId: call.id,
               callerId: isVaultedForCallReceiver ? "" : call.caller_id,
               title: finalCallTitle,
-              body: isVaultedForCallReceiver ? "Panggilan masuk" : callerName,
+              body: finalCallBody,
               callerName: finalCallerName,
               callType: call.call_type,
               isVaultMasked: isVaultedForCallReceiver ? "true" : "false",
             },
             android: {
               priority: "high",
+              notification: {
+                channelId: "mekaar_call_channel",
+                sound: "default",
+                priority: "max",
+                tag: `call_${call.id}`,
+              },
             },
             apns: {
               payload: {
                 aps: {
+                  alert: {
+                    title: finalCallTitle,
+                    body: finalCallBody,
+                  },
+                  sound: "default",
                   "content-available": 1,
                 },
               },

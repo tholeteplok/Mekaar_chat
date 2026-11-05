@@ -327,6 +327,18 @@ void main() {
       expect(await NotificationDedupService.isDuplicateAsync('missed_call_persisted_1'), isTrue);
     });
 
+    test('NotificationDedupService expires entries older than TTL window', () async {
+      final oldTime = DateTime.now().subtract(const Duration(seconds: 150)).millisecondsSinceEpoch;
+      SharedPreferences.setMockInitialValues({
+        'mekaar_notified_dedup_keys': ['expired_key|$oldTime'],
+      });
+      await NotificationDedupService.initPersisted();
+
+      // Kunci yang sudah lewat TTL (150 detik lalu) tidak boleh dianggap duplikat
+      expect(NotificationDedupService.isDuplicate('expired_key'), isFalse);
+      expect(await NotificationDedupService.isDuplicateAsync('expired_key'), isFalse);
+    });
+
     test('CallInvitationListener handleUpdateCall processes terminal status safely', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

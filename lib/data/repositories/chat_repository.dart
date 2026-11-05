@@ -1755,6 +1755,7 @@ class ChatRepository {
 
     // Await pembersihan SQLite lokal agar tuntas sebelum stream provider direfresh
     await LocalMessageDatabase.instance.deleteRoomMessages(roomId);
+    await LocalMessageDatabase.instance.deleteRoomCalls(roomId);
     unawaited(
       LocalMessageDatabase.instance.saveRoomScheduledWipe(
         roomId: roomId,
@@ -1810,8 +1811,9 @@ class ChatRepository {
       }
     }
 
-    // 2. Bersihkan baris pesan dari database lokal SQLCipher
+    // 2. Bersihkan baris pesan dan riwayat panggilan dari database lokal SQLCipher
     unawaited(LocalMessageDatabase.instance.deleteRoomMessages(roomId));
+    unawaited(LocalMessageDatabase.instance.deleteRoomCalls(roomId));
 
     // 3. Bersihkan file media/audio sementara di cache OS
     unawaited(_cleanupTemporaryCache());

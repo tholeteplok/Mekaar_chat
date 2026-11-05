@@ -61,10 +61,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
       // Deduplikasi panggilan masuk: cegah notifikasi ganda jika sudah diproses via Realtime / push lain
       if (callId != null && callId.isNotEmpty) {
-        if (NotificationDedupService.isDuplicate('call_$callId')) {
+        if (NotificationDedupService.isDuplicate('notify_call_$callId')) {
           return;
         }
-        NotificationDedupService.markNotified('call_$callId');
+        NotificationDedupService.markNotified('notify_call_$callId');
       }
 
       String callerName = data['callerName'] as String? ?? 'Seseorang';
