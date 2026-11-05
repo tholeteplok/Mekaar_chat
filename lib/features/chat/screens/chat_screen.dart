@@ -371,6 +371,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     } catch (_) {}
   }
 
+  double _lastBottomInset = 0.0;
+
   void _onScrollChanged() {
     final atBottom =
         _scrollController.hasClients &&
@@ -378,10 +380,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             _scrollController.position.minScrollExtent + 200;
     if (_showScrollButton.value != atBottom) {
       _showScrollButton.value = atBottom;
-      if (!atBottom && _newMessageCount.value > 0) {
-        _newMessageCount.value = 0;
+    }
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels < 120 &&
+        _newMessageCount.value > 0) {
+      _newMessageCount.value = 0;
+    }
+  }
+
+  void _onComposerFocusChanged() {
+    if (_composerFocusNode.hasFocus) {
+      final isNearBottom = !_scrollController.hasClients ||
+          _scrollController.position.pixels < 150;
+      if (isNearBottom) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _scrollToBottom();
+          }
+        });
       }
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final bottomInset = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
+      final keyboardOpened = bottomInset > 0 && _lastBottomInset == 0;
+      _lastBottomInset = bottomInset;
+
+      if (keyboardOpened) {
+        final isNearBottom = !_scrollController.hasClients ||
+            _scrollController.position.pixels < 150;
+        if (isNearBottom) {
+          _scrollToBottom();
+        }
+      }
+    });
   }
 
   @override
@@ -390,6 +427,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _entryLastReadAt = widget.initialLastReadAt;
     _inChatSearchFocusNode = FocusNode();
     _composerFocusNode = FocusNode();
+    _composerFocusNode.addListener(_onComposerFocusChanged);
     _controller = ChatScreenController(
       chatId: widget.chatId,
       effectiveOtherUserId: widget.otherUserId,
@@ -617,6 +655,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _container.read(chatRoomsProvider.notifier).refreshRooms();
     _searchDebounceTimer?.cancel();
     _inChatSearchFocusNode.dispose();
+    _composerFocusNode.removeListener(_onComposerFocusChanged);
     _composerFocusNode.dispose();
     _otherLastSeenNotifier.dispose();
     _textController.dispose();
@@ -888,13 +927,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         durationMinutes: durationMinutes,
       );
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = true}) {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0.0,
-        duration: MekaarMotion.counter,
-        curve: Curves.easeOut,
-      );
+      if (animate) {
+        _scrollController.animateTo(
+          0.0,
+          duration: MekaarMotion.counter,
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(0.0);
+      }
     }
   }
 
@@ -1352,8 +1395,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     m.createdAt.isAfter(_entryLastReadAt!),
               )
               .toList();
+          _hasJumpedToUnread = true;
           if (unreadMessages.isNotEmpty) {
-            _hasJumpedToUnread = true;
             unreadMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
             final oldestUnread = unreadMessages.first;
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1366,6 +1409,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 );
               }
             });
+          }
+        } else if (hasNewMessages && prevList != null) {
+          // Auto-scroll cerdas saat pesan baru tiba di sesi obrolan aktif
+          final countNew = nextList.length - prevList.length;
+          if (countNew > 0) {
+            final isNearBottom = !_scrollController.hasClients ||
+                _scrollController.position.pixels < 120 ||
+                _composerFocusNode.hasFocus;
+            if (isNearBottom) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _scrollToBottom();
+                  _newMessageCount.value = 0;
+                }
+              });
+            } else {
+              _newMessageCount.value += countNew;
+            }
           }
         }
       }
