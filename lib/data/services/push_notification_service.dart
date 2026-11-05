@@ -118,6 +118,23 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     } else if (type == 'device_command') {
       await DeviceCommandHandler.handle(data);
     } else {
+      // 1. Jika pesan FCM sudah menyertakan blok notification (Hybrid payload),
+      // sistem operasi Android OS (Google Play Services) sudah menampilkannya secara native
+      // di status bar. Lewati showMessageNotification agar kartu notifikasi tidak ganda.
+      if (message.notification != null) {
+        return;
+      }
+
+      // 2. Dedup ID pesan: cegah notifikasi ganda jika event ini sudah diproses jalur Realtime
+      final messageId = data['id'] as String? ?? data['messageId'] as String?;
+      if (messageId != null && messageId.isNotEmpty) {
+        final dedupKey = 'notify_msg_$messageId';
+        if (NotificationDedupService.isDuplicate(dedupKey)) {
+          return;
+        }
+        NotificationDedupService.markNotified(dedupKey);
+      }
+
       String finalTitle = title;
       String finalBody = body;
       final senderId = data['senderId'] as String? ?? data['sender_id'] as String?;

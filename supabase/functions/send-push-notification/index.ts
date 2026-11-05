@@ -397,7 +397,7 @@ Deno.serve(async (req: Request) => {
               android: {
                 priority: "high",
                 notification: {
-                  channelId: "mekaar_chat_channel",
+                  channelId: "mekaar_message_channel_v2",
                   priority: "high",
                   tag: `msg_${msg.room_id}`,
                 },

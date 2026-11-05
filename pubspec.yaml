@@ -186,6 +186,9 @@ flutter:
           weight: 700
         - asset: assets/fonts/Baloo2-ExtraBold.ttf
           weight: 800
+    - family: Mekaar
+      fonts:
+        - asset: assets/fonts/Mekaar-Regular.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

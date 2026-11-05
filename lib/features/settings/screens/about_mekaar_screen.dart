@@ -689,9 +689,9 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                         // Nama Brand
                         Text(
                           'Mekaar',
-                          style: MekaarTypography.headingLG.copyWith(
+                          style: MekaarTypography.brandDisplay(
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            fontSize: 26,
                             letterSpacing: -0.5,
                           ),
                         ),

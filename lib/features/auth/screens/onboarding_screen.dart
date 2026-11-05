@@ -238,8 +238,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               Text(
                                 slide.title,
                                 textAlign: TextAlign.center,
-                                style: MekaarTypography.headingLG
-                                    .copyWith(color: textPrimary),
+                                style: MekaarTypography.brandDisplay(
+                                  fontSize: 26,
+                                  color: textPrimary,
+                                ),
                               ),
                               const SizedBox(height: MekaarSpacing.md),
                               Text(

@@ -11,6 +11,48 @@ class MekaarTypography {
   /// Font family aktif yang disinkronkan dengan preferensi pengguna.
   static String fontFamily = 'Plus Jakarta Sans';
 
+  /// Font family eksklusif untuk Brand MEKAAR (Display / Hero / Wordmark)
+  static const String brandFontFamily = 'Mekaar';
+  static const List<String> brandFontFallbacks = ['PlusJakartaSans', 'sans-serif'];
+
+  /// Helper terpusat untuk teks Brand Display / Hero
+  static TextStyle brandDisplay({
+    double fontSize = 28,
+    FontWeight fontWeight = FontWeight.w600,
+    Color? color,
+    double? letterSpacing,
+    double? height,
+  }) {
+    return TextStyle(
+      fontFamily: brandFontFamily,
+      fontFamilyFallback: brandFontFallbacks,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      letterSpacing: letterSpacing,
+      height: height,
+      color: color,
+    );
+  }
+
+  /// Helper terpusat untuk teks Brand Heading
+  static TextStyle brandHeading({
+    double fontSize = 22,
+    FontWeight fontWeight = FontWeight.w600,
+    Color? color,
+    double? letterSpacing,
+    double? height,
+  }) {
+    return TextStyle(
+      fontFamily: brandFontFamily,
+      fontFamilyFallback: brandFontFallbacks,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      letterSpacing: letterSpacing,
+      height: height,
+      color: color,
+    );
+  }
+
   static TextStyle _font({
     required double fontSize,
     FontWeight fontWeight = FontWeight.w400,
@@ -43,10 +85,12 @@ class MekaarTypography {
     height: 1.2,
   );
 
-  static TextStyle get wordmark => GoogleFonts.plusJakartaSans(
+  static TextStyle get wordmark => const TextStyle(
+    fontFamily: brandFontFamily,
+    fontFamilyFallback: brandFontFallbacks,
     fontSize: 38,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.76,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.5,
     color: AppColors.blue,
   );
 
