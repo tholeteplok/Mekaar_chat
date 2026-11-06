@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/storage/mekaar_secure_storage.dart';
+import '../services/push_notification_service.dart';
 
 final privateContactRepositoryProvider =
     Provider<PrivateContactRepository>((ref) {
@@ -71,6 +73,7 @@ class PrivateContactRepository {
       _cachedHash = hash;
       _cachedHiddenContactUserIds = await getHiddenContactUserIds();
       _cachedHiddenRoomIds = await getHiddenRoomIds();
+      unawaited(syncToNativeVault());
     } catch (_) {}
   }
 
@@ -421,6 +424,7 @@ class PrivateContactRepository {
     try {
       final jsonStr = jsonEncode(currentSet.toList());
       await _secureStorage.write(key: _hiddenRoomsKey, value: jsonStr);
+      unawaited(syncToNativeVault());
     } catch (_) {}
 
     return !isHidden;
@@ -473,6 +477,7 @@ class PrivateContactRepository {
     try {
       final jsonStr = jsonEncode(currentSet.toList());
       await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+      unawaited(syncToNativeVault());
     } catch (_) {}
 
     return !isHidden;
@@ -487,6 +492,7 @@ class PrivateContactRepository {
       try {
         final jsonStr = jsonEncode(currentSet.toList());
         await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+        unawaited(syncToNativeVault());
       } catch (_) {}
     }
   }
@@ -499,6 +505,7 @@ class PrivateContactRepository {
       try {
         final jsonStr = jsonEncode(currentSet.toList());
         await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+        unawaited(syncToNativeVault());
       } catch (_) {}
     }
   }
@@ -535,7 +542,21 @@ class PrivateContactRepository {
         _cachedHiddenContactUserIds = Set<String>.from(hiddenContacts);
         final jsonStr = jsonEncode(hiddenContacts.toList());
         await _secureStorage.write(key: _hiddenContactsKey, value: jsonStr);
+        unawaited(syncToNativeVault());
       }
+    } catch (_) {}
+  }
+
+  /// Sinkronisasi daftar vault ke layer native Android untuk penyamaran push 0ms.
+  Future<void> syncToNativeVault({bool isVaultUnlocked = false}) async {
+    try {
+      final rooms = (_cachedHiddenRoomIds ?? await getHiddenRoomIds()).toList();
+      final contacts = (_cachedHiddenContactUserIds ?? await getHiddenContactUserIds()).toList();
+      await PushNotificationService.syncVaultState(
+        hiddenRoomIds: rooms,
+        hiddenContactUserIds: contacts,
+        isVaultUnlocked: isVaultUnlocked,
+      );
     } catch (_) {}
   }
 }

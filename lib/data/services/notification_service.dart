@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -357,6 +358,12 @@ class NotificationService {
   static Future<void> cancelMessageNotification(String roomId) async {
     final notificationId = getMessageNotificationId(roomId);
     await _localNotificationsPlugin.cancel(notificationId);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        const MethodChannel('com.mekaar.mekaar_chat/call_intent')
+            .invokeMethod('cancelMessageNotification', {'roomId': roomId});
+      } catch (_) {}
+    }
   }
 
   static Future<void> showMessageNotification({

@@ -371,36 +371,46 @@ Deno.serve(async (req: Request) => {
         );
         if (deviceTokens.length === 0) continue;
 
-        // MEKAAR Balanced Privacy: Mencegah kebocoran metadata pengirim dan cuplikan pesan ke pihak ketiga (Google FCM / Apple APNs).
-        // Seluruh notifikasi pesan disamarkan menjadi generik ("MEKAAR: Pesan baru masuk").
-        // Perangkat klien yang akan memuat dan merender isi pesan secara lokal setelah diotentikasi.
-        const finalTitle = "MEKAAR";
-        const finalBody = "Pesan baru masuk";
+        // MEKAAR Zero-Trust & Rich Notification:
+        // Pesan dikirim sebagai DATA-ONLY push ke FCM (tanpa blok display 'notification').
+        // Ini mencegah Google Play Services menampilkan notifikasi statis "MEKAAR: Pesan baru masuk" secara sepihak.
+        // Handler native client (Kotlin + Rust Core) yang memutuskan secara instan (<10ms):
+        // - Jika ruang obrolan adalah Private Vault: disamarkan menjadi "MEKAAR: Pesan baru masuk"
+        // - Jika ruang obrolan normal: ditampilkan nama pengirim dan cuplikan pesan asli (Rich UX).
+        const bodySnippet =
+          msg.msg_type === "image"
+            ? "📷 Gambar"
+            : msg.msg_type === "video"
+            ? "🎥 Video"
+            : msg.msg_type === "audio"
+            ? "🎵 Pesan Suara"
+            : msg.msg_type === "file" || msg.msg_type === "document"
+            ? "📄 Dokumen"
+            : msg.msg_type === "location"
+            ? "📍 Lokasi"
+            : msg.is_encrypted
+            ? "Pesan baru masuk"
+            : (msg.content?.slice(0, 100) || "Pesan baru masuk");
 
         for (const dt of deviceTokens) {
           results.push(
             messaging.send({
               token: dt.token,
-              notification: {
-                title: finalTitle,
-                body: finalBody,
-              },
+              // DATA-ONLY untuk Android: hilangkan blok 'notification' agar seluruh kontrol tampilan
+              // dipegang oleh MekaarFirebaseMessagingReceiver secara native & headless.
               data: {
                 type: "message",
                 roomId: msg.room_id,
-                title: finalTitle,
-                body: finalBody,
-                senderName: "MEKAAR",
                 messageId: msg.id,
-                isVaultMasked: "true",
+                senderId: msg.sender_id,
+                senderName: senderName,
+                title: senderName,
+                body: bodySnippet,
+                msgType: msg.msg_type || "text",
+                isEncrypted: msg.is_encrypted ? "true" : "false",
               },
               android: {
                 priority: "high",
-                notification: {
-                  channelId: "mekaar_message_channel_v2",
-                  priority: "high",
-                  tag: `msg_${msg.room_id}`,
-                },
               },
               apns: {
                 payload: {
@@ -409,8 +419,8 @@ Deno.serve(async (req: Request) => {
                     sound: "default",
                     "content-available": 1,
                     alert: {
-                      title: finalTitle,
-                      body: finalBody,
+                      title: senderName,
+                      body: bodySnippet,
                     },
                   },
                 },

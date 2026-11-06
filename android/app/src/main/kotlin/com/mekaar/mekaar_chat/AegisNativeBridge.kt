@@ -10,7 +10,16 @@ import java.security.SecureRandom
 object AegisNativeBridge {
     private const val TAG = "AegisNativeBridge"
     private const val PREFS_NAME = "mekaar_aegis_security"
+    private const val PREFS_VAULT = "mekaar_vault_sync"
     private const val KEY_PUSH_SECRET = "push_decryption_key_v1"
+    private const val KEY_HIDDEN_ROOMS = "hidden_rooms_set"
+    private const val KEY_HIDDEN_CONTACTS = "hidden_contacts_set"
+    private const val KEY_VAULT_UNLOCKED = "vault_unlocked"
+
+    @Volatile
+    var isAppInForeground: Boolean = false
+        private set
+
     private var isLibraryLoaded = false
 
     init {
@@ -106,5 +115,56 @@ object AegisNativeBridge {
             Log.e(TAG, "Error saat mendekripsi payload push: ${e.message}", e)
             null
         }
+    }
+
+    /**
+     * Memperbarui status siklus hidup apakah Activity sedang di foreground.
+     */
+    fun setAppInForeground(inForeground: Boolean) {
+        isAppInForeground = inForeground
+    }
+
+    /**
+     * Menyimpan daftar room dan kontak private vault yang disinkronkan oleh Flutter.
+     * Ini memungkinkan Native Receiver mendeteksi status vault tanpa menyalakan Dart Isolate (0ms).
+     */
+    fun syncVaultState(
+        context: Context,
+        hiddenRooms: List<String>?,
+        hiddenContacts: List<String>?,
+        isVaultUnlocked: Boolean
+    ) {
+        val prefs = context.getSharedPreferences(PREFS_VAULT, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        if (hiddenRooms != null) {
+            editor.putStringSet(KEY_HIDDEN_ROOMS, hiddenRooms.toSet())
+        }
+        if (hiddenContacts != null) {
+            editor.putStringSet(KEY_HIDDEN_CONTACTS, hiddenContacts.toSet())
+        }
+        editor.putBoolean(KEY_VAULT_UNLOCKED, isVaultUnlocked)
+        editor.apply()
+        Log.d(TAG, "Sinkronisasi vault state native sukses (Rooms: ${hiddenRooms?.size ?: 0}, Contacts: ${hiddenContacts?.size ?: 0}, Unlocked: $isVaultUnlocked)")
+    }
+
+    /**
+     * Memeriksa apakah suatu ruang obrolan atau pengirim sedang berstatus Vault Terkunci.
+     * Mengembalikan true jika pesan HARUS disamarkan menjadi generic "MEKAAR: Pesan baru masuk".
+     */
+    fun isRoomVaultLocked(context: Context, roomId: String?, senderId: String?): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_VAULT, Context.MODE_PRIVATE)
+        val isUnlocked = prefs.getBoolean(KEY_VAULT_UNLOCKED, false)
+        if (isUnlocked) return false
+
+        val hiddenRooms = prefs.getStringSet(KEY_HIDDEN_ROOMS, emptySet()) ?: emptySet()
+        val hiddenContacts = prefs.getStringSet(KEY_HIDDEN_CONTACTS, emptySet()) ?: emptySet()
+
+        if (!roomId.isNullOrEmpty() && hiddenRooms.contains(roomId)) {
+            return true
+        }
+        if (!senderId.isNullOrEmpty() && hiddenContacts.contains(senderId)) {
+            return true
+        }
+        return false
     }
 }

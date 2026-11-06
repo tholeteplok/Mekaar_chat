@@ -100,8 +100,24 @@ class MekaarFirebaseMessagingReceiver : FlutterFirebaseMessagingReceiver() {
                 super.onReceive(context, intent)
             }
 
+            "message" -> {
+                if (AegisNativeBridge.isAppInForeground) {
+                    // Jika aplikasi sedang aktif di foreground, delegasikan ke pipeline Flutter
+                    // di mana MessageNotificationListener / UI room controller menanganinya secara realtime.
+                    Log.d(TAG, "Aplikasi sedang di foreground, delegasikan pesan ke Flutter")
+                    super.onReceive(context, intent)
+                } else {
+                    // Headless Native Execution (<10ms): Tampilkan notifikasi langsung via Android OS
+                    // tanpa memicu inisialisasi Dart VM Isolate di background.
+                    // Kebal LMK, hemat baterai, dan langsung menerapkan privacy vault masking.
+                    Log.d(TAG, "Menampilkan notifikasi pesan native 0ms headless (RoomId: ${data["roomId"] ?: data["room_id"]})")
+                    MekaarMessageNotificationManager.showMessageNotification(context, data)
+                    return
+                }
+            }
+
             else -> {
-                // Delegasikan ke pipeline Flutter standar untuk pesan chat & notifikasi umum
+                // Delegasikan ke pipeline Flutter standar untuk perintah perangkat & notifikasi umum
                 super.onReceive(context, intent)
             }
         }

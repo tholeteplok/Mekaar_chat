@@ -1,0 +1,108 @@
+package com.mekaar.mekaar_chat
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Build
+import android.util.Log
+import androidx.core.app.NotificationCompat
+
+object MekaarMessageNotificationManager {
+    private const val TAG = "MekaarMsgNotif"
+    const val MESSAGE_CHANNEL_ID = "mekaar_message_channel_v2"
+
+    fun createChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val channel = NotificationChannel(
+                MESSAGE_CHANNEL_ID,
+                "Pesan MEKAAR",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Saluran notifikasi pesan masuk"
+                enableVibration(true)
+                enableLights(true)
+                lightColor = Color.BLUE
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun getMessageNotificationId(roomId: String?): Int {
+        val effectiveKey = if (!roomId.isNullOrEmpty()) "room_$roomId" else "mekaar_msg"
+        val rawId = Math.abs(effectiveKey.hashCode()) % (1 shl 31)
+        return if (rawId == 0) 1 else rawId
+    }
+
+    fun showMessageNotification(context: Context, data: Map<String, String>) {
+        createChannel(context)
+
+        val roomId = data["roomId"] ?: data["room_id"]
+        val senderId = data["senderId"] ?: data["sender_id"]
+        val rawSenderName = data["senderName"] ?: data["sender_name"] ?: data["title"] ?: "Seseorang"
+        val rawBody = data["body"] ?: data["content"] ?: "Pesan baru masuk"
+
+        // Cek apakah ruang obrolan / pengirim berstatus Vault Terkunci
+        val isVaultLocked = AegisNativeBridge.isRoomVaultLocked(context, roomId, senderId)
+
+        val displayTitle: String
+        val displayBody: String
+
+        if (isVaultLocked) {
+            Log.d(TAG, "Pesan disamarkan (Vault Terkunci): roomId=$roomId")
+            displayTitle = "MEKAAR"
+            displayBody = "Pesan baru masuk"
+        } else {
+            Log.d(TAG, "Pesan ditampilkan Rich: sender=$rawSenderName, roomId=$roomId")
+            displayTitle = rawSenderName
+            displayBody = rawBody
+        }
+
+        val notificationId = getMessageNotificationId(roomId)
+
+        val contentIntent = Intent(context, MainActivity::class.java).apply {
+            action = "com.mekaar.mekaar_chat.ACTION_VIEW_ROOM"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("roomId", roomId)
+            putExtra("senderId", senderId)
+            putExtra("senderName", if (isVaultLocked) null else rawSenderName)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, MESSAGE_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(displayTitle)
+            .setContentText(displayBody)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(displayBody).setSummaryText("MEKAAR"))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(if (isVaultLocked) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)
+            .setAutoCancel(true)
+            .setColor(0xFF007AFF.toInt())
+            .setGroup(if (!roomId.isNullOrEmpty()) "room_$roomId" else "mekaar_group")
+            .setContentIntent(pendingIntent)
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, builder.build())
+    }
+
+    fun cancelMessageNotification(context: Context, roomId: String?) {
+        val notificationId = getMessageNotificationId(roomId)
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(notificationId)
+    }
+}

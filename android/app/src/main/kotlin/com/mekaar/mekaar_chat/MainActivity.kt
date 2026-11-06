@@ -92,6 +92,23 @@ class MainActivity : FlutterActivity() {
                         val keyB64 = android.util.Base64.encodeToString(keyBytes, android.util.Base64.NO_WRAP)
                         result.success(keyB64)
                     }
+                    "syncVaultState" -> {
+                        val hiddenRoomIds = call.argument<List<String>>("hiddenRoomIds")
+                        val hiddenContactUserIds = call.argument<List<String>>("hiddenContactUserIds")
+                        val isVaultUnlocked = call.argument<Boolean>("isVaultUnlocked") ?: false
+                        AegisNativeBridge.syncVaultState(
+                            this@MainActivity,
+                            hiddenRoomIds,
+                            hiddenContactUserIds,
+                            isVaultUnlocked
+                        )
+                        result.success(true)
+                    }
+                    "cancelMessageNotification" -> {
+                        val roomId = call.argument<String>("roomId")
+                        MekaarMessageNotificationManager.cancelMessageNotification(this@MainActivity, roomId)
+                        result.success(true)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -635,6 +652,16 @@ class MainActivity : FlutterActivity() {
         handleCallIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        AegisNativeBridge.setAppInForeground(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        AegisNativeBridge.setAppInForeground(false)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -644,6 +671,27 @@ class MainActivity : FlutterActivity() {
     private fun handleCallIntent(incomingIntent: Intent?) {
         val intentToProcess = incomingIntent ?: return
         val action = intentToProcess.action ?: return
+
+        if (action == "com.mekaar.mekaar_chat.ACTION_VIEW_ROOM") {
+            val roomId = intentToProcess.getStringExtra("roomId")
+            val senderId = intentToProcess.getStringExtra("senderId")
+            val senderName = intentToProcess.getStringExtra("senderName")
+            if (roomId != null) {
+                MekaarMessageNotificationManager.cancelMessageNotification(this, roomId)
+                val payload: MutableMap<String, Any?> = mutableMapOf(
+                    "action" to "view_room",
+                    "roomId" to roomId,
+                    "senderId" to senderId,
+                    "senderName" to senderName
+                )
+                if (callIntentChannel != null) {
+                    callIntentChannel?.invokeMethod("onMessageIntent", payload)
+                } else {
+                    pendingCallIntentData = payload
+                }
+            }
+            return
+        }
 
         if (action.startsWith("com.mekaar.mekaar_chat.ACTION_")) {
             val callId = intentToProcess.getStringExtra("callId")

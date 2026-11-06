@@ -402,6 +402,11 @@ class PushNotificationService {
         if (args is Map) {
           _handleCallIntentPayload(Map<String, dynamic>.from(args), onNotificationClick);
         }
+      } else if (call.method == 'onMessageIntent') {
+        final args = call.arguments;
+        if (args is Map) {
+          _handleMessageIntentPayload(Map<String, dynamic>.from(args), onNotificationClick);
+        }
       }
     });
 
@@ -409,13 +414,34 @@ class PushNotificationService {
       final initialData =
           await _callIntentChannel.invokeMethod<Map>('getInitialCallIntent');
       if (initialData != null) {
-        _handleCallIntentPayload(
-          Map<String, dynamic>.from(initialData),
-          onNotificationClick,
-        );
+        final map = Map<String, dynamic>.from(initialData);
+        if (map['action'] == 'view_room') {
+          _handleMessageIntentPayload(map, onNotificationClick);
+        } else {
+          _handleCallIntentPayload(
+            map,
+            onNotificationClick,
+          );
+        }
       }
     } catch (e) {
       _logger.d('Tidak ada initial call intent atau channel native belum siap: $e');
+    }
+  }
+
+  static void _handleMessageIntentPayload(
+    Map<String, dynamic> data,
+    Function(NotificationRoute route) onNotificationClick,
+  ) {
+    final roomId = data['roomId'] as String?;
+    if (roomId != null && roomId.isNotEmpty) {
+      final route = NotificationRoute(
+        type: NotificationRouteType.message,
+        roomId: roomId,
+        chatName: data['senderName'] as String?,
+        otherUserId: data['senderId'] as String?,
+      );
+      onNotificationClick(route);
     }
   }
 
@@ -455,6 +481,26 @@ class PushNotificationService {
         });
       } catch (e) {
         _logger.w('Gagal menyinkronkan kunci dekripsi push ke native: $e');
+      }
+    }
+  }
+
+  /// Sinkronisasi daftar kontak & room rahasia (Vault) ke layer native Android.
+  /// Ini memungkinkan penyamaran notifikasi 0ms tanpa membangunkan Dart VM.
+  static Future<void> syncVaultState({
+    required List<String> hiddenRoomIds,
+    required List<String> hiddenContactUserIds,
+    required bool isVaultUnlocked,
+  }) async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await _callIntentChannel.invokeMethod('syncVaultState', {
+          'hiddenRoomIds': hiddenRoomIds,
+          'hiddenContactUserIds': hiddenContactUserIds,
+          'isVaultUnlocked': isVaultUnlocked,
+        });
+      } catch (e) {
+        _logger.w('Gagal menyinkronkan status vault ke native: $e');
       }
     }
   }

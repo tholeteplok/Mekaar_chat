@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
@@ -41,6 +42,10 @@ final cloakedContactUserIdsProvider = Provider<Set<String>>((ref) {
   final hiddenIds = ref.watch(hiddenContactUserIdsProvider);
   final contactsAsync = ref.watch(userContactsProvider);
   final contacts = contactsAsync.value ?? const <ContactItem>[];
+
+  // Sinkronisasi status keterbukaan vault ke layer native Android (AegisNativeBridge)
+  final repo = ref.read(privateContactRepositoryProvider);
+  unawaited(repo.syncToNativeVault(isVaultUnlocked: isAnyUnlocked));
 
   final cloaked = <String>{};
   final contactMap = <String, ContactItem>{
