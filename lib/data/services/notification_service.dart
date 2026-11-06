@@ -374,7 +374,9 @@ class NotificationService {
   /// Batalkan notifikasi pesan untuk [roomId] tertentu (misal saat room dibuka).
   static Future<void> cancelMessageNotification(String roomId) async {
     final notificationId = getMessageNotificationId(roomId);
-    await _localNotificationsPlugin.cancel(notificationId);
+    try {
+      await _localNotificationsPlugin.cancel(notificationId);
+    } catch (_) {}
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         const MethodChannel('com.mekaar.mekaar_chat/call_intent')

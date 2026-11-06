@@ -9,6 +9,7 @@ import '../../../data/repositories/chat_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../../data/services/local_message_database.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'forwarding_protection_provider.dart';
 
@@ -643,6 +644,7 @@ class ChatActionsNotifier {
 
   Future<void> markRoomRead(String roomId) async {
     final now = DateTime.now().toUtc();
+    unawaited(NotificationService.cancelMessageNotification(roomId));
     await _chatRepository.markRoomRead(roomId);
     try {
       _ref.read(otherParticipantLastReadProvider(roomId).notifier).broadcastRead(now);

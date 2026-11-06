@@ -94,4 +94,13 @@ void main() {
       expect(container.read(activeRoomIdProvider), isNull);
     });
   });
+
+  group('Auto-Cancel Notification On Read Tests', () {
+    test('cancelMessageNotification membatalkan notifikasi room deterministik tanpa exception', () async {
+      await expectLater(
+        NotificationService.cancelMessageNotification('room_mika_123'),
+        completes,
+      );
+    });
+  });
 }

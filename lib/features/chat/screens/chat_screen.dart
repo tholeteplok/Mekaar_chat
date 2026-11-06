@@ -20,6 +20,7 @@ import '../../../data/repositories/forwarding_protection_repository.dart';
 import '../providers/chat_provider.dart';
 import '../providers/chat_draft_provider.dart';
 import '../../../data/services/local_message_database.dart';
+import '../../../data/services/notification_service.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
 import '../controllers/chat_screen_controller.dart';
@@ -458,6 +459,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
+        unawaited(NotificationService.cancelMessageNotification(widget.chatId));
         ref
             .read(e2eeRoomStatusProvider(widget.chatId).notifier)
             .configureForRoom(isGroup: widget.isGroup);

@@ -36,7 +36,13 @@ class MessageNotificationListener {
   final Ref _ref;
   bool _disposed = false;
 
-  MessageNotificationListener(this._ref);
+  MessageNotificationListener(this._ref) {
+    _ref.listen<String?>(activeRoomIdProvider, (previous, next) {
+      if (next != null && next.isNotEmpty) {
+        unawaited(NotificationService.cancelMessageNotification(next));
+      }
+    });
+  }
 
   /// Dipanggil oleh [AppRealtimeListener] (channel global terpadu) saat ada
   /// INSERT di tabel messages.
@@ -58,6 +64,10 @@ class MessageNotificationListener {
     final activeRoomId = _ref.read(activeRoomIdProvider);
     final isCurrentlyInRoom = activeRoomId == roomId;
     final isFromOtherUser = senderId != currentUserId;
+
+    if (isCurrentlyInRoom) {
+      unawaited(NotificationService.cancelMessageNotification(roomId));
+    }
 
     // 0ms Instant Inbox Mutation:
     // Langsung pindahkan room ke paling atas dan update unread count seketika (0 ms)
