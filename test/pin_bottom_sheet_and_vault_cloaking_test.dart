@@ -24,6 +24,9 @@ class FakePrivateContactRepository extends Fake implements PrivateContactReposit
 
   @override
   Future<Set<String>> getHiddenRoomIds() async => Set.from(inMemoryHiddenRooms);
+
+  @override
+  Future<void> syncToNativeVault({bool isVaultUnlocked = false}) async {}
 }
 
 void main() {

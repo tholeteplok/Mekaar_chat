@@ -73,7 +73,7 @@ class FakeChatActionsNotifier extends Fake implements ChatActionsNotifier {
 
 class FakeCallRepository extends Fake implements CallRepository {
   @override
-  Future<void> hideCalls(Set<String> callIds) async {}
+  Future<void> hideCalls(Set<String> callIds, {String? roomId}) async {}
 }
 
 class FakeChatRepository extends Fake implements ChatRepository {
