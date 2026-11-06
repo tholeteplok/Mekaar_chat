@@ -157,6 +157,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           isVaultRoom = true;
           finalTitle = 'MEKAAR';
           finalBody = 'Pesan baru masuk';
+        } else {
+          // Self-Healing untuk kontak terbuka (non-vault):
+          // Jika server FCM mengirimkan judul generic 'MEKAAR', pulihkan nama pengirim asli.
+          final senderName = data['senderName'] as String? ?? data['sender_name'] as String?;
+          if (senderName != null && senderName.isNotEmpty && senderName != 'MEKAAR') {
+            finalTitle = senderName;
+          } else if (finalTitle == 'MEKAAR') {
+            finalTitle = 'Pesan Baru';
+          }
         }
       } catch (_) {}
 

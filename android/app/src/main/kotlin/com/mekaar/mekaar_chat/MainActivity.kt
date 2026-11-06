@@ -109,6 +109,36 @@ class MainActivity : FlutterActivity() {
                         MekaarMessageNotificationManager.cancelMessageNotification(this@MainActivity, roomId)
                         result.success(true)
                     }
+                    "openNotificationSettings" -> {
+                        val channelId = call.argument<String>("channelId") ?: MekaarMessageNotificationManager.MESSAGE_CHANNEL_ID
+                        try {
+                            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                    putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                                }
+                            } else {
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                }
+                            }
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Gagal membuka channel notifikasi, coba buka pengaturan aplikasi: ${e.message}")
+                            try {
+                                val fallbackIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                startActivity(fallbackIntent)
+                                result.success(true)
+                            } catch (e2: Exception) {
+                                result.error("OPEN_SETTINGS_FAILED", e2.message, null)
+                            }
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

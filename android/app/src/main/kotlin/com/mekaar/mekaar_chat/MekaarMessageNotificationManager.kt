@@ -90,8 +90,16 @@ object MekaarMessageNotificationManager {
             displayTitle = "MEKAAR"
             displayBody = "Pesan baru masuk"
         } else {
-            Log.d(TAG, "Pesan ditampilkan Rich: sender=$rawSenderName, roomId=$roomId")
-            displayTitle = rawSenderName
+            // Self-Healing: Jika server mengirim generic "MEKAAR" padahal kontak terbuka (!isVaultLocked),
+            // prioritaskan senderName asli, atau gunakan "Pesan Baru" jika hanya ada nama brand MEKAAR.
+            val candidateSenderName = data["senderName"] ?: data["sender_name"]
+            val effectiveSenderName = when {
+                !candidateSenderName.isNullOrEmpty() && candidateSenderName != "MEKAAR" -> candidateSenderName
+                rawSenderName != "MEKAAR" -> rawSenderName
+                else -> "Pesan Baru"
+            }
+            Log.d(TAG, "Pesan ditampilkan Rich: sender=$effectiveSenderName, roomId=$roomId")
+            displayTitle = effectiveSenderName
             displayBody = rawBody
         }
 

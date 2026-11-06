@@ -11,6 +11,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/notification_preferences.dart';
+import '../../../data/services/notification_service.dart';
 import '../providers/notification_preferences_provider.dart';
 import '../widgets/settings_tiles.dart';
 import '../widgets/sound_preference_section.dart';
@@ -131,6 +132,17 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                     children: [
                       const SizedBox(height: 12),
 
+                      CustomCard(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: SettingsNavTile(
+                          icon: SolarIconsOutline.settings,
+                          iconColor: MekaarColors.primaryOf(context),
+                          title: 'Pengaturan Sistem Android',
+                          subtitle: 'Pilih nada notifikasi default sistem ponsel',
+                          onTap: () => NotificationService.openSystemNotificationSettings(),
+                        ),
+                      ),
                       SoundPreferenceSection(
                         title: 'Nada Notifikasi Pesan',
                         options: _messageSounds,

@@ -383,6 +383,24 @@ class NotificationService {
     }
   }
 
+  /// Membuka halaman Pengaturan Notifikasi Sistem Android untuk aplikasi atau channel pesan.
+  /// Memungkinkan pengguna mengatur nada dering dan preferensi notifikasi langsung di pengaturan OS.
+  static Future<bool> openSystemNotificationSettings({String? channelId}) async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final result = await const MethodChannel('com.mekaar.mekaar_chat/call_intent')
+            .invokeMethod('openNotificationSettings', {
+          'channelId': channelId ?? messageChannelId,
+        });
+        return result == true;
+      } catch (e) {
+        _logger.w('Gagal membuka pengaturan notifikasi sistem: $e');
+        return false;
+      }
+    }
+    return false;
+  }
+
   static Future<void> showMessageNotification({
     required String title,
     required String body,
@@ -424,7 +442,9 @@ class NotificationService {
       return;
     }
 
-    AlarmService.playMessageSound();
+    // Suara notifikasi pesan murni mengikuti nada dering default sistem Android OS
+    // melalui NotificationChannel (mekaar_message_channel_v3), tidak diputar manual
+    // via AlarmService agar patuh pada pengaturan nada & profil suara sistem ponsel.
     await HapticService.trigger(MekaarHapticIntent.success);
 
     final notificationId = getMessageNotificationId(roomId, route);
