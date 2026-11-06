@@ -8,9 +8,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Notification Channel Migration Constants Tests', () {
-    test('NotificationService menggunakan ID channel v2 untuk menghindari OS channel cache', () {
-      expect(NotificationService.messageChannelId, equals('mekaar_message_channel_v2'));
-      expect(NotificationService.legacyMessageChannelId, equals('mekaar_message_channel'));
+    test('NotificationService menggunakan ID channel v3 untuk menghindari OS channel cache', () {
+      expect(NotificationService.messageChannelId, equals('mekaar_message_channel_v3'));
+      expect(NotificationService.legacyMessageChannelId, equals('mekaar_message_channel_v2'));
+      expect(NotificationService.legacyOldMessageChannelId, equals('mekaar_message_channel'));
     });
   });
 

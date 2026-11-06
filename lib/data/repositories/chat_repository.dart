@@ -10,7 +10,6 @@ import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
 import '../services/local_message_database.dart';
 import '../services/aegis_shredder_service.dart';
-import '../services/push_notification_service.dart';
 import 'reconnect_policy.dart';
 
 class ChatRepository {
@@ -1071,16 +1070,6 @@ class ChatRepository {
         activeCtrl.add(sorted);
       }
     }
-
-    // Dual-dispatch fallback push notification ke penerima pesan via Edge Function.
-    // Memastikan penerima di latar belakang (minimized) tetap menerima push notification
-    // bahkan jika pg_net database webhook mengalami kendala otorisasi / latency.
-    unawaited(
-      PushNotificationService.dispatchPushFallback(
-        type: 'message',
-        record: sentMsg.toJson(),
-      ),
-    );
 
     return plaintextMsg;
   }

@@ -121,8 +121,9 @@ class NotificationService {
   static const int incomingCallNotificationId = 7001;
   static const String actionCallAccept = 'call_accept';
   static const String actionCallDecline = 'call_decline';
-  static const String messageChannelId = 'mekaar_message_channel_v2';
-  static const String legacyMessageChannelId = 'mekaar_message_channel';
+  static const String messageChannelId = 'mekaar_message_channel_v3';
+  static const String legacyMessageChannelId = 'mekaar_message_channel_v2';
+  static const String legacyOldMessageChannelId = 'mekaar_message_channel';
   static final Logger _logger = Logger();
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -223,10 +224,13 @@ class NotificationService {
 
       // Hapus channel pesan legacy agar cache low/default importance dari OS direset
       try {
+        await androidImpl.deleteNotificationChannel(legacyOldMessageChannelId);
+      } catch (_) {}
+      try {
         await androidImpl.deleteNotificationChannel(legacyMessageChannelId);
       } catch (_) {}
 
-      // 2. Channel Pesan Masuk v2 (High Importance, suara & getar default)
+      // 2. Channel Pesan Masuk v3 (High Importance, suara & getar default)
       await androidImpl.createNotificationChannel(
         const AndroidNotificationChannel(
           messageChannelId,
@@ -309,6 +313,19 @@ class NotificationService {
     );
   }
 
+  /// Algoritma hashing 32-bit yang identik dengan `java.lang.String.hashCode()`.
+  /// Memastikan hasil integer hash antara Dart dan Kotlin Android menghasilkan ID yang sama.
+  static int _javaHashCode(String s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = (31 * h + s.codeUnitAt(i)) & 0xFFFFFFFF;
+    }
+    if (h >= 0x80000000) {
+      h -= 0x100000000;
+    }
+    return h;
+  }
+
   /// Menghitung ID notifikasi deterministik berbasis roomId atau route.
   /// Memastikan notifikasi baru dalam percakapan yang sama saling menimpa
   /// (in-place update) di status bar dan tidak memunculkan notifikasi ganda.
@@ -321,7 +338,7 @@ class NotificationService {
         : (route?.roomId != null && route!.roomId!.isNotEmpty)
         ? 'room_${route.roomId}'
         : (route?.chatName ?? 'mekaar_msg');
-    final rawId = effectiveKey.hashCode.abs().remainder(1 << 31);
+    final rawId = _javaHashCode(effectiveKey).abs() % (1 << 31);
     return rawId == 0 ? 1 : rawId;
   }
 

@@ -25,6 +25,23 @@ import io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingReceiver
 class MekaarFirebaseMessagingReceiver : FlutterFirebaseMessagingReceiver() {
     companion object {
         private const val TAG = "MekaarFCMReceiver"
+        private val recentMessageIds = object : java.util.LinkedHashMap<String, Long>(32, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean {
+                return size > 50
+            }
+        }
+
+        @Synchronized
+        fun isDuplicateMessage(messageId: String?): Boolean {
+            if (messageId.isNullOrEmpty()) return false
+            val now = System.currentTimeMillis()
+            val lastSeen = recentMessageIds[messageId]
+            if (lastSeen != null && now - lastSeen < 10000) {
+                return true
+            }
+            recentMessageIds[messageId] = now
+            return false
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -101,6 +118,16 @@ class MekaarFirebaseMessagingReceiver : FlutterFirebaseMessagingReceiver() {
             }
 
             "message" -> {
+                val messageId = data["messageId"] ?: data["id"]
+                if (isDuplicateMessage(messageId)) {
+                    Log.d(TAG, "Pesan push FCM terdeteksi duplikat (messageId: $messageId). Drop push.")
+                    return
+                }
+                if (remoteMessage.notification != null) {
+                    Log.d(TAG, "Push FCM memiliki blok display notification dari server. Lewati pembuatan notifikasi manual.")
+                    return
+                }
+
                 if (AegisNativeBridge.isAppInForeground) {
                     // Jika aplikasi sedang aktif di foreground, delegasikan ke pipeline Flutter
                     // di mana MessageNotificationListener / UI room controller menanganinya secara realtime.

@@ -6,6 +6,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -13,12 +15,23 @@ import androidx.core.app.NotificationManagerCompat
 
 object MekaarMessageNotificationManager {
     private const val TAG = "MekaarMsgNotif"
-    const val MESSAGE_CHANNEL_ID = "mekaar_message_channel_v2"
+    const val MESSAGE_CHANNEL_ID = "mekaar_message_channel_v3"
 
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            try {
+                notificationManager.deleteNotificationChannel("mekaar_message_channel_v2")
+                notificationManager.deleteNotificationChannel("mekaar_message_channel")
+            } catch (_: Exception) {}
+
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                .build()
 
             val channel = NotificationChannel(
                 MESSAGE_CHANNEL_ID,
@@ -26,7 +39,9 @@ object MekaarMessageNotificationManager {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Saluran notifikasi pesan masuk"
+                setSound(soundUri, audioAttributes)
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 250, 250)
                 enableLights(true)
                 lightColor = Color.BLUE
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
@@ -97,6 +112,7 @@ object MekaarMessageNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val builder = NotificationCompat.Builder(context, MESSAGE_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(displayTitle)
@@ -107,6 +123,9 @@ object MekaarMessageNotificationManager {
             .setVisibility(if (isVaultLocked) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setColor(0xFF007AFF.toInt())
+            .setSound(soundUri)
+            .setVibrate(longArrayOf(0, 250, 250, 250))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setGroup(if (!roomId.isNullOrEmpty()) "room_$roomId" else "mekaar_group")
             .setContentIntent(pendingIntent)
 
