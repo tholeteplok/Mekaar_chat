@@ -27,14 +27,14 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       
       // Set nada kustom
-      await prefs.setString(NotificationPreferences.legacyNormalSoundKey, NotificationPreferences.alternateMessageSound);
+      await prefs.setString(NotificationPreferences.legacyNormalSoundKey, 'custom_sound');
       await prefs.setString(NotificationPreferences.sosSoundKey, NotificationPreferences.alternateSosSound);
 
       // Ambil nada kustom
       final normalSound = prefs.getString(NotificationPreferences.legacyNormalSoundKey) ?? NotificationPreferences.defaultMessageSound;
       final sosSound = prefs.getString(NotificationPreferences.sosSoundKey) ?? NotificationPreferences.defaultSosSound;
 
-      expect(normalSound, NotificationPreferences.alternateMessageSound);
+      expect(normalSound, 'custom_sound');
       expect(sosSound, NotificationPreferences.alternateSosSound);
     });
 

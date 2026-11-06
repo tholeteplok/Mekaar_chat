@@ -18,7 +18,6 @@ import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
 import '../providers/notification_preferences_provider.dart';
-import '../../../data/services/notification_service.dart';
 import '../../chat/providers/nearby_friends_provider.dart';
 import '../../chat/utils/nearby_permission_helper.dart';
 import '../widgets/settings_tiles.dart';
@@ -266,7 +265,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────
-  // SECTION 5: Notifikasi — suara & nada
+  // SECTION 5: Notifikasi — Nada & Suara
   // ─────────────────────────────────────────────────
   Widget _buildNotificationSection(BuildContext context) {
     return Column(
@@ -276,21 +275,10 @@ class SettingsScreen extends ConsumerWidget {
         CustomCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              SettingsNavTile(
-                icon: SolarIconsOutline.bell,
-                title: 'Nada & Suara',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
-              ),
-              const Divider(height: 1),
-              SettingsNavTile(
-                icon: SolarIconsOutline.settings,
-                title: 'Pengaturan Notifikasi Sistem',
-                subtitle: 'Atur nada pesan default & saluran OS',
-                onTap: () => NotificationService.openSystemNotificationSettings(),
-              ),
-            ],
+          child: SettingsNavTile(
+            icon: SolarIconsOutline.bell,
+            title: 'Nada & Suara',
+            onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
           ),
         ),
       ],

@@ -20,31 +20,6 @@ class AlarmService {
   static bool get isCallRingtonePlaying => _activeAudio == _ActiveAudio.call;
   static bool get isSosAlarmPlaying => _activeAudio == _ActiveAudio.sos;
 
-  static Future<void> playMessageSound() async {
-    if (_activeAudio != _ActiveAudio.none) return;
-
-    AudioPlayer? player;
-    try {
-      final preferences = await _preferencesRepository.load();
-      if (!preferences.messageSoundEnabled) return;
-
-      player = AudioPlayer();
-      await player.setReleaseMode(ReleaseMode.stop);
-      await player.setVolume(0.7);
-      await player.play(
-        _sourceFor(
-          preferences.messageSound,
-          NotificationPreferences.defaultMessageSound,
-        ),
-      );
-      await player.onPlayerComplete.first;
-    } catch (error) {
-      _logger.e('AlarmService: Gagal memutar nada pesan: $error');
-    } finally {
-      await player?.dispose();
-    }
-  }
-
   static Future<void> startCallRingtone() async {
     if (_activeAudio == _ActiveAudio.call ||
         _activeAudio == _ActiveAudio.sos) {

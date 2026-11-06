@@ -87,14 +87,16 @@ class NotificationPreferencesRepository {
   String _validatedPath(String? path, String fallback) {
     if (path == null || path.isEmpty) return fallback;
 
-    // Migrasi otomatis preferensi lama berbasis .mp3 ke .wav baru
-    if (path == 'sounds/normal_chime.mp3') {
-      return NotificationPreferences.defaultMessageSound;
-    }
-    if (path == 'sounds/normal_playful.mp3') {
+    // Migrasi otomatis preferensi lama berbasis asset suara pesan yang sudah dihapus
+    if (path == 'sounds/normal_chime.mp3' || path == 'sounds/msg_confirmation.wav') {
       return fallback == NotificationPreferences.defaultCallSound
           ? NotificationPreferences.defaultCallSound
-          : NotificationPreferences.alternateMessageSound;
+          : NotificationPreferences.defaultMessageSound;
+    }
+    if (path == 'sounds/normal_playful.mp3' || path == 'sounds/msg_pop.wav') {
+      return fallback == NotificationPreferences.defaultCallSound
+          ? NotificationPreferences.defaultCallSound
+          : NotificationPreferences.defaultMessageSound;
     }
     if (path == 'sounds/sos_siren.mp3') {
       return NotificationPreferences.defaultSosSound;

@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../data/services/ringtone_picker_service.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -28,13 +30,8 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
   String? _previewingPath;
   bool _isPlayingPreview = false;
 
-  final List<SoundOption> _messageSounds = const [
-    SoundOption('Konfirmasi Halus', NotificationPreferences.defaultMessageSound),
-    SoundOption('Pop Ceria', NotificationPreferences.alternateMessageSound),
-  ];
   final List<SoundOption> _callSounds = const [
     SoundOption('Dering Melodi', NotificationPreferences.defaultCallSound),
-    SoundOption('Konfirmasi Dering', NotificationPreferences.alternateCallSound),
   ];
   final List<SoundOption> _sosSounds = const [
     SoundOption('Alarm Peringatan', NotificationPreferences.defaultSosSound),
@@ -132,40 +129,34 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                     children: [
                       const SizedBox(height: 12),
 
-                      CustomCard(
-                        margin: const EdgeInsets.only(bottom: 20),
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: SettingsNavTile(
-                          icon: SolarIconsOutline.settings,
-                          iconColor: MekaarColors.primaryOf(context),
-                          title: 'Pengaturan Sistem Android',
-                          subtitle: 'Pilih nada notifikasi default sistem ponsel',
-                          onTap: () => NotificationService.openSystemNotificationSettings(),
+                      MekaarSectionHeader(
+                        title: 'Nada Notifikasi Pesan',
+                        padding: const EdgeInsets.only(left: 4, bottom: 8),
+                        trailing: Switch.adaptive(
+                          value: prefs.messageSoundEnabled,
+                          onChanged: (val) {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            ref
+                                .read(notificationPreferencesProvider.notifier)
+                                .toggleMessageSound(val);
+                          },
+                          activeThumbColor: MekaarColors.primaryOf(context),
+                          activeTrackColor:
+                              MekaarColors.primaryOf(context).withValues(alpha: 0.35),
+                          inactiveThumbColor: MekaarColors.textMutedOf(context),
+                          inactiveTrackColor: MekaarColors.surface2Of(context),
                         ),
                       ),
-                      SoundPreferenceSection(
-                        title: 'Nada Notifikasi Pesan',
-                        options: _messageSounds,
-                        selectedPath: prefs.messageSound,
-                        previewingPath: _previewingPath,
-                        previewIsPlaying: _isPlayingPreview,
-                        accentColor: MekaarColors.primaryOf(context),
-                        enabled: prefs.messageSoundEnabled,
-                        canDisable: true,
-                        onSelected: (path) => ref
-                            .read(notificationPreferencesProvider.notifier)
-                            .updateMessageSound(path),
-                        onPreview: _togglePreview,
-                        onPickCustom: () => _pickDeviceSound(
-                          type: RingtoneType.notification,
-                          title: 'Pilih Nada Pesan',
-                          onSelected: (path) => ref
-                            .read(notificationPreferencesProvider.notifier)
-                            .updateMessageSound(path),
+                      CustomCard(
+                        margin: EdgeInsets.zero,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: SettingsNavTile(
+                          icon: SolarIconsOutline.volumeLoud,
+                          iconColor: MekaarColors.primaryOf(context),
+                          title: 'Nada Notifikasi Sistem',
+                          subtitle: 'Atur nada dering pesan di setelan sistem Android',
+                          onTap: () => NotificationService.openSystemNotificationSettings(),
                         ),
-                        onEnabledChanged: (value) => ref
-                            .read(notificationPreferencesProvider.notifier)
-                            .toggleMessageSound(value),
                       ),
                       const SizedBox(height: 24),
                       SoundPreferenceSection(

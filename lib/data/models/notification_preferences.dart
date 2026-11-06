@@ -1,8 +1,6 @@
 class NotificationPreferences {
-  static const String defaultMessageSound = 'sounds/msg_confirmation.wav';
-  static const String alternateMessageSound = 'sounds/msg_pop.wav';
+  static const String defaultMessageSound = 'system_default';
   static const String defaultCallSound = 'sounds/call_ringtone.wav';
-  static const String alternateCallSound = 'sounds/msg_confirmation.wav';
   static const String defaultSosSound = 'sounds/sos_alarm.wav';
   static const String alternateSosSound = 'sounds/sos_scifi.wav';
 
