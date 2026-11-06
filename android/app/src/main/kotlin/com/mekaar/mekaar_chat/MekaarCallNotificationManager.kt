@@ -8,9 +8,12 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 
 object MekaarCallNotificationManager {
+    private const val TAG = "MekaarCallNotif"
     const val CALL_CHANNEL_ID = "mekaar_calls_channel_v2"
     const val MISSED_CALL_CHANNEL_ID = "mekaar_missed_calls_channel_v2"
     private const val CALL_NOTIFICATION_BASE_ID = 40001
@@ -72,7 +75,22 @@ object MekaarCallNotificationManager {
     }
 
     fun showIncomingCall(context: Context, data: Map<String, String>) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifikasi aplikasi dinonaktifkan di level OS. Drop incoming call notification.")
+            return
+        }
+
         createChannels(context)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = notificationManager.getNotificationChannel(CALL_CHANNEL_ID)
+            if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) {
+                Log.d(TAG, "Saluran panggilan dimatikan oleh pengguna di setelan OS.")
+                return
+            }
+        }
 
         val callId = data["callId"] ?: data["call_id"] ?: ""
         val roomId = data["roomId"] ?: data["room_id"] ?: ""
@@ -173,7 +191,22 @@ object MekaarCallNotificationManager {
     }
 
     fun showMissedCall(context: Context, data: Map<String, String>) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifikasi aplikasi dinonaktifkan di level OS. Drop missed call notification.")
+            return
+        }
+
         createChannels(context)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = notificationManager.getNotificationChannel(MISSED_CALL_CHANNEL_ID)
+            if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) {
+                Log.d(TAG, "Saluran panggilan tak terjawab dimatikan oleh pengguna di setelan OS.")
+                return
+            }
+        }
 
         val callId = data["callId"] ?: data["call_id"] ?: ""
         val roomId = data["roomId"] ?: data["room_id"] ?: ""

@@ -10,6 +10,13 @@ import '../../features/auth/providers/auth_provider.dart';
 class CallRepository {
   final SupabaseClient _client;
 
+  static final Map<String, Set<String>> _cachedHiddenCallIds = {};
+  static final Map<String, DateTime> _cachedHistoryClearedAt = {};
+  static final Map<String, int> _cachedDisappearingHours = {};
+
+  static Set<String> getCachedHiddenCallIds(String roomId) =>
+      _cachedHiddenCallIds[roomId] ?? const <String>{};
+
   CallRepository(this._client);
 
   /// Catat baris panggilan baru dengan status 'ringing'
@@ -262,6 +269,7 @@ class CallRepository {
     Future<void> emitLocalCache({
       DateTime? historyCleared,
       Set<String>? hiddenIds,
+      int? disappearingHours,
     }) async {
       try {
         final localCalls = await LocalMessageDatabase.instance.getCallsForRoom(
@@ -269,10 +277,23 @@ class CallRepository {
           historyClearedAt: historyCleared,
           hiddenCallIds: hiddenIds,
         );
-        if (localCalls.isNotEmpty && !controller.isClosed) {
-          for (final c in localCalls) {
-            callPool[c.id] = c;
+        final nowUtc = DateTime.now().toUtc();
+        final effectiveHidden = hiddenIds ?? _cachedHiddenCallIds[roomId];
+        final effectiveCleared = historyCleared ?? _cachedHistoryClearedAt[roomId];
+        final effectiveDisappearing = disappearingHours ?? _cachedDisappearingHours[roomId] ?? 0;
+
+        callPool.clear();
+        for (final c in localCalls) {
+          if (effectiveHidden != null && effectiveHidden.contains(c.id)) continue;
+          if (effectiveCleared != null && !c.createdAt.toUtc().isAfter(effectiveCleared)) continue;
+          if (effectiveDisappearing > 0 &&
+              c.createdAt.toUtc().add(Duration(hours: effectiveDisappearing)).isBefore(nowUtc)) {
+            continue;
           }
+          callPool[c.id] = c;
+        }
+
+        if (!controller.isClosed) {
           final sorted = callPool.values.toList()
             ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
           controller.add(sorted);
@@ -281,8 +302,12 @@ class CallRepository {
     }
 
     Future<void> initStream() async {
-      // 1. 0ms Offline-First: Render riwayat dari SQLite lokal seketika tanpa menunggu query jaringan
-      await emitLocalCache();
+      // 1. 0ms Offline-First Anti-Flicker: Render dari SQLite menggunakan filter cache yang sudah diketahui
+      await emitLocalCache(
+        historyCleared: _cachedHistoryClearedAt[roomId],
+        hiddenIds: _cachedHiddenCallIds[roomId],
+        disappearingHours: _cachedDisappearingHours[roomId],
+      );
 
       // Zero-Leak Decoy: Jangan jalankan query jaringan atau streaming Supabase
       if (LocalMessageDatabase.instance.isDecoy) {
@@ -292,24 +317,48 @@ class CallRepository {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || controller.isClosed) return;
 
-      // 2. Ambil stempel waktu pembersihan obrolan (history_cleared_at) dengan timeout aman
-      DateTime? historyClearedAt;
+      // 2. Ambil stempel waktu pembersihan obrolan (history_cleared_at) & disappearing_hours dari room
+      DateTime? historyClearedAt = _cachedHistoryClearedAt[roomId];
+      int disappearingHours = _cachedDisappearingHours[roomId] ?? 0;
       try {
-        final p = await _client
-            .from('room_participants')
-            .select('history_cleared_at')
-            .eq('room_id', roomId)
-            .eq('profile_id', userId)
-            .maybeSingle()
-            .timeout(const Duration(seconds: 4));
+        final results = await Future.wait([
+          _client
+              .from('room_participants')
+              .select('history_cleared_at')
+              .eq('room_id', roomId)
+              .eq('profile_id', userId)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 4)),
+          _client
+              .from('chat_rooms')
+              .select('disappearing_hours')
+              .eq('id', roomId)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 4)),
+        ]);
+
+        final p = results[0];
         if (p != null && p['history_cleared_at'] != null) {
           historyClearedAt =
               DateTime.tryParse(p['history_cleared_at'] as String)?.toUtc();
+          if (historyClearedAt != null) {
+            _cachedHistoryClearedAt[roomId] = historyClearedAt;
+            unawaited(LocalMessageDatabase.instance.deleteCallsBefore(roomId, historyClearedAt));
+          }
+        }
+
+        final roomData = results[1];
+        if (roomData != null && roomData['disappearing_hours'] != null) {
+          disappearingHours = (roomData['disappearing_hours'] as num).toInt();
+          _cachedDisappearingHours[roomId] = disappearingHours;
+          if (disappearingHours > 0) {
+            unawaited(LocalMessageDatabase.instance.deleteExpiredCalls(roomId, disappearingHours));
+          }
         }
       } catch (_) {}
 
       // 3. Ambil ID panggilan yang disembunyikan (hidden_calls) dengan timeout aman
-      final hiddenCallIds = <String>{};
+      final hiddenCallIds = Set<String>.from(_cachedHiddenCallIds[roomId] ?? <String>{});
       try {
         final rows = await _client
             .from('hidden_calls')
@@ -318,19 +367,65 @@ class CallRepository {
             .timeout(const Duration(seconds: 4));
         for (final r in rows as List) {
           final cid = r['call_id'] as String?;
-          if (cid != null) hiddenCallIds.add(cid);
+          if (cid != null) {
+            hiddenCallIds.add(cid);
+            unawaited(LocalMessageDatabase.instance.deleteCall(cid));
+          }
         }
+        _cachedHiddenCallIds[roomId] = hiddenCallIds;
       } catch (_) {}
 
       // Perbarui tampilan cache lokal jika filter jaringan berhasil didapatkan
-      if (historyClearedAt != null || hiddenCallIds.isNotEmpty) {
-        await emitLocalCache(
-          historyCleared: historyClearedAt,
-          hiddenIds: hiddenCallIds,
-        );
-      }
+      await emitLocalCache(
+        historyCleared: historyClearedAt,
+        hiddenIds: hiddenCallIds,
+        disappearingHours: disappearingHours,
+      );
 
       if (controller.isClosed) return;
+
+      // Helper pemrosesan batch panggilan (digunakan oleh REST dan Realtime)
+      void processCallBatch(List<CallModel> serverCalls) {
+        final nowUtc = DateTime.now().toUtc();
+        final serverCallIds = serverCalls.map((c) => c.id).toSet();
+
+        // 1. Rekonsiliasi Server-to-Local:
+        // Eviksi panggilan di callPool dan SQLite yang sudah terhapus di backend (misal via scheduled wipe atau burn on exit)
+        final poolIds = callPool.keys.toList();
+        for (final pId in poolIds) {
+          if (!serverCallIds.contains(pId)) {
+            callPool.remove(pId);
+            unawaited(LocalMessageDatabase.instance.deleteCall(pId));
+          }
+        }
+
+        // 2. Filter ketat sebelum simpan: Jangan pernah menyimpan kembali baris yang disembunyikan/dibersihkan
+        final validCallsToSave = <CallModel>[];
+        for (final c in serverCalls) {
+          final isHidden = hiddenCallIds.contains(c.id);
+          final isCleared = historyClearedAt != null && !c.createdAt.toUtc().isAfter(historyClearedAt);
+          final isExpired = disappearingHours > 0 &&
+              c.createdAt.toUtc().add(Duration(hours: disappearingHours)).isBefore(nowUtc);
+
+          if (isHidden || isCleared || isExpired) {
+            callPool.remove(c.id);
+            unawaited(LocalMessageDatabase.instance.deleteCall(c.id));
+          } else {
+            callPool[c.id] = c;
+            validCallsToSave.add(c);
+          }
+        }
+
+        if (validCallsToSave.isNotEmpty) {
+          unawaited(LocalMessageDatabase.instance.saveCalls(validCallsToSave));
+        }
+
+        if (!controller.isClosed) {
+          final sorted = callPool.values.toList()
+            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          controller.add(sorted);
+        }
+      }
 
       // 4. REST fetch cepat untuk inisialisasi awal (stale-while-revalidate)
       try {
@@ -343,22 +438,7 @@ class CallRepository {
             .timeout(const Duration(seconds: 4));
         final calls =
             (rows as List).map((r) => CallModel.fromJson(r)).toList();
-        if (calls.isNotEmpty) {
-          unawaited(LocalMessageDatabase.instance.saveCalls(calls));
-          for (final c in calls) {
-            if (hiddenCallIds.contains(c.id)) continue;
-            if (historyClearedAt != null &&
-                !c.createdAt.toUtc().isAfter(historyClearedAt)) {
-              continue;
-            }
-            callPool[c.id] = c;
-          }
-          if (!controller.isClosed) {
-            final sorted = callPool.values.toList()
-              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-            controller.add(sorted);
-          }
-        }
+        processCallBatch(calls);
       } catch (_) {}
 
       if (controller.isClosed) return;
@@ -374,26 +454,7 @@ class CallRepository {
               (rows) {
                 final calls =
                     rows.map((r) => CallModel.fromJson(r)).toList();
-                if (calls.isNotEmpty) {
-                  unawaited(LocalMessageDatabase.instance.saveCalls(calls));
-                }
-                for (final c in calls) {
-                  if (hiddenCallIds.contains(c.id)) {
-                    callPool.remove(c.id);
-                    continue;
-                  }
-                  if (historyClearedAt != null &&
-                      !c.createdAt.toUtc().isAfter(historyClearedAt)) {
-                    callPool.remove(c.id);
-                    continue;
-                  }
-                  callPool[c.id] = c;
-                }
-                if (!controller.isClosed) {
-                  final sorted = callPool.values.toList()
-                    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-                  controller.add(sorted);
-                }
+                processCallBatch(calls);
               },
               onError: (_) {},
             );
@@ -413,12 +474,18 @@ class CallRepository {
   }
 
   /// Menyembunyikan panggilan tertentu secara permanen di database cloud & lokal
-  Future<void> hideCalls(Set<String> callIds) async {
+  Future<void> hideCalls(Set<String> callIds, {String? roomId}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null || callIds.isEmpty) return;
 
     for (final cid in callIds) {
       unawaited(LocalMessageDatabase.instance.deleteCall(cid));
+    }
+
+    if (roomId != null) {
+      final existingHidden = _cachedHiddenCallIds[roomId] ?? <String>{};
+      existingHidden.addAll(callIds);
+      _cachedHiddenCallIds[roomId] = existingHidden;
     }
 
     final records = callIds

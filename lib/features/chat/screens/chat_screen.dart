@@ -103,7 +103,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Message? _editingMessage;
   final Set<String> _selectedMessageIds = <String>{};
   final Set<String> _selectedCallIds = <String>{};
-  Set<String> _hiddenCallIds = <String>{};
+  static final Map<String, Set<String>> _hiddenCallsMemoryCache = {};
+  late Set<String> _hiddenCallIds;
   String? _reactionAnchorMessageId;
 
   int get _autoDeleteHours => _controller.autoDeleteHours;
@@ -188,7 +189,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       final list =
           prefs.getStringList('hidden_call_ids_${widget.chatId}') ?? [];
       if (mounted && list.isNotEmpty) {
-        setState(() => _hiddenCallIds = list.toSet());
+        final newSet = list.toSet();
+        _hiddenCallsMemoryCache[widget.chatId] = newSet;
+        setState(() => _hiddenCallIds = newSet);
       }
     } catch (_) {}
   }
@@ -198,6 +201,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     setState(() {
       _hiddenCallIds.addAll(callIds);
     });
+    _hiddenCallsMemoryCache[widget.chatId] = Set<String>.from(_hiddenCallIds);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(
@@ -206,7 +210,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       );
     } catch (_) {}
     try {
-      unawaited(ref.read(callRepositoryProvider).hideCalls(callIds));
+      unawaited(
+        ref.read(callRepositoryProvider).hideCalls(callIds, roomId: widget.chatId),
+      );
     } catch (_) {}
   }
 
@@ -424,6 +430,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void initState() {
     super.initState();
+    _hiddenCallIds = Set<String>.from(
+      _hiddenCallsMemoryCache[widget.chatId] ??
+          CallRepository.getCachedHiddenCallIds(widget.chatId),
+    );
     _entryLastReadAt = widget.initialLastReadAt;
     _inChatSearchFocusNode = FocusNode();
     _composerFocusNode = FocusNode();
@@ -1343,6 +1353,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       isGuardian: widget.isGuardian,
       onCleared: () {
         if (mounted) {
+          _hiddenCallsMemoryCache[widget.chatId]?.clear();
           setState(() => _hiddenCallIds.clear());
         }
       },

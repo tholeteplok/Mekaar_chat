@@ -1256,6 +1256,39 @@ class LocalMessageDatabase {
     }
   }
 
+  /// Menghapus panggilan di room tertentu yang terjadi sebelum stempel waktu tertentu (history_cleared_at)
+  Future<void> deleteCallsBefore(String roomId, DateTime beforeUtc) async {
+    try {
+      final db = await database;
+      await db.delete(
+        _callsTableName,
+        where: 'room_id = ? AND created_at <= ?',
+        whereArgs: [roomId, beforeUtc.toUtc().toIso8601String()],
+      );
+    } catch (e) {
+      _logger.w('Gagal menghapus calls lokal sebelum $beforeUtc ($roomId): $e');
+    }
+  }
+
+  /// Menghapus panggilan di room tertentu yang telah kedaluwarsa berdasarkan disappearing_hours
+  Future<void> deleteExpiredCalls(String roomId, int disappearingHours) async {
+    if (disappearingHours <= 0) return;
+    try {
+      final db = await database;
+      final cutoff = DateTime.now()
+          .toUtc()
+          .subtract(Duration(hours: disappearingHours))
+          .toIso8601String();
+      await db.delete(
+        _callsTableName,
+        where: 'room_id = ? AND created_at <= ?',
+        whereArgs: [roomId, cutoff],
+      );
+    } catch (e) {
+      _logger.w('Gagal menghapus expired calls lokal ($roomId): $e');
+    }
+  }
+
   /// Optimasi indeks pencarian FTS5 dan bersihkan baris yatim (orphan rows)
   Future<void> optimizeSearchIndex() async {
     if (!_ftsAvailable) return;

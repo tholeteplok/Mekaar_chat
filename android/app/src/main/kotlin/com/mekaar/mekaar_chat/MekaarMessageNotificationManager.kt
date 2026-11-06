@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 
 object MekaarMessageNotificationManager {
     private const val TAG = "MekaarMsgNotif"
@@ -41,7 +42,22 @@ object MekaarMessageNotificationManager {
     }
 
     fun showMessageNotification(context: Context, data: Map<String, String>) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifikasi aplikasi dinonaktifkan di level OS/Pengaturan Sistem. Drop notifikasi pesan.")
+            return
+        }
+
         createChannel(context)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = notificationManager.getNotificationChannel(MESSAGE_CHANNEL_ID)
+            if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) {
+                Log.d(TAG, "Saluran pesan dimatikan oleh pengguna di setelan OS.")
+                return
+            }
+        }
 
         val roomId = data["roomId"] ?: data["room_id"]
         val senderId = data["senderId"] ?: data["sender_id"]
