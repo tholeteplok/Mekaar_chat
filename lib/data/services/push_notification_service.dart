@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -29,6 +30,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final title = data['title'] as String? ?? 'Pesan Baru';
     final body = data['body'] as String? ?? 'Anda menerima pesan baru';
     final roomId = data['roomId'] as String? ?? data['room_id'] as String?;
+
+    if (defaultTargetPlatform == TargetPlatform.android && type == 'call') {
+      // Panggilan masuk sudah ditangani 0ms secara native oleh MekaarFirebaseMessagingReceiver di Android.
+      // Hindari duplikasi dering atau crash di Dart background isolate.
+      return;
+    }
 
     if (type == 'call') {
       final callId = data['callId'] as String? ?? data['call_id'] as String?;
@@ -373,9 +380,95 @@ class PushNotificationService {
           onNotificationClick(route);
         }
       }
+
+      // Hubungkan listener intent native Android (Call Notification Actions: Answer/View)
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        _setupNativeCallIntentChannel(onNotificationClick);
+      }
     } catch (e) {
       _logger.w('PushNotificationService: Inisialisasi fallback (Firebase belum dikonfigurasi native): $e');
     }
+  }
+
+  static const MethodChannel _callIntentChannel =
+      MethodChannel('com.mekaar.mekaar_chat/call_intent');
+
+  static Future<void> _setupNativeCallIntentChannel(
+    Function(NotificationRoute route) onNotificationClick,
+  ) async {
+    _callIntentChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onCallIntent') {
+        final args = call.arguments;
+        if (args is Map) {
+          _handleCallIntentPayload(Map<String, dynamic>.from(args), onNotificationClick);
+        }
+      }
+    });
+
+    try {
+      final initialData =
+          await _callIntentChannel.invokeMethod<Map>('getInitialCallIntent');
+      if (initialData != null) {
+        _handleCallIntentPayload(
+          Map<String, dynamic>.from(initialData),
+          onNotificationClick,
+        );
+      }
+    } catch (e) {
+      _logger.d('Tidak ada initial call intent atau channel native belum siap: $e');
+    }
+  }
+
+  static void _handleCallIntentPayload(
+    Map<String, dynamic> data,
+    Function(NotificationRoute route) onNotificationClick,
+  ) {
+    final action = data['action'] as String?;
+    final callId = data['callId'] as String?;
+    final roomId = data['roomId'] as String?;
+    final callerId = data['callerId'] as String?;
+    final callerName = data['callerName'] as String?;
+    final callType = data['callType'] as String? ?? 'voice';
+
+    if (action == 'decline' && callId != null) {
+      _callIntentChannel.invokeMethod('cancelCallNotification', {'callId': callId});
+      return;
+    }
+
+    final route = NotificationRoute(
+      type: NotificationRouteType.call,
+      roomId: roomId,
+      callId: callId,
+      callerId: callerId,
+      callerName: callerName,
+      callType: callType,
+    );
+    onNotificationClick(route);
+  }
+
+  /// Sinkronisasi kunci dekripsi push E2EE ke layer native Android (AegisNativeBridge).
+  static Future<void> syncPushDecryptionKey(String keyBase64) async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await _callIntentChannel.invokeMethod('setPushDecryptionKey', {
+          'keyBase64': keyBase64,
+        });
+      } catch (e) {
+        _logger.w('Gagal menyinkronkan kunci dekripsi push ke native: $e');
+      }
+    }
+  }
+
+  /// Mengambil kunci dekripsi push E2EE dari layer native Android untuk didaftarkan ke profile/backend jika belum ada.
+  static Future<String?> getNativePushDecryptionKey() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        return await _callIntentChannel.invokeMethod<String>('getPushDecryptionKey');
+      } catch (e) {
+        _logger.w('Gagal mengambil kunci dekripsi push dari native: $e');
+      }
+    }
+    return null;
   }
 
   /// Mengirim push notifikasi cadangan via Supabase Edge Function 'send-push-notification'.

@@ -1,9 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Internet, Network, and Notification permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL"/>
 
     <!-- Media, Call, and Location permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -94,6 +99,25 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
+
+        <!-- Receiver for handling call actions like Decline/Dismiss without waking Flutter -->
+        <receiver
+            android:name="com.mekaar.mekaar_chat.MekaarCallActionReceiver"
+            android:exported="false" />
+
+        <!-- Custom Firebase Messaging Receiver intercepting high-priority calls & SOS -->
+        <receiver
+            android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingReceiver"
+            tools:node="remove" />
+
+        <receiver
+            android:name="com.mekaar.mekaar_chat.MekaarFirebaseMessagingReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter android:priority="999">
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -123,6 +147,7 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" />
             <data android:mimeType="application/vnd.android.package-archive" />
         </intent>
         <package android:name="com.google.android.packageinstaller" />

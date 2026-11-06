@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
@@ -30,10 +31,13 @@ class MainActivity : FlutterActivity() {
         const val CAPTURE_CHANNEL = "com.mekaar.mekaar_chat/screen_capture"
         const val WAKELOCK_CHANNEL = "com.mekaar.mekaar_chat/wakelock"
         const val RINGTONE_CHANNEL = "com.mekaar.mekaar_chat/ringtone_picker"
+        const val CALL_INTENT_CHANNEL = "com.mekaar.mekaar_chat/call_intent"
         const val REQUEST_CODE_RINGTONE_PICKER = 2001
     }
 
     private var pendingRingtoneResult: MethodChannel.Result? = null
+    private var callIntentChannel: MethodChannel? = null
+    private var pendingCallIntentData: MutableMap<String, Any?>? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -56,6 +60,40 @@ class MainActivity : FlutterActivity() {
                 "enableSecureFlag" -> updateSecureFlag(enabled = true, result)
                 "disableSecureFlag" -> updateSecureFlag(enabled = false, result)
                 else -> result.notImplemented()
+            }
+        }
+
+        callIntentChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CALL_INTENT_CHANNEL
+        ).apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialCallIntent" -> {
+                        result.success(pendingCallIntentData)
+                        pendingCallIntentData = null
+                    }
+                    "cancelCallNotification" -> {
+                        val callId = call.argument<String>("callId")
+                        MekaarCallNotificationManager.cancelIncomingCall(this@MainActivity, callId)
+                        result.success(true)
+                    }
+                    "setPushDecryptionKey" -> {
+                        val keyBase64 = call.argument<String>("keyBase64")
+                        if (!keyBase64.isNullOrEmpty()) {
+                            AegisNativeBridge.setPushDecryptionKey(this@MainActivity, keyBase64)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_KEY", "Key tidak boleh kosong", null)
+                        }
+                    }
+                    "getPushDecryptionKey" -> {
+                        val keyBytes = AegisNativeBridge.getOrCreatePushKey(this@MainActivity)
+                        val keyB64 = android.util.Base64.encodeToString(keyBytes, android.util.Base64.NO_WRAP)
+                        result.success(keyB64)
+                    }
+                    else -> result.notImplemented()
+                }
             }
         }
 
@@ -590,5 +628,67 @@ class MainActivity : FlutterActivity() {
         } ?: throw IllegalStateException("Tidak dapat membaca stream audio dari URI: $uri")
 
         return targetFile.absolutePath
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleCallIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleCallIntent(intent)
+    }
+
+    private fun handleCallIntent(incomingIntent: Intent?) {
+        val intentToProcess = incomingIntent ?: return
+        val action = intentToProcess.action ?: return
+
+        if (action.startsWith("com.mekaar.mekaar_chat.ACTION_")) {
+            val callId = intentToProcess.getStringExtra("callId")
+            val roomId = intentToProcess.getStringExtra("roomId")
+            val callerId = intentToProcess.getStringExtra("callerId")
+            val callerName = intentToProcess.getStringExtra("callerName")
+            val callType = intentToProcess.getStringExtra("callType")
+            val callAction = intentToProcess.getStringExtra("callAction") ?: when (action) {
+                "com.mekaar.mekaar_chat.ACTION_ANSWER_CALL" -> "answer"
+                "com.mekaar.mekaar_chat.ACTION_VIEW_CALL" -> "view"
+                "com.mekaar.mekaar_chat.ACTION_DECLINE_CALL" -> "decline"
+                else -> null
+            }
+
+            if (callId != null || roomId != null) {
+                val payload: MutableMap<String, Any?> = mutableMapOf(
+                    "action" to callAction,
+                    "callId" to callId,
+                    "roomId" to roomId,
+                    "callerId" to callerId,
+                    "callerName" to callerName,
+                    "callType" to callType
+                )
+
+                // Jika panggilan dijawab/dilihat, nyalakan layar jika terkunci
+                if (intentToProcess.getBooleanExtra("isIncomingCall", false) || callAction == "answer" || callAction == "view") {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                        setShowWhenLocked(true)
+                        setTurnScreenOn(true)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        window.addFlags(
+                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                        )
+                    }
+                }
+
+                if (callIntentChannel != null) {
+                    callIntentChannel?.invokeMethod("onCallIntent", payload)
+                } else {
+                    pendingCallIntentData = payload
+                }
+            }
+        }
     }
 }
