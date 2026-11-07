@@ -983,6 +983,11 @@ class PinLockEnabledNotifier extends StateNotifier<bool> {
   }
 
   Future<void> toggle(bool enabled, {bool isDecoySession = false}) async {
+    if (!enabled && isDecoySession) {
+      throw StateError(
+        'Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.',
+      );
+    }
     final prefs = await _preferences;
     final saved = await prefs.setBool(preferenceKey, enabled);
     if (!saved) {
