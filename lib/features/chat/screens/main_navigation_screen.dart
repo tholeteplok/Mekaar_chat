@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -7,6 +8,7 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../data/services/notification_service.dart';
 import '../../guardian/screens/guardian_list_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../guardian/providers/guardian_provider.dart';
@@ -106,6 +108,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       ),
       orElse: () => 0,
     );
+
+    // Jika badge unread pesan mencapai 0, pastikan notifikasi di status bar sistem juga bersih
+    if (totalUnread == 0 && chatRoomsState.hasValue) {
+      unawaited(NotificationService.cancelAllMessageNotifications());
+    }
 
     final hasPendingGuardian = ref.watch(hasPendingIncomingGuardiansProvider);
 

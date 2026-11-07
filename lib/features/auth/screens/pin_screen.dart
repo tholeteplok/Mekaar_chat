@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -220,8 +221,17 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                 await vaultRepo.preloadCache();
                 await ref.read(hiddenContactUserIdsProvider.notifier).loadHiddenContacts();
                 await ref.read(hiddenRoomIdsProvider.notifier).loadHiddenRooms();
-                ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-                ref.read(privateVaultUnlockedProvider.notifier).state = false;
+                if (!isDecoy) {
+                  // Mode Master: Otomatis membuka seluruh slot brankas vault!
+                  ref.read(unlockedVaultSlotsProvider.notifier).state = {1, 2, 3};
+                  ref.read(privateVaultUnlockedProvider.notifier).state = true;
+                  unawaited(vaultRepo.syncToNativeVault(isVaultUnlocked: true));
+                } else {
+                  // Mode Tamu / Duress: Segel seluruh brankas vault!
+                  ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+                  ref.read(privateVaultUnlockedProvider.notifier).state = false;
+                  unawaited(vaultRepo.syncToNativeVault(isVaultUnlocked: false));
+                }
               } catch (_) {}
             }(),
 

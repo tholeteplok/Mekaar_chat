@@ -15,6 +15,7 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/widgets/private_vault_dialogs.dart';
 import '../widgets/settings_tiles.dart';
@@ -367,6 +368,92 @@ class _ContactVaultSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDecoy = ref.watch(authProvider).isDecoyActive;
+    if (isDecoy) {
+      return MekaarScaffold(
+        flat: true,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SettingsTopBar(
+                title: 'Brankas Kontak',
+                subtitle: 'Kelola kontak rahasia & kompartemen vault',
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  children: [
+                    CustomCard(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            SolarIconsBold.shieldKeyhole,
+                            color: MekaarColors.guardianTeal,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Fitur brankas memungkinkan Anda menyembunyikan kontak dan obrolan pribadi agar tidak terlihat di daftar obrolan utama.',
+                              style: MekaarTypography.bodySM.copyWith(
+                                color: MekaarColors.textSecondaryOf(context),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    CustomCard(
+                      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.surface2Of(context),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              SolarIconsOutline.shieldKeyhole,
+                              size: 40,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Belum Ada Kontak Tersembunyi',
+                            style: MekaarTypography.headingSM.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Untuk menyembunyikan kontak atau obrolan, buka obrolan atau daftar kontak, lalu pilih opsi "Sembunyikan ke Brankas".',
+                            style: MekaarTypography.bodySM.copyWith(
+                              color: MekaarColors.textMutedOf(context),
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final contactsAsync = ref.watch(userContactsProvider);
     final allContacts = contactsAsync.value ?? <ContactItem>[];
 
@@ -435,7 +522,7 @@ class _ContactVaultSettingsScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Kelola hingga 3 profil slot vault terisolasi. Tiap slot memiliki kode akses unik. Masukkan kode akses di bilah pencarian kontak untuk membuka profil tersebut. Lupa kode dapat direset menggunakan PIN Utama.',
+                          'Seluruh kompartemen brankas dilindungi langsung oleh PIN Master Anda. Anda juga dapat mengatur nama profil untuk mengorganisir kontak rahasia Anda.',
                           style: MekaarTypography.bodySM.copyWith(
                             color: MekaarColors.textSecondaryOf(context),
                             height: 1.4,

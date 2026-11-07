@@ -7,8 +7,11 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/contact_model.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
+import '../../../data/services/supabase_service.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/private_vault_provider.dart';
 
 class PrivateVaultDialogs {
@@ -20,20 +23,12 @@ class PrivateVaultDialogs {
     required String contactName,
     String? roomId,
   }) async {
-    final repo = ref.read(privateContactRepositoryProvider);
-    final hasPasscode = await repo.hasPasscode();
-
-    if (!context.mounted) return null;
-
-    if (!hasPasscode) {
-      final success = await showSetPasscodeDialog(
-        context,
-        ref,
-        autoUnlock: false,
-      );
-      if (!success) return null;
-      ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-      ref.read(privateVaultUnlockedProvider.notifier).state = false;
+    final authState = ref.read(authProvider);
+    if (authState.isDecoyActive) {
+      if (context.mounted) {
+        MekaarSnackbar.info(context, 'Tindakan ini tidak tersedia.');
+      }
+      return null;
     }
 
     if (!context.mounted) return null;
@@ -134,20 +129,12 @@ class PrivateVaultDialogs {
       return;
     }
 
-    final repo = ref.read(privateContactRepositoryProvider);
-    final hasPasscode = await repo.hasPasscode();
-
-    if (!context.mounted) return;
-
-    if (!hasPasscode) {
-      final success = await showSetPasscodeDialog(
-        context,
-        ref,
-        autoUnlock: false,
-      );
-      if (!success) return;
-      ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-      ref.read(privateVaultUnlockedProvider.notifier).state = false;
+    final authState = ref.read(authProvider);
+    if (authState.isDecoyActive) {
+      if (context.mounted) {
+        MekaarSnackbar.info(context, 'Tindakan ini tidak tersedia.');
+      }
+      return;
     }
 
     if (!context.mounted) return;
@@ -480,7 +467,13 @@ class PrivateVaultDialogs {
                         });
                         return;
                       }
-                      final isMatch = await repo.verifySlotPasscode(slot, val.trim());
+                      bool isMatch = await repo.verifySlotPasscode(slot, val.trim());
+                      if (!isMatch) {
+                        final authRepo = ref != null
+                            ? ref.read(authRepositoryProvider)
+                            : AuthRepository(SupabaseService());
+                        isMatch = await authRepo.validatePIN(val.trim());
+                      }
                       if (isMatch) {
                         HapticService.trigger(MekaarHapticIntent.success);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx, true);
@@ -534,7 +527,13 @@ class PrivateVaultDialogs {
                       });
                       return;
                     }
-                    final isMatch = await repo.verifySlotPasscode(slot, code);
+                    bool isMatch = await repo.verifySlotPasscode(slot, code);
+                    if (!isMatch) {
+                      final authRepo = ref != null
+                          ? ref.read(authRepositoryProvider)
+                          : AuthRepository(SupabaseService());
+                      isMatch = await authRepo.validatePIN(code);
+                    }
                     if (isMatch) {
                       HapticService.trigger(MekaarHapticIntent.success);
                       if (dialogCtx.mounted) {

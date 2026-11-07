@@ -146,6 +146,24 @@ object MekaarMessageNotificationManager {
         val notificationId = getMessageNotificationId(roomId)
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // 1. Batalkan notifikasi berbasis integer ID tanpa tag (dari MekaarMessageNotificationManager & FlutterLocalNotifications)
         notificationManager.cancel(notificationId)
+
+        // 2. Batalkan notifikasi bertag FCM (Google Play Services default tag: "msg_$roomId")
+        if (!roomId.isNullOrEmpty()) {
+            notificationManager.cancel("msg_$roomId", 0)
+            notificationManager.cancel("msg_$roomId", notificationId)
+            notificationManager.cancel("room_$roomId", 0)
+            notificationManager.cancel("room_$roomId", notificationId)
+        }
+    }
+
+    fun cancelAllMessageNotifications(context: Context) {
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        try {
+            notificationManager.cancelAll()
+        } catch (_: Exception) {}
     }
 }

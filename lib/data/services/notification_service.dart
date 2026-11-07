@@ -385,6 +385,19 @@ class NotificationService {
     }
   }
 
+  /// Batalkan seluruh notifikasi pesan (misal saat seluruh pesan terbaca / badge 0).
+  static Future<void> cancelAllMessageNotifications() async {
+    try {
+      await _localNotificationsPlugin.cancelAll();
+    } catch (_) {}
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        const MethodChannel('com.mekaar.mekaar_chat/call_intent')
+            .invokeMethod('cancelAllMessageNotifications');
+      } catch (_) {}
+    }
+  }
+
   /// Membuka halaman Pengaturan Notifikasi Sistem Android untuk aplikasi atau channel pesan.
   /// Memungkinkan pengguna mengatur nada dering dan preferensi notifikasi langsung di pengaturan OS.
   static Future<bool> openSystemNotificationSettings({String? channelId}) async {

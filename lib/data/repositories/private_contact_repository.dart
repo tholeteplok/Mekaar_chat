@@ -548,10 +548,16 @@ class PrivateContactRepository {
   }
 
   /// Sinkronisasi daftar vault ke layer native Android untuk penyamaran push 0ms.
-  Future<void> syncToNativeVault({bool isVaultUnlocked = false}) async {
+  Future<void> syncToNativeVault({
+    bool isVaultUnlocked = false,
+    List<String>? hiddenRoomIds,
+    List<String>? hiddenContactUserIds,
+  }) async {
     try {
-      final rooms = (_cachedHiddenRoomIds ?? await getHiddenRoomIds()).toList();
-      final contacts = (_cachedHiddenContactUserIds ?? await getHiddenContactUserIds()).toList();
+      final rooms = hiddenRoomIds ??
+          (_cachedHiddenRoomIds ?? await getHiddenRoomIds()).toList();
+      final contacts = hiddenContactUserIds ??
+          (_cachedHiddenContactUserIds ?? await getHiddenContactUserIds()).toList();
       await PushNotificationService.syncVaultState(
         hiddenRoomIds: rooms,
         hiddenContactUserIds: contacts,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -11,9 +12,12 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_change_pin_sheet.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../chat/providers/private_vault_provider.dart';
+import '../../../data/repositories/private_contact_repository.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
@@ -176,27 +180,21 @@ class SettingsScreen extends ConsumerWidget {
                 value: ref.watch(pinLockEnabledProvider),
                 onChanged: (bool value) async {
                   if (!value) {
-                    // Wajibkan verifikasi PIN Utama sebelum menonaktifkan kunci PIN aplikasi
+                    // Wajibkan verifikasi PIN saat ini sebelum menonaktifkan kunci PIN aplikasi
                     final verified = await MekaarPinVerificationSheet.verify(
                       context,
-                      title: 'Verifikasi PIN Utama',
+                      title: 'Verifikasi PIN Saat Ini',
                       subtitle:
-                          'Masukkan PIN utama Anda untuk menonaktifkan kunci PIN aplikasi',
+                          'Masukkan PIN 6 digit Anda untuk menonaktifkan kunci PIN aplikasi',
                       allowDuress: false,
-                      allowDecoy: false,
+                      allowDecoy: true,
                     );
                     if (!verified) return;
 
-                    // Cegah mutlak penonaktifan jika berada pada sesi tamu / paksaan
-                    if (isDecoy) {
-                      if (context.mounted) {
-                        MekaarSnackbar.error(
-                          context,
-                          'Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.',
-                        );
-                      }
-                      return;
-                    }
+                    // Fail-Closed: Otomatis kunci & segel seluruh brankas saat kunci PIN dinonaktifkan
+                    ref.read(unlockedVaultSlotsProvider.notifier).state = {};
+                    ref.read(privateVaultUnlockedProvider.notifier).state = false;
+                    unawaited(ref.read(privateContactRepositoryProvider).syncToNativeVault(isVaultUnlocked: false));
                   }
 
                   try {
@@ -212,6 +210,14 @@ class SettingsScreen extends ConsumerWidget {
                     }
                   }
                 },
+              ),
+              const Divider(height: 1),
+              SettingsNavTile(
+                icon: SolarIconsOutline.keySquare,
+                iconColor: MekaarColors.brandPrimary,
+                title: 'Ganti PIN',
+                subtitle: 'Perbarui 6 digit PIN keamanan aplikasi',
+                onTap: () => _handleChangePin(context, ref),
               ),
               if (!isDecoy) ...[
                 SettingsNavTile(
@@ -701,6 +707,32 @@ class SettingsScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  // ─────────────────────────────────────────────────
+  // Ganti PIN Cerdas (Honeypot Decoy Swap jika mode tamu)
+  // ─────────────────────────────────────────────────
+  Future<void> _handleChangePin(BuildContext context, WidgetRef ref) async {
+    final verified = await MekaarPinVerificationSheet.verify(
+      context,
+      title: 'Verifikasi PIN Saat Ini',
+      subtitle: 'Masukkan 6 digit PIN Anda yang aktif untuk melanjutkan',
+      allowDuress: false,
+      allowDecoy: true,
+    );
+    if (!verified || !context.mounted) return;
+
+    final success = await MekaarChangePinSheet.show(
+      context,
+      title: 'Ganti PIN Aplikasi',
+      onConfirmPin: (newPin) async {
+        return await ref.read(authProvider.notifier).updateActivePin(newPin);
+      },
+    );
+
+    if (success && context.mounted) {
+      MekaarSnackbar.success(context, 'PIN berhasil diperbarui');
+    }
   }
 
   // ─────────────────────────────────────────────────

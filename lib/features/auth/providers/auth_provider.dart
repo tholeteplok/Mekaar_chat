@@ -625,6 +625,59 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Mengubah PIN secara cerdas dan natural (mendukung Honeypot Decoy Swap):
+  /// - Jika PIN saat ini cocok dengan Master PIN: perbarui Master PIN.
+  /// - Jika PIN saat ini cocok dengan Decoy/Guest PIN: perbarui Decoy PIN (Honeypot).
+  /// Mengembalikan true bila salah satu PIN berhasil diperbarui.
+  Future<bool> changePinNaturally({
+    required String currentPin,
+    required String newPin,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final isMaster = await _authRepository.validatePIN(currentPin);
+      if (isMaster) {
+        await setupPIN(newPin);
+        return true;
+      }
+
+      final isDecoy = await _authRepository.validateDecoyPIN(currentPin);
+      if (isDecoy) {
+        // Honeypot Decoy Swap: perbarui PIN Tamu secara nyata tanpa menyentuh Master PIN
+        await _authRepository.setDecoyPIN(newPin);
+        state = state.copyWith(isLoading: false);
+        return true;
+      }
+
+      state = state.copyWith(isLoading: false, error: 'PIN saat ini salah.');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
+  /// Memperbarui PIN untuk mode sesi aktif saat ini:
+  /// - Di Mode Master: perbarui Master PIN.
+  /// - Di Mode Tamu / Decoy: perbarui Decoy PIN (Honeypot Decoy Swap).
+  Future<bool> updateActivePin(String newPin) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      if (state.isDecoyActive) {
+        // Honeypot Decoy Swap: perbarui PIN Tamu secara nyata
+        await _authRepository.setDecoyPIN(newPin);
+      } else {
+        // Mode Master: perbarui PIN Master
+        await setupPIN(newPin);
+      }
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
   // Validate dynamic PIN with lockout check.
   // 1. Duress PIN: Buka mode decoy/stealth, pemicu SOS silent ke Guardian.
   // 2. Decoy PIN: Buka mode decoy/stealth, TANPA memicu SOS (skenario pinjam HP).
@@ -930,11 +983,6 @@ class PinLockEnabledNotifier extends StateNotifier<bool> {
   }
 
   Future<void> toggle(bool enabled, {bool isDecoySession = false}) async {
-    if (!enabled && isDecoySession) {
-      throw StateError(
-        'Kunci PIN tidak dapat dinonaktifkan dalam mode sesi ini.',
-      );
-    }
     final prefs = await _preferences;
     final saved = await prefs.setBool(preferenceKey, enabled);
     if (!saved) {

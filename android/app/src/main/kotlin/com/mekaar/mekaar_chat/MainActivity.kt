@@ -109,6 +109,10 @@ class MainActivity : FlutterActivity() {
                         MekaarMessageNotificationManager.cancelMessageNotification(this@MainActivity, roomId)
                         result.success(true)
                     }
+                    "cancelAllMessageNotifications" -> {
+                        MekaarMessageNotificationManager.cancelAllMessageNotifications(this@MainActivity)
+                        result.success(true)
+                    }
                     "openNotificationSettings" -> {
                         val channelId = call.argument<String>("channelId") ?: MekaarMessageNotificationManager.MESSAGE_CHANNEL_ID
                         try {

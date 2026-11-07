@@ -42,15 +42,8 @@ final cloakedContactUserIdsProvider = Provider<Set<String>>((ref) {
   final hiddenIds = ref.watch(hiddenContactUserIdsProvider);
   final contactsAsync = ref.watch(userContactsProvider);
   final contacts = contactsAsync.value ?? const <ContactItem>[];
-
-  // Sinkronisasi status keterbukaan vault ke layer native Android (AegisNativeBridge)
-  final repo = ref.read(privateContactRepositoryProvider);
-  unawaited(repo.syncToNativeVault(isVaultUnlocked: isAnyUnlocked));
-
+  final contactMap = {for (final c in contacts) c.contactUserId: c};
   final cloaked = <String>{};
-  final contactMap = <String, ContactItem>{
-    for (final c in contacts) c.contactUserId: c,
-  };
 
   // 1. Kontak yang terdaftar di userContacts: cek status isVaulted dan slotnya
   for (final c in contacts) {
@@ -74,6 +67,13 @@ final cloakedContactUserIdsProvider = Provider<Set<String>>((ref) {
       }
     }
   }
+
+  // Sinkronisasi status keterbukaan vault & daftar cloaked aktual ke layer native Android (AegisNativeBridge)
+  final repo = ref.read(privateContactRepositoryProvider);
+  unawaited(repo.syncToNativeVault(
+    isVaultUnlocked: isAnyUnlocked,
+    hiddenContactUserIds: cloaked.toList(),
+  ));
 
   return cloaked;
 });
@@ -106,6 +106,13 @@ final cloakedRoomIdsProvider = Provider<Set<String>>((ref) {
   if (!isAnyUnlocked) {
     cloaked.addAll(hiddenRooms);
   }
+
+  final repo = ref.read(privateContactRepositoryProvider);
+  unawaited(repo.syncToNativeVault(
+    isVaultUnlocked: isAnyUnlocked,
+    hiddenRoomIds: cloaked.toList(),
+    hiddenContactUserIds: cloakedUserIds.toList(),
+  ));
 
   return cloaked;
 });
