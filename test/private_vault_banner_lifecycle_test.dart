@@ -167,8 +167,7 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        // 1. Banner wajib tampil karena vault terbuka dan kontak 1 masih ada di vault
-        expect(find.text('Vault Terbuka (Sesi Aktif)'), findsOneWidget);
+        // 1. Verifikasi: Sesi vault terbuka
         expect(capturedRef.read(privateVaultUnlockedProvider), isTrue);
 
         // 2. Unhide kontak 1 (swipe kiri "Tampilkan")
@@ -188,7 +187,7 @@ void main() {
         expect(capturedRef.read(privateVaultUnlockedProvider), isFalse);
         expect(capturedRef.read(unlockedVaultSlotsProvider), isEmpty);
 
-        // 4. Verifikasi: Banner langsung hilang seketika tanpa perlu restart
+        // 4. Verifikasi: Banner tetap bersih (stealth, zero visual leak)
         expect(find.text('Vault Terbuka (Sesi Aktif)'), findsNothing);
       },
     );
@@ -234,8 +233,7 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        // 1. Banner wajib tampil
-        expect(find.text('Vault Terbuka (Sesi Aktif)'), findsOneWidget);
+        // 1. Verifikasi: Sesi vault terbuka
         expect(capturedRef.read(privateVaultUnlockedProvider), isTrue);
 
         // 2. Unhide kontak 1 saja
@@ -248,10 +246,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 3. Verifikasi: Masih ada kontak 2 di vault -> Banner TETAP aktif dan sesi tetap unlocked
+        // 3. Verifikasi: Masih ada kontak 2 di vault -> sesi tetap unlocked
         expect(capturedRef.read(privateVaultUnlockedProvider), isTrue);
         expect(capturedRef.read(unlockedVaultSlotsProvider), contains(1));
-        expect(find.text('Vault Terbuka (Sesi Aktif)'), findsOneWidget);
 
         // 4. Unhide kontak 2 (sekarang 0 kontak tersisa)
         await PrivateVaultDialogs.toggleContactHiddenWithAuth(
@@ -262,7 +259,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 5. Verifikasi: Sekarang semua kontak vault telah ditampilkan -> Banner langsung hilang dan vault terkunci
+        // 5. Verifikasi: Sekarang semua kontak vault telah ditampilkan -> vault otomatis terkunci
         expect(capturedRef.read(privateVaultUnlockedProvider), isFalse);
         expect(capturedRef.read(unlockedVaultSlotsProvider), isEmpty);
         expect(find.text('Vault Terbuka (Sesi Aktif)'), findsNothing);

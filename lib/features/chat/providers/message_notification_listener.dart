@@ -305,6 +305,14 @@ class MessageNotificationListener {
       roomId: roomId,
       otherUserId: senderId,
     );
+
+    // Di Mode Tamu / Duress: Zero-Knowledge Stealth
+    // Pesan dari obrolan/kontak brankas dibungkam total (zero in-app banner, zero sound, zero vibration)
+    final isDecoyActive = _ref.read(authProvider).isDecoyActive;
+    if (isDecoyActive && isCloaked) {
+      return;
+    }
+
     final isStealthPreview = _ref.read(stealthChatPreviewProvider);
 
     final String finalTitle;

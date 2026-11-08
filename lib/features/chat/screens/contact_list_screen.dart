@@ -28,7 +28,6 @@ import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/nearby_friends_canvas.dart';
-import '../widgets/private_vault_active_banner.dart';
 import '../widgets/private_vault_dialogs.dart';
 
 class ContactListScreen extends ConsumerStatefulWidget {
@@ -443,8 +442,6 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                           ],
                         ),
                 ),
-                // Banner Private Vault Aktif (jika vault sedang terbuka)
-                const PrivateVaultActiveBanner(),
                 const SizedBox(height: 6),
                 // Tab Atas Utama: ['Semua Kontak', 'Teman Sekitar']
                 MekaarSlidingSegmentBar(

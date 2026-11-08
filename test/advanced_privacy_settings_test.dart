@@ -31,11 +31,10 @@ void main() {
       // Verifikasi Header terpusat SettingsTopBar
       expect(find.byType(SettingsTopBar), findsOneWidget);
       expect(find.text('Privasi Lanjutan'), findsOneWidget);
-      expect(find.text('Manajemen vault, notifikasi & cuplikan pesan'), findsOneWidget);
+      expect(find.text('Notifikasi, cuplikan pesan & keamanan jaringan'), findsOneWidget);
 
-      // Verifikasi opsi utama
-      expect(find.text('Manajemen Vault'), findsOneWidget);
-      expect(find.text('Kelola slot vault, kode akses, dan kontak terisolasi'), findsOneWidget);
+      // Verifikasi opsi utama (Manajemen Vault telah ditiadakan sesuai Redesign)
+      expect(find.text('Manajemen Vault'), findsNothing);
       expect(find.text('Sembunyikan Notifikasi Darurat'), findsOneWidget);
       expect(find.text('Sembunyikan Cuplikan Pesan'), findsOneWidget);
       expect(find.text('Sembunyikan Alamat IP Panggilan'), findsOneWidget);

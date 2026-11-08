@@ -19,7 +19,6 @@ import '../../../data/repositories/contact_repository.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/chat_list_tile.dart';
-import '../widgets/private_vault_active_banner.dart';
 import '../widgets/private_vault_dialogs.dart';
 
 /// Layar Arsip Percakapan terproteksi PIN.
@@ -200,8 +199,6 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
       ),
       body: Column(
         children: [
-          if (ref.watch(unlockedVaultSlotsProvider).isNotEmpty)
-            const PrivateVaultActiveBanner(),
           if (_isSearchActive)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

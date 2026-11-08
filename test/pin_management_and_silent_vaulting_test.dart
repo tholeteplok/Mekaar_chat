@@ -34,6 +34,40 @@ class _FakeAuthNotifier extends AuthNotifier {
   Future<bool> isDuressEnabled() async => false;
 }
 
+class _TestHiddenContactUserIdsNotifier extends StateNotifier<Set<String>>
+    implements HiddenContactUserIdsNotifier {
+  _TestHiddenContactUserIdsNotifier(super.initial);
+
+  @override
+  Future<void> loadHiddenContacts() async {}
+
+  @override
+  Future<bool> toggleHide(String contactUserId) async => true;
+
+  @override
+  Future<void> hideContact(String contactUserId) async {}
+
+  @override
+  Future<void> removeContact(String contactUserId) async {}
+
+  @override
+  bool isHidden(String contactUserId) => state.contains(contactUserId);
+}
+
+class _TestHiddenRoomIdsNotifier extends StateNotifier<Set<String>>
+    implements HiddenRoomIdsNotifier {
+  _TestHiddenRoomIdsNotifier(super.initial);
+
+  @override
+  Future<void> loadHiddenRooms() async {}
+
+  @override
+  Future<bool> toggleHide(String roomId) async => true;
+
+  @override
+  bool isHidden(String roomId) => state.contains(roomId);
+}
+
 void main() {
   setUp(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -176,6 +210,59 @@ void main() {
       // Toggle sembunyikan obrolan (Silent Vaulting)
       await notifier.toggleHide('room_abc');
       expect(containerRef.read(hiddenRoomIdsProvider), contains('room_abc'));
+    });
+  });
+
+  group('VaultIsolationHelper & Guest Mode Zero-Knowledge Tests', () {
+    test('VaultIsolationHelper.isContactCloaked memprioritaskan hiddenContactUserIdsProvider', () {
+      final container = ProviderContainer(
+        overrides: [
+          hiddenContactUserIdsProvider.overrideWith(
+            (ref) => _TestHiddenContactUserIdsNotifier({'user_secret_99'}),
+          ),
+          privateVaultUnlockedProvider.overrideWith((ref) => false),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Meskipun kontak item tidak ada atau isVaulted false, harus tetap terdeteksi cloaked
+      final isCloaked = VaultIsolationHelper.isContactCloaked(
+        container,
+        'user_secret_99',
+      );
+
+      expect(isCloaked, isTrue);
+
+      final isNonVaultCloaked = VaultIsolationHelper.isContactCloaked(
+        container,
+        'user_public_1',
+      );
+      expect(isNonVaultCloaked, isFalse);
+    });
+
+    test('VaultIsolationHelper.isRoomCloaked memprioritaskan hiddenRoomIdsProvider', () {
+      final container = ProviderContainer(
+        overrides: [
+          hiddenRoomIdsProvider.overrideWith(
+            (ref) => _TestHiddenRoomIdsNotifier({'room_secret_xyz'}),
+          ),
+          privateVaultUnlockedProvider.overrideWith((ref) => false),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final isCloaked = VaultIsolationHelper.isRoomCloaked(
+        container,
+        roomId: 'room_secret_xyz',
+      );
+
+      expect(isCloaked, isTrue);
+
+      final isNonVaultCloaked = VaultIsolationHelper.isRoomCloaked(
+        container,
+        roomId: 'room_public_abc',
+      );
+      expect(isNonVaultCloaked, isFalse);
     });
   });
 }

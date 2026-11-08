@@ -155,6 +155,11 @@ class VaultIsolationHelper {
       isAnyUnlocked = false;
     }
 
+    // 1. Cek set hiddenContactUserIdsProvider terlebih dahulu (lokal / silent vault)
+    if (hiddenUsers.contains(contactUserId)) {
+      return !isAnyUnlocked;
+    }
+
     ContactItem? contact;
     if (contacts != null) {
       for (final c in contacts) {
@@ -165,17 +170,12 @@ class VaultIsolationHelper {
       }
     }
 
-    if (contact != null) {
-      if (!contact.isVaulted) return false;
+    if (contact != null && contact.isVaulted) {
       return !unlockedSlots.contains(contact.vaultSlot);
     }
 
     if (knownSlot != null) {
       return !unlockedSlots.contains(knownSlot);
-    }
-
-    if (hiddenUsers.contains(contactUserId)) {
-      return !isAnyUnlocked;
     }
 
     return false;
@@ -212,12 +212,6 @@ class VaultIsolationHelper {
     String? otherUserId,
     int? knownSlot,
   }) {
-    if (otherUserId != null && otherUserId.isNotEmpty) {
-      return isContactCloaked(ref, otherUserId, knownSlot: knownSlot);
-    }
-
-    if (roomId == null) return false;
-
     final Set<int> unlockedSlots;
     final Set<String> hiddenRooms;
     final bool isAnyUnlocked;
@@ -243,8 +237,14 @@ class VaultIsolationHelper {
       isAnyUnlocked = false;
     }
 
-    if (hiddenRooms.contains(roomId)) {
+    // 1. Cek apakah roomId ada di hiddenRoomIds
+    if (roomId != null && hiddenRooms.contains(roomId)) {
       return !isAnyUnlocked;
+    }
+
+    // 2. Cek apakah lawan bicara (otherUserId) terselubung
+    if (otherUserId != null && otherUserId.isNotEmpty) {
+      return isContactCloaked(ref, otherUserId, knownSlot: knownSlot);
     }
 
     return false;

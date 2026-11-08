@@ -18,6 +18,7 @@ import 'package:mekaar_chat/data/services/deep_link_service.dart';
 import 'package:mekaar_chat/data/repositories/private_contact_repository.dart';
 import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
 import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
+import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -253,8 +254,22 @@ void _handleNotificationRoute(NotificationRoute route) async {
       try {
         final hiddenRooms =
             await PrivateContactRepository().getHiddenRoomIds();
+        final hiddenContacts =
+            await PrivateContactRepository().getHiddenContactUserIds();
         if (!context.mounted) return;
-        if (hiddenRooms.contains(roomId)) {
+        if (hiddenRooms.contains(roomId) ||
+            (otherUserId != null && hiddenContacts.contains(otherUserId))) {
+          bool isDecoy = false;
+          try {
+            final container = ProviderScope.containerOf(context, listen: false);
+            isDecoy = container.read(authProvider).isDecoyActive;
+          } catch (_) {}
+
+          // Di Mode Tamu / Duress: Drop navigasi ke vault tanpa memunculkan dialog password apapun
+          if (isDecoy) {
+            return;
+          }
+
           bool isUnlocked = false;
           try {
             final container = ProviderScope.containerOf(context, listen: false);
