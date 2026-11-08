@@ -21,6 +21,7 @@ class PrivateContactRepository {
   static const String _hiddenRoomsKey = 'mekaar_private_vault_hidden_rooms';
   static const String _hiddenContactsKey = 'mekaar_private_vault_hidden_contacts';
   static const String _slotNamePrefix = 'mekaar_vault_slot_name_';
+  static const String _activeSlotsKey = 'mekaar_vault_active_slots_list';
   static const String _failedAttemptsKey = 'mekaar_vault_failed_attempts';
   static const String _lockedUntilKey = 'mekaar_vault_locked_until';
   static const int _maxAttemptsBeforeLockout = 5;
@@ -343,8 +344,14 @@ class PrivateContactRepository {
       if (slot == 1) {
         _cachedHash = null;
       }
+    } catch (_) {}
+
+    try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('$_slotNamePrefix$slot');
+      final savedList = List<String>.from(prefs.getStringList(_activeSlotsKey) ?? <String>['1']);
+      savedList.remove(slot.toString());
+      await prefs.setStringList(_activeSlotsKey, savedList);
     } catch (_) {}
   }
 
@@ -368,19 +375,45 @@ class PrivateContactRepository {
     } catch (_) {}
   }
 
-  /// Mengembalikan daftar nomor slot yang aktif (memiliki passcode)
+  /// Mengembalikan daftar nomor slot yang aktif
   Future<List<int>> getActiveSlots() async {
-    final active = <int>[];
-    for (int slot = 1; slot <= 3; slot++) {
+    final active = <int>{1};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedList = prefs.getStringList(_activeSlotsKey);
+      if (savedList != null) {
+        for (final s in savedList) {
+          final parsed = int.tryParse(s);
+          if (parsed != null && parsed >= 1 && parsed <= 3) {
+            active.add(parsed);
+          }
+        }
+      }
+    } catch (_) {}
+
+    for (int slot = 2; slot <= 3; slot++) {
       if (await hasSlotPasscode(slot)) {
         active.add(slot);
       }
     }
-    // Jika belum ada satupun, kembalikan slot 1 sebagai default placeholder
-    if (active.isEmpty) {
-      active.add(1);
-    }
-    return active;
+
+    final sorted = active.toList()..sort();
+    return sorted;
+  }
+
+  /// Mengaktifkan profil slot baru
+  Future<void> activateSlot(int slot, {String? name}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedList = List<String>.from(prefs.getStringList(_activeSlotsKey) ?? <String>['1']);
+      if (!savedList.contains(slot.toString())) {
+        savedList.add(slot.toString());
+        await prefs.setStringList(_activeSlotsKey, savedList);
+      }
+      if (name != null && name.trim().isNotEmpty) {
+        await setSlotName(slot, name.trim());
+      }
+    } catch (_) {}
   }
 
   /// Getter sinkron untuk cache memori roomId yang disembunyikan (0ms latency, anti-flash)

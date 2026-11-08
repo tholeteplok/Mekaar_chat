@@ -186,7 +186,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final authState = ref.watch(authProvider);
-    final isDecoy = authState.isDecoyActive;
+    final isDuress = authState.isDuressActive;
     final contactsAsync = ref.watch(userContactsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
@@ -212,7 +212,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         onAction: () => ref.read(userContactsProvider.notifier).refreshContacts(forceLoading: true),
       ),
       data: (items) {
-        final allContacts = isDecoy ? <ContactItem>[] : items;
+        final allContacts = isDuress ? <ContactItem>[] : items;
 
         // Filter berdasarkan vault cloaking terisolasi & pencarian
         final filteredContacts = allContacts.where((contact) {
@@ -287,7 +287,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       _searchController.clear();
                     });
                   },
-                  action: isDecoy
+                  action: isDuress
                       ? null
                       : Row(
                           mainAxisSize: MainAxisSize.min,
@@ -548,6 +548,29 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           ),
           onPressed: () async {
             Navigator.pop(context);
+            final isGuest = ref.read(authProvider).isGuestActive;
+            if (isGuest) {
+              // Silent Vaulting di mode tamu: sembunyikan ke vault master tanpa menghapus data asli
+              await ref
+                  .read(hiddenContactUserIdsProvider.notifier)
+                  .toggleHide(contact.contactUserId);
+              await ref
+                  .read(userContactsProvider.notifier)
+                  .updateVaultStatus(contact.contactUserId, true, vaultSlot: 1);
+              if (contact.roomId != null && contact.roomId!.isNotEmpty) {
+                await ref
+                    .read(hiddenRoomIdsProvider.notifier)
+                    .toggleHide(contact.roomId!);
+              }
+              if (context.mounted) {
+                MekaarSnackbar.success(
+                  context,
+                  'Kontak dan obrolan berhasil dihapus.',
+                );
+              }
+              return;
+            }
+
             await ref
                 .read(userContactsProvider.notifier)
                 .deleteContact(contact.contactUserId);
@@ -849,9 +872,12 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         final username = contact.username;
         final email = contact.email ?? '';
 
+        final isGuestActive = ref.watch(authProvider).isGuestActive;
         return Dismissible(
           key: ValueKey('contact_dismiss_${contact.contactUserId}'),
-          direction: DismissDirection.horizontal,
+          direction: isGuestActive
+              ? DismissDirection.startToEnd
+              : DismissDirection.horizontal,
           // 1. Gestur kanan: Hapus Kontak
           background: Container(
             color: MekaarColors.sosRed,
@@ -875,30 +901,34 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               ],
             ),
           ),
-          // 2. Gestur kiri: Sembunyikan Kontak ke Private Vault
-          secondaryBackground: Container(
-            color: MekaarColors.guardianTeal,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  isHidden ? 'Tampilkan' : 'Sembunyikan',
-                  style: MekaarTypography.bodyMD.copyWith(
-                    color: MekaarColors.textOnTeal,
-                    fontWeight: FontWeight.bold,
+          // 2. Gestur kiri: Sembunyikan Kontak ke Private Vault (dinonaktifkan di mode tamu)
+          secondaryBackground: isGuestActive
+              ? null
+              : Container(
+                  color: MekaarColors.guardianTeal,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        isHidden ? 'Tampilkan' : 'Sembunyikan',
+                        style: MekaarTypography.bodyMD.copyWith(
+                          color: MekaarColors.textOnTeal,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        isHidden
+                            ? SolarIconsBold.eye
+                            : SolarIconsBold.shieldKeyhole,
+                        color: MekaarColors.textOnTeal,
+                        size: 22,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  isHidden ? SolarIconsBold.eye : SolarIconsBold.shieldKeyhole,
-                  color: MekaarColors.textOnTeal,
-                  size: 22,
-                ),
-              ],
-            ),
-          ),
           confirmDismiss: (direction) async {
             HapticService.trigger(MekaarHapticIntent.selection);
             if (direction == DismissDirection.startToEnd) {
@@ -1141,27 +1171,30 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                   );
                 },
               ),
-              ListTile(
-                leading: Icon(
-                  isHidden ? SolarIconsOutline.eye : SolarIconsOutline.shieldKeyhole,
-                  color: MekaarColors.guardianTeal,
+              if (!ref.read(authProvider).isGuestActive)
+                ListTile(
+                  leading: Icon(
+                    isHidden
+                        ? SolarIconsOutline.eye
+                        : SolarIconsOutline.shieldKeyhole,
+                    color: MekaarColors.guardianTeal,
+                  ),
+                  title: Text(
+                    isHidden
+                        ? 'Keluarkan dari Private Vault'
+                        : 'Sembunyikan ke Private Vault',
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    PrivateVaultDialogs.toggleContactHiddenWithAuth(
+                      context,
+                      ref,
+                      contactUserId: contact.contactUserId,
+                      contactName: name,
+                      roomId: contact.roomId,
+                    );
+                  },
                 ),
-                title: Text(
-                  isHidden
-                      ? 'Keluarkan dari Private Vault'
-                      : 'Sembunyikan ke Private Vault',
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  PrivateVaultDialogs.toggleContactHiddenWithAuth(
-                    context,
-                    ref,
-                    contactUserId: contact.contactUserId,
-                    contactName: name,
-                    roomId: contact.roomId,
-                  );
-                },
-              ),
               ListTile(
                 leading: const Icon(
                   SolarIconsOutline.userCross,

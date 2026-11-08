@@ -495,6 +495,29 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           onPressed: () async {
             Navigator.pop(context);
             final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+            final otherUserId =
+                (room['otherUserId'] ?? room['other_user_id']) as String?;
+
+            final isGuest = ref.read(authProvider).isGuestActive;
+            if (isGuest) {
+              // Silent Vaulting di mode tamu: sembunyikan obrolan ke vault master tanpa menghapus data asli
+              await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
+              if (otherUserId != null && otherUserId.isNotEmpty) {
+                await ref
+                    .read(hiddenContactUserIdsProvider.notifier)
+                    .toggleHide(otherUserId);
+                try {
+                  await ref
+                      .read(userContactsProvider.notifier)
+                      .updateVaultStatus(otherUserId, true, vaultSlot: 1);
+                } catch (_) {}
+              }
+              if (mounted) {
+                MekaarSnackbar.success(context, 'Obrolan berhasil dihapus.');
+              }
+              return;
+            }
+
             await ref.read(chatActionsProvider).deleteChat(roomId);
             try {
               final prefs = await SharedPreferences.getInstance();
@@ -598,11 +621,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
                                 try {
                                   final Map<String, dynamic>? profile;
-                                  final isDecoy = ref
+                                  final isDuress = ref
                                       .read(authProvider)
-                                      .isDecoyActive;
+                                      .isDuressActive;
 
-                                  if (isDecoy) {
+                                  if (isDuress) {
                                     await Future.delayed(
                                       const Duration(milliseconds: 600),
                                     );
@@ -779,7 +802,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final chatRoomsState = ref.watch(chatRoomsProvider);
     final authState = ref.watch(authProvider);
     final wasDuress = authState.lastUnlockWasDuress;
-    final isDecoy = authState.isDecoyActive;
 
     ref.listen<SharedPayload?>(sharedPayloadProvider, (prev, next) {
       if (next != null && next.isNotEmpty && mounted) {
@@ -829,7 +851,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       _searchController.clear();
                     });
                   },
-                  action: (wasDuress || isDecoy)
+                  action: (wasDuress || authState.isDuressActive)
                       ? null
                       : Row(
                           mainAxisSize: MainAxisSize.min,

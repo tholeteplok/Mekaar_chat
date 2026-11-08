@@ -56,10 +56,12 @@ class AuthState {
     this.e2eeNeedsRestore = false,
   });
 
-  bool get isDecoyActive =>
-      unlockMode == AuthUnlockMode.decoy ||
-      unlockMode == AuthUnlockMode.duress ||
-      lastUnlockWasDuress;
+  bool get isGuestActive => unlockMode == AuthUnlockMode.decoy;
+
+  bool get isDuressActive =>
+      unlockMode == AuthUnlockMode.duress || lastUnlockWasDuress;
+
+  bool get isDecoyActive => isGuestActive || isDuressActive;
 
   bool get needsUsername =>
       !isLoading && user != null && profile != null && !profile!.hasUsername;

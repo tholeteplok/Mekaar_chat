@@ -402,7 +402,7 @@ class PrivateVaultDialogs {
               ),
               title: 'Buka $displayName',
               message:
-                  'Masukkan kode akses rahasia untuk membuka $displayName.',
+                  'Masukkan PIN Master Anda untuk membuka $displayName.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +416,7 @@ class PrivateVaultDialogs {
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: InputDecoration(
-                      hintText: 'Kode akses $displayName',
+                      hintText: 'PIN Master',
                       errorText: errorMessage,
                       filled: true,
                       fillColor: MekaarColors.surface2Of(dialogCtx),

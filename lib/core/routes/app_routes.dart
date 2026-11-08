@@ -27,6 +27,7 @@ import 'package:mekaar_chat/features/settings/screens/chat_theme_settings_screen
 import 'package:mekaar_chat/features/settings/screens/security_logs_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/duress_pin_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/decoy_pin_screen.dart';
+import 'package:mekaar_chat/features/settings/screens/pin_management_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/profile_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/sound_picker_screen.dart';
 import 'package:mekaar_chat/features/settings/screens/blocked_list_screen.dart';
@@ -156,6 +157,7 @@ class AppRoutes {
   static const String archivedChats = '/chat/archived';
   static const String messageSearch = '/chat/search';
   static const String contactVaultSettings = '/settings/contact-vault';
+  static const String pinManagement = '/settings/pin-management';
   static const String advancedPrivacySettings = '/settings/advanced-privacy';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -296,6 +298,9 @@ class AppRoutes {
 
       case AppRoutes.decoyPin:
         return MekaarPageRoute(builder: (_) => const DecoyPinScreen());
+
+      case AppRoutes.pinManagement:
+        return MekaarPageRoute(builder: (_) => const PinManagementScreen());
 
       case AppRoutes.logs:
         return MekaarPageRoute(builder: (_) => const SecurityLogsScreen());

@@ -8,11 +8,9 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/services/haptic_service.dart';
@@ -215,35 +213,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     }
   }
 
-  Future<void> _navigateToChangePin() async {
-    final isPinSet = ref.read(authProvider).isPinSet;
-    final isDecoy = ref.read(authProvider).isDecoyActive;
-
-    if (isPinSet) {
-      final verified = await MekaarPinVerificationSheet.verify(
-        context,
-        title: 'Verifikasi PIN Utama',
-        subtitle: 'Masukkan PIN utama Anda untuk mengubah PIN aplikasi',
-        allowDuress: false,
-        allowDecoy: false,
-      );
-      if (!mounted || !verified) return;
-
-      if (isDecoy) {
-        if (mounted) {
-          MekaarSnackbar.error(
-            context,
-            'PIN utama tidak dapat diubah dalam mode sesi ini.',
-          );
-        }
-        return;
-      }
-    }
-
-    if (!mounted) return;
-    Navigator.pushNamed(context, '/pin', arguments: true);
-  }
-
   void _confirmLogout() {
     MekaarDialog.show(
       context: context,
@@ -279,7 +248,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final authState = ref.watch(authProvider);
-    final wasDuress = authState.lastUnlockWasDuress;
     final user = authState.user;
     final profile = authState.profile;
 
@@ -290,7 +258,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         'User';
     final userEmail = user?.email ?? '';
     final username = profile?.username ?? '';
-    final pinSet = authState.isPinSet;
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
     final saveActionButton =
@@ -522,58 +489,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       ),
                     ),
 
-                    if (!wasDuress) ...[
-                      const SizedBox(height: 20),
-                      Text(
-                        'KEAMANAN AKUN',
-                        style: MekaarTypography.caption.copyWith(
-                          color: MekaarColors.textMutedOf(context),
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
 
-                      CustomCard(
-                        margin: EdgeInsets.zero,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        borderRadius: MekaarRadius.card,
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 90,
-                              child: Text(
-                                'PIN Kunci',
-                                style: MekaarTypography.bodySM.copyWith(
-                                  color: MekaarColors.textMutedOf(context),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            MekaarBadge(
-                              label: pinSet ? 'PIN Aktif' : 'Belum Diatur',
-                              color: pinSet
-                                  ? MekaarColors.successTextOf(context)
-                                  : MekaarColors.warning,
-                            ),
-                            const Spacer(),
-                            TextButton(
-                              onPressed: _navigateToChangePin,
-                              child: Text(
-                                pinSet ? 'Ubah PIN' : 'Atur PIN',
-                                style: MekaarTypography.bodySM.copyWith(
-                                  color: MekaarColors.accentTextOf(context),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
 
                     const SizedBox(height: 32),
 

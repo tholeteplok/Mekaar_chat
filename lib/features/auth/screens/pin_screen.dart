@@ -197,10 +197,11 @@ class _PinScreenState extends ConsumerState<PinScreen> {
         if (mounted) {
           final authState = ref.read(authProvider);
           final isDecoy = authState.isDecoyActive;
-          final isDuress = authState.lastUnlockWasDuress;
+          final isDuress = authState.isDuressActive;
 
-          // Isolasi database pesan: beralih ke mekaar_decoy.db jika decoy/duress (<10ms)
-          await LocalMessageDatabase.instance.switchMode(isDecoy: isDecoy);
+          // Isolasi database pesan: HANYA beralih ke mekaar_decoy.db jika mode Duress (<10ms)
+          // Mode Tamu (Guest) tetap menggunakan database utama untuk obrolan reguler
+          await LocalMessageDatabase.instance.switchMode(isDecoy: isDuress);
 
           // Segera invalidasi draf pesan untuk mode database yang aktif
           ref.invalidate(chatDraftsProvider);
@@ -211,8 +212,8 @@ class _PinScreenState extends ConsumerState<PinScreen> {
             ref.read(chatDraftsProvider.notifier).reloadDrafts(),
 
             // 2. Segera muat daftar room dari SQLite lokal secara instan (0ms, zero network blocking)
-            // Sinkronisasi remote Supabase berjalan di latar belakang (stale-while-revalidate) hanya di mode master
-            ref.read(chatRoomsProvider.notifier).reloadFromLocalCache(syncRemoteInBackground: !isDecoy),
+            // Sinkronisasi remote Supabase berjalan di latar belakang hanya jika bukan duress
+            ref.read(chatRoomsProvider.notifier).reloadFromLocalCache(syncRemoteInBackground: !isDuress),
 
             // 3. Preload set vault rahasia secara tuntas (0ms latency, anti-flash)
             () async {
@@ -240,22 +241,22 @@ class _PinScreenState extends ConsumerState<PinScreen> {
               try {
                 final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
                   _pin,
-                  isDuress: isDecoy,
+                  isDuress: isDuress,
                 );
                 DatabaseKeyService.instance.setActiveVaultKey(
                   vaultKey,
-                  isDuress: isDecoy,
+                  isDuress: isDuress,
                 );
                 await LocalVaultDatabase.instance.openVault(
                   key: vaultKey,
-                  isDuress: isDecoy,
+                  isDuress: isDuress,
                   pin: _pin,
                 );
               } catch (_) {}
             }(),
           ]);
 
-          if (authState.e2eeNeedsRestore && !isDecoy) {
+          if (authState.e2eeNeedsRestore && !isDuress) {
             await _showE2eeRestoreDialog();
           }
 

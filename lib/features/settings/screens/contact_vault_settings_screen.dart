@@ -9,7 +9,6 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/contact_model.dart';
@@ -17,7 +16,6 @@ import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/private_vault_provider.dart';
-import '../../chat/widgets/private_vault_dialogs.dart';
 import '../widgets/settings_tiles.dart';
 
 /// Layar Pengaturan Kontak Vault Multi-Slot & Privasi Lanjutan
@@ -34,7 +32,6 @@ class _ContactVaultSettingsScreenState
   bool _isLoading = true;
   List<int> _activeSlots = [1];
   final Map<int, String> _slotNames = {1: 'Profil 1', 2: 'Profil 2', 3: 'Profil 3'};
-  final Map<int, bool> _hasPasscodes = {1: false, 2: false, 3: false};
 
   @override
   void initState() {
@@ -49,7 +46,6 @@ class _ContactVaultSettingsScreenState
     final active = await repo.getActiveSlots();
     for (int slot = 1; slot <= 3; slot++) {
       _slotNames[slot] = await repo.getSlotName(slot);
-      _hasPasscodes[slot] = await repo.hasSlotPasscode(slot);
     }
 
     if (mounted) {
@@ -117,20 +113,48 @@ class _ContactVaultSettingsScreenState
       }
     }
 
-    final success = await PrivateVaultDialogs.showSetPasscodeDialog(
-      context,
-      ref,
-      slot: nextSlot,
-      slotName: _slotNames[nextSlot] ?? 'Profil $nextSlot',
+    final controller = TextEditingController(text: 'Profil $nextSlot');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => MekaarDialog(
+        icon: const Icon(SolarIconsOutline.addCircle, color: AppColors.blue, size: 24),
+        title: 'Tambah Profil Slot $nextSlot',
+        message: 'Beri nama untuk mengidentifikasi kompartemen baru ini.',
+        customContent: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Mis. Bisnis, Lingkaran Rahasia',
+            filled: true,
+            fillColor: MekaarColors.surface2Of(ctx),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+              borderSide: BorderSide(color: MekaarColors.borderOf(ctx)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Tambah'),
+          ),
+        ],
+      ),
     );
 
-    if (success && mounted) {
+    if (newName != null && newName.isNotEmpty && mounted) {
+      final repo = ref.read(privateContactRepositoryProvider);
+      await repo.activateSlot(nextSlot, name: newName);
       HapticService.trigger(MekaarHapticIntent.success);
       await _loadSlotsData();
       if (!mounted) return;
       MekaarSnackbar.success(
         context,
-        '${_slotNames[nextSlot]} berhasil dibuat dan siap digunakan.',
+        '$newName berhasil dibuat dan siap digunakan.',
       );
     }
   }
@@ -205,48 +229,6 @@ class _ContactVaultSettingsScreenState
           'Profil slot $slot telah dihapus dan seluruh kontak di dalamnya telah dikembalikan.',
         );
       }
-    }
-  }
-
-  Future<void> _handleResetPasscodeViaPin(int slot) async {
-    final verified = await MekaarPinVerificationSheet.verify(
-      context,
-      title: 'Verifikasi PIN Utama',
-      subtitle: 'Masukkan 6 digit PIN aplikasi untuk mereset kode akses ${_slotNames[slot]}',
-    );
-
-    if (!verified || !mounted) return;
-
-    final success = await PrivateVaultDialogs.showSetPasscodeDialog(
-      context,
-      ref,
-      slot: slot,
-      slotName: _slotNames[slot],
-      isResetFlow: true,
-    );
-
-    if (success && mounted) {
-      HapticService.trigger(MekaarHapticIntent.success);
-      await _loadSlotsData();
-      if (!mounted) return;
-      MekaarSnackbar.success(
-        context,
-        'Kode akses baru untuk ${_slotNames[slot]} berhasil disimpan.',
-      );
-    }
-  }
-
-  Future<void> _handleChangePasscode(int slot) async {
-    final success = await PrivateVaultDialogs.showChangePasscodeDialog(
-      context,
-      ref,
-      slot: slot,
-      slotName: _slotNames[slot],
-    );
-
-    if (success && mounted) {
-      HapticService.trigger(MekaarHapticIntent.success);
-      await _loadSlotsData();
     }
   }
 
@@ -615,63 +597,6 @@ class _ContactVaultSettingsScreenState
                           ),
                           const SizedBox(height: 12),
 
-                          // Status Kode & Tombol Aksi Kode
-                          Row(
-                            children: [
-                              Icon(
-                                _hasPasscodes[slot] == true
-                                    ? SolarIconsBold.lock
-                                    : SolarIconsOutline.lockUnlocked,
-                                size: 14,
-                                color: _hasPasscodes[slot] == true
-                                    ? MekaarColors.successTextOf(context)
-                                    : MekaarColors.warnAmber,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _hasPasscodes[slot] == true
-                                    ? 'Kode Akses Aktif'
-                                    : 'Belum Ada Kode Akses',
-                                style: MekaarTypography.caption.copyWith(
-                                  color: _hasPasscodes[slot] == true
-                                      ? MekaarColors.successTextOf(context)
-                                      : MekaarColors.warnAmber,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                style: TextButton.styleFrom(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                ),
-                                onPressed: () {
-                                  if (_hasPasscodes[slot] == true) {
-                                    _handleChangePasscode(slot);
-                                  } else {
-                                    PrivateVaultDialogs.showSetPasscodeDialog(
-                                      context,
-                                      ref,
-                                      slot: slot,
-                                      slotName: _slotNames[slot],
-                                    ).then((ok) {
-                                      if (ok) _loadSlotsData();
-                                    });
-                                  }
-                                },
-                                child: Text(_hasPasscodes[slot] == true ? 'Ubah Kode' : 'Atur Kode'),
-                              ),
-                              TextButton(
-                                style: TextButton.styleFrom(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  foregroundColor: MekaarColors.warnAmber,
-                                ),
-                                onPressed: () => _handleResetPasscodeViaPin(slot),
-                                child: const Text('Reset via PIN'),
-                              ),
-                            ],
-                          ),
                           const Divider(height: 18),
 
                           // Daftar Kontak di Slot Ini

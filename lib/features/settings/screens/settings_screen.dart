@@ -12,12 +12,8 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
-import '../../../core/widgets/mekaar_change_pin_sheet.dart';
-import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../chat/providers/private_vault_provider.dart';
-import '../../../data/repositories/private_contact_repository.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
@@ -173,68 +169,19 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             children: [
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.lock,
-                iconColor: MekaarColors.yellow,
-                title: 'Kunci PIN Aplikasi',
-                value: ref.watch(pinLockEnabledProvider),
-                onChanged: (bool value) async {
-                  if (!value) {
-                    // Wajibkan verifikasi PIN saat ini sebelum menonaktifkan kunci PIN aplikasi
-                    final verified = await MekaarPinVerificationSheet.verify(
-                      context,
-                      title: 'Verifikasi PIN Saat Ini',
-                      subtitle:
-                          'Masukkan PIN 6 digit Anda untuk menonaktifkan kunci PIN aplikasi',
-                      allowDuress: false,
-                      allowDecoy: true,
-                    );
-                    if (!verified) return;
-
-                    // Fail-Closed: Otomatis kunci & segel seluruh brankas saat kunci PIN dinonaktifkan
-                    ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-                    ref.read(privateVaultUnlockedProvider.notifier).state = false;
-                    unawaited(ref.read(privateContactRepositoryProvider).syncToNativeVault(isVaultUnlocked: false));
-                  }
-
-                  try {
-                    await ref
-                        .read(pinLockEnabledProvider.notifier)
-                        .toggle(value, isDecoySession: isDecoy);
-                  } catch (_) {
-                    if (context.mounted) {
-                      MekaarSnackbar.error(
-                        context,
-                        'Pengaturan kunci PIN gagal disimpan. Coba lagi.',
-                      );
-                    }
-                  }
-                },
-              ),
-              const Divider(height: 1),
               SettingsNavTile(
-                icon: SolarIconsOutline.keySquare,
-                iconColor: MekaarColors.brandPrimary,
-                title: 'Ganti PIN',
-                subtitle: 'Perbarui 6 digit PIN keamanan aplikasi',
-                onTap: () => _handleChangePin(context, ref),
+                icon: SolarIconsOutline.lockKeyhole,
+                iconColor: MekaarColors.yellow,
+                title: isDecoy
+                    ? 'PIN Keamanan Aplikasi'
+                    : 'Manajemen PIN Keamanan',
+                subtitle: isDecoy
+                    ? 'Kelola kode akses keamanan'
+                    : 'PIN Master, PIN Tamu & PIN Darurat (SOS)',
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.pinManagement),
               ),
               if (!isDecoy) ...[
-                SettingsNavTile(
-                  icon: SolarIconsOutline.usersGroupTwoRounded,
-                  iconColor: MekaarColors.primary,
-                  title: 'PIN Tamu (Decoy)',
-                  subtitle: 'Akses mode bersih tanpa sinyal SOS',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.decoyPin),
-                ),
-                SettingsNavTile(
-                  icon: SolarIconsOutline.lockKeyhole,
-                  iconColor: MekaarColors.sosCoral,
-                  title: 'PIN Paksaan (Duress)',
-                  subtitle: 'Akses darurat dengan Silent SOS',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.duressPin),
-                ),
                 SettingsNavTile(
                   icon: SolarIconsOutline.shieldKeyhole,
                   iconColor: MekaarColors.guardianTeal,
@@ -707,32 +654,6 @@ class SettingsScreen extends ConsumerWidget {
         );
       },
     );
-  }
-
-  // ─────────────────────────────────────────────────
-  // Ganti PIN Cerdas (Honeypot Decoy Swap jika mode tamu)
-  // ─────────────────────────────────────────────────
-  Future<void> _handleChangePin(BuildContext context, WidgetRef ref) async {
-    final verified = await MekaarPinVerificationSheet.verify(
-      context,
-      title: 'Verifikasi PIN Saat Ini',
-      subtitle: 'Masukkan 6 digit PIN Anda yang aktif untuk melanjutkan',
-      allowDuress: false,
-      allowDecoy: true,
-    );
-    if (!verified || !context.mounted) return;
-
-    final success = await MekaarChangePinSheet.show(
-      context,
-      title: 'Ganti PIN Aplikasi',
-      onConfirmPin: (newPin) async {
-        return await ref.read(authProvider.notifier).updateActivePin(newPin);
-      },
-    );
-
-    if (success && context.mounted) {
-      MekaarSnackbar.success(context, 'PIN berhasil diperbarui');
-    }
   }
 
   // ─────────────────────────────────────────────────
