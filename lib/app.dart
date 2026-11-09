@@ -9,6 +9,7 @@ import 'core/providers/theme_provider.dart';
 import 'core/providers/font_provider.dart';
 import 'core/widgets/screen_protection_widgets.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/providers/auto_lock_provider.dart';
 import 'features/chat/providers/screen_protection_provider.dart';
 import 'data/services/aegis_memory_guard_service.dart';
 import 'data/services/database_key_service.dart';
@@ -40,10 +41,16 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      // Catat timestamp background untuk evaluasi Auto-Lock Timeout
+      ref.read(autoLockControllerProvider).onAppPaused();
+
       // Hapus seluruh kunci kriptografi dari memori fisik RAM seketika saat aplikasi di-minimize/background
       unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
       unawaited(DatabaseKeyService.instance.lockVault());
     } else if (state == AppLifecycleState.resumed) {
+      // Evaluasi batas waktu Auto-Lock (jika timeout terlampaui, kunci ke PinScreen)
+      unawaited(ref.read(autoLockControllerProvider).handleAppResumed(ref));
+
       // Pemicu otomatis pembersihan pesan kedaluwarsa & pembersihan terjadwal saat aplikasi aktif kembali
       unawaited(ref.read(chatRepositoryProvider).purgeExpiredMessages());
     }

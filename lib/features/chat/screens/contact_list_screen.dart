@@ -117,15 +117,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // Auto-relock vault seketika saat aplikasi diminimize atau background
-      if (ref.read(privateVaultUnlockedProvider) ||
-          ref.read(unlockedVaultSlotsProvider).isNotEmpty) {
-        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-        ref.read(privateVaultUnlockedProvider.notifier).state = false;
-      }
-    } else if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed) {
       // Auto-sync lokasi & teman sekitar saat aplikasi dibuka kembali
       if (ref.read(nearbyFriendsProvider).isEnabled) {
         ref.read(nearbyFriendsProvider.notifier).refreshNearby();

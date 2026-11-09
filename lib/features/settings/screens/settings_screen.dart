@@ -14,6 +14,7 @@ import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/auto_lock_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
@@ -175,11 +176,15 @@ class SettingsScreen extends ConsumerWidget {
                 title: isDecoy
                     ? 'PIN Keamanan Aplikasi'
                     : 'Manajemen PIN Keamanan',
-                subtitle: isDecoy
-                    ? 'Kelola kode akses keamanan'
-                    : 'PIN Master, PIN Tamu & PIN Darurat (SOS)',
                 onTap: () =>
                     Navigator.pushNamed(context, AppRoutes.pinManagement),
+              ),
+              SettingsNavTile(
+                icon: SolarIconsOutline.clockCircle,
+                iconColor: MekaarColors.info,
+                title: 'Kunci Otomatis',
+                valueText: ref.watch(autoLockTimeoutProvider).label,
+                onTap: () => _showAutoLockBottomSheet(context, ref),
               ),
               if (!isDecoy) ...[
                 SettingsNavTile(
@@ -206,7 +211,6 @@ class SettingsScreen extends ConsumerWidget {
                   icon: SolarIconsOutline.shieldCheck,
                   iconColor: MekaarColors.warnAmber,
                   title: 'Latihan SOS (Simulasi)',
-                  subtitle: 'Simulasi alur darurat tanpa sinyal nyata',
                   onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
                 ),
               ],
@@ -369,6 +373,92 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────
+  // BOTTOM SHEET: Kunci Otomatis (Auto-Lock Timeout)
+  // ─────────────────────────────────────────────────
+  void _showAutoLockBottomSheet(BuildContext context, WidgetRef ref) {
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, sheetRef, _) {
+            final current = sheetRef.watch(autoLockTimeoutProvider);
+            final options = AutoLockTimeout.values;
+
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'Kunci Otomatis',
+                    style: MekaarTypography.headingSM,
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Tentukan kapan aplikasi meminta PIN kembali setelah ditinggalkan.',
+                      style: MekaarTypography.bodySM,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...options.map((opt) {
+                    final selected = opt == current;
+                    return ListTile(
+                      leading: Icon(
+                        selected
+                            ? SolarIconsBold.checkCircle
+                            : SolarIconsOutline.clockCircle,
+                        color: selected
+                            ? MekaarColors.primaryOf(context)
+                            : null,
+                      ),
+                      title: Text(
+                        opt.label,
+                        style: TextStyle(
+                          fontWeight:
+                              selected ? FontWeight.bold : FontWeight.normal,
+                          color: selected
+                              ? MekaarColors.primaryOf(context)
+                              : null,
+                        ),
+                      ),
+                      subtitle: Text(
+                        opt.description,
+                        style: MekaarTypography.caption,
+                      ),
+                      trailing: selected
+                          ? Icon(
+                              Icons.check,
+                              color: MekaarColors.primaryOf(context),
+                            )
+                          : null,
+                      onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        sheetRef
+                            .read(autoLockTimeoutProvider.notifier)
+                            .setTimeout(opt);
+                        Navigator.pop(ctx);
+                        MekaarSnackbar.success(
+                          context,
+                          'Kunci otomatis diatur: ${opt.label}',
+                        );
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

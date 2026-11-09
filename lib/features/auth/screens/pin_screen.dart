@@ -23,6 +23,7 @@ import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../chat/providers/chat_draft_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/auto_lock_provider.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
   final bool isSetup;
@@ -64,11 +65,18 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     // dan seluruh residu draf pesan di RAM dibersihkan (anti-forensik)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        ref.read(autoLockControllerProvider).markPinScreenActive(true);
         ref.read(unlockedVaultSlotsProvider.notifier).state = {};
         ref.read(privateVaultUnlockedProvider.notifier).state = false;
         ref.read(chatDraftsProvider.notifier).clearMemoryDrafts();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    ref.read(autoLockControllerProvider).markPinScreenActive(false);
+    super.dispose();
   }
 
   Future<void> _verifySetupEligibility() async {

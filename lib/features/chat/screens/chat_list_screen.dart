@@ -57,7 +57,7 @@ class ChatListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
-    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+    with AutomaticKeepAliveClientMixin {
   String _searchQuery = '';
   bool _isSearchActive = false;
   late final TextEditingController _searchController;
@@ -121,7 +121,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _searchController = TextEditingController();
     _searchFocusNode = FocusNode();
     Future.microtask(() {
@@ -166,25 +165,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _vaultDebounceTimer?.cancel();
     _searchDebounceTimer?.cancel();
     _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // Auto-relock vault seketika saat aplikasi diminimize atau background
-      if (ref.read(privateVaultUnlockedProvider) ||
-          ref.read(unlockedVaultSlotsProvider).isNotEmpty) {
-        ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-        ref.read(privateVaultUnlockedProvider.notifier).state = false;
-      }
-    }
   }
 
   Future<void> _checkVaultPasscode(String query) async {

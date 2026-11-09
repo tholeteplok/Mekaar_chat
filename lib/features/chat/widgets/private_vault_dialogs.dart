@@ -199,7 +199,7 @@ class PrivateVaultDialogs {
     String? errorMessage;
     bool obscureCode = true;
     bool obscureConfirm = true;
-    final displayName = slotName ?? 'Profil $slot';
+    final displayName = slotName ?? 'Private Vault';
 
     final result = await showDialog<bool>(
       context: context,
@@ -386,7 +386,7 @@ class PrivateVaultDialogs {
     final codeController = TextEditingController();
     String? errorMessage;
     bool obscureCode = true;
-    final displayName = slotName ?? 'Profil $slot';
+    final displayName = slotName ?? 'Private Vault';
 
     final result = await showDialog<bool>(
       context: context,
@@ -400,9 +400,9 @@ class PrivateVaultDialogs {
                 color: MekaarColors.guardianTeal,
                 size: 28,
               ),
-              title: 'Buka $displayName',
+              title: 'Verifikasi PIN Master',
               message:
-                  'Masukkan PIN Master Anda untuk membuka $displayName.',
+                  'Masukkan 6 digit PIN Master Anda untuk membuka $displayName.',
               customContent: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,7 +565,7 @@ class PrivateVaultDialogs {
 
     final isSuccess = result ?? false;
     if (isSuccess && ref != null) {
-      ref.read(unlockedVaultSlotsProvider.notifier).update((s) => {...s, slot});
+      ref.read(unlockedVaultSlotsProvider.notifier).state = {1, 2, 3};
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
     }
     return isSuccess;

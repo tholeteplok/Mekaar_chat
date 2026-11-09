@@ -364,7 +364,7 @@ class PrivateContactRepository {
         return name.trim();
       }
     } catch (_) {}
-    return 'Profil $slot';
+    return 'Private Vault';
   }
 
   /// Mengubah nama profil slot
