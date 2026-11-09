@@ -208,8 +208,8 @@ void main() {
       // Hapus slot
       await repo.deleteSlotPasscode(2);
 
-      // Key terhapus, kembali ke nama default 'Profil 2'
-      expect(await repo.getSlotName(2), equals('Profil 2'));
+      // Key terhapus, kembali ke nama default 'Private Vault'
+      expect(await repo.getSlotName(2), equals('Private Vault'));
     });
   });
 }
