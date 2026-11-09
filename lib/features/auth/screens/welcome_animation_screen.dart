@@ -421,7 +421,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
 
             final currentWordmarkX = lerpDouble(
               startWordmarkX,
-              targetWordmarkX + 46.0,
+              targetWordmarkX,
               dockCurve,
             )!;
             final currentWordmarkY =
@@ -467,16 +467,18 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                   ),
                 ),
 
-                // Wordmark MEKAAR
+                // Wordmark MEKAAR (Pusat sempurna di tengah layar pada Babak 3 & meluncur mulus saat docking)
                 if (wordmarkProgress > 0.0)
                   Positioned(
-                    left: currentWordmarkX -
-                        (dockCurve < 0.5 ? 60.0 * (1.0 - dockCurve) : 46.0),
+                    left: currentWordmarkX,
                     top: currentWordmarkY,
-                    child: Opacity(
-                      opacity: wordmarkCurve,
-                      child: MekaarWordmark(
-                        fontSize: currentWordmarkFontSize,
+                    child: FractionalTranslation(
+                      translation: Offset(-0.5 * (1.0 - dockCurve), 0.0),
+                      child: Opacity(
+                        opacity: wordmarkCurve,
+                        child: MekaarWordmark(
+                          fontSize: currentWordmarkFontSize,
+                        ),
                       ),
                     ),
                   ),

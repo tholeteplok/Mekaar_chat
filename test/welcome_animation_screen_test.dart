@@ -94,6 +94,19 @@ void main() {
       expect(find.text('Bicara bebas. Tetap aman.'), findsOneWidget);
       expect(find.text('Mulai Sekarang'), findsOneWidget);
 
+      final screenWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
+      final expectedCenterX = screenWidth / 2;
+
+      // Verifikasi titik tengah horizontal Wordmark tepat di sumbu tengah layar
+      final wordmarkCenter = tester.getCenter(find.byType(MekaarWordmark));
+      expect(wordmarkCenter.dx, closeTo(expectedCenterX, 0.5));
+
+      // Verifikasi titik tengah horizontal Tagline tepat di sumbu tengah layar
+      final taglineCenter =
+          tester.getCenter(find.text('Bicara bebas. Tetap aman.'));
+      expect(taglineCenter.dx, closeTo(expectedCenterX, 0.5));
+
       // User menekan "Mulai Sekarang" -> memicu Babak 4: The Docking Glide
       await tester.tap(find.text('Mulai Sekarang'));
       await tester.pump();
