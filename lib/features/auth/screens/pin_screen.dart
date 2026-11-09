@@ -44,12 +44,14 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   bool _isValidating = false;
   bool _isCheckingSOSGuardians = false;
   bool _obscurePin = true;
+  AutoLockController? _autoLockController;
 
   static const int pinLength = 6;
 
   @override
   void initState() {
     super.initState();
+    _autoLockController = ref.read(autoLockControllerProvider);
     _isSetupMode = widget.isSetup;
     _statusMessage = _isSetupMode
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
@@ -65,7 +67,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     // dan seluruh residu draf pesan di RAM dibersihkan (anti-forensik)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(autoLockControllerProvider).markPinScreenActive(true);
+        _autoLockController?.markPinScreenActive(true);
         ref.read(unlockedVaultSlotsProvider.notifier).state = {};
         ref.read(privateVaultUnlockedProvider.notifier).state = false;
         ref.read(chatDraftsProvider.notifier).clearMemoryDrafts();
@@ -75,7 +77,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 
   @override
   void dispose() {
-    ref.read(autoLockControllerProvider).markPinScreenActive(false);
+    _autoLockController?.markPinScreenActive(false);
     super.dispose();
   }
 
