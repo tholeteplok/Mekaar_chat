@@ -6,7 +6,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 
@@ -62,8 +61,16 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
   Widget build(BuildContext context) {
     final effectiveColor = widget.iconColor ?? MekaarColors.accentTextOf(context);
 
-    return CustomCard(
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+            width: 0.8,
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -8,7 +8,6 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
@@ -559,10 +558,14 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ──── Expiry Info Card ────
+                  // ──── Expiry Info Banner ────
                   if (!isPending && !isExpired) ...[
-                    CustomCard(
+                    Container(
                       padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.successLight.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Row(
                         children: [
                           const MekaarIconBadge(
@@ -594,8 +597,12 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                   ],
 
                   if (isExpired) ...[
-                    CustomCard(
+                    Container(
                       padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: MekaarColors.sosLight.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Row(
                         children: [
                           const MekaarIconBadge(
@@ -624,10 +631,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     title: 'Izin Keamanan (Hanya Aktif Saat SOS)',
                     padding: EdgeInsets.only(left: 4, top: 4, bottom: 8),
                   ),
-                  CustomCard(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      children: [
+                  Column(
+                    children: [
                         SwitchListTile(
                           activeThumbColor:
                               Theme.of(context).colorScheme.primary,
@@ -713,7 +718,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         ),
                       ],
                     ),
-                  ),
 
                   // ──── Informasi Transmisi & Privasi ────
                   const MekaarSectionHeader(
@@ -756,10 +760,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     titleColor: MekaarColors.sosRed,
                     padding: const EdgeInsets.only(left: 4, top: 20, bottom: 8),
                   ),
-                  CustomCard(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      children: [
+                  Column(
+                    children: [
                         if (!isPending && !isExpired) ...[
                           ListTile(
                             leading: const MekaarIconBadge(
@@ -823,7 +825,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         ),
                       ],
                     ),
-                  ),
                   const SizedBox(height: 32),
                 ],
               ),

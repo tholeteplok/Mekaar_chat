@@ -10,7 +10,6 @@ import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/sos_button.dart';
 import '../../guardian/providers/guardian_provider.dart';
@@ -286,7 +285,15 @@ class _SosDrillScreenState extends ConsumerState<SosDrillScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
-          CustomCard(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: MekaarColors.surfaceOf(context),
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+              border: Border.all(
+                color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+              ),
+            ),
             child: Column(
               children: [
                 _buildInfoRow(
@@ -295,14 +302,22 @@ class _SosDrillScreenState extends ConsumerState<SosDrillScreen> {
                   subtitle:
                       'Tidak ada notifikasi ke wali, tidak ada sirene keras, dan tidak ada pelacakan GPS.',
                 ),
-                const Divider(height: 20),
+                Divider(
+                  height: 20,
+                  thickness: 0.8,
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                ),
                 _buildInfoRow(
                   icon: SolarIconsOutline.handShake,
                   title: 'Latih Memori Otot',
                   subtitle:
                       'Rasakan getaran tombol SOS saat ditahan selama 2 detik penuh hingga aktif.',
                 ),
-                const Divider(height: 20),
+                Divider(
+                  height: 20,
+                  thickness: 0.8,
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                ),
                 _buildInfoRow(
                   icon: SolarIconsOutline.eye,
                   title: 'Lihat Tampilan Wali',
@@ -490,8 +505,15 @@ class _SosDrillScreenState extends ConsumerState<SosDrillScreen> {
 
           // Kartu Mockup Tampilan Wali
           if (_simulationStage >= 2) ...[
-            CustomCard(
-              color: MekaarColors.surface2Of(context),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: MekaarColors.surface2Of(context),
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+                border: Border.all(
+                  color: MekaarColors.sosRed.withValues(alpha: 0.25),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -679,7 +701,15 @@ class _SosDrillScreenState extends ConsumerState<SosDrillScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
-          CustomCard(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: MekaarColors.surfaceOf(context),
+              borderRadius: BorderRadius.circular(MekaarRadius.md),
+              border: Border.all(
+                color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

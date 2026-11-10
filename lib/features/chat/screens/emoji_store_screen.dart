@@ -7,7 +7,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_app_bar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -114,12 +113,14 @@ class _PackCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return CustomCard(
-      margin: const EdgeInsets.only(bottom: MekaarSpacing.md),
-      padding: const EdgeInsets.all(MekaarSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Row(
             children: [
               ClipRRect(
@@ -227,7 +228,15 @@ class _PackCard extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),
+    Divider(
+      height: 1,
+      thickness: 0.8,
+      indent: 72,
+      color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+    ),
+  ],
+);
   }
 
   Future<void> _showDetailAndInstall(

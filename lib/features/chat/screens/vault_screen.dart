@@ -10,7 +10,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -418,13 +417,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     final isPlayingThis =
         _currentlyPlayingId == item.id && _isPlayingAudio;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: CustomCard(
-        padding: const EdgeInsets.all(12),
-        borderRadius: 16.0,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+    return Column(
+      children: [
+        InkWell(
           onTap: () {
             if (item.fileType == VaultFileType.image) {
               _openImageViewer(item);
@@ -545,7 +540,13 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             ],
           ),
         ),
-      ),
+        Divider(
+          height: 1,
+          thickness: 0.8,
+          indent: 72,
+          color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+        ),
+      ],
     );
   }
 

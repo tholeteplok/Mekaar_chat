@@ -26,7 +26,7 @@ class MekaarSectionHeader extends StatelessWidget {
     final titleWidget = Text(
       title,
       style: MekaarTypography.sectionHeader.copyWith(
-        color: titleColor ?? MekaarColors.textPrimaryOf(context),
+        color: titleColor ?? MekaarColors.textSecondaryOf(context),
       ),
     );
 

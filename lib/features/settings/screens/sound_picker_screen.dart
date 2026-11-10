@@ -6,7 +6,6 @@ import '../../../data/services/ringtone_picker_service.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -147,16 +146,12 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                           inactiveTrackColor: MekaarColors.surface2Of(context),
                         ),
                       ),
-                      CustomCard(
-                        margin: EdgeInsets.zero,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: SettingsNavTile(
-                          icon: SolarIconsOutline.volumeLoud,
-                          iconColor: MekaarColors.primaryOf(context),
-                          title: 'Nada Notifikasi Sistem',
-                          subtitle: 'Atur nada dering pesan di setelan sistem Android',
-                          onTap: () => NotificationService.openSystemNotificationSettings(),
-                        ),
+                      SettingsNavTile(
+                        icon: SolarIconsOutline.volumeLoud,
+                        iconColor: MekaarColors.primaryOf(context),
+                        title: 'Nada Notifikasi Sistem',
+                        subtitle: 'Atur nada dering pesan di setelan sistem Android',
+                        onTap: () => NotificationService.openSystemNotificationSettings(),
                       ),
                       const SizedBox(height: 24),
                       SoundPreferenceSection(
@@ -210,18 +205,14 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                         title: 'Respons Getaran',
                         padding: EdgeInsets.only(left: 4, bottom: 8),
                       ),
-                      CustomCard(
-                        margin: EdgeInsets.zero,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: SettingsSwitchTile(
-                          icon: SolarIconsOutline.smartphoneVibration,
-                          iconColor: MekaarColors.purpleLight,
-                          title: 'Getaran (Haptics)',
-                          value: prefs.hapticsEnabled,
-                          onChanged: (value) => ref
-                              .read(notificationPreferencesProvider.notifier)
-                              .toggleHaptics(value),
-                        ),
+                      SettingsSwitchTile(
+                        icon: SolarIconsOutline.smartphoneVibration,
+                        iconColor: MekaarColors.purpleLight,
+                        title: 'Getaran (Haptics)',
+                        value: prefs.hapticsEnabled,
+                        onChanged: (value) => ref
+                            .read(notificationPreferencesProvider.notifier)
+                            .toggleHaptics(value),
                       ),
                       const SizedBox(height: 48),
                     ],

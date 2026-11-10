@@ -6,7 +6,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_change_pin_sheet.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
@@ -414,10 +413,8 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
 
   /// Tampilan Kamuflase Sempurna di Mode Tamu (Zero-Knowledge)
   Widget _buildGuestCamouflageCard(BuildContext context) {
-    return CustomCard(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      borderRadius: MekaarRadius.card,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -495,11 +492,9 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
   /// Tampilan Penuh di Mode Master (Tritunggal PIN)
   List<Widget> _buildMasterViewCards(BuildContext context) {
     return [
-      // ── 1. Kartu PIN Master ──
-      CustomCard(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
-        borderRadius: MekaarRadius.card,
+      // ── 1. PIN Master (Borderless) ──
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -572,12 +567,17 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
           ],
         ),
       ),
+      Divider(
+        height: 24,
+        thickness: 0.8,
+        indent: 58,
+        endIndent: 0,
+        color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+      ),
 
-      // ── 2. Kartu PIN Tamu (Decoy Mode) ──
-      CustomCard(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
-        borderRadius: MekaarRadius.card,
+      // ── 2. PIN Tamu (Decoy Mode - Borderless) ──
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -684,15 +684,20 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
           ],
         ),
       ),
+      Divider(
+        height: 24,
+        thickness: 0.8,
+        indent: 58,
+        endIndent: 0,
+        color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+      ),
 
-      // ── 3. Kartu PIN Darurat (Silent SOS / Duress) ──
+      // ── 3. PIN Darurat (Silent SOS / Duress - Borderless) ──
       Builder(
         builder: (context) {
           final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
-          return CustomCard(
-            margin: const EdgeInsets.only(bottom: 24),
-            padding: const EdgeInsets.all(16),
-            borderRadius: MekaarRadius.card,
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -6,7 +6,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -67,9 +66,15 @@ class TripListScreen extends ConsumerWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(MekaarSpacing.md),
+            padding: const EdgeInsets.only(top: 8, bottom: 24),
             itemCount: trips.length,
-            separatorBuilder: (context, index) => const SizedBox(height: MekaarSpacing.sm),
+            separatorBuilder: (context, index) => Divider(
+              height: 1,
+              thickness: 0.8,
+              indent: 64,
+              endIndent: 0,
+              color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+            ),
             itemBuilder: (context, index) {
               final trip = trips[index];
               return _TripTile(
@@ -203,13 +208,8 @@ class _TripTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomCard(
-      padding: const EdgeInsets.all(MekaarSpacing.md),
-      border: Border.all(
-        color: trip.isActive
-            ? MekaarColors.cyan.withValues(alpha: 0.3)
-            : MekaarColors.surface2Of(context),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

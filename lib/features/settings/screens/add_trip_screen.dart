@@ -14,7 +14,6 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_map_preview.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -447,10 +446,23 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CustomCard(
-                        margin: EdgeInsets.zero,
+                      Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: MekaarSpacing.md),
+                        decoration: BoxDecoration(
+                          color: MekaarColors.surfaceOf(context),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
                         child: Row(
                           children: [
                             Icon(
@@ -504,10 +516,24 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                         ),
                       ),
                       if (_showOverlay)
-                        CustomCard(
+                        Container(
                           margin: const EdgeInsets.only(top: MekaarSpacing.xs),
                           padding: const EdgeInsets.symmetric(
                               vertical: MekaarSpacing.xs),
+                          decoration: BoxDecoration(
+                            color: MekaarColors.surfaceOf(context),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
                           child: _buildSearchOverlay(),
                         ),
                     ],

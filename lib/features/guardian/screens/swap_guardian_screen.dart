@@ -9,7 +9,6 @@ import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../core/widgets/mekaar_badge.dart';
@@ -143,8 +142,8 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             title: 'Arah Saat Ini (A → B)',
             padding: EdgeInsets.only(left: 4, top: 20, bottom: 8),
           ),
-          CustomCard(
-            padding: const EdgeInsets.all(16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             child: Row(
               children: [
                 Avatar(
@@ -198,11 +197,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
             subtitle: 'Pilih izin yang diberikan kepada Anda saat Anda menjadi guardian untuk ${widget.guardian.name}.',
             padding: const EdgeInsets.only(left: 4, top: 20, bottom: 8),
           ),
-          CustomCard(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0),
             child: Column(
               children: [
                 SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                   activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                   title: Text(
@@ -216,8 +216,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   value: _gpsForB,
                   onChanged: (v) => setState(() => _gpsForB = v),
                 ),
-                const MekaarCardDivider(),
+                const MekaarCardDivider(fullWidth: true),
                 SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                   activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                   title: Text(
@@ -231,8 +232,9 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                   value: _micForB,
                   onChanged: (v) => setState(() => _micForB = v),
                 ),
-                const MekaarCardDivider(),
+                const MekaarCardDivider(fullWidth: true),
                 SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                   activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                   title: Text(

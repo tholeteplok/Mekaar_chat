@@ -7,7 +7,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -52,9 +51,15 @@ class ChatRequestsScreen extends ConsumerWidget {
 
             return ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(top: 8, bottom: 24),
               itemCount: requests.length,
-              separatorBuilder: (_, index) => const SizedBox(height: 12),
+              separatorBuilder: (_, index) => Divider(
+                height: 1,
+                thickness: 0.8,
+                indent: 72,
+                endIndent: 0,
+                color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+              ),
               itemBuilder: (ctx, index) {
                 final req = requests[index];
                 return _RequestCard(request: req);
@@ -103,8 +108,8 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
         ? req.invitationNote.trim()
         : 'Ingin terhubung dan memulai obrolan dengan Anda.';
 
-    return CustomCard(
-      padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -144,9 +149,12 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
           const SizedBox(height: 12),
 
           // Keterangan Undangan Wajib
-          CustomCard(
-            margin: EdgeInsets.zero,
+          Container(
             padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: MekaarColors.surface2Of(context).withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

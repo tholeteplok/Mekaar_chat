@@ -11,7 +11,6 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -299,156 +298,149 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
     String myUserId,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: CustomCard(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header Room
-            InkWell(
-              onTap: () => _navigateToChat(group: group),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(MekaarRadius.md),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header Room
+          InkWell(
+            onTap: () => _navigateToChat(group: group),
+            borderRadius: BorderRadius.circular(MekaarRadius.md),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
               ),
+              decoration: BoxDecoration(
+                color: MekaarColors.surface2Of(
+                  context,
+                ).withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+              ),
+              child: Row(
+                children: [
+                  Avatar(
+                    initial: group.roomAvatar,
+                    imageUrl: group.roomAvatarUrl,
+                    size: 32,
+                    isGuardian: group.isGuardian,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      group.roomName,
+                      style: MekaarTypography.labelMD.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: MekaarColors.textPrimaryOf(context),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.primaryOf(
+                        context,
+                      ).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${group.messages.length} hasil',
+                      style: MekaarTypography.caption.copyWith(
+                        color: MekaarColors.primaryOf(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    SolarIconsOutline.altArrowRight,
+                    size: 16,
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Daftar Pesan Cocok
+          ...group.messages.map((message) {
+            final isMe = message.senderId == myUserId;
+            final senderLabel = isMe ? 'Anda' : group.roomName;
+            final displayContent = message.searchableText ?? message.content;
+
+            final normalStyle = MekaarTypography.bodySM.copyWith(
+              color: MekaarColors.textSecondaryOf(context),
+            );
+            final matchStyle = MekaarTypography.bodySM.copyWith(
+              color: MekaarColors.textPrimaryOf(context),
+              fontWeight: FontWeight.bold,
+              backgroundColor: MekaarColors.warnAmber.withValues(alpha: 0.35),
+            );
+
+            final snippetSpans = MessageSearchHelper.buildSearchSnippetSpans(
+              text: displayContent,
+              query: query,
+              normalStyle: normalStyle,
+              matchStyle: matchStyle,
+            );
+
+            return InkWell(
+              onTap: () =>
+                  _navigateToChat(group: group, jumpToMessageId: message.id),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: MekaarColors.surface2Of(
-                    context,
-                  ).withValues(alpha: 0.5),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(MekaarRadius.md),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                      width: 0.8,
+                    ),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Avatar(
-                      initial: group.roomAvatar,
-                      imageUrl: group.roomAvatarUrl,
-                      size: 32,
-                      isGuardian: group.isGuardian,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        group.roomName,
-                        style: MekaarTypography.labelMD.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: MekaarColors.textPrimaryOf(context),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          senderLabel,
+                          style: MekaarTypography.caption.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isMe
+                                ? MekaarColors.primaryOf(context)
+                                : MekaarColors.textPrimaryOf(context),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.primaryOf(
-                          context,
-                        ).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${group.messages.length} hasil',
-                        style: MekaarTypography.caption.copyWith(
-                          color: MekaarColors.primaryOf(context),
-                          fontWeight: FontWeight.w600,
+                        Text(
+                          _formatTimestamp(message.createdAt),
+                          style: MekaarTypography.caption.copyWith(
+                            color: MekaarColors.textMutedOf(context),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      SolarIconsOutline.altArrowRight,
-                      size: 16,
-                      color: MekaarColors.textMutedOf(context),
+                    const SizedBox(height: 4),
+                    RichText(
+                      text: TextSpan(children: snippetSpans),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-            ),
-            const Divider(height: 1, thickness: 0.5),
-
-            // Daftar Pesan Cocok
-            ...group.messages.map((message) {
-              final isMe = message.senderId == myUserId;
-              final senderLabel = isMe ? 'Anda' : group.roomName;
-              final displayContent = message.searchableText ?? message.content;
-
-              final normalStyle = MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textSecondaryOf(context),
-              );
-              final matchStyle = MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textPrimaryOf(context),
-                fontWeight: FontWeight.bold,
-                backgroundColor: MekaarColors.warnAmber.withValues(alpha: 0.35),
-              );
-
-              final snippetSpans = MessageSearchHelper.buildSearchSnippetSpans(
-                text: displayContent,
-                query: query,
-                normalStyle: normalStyle,
-                matchStyle: matchStyle,
-              );
-
-              return InkWell(
-                onTap: () =>
-                    _navigateToChat(group: group, jumpToMessageId: message.id),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: MekaarColors.dividerOf(context),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            senderLabel,
-                            style: MekaarTypography.caption.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isMe
-                                  ? MekaarColors.primaryOf(context)
-                                  : MekaarColors.textPrimaryOf(context),
-                            ),
-                          ),
-                          Text(
-                            _formatTimestamp(message.createdAt),
-                            style: MekaarTypography.caption.copyWith(
-                              color: MekaarColors.textMutedOf(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      RichText(
-                        text: TextSpan(children: snippetSpans),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
+            );
+          }),
+        ],
       ),
     );
   }

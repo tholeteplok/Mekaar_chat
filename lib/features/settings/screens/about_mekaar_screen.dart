@@ -7,7 +7,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -834,131 +833,130 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── 3. Grouped CustomCard (3 Pilar & Pengaturan Utama) ──
+                  // ── 3. Borderless List (3 Pilar & Pengaturan Utama) ──
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: CustomCard(
-                      margin: EdgeInsets.zero,
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          // 1. Arsitektur & Pilar Pertahanan
-                          ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: MekaarColors.guardianTeal
-                                    .withValues(alpha: 0.12),
-                                borderRadius:
-                                    BorderRadius.circular(MekaarRadius.sm),
-                              ),
-                              child: const Icon(
-                                SolarIconsBold.shieldKeyhole,
-                                color: MekaarColors.guardianTeal,
-                                size: 20,
-                              ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      children: [
+                        // 1. Arsitektur & Pilar Pertahanan
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.guardianTeal
+                                  .withValues(alpha: 0.12),
+                              borderRadius:
+                                  BorderRadius.circular(MekaarRadius.sm),
                             ),
-                            title: const Text(
-                              'Arsitektur & Pilar Pertahanan',
-                              style: TextStyle(
-                                  fontSize: 14.5, fontWeight: FontWeight.w600),
+                            child: const Icon(
+                              SolarIconsBold.shieldKeyhole,
+                              color: MekaarColors.guardianTeal,
+                              size: 20,
                             ),
-                            subtitle: Text(
-                              '3 pilar keselamatan fisik & privasi data riil',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            trailing: Icon(
-                              SolarIconsOutline.altArrowRight,
-                              size: 16,
+                          ),
+                          title: const Text(
+                            'Arsitektur & Pilar Pertahanan',
+                            style: TextStyle(
+                                fontSize: 14.5, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '3 pilar keselamatan fisik & privasi data riil',
+                            style: TextStyle(
+                              fontSize: 12.5,
                               color: MekaarColors.textMutedOf(context),
                             ),
-                            onTap: () =>
-                                _showArchitectureAndPillarsSheet(context),
                           ),
-                          const MekaarCardDivider(),
+                          trailing: Icon(
+                            SolarIconsOutline.altArrowRight,
+                            size: 16,
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                          onTap: () =>
+                              _showArchitectureAndPillarsSheet(context),
+                        ),
+                        const SettingsDivider(indent: 68),
 
-                          // 2. Syarat Layanan & Privasi
-                          ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: MekaarColors.primaryOf(context)
-                                    .withValues(alpha: 0.12),
-                                borderRadius:
-                                    BorderRadius.circular(MekaarRadius.sm),
-                              ),
-                              child: Icon(
-                                SolarIconsOutline.documentText,
-                                color: MekaarColors.primaryOf(context),
-                                size: 20,
-                              ),
+                        // 2. Syarat Layanan & Privasi
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.primaryOf(context)
+                                  .withValues(alpha: 0.12),
+                              borderRadius:
+                                  BorderRadius.circular(MekaarRadius.sm),
                             ),
-                            title: const Text(
-                              'Syarat Layanan & Privasi',
-                              style: TextStyle(
-                                  fontSize: 14.5, fontWeight: FontWeight.w600),
+                            child: Icon(
+                              SolarIconsOutline.documentText,
+                              color: MekaarColors.primaryOf(context),
+                              size: 20,
                             ),
-                            subtitle: Text(
-                              'Komitmen zero-knowledge & hak pengguna',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            trailing: Icon(
-                              SolarIconsOutline.altArrowRight,
-                              size: 16,
+                          ),
+                          title: const Text(
+                            'Syarat Layanan & Privasi',
+                            style: TextStyle(
+                                fontSize: 14.5, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'Komitmen zero-knowledge & hak pengguna',
+                            style: TextStyle(
+                              fontSize: 12.5,
                               color: MekaarColors.textMutedOf(context),
                             ),
-                            onTap: () => _showTermsAndPrivacySheet(context),
                           ),
-                          const MekaarCardDivider(),
+                          trailing: Icon(
+                            SolarIconsOutline.altArrowRight,
+                            size: 16,
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                          onTap: () => _showTermsAndPrivacySheet(context),
+                        ),
+                        const SettingsDivider(indent: 68),
 
-                          // 3. Perizinan & Hak Akses Perangkat
-                          ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: MekaarColors.warnAmber
-                                    .withValues(alpha: 0.12),
-                                borderRadius:
-                                    BorderRadius.circular(MekaarRadius.sm),
-                              ),
-                              child: const Icon(
-                                SolarIconsOutline.shieldCheck,
-                                color: MekaarColors.warnAmber,
-                                size: 20,
-                              ),
+                        // 3. Perizinan & Hak Akses Perangkat
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: MekaarColors.warnAmber
+                                  .withValues(alpha: 0.12),
+                              borderRadius:
+                                  BorderRadius.circular(MekaarRadius.sm),
                             ),
-                            title: const Text(
-                              'Perizinan & Hak Akses',
-                              style: TextStyle(
-                                  fontSize: 14.5, fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              'Kamera, mikrofon, lokasi, & notifikasi',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            trailing: Icon(
-                              SolarIconsOutline.altArrowRight,
-                              size: 16,
-                              color: MekaarColors.textMutedOf(context),
-                            ),
-                            onTap: () => MekaarPermissionsBottomSheet.show(
-                              context: context,
-                              onGrant: () async {
-                                await openAppSettings();
-                              },
+                            child: const Icon(
+                              SolarIconsOutline.shieldCheck,
+                              color: MekaarColors.warnAmber,
+                              size: 20,
                             ),
                           ),
-                        ],
-                      ),
+                          title: const Text(
+                            'Perizinan & Hak Akses',
+                            style: TextStyle(
+                                fontSize: 14.5, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'Kamera, mikrofon, lokasi, & notifikasi',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                          ),
+                          trailing: Icon(
+                            SolarIconsOutline.altArrowRight,
+                            size: 16,
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                          onTap: () => MekaarPermissionsBottomSheet.show(
+                            context: context,
+                            onGrant: () async {
+                              await openAppSettings();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   SizedBox(height: 28),

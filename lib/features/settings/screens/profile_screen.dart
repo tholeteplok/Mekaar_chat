@@ -7,7 +7,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -356,15 +355,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
                     const SizedBox(height: 24),
 
-                    // ── Clean Parameter Form Rows ──
-                    CustomCard(
-                      margin: EdgeInsets.zero,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      borderRadius: MekaarRadius.card,
-                      child: Column(
+                    // ── Clean Parameter Form Rows (Borderless) ──
+                    Column(
                         children: [
                           // 1. Nama Tampilan
                           _buildCleanRow(
@@ -380,7 +372,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 setState(() => _isEditingDisplayName = true),
                             onSave: _saveDisplayName,
                           ),
-                          const SizedBox(height: 6),
+                          Divider(
+                            height: 1,
+                            thickness: 0.8,
+                            indent: 90,
+                            endIndent: 0,
+                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                          ),
 
                           // 2. Username (Permanen / Read-only)
                           InkWell(
@@ -429,7 +427,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                               ),
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          Divider(
+                            height: 1,
+                            thickness: 0.8,
+                            indent: 90,
+                            endIndent: 0,
+                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                          ),
 
                           // 3. Bio / Status
                           _buildCleanRow(
@@ -445,7 +449,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 setState(() => _isEditingBio = true),
                             onSave: _saveBio,
                           ),
-                          const SizedBox(height: 6),
+                          Divider(
+                            height: 1,
+                            thickness: 0.8,
+                            indent: 90,
+                            endIndent: 0,
+                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                          ),
 
                           // 4. Email
                           Padding(
@@ -487,7 +497,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           ),
                         ],
                       ),
-                    ),
 
 
 

@@ -12,7 +12,6 @@ import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/bubbles/themed_bubble_container.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
@@ -850,14 +849,8 @@ class _ChatThemeSettingsScreenState
       ),
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cardBorderColor, width: 1.0),
-      ),
-      child: Column(
-        children: List.generate(bubbleShapes.length, (index) {
+    return Column(
+      children: List.generate(bubbleShapes.length, (index) {
           final item = bubbleShapes[index];
           final isSelected = chatPref.bubbleStyle == item.style;
           final isLast = index == bubbleShapes.length - 1;
@@ -948,12 +941,18 @@ class _ChatThemeSettingsScreenState
                   ),
                 ),
               ),
-              if (!isLast) const MekaarCardDivider(indent: 58, endIndent: 14),
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  thickness: 0.8,
+                  indent: 48,
+                  endIndent: 0,
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                ),
             ],
           );
         }),
-      ),
-    );
+      );
   }
 
   // ── TAB 1: WARNA GELEMBUNG (Inline Palet, Gradasi Keluar & Masuk) ──
@@ -985,12 +984,7 @@ class _ChatThemeSettingsScreenState
         : _kIncomingGradients;
 
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cardBorderColor, width: 1.0),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1366,14 +1360,8 @@ class _ChatThemeSettingsScreenState
       ),
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cardBorderColor, width: 1.0),
-      ),
-      child: Column(
-        children: List.generate(wallpapers.length, (index) {
+    return Column(
+      children: List.generate(wallpapers.length, (index) {
           final item = wallpapers[index];
           final isSelected = chatPref.wallpaperType == item.type;
           final isLast = index == wallpapers.length - 1;
@@ -1462,12 +1450,18 @@ class _ChatThemeSettingsScreenState
                   ),
                 ),
               ),
-              if (!isLast) const MekaarCardDivider(indent: 58, endIndent: 14),
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  thickness: 0.8,
+                  indent: 48,
+                  endIndent: 0,
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                ),
             ],
           );
         }),
-      ),
-    );
+      );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1485,13 +1479,8 @@ class _ChatThemeSettingsScreenState
     final notifier = ref.read(chatThemeProvider.notifier);
     final percentage = (pref.textScale * 100).toInt();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor, width: 1.0),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

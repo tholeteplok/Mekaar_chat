@@ -12,12 +12,10 @@ import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/time_tick_provider.dart';
-import '../../../core/widgets/custom_card.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 
@@ -72,7 +70,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             const SettingsTopBar(title: 'Tampilan & Tema'),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.only(top: 8, bottom: 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -80,46 +78,20 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                     _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref, greetingName),
 
                     // ── 2. Mode Tema Utama ──
-                    const MekaarSectionHeader(title: 'Mode Tema'),
+                    const SettingsSectionHeader(title: 'Mode Tema'),
                     _buildThemePreferenceSelector(context, ref, currentPref),
 
                     // ── 3. Tipografi & Font Family ──
-                    const MekaarSectionHeader(title: 'Tipografi & Gaya Tulisan'),
-            const SizedBox(height: MekaarSpacing.sm),
-            CustomCard(
-              padding: const EdgeInsets.all(MekaarSpacing.md),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: MekaarIconBadge(
-                  icon: SolarIconsOutline.text,
-                  color: MekaarColors.accentTextOf(context),
-                  backgroundColor:
-                      MekaarColors.accentTextOf(context).withValues(alpha: 0.15),
-                ),
-                title: Text(
-                  activeFont.displayName,
-                  style: MekaarTypography.bodyMD.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: MekaarColors.textPrimaryOf(context),
-                  ),
-                ),
-                subtitle: Text(
-                  activeFont.subtitle,
-                  style: MekaarTypography.bodySM.copyWith(
-                    color: MekaarColors.textMutedOf(context),
-                  ),
-                ),
-                trailing: Icon(
-                  SolarIconsOutline.altArrowRight,
-                  color: MekaarColors.textMutedOf(context),
-                  size: 18,
-                ),
-                onTap: () => _openFontPickerBottomSheet(context, ref, currentFontKey),
-              ),
-            ),
+                    const SettingsSectionHeader(title: 'Tipografi & Gaya Tulisan'),
+                    SettingsNavTile(
+                      icon: SolarIconsOutline.text,
+                      iconColor: MekaarColors.accentTextOf(context),
+                      title: activeFont.displayName,
+                      subtitle: activeFont.subtitle,
+                      onTap: () => _openFontPickerBottomSheet(context, ref, currentFontKey),
+                    ),
 
-            const SizedBox(height: MekaarSpacing.xl),
-                    const SizedBox(height: MekaarSpacing.xxl),
+                    const SizedBox(height: MekaarSpacing.xl),
                   ],
                 ),
               ),
@@ -130,7 +102,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     );
   }
 
-  /// Live Card Preview yang memperlihatkan tema & font aktif secara instan.
+  /// Live Preview Viewport yang memperlihatkan tema & font aktif secara instan.
   Widget _buildLivePreviewCard(
     BuildContext context,
     ThemeData activeTheme,
@@ -157,8 +129,13 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
 
     const brandColor = AppColors.blue;
 
-    return CustomCard(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       padding: const EdgeInsets.all(MekaarSpacing.lg),
+      decoration: BoxDecoration(
+        color: MekaarColors.surface2Of(context).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -189,7 +166,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               ),
             ],
           ),
-          SizedBox(height: MekaarSpacing.md),
+          const SizedBox(height: MekaarSpacing.md),
           Text(
             'Halo, $greetingName!',
             style: GoogleFonts.getFont(
@@ -201,7 +178,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               ),
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             'Pratinjau antarmuka Clean Core dengan font "${activeFont.displayName}".',
             style: GoogleFonts.getFont(
@@ -249,60 +226,68 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
       ),
     ];
 
-    return CustomCard(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Column(
-        children: List.generate(options.length, (index) {
-          final opt = options[index];
-          final selected = currentPref == opt.$1;
+    return Column(
+      children: List.generate(options.length, (index) {
+        final opt = options[index];
+        final selected = currentPref == opt.$1;
 
-          return InkWell(
-            onTap: () => notifier.setPreference(opt.$1),
-            borderRadius: BorderRadius.circular(MekaarRadius.md),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  MekaarIconBadge(
-                    icon: opt.$4,
-                    color: opt.$5,
-                    circle: true,
-                    size: 40,
-                    backgroundColor:
-                        opt.$5.withValues(alpha: selected ? 0.20 : 0.10),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          opt.$2,
-                          style: MekaarTypography.bodyMD.copyWith(
-                            fontSize: 15,
-                            fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                            color: MekaarColors.textPrimaryOf(context),
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          opt.$3,
-                          style: MekaarTypography.bodySM.copyWith(
-                            fontSize: 12,
-                            color: MekaarColors.textMutedOf(context),
-                          ),
-                        ),
-                      ],
+        return Column(
+          children: [
+            if (index > 0)
+              Divider(
+                height: 1,
+                thickness: 0.8,
+                indent: 74,
+                endIndent: 0,
+                color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+              ),
+            InkWell(
+              onTap: () => notifier.setPreference(opt.$1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    MekaarIconBadge(
+                      icon: opt.$4,
+                      color: opt.$5,
+                      circle: true,
+                      size: 40,
+                      backgroundColor:
+                          opt.$5.withValues(alpha: selected ? 0.20 : 0.10),
                     ),
-                  ),
-                  if (selected)
-                    Icon(SolarIconsBold.checkCircle, color: opt.$5, size: 22),
-                ],
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            opt.$2,
+                            style: MekaarTypography.bodyMD.copyWith(
+                              fontSize: 15,
+                              fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                              color: MekaarColors.textPrimaryOf(context),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            opt.$3,
+                            style: MekaarTypography.bodySM.copyWith(
+                              fontSize: 12,
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (selected)
+                      Icon(SolarIconsBold.checkCircle, color: opt.$5, size: 22),
+                  ],
+                ),
               ),
             ),
-          );
-        }),
-      ),
+          ],
+        );
+      }),
     );
   }
 

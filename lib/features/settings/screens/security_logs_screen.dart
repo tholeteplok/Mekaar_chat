@@ -6,7 +6,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/animations.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../providers/log_provider.dart';
@@ -184,13 +183,15 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
                       ),
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.only(top: 8, bottom: 24),
                       itemCount: logs.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 10),
+                      separatorBuilder: (context, index) => Divider(
+                        height: 1,
+                        thickness: 0.8,
+                        indent: 74,
+                        endIndent: 0,
+                        color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                      ),
                       itemBuilder: (context, index) {
                         final log = logs[index];
                         return AnimatedAppear(
@@ -211,8 +212,8 @@ class _SecurityLogsScreenState extends ConsumerState<SecurityLogsScreen> {
     final color = _getColorForEvent(log.eventType);
     final timeStr = DateFormat('dd MMM, HH:mm').format(log.createdAt.toLocal());
 
-    return CustomCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
           Container(

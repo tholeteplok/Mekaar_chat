@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -226,8 +225,15 @@ class _DeviceLostLockScreenState extends ConsumerState<DeviceLostLockScreen> {
               const SizedBox(height: 28),
               // Main Message Card
               Expanded(
-                child: CustomCard(
+                child: Container(
                   padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                  ),
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

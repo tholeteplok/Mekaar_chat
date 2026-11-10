@@ -10,7 +10,6 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../providers/chat_provider.dart';
 
 class CreateGroupDetailsScreen extends ConsumerStatefulWidget {
@@ -207,16 +206,15 @@ class _CreateGroupDetailsScreenState
               ),
             ),
             const SizedBox(height: MekaarSpacing.sm),
-            CustomCard(
-              margin: EdgeInsets.zero,
-              padding: EdgeInsets.zero,
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
                 itemCount: widget.selectedUserProfiles.length,
                 separatorBuilder: (ctx, idx) => Divider(
                   height: 1,
-                  color: MekaarColors.borderOf(context).withValues(alpha: 0.05),
+                  thickness: 0.8,
+                  indent: 52,
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
                 ),
                 itemBuilder: (context, index) {
                   final profile = widget.selectedUserProfiles[index];
@@ -263,7 +261,6 @@ class _CreateGroupDetailsScreenState
                   );
                 },
               ),
-            ),
             const SizedBox(height: 32),
 
             // Submit Button

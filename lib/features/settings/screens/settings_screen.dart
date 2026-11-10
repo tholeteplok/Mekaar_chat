@@ -182,7 +182,6 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.shieldWarning,
           iconColor: MekaarColors.sosCoral,
           title: 'Fitur Darurat SOS',
-          subtitle: 'Tombol darurat, pemantauan Guardian, dan siaga SOS',
           value: ref.watch(sosFeatureEnabledProvider),
           onChanged: (val) => _handleSosToggle(context, ref, val),
         ),

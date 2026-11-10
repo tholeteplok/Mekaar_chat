@@ -6,7 +6,6 @@ import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 
 class SoundOption {
@@ -97,13 +96,10 @@ class SoundPreferenceSection extends StatelessWidget {
                   )
                 : null,
           ),
-          CustomCard(
-            margin: EdgeInsets.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: AnimatedOpacity(
-              opacity: enabled ? 1 : 0.45,
-              duration: MekaarMotion.fast,
-              child: Column(
+          AnimatedOpacity(
+            opacity: enabled ? 1 : 0.45,
+            duration: MekaarMotion.fast,
+            child: Column(
                 children: [
                   for (final option in displayOptions)
                     _SoundTile(
@@ -165,7 +161,6 @@ class SoundPreferenceSection extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );

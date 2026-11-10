@@ -10,7 +10,6 @@ import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/routes/app_routes.dart';
@@ -499,16 +498,12 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ──── 3. Card Bio / Catatan Kontak ────
+                // ──── 3. Bio / Catatan Kontak (Borderless) ────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: CustomCard(
-                    margin: EdgeInsets.zero,
-                    padding: const EdgeInsets.all(16),
-                    borderRadius: MekaarRadius.card,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                         Row(
                           children: [
                             Text(
@@ -572,7 +567,6 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                       ],
                     ),
                   ),
-                ),
                 const SizedBox(height: 20),
 
                 // ──── 4. Card Pengaturan Obrolan ────
@@ -588,16 +582,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: CustomCard(
-                    margin: EdgeInsets.zero,
-                    padding: EdgeInsets.zero,
-                    borderRadius: MekaarRadius.card,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(MekaarRadius.card),
-                      child: Column(
-                        children: [
+                Column(
+                  children: [
                           // Pengaturan Privasi Obrolan Terpusat
                           ListTile(
                             leading: const Icon(
@@ -823,9 +809,6 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 24),
 
                 // ──── 5. Card Tindakan (Danger Zone) ────
@@ -841,16 +824,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: CustomCard(
-                    margin: EdgeInsets.zero,
-                    padding: EdgeInsets.zero,
-                    borderRadius: MekaarRadius.card,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(MekaarRadius.card),
-                      child: Column(
-                        children: [
+                Column(
+                  children: [
                           // Hapus Chat
                           ListTile(
                             leading: const Icon(
@@ -987,9 +962,6 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 20),
               ],
             ),
