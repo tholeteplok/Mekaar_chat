@@ -445,18 +445,10 @@ class SettingsNavTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: MekaarColors.surface2Of(context),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  SolarIconsOutline.altArrowRight,
-                  size: 14,
-                  color: MekaarColors.textMutedOf(context),
-                ),
+              Icon(
+                SolarIconsOutline.altArrowRight,
+                size: 18,
+                color: MekaarColors.textMutedOf(context),
               ),
             ],
           ],

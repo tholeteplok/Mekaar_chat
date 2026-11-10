@@ -145,14 +145,10 @@ class SoundPreferenceSection extends StatelessWidget {
                               ),
                             ),
                           ),
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: Icon(
-                              SolarIconsOutline.altArrowRight,
-                              color: MekaarColors.textMutedOf(context),
-                              size: 16,
-                            ),
+                          Icon(
+                            SolarIconsOutline.altArrowRight,
+                            color: MekaarColors.textMutedOf(context),
+                            size: 18,
                           ),
                         ],
                       ),

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
@@ -114,19 +113,11 @@ class AccountSnippetCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            // Chevron squircle container
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: MekaarColors.surface2Of(context),
-                borderRadius: BorderRadius.circular(MekaarRadius.sm),
-              ),
-              child: Icon(
-                SolarIconsOutline.altArrowRight,
-                size: 14,
-                color: MekaarColors.textMutedOf(context),
-              ),
+            // Chevron arrow
+            Icon(
+              SolarIconsOutline.altArrowRight,
+              size: 18,
+              color: MekaarColors.textMutedOf(context),
             ),
           ],
         ),
