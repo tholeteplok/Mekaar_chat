@@ -4,7 +4,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/utils/error_resolver.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -68,12 +67,16 @@ class BlockedListScreen extends ConsumerWidget {
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 16,
-                    ),
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
                     itemCount: list.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      thickness: 0.8,
+                      indent: 76,
+                      endIndent: 0,
+                      color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                    ),
                     itemBuilder: (context, index) {
                       final blocked = list[index];
                       return FutureBuilder<Map<String, dynamic>?>(
@@ -83,57 +86,53 @@ class BlockedListScreen extends ConsumerWidget {
                           final name = profile?['full_name'] as String? ??
                               profile?['username'] as String? ??
                               'Pengguna';
-                          return CustomCard(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 4,
                             ),
-                            child: ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Avatar(
-                                initial: name,
-                                imageUrl: profile?['avatar_url'] as String?,
-                                size: 42,
+                            leading: Avatar(
+                              initial: name,
+                              imageUrl: profile?['avatar_url'] as String?,
+                              size: 42,
+                            ),
+                            title: Text(
+                              name,
+                              style: MekaarTypography.labelLG.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: MekaarColors.textPrimaryOf(context),
                               ),
-                              title: Text(
-                                name,
-                                style: MekaarTypography.labelLG.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: MekaarColors.textPrimaryOf(context),
+                            ),
+                            subtitle: Text(
+                              'Diblokir',
+                              style: MekaarTypography.bodySM.copyWith(
+                                color: MekaarColors.sosRed,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor:
+                                    MekaarColors.accentTextOf(context),
+                                minimumSize: const Size(44, 44),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
                                 ),
                               ),
-                              subtitle: Text(
-                                'Diblokir',
-                                style: MekaarTypography.bodySM.copyWith(
-                                  color: MekaarColors.sosRed,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              trailing: TextButton(
-                                style: TextButton.styleFrom(
-                                  foregroundColor:
-                                      MekaarColors.accentTextOf(context),
-                                  minimumSize: const Size(44, 44),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                ),
-                                onPressed: () async {
-                                  await ref
-                                      .read(blockProvider.notifier)
-                                      .unblockUser(blocked.blockedId);
-                                  if (context.mounted) {
-                                    MekaarSnackbar.success(
-                                      context,
-                                      'Pengguna dibuka blokirnya.',
-                                    );
-                                  }
-                                },
-                                child: const Text(
-                                  'Buka Blokir',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
+                              onPressed: () async {
+                                await ref
+                                    .read(blockProvider.notifier)
+                                    .unblockUser(blocked.blockedId);
+                                if (context.mounted) {
+                                  MekaarSnackbar.success(
+                                    context,
+                                    'Pengguna dibuka blokirnya.',
+                                  );
+                                }
+                              },
+                              child: const Text(
+                                'Buka Blokir',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                           );

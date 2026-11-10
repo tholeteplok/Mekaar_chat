@@ -154,6 +154,24 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
   }
 }
 
+/// Hairline divider halus konsisten untuk daftar pengaturan tanpa kartu.
+class SettingsDivider extends StatelessWidget {
+  const SettingsDivider({super.key, this.indent = 78});
+
+  final double indent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 0.8,
+      indent: indent,
+      endIndent: 0,
+      color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+    );
+  }
+}
+
 /// Header seksi terpusat dengan tipografi bersih dan proporsional.
 /// Mewarisi [MekaarSectionHeader] terpusat dari core/widgets.
 class SettingsSectionHeader extends StatelessWidget {
@@ -163,7 +181,7 @@ class SettingsSectionHeader extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.titleColor,
-    this.padding = const EdgeInsets.only(left: 4, top: 18, bottom: 8),
+    this.padding = const EdgeInsets.only(left: 20, right: 20, top: 22, bottom: 6),
   });
 
   final String title;
@@ -229,9 +247,8 @@ class SettingsSwitchTile extends StatelessWidget {
               HapticService.trigger(MekaarHapticIntent.selection);
               onChanged!(!value);
             },
-      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(
           children: [
             // Icon Badge dengan background tint lembut
@@ -354,9 +371,8 @@ class SettingsNavTile extends StatelessWidget {
         HapticService.trigger(MekaarHapticIntent.selection);
         onTap();
       },
-      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
           children: [
             // Icon Badge dengan background tint lembut

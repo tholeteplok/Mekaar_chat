@@ -7,7 +7,6 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../auth/providers/auth_provider.dart';
 
 /// Helper logout confirm — dipakai bersama oleh [AccountSnippetCard]
@@ -70,66 +69,67 @@ class AccountSnippetCard extends ConsumerWidget {
         'Pengguna';
     final email = user?.email ?? profile?.username ?? '';
 
-    return CustomCard(
-      margin: EdgeInsets.zero,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return InkWell(
       onTap: () {
         Navigator.pushNamed(context, AppRoutes.profile);
       },
-      child: Row(
-        children: [
-          // Avatar
-          Avatar(
-            initial: displayName,
-            imageUrl: profile?.avatarUrl,
-            size: 46,
-          ),
-          const SizedBox(width: 14),
-          // Nama & email
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  displayName,
-                  style: MekaarTypography.bodyMD.copyWith(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                    color: MekaarColors.textPrimaryOf(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            // Avatar
+            Avatar(
+              initial: displayName,
+              imageUrl: profile?.avatarUrl,
+              size: 46,
+            ),
+            const SizedBox(width: 14),
+            // Nama & email
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayName,
+                    style: MekaarTypography.bodyMD.copyWith(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: MekaarColors.textPrimaryOf(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  email.isNotEmpty ? email : 'Info Pribadi & Keamanan Akun',
-                  style: MekaarTypography.caption.copyWith(
-                    fontSize: 12.5,
-                    color: MekaarColors.textSecondaryOf(context),
+                  const SizedBox(height: 2),
+                  Text(
+                    email.isNotEmpty ? email : 'Info Pribadi & Keamanan Akun',
+                    style: MekaarTypography.caption.copyWith(
+                      fontSize: 12.5,
+                      color: MekaarColors.textSecondaryOf(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Chevron squircle container
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: MekaarColors.surface2Of(context),
-              borderRadius: BorderRadius.circular(MekaarRadius.sm),
+            const SizedBox(width: 8),
+            // Chevron squircle container
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: MekaarColors.surface2Of(context),
+                borderRadius: BorderRadius.circular(MekaarRadius.sm),
+              ),
+              child: Icon(
+                SolarIconsOutline.altArrowRight,
+                size: 14,
+                color: MekaarColors.textMutedOf(context),
+              ),
             ),
-            child: Icon(
-              SolarIconsOutline.altArrowRight,
-              size: 14,
-              color: MekaarColors.textMutedOf(context),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

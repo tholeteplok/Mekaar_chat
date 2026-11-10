@@ -11,7 +11,6 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/permissions.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -1307,85 +1306,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     final hasSearch = _searchQuery.trim().isNotEmpty;
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 8,
-      ).copyWith(bottom: 110),
-      children: [
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: EdgeInsets.zero,
-          borderRadius: MekaarRadius.card,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(MekaarRadius.card),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: filtered.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                thickness: 1,
-                indent: 74,
-                endIndent: 16,
-                color: MekaarColors.cardBorderOf(
-                  context,
-                ).withValues(alpha: 0.5),
-              ),
-              itemBuilder: (context, index) {
-                final room = filtered[index];
-                final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
-                final otherUserId =
-                    (room['otherUserId'] ?? room['other_user_id']) as String?;
-                final isHidden =
-                    hiddenRoomIds.contains(roomId) ||
-                    (otherUserId != null &&
-                        (hiddenContactUserIds.contains(otherUserId) ||
-                            vaultedContactIds.contains(otherUserId)));
-
-                return ChatListTile(
-                  room: room,
-                  isHidden: isHidden,
-                  onTap: () {
-                    final chatName =
-                        (room['name'] ?? room['chat_name']) as String? ??
-                        'Obrolan';
-                    final chatAvatar =
-                        (room['avatar'] as String?) ??
-                        (chatName.isNotEmpty ? chatName[0] : '💬');
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.chat,
-                      arguments: {
-                        'chatId': roomId,
-                        'chatName': chatName,
-                        'chatAvatar': chatAvatar,
-                        'chatAvatarUrl':
-                            (room['avatarUrl'] ?? room['avatar_url'])
-                                as String?,
-                        'isGuardian':
-                            (room['isGuardian'] ?? room['is_guardian'])
-                                as bool? ??
-                            false,
-                        'otherUserId': otherUserId,
-                        'initialLastReadAt': room['lastReadAt'] as DateTime?,
-                      },
-                    );
-                  },
-                  onLongPress: () => _showChatTileContextMenu(context, room),
-                  onMarkRead: () => _handleMarkAsReadRoom(room),
-                  onMute: () => _handleMuteRoom(room),
-                  onDelete: () => _confirmDeleteRoom(room),
-                  onArchive: () => _handleArchiveRoom(room),
-                );
-              },
-            ),
-          ),
-        ),
-        if (hasSearch)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 4, bottom: 110),
+      itemCount: filtered.length + (hasSearch ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == filtered.length) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: InkWell(
               onTap: () {
                 Navigator.pushNamed(
@@ -1437,8 +1365,72 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ),
               ),
             ),
-          ),
-      ],
+          );
+        }
+
+        final room = filtered[index];
+        final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+        final otherUserId =
+            (room['otherUserId'] ?? room['other_user_id']) as String?;
+        final isHidden =
+            hiddenRoomIds.contains(roomId) ||
+            (otherUserId != null &&
+                (hiddenContactUserIds.contains(otherUserId) ||
+                    vaultedContactIds.contains(otherUserId)));
+
+        final isLastItem = index == filtered.length - 1 && !hasSearch;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ChatListTile(
+              room: room,
+              isHidden: isHidden,
+              onTap: () {
+                final chatName =
+                    (room['name'] ?? room['chat_name']) as String? ??
+                    'Obrolan';
+                final chatAvatar =
+                    (room['avatar'] as String?) ??
+                    (chatName.isNotEmpty ? chatName[0] : '💬');
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.chat,
+                  arguments: {
+                    'chatId': roomId,
+                    'chatName': chatName,
+                    'chatAvatar': chatAvatar,
+                    'chatAvatarUrl':
+                        (room['avatarUrl'] ?? room['avatar_url'])
+                            as String?,
+                    'isGuardian':
+                        (room['isGuardian'] ?? room['is_guardian'])
+                            as bool? ??
+                        false,
+                    'otherUserId': otherUserId,
+                    'initialLastReadAt': room['lastReadAt'] as DateTime?,
+                  },
+                );
+              },
+              onLongPress: () => _showChatTileContextMenu(context, room),
+              onMarkRead: () => _handleMarkAsReadRoom(room),
+              onMute: () => _handleMuteRoom(room),
+              onDelete: () => _confirmDeleteRoom(room),
+              onArchive: () => _handleArchiveRoom(room),
+            ),
+            if (!isLastItem)
+              Divider(
+                height: 1,
+                thickness: 0.8,
+                indent: 76,
+                endIndent: 0,
+                color: MekaarColors.borderOf(
+                  context,
+                ).withValues(alpha: 0.35),
+              ),
+          ],
+        );
+      },
     );
   }
 }

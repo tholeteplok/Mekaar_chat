@@ -6,7 +6,6 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -107,39 +106,45 @@ class _ConnectedDevicesScreenState
     return RefreshIndicator.adaptive(
       onRefresh: () => ref.read(connectedDevicesProvider.notifier).load(),
       child: ListView(
-        padding: MekaarSpacing.screen.copyWith(top: MekaarSpacing.md),
+        padding: const EdgeInsets.only(top: 8, bottom: 32),
         children: [
           // ── Perangkat Saat Ini ──
           if (state.currentDevice != null) ...[
             const _SectionLabel(label: 'Perangkat Ini'),
-            const SizedBox(height: MekaarSpacing.xs),
             _DeviceCard(
               device: state.currentDevice!,
               isCurrent: true,
               onRevoke: null, // Tidak bisa revoke perangkat sendiri
             ),
-            const SizedBox(height: MekaarSpacing.lg),
+            const SizedBox(height: MekaarSpacing.md),
           ],
 
           // ── Perangkat Lain ──
           if (state.otherDevices.isNotEmpty) ...[
             const _SectionLabel(label: 'Perangkat Lain'),
-            const SizedBox(height: MekaarSpacing.xs),
-            ...state.otherDevices.map(
-              (device) => Padding(
-                padding: const EdgeInsets.only(bottom: MekaarSpacing.xs),
-                child: _DeviceCard(
-                  device: device,
-                  isCurrent: false,
-                  onRevoke: () => _confirmRevoke(device),
+            for (int i = 0; i < state.otherDevices.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  thickness: 0.8,
+                  indent: 78,
+                  endIndent: 0,
+                  color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
                 ),
+              _DeviceCard(
+                device: state.otherDevices[i],
+                isCurrent: false,
+                onRevoke: () => _confirmRevoke(state.otherDevices[i]),
               ),
-            ),
+            ],
             const SizedBox(height: MekaarSpacing.md),
             // Tombol "Keluar dari Semua Perangkat Lain"
-            _RevokeAllButton(
-              count: state.otherDevices.length,
-              onTap: () => _confirmRevokeAll(state.otherDevices.length),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _RevokeAllButton(
+                count: state.otherDevices.length,
+                onTap: () => _confirmRevokeAll(state.otherDevices.length),
+              ),
             ),
           ],
         ],
@@ -248,12 +253,15 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: MekaarTypography.labelSM.copyWith(
-        color: MekaarColors.textMutedOf(context),
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+    return Padding(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 8),
+      child: Text(
+        label,
+        style: MekaarTypography.labelSM.copyWith(
+          color: MekaarColors.textMutedOf(context),
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -274,9 +282,8 @@ class _DeviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final brandAccent = MekaarColors.accentOf(context);
 
-    return CustomCard(
-      margin: EdgeInsets.zero,
-      padding: const EdgeInsets.all(MekaarSpacing.md),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         children: [
           // Ikon platform
@@ -286,7 +293,7 @@ class _DeviceCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: (isCurrent ? brandAccent : MekaarColors.textMutedOf(context))
                   .withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(MekaarRadius.md),
+              shape: BoxShape.circle,
             ),
             child: Icon(
               _platformIcon,
@@ -294,7 +301,7 @@ class _DeviceCard extends StatelessWidget {
               size: 22,
             ),
           ),
-          const SizedBox(width: MekaarSpacing.md),
+          const SizedBox(width: 14),
 
           // Info perangkat
           Expanded(
@@ -306,7 +313,7 @@ class _DeviceCard extends StatelessWidget {
                     Flexible(
                       child: Text(
                         device.deviceLabel ?? device.platform,
-                        style: MekaarTypography.bodySM.copyWith(
+                        style: MekaarTypography.bodyMD.copyWith(
                           color: MekaarColors.textPrimaryOf(context),
                           fontWeight: FontWeight.w600,
                         ),

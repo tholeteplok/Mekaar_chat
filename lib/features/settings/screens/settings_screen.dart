@@ -44,27 +44,20 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Tampilan'),
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              SettingsNavTile(
-                icon: SolarIconsOutline.palette,
-                iconColor: MekaarColors.purple,
-                title: 'Tampilan & Font',
-                valueText: activeFont.displayName,
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.themeSettings),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsOutline.chatRoundDots,
-                title: 'Tema & Wallpaper Chat',
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
-              ),
-            ],
-          ),
+        SettingsNavTile(
+          icon: SolarIconsOutline.palette,
+          iconColor: MekaarColors.purple,
+          title: 'Tampilan & Font',
+          valueText: activeFont.displayName,
+          onTap: () =>
+              Navigator.pushNamed(context, AppRoutes.themeSettings),
+        ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsOutline.chatRoundDots,
+          title: 'Tema & Wallpaper Chat',
+          onTap: () =>
+              Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
         ),
       ],
     );
@@ -88,71 +81,69 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Privasi'),
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.screenShare,
-                iconColor: MekaarColors.guardianTeal,
-                title: 'Proteksi Privasi Layar',
-                value: ref.watch(screenshotBlockProvider),
-                onChanged: (value) =>
-                    ref.read(screenshotBlockProvider.notifier).toggle(value),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsOutline.user,
-                iconColor: MekaarColors.info,
-                title: 'Terakhir Dilihat & Online',
-                valueText: ref.watch(lastSeenPrivacyProvider).label,
-                onTap: () => _showLastSeenSheet(context, ref),
-              ),
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.checkCircle,
-                iconColor: MekaarColors.lime,
-                title: 'Bukti Baca Pesan',
-                value: ref.watch(readReceiptsProvider),
-                onChanged: (value) =>
-                    ref.read(readReceiptsProvider.notifier).setEnabled(value),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsOutline.shieldUser,
-                title: 'Proteksi Undangan Chat',
-                valueText:
-                    ref.watch(chatInvitationModeProvider) == 'approved_only'
-                    ? 'Disetujui'
-                    : 'Semua',
-                onTap: () => _showChatInvitationModeSheet(context, ref),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsOutline.radar2,
-                iconColor: MekaarColors.guardianTeal,
-                title: 'Teman Sekitar',
-                valueText: ref.watch(nearbyFriendsProvider).isEnabled
-                    ? (ref.watch(nearbyFriendsProvider).visibilityMode ==
-                              'everyone'
-                          ? 'Semua'
-                          : 'Kontak')
-                    : 'Nonaktif',
-                onTap: () => _showNearbyFriendsPrivacySheet(context, ref),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsOutline.mapPoint,
-                iconColor: MekaarColors.guardianTeal,
-                title: 'Auto Check-In',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsBold.shieldKeyhole,
-                iconColor: MekaarColors.guardianTeal,
-                title: 'Privasi Lanjutan',
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.advancedPrivacySettings,
-                ),
-              ),
-            ],
+        SettingsSwitchTile(
+          icon: SolarIconsOutline.screenShare,
+          iconColor: MekaarColors.guardianTeal,
+          title: 'Proteksi Privasi Layar',
+          value: ref.watch(screenshotBlockProvider),
+          onChanged: (value) =>
+              ref.read(screenshotBlockProvider.notifier).toggle(value),
+        ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsOutline.user,
+          iconColor: MekaarColors.info,
+          title: 'Terakhir Dilihat & Online',
+          valueText: ref.watch(lastSeenPrivacyProvider).label,
+          onTap: () => _showLastSeenSheet(context, ref),
+        ),
+        const SettingsDivider(),
+        SettingsSwitchTile(
+          icon: SolarIconsOutline.checkCircle,
+          iconColor: MekaarColors.lime,
+          title: 'Bukti Baca Pesan',
+          value: ref.watch(readReceiptsProvider),
+          onChanged: (value) =>
+              ref.read(readReceiptsProvider.notifier).setEnabled(value),
+        ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsOutline.shieldUser,
+          title: 'Proteksi Undangan Chat',
+          valueText:
+              ref.watch(chatInvitationModeProvider) == 'approved_only'
+              ? 'Disetujui'
+              : 'Semua',
+          onTap: () => _showChatInvitationModeSheet(context, ref),
+        ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsOutline.radar2,
+          iconColor: MekaarColors.guardianTeal,
+          title: 'Teman Sekitar',
+          valueText: ref.watch(nearbyFriendsProvider).isEnabled
+              ? (ref.watch(nearbyFriendsProvider).visibilityMode ==
+                        'everyone'
+                    ? 'Semua'
+                    : 'Kontak')
+              : 'Nonaktif',
+          onTap: () => _showNearbyFriendsPrivacySheet(context, ref),
+        ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsOutline.mapPoint,
+          iconColor: MekaarColors.guardianTeal,
+          title: 'Auto Check-In',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
+        ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsBold.shieldKeyhole,
+          iconColor: MekaarColors.guardianTeal,
+          title: 'Privasi Lanjutan',
+          onTap: () => Navigator.pushNamed(
+            context,
+            AppRoutes.advancedPrivacySettings,
           ),
         ),
       ],
@@ -169,68 +160,66 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Keamanan'),
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              SettingsNavTile(
-                icon: SolarIconsOutline.lockKeyhole,
-                iconColor: MekaarColors.yellow,
-                title: isDecoy
-                    ? 'PIN Keamanan Aplikasi'
-                    : 'Manajemen PIN Keamanan',
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.pinManagement),
-              ),
-              SettingsNavTile(
-                icon: SolarIconsOutline.clockCircle,
-                iconColor: MekaarColors.info,
-                title: 'Kunci Otomatis',
-                valueText: ref.watch(autoLockTimeoutProvider).label,
-                onTap: () => _showAutoLockBottomSheet(context, ref),
-              ),
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.shieldWarning,
-                iconColor: MekaarColors.sosCoral,
-                title: 'Fitur Darurat SOS',
-                subtitle: 'Tombol darurat, pemantauan Guardian, dan siaga SOS',
-                value: ref.watch(sosFeatureEnabledProvider),
-                onChanged: (val) => _handleSosToggle(context, ref, val),
-              ),
-              if (!isDecoy) ...[
-                SettingsNavTile(
-                  icon: SolarIconsOutline.shieldKeyhole,
-                  iconColor: MekaarColors.guardianTeal,
-                  title: 'Verifikasi 2 Langkah (2FA)',
-                  valueText: ref.watch(twoFaProvider) ? 'Aktif' : 'Nonaktif',
-                  onTap: () => _handleTwoFactor(context, ref),
-                ),
-                SettingsNavTile(
-                  icon: SolarIconsOutline.smartphone,
-                  iconColor: MekaarColors.brandPrimary,
-                  title: 'Perangkat Terhubung',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.connectedDevices),
-                ),
-                if (ref.watch(sosFeatureEnabledProvider)) ...[
-                  SettingsNavTile(
-                    icon: SolarIconsOutline.billList,
-                    iconColor: MekaarColors.sosRed,
-                    title: 'Riwayat SOS',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
-                  ),
-                  SettingsNavTile(
-                    icon: SolarIconsOutline.shieldCheck,
-                    iconColor: MekaarColors.warnAmber,
-                    title: 'Latihan SOS (Simulasi)',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
-                  ),
-                ],
-              ],
-            ],
-          ),
+        SettingsNavTile(
+          icon: SolarIconsOutline.lockKeyhole,
+          iconColor: MekaarColors.yellow,
+          title: isDecoy
+              ? 'PIN Keamanan Aplikasi'
+              : 'Manajemen PIN Keamanan',
+          onTap: () =>
+              Navigator.pushNamed(context, AppRoutes.pinManagement),
         ),
+        const SettingsDivider(),
+        SettingsNavTile(
+          icon: SolarIconsOutline.clockCircle,
+          iconColor: MekaarColors.info,
+          title: 'Kunci Otomatis',
+          valueText: ref.watch(autoLockTimeoutProvider).label,
+          onTap: () => _showAutoLockBottomSheet(context, ref),
+        ),
+        const SettingsDivider(),
+        SettingsSwitchTile(
+          icon: SolarIconsOutline.shieldWarning,
+          iconColor: MekaarColors.sosCoral,
+          title: 'Fitur Darurat SOS',
+          subtitle: 'Tombol darurat, pemantauan Guardian, dan siaga SOS',
+          value: ref.watch(sosFeatureEnabledProvider),
+          onChanged: (val) => _handleSosToggle(context, ref, val),
+        ),
+        if (!isDecoy) ...[
+          const SettingsDivider(),
+          SettingsNavTile(
+            icon: SolarIconsOutline.shieldKeyhole,
+            iconColor: MekaarColors.guardianTeal,
+            title: 'Verifikasi 2 Langkah (2FA)',
+            valueText: ref.watch(twoFaProvider) ? 'Aktif' : 'Nonaktif',
+            onTap: () => _handleTwoFactor(context, ref),
+          ),
+          const SettingsDivider(),
+          SettingsNavTile(
+            icon: SolarIconsOutline.smartphone,
+            iconColor: MekaarColors.brandPrimary,
+            title: 'Perangkat Terhubung',
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.connectedDevices),
+          ),
+          if (ref.watch(sosFeatureEnabledProvider)) ...[
+            const SettingsDivider(),
+            SettingsNavTile(
+              icon: SolarIconsOutline.billList,
+              iconColor: MekaarColors.sosRed,
+              title: 'Riwayat SOS',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
+            ),
+            const SettingsDivider(),
+            SettingsNavTile(
+              icon: SolarIconsOutline.shieldCheck,
+              iconColor: MekaarColors.warnAmber,
+              title: 'Latihan SOS (Simulasi)',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
+            ),
+          ],
+        ],
       ],
     );
   }
@@ -243,14 +232,10 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Notifikasi'),
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: SettingsNavTile(
-            icon: SolarIconsOutline.bell,
-            title: 'Nada & Suara',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
-          ),
+        SettingsNavTile(
+          icon: SolarIconsOutline.bell,
+          title: 'Nada & Suara',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
         ),
       ],
     );
@@ -269,49 +254,44 @@ class SettingsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Sistem'),
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              SettingsSwitchTile(
-                icon: SolarIconsOutline.smartphoneVibration,
-                iconColor: MekaarColors.purpleLight,
-                title: 'Getaran (Haptics)',
-                value: hapticsEnabled,
-                onChanged: prefsAsync.hasValue
-                    ? (value) => ref
-                          .read(notificationPreferencesProvider.notifier)
-                          .toggleHaptics(value)
-                    : null,
-              ),
-              if (!isDecoy) ...[
-                SettingsSwitchTile(
-                  icon: SolarIconsOutline.volumeLoud,
-                  iconColor: MekaarColors.guardianTeal,
-                  title: 'Izin Guardian Alarm',
-                  value: ref.watch(allowGuardianAlarmProvider),
-                  onChanged: (value) => ref
-                      .read(allowGuardianAlarmProvider.notifier)
-                      .setEnabled(value),
-                ),
-                SettingsNavTile(
-                  icon: SolarIconsOutline.gps,
-                  title: 'Temukan Ponsel Saya',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.deviceLost),
-                ),
-                SettingsNavTile(
-                  icon: SolarIconsOutline.userBlock,
-                  iconColor: MekaarColors.sosCoral,
-                  title: 'Daftar Blokir',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.blockedList),
-                ),
-              ],
-            ],
-          ),
+        SettingsSwitchTile(
+          icon: SolarIconsOutline.smartphoneVibration,
+          iconColor: MekaarColors.purpleLight,
+          title: 'Getaran (Haptics)',
+          value: hapticsEnabled,
+          onChanged: prefsAsync.hasValue
+              ? (value) => ref
+                    .read(notificationPreferencesProvider.notifier)
+                    .toggleHaptics(value)
+              : null,
         ),
+        if (!isDecoy) ...[
+          const SettingsDivider(),
+          SettingsSwitchTile(
+            icon: SolarIconsOutline.volumeLoud,
+            iconColor: MekaarColors.guardianTeal,
+            title: 'Izin Guardian Alarm',
+            value: ref.watch(allowGuardianAlarmProvider),
+            onChanged: (value) => ref
+                .read(allowGuardianAlarmProvider.notifier)
+                .setEnabled(value),
+          ),
+          const SettingsDivider(),
+          SettingsNavTile(
+            icon: SolarIconsOutline.gps,
+            title: 'Temukan Ponsel Saya',
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.deviceLost),
+          ),
+          const SettingsDivider(),
+          SettingsNavTile(
+            icon: SolarIconsOutline.userBlock,
+            iconColor: MekaarColors.sosCoral,
+            title: 'Daftar Blokir',
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.blockedList),
+          ),
+        ],
       ],
     );
   }
@@ -323,16 +303,11 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
         const SettingsSectionHeader(title: 'Informasi'),
-        CustomCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: SettingsNavTile(
-            icon: SolarIconsOutline.infoCircle,
-            title: 'Tentang Mekaar',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.about),
-          ),
+        SettingsNavTile(
+          icon: SolarIconsOutline.infoCircle,
+          title: 'Tentang Mekaar',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.about),
         ),
       ],
     );
@@ -353,10 +328,9 @@ class SettingsScreen extends ConsumerWidget {
             const MekaarTabHeader(title: 'Pengaturan'),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.only(top: 8, bottom: 20),
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
 
                     // ── 1. Akun (Snippet Profil) ──
                     _buildAccountSection(context, ref),

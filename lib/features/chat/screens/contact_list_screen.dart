@@ -12,7 +12,6 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
@@ -634,37 +633,29 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
       onRefresh: () => ref
           .read(userContactsProvider.notifier)
           .refreshContacts(forceLoading: true),
-      child: ListView(
-        controller: _contactsScrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 4,
-        ).copyWith(bottom: 110),
-        children: [
-          CustomCard(
-            margin: EdgeInsets.zero,
-            padding: EdgeInsets.zero,
-            borderRadius: MekaarRadius.card,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(MekaarRadius.card),
-              child: _isGridView
-                  ? _buildContactsGridContent(
-                      contacts,
-                      hiddenContactUserIds,
-                      hiddenRoomIds,
-                      isVaultUnlocked,
-                    )
-                  : _buildContactsListContent(
-                      contacts,
-                      hiddenContactUserIds,
-                      hiddenRoomIds,
-                      isVaultUnlocked,
-                    ),
+      child: _isGridView
+          ? ListView(
+              controller: _contactsScrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ).copyWith(bottom: 110),
+              children: [
+                _buildContactsGridContent(
+                  contacts,
+                  hiddenContactUserIds,
+                  hiddenRoomIds,
+                  isVaultUnlocked,
+                ),
+              ],
+            )
+          : _buildContactsListContent(
+              contacts,
+              hiddenContactUserIds,
+              hiddenRoomIds,
+              isVaultUnlocked,
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -839,16 +830,16 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final mutedColor = MekaarColors.textSecondaryOf(context);
 
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
+      controller: _contactsScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 4, bottom: 110),
       itemCount: contacts.length,
       separatorBuilder: (context, index) => Divider(
         height: 1,
-        thickness: 1,
-        indent: 72,
-        endIndent: 16,
-        color: MekaarColors.cardBorderOf(context).withValues(alpha: 0.5),
+        thickness: 0.8,
+        indent: 78,
+        endIndent: 0,
+        color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
       ),
       itemBuilder: (context, index) {
         final contact = contacts[index];

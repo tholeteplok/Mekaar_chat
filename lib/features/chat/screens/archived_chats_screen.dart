@@ -298,8 +298,16 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
                   onRefresh: () async {
                     await ref.read(chatRoomsProvider.notifier).refreshRooms();
                   },
-                  child: ListView.builder(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
                     itemCount: archivedRooms.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      thickness: 0.8,
+                      indent: 76,
+                      endIndent: 0,
+                      color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                    ),
                     itemBuilder: (context, index) {
                       final room = archivedRooms[index];
                       final roomId = room['id'] as String;

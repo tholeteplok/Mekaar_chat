@@ -4,7 +4,6 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/privacy_provider.dart';
@@ -32,55 +31,41 @@ class AdvancedPrivacySettingsScreen extends ConsumerWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MekaarSpacing.md,
-                  vertical: MekaarSpacing.sm,
-                ),
+                padding: const EdgeInsets.only(top: MekaarSpacing.sm, bottom: 24),
                 children: [
                   const SettingsSectionHeader(title: 'Notifikasi & Penyamaran'),
-                  CustomCard(
-                    margin: EdgeInsets.zero,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      children: [
-                        SettingsSwitchTile(
-                          icon: SolarIconsOutline.eye,
-                          iconColor: MekaarColors.warning,
-                          title: 'Sembunyikan Notifikasi Darurat',
-                          subtitle: 'Samarkan rincian nama pengirim & pesan saat darurat',
-                          value: ref.watch(notificationMaskingProvider),
-                          onChanged: (value) => ref
-                              .read(notificationMaskingProvider.notifier)
-                              .setEnabled(value),
-                        ),
-                        SettingsSwitchTile(
-                          icon: SolarIconsOutline.eyeClosed,
-                          iconColor: MekaarColors.purpleLight,
-                          title: 'Sembunyikan Cuplikan Pesan',
-                          subtitle: 'Sembunyikan preview teks terakhir pada daftar obrolan publik',
-                          value: ref.watch(stealthChatPreviewProvider),
-                          onChanged: (value) => ref
-                              .read(stealthChatPreviewProvider.notifier)
-                              .setEnabled(value),
-                        ),
-                      ],
-                    ),
+                  SettingsSwitchTile(
+                    icon: SolarIconsOutline.eye,
+                    iconColor: MekaarColors.warning,
+                    title: 'Sembunyikan Notifikasi Darurat',
+                    subtitle: 'Samarkan rincian nama pengirim & pesan saat darurat',
+                    value: ref.watch(notificationMaskingProvider),
+                    onChanged: (value) => ref
+                        .read(notificationMaskingProvider.notifier)
+                        .setEnabled(value),
+                  ),
+                  const SettingsDivider(),
+                  SettingsSwitchTile(
+                    icon: SolarIconsOutline.eyeClosed,
+                    iconColor: MekaarColors.purpleLight,
+                    title: 'Sembunyikan Cuplikan Pesan',
+                    subtitle: 'Sembunyikan preview teks terakhir pada daftar obrolan publik',
+                    value: ref.watch(stealthChatPreviewProvider),
+                    onChanged: (value) => ref
+                        .read(stealthChatPreviewProvider.notifier)
+                        .setEnabled(value),
                   ),
                   const SizedBox(height: MekaarSpacing.md),
                   const SettingsSectionHeader(title: 'Panggilan & Jaringan (Anti-IP Leak)'),
-                  CustomCard(
-                    margin: EdgeInsets.zero,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: SettingsSwitchTile(
-                      icon: SolarIconsOutline.routing,
-                      iconColor: MekaarColors.info,
-                      title: 'Sembunyikan Alamat IP Panggilan',
-                      subtitle: 'Selalu alihkan panggilan via relay server MEKAAR untuk mencegah kebocoran alamat IP Anda',
-                      value: ref.watch(relayCallsOnlyProvider),
-                      onChanged: (value) => ref
-                          .read(relayCallsOnlyProvider.notifier)
-                          .setEnabled(value),
-                    ),
+                  SettingsSwitchTile(
+                    icon: SolarIconsOutline.routing,
+                    iconColor: MekaarColors.info,
+                    title: 'Sembunyikan Alamat IP Panggilan',
+                    subtitle: 'Selalu alihkan panggilan via relay server MEKAAR untuk mencegah kebocoran alamat IP Anda',
+                    value: ref.watch(relayCallsOnlyProvider),
+                    onChanged: (value) => ref
+                        .read(relayCallsOnlyProvider.notifier)
+                        .setEnabled(value),
                   ),
                 ],
               ),
