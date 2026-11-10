@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/bubbles/full_screen_image_viewer.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -154,6 +155,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
+  void _openFullAvatar() {
+    final avatarUrl = ref.read(authProvider).profile?.avatarUrl;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      HapticService.trigger(MekaarHapticIntent.selection);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FullScreenImageViewer(
+            imageProvider: NetworkImage(avatarUrl),
+            heroTag: 'profile_full_avatar',
+          ),
+        ),
+      );
+    } else {
+      _showAvatarOptions();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -272,15 +290,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           )
         : null;
 
+    final logoutActionButton = IconButton(
+      tooltip: 'Keluar dari Akun',
+      icon: const Icon(
+        SolarIconsOutline.logout,
+        color: MekaarColors.sosRed,
+        size: 22,
+      ),
+      onPressed: _confirmLogout,
+    );
+
     return MekaarScaffold(
       flat: true,
       body: SafeArea(
         child: Column(
           children: [
             if (canPop)
-              SettingsTopBar(title: 'Profil', trailing: saveActionButton)
+              SettingsTopBar(
+                title: 'Profil',
+                actions: [
+                  ?saveActionButton,
+                  logoutActionButton,
+                ],
+              )
             else
-              MekaarTabHeader(title: 'Profil', action: saveActionButton),
+              MekaarTabHeader(
+                title: 'Profil',
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ?saveActionButton,
+                    logoutActionButton,
+                  ],
+                ),
+              ),
 
             Expanded(
               child: SingleChildScrollView(
@@ -297,19 +340,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           GestureDetector(
                             onTap: _isUploadingAvatar
                                 ? null
-                                : _showAvatarOptions,
+                                : _openFullAvatar,
                             child: Stack(
                               alignment: Alignment.bottomRight,
                               children: [
                                 Avatar(
                                   initial: userName,
                                   imageUrl: profile?.avatarUrl,
-                                  size: 84,
+                                  size: 168,
+                                  heroTag: 'profile_full_avatar',
                                 ),
                                 if (_isUploadingAvatar)
                                   Container(
-                                    width: 84,
-                                    height: 84,
+                                    width: 168,
+                                    height: 168,
                                     decoration: BoxDecoration(
                                       color: Colors.black.withValues(
                                         alpha: 0.5,
@@ -319,14 +363,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     child: const Center(
                                       child: CircularProgressIndicator(
                                         color: Colors.white,
-                                        strokeWidth: 2,
+                                        strokeWidth: 2.5,
                                       ),
                                     ),
                                   ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           TextButton.icon(
                             onPressed: _isUploadingAvatar
                                 ? null
@@ -357,180 +401,92 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
                     // ── Clean Parameter Form Rows (Borderless) ──
                     Column(
-                        children: [
-                          // 1. Nama Tampilan
-                          _buildCleanRow(
-                            label: 'Nama',
-                            isEditing: _isEditingDisplayName,
-                            controller: _displayNameController,
-                            value:
-                                profile?.displayName ??
-                                profile?.fullName ??
-                                profile?.username ??
-                                'Belum diatur',
-                            onToggle: () =>
-                                setState(() => _isEditingDisplayName = true),
-                            onSave: _saveDisplayName,
-                          ),
-                          Divider(
-                            height: 1,
-                            thickness: 0.8,
-                            indent: 90,
-                            endIndent: 0,
-                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
-                          ),
-
-                          // 2. Username (Permanen / Read-only)
-                          InkWell(
-                            onTap: () {
-                              MekaarSnackbar.info(
-                                context,
-                                'Username bersifat permanen dan tidak dapat diubah.',
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(MekaarRadius.card),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 90,
-                                    child: Text(
-                                      'Username',
-                                      style: MekaarTypography.bodySM.copyWith(
-                                        color: MekaarColors.textMutedOf(context),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      username.isNotEmpty
-                                          ? '@$username'
-                                          : 'Belum diatur',
-                                      style: MekaarTypography.bodyMD.copyWith(
-                                        color: MekaarColors.textPrimaryOf(
-                                          context,
-                                        ),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Icon(
-                                    SolarIconsOutline.lock,
-                                    size: 16,
-                                    color: MekaarColors.textMutedOf(context),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Divider(
-                            height: 1,
-                            thickness: 0.8,
-                            indent: 90,
-                            endIndent: 0,
-                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
-                          ),
-
-                          // 3. Bio / Status
-                          _buildCleanRow(
-                            label: 'Bio',
-                            isEditing: _isEditingBio,
-                            controller: _bioController,
-                            value:
-                                (profile?.bio != null &&
-                                    profile!.bio!.isNotEmpty)
-                                ? profile.bio!
-                                : 'Tambah bio / status...',
-                            onToggle: () =>
-                                setState(() => _isEditingBio = true),
-                            onSave: _saveBio,
-                          ),
-                          Divider(
-                            height: 1,
-                            thickness: 0.8,
-                            indent: 90,
-                            endIndent: 0,
-                            color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
-                          ),
-
-                          // 4. Email
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 90,
-                                  child: Text(
-                                    'Email',
-                                    style: MekaarTypography.bodySM.copyWith(
-                                      color: MekaarColors.textMutedOf(context),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    userEmail.isNotEmpty
-                                        ? userEmail
-                                        : 'Belum terhubung',
-                                    style: MekaarTypography.bodyMD.copyWith(
-                                      color: MekaarColors.textPrimaryOf(
-                                        context,
-                                      ),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Icon(
-                                  SolarIconsOutline.lock,
-                                  size: 16,
-                                  color: MekaarColors.textMutedOf(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-
-
-                    const SizedBox(height: 32),
-
-                    // ── Logout Action Button ──
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: _confirmLogout,
-                        icon: const Icon(
-                          SolarIconsOutline.logout,
-                          color: MekaarColors.sosRed,
-                          size: 18,
+                      children: [
+                        // 1. Nama Tampilan
+                        _buildCleanRow(
+                          label: 'Nama',
+                          isEditing: _isEditingDisplayName,
+                          controller: _displayNameController,
+                          value:
+                              profile?.displayName ??
+                              profile?.fullName ??
+                              profile?.username ??
+                              'Belum diatur',
+                          onToggle: () =>
+                              setState(() => _isEditingDisplayName = true),
+                          onSave: _saveDisplayName,
                         ),
-                        label: Text(
-                          'Keluar dari Akun',
-                          style: MekaarTypography.bodyMD.copyWith(
-                            color: MekaarColors.sosRed,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        Divider(
+                          height: 1,
+                          thickness: 0.8,
+                          indent: 90,
+                          endIndent: 0,
+                          color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
                         ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+
+                        // 2. Username (Permanen / Read-only)
+                        _buildCleanRow(
+                          label: 'Username',
+                          value: username.isNotEmpty
+                              ? '@$username'
+                              : 'Belum diatur',
+                          isLocked: true,
+                          lockedTooltip: 'Username bersifat permanen',
+                          onLockedTap: () {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            MekaarSnackbar.info(
+                              context,
+                              'Username bersifat permanen dan tidak dapat diubah.',
+                            );
+                          },
                         ),
-                      ),
+                        Divider(
+                          height: 1,
+                          thickness: 0.8,
+                          indent: 90,
+                          endIndent: 0,
+                          color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                        ),
+
+                        // 3. Bio / Status
+                        _buildCleanRow(
+                          label: 'Bio',
+                          isEditing: _isEditingBio,
+                          controller: _bioController,
+                          value: (profile?.bio != null && profile!.bio!.isNotEmpty)
+                              ? profile.bio!
+                              : 'Tambah bio / status...',
+                          onToggle: () => setState(() => _isEditingBio = true),
+                          onSave: _saveBio,
+                        ),
+                        Divider(
+                          height: 1,
+                          thickness: 0.8,
+                          indent: 90,
+                          endIndent: 0,
+                          color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+                        ),
+
+                        // 4. Email (Permanen / Terhubung)
+                        _buildCleanRow(
+                          label: 'Email',
+                          value: userEmail.isNotEmpty
+                              ? userEmail
+                              : 'Belum terhubung',
+                          isLocked: true,
+                          lockedTooltip: 'Email terhubung ke sesi autentikasi',
+                          onLockedTap: () {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            MekaarSnackbar.info(
+                              context,
+                              'Email akun terhubung dan tidak dapat diubah di sini.',
+                            );
+                          },
+                        ),
+                      ],
                     ),
 
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -544,98 +500,108 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget _buildCleanRow({
     required String label,
     required String value,
-    required bool isEditing,
-    required TextEditingController controller,
-    required VoidCallback onToggle,
-    required VoidCallback onSave,
+    bool isEditing = false,
+    TextEditingController? controller,
+    VoidCallback? onToggle,
+    VoidCallback? onSave,
     String? subtitle,
     bool isLocked = false,
+    String? lockedTooltip,
+    VoidCallback? onLockedTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment:
-            subtitle != null ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Padding(
-              padding: EdgeInsets.only(top: subtitle != null ? 2 : 0),
-              child: Text(
-                label,
-                style: MekaarTypography.bodySM.copyWith(
-                  color: MekaarColors.textMutedOf(context),
-                  fontWeight: FontWeight.w500,
+    return InkWell(
+      onTap: isLocked ? onLockedTap : null,
+      borderRadius: BorderRadius.circular(MekaarRadius.card),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment:
+              subtitle != null ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 90,
+              child: Padding(
+                padding: EdgeInsets.only(top: subtitle != null ? 2 : 0),
+                child: Text(
+                  label,
+                  style: MekaarTypography.bodySM.copyWith(
+                    color: MekaarColors.textMutedOf(context),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: isEditing
-                ? TextField(
-                    controller: controller,
-                    autofocus: true,
-                    onSubmitted: (_) => onSave(),
-                    style: MekaarTypography.bodyMD.copyWith(
-                      color: MekaarColors.textPrimaryOf(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                      border: UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: MekaarColors.accentTextOf(context),
-                        ),
+            Expanded(
+              child: (isEditing && controller != null && onSave != null)
+                  ? TextField(
+                      controller: controller,
+                      autofocus: true,
+                      onSubmitted: (_) => onSave(),
+                      style: MekaarTypography.bodyMD.copyWith(
+                        color: MekaarColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.w600,
                       ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: MekaarColors.accentTextOf(context),
-                          width: 2,
-                        ),
-                      ),
-                      hintText: 'Ketik $label...',
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        value,
-                        style: MekaarTypography.bodyMD.copyWith(
-                          color: MekaarColors.textPrimaryOf(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: MekaarTypography.caption.copyWith(
-                            color: MekaarColors.textMutedOf(context),
-                            fontSize: 11,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        border: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: MekaarColors.accentTextOf(context),
                           ),
                         ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: MekaarColors.accentTextOf(context),
+                            width: 2,
+                          ),
+                        ),
+                        hintText: 'Ketik $label...',
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          value,
+                          style: MekaarTypography.bodyMD.copyWith(
+                            color: MekaarColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: MekaarTypography.caption.copyWith(
+                              color: MekaarColors.textMutedOf(context),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-          ),
-          IconButton(
-            icon: Icon(
-              isEditing
-                  ? SolarIconsOutline.checkCircle
-                  : (isLocked ? SolarIconsOutline.lockKeyhole : SolarIconsOutline.pen),
-              color: isEditing
-                  ? MekaarColors.accentTextOf(context)
-                  : (isLocked
-                      ? MekaarColors.textMutedOf(context).withValues(alpha: 0.6)
-                      : MekaarColors.textMutedOf(context)),
-              size: 18,
+                    ),
             ),
-            tooltip: isLocked ? 'Terkunci (Cooldown)' : (isEditing ? 'Simpan' : 'Ubah'),
-            onPressed: isEditing ? onSave : onToggle,
-          ),
-        ],
+            IconButton(
+              icon: Icon(
+                isEditing
+                    ? SolarIconsOutline.checkCircle
+                    : (isLocked ? SolarIconsOutline.lock : SolarIconsOutline.pen),
+                color: isEditing
+                    ? MekaarColors.accentTextOf(context)
+                    : MekaarColors.textMutedOf(context),
+                size: 18,
+              ),
+              tooltip: isLocked
+                  ? (lockedTooltip ?? 'Terkunci dan tidak dapat diubah')
+                  : (isEditing ? 'Simpan' : 'Ubah'),
+              onPressed: isEditing
+                  ? onSave
+                  : (isLocked ? onLockedTap : onToggle),
+            ),
+          ],
+        ),
       ),
     );
   }
