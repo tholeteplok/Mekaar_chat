@@ -13,8 +13,11 @@ import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/constants/dimensions.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/auto_lock_provider.dart';
+import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
@@ -193,9 +196,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Fitur Darurat SOS',
                 subtitle: 'Tombol darurat, pemantauan Guardian, dan siaga SOS',
                 value: ref.watch(sosFeatureEnabledProvider),
-                onChanged: (val) async {
-                  await ref.read(sosFeatureEnabledProvider.notifier).setEnabled(val);
-                },
+                onChanged: (val) => _handleSosToggle(context, ref, val),
               ),
               if (!isDecoy) ...[
                 SettingsNavTile(
@@ -824,5 +825,306 @@ class SettingsScreen extends ConsumerWidget {
         Navigator.pushNamed(context, AppRoutes.twoFactorSetup);
       }
     }
+  }
+
+  // ─────────────────────────────────────────────────
+  // Handler & Wizard Fitur Darurat SOS Terpusat
+  // ─────────────────────────────────────────────────
+  Future<void> _handleSosToggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool enable,
+  ) async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    if (!enable) {
+      // 1. Deaktivasi SOS -> Blocking modal konfirmasi dampak keselamatan
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogCtx) => MekaarDialog(
+          icon: const Icon(
+            SolarIconsBold.shieldCross,
+            color: MekaarColors.warnAmber,
+            size: 28,
+          ),
+          title: 'Nonaktifkan Fitur Darurat SOS?',
+          message:
+              'Tombol darurat SOS di layar obrolan dan layar kunci akan disembunyikan. '
+              'PIN Darurat (Duress PIN) akan dinonaktifkan, dan siaga sinyal GPS ke Guardian '
+              'tidak akan dapat disiarkan jika Anda dalam bahaya.',
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Tetap Aktif'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MekaarColors.sosRed.withValues(alpha: 0.15),
+                foregroundColor: MekaarColors.sosRed,
+                elevation: 0,
+              ),
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('Nonaktifkan'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        await ref.read(sosFeatureEnabledProvider.notifier).setEnabled(false);
+        if (context.mounted) {
+          MekaarSnackbar.info(
+            context,
+            'Fitur Darurat SOS dinonaktifkan. Mode Obrolan Privat Murni aktif.',
+          );
+        }
+      }
+    } else {
+      // 2. Aktivasi SOS -> Cek kelengkapan Guardian & Duress PIN
+      await ref.read(sosFeatureEnabledProvider.notifier).setEnabled(true);
+
+      final hasGuardians =
+          activeGuardiansOf(ref.read(guardianProvider)).isNotEmpty;
+      final isDuressSet =
+          await ref.read(authProvider.notifier).isDuressEnabled();
+
+      if (hasGuardians && isDuressSet) {
+        if (context.mounted) {
+          MekaarSnackbar.success(
+            context,
+            'Fitur Darurat SOS aktif. Guardian & PIN Darurat siap sedia.',
+          );
+        }
+        return;
+      }
+
+      if (context.mounted) {
+        _showSafetySetupWizard(
+          context,
+          ref,
+          hasGuardians: hasGuardians,
+          isDuressSet: isDuressSet,
+        );
+      }
+    }
+  }
+
+  void _showSafetySetupWizard(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool hasGuardians,
+    required bool isDuressSet,
+  }) {
+    MekaarBottomSheet.show(
+      context: context,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: MekaarColors.sosCoral.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      SolarIconsBold.shieldWarning,
+                      color: MekaarColors.sosCoral,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Lengkapi Proteksi SOS',
+                          style: MekaarTypography.headingMD.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Fitur SOS telah aktif. Selesaikan konfigurasi agar perlindungan maksimal.',
+                          style: MekaarTypography.caption.copyWith(
+                            color: MekaarColors.textMutedOf(sheetContext),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Item 1: Guardian
+              CustomCard(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Icon(
+                      SolarIconsBold.shieldUser,
+                      color: hasGuardians
+                          ? MekaarColors.guardianTeal
+                          : MekaarColors.warnAmber,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Kontak Guardian',
+                            style: MekaarTypography.bodyMD.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            hasGuardians
+                                ? 'Guardian aktif terhubung'
+                                : 'Belum ada Guardian yang menerima sinyal SOS',
+                            style: MekaarTypography.caption.copyWith(
+                              color: MekaarColors.textMutedOf(sheetContext),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasGuardians)
+                      const Icon(
+                        SolarIconsBold.checkCircle,
+                        color: MekaarColors.lime,
+                        size: 24,
+                      )
+                    else
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: MekaarColors.guardianTeal,
+                          foregroundColor: MekaarColors.textOnTeal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(MekaarRadius.md),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          Navigator.pushNamed(context, AppRoutes.guardianAdd);
+                        },
+                        child: const Text('Tambah'),
+                      ),
+                  ],
+                ),
+              ),
+
+              // Item 2: Duress PIN
+              CustomCard(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Icon(
+                      SolarIconsBold.shieldKeyhole,
+                      color: isDuressSet
+                          ? MekaarColors.brandPrimary
+                          : MekaarColors.sosCoral,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PIN Darurat (Duress PIN)',
+                            style: MekaarTypography.bodyMD.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isDuressSet
+                                ? 'PIN Darurat telah aktif'
+                                : 'Melindungi saat dipaksa membuka ponsel',
+                            style: MekaarTypography.caption.copyWith(
+                              color: MekaarColors.textMutedOf(sheetContext),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isDuressSet)
+                      const Icon(
+                        SolarIconsBold.checkCircle,
+                        color: MekaarColors.lime,
+                        size: 24,
+                      )
+                    else
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              MekaarColors.surface2Of(sheetContext),
+                          foregroundColor:
+                              MekaarColors.textPrimaryOf(sheetContext),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(MekaarRadius.md),
+                            side: BorderSide(
+                              color: MekaarColors.borderOf(sheetContext),
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.pinManagement,
+                          );
+                        },
+                        child: const Text('Atur PIN'),
+                      ),
+                  ],
+                ),
+              ),
+
+              // Button Selesai
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(sheetContext),
+                  child: const Text('Selesai'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

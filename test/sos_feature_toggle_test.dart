@@ -4,8 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mekaar_chat/core/widgets/sos_button.dart';
+import 'package:mekaar_chat/data/models/guardian_model.dart';
 import 'package:mekaar_chat/features/sos/providers/sos_provider.dart';
+import 'package:mekaar_chat/features/guardian/providers/guardian_provider.dart';
 import 'package:mekaar_chat/features/auth/screens/pin_screen.dart';
+
+class FakeWhoAddedMeNotifier extends StateNotifier<List<Guardian>>
+    implements WhoAddedMeNotifier {
+  FakeWhoAddedMeNotifier(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +49,57 @@ void main() {
 
       final notifier = SOSFeatureEnabledNotifier(prefs);
       expect(notifier.state, isFalse);
+    });
+  });
+
+  group('shouldShowGuardianTabProvider Tests', () {
+    test('Saat SOS aktif, Tab Guardian selalu tampil (true)', () {
+      final ref = ProviderContainer(
+        overrides: [
+          sosFeatureEnabledProvider.overrideWith((ref) => SOSFeatureEnabledNotifier(null, true)),
+          whoAddedMeProvider.overrideWith((ref) => FakeWhoAddedMeNotifier([])),
+        ],
+      );
+      addTearDown(ref.dispose);
+
+      expect(ref.read(shouldShowGuardianTabProvider), isTrue);
+    });
+
+    test('Saat SOS nonaktif dan user hanya dijaga (whoAddedMe kosong), Tab Guardian disembunyikan (false)', () {
+      final ref = ProviderContainer(
+        overrides: [
+          sosFeatureEnabledProvider.overrideWith((ref) => SOSFeatureEnabledNotifier(null, false)),
+          whoAddedMeProvider.overrideWith((ref) => FakeWhoAddedMeNotifier([])),
+        ],
+      );
+      addTearDown(ref.dispose);
+
+      expect(ref.read(shouldShowGuardianTabProvider), isFalse);
+    });
+
+    test('Saat SOS nonaktif TETAPI user bertindak sebagai penjaga aktif (whoAddedMe ada), Tab Guardian WAJIB tampil (true)', () {
+      final activeWard = Guardian(
+        id: 'rel_1',
+        ownerId: 'ward_user',
+        guardianId: 'me_guardian',
+        name: 'Anak Tercinta',
+        email: 'anak@mekaar.id',
+        permissions: {'gps': true, 'mic': true, 'video': false},
+        storageOption: 'stream_only',
+        status: 'active',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final ref = ProviderContainer(
+        overrides: [
+          sosFeatureEnabledProvider.overrideWith((ref) => SOSFeatureEnabledNotifier(null, false)),
+          whoAddedMeProvider.overrideWith((ref) => FakeWhoAddedMeNotifier([activeWard])),
+        ],
+      );
+      addTearDown(ref.dispose);
+
+      expect(ref.read(shouldShowGuardianTabProvider), isTrue);
     });
   });
 
@@ -89,12 +150,15 @@ void main() {
   });
 
   group('Settings & Pin Management Code Integration Inspection Tests', () {
-    test('SettingsScreen memuat toggle Fitur Darurat SOS dan membungkus tile turunan SOS', () {
+    test('SettingsScreen memuat toggle Fitur Darurat SOS, modal konfirmasi, dan wizard setup', () {
       final file = File('lib/features/settings/screens/settings_screen.dart');
       final content = file.readAsStringSync();
       expect(content.contains('Fitur Darurat SOS'), isTrue);
       expect(content.contains('sosFeatureEnabledProvider'), isTrue);
-      expect(content.contains('Tombol darurat, pemantauan Guardian, dan siaga SOS'), isTrue);
+      expect(content.contains('_handleSosToggle'), isTrue);
+      expect(content.contains('_showSafetySetupWizard'), isTrue);
+      expect(content.contains('Nonaktifkan Fitur Darurat SOS?'), isTrue);
+      expect(content.contains('Lengkapi Proteksi SOS'), isTrue);
     });
 
     test('PinManagementScreen mengadaptasi kartu PIN Darurat saat SOS nonaktif', () {
@@ -113,6 +177,13 @@ void main() {
       expect(content.contains('MainAxisAlignment.spaceBetween'), isTrue);
       expect(content.contains('MainAxisAlignment.end'), isTrue);
       expect(content.contains('if (isSosEnabled)'), isTrue);
+    });
+
+    test('MainNavigationScreen mengadaptasi 3 vs 4 tab navigasi bawah dengan shouldShowGuardianTabProvider', () {
+      final file = File('lib/features/chat/screens/main_navigation_screen.dart');
+      final content = file.readAsStringSync();
+      expect(content.contains('shouldShowGuardianTabProvider'), isTrue);
+      expect(content.contains('item.label != \'Guardian\''), isTrue);
     });
   });
 }
