@@ -9,7 +9,6 @@ import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -937,9 +936,8 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 20),
 
               // Item 1: Guardian
-              CustomCard(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(14),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
                     Icon(
@@ -1001,11 +999,16 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              Divider(
+                height: 16,
+                thickness: 0.8,
+                indent: 42,
+                color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+              ),
 
               // Item 2: Duress PIN
-              CustomCard(
-                margin: const EdgeInsets.only(bottom: 20),
-                padding: const EdgeInsets.all(14),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
                     Icon(
