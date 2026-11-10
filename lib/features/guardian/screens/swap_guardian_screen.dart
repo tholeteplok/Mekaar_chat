@@ -28,6 +28,7 @@ class SwapGuardianScreen extends ConsumerStatefulWidget {
 }
 
 class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
+  static const String _backspaceKey = 'backspace';
   // Izin untuk arah sebaliknya (B menjaga A)
   bool _gpsForB = true;
   bool _micForB = false;
@@ -41,7 +42,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
 
   void _handlePinKey(String key) {
     HapticService.trigger(MekaarHapticIntent.selection);
-    if (key == 'âŒ«') {
+    if (key == _backspaceKey) {
       if (_pin.isNotEmpty) {
         setState(() => _pin = _pin.substring(0, _pin.length - 1));
       }
@@ -353,7 +354,7 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
-      ['', '0', 'âŒ«'],
+      ['', '0', _backspaceKey],
     ];
     return Column(
       children: rows
@@ -375,12 +376,12 @@ class _SwapGuardianScreenState extends ConsumerState<SwapGuardianScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: key == 'âŒ«'
+                        color: key == _backspaceKey
                             ? Colors.transparent
                             : MekaarColors.surface2Of(context),
                       ),
                       child: Center(
-                        child: key == 'âŒ«'
+                        child: key == _backspaceKey
                             ? Icon(
                                 SolarIconsOutline.backspace,
                                 color: Theme.of(context).colorScheme.onSurface,

@@ -115,7 +115,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
           ? const MekaarStateView(
               pose: MikaPose.hi,
               title: 'Memuat Detail Grup',
-              message: 'Mengambil informasi dan anggota grupâ€¦',
+              message: 'Mengambil informasi dan anggota grup...',
               semanticLabel: 'Memuat detail grup',
             )
           : SingleChildScrollView(

@@ -55,7 +55,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   bool _isSearching = false;
 
   // ──── Form Trip Configuration State ────
-  String _originChoice = 'ðŸ“ Lokasi Saat Ini';
+  String _originChoice = 'Lokasi Saat Ini';
   int _radiusMeters = 150;
   final int _gracePeriodMinutes = 30;
   final List<int> _selectedActiveDays = [1, 2, 3, 4, 5, 6, 7]; // 1 = Sen, 7 = Min
@@ -653,13 +653,29 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                     Wrap(
                       spacing: 8,
                       children: [
-                        'ðŸ“ Lokasi Saat Ini',
-                        'ðŸ¢ Kantor',
-                        'ðŸ  Rumah',
+                        (
+                          label: 'Lokasi Saat Ini',
+                          icon: SolarIconsOutline.mapPoint,
+                        ),
+                        (
+                          label: 'Kantor',
+                          icon: SolarIconsOutline.buildings,
+                        ),
+                        (
+                          label: 'Rumah',
+                          icon: SolarIconsOutline.home,
+                        ),
                       ].map((choice) {
-                        final isSelected = _originChoice == choice;
+                        final isSelected = _originChoice == choice.label;
                         return ChoiceChip(
-                          label: Text(choice),
+                          avatar: Icon(
+                            choice.icon,
+                            size: 16,
+                            color: isSelected
+                                ? Colors.white
+                                : MekaarColors.textSecondaryOf(context),
+                          ),
+                          label: Text(choice.label),
                           selected: isSelected,
                           selectedColor: MekaarColors.primaryOf(context),
                           backgroundColor: MekaarColors.surface2Of(context),
@@ -681,8 +697,8 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                           onSelected: (selected) {
                             if (selected) {
                               HapticService.trigger(MekaarHapticIntent.selection);
-                              setState(() => _originChoice = choice);
-                              if (choice == 'ðŸ“ Lokasi Saat Ini') {
+                              setState(() => _originChoice = choice.label);
+                              if (choice.label == 'Lokasi Saat Ini') {
                                 _fetchRealGpsLocation();
                               }
                             }

@@ -65,7 +65,7 @@ class _MyQrScreenState extends ConsumerState<MyQrScreen> {
               const MekaarStateView(
                 pose: MikaPose.neutral,
                 title: 'Menyiapkan Kode QR',
-                message: 'Menghasilkan kode profil Andaâ€¦',
+                message: 'Menghasilkan kode profil Anda...',
                 semanticLabel: 'Memuat kode QR profil',
               )
             else ...[

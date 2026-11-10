@@ -323,7 +323,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
           ? const MekaarStateView(
               pose: MikaPose.ask,
               title: 'Memuat Info Kontak',
-              message: 'Mengambil detail profil kontak Andaâ€¦',
+              message: 'Mengambil detail profil kontak Anda...',
               semanticLabel: 'Memuat info kontak',
             )
           : ListView(
