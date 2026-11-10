@@ -13,6 +13,7 @@ import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../sos/providers/sos_provider.dart';
 import '../widgets/settings_tiles.dart';
 
 /// Layar Manajemen PIN Terpusat (Tritunggal PIN & Zero-Knowledge Camouflage)
@@ -230,6 +231,17 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   Future<void> _handleSetOrChangeDuressPin() async {
     HapticService.trigger(MekaarHapticIntent.selection);
+    final isSosEnabled = ref.read(sosFeatureEnabledProvider);
+    if (!isSosEnabled) {
+      if (mounted) {
+        MekaarSnackbar.info(
+          context,
+          'Fitur Darurat SOS sedang dinonaktifkan di Pengaturan. Aktifkan fitur SOS untuk mengatur PIN Darurat.',
+        );
+      }
+      return;
+    }
+
     final verified = await MekaarPinVerificationSheet.verify(
       context,
       title: 'Verifikasi PIN Master',
@@ -674,115 +686,144 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
       ),
 
       // ── 3. Kartu PIN Darurat (Silent SOS / Duress) ──
-      CustomCard(
-        margin: const EdgeInsets.only(bottom: 24),
-        padding: const EdgeInsets.all(16),
-        borderRadius: MekaarRadius.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      Builder(
+        builder: (context) {
+          final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
+          return CustomCard(
+            margin: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.all(16),
+            borderRadius: MekaarRadius.card,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: MekaarColors.sosCoral.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    SolarIconsBold.shieldKeyhole,
-                    color: MekaarColors.sosCoral,
-                    size: 24,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (isSosEnabled
+                                ? MekaarColors.sosCoral
+                                : MekaarColors.textMutedOf(context))
+                            .withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        SolarIconsBold.shieldKeyhole,
+                        color: isSosEnabled
+                            ? MekaarColors.sosCoral
+                            : MekaarColors.textMutedOf(context),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PIN Darurat (Silent SOS)',
+                            style: MekaarTypography.headingSM.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isSosEnabled
+                                ? 'Akses di Bawah Ancaman'
+                                : 'Dinonaktifkan di Pengaturan',
+                            style: MekaarTypography.caption.copyWith(
+                              color: MekaarColors.textMutedOf(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    MekaarBadge(
+                      label: !isSosEnabled
+                          ? 'Nonaktif (SOS Mati)'
+                          : (_isDuressEnabled ? 'Aktif' : 'Belum Diatur'),
+                      color: !isSosEnabled
+                          ? MekaarColors.textMutedOf(context)
+                          : (_isDuressEnabled
+                              ? MekaarColors.sosCoral
+                              : MekaarColors.textMutedOf(context)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  !isSosEnabled
+                      ? 'Fitur Darurat SOS sedang dinonaktifkan di Pengaturan. Untuk menggunakan PIN Darurat di bawah ancaman dan menyiarkan sinyal SOS senyap, aktifkan Fitur Darurat SOS terlebih dahulu.'
+                      : 'Gunakan jika Anda dipaksa membuka ponsel oleh pihak yang mengancam keselamatan Anda. Aplikasi membuka tampilan obrolan kosong alami sekaligus mengirimkan sinyal SOS senyap dan lokasi GPS terkini ke Guardian.',
+                  style: MekaarTypography.bodySM.copyWith(
+                    color: MekaarColors.textSecondaryOf(context),
+                    height: 1.4,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PIN Darurat (Silent SOS)',
-                        style: MekaarTypography.headingSM.copyWith(
-                          fontWeight: FontWeight.bold,
+                const Divider(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _handleSetOrChangeDuressPin,
+                        icon: Icon(
+                          !isSosEnabled
+                              ? SolarIconsOutline.shieldCross
+                              : (_isDuressEnabled
+                                  ? SolarIconsOutline.pen
+                                  : SolarIconsOutline.addCircle),
+                          size: 18,
+                        ),
+                        label: Text(
+                          !isSosEnabled
+                              ? 'Fitur SOS Nonaktif'
+                              : (_isDuressEnabled
+                                  ? 'Ganti PIN Darurat'
+                                  : 'Atur PIN Darurat'),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: MekaarColors.surface2Of(context),
+                          foregroundColor: isSosEnabled
+                              ? MekaarColors.textPrimaryOf(context)
+                              : MekaarColors.textMutedOf(context),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(MekaarRadius.md),
+                            side: BorderSide(
+                              color: MekaarColors.borderOf(context),
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Akses di Bawah Ancaman',
-                        style: MekaarTypography.caption.copyWith(
-                          color: MekaarColors.textMutedOf(context),
+                    ),
+                    if (_isDuressEnabled && isSosEnabled) ...[
+                      const SizedBox(width: 10),
+                      IconButton(
+                        onPressed: _handleDisableDuressPin,
+                        icon:
+                            const Icon(SolarIconsOutline.trashBinTrash, size: 20),
+                        color: MekaarColors.sosRed,
+                        tooltip: 'Nonaktifkan PIN Darurat',
+                        style: IconButton.styleFrom(
+                          backgroundColor: MekaarColors.sosRed.withValues(
+                            alpha: 0.1,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(MekaarRadius.md),
+                          ),
+                          padding: const EdgeInsets.all(12),
                         ),
                       ),
                     ],
-                  ),
-                ),
-                MekaarBadge(
-                  label: _isDuressEnabled ? 'Aktif' : 'Belum Diatur',
-                  color: _isDuressEnabled
-                      ? MekaarColors.sosCoral
-                      : MekaarColors.textMutedOf(context),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Gunakan jika Anda dipaksa membuka ponsel oleh pihak yang mengancam keselamatan Anda. Aplikasi membuka tampilan obrolan kosong alami sekaligus mengirimkan sinyal SOS senyap dan lokasi GPS terkini ke Guardian.',
-              style: MekaarTypography.bodySM.copyWith(
-                color: MekaarColors.textSecondaryOf(context),
-                height: 1.4,
-              ),
-            ),
-            const Divider(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _handleSetOrChangeDuressPin,
-                    icon: Icon(
-                      _isDuressEnabled
-                          ? SolarIconsOutline.pen
-                          : SolarIconsOutline.addCircle,
-                      size: 18,
-                    ),
-                    label: Text(
-                      _isDuressEnabled ? 'Ganti PIN Darurat' : 'Atur PIN Darurat',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: MekaarColors.surface2Of(context),
-                      foregroundColor: MekaarColors.textPrimaryOf(context),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                        side: BorderSide(
-                          color: MekaarColors.borderOf(context),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (_isDuressEnabled) ...[
-                  const SizedBox(width: 10),
-                  IconButton(
-                    onPressed: _handleDisableDuressPin,
-                    icon: const Icon(SolarIconsOutline.trashBinTrash, size: 20),
-                    color: MekaarColors.sosRed,
-                    tooltip: 'Nonaktifkan PIN Darurat',
-                    style: IconButton.styleFrom(
-                      backgroundColor: MekaarColors.sosRed.withValues(
-                        alpha: 0.1,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                      ),
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
+          );
+        },
       ),
     ];
   }

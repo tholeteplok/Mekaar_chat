@@ -22,6 +22,39 @@ final sosRepositoryProvider = Provider<SOSRepository>((ref) {
   return SOSRepository(supabaseService);
 });
 
+/// Notifier untuk mengontrol aktivasi fitur Darurat SOS & Guardian secara modular.
+/// Default: `true` (aktif). Jika `false`, seluruh tombol SOS disembunyikan dan Duress PIN dinonaktifkan.
+class SOSFeatureEnabledNotifier extends StateNotifier<bool> {
+  static const String prefKey = 'sos_feature_enabled';
+  final SharedPreferences? _prefs;
+
+  SOSFeatureEnabledNotifier([this._prefs, bool? initialValue])
+      : super(initialValue ?? (_prefs?.getBool(prefKey) ?? true)) {
+    if (initialValue == null && _prefs == null) {
+      _loadState();
+    }
+  }
+
+  void _loadState() {
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        state = prefs.getBool(prefKey) ?? true;
+      }
+    });
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setBool(prefKey, enabled);
+  }
+}
+
+final sosFeatureEnabledProvider =
+    StateNotifierProvider<SOSFeatureEnabledNotifier, bool>((ref) {
+  return SOSFeatureEnabledNotifier();
+});
+
 // State definition
 enum SOSStatus { idle, activating, active, queuedOffline, failed, ending }
 
@@ -111,8 +144,9 @@ class SOSNotifier extends StateNotifier<SOSState> {
   Timer? _flushTimer;
   Future<void>? _pendingFlushOperation;
   late final Future<void> _initialization;
+  final Ref? _ref;
 
-  SOSNotifier(this._sosRepository)
+  SOSNotifier(this._sosRepository, [this._ref])
     : super(SOSState(status: SOSStatus.activating)) {
     _initialization = _initialize();
   }
@@ -318,6 +352,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
     bool video = false,
   }) async {
     await _initialization;
+    if (_ref != null && !_ref.read(sosFeatureEnabledProvider)) {
+      _logger.w('activateSOS diabaikan karena fitur SOS dinonaktifkan oleh pengguna.');
+      return;
+    }
     if (state.status == SOSStatus.activating ||
         state.status == SOSStatus.active ||
         state.status == SOSStatus.ending ||
@@ -685,5 +723,5 @@ class SOSNotifier extends StateNotifier<SOSState> {
 // Global Provider for SOS State
 final sosProvider = StateNotifierProvider<SOSNotifier, SOSState>((ref) {
   final repo = ref.watch(sosRepositoryProvider);
-  return SOSNotifier(repo);
+  return SOSNotifier(repo, ref);
 });

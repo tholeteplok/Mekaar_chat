@@ -1005,18 +1005,35 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     );
                   },
                 ),
-                const ActiveTripCard(
-                  margin: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
+                    if (!isSosEnabled) return const SizedBox.shrink();
+                    return const ActiveTripCard(
+                      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    );
+                  },
                 ),
-                const SizedBox(height: 6),
-                // Sliding Segment Tabs Bar
-                MekaarSlidingSegmentBar(
-                  tabs: _tabs,
-                  selectedIndex: _selectedTabIndex,
-                  onTabSelected: (index) =>
-                      setState(() => _selectedTabIndex = index),
+                // Sliding Segment Tabs Bar (Hanya tampil jika fitur SOS & Guardian aktif)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
+                    if (!isSosEnabled) return const SizedBox.shrink();
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 6),
+                        MekaarSlidingSegmentBar(
+                          tabs: _tabs,
+                          selectedIndex: _selectedTabIndex,
+                          onTabSelected: (index) =>
+                              setState(() => _selectedTabIndex = index),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 8),
                 // Chat List Content
                 Expanded(
                   child: RefreshIndicator(
@@ -1058,54 +1075,59 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         padding: const EdgeInsets.symmetric(
           horizontal: 20,
         ).copyWith(bottom: 90),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // SOS Button on the left
-            Consumer(
-              builder: (context, ref, _) {
-                final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
-                final isSosActive =
-                    ref.watch(sosProvider).status == SOSStatus.active &&
-                    !wasDuress;
-                return SOSButton(
-                  onPressed: _triggerSOS,
-                  isActive: isSosActive,
-                  size: 72,
-                );
-              },
-            ),
-            // Add Message Action Button on the right (Clean Solid FAB)
-            Container(
-              width: MekaarSizes.fab,
-              height: MekaarSizes.fab,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.blue,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.blue.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+        child: Consumer(
+          builder: (context, ref, _) {
+            final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
+            final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
+            final isSosActive =
+                ref.watch(sosProvider).status == SOSStatus.active &&
+                !wasDuress;
+
+            return Row(
+              mainAxisAlignment: isSosEnabled
+                  ? MainAxisAlignment.spaceBetween
+                  : MainAxisAlignment.end,
+              children: [
+                // SOS Button on the left (Hanya jika fitur SOS aktif)
+                if (isSosEnabled)
+                  SOSButton(
+                    onPressed: _triggerSOS,
+                    isActive: isSosActive,
+                    size: 72,
                   ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkResponse(
-                  customBorder: const CircleBorder(),
-                  onTap: _showNewChatDialog,
-                  child: const Center(
-                    child: Icon(
-                      SolarIconsOutline.addCircle,
-                      color: Colors.white,
-                      size: 30,
+                // Add Message Action Button on the right (Clean Solid FAB)
+                Container(
+                  width: MekaarSizes.fab,
+                  height: MekaarSizes.fab,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.blue,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.blue.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkResponse(
+                      customBorder: const CircleBorder(),
+                      onTap: _showNewChatDialog,
+                      child: const Center(
+                        child: Icon(
+                          SolarIconsOutline.addCircle,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

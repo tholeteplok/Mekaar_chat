@@ -202,7 +202,9 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       });
 
       final stopwatch = Stopwatch()..start();
-      final isValid = await notifier.validatePIN(_pin);
+      final isSosEnabled = ref.read(sosFeatureEnabledProvider);
+      final isValid =
+          await notifier.validatePIN(_pin, allowDuress: isSosEnabled);
       if (isValid) {
         if (mounted) {
           final authState = ref.read(authProvider);
@@ -511,6 +513,10 @@ class _PinScreenState extends ConsumerState<PinScreen> {
               // ── Section Bottom: SOS Bar (100% Center Horizontal) ──
               Consumer(
                 builder: (context, ref, _) {
+                  final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
+                  if (!isSosEnabled) {
+                    return const SizedBox.shrink();
+                  }
                   final isDuress = ref.watch(authProvider).lastUnlockWasDuress;
                   final isSosActive =
                       ref.watch(sosProvider).status == SOSStatus.active &&

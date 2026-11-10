@@ -15,6 +15,7 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/auto_lock_provider.dart';
+import '../../sos/providers/sos_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../providers/privacy_provider.dart';
 import '../providers/two_fa_provider.dart';
@@ -186,6 +187,16 @@ class SettingsScreen extends ConsumerWidget {
                 valueText: ref.watch(autoLockTimeoutProvider).label,
                 onTap: () => _showAutoLockBottomSheet(context, ref),
               ),
+              SettingsSwitchTile(
+                icon: SolarIconsOutline.shieldWarning,
+                iconColor: MekaarColors.sosCoral,
+                title: 'Fitur Darurat SOS',
+                subtitle: 'Tombol darurat, pemantauan Guardian, dan siaga SOS',
+                value: ref.watch(sosFeatureEnabledProvider),
+                onChanged: (val) async {
+                  await ref.read(sosFeatureEnabledProvider.notifier).setEnabled(val);
+                },
+              ),
               if (!isDecoy) ...[
                 SettingsNavTile(
                   icon: SolarIconsOutline.shieldKeyhole,
@@ -201,18 +212,20 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.connectedDevices),
                 ),
-                SettingsNavTile(
-                  icon: SolarIconsOutline.billList,
-                  iconColor: MekaarColors.sosRed,
-                  title: 'Riwayat SOS',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
-                ),
-                SettingsNavTile(
-                  icon: SolarIconsOutline.shieldCheck,
-                  iconColor: MekaarColors.warnAmber,
-                  title: 'Latihan SOS (Simulasi)',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
-                ),
+                if (ref.watch(sosFeatureEnabledProvider)) ...[
+                  SettingsNavTile(
+                    icon: SolarIconsOutline.billList,
+                    iconColor: MekaarColors.sosRed,
+                    title: 'Riwayat SOS',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
+                  ),
+                  SettingsNavTile(
+                    icon: SolarIconsOutline.shieldCheck,
+                    iconColor: MekaarColors.warnAmber,
+                    title: 'Latihan SOS (Simulasi)',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
+                  ),
+                ],
               ],
             ],
           ),
