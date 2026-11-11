@@ -14,6 +14,7 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
   final ValueChanged<int> onTabSelected;
   final Map<int, int>? badges;
   final Color? activeColor;
+  final Color? activeTextColor;
   final double height;
   final double? width;
   final EdgeInsetsGeometry? margin;
@@ -25,6 +26,7 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
     required this.onTabSelected,
     this.badges,
     this.activeColor,
+    this.activeTextColor,
     this.height = 40.0,
     this.width,
     this.margin,
@@ -33,7 +35,10 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = activeColor ?? Theme.of(context).colorScheme.primary;
+    final pillBgColor =
+        activeColor ?? (isDark ? const Color(0xFF1E293B) : Colors.white);
+    final textActiveColor = activeTextColor ?? MekaarColors.primaryOf(context);
+    final textInactiveColor = MekaarColors.textMutedOf(context);
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
     final trackColor = isDark
@@ -75,12 +80,14 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
                 width: tabWidth,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: primaryColor,
+                    color: pillBgColor,
                     borderRadius: BorderRadius.circular(100),
                     boxShadow: [
                       BoxShadow(
-                        color: primaryColor.withValues(alpha: isDark ? 0.35 : 0.25),
-                        blurRadius: 10,
+                        color: isDark
+                            ? Colors.black.withValues(alpha: 0.40)
+                            : Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -124,8 +131,8 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
                                   style: MekaarTypography.labelLG.copyWith(
                                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                                     color: isSelected
-                                        ? Theme.of(context).colorScheme.onPrimary
-                                        : MekaarColors.textMutedOf(context),
+                                        ? textActiveColor
+                                        : textInactiveColor,
                                     fontSize: height < 34 ? 11.5 : 13.0,
                                   ),
                                 ),
@@ -139,16 +146,16 @@ class MekaarSlidingSegmentBar extends StatelessWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? Colors.white.withValues(alpha: 0.28)
-                                        : AppColors.blue,
+                                        ? textActiveColor
+                                        : textActiveColor.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     badgeCount > 99 ? '99+' : '$badgeCount',
                                     style: TextStyle(
                                       color: isSelected
-                                          ? Theme.of(context).colorScheme.onPrimary
-                                          : Colors.white,
+                                          ? Colors.white
+                                          : textActiveColor,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
