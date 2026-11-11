@@ -49,6 +49,7 @@ import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_qr_scan_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/contact_settings_screen.dart';
+import 'package:mekaar_chat/features/chat/screens/new_chat_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/create_group_select_members_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/create_group_details_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/group_details_screen.dart';
@@ -141,6 +142,7 @@ class AppRoutes {
   static const String map = '/map';
   static const String mapPicker = '/map/picker';
   static const String call = '/call';
+  static const String newChat = '/chat/new';
   static const String contactQrScan = '/chat/qr-scan';
   static const String myQr = '/chat/my-qr';
   static const String emojiStore = '/chat/emoji-store';
@@ -428,6 +430,9 @@ class AppRoutes {
             groupAvatarUrl: avatarUrl,
           ),
         );
+
+      case AppRoutes.newChat:
+        return MekaarPageRoute(builder: (_) => const NewChatScreen());
 
       case AppRoutes.contactQrScan:
         return MekaarPageRoute(builder: (_) => const ContactQrScanScreen());

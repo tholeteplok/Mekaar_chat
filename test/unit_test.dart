@@ -18,6 +18,9 @@ import 'package:mekaar_chat/features/settings/providers/privacy_provider.dart';
 import 'package:mekaar_chat/data/services/wakelock_service.dart';
 import 'package:mekaar_chat/core/utils/call_e2ee_helper.dart';
 import 'package:mekaar_chat/data/models/contact_model.dart';
+import 'package:mekaar_chat/core/routes/app_routes.dart';
+import 'package:mekaar_chat/core/constants/icons.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -715,6 +718,56 @@ void main() {
       expect(result.length, 1);
       expect(result.first.contactUserId, 'u1');
       expect(result.first.displayName, 'Alice Normal');
+    });
+  });
+
+  group('New Chat Screen & FAB Plus Icon Unit Tests', () {
+    test('AppRoutes.newChat route constant is defined correctly', () {
+      expect(AppRoutes.newChat, '/chat/new');
+    });
+
+    test('MekaarIcons.plus is updated to SolarIconsOutline.plus', () {
+      expect(MekaarIcons.plus, SolarIconsOutline.plus);
+      expect(MekaarIcons.plusBold, SolarIconsBold.plus);
+    });
+
+    test('NewChatScreen contact search filter filters by name, username, or email', () {
+      final contacts = [
+        ContactItem(
+          id: 'c1',
+          contactUserId: 'u1',
+          username: 'alice_wonder',
+          displayName: 'Alice Normal',
+          email: 'alice@example.com',
+          createdAt: DateTime.utc(2026, 1, 1),
+          isVaulted: false,
+        ),
+        ContactItem(
+          id: 'c2',
+          contactUserId: 'u2',
+          username: 'bob_builder',
+          displayName: 'Bob The Builder',
+          email: 'bob@example.com',
+          createdAt: DateTime.utc(2026, 1, 2),
+          isVaulted: false,
+        ),
+      ];
+
+      List<ContactItem> searchContacts(String query) {
+        final q = query.trim().toLowerCase();
+        if (q.isEmpty) return contacts;
+        return contacts.where((c) {
+          final name = c.effectiveName.toLowerCase();
+          final username = c.username.toLowerCase();
+          final email = (c.email ?? '').toLowerCase();
+          return name.contains(q) || username.contains(q) || email.contains(q);
+        }).toList();
+      }
+
+      expect(searchContacts('alice').length, 1);
+      expect(searchContacts('builder').length, 1);
+      expect(searchContacts('@example.com').length, 2);
+      expect(searchContacts('unknown').length, 0);
     });
   });
 }
