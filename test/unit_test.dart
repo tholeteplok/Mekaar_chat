@@ -20,7 +20,6 @@ import 'package:mekaar_chat/core/utils/call_e2ee_helper.dart';
 import 'package:mekaar_chat/data/models/contact_model.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/core/constants/icons.dart';
-import 'package:solar_icons/solar_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -726,9 +725,9 @@ void main() {
       expect(AppRoutes.newChat, '/chat/new');
     });
 
-    test('MekaarIcons.plus is updated to SolarIconsOutline.plus', () {
-      expect(MekaarIcons.plus, SolarIconsOutline.plus);
-      expect(MekaarIcons.plusBold, SolarIconsBold.plus);
+    test('MekaarIcons.plus is updated to Icons.add_rounded', () {
+      expect(MekaarIcons.plus, Icons.add_rounded);
+      expect(MekaarIcons.plusBold, Icons.add_rounded);
     });
 
     test('NewChatScreen contact search filter filters by name, username, or email', () {

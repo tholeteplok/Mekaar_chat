@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -855,9 +856,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       },
                       child: const Center(
                         child: Icon(
-                          SolarIconsOutline.plus,
+                          MekaarIcons.plus,
                           color: Colors.white,
-                          size: 26,
+                          size: 28,
                         ),
                       ),
                     ),

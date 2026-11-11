@@ -24,9 +24,9 @@ class MekaarIcons {
   static const dialog = SolarIconsOutline.dialog;
   static const dialogBold = SolarIconsBold.dialog;
 
-  /// Ikon tambah / plus (FAB pesan baru & tombol tambah)
-  static const plus = SolarIconsOutline.plus;
-  static const plusBold = SolarIconsBold.plus;
+  /// Ikon tambah / plus murni (FAB pesan baru & tombol tambah)
+  static const plus = Icons.add_rounded;
+  static const plusBold = Icons.add_rounded;
 
   // ============ Navigasi & Aksi Dasar ============
   /// Panah kiri (kembali)
