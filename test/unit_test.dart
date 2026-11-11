@@ -20,6 +20,7 @@ import 'package:mekaar_chat/core/utils/call_e2ee_helper.dart';
 import 'package:mekaar_chat/data/models/contact_model.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/core/constants/icons.dart';
+import 'package:mekaar_chat/core/constants/standard_emojis.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -767,6 +768,37 @@ void main() {
       expect(searchContacts('builder').length, 1);
       expect(searchContacts('@example.com').length, 2);
       expect(searchContacts('unknown').length, 0);
+    });
+  });
+
+  group('Standard Emoji Data & Curation Unit Tests', () {
+    test('StandardEmojiData has exactly 9 structured categories', () {
+      expect(StandardEmojiData.categories.length, 9);
+      final keys = StandardEmojiData.categories.map((c) => c.key).toSet();
+      expect(keys, containsAll([
+        'wajah', 'tangan', 'hewan', 'makanan', 'aktivitas',
+        'perjalanan', 'objek', 'simbol', 'bendera'
+      ]));
+    });
+
+    test('StandardEmojiData contains over 300 curated emojis without duplicates in each category', () {
+      expect(StandardEmojiData.totalEmojis, greaterThanOrEqualTo(300));
+
+      for (final cat in StandardEmojiData.categories) {
+        expect(cat.title.isNotEmpty, isTrue);
+        expect(cat.emojis.isNotEmpty, isTrue);
+        final uniqueInCat = cat.emojis.toSet();
+        expect(uniqueInCat.length, cat.emojis.length,
+            reason: 'Kategori ${cat.key} tidak boleh memiliki duplikat');
+      }
+    });
+
+    test('StandardEmojiData includes modern popular emojis', () {
+      final wajahCat = StandardEmojiData.categories.firstWhere((c) => c.key == 'wajah');
+      expect(wajahCat.emojis, containsAll(['💀', '🗿', '🫠', '🥹', '🤡', '😈']));
+
+      final benderaCat = StandardEmojiData.categories.firstWhere((c) => c.key == 'bendera');
+      expect(benderaCat.emojis, contains('🇮🇩'));
     });
   });
 }

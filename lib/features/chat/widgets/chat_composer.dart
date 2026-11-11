@@ -23,6 +23,7 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/constants/standard_emojis.dart';
 import '../../../data/models/emoji_pack_model.dart';
 import '../providers/emoji_pack_provider.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
@@ -107,6 +108,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   bool _isUploading = false;
   bool _showEmojiPicker = false;
   List<String> _recentEmojis = [];
+  final Map<String, GlobalKey> _standardEmojiCategoryKeys = {};
 
   AudioRecorder? _audioRecorder;
   bool _isRecording = false;
@@ -784,6 +786,13 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             height: 1,
             color: MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
           ),
+          if (_activeEmojiPack == null) ...[
+            _buildStandardEmojiCategoryBar(),
+            Divider(
+              height: 1,
+              color: MekaarColors.textMutedOf(context).withValues(alpha: 0.12),
+            ),
+          ],
           // ──── Konten grid ────
           Expanded(
             child: activePack != null
@@ -864,135 +873,133 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     );
   }
 
-  Widget _buildStandardEmojiGrid() {
-    final emojiCategories = <String, List<String>>{
-      if (_recentEmojis.isNotEmpty) 'Sering Digunakan': _recentEmojis,
-      'Ekspresi & Wajah': [
-        '😀',
-        '😂',
-        '😍',
-        '🥰',
-        '😎',
-        '🥳',
-        '🤩',
-        '😇',
-        '😋',
-        '🤪',
-        '😜',
-        '🤗',
-        '🤔',
-        '🫣',
-        '😌',
-        '😏',
-        '😤',
-        '😭',
-        '🥺',
-        '😱',
-        '🤯',
-        '😴',
-        '😷',
-        '😈',
-      ],
-      'Isyarat & Tangan': [
-        '👍',
-        '👎',
-        '👏',
-        '🙌',
-        '🤝',
-        '🙏',
-        '✌️',
-        '🤞',
-        '🤟',
-        '🤘',
-        '👌',
-        '🤏',
-        '👈',
-        '👉',
-        '👆',
-        '👇',
-        '💪',
-        '🔥',
-        '✨',
-        '⭐',
-        '⚡',
-        '💥',
-        '🎉',
-        '🎊',
-      ],
-      'Hati & Cinta': [
-        '❤️',
-        '🧡',
-        '💛',
-        '💚',
-        '💙',
-        '💜',
-        '🖤',
-        '🤍',
-        '🤎',
-        '💔',
-        '❣️',
-        '💕',
-        '💞',
-        '💓',
-        '💗',
-        '💖',
-      ],
-      'Simbol & Benda': [
-        '🎈',
-        '🎁',
-        '🏆',
-        '💯',
-        '🌟',
-        '☀️',
-        '🌙',
-        '☕',
-        '🍕',
-        '🚀',
-        '🛡️',
-        '🔒',
-        '🔑',
-        '💬',
-        '📢',
-        '🔔',
-      ],
-    };
+  void _scrollToCategory(String key) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    final targetKey = _standardEmojiCategoryKeys[key];
+    if (targetKey?.currentContext != null) {
+      Scrollable.ensureVisible(
+        targetKey!.currentContext!,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        alignment: 0.0,
+      );
+    }
+  }
 
+  Widget _buildStandardEmojiCategoryBar() {
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.md),
+        children: [
+          if (_recentEmojis.isNotEmpty)
+            IconButton(
+              icon: const Icon(SolarIconsOutline.history, size: 18),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 16,
+              color: MekaarColors.textMutedOf(context),
+              tooltip: 'Sering Digunakan',
+              onPressed: () => _scrollToCategory('recent'),
+            ),
+          for (final cat in StandardEmojiData.categories)
+            IconButton(
+              icon: Icon(cat.icon, size: 18),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 16,
+              color: MekaarColors.textSecondaryOf(context),
+              tooltip: cat.title,
+              onPressed: () => _scrollToCategory(cat.key),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStandardEmojiGrid() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: emojiCategories.entries.map((category) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 6),
-              child: Text(
-                category.key,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: category.key == 'Sering Digunakan'
-                      ? AppColors.blue
-                      : MekaarColors.textMutedOf(context),
+      children: [
+        if (_recentEmojis.isNotEmpty) ...[
+          Container(
+            key: _standardEmojiCategoryKeys.putIfAbsent(
+              'recent',
+              () => GlobalKey(),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 6),
+                  child: const Text(
+                    'Sering Digunakan',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.blue,
+                    ),
+                  ),
                 ),
-              ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: _recentEmojis.map((emoji) {
+                    return GestureDetector(
+                      onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        _saveRecentEmoji(emoji);
+                        _insertAtCursor(emoji);
+                      },
+                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
             ),
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              children: category.value.map((emoji) {
-                return GestureDetector(
-                  onTap: () {
-                    HapticService.trigger(MekaarHapticIntent.selection);
-                    _saveRecentEmoji(emoji);
-                    _insertAtCursor(emoji);
-                  },
-                  child: Text(emoji, style: const TextStyle(fontSize: 26)),
-                );
-              }).toList(),
+          ),
+        ],
+        for (final category in StandardEmojiData.categories)
+          Container(
+            key: _standardEmojiCategoryKeys.putIfAbsent(
+              category.key,
+              () => GlobalKey(),
             ),
-          ],
-        );
-      }).toList(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 6),
+                  child: Text(
+                    category.title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: MekaarColors.textMutedOf(context),
+                    ),
+                  ),
+                ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: category.emojis.map((emoji) {
+                    return GestureDetector(
+                      onTap: () {
+                        HapticService.trigger(MekaarHapticIntent.selection);
+                        _saveRecentEmoji(emoji);
+                        _insertAtCursor(emoji);
+                      },
+                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
