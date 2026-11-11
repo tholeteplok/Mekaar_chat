@@ -8,11 +8,13 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
-import '../providers/chat_provider.dart';
+import '../../../data/repositories/contact_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/private_vault_provider.dart';
 
 class CreateGroupSelectMembersScreen extends ConsumerStatefulWidget {
@@ -29,7 +31,6 @@ class _CreateGroupSelectMembersScreenState
   final Map<String, Map<String, dynamic>> _selectedUserProfiles = {};
   final TextEditingController _searchController = TextEditingController();
   late final FocusNode _searchFocusNode;
-  late final ScrollController _scrollController;
   Timer? _searchDebounceTimer;
   String _searchQuery = '';
 
@@ -37,23 +38,11 @@ class _CreateGroupSelectMembersScreenState
   void initState() {
     super.initState();
     _searchFocusNode = FocusNode();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      ref.read(paginatedContactsProvider.notifier).loadMore();
-    }
   }
 
   @override
   void dispose() {
     _searchDebounceTimer?.cancel();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
@@ -74,24 +63,17 @@ class _CreateGroupSelectMembersScreenState
 
   @override
   Widget build(BuildContext context) {
-    final contactsAsync = ref.watch(contactsProvider);
-    final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
-    final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
-    final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
-
-    final hiddenUserIds = <String>{...cloakedContacts};
-    for (final r in chatRooms) {
-      if (cloakedRooms.contains(r['id']) && r['otherUserId'] != null) {
-        hiddenUserIds.add(r['otherUserId'] as String);
-      }
-    }
+    final authState = ref.watch(authProvider);
+    final isGuest = authState.isGuestActive || authState.isDuressActive;
+    final contactsAsync = ref.watch(userContactsProvider);
+    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
 
     return Scaffold(
       backgroundColor: MekaarColors.backgroundOf(context),
       appBar: MekaarTopBar(
         title: 'Grup Baru',
         subtitle: _selectedUserIds.isEmpty
-            ? 'Pilih anggota grup'
+            ? (isGuest ? 'Pilih kontak (Mode Tamu)' : 'Pilih anggota grup')
             : '${_selectedUserIds.length} dipilih',
       ),
       body: Column(
@@ -119,11 +101,13 @@ class _CreateGroupSelectMembersScreenState
                 itemBuilder: (context, index) {
                   final userId = _selectedUserIds.elementAt(index);
                   final profile = _selectedUserProfiles[userId] ?? {};
-                  final name = (profile['display_name'] as String?)?.isNotEmpty == true
-                      ? profile['display_name'] as String
-                      : profile['full_name'] as String? ??
-                          profile['username'] as String? ??
-                          'User';
+                  final name = (profile['alias_name'] as String?)?.isNotEmpty == true
+                      ? profile['alias_name'] as String
+                      : (profile['display_name'] as String?)?.isNotEmpty == true
+                          ? profile['display_name'] as String
+                          : profile['full_name'] as String? ??
+                              profile['username'] as String? ??
+                              'Kontak';
                   final avatarUrl = profile['avatar_url'] as String?;
 
                   return Stack(
@@ -131,21 +115,10 @@ class _CreateGroupSelectMembersScreenState
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: AppColors.blue.withValues(alpha: 0.2),
-                            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                                ? NetworkImage(avatarUrl)
-                                : null,
-                            child: avatarUrl == null || avatarUrl.isEmpty
-                                ? Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                    style: const TextStyle(
-                                      color: AppColors.blue,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
+                          Avatar(
+                            size: 44,
+                            imageUrl: avatarUrl,
+                            initial: name.isNotEmpty ? name[0] : 'K',
                           ),
                           const SizedBox(height: 4),
                           SizedBox(
@@ -169,14 +142,14 @@ class _CreateGroupSelectMembersScreenState
                           behavior: HitTestBehavior.opaque,
                           onTap: () => _toggleMember(userId, profile),
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(4),
                             decoration: const BoxDecoration(
                               color: MekaarColors.sosRed,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
                               MekaarIcons.close,
-                              size: 16,
+                              size: 14,
                               color: Colors.white,
                             ),
                           ),
@@ -194,113 +167,105 @@ class _CreateGroupSelectMembersScreenState
             child: MekaarSearchField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              hintText: 'Cari kontak...',
+              hintText: 'Cari kontak Anda...',
               onChanged: (val) {
                 _searchDebounceTimer?.cancel();
                 _searchDebounceTimer =
-                    Timer(const Duration(milliseconds: 180), () {
-                  if (mounted && _searchQuery != val.toLowerCase()) {
-                    setState(() => _searchQuery = val.toLowerCase());
-                    ref.read(paginatedContactsProvider.notifier).search(val);
+                    Timer(const Duration(milliseconds: 120), () {
+                  if (mounted && _searchQuery != val.trim().toLowerCase()) {
+                    setState(() => _searchQuery = val.trim().toLowerCase());
                   }
                 });
               },
             ),
           ),
 
-          // Contacts List (Paginated & Infinite Scroll)
+          // Contacts List (Milik Sendiri: Mode Master vs Mode Guest)
           Expanded(
-            child: Builder(
-              builder: (context) {
-                final paginatedState = ref.watch(paginatedContactsProvider);
-
-                if (paginatedState.isLoading && paginatedState.items.isEmpty) {
-                  return const MekaarStateView(
-                    pose: MikaPose.neutral,
-                    title: 'Memuat Kontak',
-                    message: 'Mengambil daftar kontak untuk dipilih...',
-                    semanticLabel: 'Memuat daftar kontak',
-                  );
-                }
-
-                final contacts = paginatedState.items.isNotEmpty
-                    ? paginatedState.items
-                    : (contactsAsync.valueOrNull ?? const []);
-
-                final filtered = contacts.where((c) {
-                  final userId = c['id'] as String?;
-                  if (userId != null && hiddenUserIds.contains(userId)) {
-                    return false;
+            child: contactsAsync.when(
+              loading: () => const MekaarStateView(
+                pose: MikaPose.neutral,
+                title: 'Memuat Kontak',
+                message: 'Mengambil daftar kontak Anda...',
+                semanticLabel: 'Memuat daftar kontak',
+              ),
+              error: (err, stack) => MekaarStateView(
+                pose: MikaPose.thinking,
+                title: 'Gagal Memuat Kontak',
+                message: 'Terjadi kesalahan saat memuat kontak Anda.',
+                actionLabel: 'Coba Lagi',
+                onAction: () => ref
+                    .read(userContactsProvider.notifier)
+                    .refreshContacts(forceLoading: true),
+              ),
+              data: (items) {
+                // Mode Master: Semua kontak sendiri
+                // Mode Guest: Hanya kontak terbuka (isVaulted == false && !hiddenUserIds)
+                final availableContacts = items.where((c) {
+                  if (isGuest) {
+                    if (c.isVaulted) return false;
+                    if (hiddenContactUserIds.contains(c.contactUserId)) {
+                      return false;
+                    }
                   }
-                  final name = ((c['display_name'] ??
-                          c['full_name'] ??
-                          c['username'] ??
-                          '') as String)
-                      .toLowerCase();
-                  return name.contains(_searchQuery);
+                  return true;
                 }).toList();
 
-                if (filtered.isEmpty && !paginatedState.isLoading) {
+                final filtered = availableContacts.where((c) {
+                  if (_searchQuery.isEmpty) return true;
+                  final q = _searchQuery;
+                  final name = c.effectiveName.toLowerCase();
+                  final username = c.username.toLowerCase();
+                  final email = (c.email ?? '').toLowerCase();
+                  return name.contains(q) ||
+                      username.contains(q) ||
+                      email.contains(q);
+                }).toList();
+
+                if (filtered.isEmpty) {
                   return Center(
-                    child: Text(
-                      'Tidak ada kontak ditemukan.',
-                      style: TextStyle(
-                        color: MekaarColors.textMutedOf(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        items.isEmpty
+                            ? (isGuest
+                                ? 'Tidak ada kontak terbuka yang tersedia di Mode Tamu.'
+                                : 'Belum ada kontak tersimpan di akun Anda.')
+                            : 'Tidak ada kontak yang cocok dengan "$_searchQuery".',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: MekaarColors.textMutedOf(context),
+                        ),
                       ),
                     ),
                   );
                 }
 
-                final hasExtraLoadingTile = paginatedState.isLoadingMore;
                 return ListView.builder(
-                  controller: _scrollController,
-                  itemCount: filtered.length + (hasExtraLoadingTile ? 1 : 0),
+                  itemCount: filtered.length,
                   itemBuilder: (context, index) {
-                    if (index == filtered.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: MekaarSpacing.md),
-                        child: Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      );
-                    }
-
                     final contact = filtered[index];
-                    final userId = contact['id'] as String;
+                    final userId = contact.contactUserId;
                     final isSelected = _selectedUserIds.contains(userId);
-                    final name = (contact['display_name'] as String?)?.isNotEmpty == true
-                        ? contact['display_name'] as String
-                        : contact['full_name'] as String? ??
-                            contact['username'] as String? ??
-                            'Kontak';
-                    final username = contact['username'] as String? ?? '';
-                    final avatarUrl = contact['avatar_url'] as String?;
+                    final name = contact.effectiveName;
+                    final username = contact.username;
+                    final avatarUrl = contact.avatarUrl;
+
+                    final profileMap = {
+                      'id': contact.contactUserId,
+                      'username': contact.username,
+                      'display_name': contact.displayName,
+                      'full_name': contact.fullName,
+                      'alias_name': contact.aliasName,
+                      'avatar_url': contact.avatarUrl,
+                    };
 
                     return ListTile(
-                      onTap: () => _toggleMember(userId, contact),
-                      leading: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: isSelected
-                            ? AppColors.blue
-                            : MekaarColors.surface2Of(context),
-                        backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                            ? NetworkImage(avatarUrl)
-                            : null,
-                        child: avatarUrl == null || avatarUrl.isEmpty
-                            ? Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : 'K',
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : MekaarColors.textPrimaryOf(context),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
+                      onTap: () => _toggleMember(userId, profileMap),
+                      leading: Avatar(
+                        size: 40,
+                        imageUrl: avatarUrl,
+                        initial: name.isNotEmpty ? name[0] : 'K',
                       ),
                       title: Text(
                         name,
@@ -323,7 +288,7 @@ class _CreateGroupSelectMembersScreenState
                             ? SolarIconsBold.checkCircle
                             : SolarIconsOutline.checkCircle,
                         color: isSelected
-                            ? AppColors.blue
+                            ? MekaarColors.primaryOf(context)
                             : MekaarColors.textMutedOf(context),
                         size: 22,
                       ),
@@ -344,7 +309,8 @@ class _CreateGroupSelectMembersScreenState
                   AppRoutes.createGroupDetails,
                   arguments: {
                     'selectedUserIds': _selectedUserIds.toList(),
-                    'selectedUserProfiles': _selectedUserProfiles.values.toList(),
+                    'selectedUserProfiles':
+                        _selectedUserProfiles.values.toList(),
                   },
                 );
               },

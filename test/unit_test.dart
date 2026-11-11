@@ -17,6 +17,7 @@ import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 import 'package:mekaar_chat/features/settings/providers/privacy_provider.dart';
 import 'package:mekaar_chat/data/services/wakelock_service.dart';
 import 'package:mekaar_chat/core/utils/call_e2ee_helper.dart';
+import 'package:mekaar_chat/data/models/contact_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -649,6 +650,71 @@ void main() {
       );
 
       expect(call1, isNot(equals(call2)));
+    });
+  });
+
+  group('Create Group Member Selection Mode Tests', () {
+    final contacts = [
+      ContactItem(
+        id: 'c1',
+        contactUserId: 'u1',
+        username: 'alice',
+        displayName: 'Alice Normal',
+        createdAt: DateTime.utc(2026, 1, 1),
+        isVaulted: false,
+      ),
+      ContactItem(
+        id: 'c2',
+        contactUserId: 'u2',
+        username: 'bob_secret',
+        displayName: 'Bob Private',
+        createdAt: DateTime.utc(2026, 1, 2),
+        isVaulted: true,
+      ),
+      ContactItem(
+        id: 'c3',
+        contactUserId: 'u3',
+        username: 'charlie_hidden',
+        displayName: 'Charlie Hidden',
+        createdAt: DateTime.utc(2026, 1, 3),
+        isVaulted: false,
+      ),
+    ];
+    final hiddenIds = {'u3'};
+
+    List<ContactItem> filterForGroupCreation({
+      required bool isGuest,
+      required List<ContactItem> items,
+      required Set<String> hiddenContactUserIds,
+    }) {
+      return items.where((c) {
+        if (isGuest) {
+          if (c.isVaulted) return false;
+          if (hiddenContactUserIds.contains(c.contactUserId)) return false;
+        }
+        return true;
+      }).toList();
+    }
+
+    test('Mode Master displays all user contacts including vaulted ones', () {
+      final result = filterForGroupCreation(
+        isGuest: false,
+        items: contacts,
+        hiddenContactUserIds: hiddenIds,
+      );
+      expect(result.length, 3);
+      expect(result.map((e) => e.contactUserId), containsAll(['u1', 'u2', 'u3']));
+    });
+
+    test('Mode Guest strictly hides vaulted and cloaked contacts (hanya kontak terbuka)', () {
+      final result = filterForGroupCreation(
+        isGuest: true,
+        items: contacts,
+        hiddenContactUserIds: hiddenIds,
+      );
+      expect(result.length, 1);
+      expect(result.first.contactUserId, 'u1');
+      expect(result.first.displayName, 'Alice Normal');
     });
   });
 }
