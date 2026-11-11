@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:solar_icons/solar_icons.dart';
 import 'package:mekaar_chat/core/constants/icons.dart';
 import 'package:mekaar_chat/data/models/chat_theme_model.dart';
 import 'package:mekaar_chat/data/models/emoji_pack_model.dart';
@@ -138,24 +137,49 @@ void main() {
 
         // 1. Awal: panel emoji tertutup -> Ikon smile, tooltip 'Emoji'
         expect(find.byTooltip('Emoji'), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.smile), findsOneWidget);
-        expect(find.byIcon(SolarIconsOutline.keyboard), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byTooltip('Emoji'),
+            matching: find.byIcon(MekaarIcons.smile),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byTooltip('Keyboard'), findsNothing);
 
         // 2. Klik tombol emoji -> Panel emoji terbuka -> Ikon berganti jadi keyboard
         await tester.tap(find.byTooltip('Emoji'));
         await tester.pumpAndSettle();
 
         expect(find.byTooltip('Keyboard'), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.keyboard), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.smile), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byTooltip('Keyboard'),
+            matching: find.byIcon(MekaarIcons.keyboard),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byTooltip('Keyboard'),
+            matching: find.byIcon(MekaarIcons.smile),
+          ),
+          findsNothing,
+        );
+        expect(find.byTooltip('Emoji'), findsNothing);
 
         // 3. Klik tombol keyboard -> Panel emoji tertutup -> Ikon kembali jadi smile
         await tester.tap(find.byTooltip('Keyboard'));
         await tester.pumpAndSettle();
 
         expect(find.byTooltip('Emoji'), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.smile), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.keyboard), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byTooltip('Emoji'),
+            matching: find.byIcon(MekaarIcons.smile),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byTooltip('Keyboard'), findsNothing);
       },
     );
 
@@ -178,8 +202,14 @@ void main() {
 
         // Panel emoji harus tertutup dan ikon kembali ke smile
         expect(find.byTooltip('Emoji'), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.smile), findsOneWidget);
-        expect(find.byIcon(MekaarIcons.keyboard), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byTooltip('Emoji'),
+            matching: find.byIcon(MekaarIcons.smile),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byTooltip('Keyboard'), findsNothing);
       },
     );
   });
