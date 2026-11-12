@@ -74,6 +74,18 @@ class _CreateGroupDetailsScreenState
         participantIds: widget.selectedUserIds,
       );
 
+      String? uploadedAvatarUrl;
+      if (_avatarFile != null) {
+        uploadedAvatarUrl =
+            await chatRepo.uploadGroupAvatar(_avatarFile!, roomId);
+        if (uploadedAvatarUrl != null) {
+          await chatRepo.updateGroupInfo(
+            roomId: roomId,
+            avatarUrl: uploadedAvatarUrl,
+          );
+        }
+      }
+
       // Refresh list obrolan
       ref.invalidate(chatRoomsProvider);
 
@@ -86,7 +98,9 @@ class _CreateGroupDetailsScreenState
           arguments: {
             'chatId': roomId,
             'chatName': groupName,
-            'chatAvatar': groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G',
+            'chatAvatar':
+                groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G',
+            'chatAvatarUrl': uploadedAvatarUrl,
             'isGroup': true,
           },
         );

@@ -1162,6 +1162,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 final chatAvatar =
                     (room['avatar'] as String?) ??
                     (chatName.isNotEmpty ? chatName[0] : '💬');
+                final isGroup =
+                    room['isGroup'] == true ||
+                    room['is_group'] == true ||
+                    room['room_type'] == 'group' ||
+                    room['type'] == 'group';
                 Navigator.pushNamed(
                   context,
                   AppRoutes.chat,
@@ -1176,7 +1181,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         (room['isGuardian'] ?? room['is_guardian'])
                             as bool? ??
                         false,
-                    'otherUserId': otherUserId,
+                    'isGroup': isGroup,
+                    'otherUserId': isGroup ? null : otherUserId,
                     'initialLastReadAt': room['lastReadAt'] as DateTime?,
                   },
                 );

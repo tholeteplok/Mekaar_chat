@@ -76,6 +76,7 @@ class RoomSearchResultGroup {
   final String roomAvatar;
   final String? roomAvatarUrl;
   final bool isGuardian;
+  final bool isGroup;
   final String? otherUserId;
   final List<Message> messages;
 
@@ -85,6 +86,7 @@ class RoomSearchResultGroup {
     required this.roomAvatar,
     this.roomAvatarUrl,
     this.isGuardian = false,
+    this.isGroup = false,
     this.otherUserId,
     required this.messages,
   });
@@ -131,6 +133,11 @@ final groupedSearchResultsProvider =
               roomData?['isGuardian'] as bool? ??
               roomData?['is_guardian'] as bool? ??
               false;
+          final isGroup =
+              roomData?['isGroup'] == true ||
+              roomData?['is_group'] == true ||
+              roomData?['room_type'] == 'group' ||
+              roomData?['type'] == 'group';
           final otherUserId =
               (roomData?['otherUserId'] ?? roomData?['other_user_id'])
                   as String?;
@@ -142,7 +149,8 @@ final groupedSearchResultsProvider =
               roomAvatar: rawAvatar,
               roomAvatarUrl: avatarUrl,
               isGuardian: isGuardian,
-              otherUserId: otherUserId,
+              isGroup: isGroup,
+              otherUserId: isGroup ? null : otherUserId,
               messages: entry.value,
             ),
           );

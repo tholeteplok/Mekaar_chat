@@ -478,6 +478,7 @@ class ChatAppBar extends ConsumerWidget {
       builder: (context, lastSeen, _) {
         final isOnline = _isCurrentlyOnline(lastSeen);
         final showCalls =
+            !isGroup &&
             !LocalMessageDatabase.instance.isDecoy &&
             chatId != 'room_welcome_mekaar';
 
@@ -488,8 +489,8 @@ class ChatAppBar extends ConsumerWidget {
           avatarUrl: avatarUrl,
           avatarHeroTag: 'avatar-room-$chatId',
           isGuardian: isGuardian,
-          showOnlineIndicator: true,
-          isOnline: isOnline || isTyping,
+          showOnlineIndicator: !isGroup,
+          isOnline: !isGroup && (isOnline || isTyping),
           subtitle: isGroup
               ? '${participantCount > 0 ? '$participantCount anggota • ' : ''}Enkripsi Server'
               : (isTyping
@@ -539,6 +540,32 @@ class ChatAppBar extends ConsumerWidget {
               onSelected: onMenuActionSelected,
               itemBuilder: (BuildContext context) => [
                 PopupMenuItem<String>(
+                  value: 'info',
+                  child: Row(
+                    children: [
+                      Icon(
+                        isGroup
+                            ? SolarIconsOutline.usersGroupTwoRounded
+                            : SolarIconsOutline.user,
+                        size: 20,
+                        color: textPrimary,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          isGroup ? 'Info Grup' : 'Info Kontak',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: 'search',
                   child: Row(
                     children: [
@@ -548,12 +575,15 @@ class ChatAppBar extends ConsumerWidget {
                         color: textPrimary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Cari Pesan',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Text(
+                          'Cari Pesan',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -571,12 +601,15 @@ class ChatAppBar extends ConsumerWidget {
                         color: textPrimary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        isMuted ? 'Bunyikan Notifikasi' : 'Bisukan Notifikasi',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Text(
+                          isMuted ? 'Bunyikan Notifikasi' : 'Bisukan Notifikasi',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -592,12 +625,15 @@ class ChatAppBar extends ConsumerWidget {
                         color: textPrimary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Tema & Wallpaper Chat',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Text(
+                          'Tema & Wallpaper Chat',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -613,12 +649,15 @@ class ChatAppBar extends ConsumerWidget {
                         color: AppColors.blue,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Pengaturan Privasi Obrolan',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Text(
+                          'Pengaturan Privasi Obrolan',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -635,12 +674,15 @@ class ChatAppBar extends ConsumerWidget {
                         color: MekaarColors.warning,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Bersihkan Riwayat (Hanya Saya)',
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Text(
+                          'Bersihkan Riwayat (Hanya Saya)',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -656,12 +698,15 @@ class ChatAppBar extends ConsumerWidget {
                         color: MekaarColors.sosRed,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Hapus Obrolan (Hanya Saya)',
-                        style: TextStyle(
-                          color: MekaarColors.sosRed,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          'Hapus Obrolan (Hanya Saya)',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: MekaarColors.sosRed,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],

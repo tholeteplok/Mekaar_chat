@@ -189,6 +189,7 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
         'chatAvatarUrl': group.roomAvatarUrl,
         'otherUserId': group.otherUserId,
         'isGuardian': group.isGuardian,
+        'isGroup': group.isGroup,
         'jumpToMessageId': ?jumpToMessageId,
       },
     );

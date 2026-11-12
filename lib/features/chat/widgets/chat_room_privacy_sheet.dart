@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solar_icons/solar_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../widgets/scheduled_wipe_bottom_sheet.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../providers/screen_protection_provider.dart';
@@ -19,17 +21,20 @@ import '../providers/screen_protection_provider.dart';
 /// Dapat dipanggil dari menu 3-titik di ChatRoom maupun dari Info Kontak (ContactSettingsScreen).
 class ChatRoomPrivacySheet extends ConsumerStatefulWidget {
   final String roomId;
+  final bool isGroup;
   final VoidCallback? onSettingsChanged;
 
   const ChatRoomPrivacySheet({
     super.key,
     required this.roomId,
+    this.isGroup = false,
     this.onSettingsChanged,
   });
 
   static Future<void> show(
     BuildContext context, {
     required String roomId,
+    bool isGroup = false,
     VoidCallback? onSettingsChanged,
   }) {
     HapticService.trigger(MekaarHapticIntent.selection);
@@ -38,6 +43,7 @@ class ChatRoomPrivacySheet extends ConsumerStatefulWidget {
       showDragHandle: true,
       builder: (ctx) => ChatRoomPrivacySheet(
         roomId: roomId,
+        isGroup: isGroup,
         onSettingsChanged: onSettingsChanged,
       ),
     );
@@ -55,6 +61,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   bool _burnOnExit = false;
   bool _isViewOnce = false;
   bool _isLoading = true;
+  bool _canManagePrivacy = true;
 
   @override
   void initState() {
@@ -65,6 +72,23 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   Future<void> _loadRoomPreferences() async {
     final repo = ref.read(chatRepositoryProvider);
     try {
+      if (widget.isGroup) {
+        final currentUserId = ref.read(authProvider).user?.id ??
+            Supabase.instance.client.auth.currentUser?.id;
+        final details = await repo.getGroupDetails(widget.roomId);
+        if (details != null) {
+          final participants = (details['participants'] as List?) ?? [];
+          String myRole = 'member';
+          for (final p in participants) {
+            if (p['profile_id'] == currentUserId) {
+              myRole = p['role'] as String? ?? 'member';
+              break;
+            }
+          }
+          _canManagePrivacy = (myRole == 'owner' || myRole == 'admin');
+        }
+      }
+
       final roomAutoDelete = await repo.getRoomDisappearingHours(widget.roomId);
       final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.roomId);
 
@@ -418,6 +442,39 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
+              if (widget.isGroup && !_canManagePrivacy)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: MekaarColors.surface2Of(context),
+                    borderRadius: BorderRadius.circular(MekaarRadius.md),
+                    border: Border.all(
+                      color: MekaarColors.borderOf(context),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        SolarIconsBold.lock,
+                        size: 20,
+                        color: MekaarColors.textSecondaryOf(context),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Kebijakan privasi grup ini dikelola oleh Admin.',
+                          style: MekaarTypography.bodySM.copyWith(
+                            color: MekaarColors.textSecondaryOf(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Section 1: Proteksi Layar & Konten
               _buildSectionHeader('Proteksi Layar & Konten'),
               _buildSwitchTile(
@@ -426,7 +483,9 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 title: 'Proteksi Layar & Screenshot',
                 subtitle: 'Cegah tangkapan layar dan sensor tampilan di recent apps',
                 value: isScreenProtOn,
-                onChanged: (_) => _toggleScreenProtection(isScreenProtOn),
+                onChanged: _canManagePrivacy
+                    ? (_) => _toggleScreenProtection(isScreenProtOn)
+                    : null,
               ),
               _buildSwitchTile(
                 icon: isFwdProtOn ? SolarIconsBold.forbiddenCircle : SolarIconsOutline.forward,
@@ -434,7 +493,9 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 title: 'Larang Teruskan Pesan',
                 subtitle: 'Pesan dari chat ini tidak dapat diteruskan ke obrolan lain',
                 value: isFwdProtOn,
-                onChanged: (_) => _toggleForwardingProtection(isFwdProtOn),
+                onChanged: _canManagePrivacy
+                    ? (_) => _toggleForwardingProtection(isFwdProtOn)
+                    : null,
               ),
               _buildSwitchTile(
                 icon: _isViewOnce ? SolarIconsBold.eyeClosed : SolarIconsOutline.eyeClosed,
@@ -445,35 +506,38 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 onChanged: (_) => _toggleViewOnce(),
               ),
 
-              // Section 2: Penghapusan Otomatis (Kedua Pihak)
+              // Section 2: Penghapusan Otomatis
               _buildSectionHeader(
-                'Penghapusan Otomatis (Kedua Pihak)',
-                description:
-                    'Fitur di bawah ini tersinkronisasi dan menghapus pesan di perangkat Anda maupun rekan.',
+                widget.isGroup
+                    ? 'Penghapusan Otomatis (Grup)'
+                    : 'Penghapusan Otomatis (Kedua Pihak)',
+                description: widget.isGroup
+                    ? 'Fitur di bawah ini tersinkronisasi dan menghapus pesan untuk seluruh anggota grup.'
+                    : 'Fitur di bawah ini tersinkronisasi dan menghapus pesan di perangkat Anda maupun rekan.',
               ),
               _buildNavTile(
                 icon: _autoDeleteHours > 0 ? SolarIconsBold.history : SolarIconsOutline.history,
                 iconColor: _autoDeleteHours > 0 ? primaryColor : MekaarColors.textMutedOf(context),
                 title: 'Pesan Menghilang',
-                subtitle: 'Pesan baru otomatis terhapus untuk kedua pihak setelah batas waktu',
+                subtitle: 'Pesan baru otomatis terhapus untuk semua pihak setelah batas waktu',
                 statusText: _autoDeleteLabel(),
-                onTap: _showAutoDeleteOptions,
+                onTap: _canManagePrivacy ? _showAutoDeleteOptions : null,
               ),
               _buildNavTile(
                 icon: _scheduledWipeMode != 'off' ? SolarIconsBold.clockCircle : SolarIconsOutline.clockCircle,
                 iconColor: _scheduledWipeMode != 'off' ? primaryColor : MekaarColors.textMutedOf(context),
                 title: 'Pembersihan Terjadwal',
-                subtitle: 'Musnahkan riwayat pesan untuk kedua pihak secara berkala pada jam tertentu',
+                subtitle: 'Musnahkan riwayat pesan grup secara berkala pada jam tertentu',
                 statusText: _scheduledWipeLabel(),
-                onTap: _showScheduledWipeOptions,
+                onTap: _canManagePrivacy ? _showScheduledWipeOptions : null,
               ),
               _buildSwitchTile(
                 icon: _burnOnExit ? SolarIconsBold.fire : SolarIconsOutline.fire,
                 iconColor: _burnOnExit ? MekaarColors.sosRed : MekaarColors.textMutedOf(context),
                 title: 'Hapus Saat Keluar (Burn on Exit)',
-                subtitle: 'Hanguskan riwayat obrolan untuk kedua pihak seketika saat meninggalkan layar',
+                subtitle: 'Hanguskan riwayat obrolan seketika saat meninggalkan layar',
                 value: _burnOnExit,
-                onChanged: (_) => _toggleBurnOnExit(),
+                onChanged: _canManagePrivacy ? (_) => _toggleBurnOnExit() : null,
               ),
 
             ],
@@ -497,7 +561,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     final themePrimary = MekaarColors.primaryOf(context);
     return ListTile(
@@ -512,7 +576,11 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
       ),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: onChanged == null ? MekaarColors.textMutedOf(context) : null,
+        ),
       ),
       subtitle: Text(
         subtitle,
@@ -529,7 +597,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
         inactiveTrackColor: MekaarColors.surface2Of(context),
         onChanged: onChanged,
       ),
-      onTap: () => onChanged(!value),
+      onTap: onChanged != null ? () => onChanged(!value) : null,
     );
   }
 
@@ -539,7 +607,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     required String title,
     required String subtitle,
     String? statusText,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     final primaryColor = MekaarColors.primaryOf(context);
     return ListTile(
@@ -554,7 +622,11 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
       ),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: onTap == null ? MekaarColors.textMutedOf(context) : null,
+        ),
       ),
       subtitle: Text(
         subtitle,
@@ -574,15 +646,22 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 fontWeight: FontWeight.w600,
                 color: statusText == 'Mati'
                     ? MekaarColors.textMutedOf(context)
-                    : primaryColor,
+                    : (onTap == null ? MekaarColors.textMutedOf(context) : primaryColor),
               ),
             ),
           const SizedBox(width: 4),
-          Icon(
-            SolarIconsOutline.altArrowRight,
-            size: 16,
-            color: MekaarColors.textMutedOf(context),
-          ),
+          if (onTap == null)
+            Icon(
+              SolarIconsBold.lock,
+              size: 16,
+              color: MekaarColors.textMutedOf(context),
+            )
+          else
+            Icon(
+              SolarIconsOutline.altArrowRight,
+              size: 16,
+              color: MekaarColors.textMutedOf(context),
+            ),
         ],
       ),
       onTap: onTap,

@@ -240,7 +240,9 @@ class ChatRepository {
     // Get rooms the current user participates in, filtering out deleted rooms
     final roomsResponse = await _supabaseService.client
         .from('room_participants')
-        .select('room_id, is_muted, is_archived, chat_rooms(id, room_type)')
+        .select(
+          'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description)',
+        )
         .eq('profile_id', userId)
         .isFilter('deleted_at', null);
 
@@ -263,7 +265,7 @@ class ChatRepository {
       if (isGroup) {
         chatName = (roomData['name'] as String?)?.isNotEmpty == true
             ? roomData['name'] as String
-            : 'Grup Mekaar';
+            : 'Grup';
         avatarUrl = roomData['avatar_url'] as String?;
         chatAvatar = chatName.isNotEmpty ? chatName[0].toUpperCase() : 'G';
 

@@ -974,6 +974,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                           ChatRoomPrivacySheet.show(
                             context,
                             roomId: widget.roomId,
+                            isGroup: true,
                             onSettingsChanged: _loadDetails,
                           );
                         },

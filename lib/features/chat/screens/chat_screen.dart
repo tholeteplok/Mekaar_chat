@@ -227,6 +227,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Timer? _flashTimer;
   bool _hasJumpedToUnread = false;
   final Map<String, Timer> _pendingHideTimers = {};
+  late bool _isGroup;
+  bool get _effectiveIsGroup => _isGroup;
   Map<String, String> _participantNames = {};
   bool _isGroupAnnouncementOnly = false;
   bool _canSendInGroupAnnouncement = true;
@@ -251,7 +253,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   String? get _effectiveAvatarUrl => _resolvedAvatarUrl ?? widget.chatAvatarUrl;
   String? get _effectiveOtherUserId =>
-      _resolvedOtherUserId ?? widget.otherUserId;
+      _effectiveIsGroup ? null : (_resolvedOtherUserId ?? widget.otherUserId);
 
   String _getSenderDisplayName(Message? msg) {
     if (msg == null) return '';
@@ -259,15 +261,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref.read(authProvider).user?.id ??
         Supabase.instance.client.auth.currentUser?.id;
     if (msg.senderId == myId) return 'Anda';
-    if (!widget.isGroup) return _effectiveChatName;
+    if (!_effectiveIsGroup) return _effectiveChatName;
     return _participantNames[msg.senderId] ?? 'Anggota';
   }
 
   Future<void> _resolveMissingRoomMetadata() async {
-    if (widget.isGroup) return;
-    if (_effectiveOtherUserId != null &&
-        widget.chatName.isNotEmpty &&
-        widget.chatName != 'Percakapan') {
+    if (_effectiveIsGroup) {
+      unawaited(_loadGroupParticipants());
       return;
     }
 
@@ -279,34 +279,85 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         orElse: () => null,
       );
 
-      if (cached != null && mounted) {
-        setState(() {
-          _resolvedChatName ??= cached['name'] as String?;
-          _resolvedAvatarInitial ??= cached['avatar'] as String?;
-          _resolvedAvatarUrl ??= cached['avatarUrl'] as String?;
-          _resolvedOtherUserId ??= cached['otherUserId'] as String?;
-        });
-        if (_resolvedOtherUserId != null) {
-          _controller.startPresenceHeartbeat();
-          if (!LocalMessageDatabase.instance.isDecoy &&
-              widget.chatId != 'room_welcome_mekaar') {
-            unawaited(
-              ref
-                  .read(chatRepositoryProvider)
-                  .getLastSeen(_resolvedOtherUserId!)
-                  .then((ls) {
-                    if (mounted) _otherLastSeenNotifier.value = ls;
-                  }),
-            );
+      if (cached != null) {
+        final isCachedGroup = cached['isGroup'] == true ||
+            cached['is_group'] == true ||
+            cached['room_type'] == 'group';
+        if (isCachedGroup) {
+          if (mounted) {
+            setState(() {
+              _isGroup = true;
+              _resolvedOtherUserId = null;
+              _resolvedChatName = cached['name'] as String?;
+              _resolvedAvatarInitial = cached['avatar'] as String?;
+              _resolvedAvatarUrl = cached['avatarUrl'] as String?;
+            });
+            ref
+                .read(e2eeRoomStatusProvider(widget.chatId).notifier)
+                .configureForRoom(isGroup: true);
+            unawaited(_loadGroupParticipants());
           }
+          return;
         }
-        return;
+
+        if (mounted) {
+          setState(() {
+            _resolvedChatName ??= cached['name'] as String?;
+            _resolvedAvatarInitial ??= cached['avatar'] as String?;
+            _resolvedAvatarUrl ??= cached['avatarUrl'] as String?;
+            _resolvedOtherUserId ??= cached['otherUserId'] as String?;
+          });
+          if (_resolvedOtherUserId != null) {
+            _controller.startPresenceHeartbeat();
+            if (!LocalMessageDatabase.instance.isDecoy &&
+                widget.chatId != 'room_welcome_mekaar') {
+              unawaited(
+                ref
+                    .read(chatRepositoryProvider)
+                    .getLastSeen(_resolvedOtherUserId!)
+                    .then((ls) {
+                      if (mounted) _otherLastSeenNotifier.value = ls;
+                    }),
+              );
+            }
+          }
+          return;
+        }
       }
 
       // 2. Fallback query langsung ke Supabase jika belum ada di cache
       final client = Supabase.instance.client;
       final currentUserId = client.auth.currentUser?.id;
       if (currentUserId == null) return;
+
+      // Periksa apakah ini room grup di database
+      final roomData = await client
+          .from('chat_rooms')
+          .select('room_type, name, avatar_url')
+          .eq('id', widget.chatId)
+          .maybeSingle();
+
+      if (roomData != null && roomData['room_type'] == 'group') {
+        final gName = (roomData['name'] as String?)?.isNotEmpty == true
+            ? roomData['name'] as String
+            : null;
+        if (mounted) {
+          setState(() {
+            _isGroup = true;
+            _resolvedOtherUserId = null;
+            if (gName != null && gName.isNotEmpty) {
+              _resolvedChatName = gName;
+              _resolvedAvatarInitial = gName[0].toUpperCase();
+            }
+            _resolvedAvatarUrl = roomData['avatar_url'] as String?;
+          });
+          ref
+              .read(e2eeRoomStatusProvider(widget.chatId).notifier)
+              .configureForRoom(isGroup: true);
+          unawaited(_loadGroupParticipants());
+        }
+        return;
+      }
 
       final participant = await client
           .from('room_participants')
@@ -386,10 +437,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           }
         }
         final canSend = (myRole == 'owner' || myRole == 'admin') || !isAnnouncement;
+        final gName = (room?['name'] as String?)?.isNotEmpty == true
+            ? room!['name'] as String
+            : null;
+        final gAvatarUrl = room?['avatar_url'] as String?;
         setState(() {
           _participantNames = names;
           _isGroupAnnouncementOnly = isAnnouncement;
           _canSendInGroupAnnouncement = canSend;
+          if (gName != null && gName.isNotEmpty) {
+            _resolvedChatName = gName;
+            _resolvedAvatarInitial = gName[0].toUpperCase();
+          }
+          if (gAvatarUrl != null) {
+            _resolvedAvatarUrl = gAvatarUrl;
+          }
         });
       }
     } catch (_) {}
@@ -448,6 +510,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void initState() {
     super.initState();
+    _isGroup = widget.isGroup;
     _hiddenCallIds = Set<String>.from(
       _hiddenCallsMemoryCache[widget.chatId] ??
           CallRepository.getCachedHiddenCallIds(widget.chatId),
@@ -479,7 +542,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         unawaited(NotificationService.cancelMessageNotification(widget.chatId));
         ref
             .read(e2eeRoomStatusProvider(widget.chatId).notifier)
-            .configureForRoom(isGroup: widget.isGroup);
+            .configureForRoom(isGroup: _effectiveIsGroup);
 
         if (widget.initialSharedFiles != null &&
             widget.initialSharedFiles!.isNotEmpty) {
@@ -546,10 +609,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ref.read(otherParticipantLastReadProvider(widget.chatId).notifier).updateReadAt(_otherLastRead!);
       setState(() {});
     }
-    if (widget.isGroup) {
+    if (_effectiveIsGroup) {
       _loadGroupParticipants();
     }
-    if (!LocalMessageDatabase.instance.isDecoy &&
+    if (!_effectiveIsGroup &&
+        !LocalMessageDatabase.instance.isDecoy &&
         widget.chatId != 'room_welcome_mekaar') {
       final targetUserId = _effectiveOtherUserId ?? widget.otherUserId;
       if (targetUserId != null) {
@@ -867,7 +931,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         replyToId: replyToMessage?.id,
         autoDeleteHours: _autoDeleteHours,
         scheduledWipeTargetAt: _scheduledWipeTargetAt,
-        isGroup: widget.isGroup,
+        isGroup: _effectiveIsGroup,
       );
 
       // Setelah terkirim ke server, hapus item pending sementara
@@ -921,7 +985,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     context,
     ref: ref,
     chatId: widget.chatId,
-    isGroup: widget.isGroup,
+    isGroup: _effectiveIsGroup,
     otherUserId: _effectiveOtherUserId,
     file: file,
     type: type,
@@ -942,7 +1006,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     context,
     ref: ref,
     chatId: widget.chatId,
-    isGroup: widget.isGroup,
+    isGroup: _effectiveIsGroup,
     autoDeleteHours: _autoDeleteHours,
     scheduledWipeTargetAt: _scheduledWipeTargetAt,
     onScrollToBottom: _scrollToBottom,
@@ -1069,7 +1133,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         context,
         ref: ref,
         roomId: widget.chatId,
-        isGroup: widget.isGroup,
+        isGroup: _effectiveIsGroup,
       );
 
   void _hideMessagesWithUndo(List<String> messageIds, {required String label}) {
@@ -1133,7 +1197,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref: ref,
         roomId: widget.chatId,
         message: msg,
-        isGroup: widget.isGroup,
+        isGroup: _effectiveIsGroup,
         participantNames: _participantNames,
         effectiveChatName: _effectiveChatName,
       );
@@ -1152,7 +1216,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref: ref,
         roomId: widget.chatId,
         savableMessages: savableMessages,
-        isGroup: widget.isGroup,
+        isGroup: _effectiveIsGroup,
         participantNames: _participantNames,
         effectiveChatName: _effectiveChatName,
         onCompleted: _clearSelection,
@@ -1258,7 +1322,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ref: ref,
       roomId: widget.chatId,
       otherParticipantName: _effectiveChatName,
-      isGroup: widget.isGroup,
+      isGroup: _effectiveIsGroup,
       selectedMessages: selectedMsgs,
       selectedCallIds: _selectedCallIds,
       onHideCalls: _hideSelectedCalls,
@@ -1510,7 +1574,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             Positioned.fill(
               child: ChatMessageListView(
                 chatId: widget.chatId,
-                isGroup: widget.isGroup,
+                isGroup: _effectiveIsGroup,
                 isGuardian: widget.isGuardian,
                 topAreaHeight: topAreaHeight,
                 searchQuery: _searchQuery,
@@ -1560,7 +1624,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
               child: ChatBottomArea(
                 chatId: widget.chatId,
-                isGroup: widget.isGroup,
+                isGroup: _effectiveIsGroup,
                 isAnnouncementOnly: _isGroupAnnouncementOnly,
                 canSendInAnnouncement: _canSendInGroupAnnouncement,
                 composerKey: _composerKey,
@@ -1669,7 +1733,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     avatarInitial: _effectiveAvatarInitial,
                     avatarUrl: _effectiveAvatarUrl,
                     isGuardian: widget.isGuardian,
-                    isGroup: widget.isGroup,
+                    isGroup: _effectiveIsGroup,
                     otherUserId: _effectiveOtherUserId,
                     participantCount: _participantNames.length,
                     otherLastSeenNotifier: _otherLastSeenNotifier,
@@ -1777,7 +1841,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       });
                     },
                     // Aksi Menu & Kontak
-                    onAvatarTap: widget.isGroup
+                    onAvatarTap: _effectiveIsGroup
                         ? () async {
                             final res = await _pushNamedWithoutActiveRoom(
                               AppRoutes.groupDetails,
@@ -1818,7 +1882,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               : () {}),
                     onInitiateCall: _initiateCall,
                     onMenuActionSelected: (value) async {
-                      if (value == 'search') {
+                      if (value == 'info') {
+                        // Navigasi ke Info Grup atau Info Kontak
+                        if (_effectiveIsGroup) {
+                          final res = await _pushNamedWithoutActiveRoom(
+                            AppRoutes.groupDetails,
+                            arguments: {
+                              'roomId': widget.chatId,
+                              'groupName': _effectiveChatName,
+                              'groupAvatarUrl': _effectiveAvatarUrl,
+                            },
+                          );
+                          if (mounted) {
+                            _loadGroupParticipants();
+                            _loadRoomSettings();
+                            if (res == 'search') {
+                              setState(() => _isSearching = true);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted &&
+                                    _inChatSearchFocusNode.canRequestFocus) {
+                                  _inChatSearchFocusNode.requestFocus();
+                                }
+                              });
+                            }
+                          }
+                        } else if (_effectiveOtherUserId != null &&
+                            !LocalMessageDatabase.instance.isDecoy &&
+                            widget.chatId != 'room_welcome_mekaar') {
+                          _pushNamedWithoutActiveRoom(
+                            AppRoutes.contactSettings,
+                            arguments: {
+                              'roomId': widget.chatId,
+                              'chatName': _effectiveChatName,
+                              'chatAvatar': _effectiveAvatarInitial,
+                              'otherUserId': _effectiveOtherUserId!,
+                              'isGuardian': widget.isGuardian,
+                            },
+                          );
+                        }
+                      } else if (value == 'search') {
                         setState(() => _isSearching = true);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted &&
@@ -1836,6 +1938,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         ChatRoomPrivacySheet.show(
                           context,
                           roomId: widget.chatId,
+                          isGroup: _effectiveIsGroup,
                           onSettingsChanged: () {
                             if (mounted) _loadRoomSettings();
                           },
@@ -1929,6 +2032,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         ChatRoomPrivacySheet.show(
                           context,
                           roomId: widget.chatId,
+                          isGroup: _effectiveIsGroup,
                           onSettingsChanged: () {
                             if (mounted) {
                               _loadRoomSettings();
