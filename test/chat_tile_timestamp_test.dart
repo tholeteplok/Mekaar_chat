@@ -10,6 +10,9 @@ class _FakeChatRepository implements ChatRepository {
   _FakeChatRepository(this._rooms);
 
   @override
+  String? get currentUserId => 'test-user-id';
+
+  @override
   Future<List<Map<String, dynamic>>> getRooms() async => _rooms;
 
   @override

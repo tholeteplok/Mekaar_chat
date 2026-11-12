@@ -150,8 +150,16 @@ class ChatRoomsNotifier
     updatedRoom['lastMessage'] = previewText;
     updatedRoom['timestamp'] = timestamp;
     updatedRoom['unreadCount'] = newUnread;
+    String? myId;
+    if (!isFromOtherUser) {
+      try {
+        myId = _chatRepository.currentUserId;
+      } catch (_) {
+        myId = 'me';
+      }
+    }
     updatedRoom['lastMessageSenderId'] =
-        isFromOtherUser ? 'other' : _chatRepository.currentUserId;
+        isFromOtherUser ? 'other' : (myId ?? 'me');
     updatedRoom['lastMessageIsSending'] = false;
 
     final newList = List<Map<String, dynamic>>.from(currentList);
