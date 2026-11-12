@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_tab_header.dart';
+import 'package:mekaar_chat/core/widgets/mekaar_header_search_button.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_elastic_pull_scope.dart';
 
 void main() {
@@ -298,6 +299,94 @@ void main() {
 
       // Should automatically collapse search bar
       expect(isSearchActive, isFalse);
+    });
+  });
+
+  group('MekaarHeaderSearchButton Choreographed Flight Tests', () {
+    testWidgets('Button renders with initial opacity 1.0 and responds to tap', (tester) async {
+      bool tapped = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MekaarHeaderSearchButton(
+              isSearchActive: false,
+              pullProgress: 0.0,
+              onPressed: () => tapped = true,
+              tooltip: 'Cari Obrolan',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(MekaarHeaderSearchButton), findsOneWidget);
+      final opacityWidget = tester.widget<Opacity>(
+        find.descendant(
+          of: find.byType(MekaarHeaderSearchButton),
+          matching: find.byType(Opacity),
+        ),
+      );
+      expect(opacityWidget.opacity, 1.0);
+
+      await tester.tap(find.byType(IconButton));
+      expect(tapped, isTrue);
+    });
+
+    testWidgets('Button translates downward and fades out when pullProgress increases', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MekaarHeaderSearchButton(
+              isSearchActive: false,
+              pullProgress: 0.5,
+              onPressed: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      final opacityWidget = tester.widget<Opacity>(
+        find.descendant(
+          of: find.byType(MekaarHeaderSearchButton),
+          matching: find.byType(Opacity),
+        ),
+      );
+      expect(opacityWidget.opacity, lessThan(1.0));
+      expect(opacityWidget.opacity, greaterThan(0.0));
+    });
+
+    testWidgets('Button fades to 0.0 and ignores pointer when isSearchActive is true', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MekaarHeaderSearchButton(
+              isSearchActive: true,
+              pullProgress: 0.0,
+              onPressed: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final opacityWidget = tester.widget<Opacity>(
+        find.descendant(
+          of: find.byType(MekaarHeaderSearchButton),
+          matching: find.byType(Opacity),
+        ),
+      );
+      expect(opacityWidget.opacity, 0.0);
+
+      final ignorePointer = tester.widget<IgnorePointer>(
+        find.descendant(
+          of: find.byType(MekaarHeaderSearchButton),
+          matching: find.byType(IgnorePointer),
+        ),
+      );
+      expect(ignorePointer.ignoring, isTrue);
     });
   });
 }
