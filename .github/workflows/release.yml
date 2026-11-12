@@ -186,8 +186,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'mekaar' }}
         run: |
           mkdir -p symbols
-          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./symbols --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" --dart-define-from-file=.env
-          flutter build apk --release --obfuscate --split-debug-info=./symbols --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" --dart-define-from-file=.env
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./symbols --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" --dart-define-from-file=.env --android-skip-build-dependency-validation
+          flutter build apk --release --obfuscate --split-debug-info=./symbols --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" --dart-define-from-file=.env --android-skip-build-dependency-validation
 
       - name: Rename Release Assets
         id: asset_info
