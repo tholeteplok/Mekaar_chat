@@ -88,6 +88,19 @@ class _MekaarElasticPullScopeState extends State<MekaarElasticPullScope> {
     }
   }
 
+  @override
+  void dispose() {
+    if (_isRefreshing) {
+      final callback = widget.onRefreshingChanged;
+      if (callback != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          callback(false);
+        });
+      }
+    }
+    super.dispose();
+  }
+
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
@@ -101,6 +114,13 @@ class _MekaarElasticPullScopeState extends State<MekaarElasticPullScope> {
       if (mounted) {
         setState(() => _isRefreshing = false);
         widget.onRefreshingChanged?.call(false);
+      } else {
+        final callback = widget.onRefreshingChanged;
+        if (callback != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            callback(false);
+          });
+        }
       }
     }
   }

@@ -32,6 +32,9 @@ class _FakeContactsNotifier
   }
 
   @override
+  Future<void> addContact(String contactUserId, {String? aliasName}) async {}
+
+  @override
   Future<void> deleteContact(String contactUserId) async {}
 }
 

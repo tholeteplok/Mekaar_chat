@@ -257,6 +257,11 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                                     if (!unlocked || !stateCtx.mounted) return;
                                   }
 
+                                  // Daftarkan kontak secara eksplisit & sinkronkan state kontak instan
+                                  await ref
+                                      .read(userContactsProvider.notifier)
+                                      .addContact(profile['id'] as String);
+
                                   // Buat atau buka room chat
                                   final roomId = await ref
                                       .read(chatRoomsProvider.notifier)

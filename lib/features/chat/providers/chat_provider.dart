@@ -6,6 +6,7 @@ import '../../../data/models/call_model.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/call_repository.dart';
 import '../../../data/repositories/chat_repository.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../../data/services/local_message_database.dart';
 import '../../../data/services/location_service.dart';
@@ -39,8 +40,9 @@ final pendingHiddenMessagesProvider = StateProvider.family<Set<String>, String>(
 class ChatRoomsNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final ChatRepository _chatRepository;
+  final Ref? _ref;
 
-  ChatRoomsNotifier(this._chatRepository) : super(const AsyncValue.loading()) {
+  ChatRoomsNotifier(this._chatRepository, [this._ref]) : super(const AsyncValue.loading()) {
     _initLocalFirst();
   }
 
@@ -49,11 +51,13 @@ class ChatRoomsNotifier
   Future<void> _initLocalFirst() async {
     try {
       final cached = await _chatRepository.getCachedRooms();
-      if (cached.isNotEmpty) {
+      if (cached.isNotEmpty && mounted) {
         state = AsyncValue.data(cached);
       }
     } catch (_) {}
-    await refreshRooms(forceLoading: !state.hasValue);
+    if (mounted) {
+      await refreshRooms(forceLoading: !state.hasValue);
+    }
   }
 
   /// Memuat snapshot daftar chat rooms dari cache SQLite lokal secara instan (0-5 ms, zero network)
@@ -113,6 +117,16 @@ class ChatRoomsNotifier
       screenshotProtectionEnabled: screenshotEnabled,
     );
     await refreshRooms();
+    if (type == 'normal') {
+      final ref = _ref;
+      if (ref != null) {
+        unawaited(
+          ref
+              .read(userContactsProvider.notifier)
+              .refreshContacts(forceLoading: false),
+        );
+      }
+    }
     return roomId;
   }
 
@@ -186,7 +200,7 @@ final chatRoomsProvider =
       AsyncValue<List<Map<String, dynamic>>>
     >((ref) {
       final repo = ref.watch(chatRepositoryProvider);
-      return ChatRoomsNotifier(repo);
+      return ChatRoomsNotifier(repo, ref);
     });
 
 // ─────────────────────────────────────────

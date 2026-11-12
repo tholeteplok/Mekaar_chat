@@ -121,6 +121,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // Auto-sync kontak secara tenang di latar belakang
+      ref.read(userContactsProvider.notifier).refreshContacts(forceLoading: false);
+
       // Auto-sync lokasi & teman sekitar saat aplikasi dibuka kembali
       if (ref.read(nearbyFriendsProvider).isEnabled) {
         ref.read(nearbyFriendsProvider.notifier).refreshNearby();
@@ -188,323 +191,343 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final nearbyState = ref.watch(nearbyFriendsProvider);
 
-    return contactsAsync.when(
-      loading: () => const MekaarStateView(
-        pose: MikaPose.neutral,
-        title: 'Memuat Kontak',
-        message: 'Sedang mengambil daftar kontak Anda...',
-      ),
-      error: (err, stack) => MekaarStateView(
-        illustration: ErrorResolver.resolveIllustration(err),
-        stateIcon: ErrorResolver.resolveIllustration(err) == null
-            ? ErrorResolver.resolveIcon(err)
-            : null,
-        stateIconColor: ErrorResolver.resolveIconColor(err, context),
-        title: 'Gagal Memuat Kontak',
-        message: ErrorResolver.resolve(err),
-        actionLabel: 'Coba Lagi',
-        onAction: () => ref.read(userContactsProvider.notifier).refreshContacts(forceLoading: true),
-      ),
-      data: (items) {
-        final allContacts = isDuress ? <ContactItem>[] : items;
-
-        // Filter berdasarkan vault cloaking terisolasi & pencarian
-        final filteredContacts = allContacts.where((contact) {
-          // Cloaking Private Vault: sembunyikan kontak jika slot vault kontak terkait belum dibuka
-          if (contact.isVaulted) {
-            final isSlotOpen = unlockedSlots.contains(contact.vaultSlot);
-            if (!isSlotOpen) return false;
-          } else if (hiddenContactUserIds.contains(contact.contactUserId)) {
-            if (!isVaultUnlocked) return false;
-          }
-
-          final name = contact.effectiveName.toLowerCase();
-          final username = contact.username.toLowerCase();
-          final email = (contact.email ?? '').toLowerCase();
-          final q = _searchQuery.toLowerCase();
-          return name.contains(q) || username.contains(q) || email.contains(q);
-        }).toList();
-
-        // Urutkan berdasarkan tab pill filter aktif
-        if (_selectedSortIndex == 0) {
-          // A-Z: Urutkan secara alfabetis berdasarkan nama
-          filteredContacts.sort(
-            (a, b) => a.effectiveName.toLowerCase().compareTo(
-              b.effectiveName.toLowerCase(),
-            ),
-          );
-        } else {
-          // Baru Ditambahkan: Urutkan berdasarkan waktu penambahan kontak
-          filteredContacts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        }
-
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                MekaarTabHeader(
-                  key: const ValueKey('contact_list_tab_header'),
-                  title: 'Kontak',
-                  isSearchActive: _isSearchActive,
-                  isSubHeaderSearch: true,
-                  pullProgress: _pullProgress,
-                  isRefreshing: _isRefreshing,
-                  searchController: _searchController,
-                  searchFocusNode: _searchFocusNode,
-                  searchHint: 'Cari nama, username, atau email...',
-                  onSearchChanged: (val) {
-                    _searchDebounceTimer?.cancel();
-                    _searchDebounceTimer =
-                        Timer(const Duration(milliseconds: 180), () {
-                      if (mounted && _searchQuery != val.trim()) {
-                        setState(() {
-                          _searchQuery = val.trim();
-                        });
-                      }
-                    });
-                    _vaultDebounceTimer?.cancel();
-                    if (val.trim().length >= 4) {
-                      _vaultDebounceTimer = Timer(
-                        const Duration(milliseconds: 400),
-                        () {
-                          _checkVaultPasscode(val);
-                        },
-                      );
-                    }
-                  },
-                  onSearchClosed: () {
-                    _searchDebounceTimer?.cancel();
-                    _vaultDebounceTimer?.cancel();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MekaarTabHeader(
+              key: const ValueKey('contact_list_tab_header'),
+              title: 'Kontak',
+              isSearchActive: _isSearchActive,
+              isSubHeaderSearch: true,
+              pullProgress: _pullProgress,
+              isRefreshing: _isRefreshing,
+              searchController: _searchController,
+              searchFocusNode: _searchFocusNode,
+              searchHint: 'Cari nama, username, atau email...',
+              onSearchChanged: (val) {
+                _searchDebounceTimer?.cancel();
+                _searchDebounceTimer =
+                    Timer(const Duration(milliseconds: 180), () {
+                  if (mounted && _searchQuery != val.trim()) {
                     setState(() {
-                      _isSearchActive = false;
+                      _searchQuery = val.trim();
+                    });
+                  }
+                });
+                _vaultDebounceTimer?.cancel();
+                if (val.trim().length >= 4) {
+                  _vaultDebounceTimer = Timer(
+                    const Duration(milliseconds: 400),
+                    () {
+                      _checkVaultPasscode(val);
+                    },
+                  );
+                }
+              },
+              onSearchClosed: () {
+                _searchDebounceTimer?.cancel();
+                _vaultDebounceTimer?.cancel();
+                setState(() {
+                  _isSearchActive = false;
+                  _searchQuery = '';
+                  _searchController.clear();
+                });
+              },
+              action: isDuress
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MekaarHeaderSearchButton(
+                          isSearchActive: _isSearchActive,
+                          pullProgress: _pullProgress,
+                          tooltip: 'Cari Kontak',
+                          onPressed: () =>
+                              setState(() => _isSearchActive = true),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            _selectedMainTabIndex == 0
+                                ? SolarIconsOutline.sort
+                                : SolarIconsOutline.tuningSquare,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: _selectedMainTabIndex == 0
+                              ? 'Filter & Tampilan Kontak'
+                              : 'Filter & Radar Sekitar',
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          color: MekaarColors.surfaceOf(context),
+                          onSelected: (value) async {
+                            HapticService.trigger(
+                              MekaarHapticIntent.selection,
+                            );
+                            switch (value) {
+                              case 'sort_az':
+                                if (_selectedSortIndex != 0) {
+                                  setState(() => _selectedSortIndex = 0);
+                                }
+                                break;
+                              case 'sort_recent':
+                                if (_selectedSortIndex != 1) {
+                                  setState(() => _selectedSortIndex = 1);
+                                }
+                                break;
+                              case 'view_list':
+                                await _setViewMode(false);
+                                break;
+                              case 'view_grid':
+                                await _setViewMode(true);
+                                break;
+                              case 'nearby_everyone':
+                                ref
+                                    .read(nearbyFriendsProvider.notifier)
+                                    .setVisibilityMode('everyone');
+                                break;
+                              case 'nearby_contacts':
+                                ref
+                                    .read(nearbyFriendsProvider.notifier)
+                                    .setVisibilityMode('contacts_only');
+                                break;
+                              case 'nearby_refresh':
+                                ref
+                                    .read(nearbyFriendsProvider.notifier)
+                                    .refreshNearby(force: true);
+                                break;
+                            }
+                          },
+                          itemBuilder: (ctx) {
+                            if (_selectedMainTabIndex == 0) {
+                              return [
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'sort_az',
+                                  icon: SolarIconsOutline.sortByAlphabet,
+                                  label: 'A - Z (Nama)',
+                                  isSelected: _selectedSortIndex == 0,
+                                ),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'sort_recent',
+                                  icon: SolarIconsOutline.sortByTime,
+                                  label: 'Baru Ditambahkan',
+                                  isSelected: _selectedSortIndex == 1,
+                                ),
+                                const PopupMenuDivider(height: 1),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'view_list',
+                                  icon: SolarIconsOutline.list,
+                                  label: 'Tampilan Daftar (List)',
+                                  isSelected: !_isGridView,
+                                ),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'view_grid',
+                                  icon: SolarIconsOutline.menuDotsSquare,
+                                  label: 'Tampilan Kotak (Grid)',
+                                  isSelected: _isGridView,
+                                ),
+                              ];
+                            } else {
+                              return [
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'nearby_everyone',
+                                  icon: SolarIconsOutline.usersGroupRounded,
+                                  label: 'Semua Orang di Sekitar',
+                                  isSelected:
+                                      nearbyState.visibilityMode ==
+                                      'everyone',
+                                ),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'nearby_contacts',
+                                  icon: SolarIconsOutline.userCheck,
+                                  label: 'Hanya Kontak Saya',
+                                  isSelected:
+                                      nearbyState.visibilityMode !=
+                                      'everyone',
+                                ),
+                                const PopupMenuDivider(height: 1),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'nearby_refresh',
+                                  icon: SolarIconsOutline.restart,
+                                  label: 'Segarkan Radar Sekitar',
+                                  isSelected: false,
+                                  enabled: !nearbyState.isLoading,
+                                  trailing: nearbyState.isLoading
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color:
+                                                MekaarColors.guardianTeal,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ];
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.qrCode,
+                            color: MekaarColors.primaryOf(context),
+                          ),
+                          tooltip: 'Kode QR & Pindai',
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.myQr),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 6),
+            // Tab Atas Utama: ['Semua Kontak', 'Teman Sekitar']
+            MekaarSlidingSegmentBar(
+              tabs: _mainTabs,
+              selectedIndex: _selectedMainTabIndex,
+              onTabSelected: (index) {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                setState(() => _selectedMainTabIndex = index);
+              },
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: MekaarElasticPullScope(
+                isSearchActive: _isSearchActive,
+                onSearchActiveChanged: (val) {
+                  setState(() {
+                    _isSearchActive = val;
+                    if (!val) {
                       _searchQuery = '';
                       _searchController.clear();
-                    });
-                  },
-                  action: isDuress
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            MekaarHeaderSearchButton(
-                              isSearchActive: _isSearchActive,
-                              pullProgress: _pullProgress,
-                              tooltip: 'Cari Kontak',
-                              onPressed: () =>
-                                  setState(() => _isSearchActive = true),
-                            ),
-                            PopupMenuButton<String>(
-                              icon: Icon(
-                                _selectedMainTabIndex == 0
-                                    ? SolarIconsOutline.sort
-                                    : SolarIconsOutline.tuningSquare,
-                                color: MekaarColors.primaryOf(context),
-                              ),
-                              tooltip: _selectedMainTabIndex == 0
-                                  ? 'Filter & Tampilan Kontak'
-                                  : 'Filter & Radar Sekitar',
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              color: MekaarColors.surfaceOf(context),
-                              onSelected: (value) async {
-                                HapticService.trigger(
-                                  MekaarHapticIntent.selection,
-                                );
-                                switch (value) {
-                                  case 'sort_az':
-                                    if (_selectedSortIndex != 0) {
-                                      setState(() => _selectedSortIndex = 0);
-                                    }
-                                    break;
-                                  case 'sort_recent':
-                                    if (_selectedSortIndex != 1) {
-                                      setState(() => _selectedSortIndex = 1);
-                                    }
-                                    break;
-                                  case 'view_list':
-                                    await _setViewMode(false);
-                                    break;
-                                  case 'view_grid':
-                                    await _setViewMode(true);
-                                    break;
-                                  case 'nearby_everyone':
-                                    ref
-                                        .read(nearbyFriendsProvider.notifier)
-                                        .setVisibilityMode('everyone');
-                                    break;
-                                  case 'nearby_contacts':
-                                    ref
-                                        .read(nearbyFriendsProvider.notifier)
-                                        .setVisibilityMode('contacts_only');
-                                    break;
-                                  case 'nearby_refresh':
-                                    ref
-                                        .read(nearbyFriendsProvider.notifier)
-                                        .refreshNearby(force: true);
-                                    break;
-                                }
-                              },
-                              itemBuilder: (ctx) {
-                                if (_selectedMainTabIndex == 0) {
-                                  return [
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'sort_az',
-                                      icon: SolarIconsOutline.sortByAlphabet,
-                                      label: 'A - Z (Nama)',
-                                      isSelected: _selectedSortIndex == 0,
-                                    ),
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'sort_recent',
-                                      icon: SolarIconsOutline.sortByTime,
-                                      label: 'Baru Ditambahkan',
-                                      isSelected: _selectedSortIndex == 1,
-                                    ),
-                                    const PopupMenuDivider(height: 1),
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'view_list',
-                                      icon: SolarIconsOutline.list,
-                                      label: 'Tampilan Daftar (List)',
-                                      isSelected: !_isGridView,
-                                    ),
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'view_grid',
-                                      icon: SolarIconsOutline.menuDotsSquare,
-                                      label: 'Tampilan Kotak (Grid)',
-                                      isSelected: _isGridView,
-                                    ),
-                                  ];
-                                } else {
-                                  return [
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'nearby_everyone',
-                                      icon: SolarIconsOutline.usersGroupRounded,
-                                      label: 'Semua Orang di Sekitar',
-                                      isSelected:
-                                          nearbyState.visibilityMode ==
-                                          'everyone',
-                                    ),
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'nearby_contacts',
-                                      icon: SolarIconsOutline.userCheck,
-                                      label: 'Hanya Kontak Saya',
-                                      isSelected:
-                                          nearbyState.visibilityMode !=
-                                          'everyone',
-                                    ),
-                                    const PopupMenuDivider(height: 1),
-                                    _buildFilterMenuItem(
-                                      context: ctx,
-                                      value: 'nearby_refresh',
-                                      icon: SolarIconsOutline.restart,
-                                      label: 'Segarkan Radar Sekitar',
-                                      isSelected: false,
-                                      enabled: !nearbyState.isLoading,
-                                      trailing: nearbyState.isLoading
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color:
-                                                    MekaarColors.guardianTeal,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                  ];
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.qrCode,
-                                color: MekaarColors.primaryOf(context),
-                              ),
-                              tooltip: 'Kode QR & Pindai',
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, AppRoutes.myQr),
-                            ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 6),
-                // Tab Atas Utama: ['Semua Kontak', 'Teman Sekitar']
-                MekaarSlidingSegmentBar(
-                  tabs: _mainTabs,
-                  selectedIndex: _selectedMainTabIndex,
-                  onTabSelected: (index) {
-                    HapticService.trigger(MekaarHapticIntent.selection);
-                    setState(() => _selectedMainTabIndex = index);
-                  },
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: MekaarElasticPullScope(
-                    isSearchActive: _isSearchActive,
-                    onSearchActiveChanged: (val) {
-                      setState(() {
-                        _isSearchActive = val;
-                        if (!val) {
-                          _searchQuery = '';
-                          _searchController.clear();
-                        }
-                      });
-                    },
-                    searchController: _searchController,
-                    searchFocusNode: _searchFocusNode,
-                    onPullProgressChanged: (p) {
-                      if (_pullProgress != p) {
-                        setState(() => _pullProgress = p);
-                      }
-                    },
-                    onRefreshingChanged: (r) {
-                      if (_isRefreshing != r) {
-                        setState(() => _isRefreshing = r);
-                      }
-                    },
-                    onRefresh: () => ref
+                    }
+                  });
+                },
+                searchController: _searchController,
+                searchFocusNode: _searchFocusNode,
+                onPullProgressChanged: (p) {
+                  if (_pullProgress != p) {
+                    setState(() => _pullProgress = p);
+                  }
+                },
+                onRefreshingChanged: (r) {
+                  if (mounted && _isRefreshing != r) {
+                    setState(() => _isRefreshing = r);
+                  }
+                },
+                onRefresh: () async {
+                  try {
+                    await ref
                         .read(userContactsProvider.notifier)
-                        .refreshContacts(forceLoading: true),
-                    child: _selectedMainTabIndex == 0
-                        ? (filteredContacts.isEmpty
-                            ? _buildEmptyState()
-                            : _buildContactsCard(
-                                filteredContacts,
-                                hiddenContactUserIds,
-                                hiddenRoomIds,
-                                isVaultUnlocked,
-                              ))
-                        : SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(
-                              parent: AlwaysScrollableScrollPhysics(),
-                            ),
-                            padding: const EdgeInsets.only(bottom: 110),
-                            child: NearbyFriendsCanvas(
-                              collapseProgress: 0.0,
-                              showInternalHeader: false,
-                              onSettingsOpened: () {
-                                _awaitingLocationPermissionForNearby = true;
-                              },
+                        .refreshContacts(forceLoading: false);
+                  } finally {
+                    if (mounted && _isRefreshing) {
+                      setState(() => _isRefreshing = false);
+                    }
+                  }
+                },
+                child: _selectedMainTabIndex == 0
+                    ? contactsAsync.when(
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 60),
+                            child: MekaarStateView(
+                              pose: MikaPose.neutral,
+                              title: 'Memuat Kontak',
+                              message: 'Sedang mengambil daftar kontak Anda...',
                             ),
                           ),
-                  ),
-                ),
-              ],
+                        ),
+                        error: (err, stack) => Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 60),
+                            child: MekaarStateView(
+                              illustration: ErrorResolver.resolveIllustration(err),
+                              stateIcon: ErrorResolver.resolveIllustration(err) == null
+                                  ? ErrorResolver.resolveIcon(err)
+                                  : null,
+                              stateIconColor: ErrorResolver.resolveIconColor(err, context),
+                              title: 'Gagal Memuat Kontak',
+                              message: ErrorResolver.resolve(err),
+                              actionLabel: 'Coba Lagi',
+                              onAction: () => ref
+                                  .read(userContactsProvider.notifier)
+                                  .refreshContacts(forceLoading: false),
+                            ),
+                          ),
+                        ),
+                        data: (items) {
+                          final allContacts = isDuress ? <ContactItem>[] : items;
+
+                          // Filter berdasarkan vault cloaking terisolasi & pencarian
+                          final filteredContacts = allContacts.where((contact) {
+                            // Cloaking Private Vault: sembunyikan kontak jika slot vault kontak terkait belum dibuka
+                            if (contact.isVaulted) {
+                              final isSlotOpen = unlockedSlots.contains(contact.vaultSlot);
+                              if (!isSlotOpen) return false;
+                            } else if (hiddenContactUserIds.contains(contact.contactUserId)) {
+                              if (!isVaultUnlocked) return false;
+                            }
+
+                            final name = contact.effectiveName.toLowerCase();
+                            final username = contact.username.toLowerCase();
+                            final email = (contact.email ?? '').toLowerCase();
+                            final q = _searchQuery.toLowerCase();
+                            return name.contains(q) || username.contains(q) || email.contains(q);
+                          }).toList();
+
+                          // Urutkan berdasarkan tab pill filter aktif
+                          if (_selectedSortIndex == 0) {
+                            // A-Z: Urutkan secara alfabetis berdasarkan nama
+                            filteredContacts.sort(
+                              (a, b) => a.effectiveName.toLowerCase().compareTo(
+                                b.effectiveName.toLowerCase(),
+                              ),
+                            );
+                          } else {
+                            // Baru Ditambahkan: Urutkan berdasarkan waktu penambahan kontak
+                            filteredContacts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                          }
+
+                          return filteredContacts.isEmpty
+                              ? _buildEmptyState()
+                              : _buildContactsCard(
+                                  filteredContacts,
+                                  hiddenContactUserIds,
+                                  hiddenRoomIds,
+                                  isVaultUnlocked,
+                                );
+                        },
+                      )
+                    : SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        padding: const EdgeInsets.only(bottom: 110),
+                        child: NearbyFriendsCanvas(
+                          collapseProgress: 0.0,
+                          showInternalHeader: false,
+                          onSettingsOpened: () {
+                            _awaitingLocationPermissionForNearby = true;
+                          },
+                        ),
+                      ),
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 

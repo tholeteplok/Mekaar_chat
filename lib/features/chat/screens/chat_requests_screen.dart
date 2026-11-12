@@ -13,6 +13,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/chat_request_model.dart';
 import '../../../data/repositories/chat_request_repository.dart';
+import '../../../data/repositories/contact_repository.dart';
 
 final incomingRequestsProvider = FutureProvider<List<ChatRequest>>((ref) async {
   final repo = ref.watch(chatRequestRepositoryProvider);
@@ -247,6 +248,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
     try {
       await ref.read(chatRequestRepositoryProvider).acceptRequest(widget.request.id);
       ref.invalidate(incomingRequestsProvider);
+      ref.read(userContactsProvider.notifier).refreshContacts(forceLoading: false);
       if (!mounted) return;
       MekaarSnackbar.success(context, 'Undangan chat disetujui!');
     } catch (e) {

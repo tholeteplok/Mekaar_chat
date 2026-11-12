@@ -127,6 +127,9 @@ class FakeContactsNotifier extends StateNotifier<AsyncValue<List<ContactItem>>>
   Future<void> updateVaultStatus(String contactUserId, bool isVaulted, {int vaultSlot = 1}) async {}
 
   @override
+  Future<void> addContact(String contactUserId, {String? aliasName}) async {}
+
+  @override
   Future<void> deleteContact(String contactUserId) async {}
 }
 
