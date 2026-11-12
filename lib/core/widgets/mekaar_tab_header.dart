@@ -83,11 +83,15 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
     super.dispose();
   }
 
-  Widget _buildSearchMode() {
+  Widget _buildSearchMode([double progress = 1.0]) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final searchBg = isDark
         ? MekaarColors.surface2Of(context).withValues(alpha: 0.75)
         : MekaarColors.surface2Of(context);
+
+    // Incoming trajectory offset untuk prefix icon kaca pembesar
+    final iconOffsetX = 12.0 * (1.0 - progress);
+    final iconOffsetY = -8.0 * (1.0 - progress);
 
     return Container(
       key: const ValueKey('search_mode_header'),
@@ -102,10 +106,13 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
       ),
       child: Row(
         children: [
-          Icon(
-            SolarIconsOutline.magnifier,
-            color: MekaarColors.textSecondaryOf(context),
-            size: 20,
+          Transform.translate(
+            offset: Offset(iconOffsetX, iconOffsetY),
+            child: Icon(
+              SolarIconsOutline.magnifier,
+              color: MekaarColors.textSecondaryOf(context),
+              size: 20,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -250,7 +257,36 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
                 firstChild: const SizedBox(width: double.infinity, height: 0),
                 secondChild: Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: _buildSearchMode(),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(
+                      end: widget.isSearchActive
+                          ? 1.0
+                          : widget.pullProgress.clamp(0.0, 1.0),
+                    ),
+                    duration: widget.isSearchActive
+                        ? context.motion(MekaarMotion.normal)
+                        : (widget.pullProgress > 0
+                            ? Duration.zero
+                            : context.motion(MekaarMotion.fast)),
+                    curve: MekaarMotion.standard,
+                    builder: (context, p, _) {
+                      final translateY = -12.0 * (1.0 - p);
+                      final scale = 0.94 + (0.06 * p);
+                      final opacity = (p * 1.5 - 0.05).clamp(0.0, 1.0);
+
+                      return Opacity(
+                        opacity: opacity,
+                        child: Transform.translate(
+                          offset: Offset(0, translateY),
+                          child: Transform.scale(
+                            scale: scale,
+                            alignment: Alignment.topCenter,
+                            child: _buildSearchMode(p),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 crossFadeState: showSearchBar
                     ? CrossFadeState.showSecond
