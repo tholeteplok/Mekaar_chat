@@ -289,6 +289,22 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            AnimatedOpacity(
+                              opacity: _isSearchActive ? 0.0 : 1.0,
+                              duration: context.motion(MekaarMotion.fast),
+                              child: IgnorePointer(
+                                ignoring: _isSearchActive,
+                                child: IconButton(
+                                  icon: Icon(
+                                    SolarIconsOutline.magnifier,
+                                    color: MekaarColors.primaryOf(context),
+                                  ),
+                                  tooltip: 'Cari Kontak',
+                                  onPressed: () =>
+                                      setState(() => _isSearchActive = true),
+                                ),
+                              ),
+                            ),
                             PopupMenuButton<String>(
                               icon: Icon(
                                 _selectedMainTabIndex == 0
@@ -427,22 +443,6 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                               tooltip: 'Kode QR & Pindai',
                               onPressed: () =>
                                   Navigator.pushNamed(context, AppRoutes.myQr),
-                            ),
-                            AnimatedOpacity(
-                              opacity: _isSearchActive ? 0.0 : 1.0,
-                              duration: context.motion(MekaarMotion.fast),
-                              child: IgnorePointer(
-                                ignoring: _isSearchActive,
-                                child: IconButton(
-                                  icon: Icon(
-                                    SolarIconsOutline.magnifier,
-                                    color: MekaarColors.primaryOf(context),
-                                  ),
-                                  tooltip: 'Cari Kontak',
-                                  onPressed: () =>
-                                      setState(() => _isSearchActive = true),
-                                ),
-                              ),
                             ),
                           ],
                         ),
