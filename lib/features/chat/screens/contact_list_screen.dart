@@ -12,7 +12,9 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/constants/motion.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_elastic_pull_scope.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -45,6 +47,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   Timer? _searchDebounceTimer;
   String _searchQuery = '';
   bool _isSearchActive = false;
+  double _pullProgress = 0.0;
+  bool _isRefreshing = false;
   double _collapseProgress = 0.0;
   int _selectedMainTabIndex = 0;
   final List<String> _mainTabs = const ['Semua Kontak', 'Teman Sekitar'];
@@ -245,6 +249,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                   key: const ValueKey('contact_list_tab_header'),
                   title: 'Kontak',
                   isSearchActive: _isSearchActive,
+                  isSubHeaderSearch: true,
+                  pullProgress: _pullProgress,
+                  isRefreshing: _isRefreshing,
                   searchController: _searchController,
                   searchFocusNode: _searchFocusNode,
                   searchHint: 'Cari nama, username, atau email...',
@@ -421,14 +428,21 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                               onPressed: () =>
                                   Navigator.pushNamed(context, AppRoutes.myQr),
                             ),
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.magnifier,
-                                color: MekaarColors.primaryOf(context),
+                            AnimatedOpacity(
+                              opacity: _isSearchActive ? 0.0 : 1.0,
+                              duration: context.motion(MekaarMotion.fast),
+                              child: IgnorePointer(
+                                ignoring: _isSearchActive,
+                                child: IconButton(
+                                  icon: Icon(
+                                    SolarIconsOutline.magnifier,
+                                    color: MekaarColors.primaryOf(context),
+                                  ),
+                                  tooltip: 'Cari Kontak',
+                                  onPressed: () =>
+                                      setState(() => _isSearchActive = true),
+                                ),
                               ),
-                              tooltip: 'Cari Kontak',
-                              onPressed: () =>
-                                  setState(() => _isSearchActive = true),
                             ),
                           ],
                         ),
@@ -445,26 +459,55 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 ),
                 const SizedBox(height: 10),
                 Expanded(
-                  child: _selectedMainTabIndex == 0
-                      ? (filteredContacts.isEmpty
-                          ? _buildEmptyState()
-                          : _buildContactsCard(
-                              filteredContacts,
-                              hiddenContactUserIds,
-                              hiddenRoomIds,
-                              isVaultUnlocked,
-                            ))
-                      : SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.only(bottom: 110),
-                          child: NearbyFriendsCanvas(
-                            collapseProgress: 0.0,
-                            showInternalHeader: false,
-                            onSettingsOpened: () {
-                              _awaitingLocationPermissionForNearby = true;
-                            },
+                  child: MekaarElasticPullScope(
+                    isSearchActive: _isSearchActive,
+                    onSearchActiveChanged: (val) {
+                      setState(() {
+                        _isSearchActive = val;
+                        if (!val) {
+                          _searchQuery = '';
+                          _searchController.clear();
+                        }
+                      });
+                    },
+                    searchController: _searchController,
+                    searchFocusNode: _searchFocusNode,
+                    onPullProgressChanged: (p) {
+                      if (_pullProgress != p) {
+                        setState(() => _pullProgress = p);
+                      }
+                    },
+                    onRefreshingChanged: (r) {
+                      if (_isRefreshing != r) {
+                        setState(() => _isRefreshing = r);
+                      }
+                    },
+                    onRefresh: () => ref
+                        .read(userContactsProvider.notifier)
+                        .refreshContacts(forceLoading: true),
+                    child: _selectedMainTabIndex == 0
+                        ? (filteredContacts.isEmpty
+                            ? _buildEmptyState()
+                            : _buildContactsCard(
+                                filteredContacts,
+                                hiddenContactUserIds,
+                                hiddenRoomIds,
+                                isVaultUnlocked,
+                              ))
+                        : SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.only(bottom: 110),
+                            child: NearbyFriendsCanvas(
+                              collapseProgress: 0.0,
+                              showInternalHeader: false,
+                              onSettingsOpened: () {
+                                _awaitingLocationPermissionForNearby = true;
+                              },
+                            ),
                           ),
-                        ),
+                  ),
                 ),
               ],
             ),
@@ -629,34 +672,31 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     Set<String> hiddenRoomIds,
     bool isVaultUnlocked,
   ) {
-    return RefreshIndicator(
-      onRefresh: () => ref
-          .read(userContactsProvider.notifier)
-          .refreshContacts(forceLoading: true),
-      child: _isGridView
-          ? ListView(
-              controller: _contactsScrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ).copyWith(bottom: 110),
-              children: [
-                _buildContactsGridContent(
-                  contacts,
-                  hiddenContactUserIds,
-                  hiddenRoomIds,
-                  isVaultUnlocked,
-                ),
-              ],
-            )
-          : _buildContactsListContent(
-              contacts,
-              hiddenContactUserIds,
-              hiddenRoomIds,
-              isVaultUnlocked,
+    return _isGridView
+        ? ListView(
+            controller: _contactsScrollController,
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
             ),
-    );
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ).copyWith(bottom: 110),
+            children: [
+              _buildContactsGridContent(
+                contacts,
+                hiddenContactUserIds,
+                hiddenRoomIds,
+                isVaultUnlocked,
+              ),
+            ],
+          )
+        : _buildContactsListContent(
+            contacts,
+            hiddenContactUserIds,
+            hiddenRoomIds,
+            isVaultUnlocked,
+          );
   }
 
   Widget _buildContactsGridContent(
@@ -770,53 +810,62 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
   Widget _buildEmptyState() {
     final hasFilter = _searchQuery.isNotEmpty;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            MikaIllustration(
-              type: hasFilter
-                  ? MikaIllustrationType.emptySearch
-                  : MikaIllustrationType.emptyContacts,
-              size: 160,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              hasFilter ? 'Kontak Tidak Ditemukan' : 'Kontak Masih Kosong',
-              style: MekaarTypography.headingMD.copyWith(
-                color: MekaarColors.textPrimaryOf(context),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              hasFilter
-                  ? 'Tidak ada kontak yang cocok dengan kata kunci pencarian.'
-                  : 'Tambahkan teman baru untuk mulai berkirim pesan aman.',
-              style: MekaarTypography.bodyMD.copyWith(
-                color: MekaarColors.textSecondaryOf(context),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (!hasFilter) ...[
-              const SizedBox(height: MekaarSpacing.xl),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pushNamed(context, AppRoutes.contactQrScan);
-                },
-                icon: const Icon(SolarIconsOutline.qrCode, size: 18),
-                label: const Text('Pindai Kode QR'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-            ],
-          ],
-        ),
+    return ListView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
       ),
+      padding: const EdgeInsets.only(bottom: 110),
+      children: [
+        const SizedBox(height: 60),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                MikaIllustration(
+                  type: hasFilter
+                      ? MikaIllustrationType.emptySearch
+                      : MikaIllustrationType.emptyContacts,
+                  size: 160,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  hasFilter ? 'Kontak Tidak Ditemukan' : 'Kontak Masih Kosong',
+                  style: MekaarTypography.headingMD.copyWith(
+                    color: MekaarColors.textPrimaryOf(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  hasFilter
+                      ? 'Tidak ada kontak yang cocok dengan kata kunci pencarian.'
+                      : 'Tambahkan teman baru untuk mulai berkirim pesan aman.',
+                  style: MekaarTypography.bodyMD.copyWith(
+                    color: MekaarColors.textSecondaryOf(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (!hasFilter) ...[
+                  const SizedBox(height: MekaarSpacing.xl),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.contactQrScan);
+                    },
+                    icon: const Icon(SolarIconsOutline.qrCode, size: 18),
+                    label: const Text('Pindai Kode QR'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -831,7 +880,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
 
     return ListView.separated(
       controller: _contactsScrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: const EdgeInsets.only(top: 4, bottom: 110),
       itemCount: contacts.length,
       separatorBuilder: (context, index) => Divider(
