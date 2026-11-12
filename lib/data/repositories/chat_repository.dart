@@ -575,6 +575,17 @@ class ChatRepository {
       },
     ]);
 
+    // Daftarkan relasi kontak ke user_contacts jika tipe room normal
+    if (type == 'normal') {
+      try {
+        await _supabaseService.client.from('user_contacts').upsert({
+          'user_id': userId,
+          'contact_user_id': otherUserId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) {}
+    }
+
     return roomId;
   }
 

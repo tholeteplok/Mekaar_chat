@@ -13,6 +13,7 @@ import '../providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/repositories/chat_request_repository.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/private_vault_dialogs.dart';
 
@@ -116,7 +117,10 @@ class _ContactQrScanScreenState extends ConsumerState<ContactQrScanScreen> {
         }
       }
 
-      // 5. Buat atau dapatkan room chat personal
+      // 5. Daftarkan kontak secara eksplisit & sinkronkan state kontak instan
+      await ref.read(userContactsProvider.notifier).addContact(userId);
+
+      // 6. Buat atau dapatkan room chat personal
       final roomId = await ref
           .read(chatRoomsProvider.notifier)
           .getOrCreateRoom(

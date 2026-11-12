@@ -157,10 +157,38 @@ class ChatRequestRepository {
   /// Setujui Permintaan Chat
   Future<void> acceptRequest(String requestId) async {
     try {
-      await _client.from('chat_requests').update({
-        'status': 'accepted',
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', requestId);
+      final response = await _client
+          .from('chat_requests')
+          .update({
+            'status': 'accepted',
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', requestId)
+          .select('sender_id, receiver_id')
+          .maybeSingle();
+
+      if (response != null) {
+        final senderId = response['sender_id'] as String?;
+        final receiverId = response['receiver_id'] as String?;
+        if (senderId != null && receiverId != null) {
+          final now = DateTime.now().toUtc().toIso8601String();
+          // Daftarkan relasi kontak secara bilateral ke user_contacts
+          try {
+            await _client.from('user_contacts').upsert([
+              {
+                'user_id': receiverId,
+                'contact_user_id': senderId,
+                'updated_at': now,
+              },
+              {
+                'user_id': senderId,
+                'contact_user_id': receiverId,
+                'updated_at': now,
+              },
+            ]);
+          } catch (_) {}
+        }
+      }
     } catch (e) {
       _log.e('ChatRequestRepository: acceptRequest failed: $e');
       rethrow;

@@ -239,6 +239,14 @@ class ContactsNotifier extends StateNotifier<AsyncValue<List<ContactItem>>> {
     }
   }
 
+  /// Menambahkan pengguna lain ke buku kontak dan menyegarkan state secara instan
+  Future<void> addContact(String contactUserId, {String? aliasName}) async {
+    try {
+      await _repo.addContact(contactUserId, aliasName: aliasName);
+    } catch (_) {}
+    await refreshContacts(forceLoading: false);
+  }
+
   /// Memperbarui status vault kontak secara optimistik di state lokal dan cloud
   Future<void> updateVaultStatus(
     String contactUserId,
