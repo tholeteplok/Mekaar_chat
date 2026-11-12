@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mekaar_chat/core/constants/colors.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_canvas.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
@@ -44,6 +45,10 @@ class MockAuthRepository extends Fake implements AuthRepository {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
   group('Decoy Room Data Schema & Compatibility Tests', () {
     test('LocalMessageDatabase.getDecoyRooms() mengembalikan struktur camelCase dan snake_case lengkap', () async {
       final rooms = await LocalMessageDatabase.instance.getDecoyRooms();
@@ -86,6 +91,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       // Pastikan nama dan cuplikan pesan terender
       expect(find.text('Mekaar Official'), findsOneWidget);
@@ -121,6 +127,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('Kontak Tes'), findsOneWidget);
       expect(find.text('Pesan objek Message sukses ditangani'), findsOneWidget);
@@ -147,6 +154,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('Kontak Snake Case'), findsOneWidget);
       expect(find.text('Pesan dari field last_message'), findsOneWidget);
@@ -177,6 +185,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('Konten Normal'), findsOneWidget);
 
@@ -211,6 +220,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       // Banner tidak boleh muncul saat mode Decoy (PIN Tamu) aktif
       expect(find.text('Mode Darurat SOS Aktif'), findsNothing);

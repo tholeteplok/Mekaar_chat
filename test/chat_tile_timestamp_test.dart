@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mekaar_chat/data/repositories/chat_repository.dart';
 import 'package:mekaar_chat/features/chat/providers/chat_provider.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_list_tile.dart';
@@ -20,6 +21,12 @@ class _FakeChatRepository implements ChatRepository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
   group('ChatListTile Timestamp Type Tolerance', () {
     testWidgets('Renders properly when timestamp is a DateTime', (tester) async {
       final now = DateTime(2026, 10, 22, 14, 30);
@@ -52,6 +59,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('Budi Santoso'), findsOneWidget);
       expect(find.text('Halo apa kabar?'), findsOneWidget);
@@ -91,6 +99,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       // Verifikasi tidak terjadi crash ErrorWidget (kartu abu-abu)
       expect(find.text('Siti Rahma'), findsOneWidget);
@@ -129,6 +138,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('Kontak Baru'), findsOneWidget);
       expect(find.byType(ChatListTile), findsOneWidget);
