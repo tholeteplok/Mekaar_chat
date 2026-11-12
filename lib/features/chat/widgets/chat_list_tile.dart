@@ -12,6 +12,7 @@ import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/bubbles/read_receipt_icon.dart';
 import '../../../data/models/message_model.dart';
+import '../../../data/services/supabase_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../settings/providers/privacy_provider.dart';
 import '../providers/chat_draft_provider.dart';
@@ -224,7 +225,9 @@ class ChatListTile extends StatelessWidget {
 
                               final currentUserId =
                                   ref.watch(authProvider).user?.id ??
-                                  Supabase.instance.client.auth.currentUser?.id;
+                                  (SupabaseService.isInitialized
+                                      ? Supabase.instance.client.auth.currentUser?.id
+                                      : null);
                               final lastMsgSenderId =
                                   room['lastMessageSenderId'] as String? ??
                                   (rawLast is Message ? rawLast.senderId : null);
