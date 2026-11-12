@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -1974,7 +1975,9 @@ class ChatRepository {
     try {
       final roomResp = await _supabaseService.client
           .from('chat_rooms')
-          .select('id, name, avatar_url, description, created_by, created_at')
+          .select(
+            'id, name, avatar_url, description, created_by, created_at, is_announcement_only, members_can_edit_info, members_can_invite',
+          )
           .eq('id', roomId)
           .maybeSingle();
 
@@ -2016,24 +2019,124 @@ class ChatRepository {
     await _supabaseService.client.from('room_participants').upsert(toInsert);
   }
 
-  /// Mengeluarkan anggota dari grup (Owner/Admin).
+  /// Mengeluarkan anggota dari grup via RPC (Owner/Admin).
   Future<void> removeGroupParticipant(String roomId, String profileId) async {
-    await _supabaseService.client
-        .from('room_participants')
-        .delete()
-        .eq('room_id', roomId)
-        .eq('profile_id', profileId);
+    await _supabaseService.client.rpc(
+      'remove_group_member',
+      params: {
+        'p_room_id': roomId,
+        'p_target_profile_id': profileId,
+      },
+    );
   }
 
-  /// Keluar dari grup.
+  /// Keluar dari grup via RPC (dengan proteksi transfer kepemilikan jika Owner).
   Future<void> leaveGroup(String roomId) async {
-    final userId = _supabaseService.currentUserId;
-    if (userId == null) return;
+    await _supabaseService.client.rpc(
+      'leave_group',
+      params: {
+        'p_room_id': roomId,
+      },
+    );
+  }
 
-    await _supabaseService.client
-        .from('room_participants')
-        .delete()
-        .eq('room_id', roomId)
-        .eq('profile_id', userId);
+  /// Mengangkat anggota menjadi Admin grup (Khusus Owner).
+  Future<void> promoteGroupAdmin(String roomId, String targetProfileId) async {
+    await _supabaseService.client.rpc(
+      'promote_group_admin',
+      params: {
+        'p_room_id': roomId,
+        'p_target_profile_id': targetProfileId,
+      },
+    );
+  }
+
+  /// Mencabut hak Admin anggota menjadi Member biasa (Khusus Owner).
+  Future<void> demoteGroupAdmin(String roomId, String targetProfileId) async {
+    await _supabaseService.client.rpc(
+      'demote_group_admin',
+      params: {
+        'p_room_id': roomId,
+        'p_target_profile_id': targetProfileId,
+      },
+    );
+  }
+
+  /// Mengalihkan kepemilikan grup ke anggota lain (Khusus Owner).
+  Future<void> transferGroupOwnership(String roomId, String newOwnerId) async {
+    await _supabaseService.client.rpc(
+      'transfer_group_ownership',
+      params: {
+        'p_room_id': roomId,
+        'p_new_owner_id': newOwnerId,
+      },
+    );
+  }
+
+  /// Memperbarui metadata grup (Nama, Deskripsi, Foto).
+  Future<void> updateGroupInfo({
+    required String roomId,
+    String? name,
+    String? description,
+    String? avatarUrl,
+  }) async {
+    await _supabaseService.client.rpc(
+      'update_group_info',
+      params: {
+        'p_room_id': roomId,
+        'p_name': name,
+        'p_description': description,
+        'p_avatar_url': avatarUrl,
+      },
+    );
+  }
+
+  /// Memperbarui izin grup (Mode Siaran, Edit Info, Undang Anggota).
+  Future<void> updateGroupPermissions({
+    required String roomId,
+    required bool isAnnouncementOnly,
+    required bool membersCanEditInfo,
+    required bool membersCanInvite,
+  }) async {
+    await _supabaseService.client.rpc(
+      'update_group_permissions',
+      params: {
+        'p_room_id': roomId,
+        'p_is_announcement_only': isAnnouncementOnly,
+        'p_members_can_edit_info': membersCanEditInfo,
+        'p_members_can_invite': membersCanInvite,
+      },
+    );
+  }
+
+  /// Membubarkan grup secara permanen (Khusus Owner).
+  Future<void> disbandGroup(String roomId) async {
+    await _supabaseService.client.rpc(
+      'disband_group',
+      params: {
+        'p_room_id': roomId,
+      },
+    );
+  }
+
+  /// Mengunggah foto avatar grup ke storage bucket 'avatars'.
+  Future<String?> uploadGroupAvatar(File imageFile, String roomId) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final ext = imageFile.path.split('.').last.toLowerCase();
+      final filename =
+          'group_${roomId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final path = 'groups/$filename';
+
+      await _supabaseService.client.storage.from('avatars').uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      return _supabaseService.client.storage.from('avatars').getPublicUrl(path);
+    } catch (_) {
+      return null;
+    }
   }
 }

@@ -228,6 +228,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   bool _hasJumpedToUnread = false;
   final Map<String, Timer> _pendingHideTimers = {};
   Map<String, String> _participantNames = {};
+  bool _isGroupAnnouncementOnly = false;
+  bool _canSendInGroupAnnouncement = true;
 
   String? _resolvedChatName;
   String? _resolvedAvatarInitial;
@@ -358,10 +360,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       final repo = ref.read(chatRepositoryProvider);
       final details = await repo.getGroupDetails(widget.chatId);
       if (details != null && mounted) {
+        final room = details['room'] as Map<String, dynamic>?;
+        final isAnnouncement =
+            room?['is_announcement_only'] as bool? ?? false;
         final participants = (details['participants'] as List?) ?? [];
         final names = <String, String>{};
+        final currentUserId = ref.read(authProvider).user?.id ??
+            Supabase.instance.client.auth.currentUser?.id;
+        String myRole = 'member';
         for (final p in participants) {
           final pid = p['profile_id'] as String?;
+          final role = p['role'] as String? ?? 'member';
+          if (pid == currentUserId) {
+            myRole = role;
+          }
           final profile = p['public_profiles'] as Map<String, dynamic>?;
           if (pid != null && profile != null) {
             final name =
@@ -373,7 +385,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             names[pid] = name;
           }
         }
-        setState(() => _participantNames = names);
+        final canSend = (myRole == 'owner' || myRole == 'admin') || !isAnnouncement;
+        setState(() {
+          _participantNames = names;
+          _isGroupAnnouncementOnly = isAnnouncement;
+          _canSendInGroupAnnouncement = canSend;
+        });
       }
     } catch (_) {}
   }
@@ -1544,6 +1561,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               child: ChatBottomArea(
                 chatId: widget.chatId,
                 isGroup: widget.isGroup,
+                isAnnouncementOnly: _isGroupAnnouncementOnly,
+                canSendInAnnouncement: _canSendInGroupAnnouncement,
                 composerKey: _composerKey,
                 textController: _textController,
                 composerFocusNode: _composerFocusNode,
@@ -1759,14 +1778,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     },
                     // Aksi Menu & Kontak
                     onAvatarTap: widget.isGroup
-                        ? () => _pushNamedWithoutActiveRoom(
-                            AppRoutes.groupDetails,
-                            arguments: {
-                              'roomId': widget.chatId,
-                              'groupName': _effectiveChatName,
-                              'groupAvatarUrl': _effectiveAvatarUrl,
-                            },
-                          )
+                        ? () async {
+                            final res = await _pushNamedWithoutActiveRoom(
+                              AppRoutes.groupDetails,
+                              arguments: {
+                                'roomId': widget.chatId,
+                                'groupName': _effectiveChatName,
+                                'groupAvatarUrl': _effectiveAvatarUrl,
+                              },
+                            );
+                            if (mounted) {
+                              _loadGroupParticipants();
+                              _loadRoomSettings();
+                              if (res == 'search') {
+                                setState(() => _isSearching = true);
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  if (mounted &&
+                                      _inChatSearchFocusNode.canRequestFocus) {
+                                    _inChatSearchFocusNode.requestFocus();
+                                  }
+                                });
+                              }
+                            }
+                          }
                         : (_effectiveOtherUserId != null &&
                                   !LocalMessageDatabase.instance.isDecoy &&
                                   widget.chatId != 'room_welcome_mekaar'
