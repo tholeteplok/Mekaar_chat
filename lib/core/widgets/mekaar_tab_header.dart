@@ -22,6 +22,9 @@ class MekaarTabHeader extends StatefulWidget {
     this.onSearchChanged,
     this.onSearchClosed,
     this.searchHint = 'Cari chat atau teman...',
+    this.isSubHeaderSearch = false,
+    this.pullProgress = 0.0,
+    this.isRefreshing = false,
   });
 
   final String title;
@@ -33,6 +36,16 @@ class MekaarTabHeader extends StatefulWidget {
   final ValueChanged<String>? onSearchChanged;
   final VoidCallback? onSearchClosed;
   final String? searchHint;
+
+  /// Jika true, Search Bar ditampilkan sebagai sub-row yang memanjang di bawah header
+  /// (ala Telegram / iOS), bukan menggantikan seluruh baris judul.
+  final bool isSubHeaderSearch;
+
+  /// Nilai progres tarikan overscroll dari koordinator (0.0 sampai 1.0)
+  final double pullProgress;
+
+  /// Menandakan apakah proses sinkronisasi / refresh sedang berjalan
+  final bool isRefreshing;
 
   @override
   State<MekaarTabHeader> createState() => _MekaarTabHeaderState();
@@ -208,6 +221,50 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isSubHeaderSearch) {
+      final showSearchBar = widget.isSearchActive || widget.pullProgress > 0.05;
+
+      return Semantics(
+        header: true,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildNormalMode(),
+              if (widget.isRefreshing) ...[
+                const SizedBox(height: 6),
+                Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: MekaarColors.primaryOf(context),
+                    ),
+                  ),
+                ),
+              ],
+              AnimatedCrossFade(
+                firstChild: const SizedBox(width: double.infinity, height: 0),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _buildSearchMode(),
+                ),
+                crossFadeState: showSearchBar
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: context.motion(MekaarMotion.normal),
+                firstCurve: Curves.easeInCubic,
+                secondCurve: MekaarMotion.standard,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Semantics(
       header: true,
       child: Padding(

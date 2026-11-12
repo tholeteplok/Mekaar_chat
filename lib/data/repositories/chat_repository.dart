@@ -36,6 +36,9 @@ class ChatRepository {
 
   ChatRepository(this._supabaseService);
 
+  /// ID pengguna saat ini dari Supabase Auth
+  String? get currentUserId => _supabaseService.currentUserId;
+
   /// Eviksi lokal seketika (0ms optimistic deletion) dari memori RAM, database lokal, dan UI stream.
   void evictMessageLocally(String roomId, String messageId) {
     _decryptedContentCache.remove(messageId);
@@ -131,6 +134,9 @@ class ChatRepository {
         )?.toLocal();
       }
 
+      String? lastMsgSenderId;
+      bool lastMsgIsSending = false;
+
       if (lastMsgRaw != null) {
         final msgId = (lastMsgRaw['id'] ?? lastMsgRaw['message_id']) as String?;
         if (msgId != null && !hiddenMsgIds.contains(msgId)) {
@@ -168,6 +174,11 @@ class ChatRepository {
                       lastMsgRaw['is_encrypted'] == 1),
                 );
 
+          lastMsgSenderId = contentSource.senderId.isNotEmpty
+              ? contentSource.senderId
+              : ((lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id']) as String?);
+          lastMsgIsSending = localMsg?.isSending ?? false;
+
           if (contentSource.isEncrypted &&
               contentSource.content.isNotEmpty &&
               contentSource != localMsg) {
@@ -181,6 +192,11 @@ class ChatRepository {
           }
         }
       }
+
+      final otherLastReadRaw = item['otherLastReadAt'] ?? item['other_last_read_at'];
+      final DateTime? otherLastReadAt = otherLastReadRaw != null
+          ? DateTime.tryParse(otherLastReadRaw.toString())?.toLocal()
+          : null;
 
       roomsList.add({
         'id': roomId,
@@ -198,6 +214,9 @@ class ChatRepository {
         'otherEmail': '',
         'isMuted': item['isMuted'] as bool? ?? false,
         'isArchived': item['isArchived'] as bool? ?? false,
+        'lastMessageSenderId': lastMsgSenderId,
+        'lastMessageIsSending': lastMsgIsSending,
+        'otherLastReadAt': otherLastReadAt,
       });
     }
 
@@ -238,6 +257,7 @@ class ChatRepository {
       bool isGuardian = (roomType == 'guardian');
       Map<String, dynamic>? profile;
       int memberCount = 0;
+      DateTime? otherLastReadAt;
 
       if (isGroup) {
         chatName = (roomData['name'] as String?)?.isNotEmpty == true
@@ -255,16 +275,21 @@ class ChatRepository {
           memberCount = (membersResp as List).length;
         } catch (_) {}
       } else {
-        // Get other participant profile_id
+        // Get other participant profile_id & last_read_at
         final otherParticipant = await _supabaseService.client
             .from('room_participants')
-            .select('profile_id')
+            .select('profile_id, last_read_at')
             .eq('room_id', roomId)
             .neq('profile_id', userId)
             .maybeSingle();
 
         if (otherParticipant != null) {
           otherUserId = otherParticipant['profile_id'] as String;
+          if (otherParticipant['last_read_at'] != null) {
+            otherLastReadAt = DateTime.tryParse(
+              otherParticipant['last_read_at'].toString(),
+            )?.toLocal();
+          }
           try {
             final profileResponse = await _supabaseService.client
                 .from('public_profiles')
@@ -435,6 +460,10 @@ class ChatRepository {
         'isMuted': row['is_muted'] as bool? ?? false,
         'isArchived': row['is_archived'] as bool? ?? false,
         'lastReadAt': myLastReadTime,
+        'otherLastReadAt': otherLastReadAt,
+        'lastMessageSenderId': localLastMsg?.senderId ??
+            (activeRemoteMsgJson?['sender_id'] as String?),
+        'lastMessageIsSending': localLastMsg?.isSending ?? false,
       };
     });
 

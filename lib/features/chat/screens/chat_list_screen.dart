@@ -18,6 +18,8 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
+import '../../../core/constants/motion.dart';
+import '../../../core/widgets/mekaar_elastic_pull_scope.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
@@ -57,6 +59,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with AutomaticKeepAliveClientMixin {
   String _searchQuery = '';
   bool _isSearchActive = false;
+  double _pullProgress = 0.0;
+  bool _isRefreshing = false;
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
   Timer? _searchDebounceTimer;
@@ -540,6 +544,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   key: const ValueKey('chat_list_tab_header'),
                   title: 'Mekaar',
                   isSearchActive: _isSearchActive,
+                  isSubHeaderSearch: true,
+                  pullProgress: _pullProgress,
+                  isRefreshing: _isRefreshing,
                   searchController: _searchController,
                   searchFocusNode: _searchFocusNode,
                   onSearchChanged: (value) {
@@ -576,15 +583,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.magnifier,
-                                color: MekaarColors.primaryOf(context),
+                            AnimatedOpacity(
+                              opacity: _isSearchActive ? 0.0 : 1.0,
+                              duration: context.motion(MekaarMotion.fast),
+                              child: IgnorePointer(
+                                ignoring: _isSearchActive,
+                                child: IconButton(
+                                  icon: Icon(
+                                    SolarIconsOutline.magnifier,
+                                    color: MekaarColors.primaryOf(context),
+                                  ),
+                                  tooltip: 'Cari Obrolan',
+                                  onPressed: () {
+                                    setState(() => _isSearchActive = true);
+                                  },
+                                ),
                               ),
-                              tooltip: 'Cari Obrolan',
-                              onPressed: () {
-                                setState(() => _isSearchActive = true);
-                              },
                             ),
                             PopupMenuButton<String>(
                               icon: Icon(
@@ -772,7 +786,29 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ),
                 // Chat List Content
                 Expanded(
-                  child: RefreshIndicator(
+                  child: MekaarElasticPullScope(
+                    isSearchActive: _isSearchActive,
+                    onSearchActiveChanged: (val) {
+                      setState(() {
+                        _isSearchActive = val;
+                        if (!val) {
+                          _searchQuery = '';
+                          _searchController.clear();
+                        }
+                      });
+                    },
+                    searchController: _searchController,
+                    searchFocusNode: _searchFocusNode,
+                    onPullProgressChanged: (p) {
+                      if (_pullProgress != p) {
+                        setState(() => _pullProgress = p);
+                      }
+                    },
+                    onRefreshingChanged: (r) {
+                      if (_isRefreshing != r) {
+                        setState(() => _isRefreshing = r);
+                      }
+                    },
                     onRefresh: () =>
                         ref.read(chatRoomsProvider.notifier).refreshRooms(),
                     child: chatRoomsState.when(
@@ -1047,7 +1083,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final hasSearch = _searchQuery.trim().isNotEmpty;
 
     return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: const EdgeInsets.only(top: 4, bottom: 110),
       itemCount: filtered.length + (hasSearch ? 1 : 0),
       itemBuilder: (context, index) {
