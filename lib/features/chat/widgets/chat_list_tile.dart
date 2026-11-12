@@ -3,15 +3,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 import 'package:solar_icons/solar_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/bubbles/read_receipt_icon.dart';
 import '../../../data/models/message_model.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../settings/providers/privacy_provider.dart';
 import '../providers/chat_draft_provider.dart';
+
+/// Menentukan status laporan baca (read receipt) untuk cuplikan pesan di daftar obrolan.
+ReadReceiptStatus? resolveChatListReceiptStatus({
+  required bool isMe,
+  required bool isGroup,
+  required bool isSending,
+  required bool showReadReceipts,
+  required DateTime? messageTime,
+  required DateTime? otherLastReadAt,
+}) {
+  if (!isMe) return null;
+  if (isSending) return ReadReceiptStatus.pending;
+  // Di obrolan grup, pesan kita ditampilkan sebagai terkirim/tersampaikan (delivered)
+  if (isGroup) return ReadReceiptStatus.delivered;
+  // Jika opsi bukti baca dimatikan pengguna atau belum ada data waktu baca lawan bicara
+  if (!showReadReceipts || otherLastReadAt == null || messageTime == null) {
+    return ReadReceiptStatus.delivered;
+  }
+  final msgUtc = messageTime.toUtc();
+  final otherUtc = otherLastReadAt.toUtc();
+  if (msgUtc.isBefore(otherUtc) || msgUtc.isAtSameMomentAs(otherUtc)) {
+    return ReadReceiptStatus.read;
+  }
+  return ReadReceiptStatus.delivered;
+}
 
 class ChatListTile extends StatelessWidget {
   final Map<String, dynamic> room;
@@ -194,17 +222,81 @@ class ChatListTile extends StatelessWidget {
 
                               final isDots = displayLastMsg == '••••••••';
 
+                              final currentUserId =
+                                  ref.watch(authProvider).user?.id ??
+                                  Supabase.instance.client.auth.currentUser?.id;
+                              final lastMsgSenderId =
+                                  room['lastMessageSenderId'] as String? ??
+                                  (rawLast is Message ? rawLast.senderId : null);
+                              final isMe =
+                                  currentUserId != null &&
+                                  lastMsgSenderId != null &&
+                                  lastMsgSenderId == currentUserId;
+                              final isSending =
+                                  room['lastMessageIsSending'] == true ||
+                                  (rawLast is Message && rawLast.isSending);
+
+                              final showReadReceipts = ref.watch(
+                                readReceiptsProvider,
+                              );
+                              final rawOtherLastRead = room['otherLastReadAt'];
+                              final DateTime? otherLastReadAt =
+                                  rawOtherLastRead is DateTime
+                                  ? rawOtherLastRead
+                                  : (rawOtherLastRead is String
+                                      ? DateTime.tryParse(
+                                          rawOtherLastRead,
+                                        )?.toLocal()
+                                      : null);
+
+                              final receiptStatus =
+                                  (!hasDraft && hasMessages && isMe)
+                                  ? resolveChatListReceiptStatus(
+                                      isMe: isMe,
+                                      isGroup: isGroup,
+                                      isSending: isSending,
+                                      showReadReceipts: showReadReceipts,
+                                      messageTime: timestamp,
+                                      otherLastReadAt: otherLastReadAt,
+                                    )
+                                  : null;
+
+                              final previewTextStyle = MekaarTypography.labelLG
+                                  .copyWith(
+                                    fontWeight: unreadCount > 0
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    letterSpacing: isDots ? 2.0 : null,
+                                    color: unreadCount > 0
+                                        ? MekaarColors.textPrimaryOf(context)
+                                        : MekaarColors.textMutedOf(context),
+                                  );
+
+                              if (receiptStatus != null) {
+                                return Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: ReadReceiptIcon(
+                                        status: receiptStatus,
+                                        color: MekaarColors.textMutedOf(context),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        displayLastMsg,
+                                        style: previewTextStyle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
+
                               return Text(
                                 displayLastMsg,
-                                style: MekaarTypography.labelLG.copyWith(
-                                  fontWeight: unreadCount > 0
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  letterSpacing: isDots ? 2.0 : null,
-                                  color: unreadCount > 0
-                                      ? MekaarColors.textPrimaryOf(context)
-                                      : MekaarColors.textMutedOf(context),
-                                ),
+                                style: previewTextStyle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               );

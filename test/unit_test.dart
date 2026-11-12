@@ -21,6 +21,8 @@ import 'package:mekaar_chat/data/models/contact_model.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/core/constants/icons.dart';
 import 'package:mekaar_chat/core/constants/standard_emojis.dart';
+import 'package:mekaar_chat/core/widgets/bubbles/read_receipt_icon.dart';
+import 'package:mekaar_chat/features/chat/widgets/chat_list_tile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -799,6 +801,107 @@ void main() {
 
       final benderaCat = StandardEmojiData.categories.firstWhere((c) => c.key == 'bendera');
       expect(benderaCat.emojis, contains('🇮🇩'));
+    });
+  });
+
+  group('Chat List Read Receipt Resolution Unit Tests', () {
+    final now = DateTime.utc(2026, 11, 12, 10, 0, 0);
+    final past = DateTime.utc(2026, 11, 12, 9, 30, 0);
+    final future = DateTime.utc(2026, 11, 12, 10, 30, 0);
+
+    test('isMe == false returns null so no read receipt icon is displayed', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: false,
+        isGroup: false,
+        isSending: false,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: future,
+      );
+      expect(status, isNull);
+    });
+
+    test('isSending == true returns pending status (timer icon)', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: false,
+        isSending: true,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: future,
+      );
+      expect(status, equals(ReadReceiptStatus.pending));
+    });
+
+    test('isGroup == true && isMe == true returns delivered status (double gray check)', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: true,
+        isSending: false,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: future,
+      );
+      expect(status, equals(ReadReceiptStatus.delivered));
+    });
+
+    test('showReadReceipts == false returns delivered even when read time is newer', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: false,
+        isSending: false,
+        showReadReceipts: false,
+        messageTime: now,
+        otherLastReadAt: future,
+      );
+      expect(status, equals(ReadReceiptStatus.delivered));
+    });
+
+    test('otherLastReadAt == null returns delivered', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: false,
+        isSending: false,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: null,
+      );
+      expect(status, equals(ReadReceiptStatus.delivered));
+    });
+
+    test('messageTime <= otherLastReadAt returns read status (double green check)', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: false,
+        isSending: false,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: future,
+      );
+      expect(status, equals(ReadReceiptStatus.read));
+
+      // Same moment check
+      final statusSameMoment = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: false,
+        isSending: false,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: now,
+      );
+      expect(statusSameMoment, equals(ReadReceiptStatus.read));
+    });
+
+    test('messageTime > otherLastReadAt returns delivered status (not yet read)', () {
+      final status = resolveChatListReceiptStatus(
+        isMe: true,
+        isGroup: false,
+        isSending: false,
+        showReadReceipts: true,
+        messageTime: now,
+        otherLastReadAt: past,
+      );
+      expect(status, equals(ReadReceiptStatus.delivered));
     });
   });
 }

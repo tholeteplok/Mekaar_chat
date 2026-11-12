@@ -150,6 +150,9 @@ class ChatRoomsNotifier
     updatedRoom['lastMessage'] = previewText;
     updatedRoom['timestamp'] = timestamp;
     updatedRoom['unreadCount'] = newUnread;
+    updatedRoom['lastMessageSenderId'] =
+        isFromOtherUser ? 'other' : _chatRepository.currentUserId;
+    updatedRoom['lastMessageIsSending'] = false;
 
     final newList = List<Map<String, dynamic>>.from(currentList);
     newList.removeAt(index);
