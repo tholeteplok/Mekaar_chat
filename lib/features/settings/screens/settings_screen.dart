@@ -6,7 +6,6 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/providers/font_provider.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
@@ -34,11 +33,6 @@ class SettingsScreen extends ConsumerWidget {
   // SECTION 1: Tampilan — selector tema & font
   // ─────────────────────────────────────────────────
   Widget _buildDisplaySection(BuildContext context, WidgetRef ref) {
-    final currentFontKey =
-        ref.watch(fontFamilyProvider).valueOrNull ??
-        AppFontFamily.defaultFontKey;
-    final activeFont = AppFontFamily.findByKey(currentFontKey);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -54,7 +48,6 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavTile(
           icon: SolarIconsOutline.palette,
           title: 'Tema Ruang Obrolan',
-          valueText: activeFont.displayName,
           onTap: () =>
               Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
         ),

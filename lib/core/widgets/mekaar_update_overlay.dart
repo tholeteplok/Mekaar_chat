@@ -24,8 +24,9 @@ class MekaarUpdateOverlay extends ConsumerWidget {
         final isCallActive = ref.read(activeCallIdProvider) != null;
         final isSosActive = ref.read(sosProvider).isSOSActive;
 
-        // Jangan menginterupsi jika sedang dalam panggilan atau keadaan darurat SOS
-        if (!isCallActive && !isSosActive && !next.hasAutoPrompted) {
+        // Jangan menginterupsi jika sedang dalam panggilan atau keadaan darurat SOS,
+        // dan hanya munculkan prompt otomatis jika unduhan berjalan di latar belakang (diminimalkan).
+        if (!isCallActive && !isSosActive && !next.hasAutoPrompted && next.isMinimized) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final navContext = AppNavigator.currentContext;
             if (navContext != null && navContext.mounted && next.info != null) {

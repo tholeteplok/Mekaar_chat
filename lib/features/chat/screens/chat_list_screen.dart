@@ -41,7 +41,6 @@ import '../widgets/chat_list_tile.dart';
 import '../widgets/mekaar_share_target_dialog.dart';
 import '../../../data/services/share_intent_service.dart';
 import '../../../core/widgets/mekaar_update_bottom_sheet.dart';
-import '../../../core/widgets/mekaar_update_dialog.dart';
 import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../data/services/update_service.dart';
@@ -153,9 +152,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           MekaarUpdateBottomSheet.show(
             context: context,
             info: info,
-            onUpdate: () {
-              showInAppUpdateDialog(context: context, info: info);
-            },
           );
         }
       }
