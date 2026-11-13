@@ -2138,15 +2138,35 @@ class ChatRepository {
     String? description,
     String? avatarUrl,
   }) async {
-    await _supabaseService.client.rpc(
-      'update_group_info',
-      params: {
-        'p_room_id': roomId,
-        'p_name': name,
-        'p_description': description,
-        'p_avatar_url': avatarUrl,
-      },
-    );
+    try {
+      await _supabaseService.client.rpc(
+        'update_group_info',
+        params: {
+          'p_room_id': roomId,
+          'p_name': name,
+          'p_description': description,
+          'p_avatar_url': avatarUrl,
+        },
+      );
+    } catch (_) {
+      // Fallback langsung update tabel chat_rooms jika RPC belum tersedia
+      final updates = <String, dynamic>{};
+      if (name != null && name.trim().isNotEmpty) {
+        updates['name'] = name.trim();
+      }
+      if (description != null) {
+        updates['description'] = description;
+      }
+      if (avatarUrl != null) {
+        updates['avatar_url'] = avatarUrl;
+      }
+      if (updates.isNotEmpty) {
+        await _supabaseService.client
+            .from('chat_rooms')
+            .update(updates)
+            .eq('id', roomId);
+      }
+    }
   }
 
   /// Memperbarui izin grup (Mode Siaran, Edit Info, Undang Anggota).
@@ -2180,11 +2200,14 @@ class ChatRepository {
   /// Mengunggah foto avatar grup ke storage bucket 'avatars'.
   Future<String?> uploadGroupAvatar(File imageFile, String roomId) async {
     try {
+      final userId = _supabaseService.currentUserId;
+      if (userId == null) return null;
+
       final bytes = await imageFile.readAsBytes();
       final ext = imageFile.path.split('.').last.toLowerCase();
       final filename =
           'group_${roomId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final path = 'groups/$filename';
+      final path = '$userId/$filename';
 
       await _supabaseService.client.storage.from('avatars').uploadBinary(
             path,

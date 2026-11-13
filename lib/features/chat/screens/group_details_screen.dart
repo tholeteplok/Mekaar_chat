@@ -846,7 +846,6 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                             size: 88,
                             imageUrl: avatarUrl,
                             initial: name.isNotEmpty ? name[0] : 'G',
-                            backgroundColor: AppColors.blue,
                             heroTag: 'avatar-room-${widget.roomId}',
                           ),
                           if (_canEditGroupInfo)
