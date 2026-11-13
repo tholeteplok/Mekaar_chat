@@ -289,15 +289,19 @@ void main() {
 
       // Info header
       expect(find.text('Keluarga Siaga MEKAAR'), findsWidgets);
-      expect(find.text('3 Anggota'), findsOneWidget);
+      expect(find.textContaining('3 anggota'), findsWidgets);
 
-      // Roles badges
+      // Roles badges in Anggota tab
       expect(find.text('Pemilik'), findsOneWidget);
       expect(find.text('Admin'), findsOneWidget);
       expect(find.text('Anda'), findsOneWidget);
 
+      // Switch to Pengaturan tab
+      await tester.tap(find.text('Pengaturan'));
+      await tester.pumpAndSettle();
+
       // Permissions section (only visible to admin/owner)
-      expect(find.text('Izin & Tata Kelola Grup'), findsOneWidget);
+      expect(find.text('IZIN & TATA KELOLA GRUP'), findsOneWidget);
       expect(find.text('Mode Siaran Darurat'), findsOneWidget);
 
       // Danger zone
@@ -340,6 +344,10 @@ void main() {
           ),
         );
 
+        await tester.pumpAndSettle();
+
+        // Switch to Pengaturan tab
+        await tester.tap(find.text('Pengaturan'));
         await tester.pumpAndSettle();
 
         // Tap "Keluar dari Grup"

@@ -9,15 +9,20 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/bubbles/bubble_media_helper.dart';
+import '../../../core/widgets/bubbles/full_screen_image_viewer.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
+import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mika_illustration.dart';
+import '../../../data/models/message_model.dart';
+import '../../../data/services/file_export_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/add_group_members_sheet.dart';
@@ -44,6 +49,8 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
   List<dynamic> _participants = [];
   bool _isLoading = true;
   bool _isMuted = false;
+  int _selectedTabIndex = 0;
+  int _mediaFilterIndex = 0;
   String _memberSearchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -819,9 +826,8 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
 
     return MekaarScaffold(
       flat: true,
-      appBar: MekaarTopBar(
+      appBar: const MekaarTopBar(
         title: 'Info Grup',
-        subtitle: '${_participants.length} Anggota',
       ),
       body: _isLoading
           ? const MekaarStateView(
@@ -910,10 +916,11 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Dibuat untuk koordinasi & keamanan',
+                        'Grup · ${_participants.length} anggota',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: MekaarColors.textMutedOf(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: MekaarColors.textSecondaryOf(context),
                         ),
                       ),
                       if (description.isNotEmpty || _canEditGroupInfo) ...[
@@ -1000,391 +1007,745 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ──── 3. Card Pengaturan & Izin Grup (Khusus Admin/Owner) ────
-                if (_isAdmin) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Izin & Tata Kelola Grup',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: MekaarColors.textSecondaryOf(context),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: MekaarColors.surfaceOf(context),
-                        borderRadius: BorderRadius.circular(MekaarRadius.lg),
-                        border: Border.all(
-                          color: MekaarColors.borderOf(
-                            context,
-                          ).withValues(alpha: 0.15),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          SwitchListTile(
-                            secondary: const Icon(
-                              SolarIconsBold.volumeLoud,
-                              color: AppColors.blue,
-                            ),
-                            title: const Text(
-                              'Mode Siaran Darurat',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Hanya admin yang dapat mengirim pesan di grup ini',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            value: _isAnnouncementOnly,
-                            activeTrackColor: AppColors.blue,
-                            onChanged: (val) =>
-                                _updatePermission(isAnnouncementOnly: val),
-                          ),
-                          const MekaarCardDivider(),
-                          SwitchListTile(
-                            secondary: const Icon(
-                              SolarIconsOutline.pen,
-                              color: AppColors.blue,
-                            ),
-                            title: const Text(
-                              'Edit Info Grup',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Izinkan anggota biasa mengubah nama, foto & deskripsi',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            value: _membersCanEditInfo,
-                            activeTrackColor: AppColors.blue,
-                            onChanged: (val) =>
-                                _updatePermission(membersCanEditInfo: val),
-                          ),
-                          const MekaarCardDivider(),
-                          SwitchListTile(
-                            secondary: const Icon(
-                              SolarIconsOutline.userPlus,
-                              color: AppColors.blue,
-                            ),
-                            title: const Text(
-                              'Tambah Anggota',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Izinkan anggota biasa mengundang kontak lain ke grup',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            value: _membersCanInvite,
-                            activeTrackColor: AppColors.blue,
-                            onChanged: (val) =>
-                                _updatePermission(membersCanInvite: val),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
-                // ──── 4. Daftar Anggota Grup ────
+                // ──── 3. Bilah Navigasi Segmen Tab ────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Daftar Anggota (${_participants.length})',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: MekaarColors.textSecondaryOf(context),
-                        ),
-                      ),
-                      if (_canInviteMembers)
-                        InkWell(
-                          onTap: _openAddMembers,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  SolarIconsOutline.userPlus,
-                                  size: 14,
-                                  color: AppColors.blue,
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Tambah',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.blue,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                  child: MekaarSlidingSegmentBar(
+                    tabs: [
+                      'Anggota (${_participants.length})',
+                      'Media & Berkas',
+                      'Pengaturan',
                     ],
+                    selectedIndex: _selectedTabIndex.clamp(0, 2),
+                    onTabSelected: (idx) {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      setState(() => _selectedTabIndex = idx);
+                    },
                   ),
                 ),
-                if (_participants.length >= 5) ...[
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: MekaarSearchField(
-                      controller: _searchController,
-                      hintText: 'Cari nama anggota...',
-                      onChanged: (val) {
-                        setState(() => _memberSearchQuery = val.trim());
-                      },
+                const SizedBox(height: 20),
+
+                // ──── 4. Konten Tab Aktif (Borderless & Responsive) ────
+                if (_selectedTabIndex == 0)
+                  _buildMembersTab(filteredParticipants)
+                else if (_selectedTabIndex == 1)
+                  _buildMediaTab()
+                else
+                  _buildSettingsTab(),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Tab 1: Anggota Grup (Borderless)
+  // ──────────────────────────────────────────────────────────────────────────
+  Widget _buildMembersTab(List<dynamic> filteredParticipants) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'DAFTAR ANGGOTA (${_participants.length})',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              if (_isAdmin || _membersCanInvite)
+                TextButton.icon(
+                  onPressed: _openAddMembers,
+                  icon: const Icon(SolarIconsOutline.userPlus, size: 16),
+                  label: const Text(
+                    'Tambah',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: MekaarColors.surfaceOf(context),
-                      borderRadius: BorderRadius.circular(MekaarRadius.lg),
-                      border: Border.all(
-                        color: MekaarColors.borderOf(
-                          context,
-                        ).withValues(alpha: 0.15),
-                      ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.blue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                    child: filteredParticipants.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 24,
-                              horizontal: 16,
-                            ),
-                            child: Center(
-                              child: Text(
-                                _memberSearchQuery.isNotEmpty
-                                    ? 'Tidak ada anggota yang cocok dengan pencarian.'
-                                    : 'Belum ada data anggota yang dimuat.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: MekaarColors.textMutedOf(context),
-                                ),
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: filteredParticipants.length,
-                            separatorBuilder: (ctx, idx) => Divider(
-                              height: 1,
-                              thickness: 0.6,
-                              indent: 64,
-                              color: MekaarColors.borderOf(
-                                context,
-                              ).withValues(alpha: 0.2),
-                            ),
-                            itemBuilder: (context, index) {
-                        final p = filteredParticipants[index];
-                        final role = p['role'] as String? ?? 'member';
-                        final profile =
-                            p['public_profiles'] as Map<String, dynamic>? ?? {};
-                        final memberId = p['profile_id'] as String;
-                        final isSelf = memberId == _currentUserId;
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+            ],
+          ),
+          if (_participants.length >= 5) ...[
+            const SizedBox(height: 8),
+            MekaarSearchField(
+              hintText: 'Cari anggota...',
+              controller: _searchController,
+              onChanged: (val) {
+                setState(() {
+                  _memberSearchQuery = val.trim();
+                });
+              },
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (filteredParticipants.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 24,
+                horizontal: 16,
+              ),
+              child: Center(
+                child: Text(
+                  _memberSearchQuery.isNotEmpty
+                      ? 'Tidak ada anggota yang cocok dengan pencarian.'
+                      : 'Belum ada data anggota yang dimuat.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredParticipants.length,
+              separatorBuilder: (ctx, idx) => const MekaarCardDivider(),
+              itemBuilder: (context, index) {
+                final p = filteredParticipants[index];
+                final role = p['role'] as String? ?? 'member';
+                final profile =
+                    p['public_profiles'] as Map<String, dynamic>? ?? {};
+                final memberId = p['profile_id'] as String;
+                final isSelf = memberId == _currentUserId;
 
-                        final memberName =
-                            (profile['display_name'] as String?)?.isNotEmpty ==
-                                    true
-                                ? profile['display_name'] as String
-                                : profile['full_name'] as String? ??
-                                    profile['username'] as String? ??
-                                    'Anggota';
-                        final username = profile['username'] as String? ?? '';
-                        final memberAvatar = profile['avatar_url'] as String?;
+                final memberName =
+                    (profile['display_name'] as String?)?.isNotEmpty == true
+                        ? profile['display_name'] as String
+                        : profile['full_name'] as String? ??
+                            profile['username'] as String? ??
+                            'Anggota';
+                final username = profile['username'] as String? ?? '';
+                final memberAvatar = profile['avatar_url'] as String?;
 
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 2),
+                  leading: Avatar(
+                    size: 40,
+                    imageUrl: memberAvatar,
+                    initial: memberName.isNotEmpty ? memberName[0] : 'A',
+                  ),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          memberName,
+                          style: MekaarTypography.bodyMD.copyWith(
+                            color: MekaarColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isSelf) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
                             vertical: 2,
                           ),
-                          leading: Avatar(
-                            size: 40,
-                            imageUrl: memberAvatar,
-                            initial: memberName.isNotEmpty
-                                ? memberName[0]
-                                : 'A',
-                          ),
-                          title: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  memberName,
-                                  style: MekaarTypography.bodyMD.copyWith(
-                                    color: MekaarColors.textPrimaryOf(context),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (isSelf) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: MekaarColors.guardianTeal
-                                        .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    'Anda',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: MekaarColors.guardianTeal,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          subtitle: username.isNotEmpty
-                              ? Text(
-                                  '@$username',
-                                  style: MekaarTypography.bodySM.copyWith(
-                                    color: MekaarColors.textMutedOf(context),
-                                  ),
-                                )
-                              : null,
-                          trailing: role == 'owner' || role == 'admin'
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: role == 'owner'
-                                        ? MekaarColors.warnAmber
-                                            .withValues(alpha: 0.15)
-                                        : AppColors.blue
-                                            .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(
-                                      MekaarRadius.sm,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    role == 'owner' ? 'Pemilik' : 'Admin',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: role == 'owner'
-                                          ? MekaarColors.warnAmber
-                                          : AppColors.blue,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                          onTap: isSelf
-                              ? null
-                              : () => _showMemberOptionsSheet(p),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // ──── 5. Danger Zone (Keluar & Bubarkan Grup) ────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: OutlinedButton.icon(
-                          onPressed: _leaveGroup,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: MekaarColors.sosRed,
-                            side: const BorderSide(color: MekaarColors.sosRed),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          decoration: BoxDecoration(
+                            color: MekaarColors.guardianTeal.withValues(
+                              alpha: 0.15,
                             ),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          icon: const Icon(SolarIconsOutline.logout, size: 20),
-                          label: const Text(
-                            'Keluar dari Grup',
+                          child: const Text(
+                            'Anda',
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_isOwner) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _disbandGroup,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: MekaarColors.sosRed,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            icon: const Icon(
-                              SolarIconsOutline.trashBinTrash,
-                              size: 20,
-                            ),
-                            label: const Text(
-                              'Bubarkan Grup Ini',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              color: MekaarColors.guardianTeal,
                             ),
                           ),
                         ),
                       ],
                     ],
                   ),
+                  subtitle: username.isNotEmpty
+                      ? Text(
+                          '@$username',
+                          style: MekaarTypography.bodySM.copyWith(
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                        )
+                      : null,
+                  trailing: role == 'owner' || role == 'admin'
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: role == 'owner'
+                                ? MekaarColors.warnAmber.withValues(alpha: 0.15)
+                                : AppColors.blue.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(
+                              MekaarRadius.sm,
+                            ),
+                          ),
+                          child: Text(
+                            role == 'owner' ? 'Pemilik' : 'Admin',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: role == 'owner'
+                                  ? MekaarColors.warnAmber
+                                  : AppColors.blue,
+                            ),
+                          ),
+                        )
+                      : null,
+                  onTap: isSelf ? null : () => _showMemberOptionsSheet(p),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Tab 2: Media & Berkas (Borderless)
+  // ──────────────────────────────────────────────────────────────────────────
+  Widget _buildMediaTab() {
+    final messagesAsync = ref.watch(chatMessagesProvider(widget.roomId));
+
+    return messagesAsync.when(
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (err, stack) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+        child: Center(
+          child: Text(
+            'Gagal memuat media atau berkas.',
+            style: TextStyle(
+              fontSize: 13,
+              color: MekaarColors.textMutedOf(context),
+            ),
+          ),
+        ),
+      ),
+      data: (messages) {
+        final mediaList = messages
+            .where((m) =>
+                (m.type == MessageType.image ||
+                    m.type == MessageType.video ||
+                    m.type == MessageType.file) &&
+                !m.isDeleted &&
+                !m.isSilentDeleted)
+            .toList();
+
+        final photosAndVideos = mediaList
+            .where((m) =>
+                m.type == MessageType.image || m.type == MessageType.video)
+            .toList();
+        final files =
+            mediaList.where((m) => m.type == MessageType.file).toList();
+
+        final filteredItems = _mediaFilterIndex == 1
+            ? photosAndVideos
+            : _mediaFilterIndex == 2
+                ? files
+                : mediaList;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('Semua', 0, mediaList.length),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Foto & Video', 1, photosAndVideos.length),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Berkas', 2, files.length),
+                  ],
                 ),
-                const SizedBox(height: 40),
+              ),
+              const SizedBox(height: 16),
+              if (filteredItems.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          SolarIconsOutline.galleryWide,
+                          size: 48,
+                          color: MekaarColors.textMutedOf(context).withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Belum ada media atau berkas dibagikan',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: MekaarColors.textMutedOf(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                if (_mediaFilterIndex == 0) ...[
+                  if (photosAndVideos.isNotEmpty) ...[
+                    Text(
+                      'FOTO & VIDEO (${photosAndVideos.length})',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMediaGrid(photosAndVideos),
+                    const SizedBox(height: 20),
+                  ],
+                  if (files.isNotEmpty) ...[
+                    Text(
+                      'BERKAS (${files.length})',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildFileList(files),
+                  ],
+                ] else if (_mediaFilterIndex == 1) ...[
+                  _buildMediaGrid(photosAndVideos),
+                ] else ...[
+                  _buildFileList(files),
+                ],
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChip(String label, int index, int count) {
+    final isSelected = _mediaFilterIndex == index;
+    return GestureDetector(
+      onTap: () {
+        HapticService.trigger(MekaarHapticIntent.selection);
+        setState(() => _mediaFilterIndex = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.blue.withValues(alpha: 0.12)
+              : MekaarColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.blue.withValues(alpha: 0.4)
+                : MekaarColors.borderOf(context).withValues(alpha: 0.2),
+          ),
+        ),
+        child: Text(
+          '$label ($count)',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected
+                ? AppColors.blue
+                : MekaarColors.textSecondaryOf(context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaGrid(List<Message> items) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+      ),
+      itemBuilder: (context, index) => _buildMediaGridItem(items[index]),
+    );
+  }
+
+  Widget _buildMediaGridItem(Message msg) {
+    final payload = parseMediaPayload(msg);
+    final isVideo = msg.type == MessageType.video;
+
+    return FutureBuilder<File?>(
+      future: getOrDecryptMedia(
+        messageId: msg.id,
+        url: msg.mediaUrl,
+        isEncrypted: msg.isEncrypted,
+        fileKeyB64: payload.fileKeyB64,
+      ),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        return GestureDetector(
+          onTap: () {
+            if (file != null && context.mounted) {
+              if (isVideo) {
+                FileExportService.openFileWithChooser(
+                  file: file,
+                  mimeType: msg.fileMeta?.mimeType ?? 'video/mp4',
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullScreenImageViewer(
+                      imageProvider: FileImage(file),
+                    ),
+                  ),
+                );
+              }
+            }
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(MekaarRadius.md),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (file != null)
+                  Image.file(
+                    file,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: MekaarColors.surfaceOf(context),
+                      child: Icon(
+                        isVideo
+                            ? SolarIconsBold.videocamera
+                            : SolarIconsBold.gallery,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    color: MekaarColors.surfaceOf(context),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                if (isVideo)
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.black45,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        SolarIconsBold.play,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFileList(List<Message> items) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const MekaarCardDivider(),
+      itemBuilder: (context, index) => _buildFileListItem(items[index]),
+    );
+  }
+
+  Widget _buildFileListItem(Message msg) {
+    final meta = msg.fileMeta;
+    final fileName = meta?.fileName ?? 'Berkas';
+    final fileSize = meta?.formattedFileSize ?? '';
+    final dateStr = _formatDate(msg.createdAt);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 2),
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.blue.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          SolarIconsOutline.documentText,
+          color: AppColors.blue,
+          size: 24,
+        ),
+      ),
+      title: Text(
+        fileName,
+        style: MekaarTypography.bodyMD.copyWith(
+          color: MekaarColors.textPrimaryOf(context),
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        fileSize.isNotEmpty ? '$fileSize · $dateStr' : dateStr,
+        style: MekaarTypography.bodySM.copyWith(
+          color: MekaarColors.textMutedOf(context),
+        ),
+      ),
+      trailing: IconButton(
+        icon: const Icon(SolarIconsOutline.downloadSquare, size: 22),
+        color: AppColors.blue,
+        onPressed: () async {
+          HapticService.trigger(MekaarHapticIntent.selection);
+          final file = await FileExportService.resolveOrDownloadFile(msg);
+          if (!mounted) return;
+          if (file != null) {
+            final opened = await FileExportService.openFileWithChooser(
+              file: file,
+              mimeType: meta?.mimeType,
+            );
+            if (!mounted) return;
+            if (!opened) {
+              MekaarSnackbar.success(
+                context,
+                'Berkas berhasil diunduh.',
+              );
+            }
+          } else {
+            MekaarSnackbar.error(
+              context,
+              'Gagal mengunduh berkas.',
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+      return 'Hari ini';
+    }
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Tab 3: Pengaturan Grup & Tindakan (Borderless)
+  // ──────────────────────────────────────────────────────────────────────────
+  Widget _buildSettingsTab() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'IZIN & TATA KELOLA GRUP',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: MekaarColors.textMutedOf(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_isAdmin) ...[
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(
+                SolarIconsBold.volumeLoud,
+                color: AppColors.blue,
+              ),
+              title: const Text(
+                'Mode Siaran Darurat',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Hanya admin yang dapat mengirim pesan di grup ini',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              value: _isAnnouncementOnly,
+              activeTrackColor: AppColors.blue,
+              onChanged: (val) =>
+                  _updatePermission(isAnnouncementOnly: val),
+            ),
+            const MekaarCardDivider(),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(
+                SolarIconsOutline.pen,
+                color: AppColors.blue,
+              ),
+              title: const Text(
+                'Edit Info Grup',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Izinkan anggota biasa mengubah nama, foto & deskripsi',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              value: _membersCanEditInfo,
+              activeTrackColor: AppColors.blue,
+              onChanged: (val) =>
+                  _updatePermission(membersCanEditInfo: val),
+            ),
+            const MekaarCardDivider(),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(
+                SolarIconsOutline.userPlus,
+                color: AppColors.blue,
+              ),
+              title: const Text(
+                'Tambah Anggota',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Izinkan anggota biasa mengundang kontak lain ke grup',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              value: _membersCanInvite,
+              activeTrackColor: AppColors.blue,
+              onChanged: (val) =>
+                  _updatePermission(membersCanInvite: val),
+            ),
+          ] else ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                SolarIconsOutline.shieldUser,
+                color: AppColors.blue,
+              ),
+              title: const Text(
+                'Aturan Grup',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Izin & pengelolaan grup dikelola oleh Admin.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 28),
+
+          // ──── Tindakan Grup (Keluar / Bubarkan) ────
+          Text(
+            'TINDAKAN GRUP',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: MekaarColors.textMutedOf(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              SolarIconsOutline.logout,
+              color: MekaarColors.sosRed,
+              size: 22,
+            ),
+            title: const Text(
+              'Keluar dari Grup',
+              style: TextStyle(
+                color: MekaarColors.sosRed,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            onTap: _leaveGroup,
+          ),
+          if (_isOwner) ...[
+            const MekaarCardDivider(),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                SolarIconsOutline.trashBinTrash,
+                color: MekaarColors.sosRed,
+                size: 22,
+              ),
+              title: const Text(
+                'Bubarkan Grup Ini',
+                style: TextStyle(
+                  color: MekaarColors.sosRed,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              onTap: _disbandGroup,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
