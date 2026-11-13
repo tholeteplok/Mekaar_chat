@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../models/chat_draft_model.dart';
@@ -134,11 +135,16 @@ class LocalMessageDatabase {
       _dbInitCompleter!.complete(_db!);
       return _db!;
     } catch (e, st) {
-      _logger.e(
-        'Gagal menginisialisasi LocalMessageDatabase SQLCipher: $e',
-        error: e,
-        stackTrace: st,
-      );
+      if (e is MissingPluginException ||
+          e.toString().contains('MissingPluginException')) {
+        _logger.d('LocalMessageDatabase SQLCipher tidak aktif di lingkungan headless/test: $e');
+      } else {
+        _logger.e(
+          'Gagal menginisialisasi LocalMessageDatabase SQLCipher: $e',
+          error: e,
+          stackTrace: st,
+        );
+      }
       _dbInitCompleter?.completeError(e, st);
       rethrow;
     } finally {
@@ -564,7 +570,10 @@ class LocalMessageDatabase {
         whereArgs: [roomId],
       );
     } catch (e) {
-      _logger.w('Gagal memperbarui room cache last message: $e');
+      if (e is! MissingPluginException &&
+          !e.toString().contains('MissingPluginException')) {
+        _logger.w('Gagal memperbarui room cache last message: $e');
+      }
     }
   }
 
@@ -1468,31 +1477,35 @@ class LocalMessageDatabase {
     }
 
     return Message(
-      id: row['id'] as String,
-      roomId: row['room_id'] as String,
-      senderId: row['sender_id'] as String,
+      id: row['id']?.toString() ?? '',
+      roomId: row['room_id']?.toString() ?? '',
+      senderId: row['sender_id']?.toString() ?? '',
       content: row['content'] as String? ?? '',
       mediaUrl: row['media_url'] as String?,
       type: mType,
       isViewOnce: (row['is_view_once'] as int? ?? 0) == 1,
       isOpened: (row['is_opened'] as int? ?? 0) == 1,
       openedAt: row['opened_at'] != null
-          ? DateTime.tryParse(row['opened_at'] as String)
+          ? DateTime.tryParse(row['opened_at'].toString())
           : null,
-      replyToId: row['reply_to_id'] as String?,
+      replyToId: row['reply_to_id']?.toString(),
       isDeleted: (row['is_deleted'] as int? ?? 0) == 1,
       isSilentDeleted: (row['is_silent_deleted'] as int? ?? 0) == 1,
       autoDeleteAt: row['auto_delete_at'] != null
-          ? DateTime.tryParse(row['auto_delete_at'] as String)?.toUtc()
+          ? DateTime.tryParse(row['auto_delete_at'].toString())?.toUtc()
           : null,
       editedAt: row['edited_at'] != null
-          ? DateTime.tryParse(row['edited_at'] as String)
+          ? DateTime.tryParse(row['edited_at'].toString())
           : null,
       reactions: parsedReactions,
-      createdAt:
-          (DateTime.tryParse(row['created_at'] as String) ?? DateTime.now()).toUtc(),
-      updatedAt:
-          (DateTime.tryParse(row['updated_at'] as String) ?? DateTime.now()).toUtc(),
+      createdAt: row['created_at'] != null
+          ? (DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now())
+              .toUtc()
+          : DateTime.now().toUtc(),
+      updatedAt: row['updated_at'] != null
+          ? (DateTime.tryParse(row['updated_at'].toString()) ?? DateTime.now())
+              .toUtc()
+          : DateTime.now().toUtc(),
       isEncrypted: (row['is_encrypted'] as int? ?? 0) == 1,
       isSending: false,
     );

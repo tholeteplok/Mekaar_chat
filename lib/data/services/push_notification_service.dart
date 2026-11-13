@@ -509,7 +509,10 @@ class PushNotificationService {
           'isVaultUnlocked': isVaultUnlocked,
         });
       } catch (e) {
-        _logger.w('Gagal menyinkronkan status vault ke native: $e');
+        if (e is! MissingPluginException &&
+            !e.toString().contains('MissingPluginException')) {
+          _logger.w('Gagal menyinkronkan status vault ke native: $e');
+        }
       }
     }
   }
@@ -520,7 +523,10 @@ class PushNotificationService {
       try {
         return await _callIntentChannel.invokeMethod<String>('getPushDecryptionKey');
       } catch (e) {
-        _logger.w('Gagal mengambil kunci dekripsi push dari native: $e');
+        if (e is! MissingPluginException &&
+            !e.toString().contains('MissingPluginException')) {
+          _logger.w('Gagal mengambil kunci dekripsi push dari native: $e');
+        }
       }
     }
     return null;

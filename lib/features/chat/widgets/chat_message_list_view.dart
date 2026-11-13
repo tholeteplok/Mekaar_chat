@@ -103,6 +103,7 @@ class ChatMessageListView extends ConsumerStatefulWidget {
   final Set<String> selectedCallIds;
   final String? reactionAnchorMessageId;
   final Map<String, String> participantNames;
+  final Map<String, String?> participantAvatars;
   final ValueNotifier<bool> showScrollButton;
   final ValueNotifier<int> newMessageCount;
   final VoidCallback onScrollToBottom;
@@ -141,6 +142,7 @@ class ChatMessageListView extends ConsumerStatefulWidget {
     required this.selectedCallIds,
     required this.reactionAnchorMessageId,
     required this.participantNames,
+    this.participantAvatars = const {},
     required this.showScrollButton,
     required this.newMessageCount,
     required this.onScrollToBottom,
@@ -640,6 +642,8 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
       otherLastReadAt: otherLastRead ?? widget.otherLastRead,
       showReadReceipts: showReadReceipts,
       senderName: widget.isGroup ? widget.participantNames[msg.senderId] : null,
+      senderAvatarUrl: widget.isGroup ? widget.participantAvatars[msg.senderId] : null,
+      showSenderAvatar: widget.isGroup && !isMe,
       replyToMessage: replyToMsg,
       replyToSenderName: replyToSender,
       onDelete: () => widget.onDeleteMessage(msg),

@@ -230,6 +230,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   late bool _isGroup;
   bool get _effectiveIsGroup => _isGroup;
   Map<String, String> _participantNames = {};
+  Map<String, String?> _participantAvatars = {};
   bool _isGroupAnnouncementOnly = false;
   bool _canSendInGroupAnnouncement = true;
 
@@ -416,6 +417,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             room?['is_announcement_only'] as bool? ?? false;
         final participants = (details['participants'] as List?) ?? [];
         final names = <String, String>{};
+        final avatars = <String, String?>{};
         final currentUserId = ref.read(authProvider).user?.id ??
             Supabase.instance.client.auth.currentUser?.id;
         String myRole = 'member';
@@ -434,6 +436,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       profile['username'] as String? ??
                       'Anggota';
             names[pid] = name;
+            avatars[pid] = profile['avatar_url'] as String?;
           }
         }
         final canSend = (myRole == 'owner' || myRole == 'admin') || !isAnnouncement;
@@ -443,6 +446,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         final gAvatarUrl = room?['avatar_url'] as String?;
         setState(() {
           _participantNames = names;
+          _participantAvatars = avatars;
           _isGroupAnnouncementOnly = isAnnouncement;
           _canSendInGroupAnnouncement = canSend;
           if (gName != null && gName.isNotEmpty) {
@@ -1587,6 +1591,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 selectedCallIds: _selectedCallIds,
                 reactionAnchorMessageId: _reactionAnchorMessageId,
                 participantNames: _participantNames,
+                participantAvatars: _participantAvatars,
                 showScrollButton: _showScrollButton,
                 newMessageCount: _newMessageCount,
                 onScrollToBottom: _scrollToBottom,

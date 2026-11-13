@@ -87,19 +87,21 @@ class ReactionsStrip extends StatelessWidget {
   final Map<String, List<String>> reactions;
   final bool isMe;
   final Function(String emoji)? onReact;
+  final double leftIndent;
 
   const ReactionsStrip({
     super.key,
     required this.reactions,
     required this.isMe,
     this.onReact,
+    this.leftIndent = 0.0,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: isMe ? 0 : 20,
+        left: isMe ? 0 : (20 + leftIndent),
         right: isMe ? 20 : 0,
         bottom: 4,
       ),
