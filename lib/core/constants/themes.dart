@@ -14,6 +14,9 @@ class MekaarTheme {
       primaryColor: AppColors.blue,
       scaffoldBackgroundColor: AppColors.lightBlue,
       cardColor: AppColors.cardLight,
+      extensions: const [
+        MekaarColorTokens.light,
+      ],
       colorScheme: const ColorScheme.light(
         primary: AppColors.blue,
         secondary: AppColors.safeTeal,
@@ -182,6 +185,9 @@ class MekaarTheme {
       primaryColor: AppColors.blue,
       scaffoldBackgroundColor: AppColors.darkBlue,
       cardColor: AppColors.cardDark,
+      extensions: const [
+        MekaarColorTokens.dark,
+      ],
       colorScheme: const ColorScheme.dark(
         primary: AppColors.blue,
         secondary: AppColors.safeTeal,

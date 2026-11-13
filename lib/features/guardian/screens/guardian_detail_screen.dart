@@ -7,6 +7,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_banner.dart';
@@ -22,6 +23,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../providers/guardian_provider.dart';
+import '../widgets/guardian_find_phone_sheet.dart';
 
 class GuardianDetailScreen extends ConsumerStatefulWidget {
   final Guardian guardian;
@@ -157,6 +159,21 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
   void _trackGuardian() {
     Navigator.pushNamed(context, AppRoutes.guardianTracking);
+  }
+
+  void _openFindPhoneSheet() {
+    final currentUserId = ref.read(authProvider).user?.id;
+    final peerUserId = _getPeerUserId(currentUserId);
+    if (peerUserId.isEmpty) {
+      MekaarSnackbar.error(context, 'Pengguna target tidak ditemukan.');
+      return;
+    }
+
+    GuardianFindPhoneSheet.show(
+      context: context,
+      guardian: widget.guardian,
+      targetUserId: peerUserId,
+    );
   }
 
   Future<void> _togglePermission(String type, bool value) async {
@@ -404,6 +421,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   Widget build(BuildContext context) {
     final isPending = widget.guardian.status == 'pending';
     final isExpired = widget.guardian.isExpired;
+    final isDark = MekaarColors.isDarkContext(context);
 
     return MekaarScaffold(
       flat: true,
@@ -550,6 +568,62 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                 ],
               ),
             ),
+
+            // ──── Tombol Akses: Bantu Temukan Ponsel ────
+            if (!isPending && !isExpired) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: CustomCard(
+                  padding: const EdgeInsets.all(14),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : MekaarColors.surfaceOf(context),
+                  border: Border.all(
+                    color: MekaarColors.primary.withValues(alpha: 0.25),
+                    width: 1,
+                  ),
+                  onTap: _openFindPhoneSheet,
+                  child: Row(
+                    children: [
+                      const MekaarIconBadge(
+                        icon: SolarIconsOutline.smartphone,
+                        color: MekaarColors.primary,
+                        backgroundColor: MekaarColors.infoLight,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bantu Temukan Ponsel',
+                              style: MekaarTypography.labelLG.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Ponsel ${widget.guardian.name} terselip atau tertinggal? Bunyikan sirine atau kirim pesan layar kunci.',
+                              style: MekaarTypography.bodySM.copyWith(
+                                color: MekaarColors.textSecondaryOf(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        SolarIconsOutline.altArrowRight,
+                        size: 18,
+                        color: MekaarColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 24),
 
             // ──── 3. Detail Konten Pengaturan ────

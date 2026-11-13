@@ -6,8 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/supabase_service.dart';
 import 'alarm_service.dart';
+import '../../core/navigation/app_navigator.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/services/haptic_service.dart';
 import '../../core/widgets/mekaar_in_app_notification_banner.dart';
 
@@ -119,8 +122,11 @@ class NotificationRoute {
 
 class NotificationService {
   static const int incomingCallNotificationId = 7001;
+  static const int deviceLostNotificationId = 8001;
   static const String actionCallAccept = 'call_accept';
   static const String actionCallDecline = 'call_decline';
+  static const String actionDeviceLostCall = 'device_lost_call';
+  static const String _deviceLostPayloadPrefix = 'devicelost:';
   static const String messageChannelId = 'mekaar_message_channel_v3';
   static const String legacyMessageChannelId = 'mekaar_message_channel_v2';
   static const String legacyOldMessageChannelId = 'mekaar_message_channel';
@@ -276,6 +282,36 @@ class NotificationService {
         _onCallAction?.call(route, accept: isAccept);
         return;
       }
+    }
+
+    // Tangani aksi panggilan telepon dari notifikasi Device Lost
+    if (response.actionId == actionDeviceLostCall ||
+        (payload.startsWith(_deviceLostPayloadPrefix) &&
+            response.actionId != null)) {
+      final contactNumber = payload.startsWith(_deviceLostPayloadPrefix)
+          ? payload.substring(_deviceLostPayloadPrefix.length)
+          : '';
+      if (contactNumber.isNotEmpty) {
+        _logger.i(
+          'Device lost notification: memanggil kontak pemulihan $contactNumber',
+        );
+        try {
+          final uri = Uri.parse('tel:$contactNumber');
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (e) {
+          _logger.e('Gagal memicu dialer dari notifikasi: $e');
+        }
+        return;
+      }
+    }
+
+    if (payload.startsWith(_deviceLostPayloadPrefix)) {
+      _logger.i('Device lost notification diketuk, membuka lock screen');
+      final context = AppNavigator.currentContext;
+      if (context != null && context.mounted) {
+        Navigator.of(context).pushNamed(AppRoutes.deviceLostLock);
+      }
+      return;
     }
 
     if (payload.startsWith(_tripPayloadPrefix)) {
@@ -833,6 +869,91 @@ class NotificationService {
       }
     } catch (e) {
       _logger.w('Error checking app launch notification: $e');
+    }
+  }
+
+  /// Menampilkan notifikasi persisten di lock screen (ongoing, public, high priority)
+  /// saat mode ponsel tertinggal/hilang diaktifkan (baik oleh pemilik maupun Guardian).
+  ///
+  /// Dilengkapi tombol aksi cepat untuk langsung memanggil nomor pemulihan (Guardian).
+  static Future<void> showDeviceLostNotification({
+    required String lockMessage,
+    String? recoveryContact,
+    String? ownerName,
+  }) async {
+    try {
+      final cleanContact = recoveryContact?.replaceAll(RegExp(r'[^\d+]'), '') ?? '';
+      final hasContact = cleanContact.isNotEmpty;
+
+      final androidDetails = AndroidNotificationDetails(
+        'mekaar_sos_channel',
+        'Darurat & SOS MEKAAR',
+        channelDescription:
+            'Saluran peringatan darurat dan pemulihan ponsel tertinggal',
+        importance: Importance.max,
+        priority: Priority.max,
+        ongoing: true,
+        autoCancel: false,
+        category: AndroidNotificationCategory.alarm,
+        visibility: NotificationVisibility.public,
+        color: const Color(0xFFE53935), // MekaarColors.sosRed
+        actions: hasContact
+            ? [
+                const AndroidNotificationAction(
+                  actionDeviceLostCall,
+                  '📞 Telepon Guardian / Pemilik',
+                  showsUserInterface: true,
+                  cancelNotification: false,
+                ),
+              ]
+            : null,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.critical,
+      );
+
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      const title = '⚠️ MODE PONSEL TERTINGGAL AKTIF';
+      final body = hasContact
+          ? '$lockMessage\nHubungi: $cleanContact'
+          : lockMessage;
+
+      final payload = '$_deviceLostPayloadPrefix$cleanContact';
+
+      await _localNotificationsPlugin.show(
+        deviceLostNotificationId,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+      _logger.i(
+        'NotificationService: Notifikasi Device Lost berhasil ditampilkan di lockscreen.',
+      );
+    } catch (e) {
+      _logger.e(
+        'NotificationService: Gagal menampilkan notifikasi Device Lost: $e',
+      );
+    }
+  }
+
+  /// Membatalkan notifikasi Device Lost saat perangkat dibuka kunci atau dinonaktifkan.
+  static Future<void> cancelDeviceLostNotification() async {
+    try {
+      await _localNotificationsPlugin.cancel(deviceLostNotificationId);
+      _logger.i('NotificationService: Notifikasi Device Lost dibatalkan.');
+    } catch (e) {
+      _logger.w(
+        'NotificationService: Gagal membatalkan notifikasi Device Lost: $e',
+      );
     }
   }
 }

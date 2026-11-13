@@ -109,6 +109,9 @@ class ChatThemePreference {
   final String? incomingColor1;
   final String? incomingColor2;
 
+  // Custom Font Family (Kustomisasi Mandiri Font Obrolan)
+  final String? customFontFamily;
+
   const ChatThemePreference({
     this.preset = ChatThemePreset.mekaar,
     this.wallpaperType = WallpaperType.solidColor,
@@ -121,7 +124,55 @@ class ChatThemePreference {
     this.outgoingColor2,
     this.incomingColor1,
     this.incomingColor2,
+    this.customFontFamily,
   });
+
+  /// Skema font bawaan untuk setiap preset tema
+  static String defaultFontForPreset(ChatThemePreset preset) {
+    switch (preset) {
+      case ChatThemePreset.comic:
+      case ChatThemePreset.comicPopArt:
+      case ChatThemePreset.diary:
+        return 'Comic Neue';
+      case ChatThemePreset.neuro:
+      case ChatThemePreset.neumorphism:
+      case ChatThemePreset.neonDreams:
+      case ChatThemePreset.neonCyberpunk:
+        return 'Nunito';
+      case ChatThemePreset.mecha:
+      case ChatThemePreset.glass:
+      case ChatThemePreset.glassmorphism:
+      case ChatThemePreset.fireflyNight:
+        return 'Space Grotesk';
+      case ChatThemePreset.pixel:
+      case ChatThemePreset.pixelGarden:
+      case ChatThemePreset.retroWave:
+      case ChatThemePreset.retroY2K:
+        return 'DotGothic16';
+      case ChatThemePreset.candy:
+      case ChatThemePreset.candyPop:
+      case ChatThemePreset.isometric3d:
+        return 'Fredoka';
+      case ChatThemePreset.eco:
+      case ChatThemePreset.solarpunk:
+        return 'Comfortaa';
+      case ChatThemePreset.monoVibe:
+      case ChatThemePreset.swissMinimalist:
+        return 'Space Grotesk';
+      case ChatThemePreset.mekaar:
+      case ChatThemePreset.dynamicTime:
+      case ChatThemePreset.custom:
+        return 'Plus Jakarta Sans';
+    }
+  }
+
+  /// Font efektif: menggunakan kustomisasi mandiri jika ada, atau font bawaan preset
+  String get effectiveFontFamily {
+    if (customFontFamily != null && customFontFamily!.isNotEmpty) {
+      return customFontFamily!;
+    }
+    return defaultFontForPreset(preset);
+  }
 
   ChatThemePreference copyWith({
     ChatThemePreset? preset,
@@ -135,6 +186,8 @@ class ChatThemePreference {
     String? outgoingColor2,
     String? incomingColor1,
     String? incomingColor2,
+    String? customFontFamily,
+    bool clearCustomFontFamily = false,
   }) {
     return ChatThemePreference(
       preset: preset ?? this.preset,
@@ -149,6 +202,9 @@ class ChatThemePreference {
       outgoingColor2: outgoingColor2 ?? this.outgoingColor2,
       incomingColor1: incomingColor1 ?? this.incomingColor1,
       incomingColor2: incomingColor2 ?? this.incomingColor2,
+      customFontFamily: clearCustomFontFamily
+          ? null
+          : (customFontFamily ?? this.customFontFamily),
     );
   }
 
@@ -165,6 +221,7 @@ class ChatThemePreference {
       'outgoingColor2': outgoingColor2,
       'incomingColor1': incomingColor1,
       'incomingColor2': incomingColor2,
+      'customFontFamily': customFontFamily,
     };
   }
 
@@ -215,6 +272,7 @@ class ChatThemePreference {
       outgoingColor2: json['outgoingColor2'] as String?,
       incomingColor1: json['incomingColor1'] as String?,
       incomingColor2: json['incomingColor2'] as String?,
+      customFontFamily: json['customFontFamily'] as String?,
     );
   }
 

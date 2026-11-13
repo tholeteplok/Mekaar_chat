@@ -144,7 +144,7 @@ class ImageBubble extends ConsumerWidget {
                   width: 220,
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sub),
                   ),
                   child: const Center(
                     child: Column(
@@ -430,17 +430,25 @@ class ImageBubble extends ConsumerWidget {
       width: 220,
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(MekaarRadius.sub),
       ),
       child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(MekaarIcons.visibilityOff, color: Colors.white54, size: 30),
+            Icon(
+              MekaarIcons.visibilityOff,
+              color: Color(0xFFE2EEFF),
+              size: 30,
+            ),
             SizedBox(height: 6),
             Text(
               'Media sudah dilihat',
-              style: TextStyle(color: Colors.white54, fontSize: 11),
+              style: TextStyle(
+                color: Color(0xFFE2EEFF),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

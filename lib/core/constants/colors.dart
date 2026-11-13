@@ -7,7 +7,7 @@ abstract class AppColors {
   // ── Brand Core (Sumber Tunggal) ──
   static const Color blue = Color(0xFF136CFC);
   static const Color darkBlue = Color(0xFF111E34);
-  static const Color green = Color(0xFFC3F84A);
+  static const Color green = Color(0xFF2EF77A);
   static const Color lightBlue = Color(0xFFFAF9F6);
 
   // ── Protective Semantics (Tidak Berubah) ──
@@ -18,6 +18,7 @@ abstract class AppColors {
 
   // ── Text & Surface ──
   static const Color textOnBlue = Colors.white;
+  static const Color textOnGreen = Color(0xFF011E34);
   static const Color cardLight = Colors.white;
   static const Color cardDark = Color(0xFF1E304F);
   static const Color borderLight = Color(0xFFDCE7F5);
@@ -98,8 +99,9 @@ class MekaarColors {
   static const Color textMuted = Color(0xFF6B7599);
 
   static const Color textOnBlue = AppColors.textOnBlue;
+  static const Color textOnGreen = AppColors.textOnGreen;
   static const Color textOnYellow = Color(0xFF2B2400);
-  static const Color textOnLime = Color(0xFF1A2E05);
+  static const Color textOnLime = AppColors.textOnGreen;
 
   /// Tinta gelap untuk teks di atas permukaan teal #2DD4BF (putih ≈1.9:1).
   static const Color textOnTeal = Color(0xFF04302A);
@@ -208,9 +210,7 @@ class MekaarColors {
 
   static Color textMutedOf(BuildContext c) {
     final isDark = isDarkContext(c);
-    return isDark
-        ? textSecondaryDark.withValues(alpha: 0.72)
-        : textSecondaryLight.withValues(alpha: 0.72);
+    return isDark ? textSecondaryDark : textSecondaryLight;
   }
 
   /// Warna aksen yang tetap terbaca sebagai teks/ikon di permukaan terang:
@@ -237,6 +237,197 @@ class MekaarColors {
       return luminance > 0.5 ? AppColors.darkBlue : Colors.white;
     }
     return Colors.white;
+  }
+}
+
+/// MekaarColorTokens — Sistem token warna semantik deklaratif (ThemeExtension).
+///
+/// Menyediakan resolusi tema modern dengan dukungan transisi mulus (`lerp`)
+/// dan integrasi native ke `Theme.of(context).extension<MekaarColorTokens>()`.
+@immutable
+class MekaarColorTokens extends ThemeExtension<MekaarColorTokens> {
+  final Color surfaceCanvas;
+  final Color surfaceCard;
+  final Color surfaceElevated;
+  final Color borderSubtle;
+  final Color borderInteractive;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+  final Color brandPrimary;
+  final Color brandSecondary;
+  final Color onBrandPrimary;
+  final Color onBrandSecondary;
+  final Color bubbleOutgoingBg;
+  final Color bubbleOutgoingText;
+  final Color bubbleIncomingBg;
+  final Color bubbleIncomingText;
+  final Color statusDangerBg;
+  final Color statusDangerText;
+
+  const MekaarColorTokens({
+    required this.surfaceCanvas,
+    required this.surfaceCard,
+    required this.surfaceElevated,
+    required this.borderSubtle,
+    required this.borderInteractive,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textMuted,
+    required this.brandPrimary,
+    required this.brandSecondary,
+    required this.onBrandPrimary,
+    required this.onBrandSecondary,
+    required this.bubbleOutgoingBg,
+    required this.bubbleOutgoingText,
+    required this.bubbleIncomingBg,
+    required this.bubbleIncomingText,
+    required this.statusDangerBg,
+    required this.statusDangerText,
+  });
+
+  static const light = MekaarColorTokens(
+    surfaceCanvas: AppColors.lightBlue,
+    surfaceCard: AppColors.cardLight,
+    surfaceElevated: Colors.white,
+    borderSubtle: AppColors.borderLight,
+    borderInteractive: Color(0xFF8CA2C0),
+    textPrimary: AppColors.darkBlue,
+    textSecondary: Color(0xFF5C6B85),
+    textMuted: Color(0xFF5C6B85),
+    brandPrimary: AppColors.blue,
+    brandSecondary: AppColors.green,
+    onBrandPrimary: Colors.white,
+    onBrandSecondary: AppColors.textOnGreen,
+    bubbleOutgoingBg: AppColors.blue,
+    bubbleOutgoingText: Colors.white,
+    bubbleIncomingBg: Colors.white,
+    bubbleIncomingText: AppColors.darkBlue,
+    statusDangerBg: AppColors.sosDeep,
+    statusDangerText: Colors.white,
+  );
+
+  static const dark = MekaarColorTokens(
+    surfaceCanvas: AppColors.darkBlue,
+    surfaceCard: AppColors.cardDark,
+    surfaceElevated: Color(0xFF25395B),
+    borderSubtle: AppColors.borderDark,
+    borderInteractive: Color(0xFF9FB0C9),
+    textPrimary: Color(0xFFF4F9FF),
+    textSecondary: Color(0xFF9FB0C9),
+    textMuted: Color(0xFF9FB0C9),
+    brandPrimary: AppColors.blue,
+    brandSecondary: AppColors.green,
+    onBrandPrimary: Colors.white,
+    onBrandSecondary: AppColors.textOnGreen,
+    bubbleOutgoingBg: AppColors.blue,
+    bubbleOutgoingText: Colors.white,
+    bubbleIncomingBg: AppColors.cardDark,
+    bubbleIncomingText: Color(0xFFF4F9FF),
+    statusDangerBg: AppColors.sosDeep,
+    statusDangerText: Colors.white,
+  );
+
+  static const stealth = MekaarColorTokens(
+    surfaceCanvas: Color(0xFF000000),
+    surfaceCard: Color(0xFF0F172A),
+    surfaceElevated: Color(0xFF1E293B),
+    borderSubtle: Color(0xFF334155),
+    borderInteractive: Color(0xFF475569),
+    textPrimary: Color(0xFFE2E8F0),
+    textSecondary: Color(0xFF94A3B8),
+    textMuted: Color(0xFF94A3B8),
+    brandPrimary: AppColors.blue,
+    brandSecondary: AppColors.green,
+    onBrandPrimary: Colors.white,
+    onBrandSecondary: AppColors.textOnGreen,
+    bubbleOutgoingBg: Color(0xFF334155),
+    bubbleOutgoingText: Color(0xFFE2E8F0),
+    bubbleIncomingBg: Color(0xFF0F172A),
+    bubbleIncomingText: Color(0xFFE2E8F0),
+    statusDangerBg: AppColors.sosDeep,
+    statusDangerText: Colors.white,
+  );
+
+  /// Helper akses deklaratif berbasis konteks
+  static MekaarColorTokens of(BuildContext context) {
+    return Theme.of(context).extension<MekaarColorTokens>() ??
+        (MekaarColors.isDarkContext(context) ? dark : light);
+  }
+
+  @override
+  MekaarColorTokens copyWith({
+    Color? surfaceCanvas,
+    Color? surfaceCard,
+    Color? surfaceElevated,
+    Color? borderSubtle,
+    Color? borderInteractive,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+    Color? brandPrimary,
+    Color? brandSecondary,
+    Color? onBrandPrimary,
+    Color? onBrandSecondary,
+    Color? bubbleOutgoingBg,
+    Color? bubbleOutgoingText,
+    Color? bubbleIncomingBg,
+    Color? bubbleIncomingText,
+    Color? statusDangerBg,
+    Color? statusDangerText,
+  }) {
+    return MekaarColorTokens(
+      surfaceCanvas: surfaceCanvas ?? this.surfaceCanvas,
+      surfaceCard: surfaceCard ?? this.surfaceCard,
+      surfaceElevated: surfaceElevated ?? this.surfaceElevated,
+      borderSubtle: borderSubtle ?? this.borderSubtle,
+      borderInteractive: borderInteractive ?? this.borderInteractive,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textMuted: textMuted ?? this.textMuted,
+      brandPrimary: brandPrimary ?? this.brandPrimary,
+      brandSecondary: brandSecondary ?? this.brandSecondary,
+      onBrandPrimary: onBrandPrimary ?? this.onBrandPrimary,
+      onBrandSecondary: onBrandSecondary ?? this.onBrandSecondary,
+      bubbleOutgoingBg: bubbleOutgoingBg ?? this.bubbleOutgoingBg,
+      bubbleOutgoingText: bubbleOutgoingText ?? this.bubbleOutgoingText,
+      bubbleIncomingBg: bubbleIncomingBg ?? this.bubbleIncomingBg,
+      bubbleIncomingText: bubbleIncomingText ?? this.bubbleIncomingText,
+      statusDangerBg: statusDangerBg ?? this.statusDangerBg,
+      statusDangerText: statusDangerText ?? this.statusDangerText,
+    );
+  }
+
+  @override
+  MekaarColorTokens lerp(ThemeExtension<MekaarColorTokens>? other, double t) {
+    if (other is! MekaarColorTokens) return this;
+    return MekaarColorTokens(
+      surfaceCanvas: Color.lerp(surfaceCanvas, other.surfaceCanvas, t)!,
+      surfaceCard: Color.lerp(surfaceCard, other.surfaceCard, t)!,
+      surfaceElevated: Color.lerp(surfaceElevated, other.surfaceElevated, t)!,
+      borderSubtle: Color.lerp(borderSubtle, other.borderSubtle, t)!,
+      borderInteractive:
+          Color.lerp(borderInteractive, other.borderInteractive, t)!,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      textMuted: Color.lerp(textMuted, other.textMuted, t)!,
+      brandPrimary: Color.lerp(brandPrimary, other.brandPrimary, t)!,
+      brandSecondary: Color.lerp(brandSecondary, other.brandSecondary, t)!,
+      onBrandPrimary: Color.lerp(onBrandPrimary, other.onBrandPrimary, t)!,
+      onBrandSecondary:
+          Color.lerp(onBrandSecondary, other.onBrandSecondary, t)!,
+      bubbleOutgoingBg:
+          Color.lerp(bubbleOutgoingBg, other.bubbleOutgoingBg, t)!,
+      bubbleOutgoingText:
+          Color.lerp(bubbleOutgoingText, other.bubbleOutgoingText, t)!,
+      bubbleIncomingBg:
+          Color.lerp(bubbleIncomingBg, other.bubbleIncomingBg, t)!,
+      bubbleIncomingText:
+          Color.lerp(bubbleIncomingText, other.bubbleIncomingText, t)!,
+      statusDangerBg: Color.lerp(statusDangerBg, other.statusDangerBg, t)!,
+      statusDangerText:
+          Color.lerp(statusDangerText, other.statusDangerText, t)!,
+    );
   }
 }
 

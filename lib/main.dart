@@ -32,9 +32,10 @@ final logger = Logger();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Matikan HTTP runtime fetching Google Fonts secara permanen (Anti-FOUC & 100% Offline Ready).
-  // Seluruh font inti (Plus Jakarta Sans, Space Grotesk, Baloo 2) disuplai langsung dari assets lokal.
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // Aktifkan runtime fetching Google Fonts untuk font tema obrolan kustom.
+  // Seluruh font inti sistem (Plus Jakarta Sans, Space Grotesk, Baloo 2) tetap
+  // disuplai langsung dari assets lokal secara offline & 0ms.
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   // Aktifkan Android Photo Picker bawaan OS (Galeri visual foto & video modern)
   final imagePickerPlatform = ImagePickerPlatform.instance;

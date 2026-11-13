@@ -44,17 +44,17 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         const SettingsSectionHeader(title: 'Tampilan'),
         SettingsNavTile(
-          icon: SolarIconsOutline.palette,
+          icon: SolarIconsOutline.palette2,
           iconColor: MekaarColors.purple,
-          title: 'Tampilan & Font',
-          valueText: activeFont.displayName,
+          title: 'Tampilan Aplikasi',
           onTap: () =>
               Navigator.pushNamed(context, AppRoutes.themeSettings),
         ),
         const SettingsDivider(),
         SettingsNavTile(
-          icon: SolarIconsOutline.chatRoundDots,
-          title: 'Tema & Wallpaper Chat',
+          icon: SolarIconsOutline.palette,
+          title: 'Tema Ruang Obrolan',
+          valueText: activeFont.displayName,
           onTap: () =>
               Navigator.pushNamed(context, AppRoutes.chatThemeSettings),
         ),

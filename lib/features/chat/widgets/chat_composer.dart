@@ -32,7 +32,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../settings/providers/chat_theme_provider.dart';
 import '../../../data/models/chat_theme_model.dart';
-import '../../../core/providers/font_provider.dart';
 import 'image_send_preview_sheet.dart';
 import 'document_send_preview_sheet.dart';
 import '../screens/unified_camera_screen.dart';
@@ -1161,9 +1160,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     final glassBg = widget.roomThemeSpec?.glassBackgroundColor;
     final chatPref =
         ref.watch(chatThemeProvider).valueOrNull ?? const ChatThemePreference();
-    final activeFontFamily =
-        ref.watch(fontFamilyProvider).valueOrNull ??
-        MekaarTypography.fontFamily;
+    final activeFontFamily = chatPref.effectiveFontFamily;
     final effectiveFontSize = 16.0 * chatPref.textScale;
 
     return Padding(

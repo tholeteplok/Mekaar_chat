@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../constants/typography.dart';
 
 class Avatar extends StatelessWidget {
   final String? initial;
@@ -144,22 +144,18 @@ class Avatar extends StatelessWidget {
       );
     }
 
-    // Pola Inisial Biru MEKAAR: Font Acidic Murni, Miring Kiri 25°, Font Besar Terpotong Kontainer
-    final fontSize = innerSize * 1.12;
+    // Pola Inisial Profil MEKAAR: Font Baloo 2, warna tenang agar fokus tetap di username/display name
+    final initialColor = isDark
+        ? const Color(0xFF94A3B8) // Slate 400
+        : const Color(0xFF64748B); // Slate 500
 
     return Center(
-      child: Transform.rotate(
-        angle: -25 * (math.pi / 180), // Miring kiri 25 derajat
-        child: Text(
-          letter,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Acidic',
-            fontSize: fontSize,
-            fontWeight: FontWeight.w700,
-            color: AppColors.blue,
-            fontFamilyFallback: const ['PlusJakartaSans', 'sans-serif'],
-          ),
+      child: Text(
+        letter,
+        textAlign: TextAlign.center,
+        style: MekaarTypography.profileInitial(
+          fontSize: innerSize * 0.52,
+          color: initialColor,
         ),
       ),
     );

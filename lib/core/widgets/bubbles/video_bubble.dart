@@ -6,6 +6,7 @@ import 'package:video_compress/video_compress.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/file_export_service.dart';
 import '../../constants/colors.dart';
+import '../../constants/dimensions.dart';
 import '../../services/haptic_service.dart';
 import '../mekaar_snackbar.dart';
 import 'bubble_media_helper.dart';
@@ -371,7 +372,7 @@ class _VideoBubbleState extends State<VideoBubble> {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(MekaarRadius.sub),
                         ),
                         child: widget.metaWidget!,
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:solar_icons/solar_icons.dart';
 
@@ -7,6 +8,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
+import '../../../core/providers/font_provider.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
@@ -99,7 +101,8 @@ class _ChatThemeSettingsScreenState
   final ScrollController _presetScrollController = ScrollController();
 
   int _activePresetScrollIndex = 0;
-  int _selectedTabIndex = 0; // 0: Bentuk Gelembung, 1: Warna, 2: Wallpaper
+  int _selectedTabIndex = 0; // 0: Bentuk Gelembung, 1: Warna, 2: Font, 3: Wallpaper
+  int _selectedFontCategoryIndex = 0; // 0: Modern & Clean, 1: Playful & Komik
   bool _isOutgoingColorTab =
       true; // Sub-tab warna: true = Keluar (Saya), false = Masuk (Teman)
   bool _enableGradient = false;
@@ -249,7 +252,7 @@ class _ChatThemeSettingsScreenState
                 MekaarSlidingSegmentBar(
                   margin: EdgeInsets.zero,
                   height: 42,
-                  tabs: const ['Bentuk', 'Warna', 'Wallpaper'],
+                  tabs: const ['Bentuk', 'Warna', 'Font', 'Wallpaper'],
                   selectedIndex: _selectedTabIndex,
                   onTabSelected: (index) {
                     setState(() {
@@ -304,15 +307,18 @@ class _ChatThemeSettingsScreenState
     Color textPrimary,
     Color textSecondary,
   ) {
+    final activeFontFamily = pref.effectiveFontFamily;
     final outgoingSpec = ChatPresetResolver.getBubbleSpec(
       pref,
       context,
       isMe: true,
+      fontFamily: activeFontFamily,
     );
     final incomingSpec = ChatPresetResolver.getBubbleSpec(
       pref,
       context,
       isMe: false,
+      fontFamily: activeFontFamily,
     );
     final roomThemeSpec = ChatPresetResolver.getRoomThemeSpec(pref, context);
     final isDark = MekaarColors.isDarkContext(context);
@@ -628,6 +634,9 @@ class _ChatThemeSettingsScreenState
             onTap: () {
               HapticService.trigger(MekaarHapticIntent.selection);
               notifier.applyPreset(item.preset);
+              ref.read(fontFamilyProvider.notifier).setFontFamily(
+                ChatThemePreference.defaultFontForPreset(item.preset),
+              );
               _presetScrollController.animateTo(
                 (index * 116.0).clamp(
                   0.0,
@@ -781,6 +790,15 @@ class _ChatThemeSettingsScreenState
           textSecondary,
         );
       case 2:
+        return _buildBubbleFontPanel(
+          context,
+          chatPref,
+          cardBg,
+          cardBorderColor,
+          textPrimary,
+          textSecondary,
+        );
+      case 3:
       default:
         return _buildWallpaperPanel(
           context,
@@ -1290,7 +1308,148 @@ class _ChatThemeSettingsScreenState
     );
   }
 
-  // ── TAB 2: WALLPAPER (List Vertikal Terpadu — 7 Preset + 1 Galeri HP) ──
+  // ── TAB 2: GAYA FONT OBROLAN (Modern & Clean vs Playful & Komik) ──
+  Widget _buildBubbleFontPanel(
+    BuildContext context,
+    ChatThemePreference chatPref,
+    Color cardBg,
+    Color cardBorderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final currentFontKey = chatPref.effectiveFontFamily;
+    final notifier = ref.read(fontFamilyProvider.notifier);
+
+    final currentCategory = _selectedFontCategoryIndex == 0
+        ? FontCategory.modern
+        : FontCategory.playful;
+    final fonts = AppFontFamily.availableFonts
+        .where((f) => f.category == currentCategory)
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorderColor, width: 1),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Pilih Tipografi Pesan',
+                style: MekaarTypography.headingSM.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: textPrimary,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: MekaarColors.accentOf(context).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Khusus Ruang Chat',
+                  style: MekaarTypography.caption.copyWith(
+                    color: MekaarColors.accentOf(context),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          MekaarSlidingSegmentBar(
+            margin: EdgeInsets.zero,
+            height: 36,
+            tabs: const ['Modern & Clean', 'Playful & Komik'],
+            selectedIndex: _selectedFontCategoryIndex,
+            onTabSelected: (index) {
+              setState(() {
+                _selectedFontCategoryIndex = index;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: fonts.length,
+            separatorBuilder: (_, index) => Divider(
+              height: 1,
+              thickness: 0.8,
+              color: cardBorderColor.withValues(alpha: 0.5),
+            ),
+            itemBuilder: (ctx, idx) {
+              final font = fonts[idx];
+              final isSelected = font.key == currentFontKey;
+              return InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  ref.read(chatThemeProvider.notifier).setCustomFontFamily(font.key);
+                  notifier.setFontFamily(font.key);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              font.displayName,
+                              style: GoogleFonts.getFont(
+                                font.key,
+                                fontSize: 15,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? MekaarColors.accentOf(context)
+                                    : textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              font.subtitle,
+                              style: MekaarTypography.caption.copyWith(
+                                color: textSecondary,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isSelected)
+                        Icon(
+                          SolarIconsBold.checkCircle,
+                          color: MekaarColors.accentOf(context),
+                          size: 20,
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── TAB 3: WALLPAPER (List Vertikal Terpadu — 7 Preset + 1 Galeri HP) ──
   Widget _buildWallpaperPanel(
     BuildContext context,
     ChatThemePreference chatPref,

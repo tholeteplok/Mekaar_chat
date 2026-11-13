@@ -72,16 +72,15 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
     // yang sudah di-resolve (light/dark + palet sesuai preferensi).
     final themeData = ref.watch(resolvedThemeDataProvider);
     final themeMode = ref.watch(resolvedThemeModeProvider);
-    final fontFamily =
-        ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
-    MekaarTypography.fontFamily = fontFamily;
+    // Tipografi sistem aplikasi di-lock ke default enterprise 'Plus Jakarta Sans'
+    MekaarTypography.fontFamily = AppFontFamily.defaultFontKey;
 
     return MaterialApp(
       navigatorKey: AppNavigator.navigatorKey,
       navigatorObservers: [AppNavigator.observer],
       title: 'MEKAAR',
       theme: themeData,
-      darkTheme: MekaarTheme.darkTheme(fontFamily),
+      darkTheme: MekaarTheme.darkTheme(AppFontFamily.defaultFontKey),
       themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.splash,

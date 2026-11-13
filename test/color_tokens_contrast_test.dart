@@ -81,9 +81,10 @@ void main() {
               final lightMuted = MekaarColors.textMutedOf(context);
 
               expect(lightSecondary, MekaarColors.textSecondaryLight);
+              // WCAG 2.2 AA Compliance: textMuted menggunakan warna solid (#5C6B85) tanpa pengurangan alpha 0.72
               expect(
                 lightMuted,
-                MekaarColors.textSecondaryLight.withValues(alpha: 0.72),
+                MekaarColors.textSecondaryLight,
               );
 
               return const SizedBox.shrink();

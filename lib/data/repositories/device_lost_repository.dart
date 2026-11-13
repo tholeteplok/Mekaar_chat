@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/storage/mekaar_secure_storage.dart';
 import '../models/device_lost_model.dart';
+import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 
 class DeviceLostRepository {
@@ -71,5 +72,6 @@ class DeviceLostRepository {
   /// Clear device lost state (unlock device)
   Future<void> clearDeviceLostState() async {
     await setDeviceLostState(const DeviceLostState(isLocked: false));
+    await NotificationService.cancelDeviceLostNotification();
   }
 }

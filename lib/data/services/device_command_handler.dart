@@ -8,6 +8,7 @@ import '../models/device_lost_model.dart';
 import '../repositories/device_lost_repository.dart';
 import '../services/alarm_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/navigation/app_navigator.dart';
@@ -43,10 +44,22 @@ class DeviceCommandHandler {
       switch (commandType) {
         case 'alarm':
           await AlarmService.playSOSAlarm();
+          final recoveryContact = payload['recoveryContact'] as String?;
+          final lockMessage = payload['lockMessage'] as String? ??
+              'Sirine pemulihan ponsel berbunyi keras. Jika menemukan ponsel ini, hubungi kontak pemilik/guardian.';
+          await NotificationService.showDeviceLostNotification(
+            lockMessage: lockMessage,
+            recoveryContact: recoveryContact,
+          );
           break;
 
         case 'stop_alarm':
           await AlarmService.stopAlarm();
+          final repo = DeviceLostRepository(SupabaseService());
+          final currentLostState = await repo.getDeviceLostState();
+          if (!currentLostState.isLocked) {
+            await NotificationService.cancelDeviceLostNotification();
+          }
           break;
 
         case 'lock':
@@ -62,6 +75,11 @@ class DeviceCommandHandler {
             lockedAt: DateTime.now(),
           ));
 
+          await NotificationService.showDeviceLostNotification(
+            lockMessage: lockMessage,
+            recoveryContact: recoveryContact,
+          );
+
           // Jika app sedang aktif di foreground, langsung arahkan ke lock screen
           final context = AppNavigator.currentContext;
           if (context != null && context.mounted) {
@@ -75,15 +93,30 @@ class DeviceCommandHandler {
         case 'locate':
           final loc = await LocationService.getCurrentLocation();
           if (loc != null && SupabaseService.isInitialized) {
-            final userId = SupabaseService().currentUserId;
-            if (userId != null) {
-              // Simpan ping lokasi ke server
-              await SupabaseService().client.from('location_pings').insert({
-                'session_id': payload['sessionId'],
-                'latitude': loc.latitude,
-                'longitude': loc.longitude,
-                'accuracy': loc.accuracy,
-              });
+            // Update device_commands dengan koordinat hasil pelacakan di payload
+            if (commandId != null) {
+              try {
+                await SupabaseService().client.from('device_commands').update({
+                  'payload': {
+                    ...payload,
+                    'latitude': loc.latitude,
+                    'longitude': loc.longitude,
+                    'accuracy': loc.accuracy,
+                    'located_at': DateTime.now().toIso8601String(),
+                  },
+                }).eq('id', commandId);
+              } catch (_) {}
+            }
+
+            if (payload['sessionId'] != null) {
+              try {
+                await SupabaseService().client.from('location_pings').insert({
+                  'session_id': payload['sessionId'],
+                  'latitude': loc.latitude,
+                  'longitude': loc.longitude,
+                  'accuracy': loc.accuracy,
+                });
+              } catch (_) {}
             }
           }
           break;

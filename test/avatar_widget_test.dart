@@ -1,12 +1,11 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/core/constants/colors.dart';
 import 'package:mekaar_chat/core/widgets/avatar.dart';
 
 void main() {
-  group('Avatar Widget Tests (Acidic Typography & -25° Tilt Pattern)', () {
-    testWidgets('1. Merender inisial dengan font Acidic, warna AppColors.blue, dan rotasi -25 derajat', (
+  group('Avatar Widget Tests (Baloo 2 Typography & Subdued Slate Initial Pattern)', () {
+    testWidgets('1. Merender inisial dengan font Baloo 2, warna tenang Slate 500 (Light Mode), dan terpusat rapi', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -25,22 +24,9 @@ void main() {
       expect(textFinder, findsOneWidget);
 
       final textWidget = tester.widget<Text>(textFinder);
-      expect(textWidget.style?.fontFamily, 'Acidic');
-      expect(textWidget.style?.color, AppColors.blue);
-      expect(textWidget.style?.fontSize, 56 * 1.12);
-
-      // Verifikasi Transform rotasi miring kiri 25 derajad (-25 * pi / 180)
-      final transformFinder = find.descendant(
-        of: find.byType(Avatar),
-        matching: find.byType(Transform),
-      );
-      expect(transformFinder, findsOneWidget);
-
-      final transformWidget = tester.widget<Transform>(transformFinder);
-      final expectedAngle = -25 * (math.pi / 180);
-      // Evaluasi rotasi pada matrix Transform
-      expect(transformWidget.transform.storage[0], closeTo(math.cos(expectedAngle), 1e-4));
-      expect(transformWidget.transform.storage[1], closeTo(math.sin(expectedAngle), 1e-4));
+      expect(textWidget.style?.fontFamily, contains('Baloo'));
+      expect(textWidget.style?.color, const Color(0xFF64748B));
+      expect(textWidget.style?.fontSize, 56 * 0.52);
     });
 
     testWidgets('2. Merender simbol fallback "?" saat inisial null atau string kosong', (
@@ -59,7 +45,8 @@ void main() {
 
       expect(find.text('?'), findsOneWidget);
       final textWidget = tester.widget<Text>(find.text('?'));
-      expect(textWidget.style?.fontFamily, 'Acidic');
+      expect(textWidget.style?.fontFamily, contains('Baloo'));
+      expect(textWidget.style?.color, const Color(0xFF64748B));
     });
 
     testWidgets('3. Merender border tipis 1.0px dan container ClipOval pada mode Light & Dark', (

@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/theme_resolver.dart';
 import '../../../core/constants/theme_preference.dart';
 import '../../../core/constants/typography.dart';
-import '../../../core/providers/font_provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/time_tick_provider.dart';
-import '../../../core/widgets/mekaar_bottom_sheet.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
-import '../../../core/widgets/mekaar_snackbar.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import '../widgets/settings_tiles.dart';
@@ -44,8 +37,6 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
   Widget build(BuildContext context) {
     ref.watch(timeTickProvider);
     final currentPref = ref.watch(themePreferenceProvider).valueOrNull ?? ThemePreference.auto;
-    final currentFontKey = ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
-    final activeFont = AppFontFamily.findByKey(currentFontKey);
     final activeThemeData = ref.watch(resolvedThemeDataProvider);
     final authState = ref.watch(authProvider);
     final profile = authState.profile;
@@ -75,21 +66,11 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── 1. Live Preview Card ──
-                    _buildLivePreviewCard(context, activeThemeData, activeFont, currentPref, greetingName),
+                    _buildLivePreviewCard(context, activeThemeData, currentPref, greetingName),
 
                     // ── 2. Mode Tema Utama ──
                     const SettingsSectionHeader(title: 'Mode Tema'),
                     _buildThemePreferenceSelector(context, ref, currentPref),
-
-                    // ── 3. Tipografi & Font Family ──
-                    const SettingsSectionHeader(title: 'Tipografi & Gaya Tulisan'),
-                    SettingsNavTile(
-                      icon: SolarIconsOutline.text,
-                      iconColor: MekaarColors.accentTextOf(context),
-                      title: activeFont.displayName,
-                      subtitle: activeFont.subtitle,
-                      onTap: () => _openFontPickerBottomSheet(context, ref, currentFontKey),
-                    ),
 
                     const SizedBox(height: MekaarSpacing.xl),
                   ],
@@ -102,11 +83,10 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     );
   }
 
-  /// Live Preview Viewport yang memperlihatkan tema & font aktif secara instan.
+  /// Live Preview Viewport yang memperlihatkan tema aktif secara instan.
   Widget _buildLivePreviewCard(
     BuildContext context,
     ThemeData activeTheme,
-    AppFontFamily activeFont,
     ThemePreference currentPref,
     String greetingName,
   ) {
@@ -169,24 +149,15 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           const SizedBox(height: MekaarSpacing.md),
           Text(
             'Halo, $greetingName!',
-            style: GoogleFonts.getFont(
-              activeFont.key,
-              textStyle: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: MekaarColors.textPrimaryOf(context),
-              ),
+            style: MekaarTypography.headingMD.copyWith(
+              color: MekaarColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Pratinjau antarmuka Clean Core dengan font "${activeFont.displayName}".',
-            style: GoogleFonts.getFont(
-              activeFont.key,
-              textStyle: TextStyle(
-                fontSize: 14,
-                color: MekaarColors.textMutedOf(context),
-              ),
+            'Pratinjau antarmuka Clean Core MEKAAR.',
+            style: MekaarTypography.bodyMD.copyWith(
+              color: MekaarColors.textMutedOf(context),
             ),
           ),
         ],
@@ -288,121 +259,6 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           ],
         );
       }),
-    );
-  }
-
-  /// Bottom Sheet Pemilih Font Family
-  void _openFontPickerBottomSheet(
-    BuildContext context,
-    WidgetRef ref,
-    String currentFontKey,
-  ) {
-    final notifier = ref.read(fontFamilyProvider.notifier);
-
-    int selectedTabIndex = 0;
-
-    MekaarBottomSheet.show(
-      context: context,
-      title: 'Pilih Gaya Tulisan (Font)',
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: MekaarSlidingSegmentBar(
-                  margin: EdgeInsets.zero,
-                  height: 40,
-                  tabs: const [
-                    'Modern & Clean',
-                    'Playful & Komik',
-                  ],
-                  selectedIndex: selectedTabIndex,
-                  onTabSelected: (index) {
-                    setSheetState(() {
-                      selectedTabIndex = index;
-                    });
-                  },
-                ),
-              ),
-              SizedBox(
-                height: 320,
-                child: AnimatedSwitcher(
-                  duration: context.motion(MekaarMotion.fast),
-                  child: _buildFontListCategory(
-                    context,
-                    notifier,
-                    currentFontKey,
-                    selectedTabIndex == 0
-                        ? FontCategory.modern
-                        : FontCategory.playful,
-                    key: ValueKey<int>(selectedTabIndex),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFontListCategory(
-    BuildContext context,
-    FontFamilyNotifier notifier,
-    String currentFontKey,
-    FontCategory category, {
-    Key? key,
-  }) {
-    final fonts = AppFontFamily.availableFonts
-        .where((f) => f.category == category)
-        .toList();
-
-    return ListView.separated(
-      key: key,
-      padding: const EdgeInsets.symmetric(vertical: MekaarSpacing.md),
-      itemCount: fonts.length,
-      separatorBuilder: (ctx, index) => const MekaarCardDivider(indent: 16),
-      itemBuilder: (ctx, idx) {
-        final font = fonts[idx];
-        final selected = font.key == currentFontKey;
-
-        return ListTile(
-          selected: selected,
-          title: Text(
-            font.displayName,
-            style: GoogleFonts.getFont(
-              font.key,
-              textStyle: TextStyle(
-                fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                fontSize: 16,
-                color: selected ? MekaarColors.accentTextOf(context) : MekaarColors.textPrimaryOf(context),
-              ),
-            ),
-          ),
-          subtitle: Text(
-            font.subtitle,
-            style: GoogleFonts.getFont(
-              font.key,
-              textStyle: TextStyle(
-                fontSize: 12,
-                color: MekaarColors.textMutedOf(context),
-              ),
-            ),
-          ),
-          trailing: selected
-              ? Icon(SolarIconsBold.checkCircle, color: MekaarColors.accentTextOf(context), size: 20)
-              : null,
-          onTap: () async {
-            await notifier.setFontFamily(font.key);
-            if (ctx.mounted) {
-              Navigator.pop(ctx);
-              MekaarSnackbar.success(context, 'Font diubah ke ${font.displayName}');
-            }
-          },
-        );
-      },
     );
   }
 }

@@ -59,6 +59,7 @@ class MekaarTypography {
     double? height,
     double? letterSpacing,
     Color? color,
+    List<FontFeature>? fontFeatures,
   }) {
     return GoogleFonts.getFont(
       fontFamily,
@@ -67,6 +68,20 @@ class MekaarTypography {
       height: height,
       letterSpacing: letterSpacing,
       color: color,
+      fontFeatures: fontFeatures,
+    );
+  }
+
+  /// Helper inisial profil berbasis Baloo 2 terpusat
+  static TextStyle profileInitial({
+    required double fontSize,
+    Color? color,
+  }) {
+    return GoogleFonts.baloo2(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w700,
+      color: color,
+      height: 1.0,
     );
   }
 
@@ -161,6 +176,7 @@ class MekaarTypography {
     fontWeight: FontWeight.w700,
     height: 1.2,
     letterSpacing: 0.2,
+    fontFeatures: const [FontFeature.tabularFigures()],
   );
 
   static TextStyle get badge => _font(

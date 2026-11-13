@@ -7,8 +7,6 @@ import '../../features/settings/providers/chat_theme_provider.dart';
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
 import '../constants/icons.dart';
-import '../constants/typography.dart';
-import '../providers/font_provider.dart';
 import '../routes/app_routes.dart';
 import '../services/haptic_service.dart';
 import '../theme/chat_preset_resolver.dart';
@@ -251,9 +249,7 @@ class ChatBubble extends ConsumerWidget {
         : false;
     final isOnlyEmoji = emojiCount > 0 || singleCustom;
 
-    final activeFontFamily =
-        ref.watch(fontFamilyProvider).valueOrNull ??
-        MekaarTypography.fontFamily;
+    final activeFontFamily = chatPref.effectiveFontFamily;
 
     // Resolusi spesifikasi visual gelembung secara tersentralisasi via ChatPresetResolver
     final spec = ChatPresetResolver.getBubbleSpec(

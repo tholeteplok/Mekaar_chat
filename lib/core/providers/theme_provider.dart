@@ -114,9 +114,8 @@ final themePreferenceProvider = StateNotifierProvider<ThemePreferenceNotifier,
 final resolvedThemeDataProvider = Provider<ThemeData>((ref) {
   // Trigger rebuild setiap menit (untuk mode auto).
   ref.watch(timeTickProvider);
-  final fontFamily = ref.watch(fontFamilyProvider).valueOrNull ?? AppFontFamily.defaultFontKey;
   final pref = ref.watch(themePreferenceProvider).valueOrNull ?? _kDefaultThemePref;
-  return ThemeResolver.resolveThemeData(pref, fontFamily);
+  return ThemeResolver.resolveThemeData(pref, AppFontFamily.defaultFontKey);
 });
 
 /// ThemeMode final untuk MaterialApp (light/dark)

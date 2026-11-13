@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -15,6 +16,7 @@ class AlarmService {
   static final NotificationPreferencesRepository _preferencesRepository =
       NotificationPreferencesRepository();
   static _ActiveAudio _activeAudio = _ActiveAudio.none;
+  static Timer? _sosTimeoutTimer;
 
   static bool get isPlaying => _activeAudio != _ActiveAudio.none;
   static bool get isCallRingtonePlaying => _activeAudio == _ActiveAudio.call;
@@ -55,11 +57,34 @@ class AlarmService {
     }
   }
 
-  static Future<void> playSOSAlarm() async {
+  static Future<void> playSOSAlarm({
+    Duration autoStopTimeout = const Duration(minutes: 3),
+  }) async {
     if (_activeAudio == _ActiveAudio.sos) return;
     await stopCallRingtone();
 
     try {
+      _sosTimeoutTimer?.cancel();
+
+      // Konfigurasi AudioContext hardware alarm stream untuk menembus mode Silent / Do Not Disturb
+      await _sosPlayer.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            isSpeakerphoneOn: true,
+            stayAwake: true,
+            contentType: AndroidContentType.sonification,
+            usageType: AndroidUsageType.alarm,
+            audioFocus: AndroidAudioFocus.gainTransientExclusive,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {
+              AVAudioSessionOptions.duckOthers,
+            },
+          ),
+        ),
+      );
+
       final preferences = await _preferencesRepository.load();
       await _sosPlayer.setReleaseMode(ReleaseMode.loop);
       await _sosPlayer.setVolume(1);
@@ -70,12 +95,22 @@ class AlarmService {
         ),
       );
       _activeAudio = _ActiveAudio.sos;
+
+      // Safety timeout: auto-stop alarm setelah periode tertentu agar baterai perangkat tidak terkuras
+      _sosTimeoutTimer = Timer(autoStopTimeout, () {
+        _logger.i(
+          'AlarmService: Auto-stop alarm SOS dipicu setelah ${autoStopTimeout.inMinutes} menit demi keamanan baterai.',
+        );
+        stopSOSAlarm();
+      });
     } catch (error) {
       _logger.e('AlarmService: Gagal memutar alarm SOS: $error');
     }
   }
 
   static Future<void> stopSOSAlarm() async {
+    _sosTimeoutTimer?.cancel();
+    _sosTimeoutTimer = null;
     if (_activeAudio != _ActiveAudio.sos) return;
     try {
       await _sosPlayer.stop();

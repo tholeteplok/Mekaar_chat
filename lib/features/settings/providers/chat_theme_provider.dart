@@ -95,6 +95,14 @@ class ChatThemeNotifier extends StateNotifier<AsyncValue<ChatThemePreference>> {
     ));
   }
 
+  Future<void> setCustomFontFamily(String? fontFamily) async {
+    final current = state.valueOrNull ?? const ChatThemePreference();
+    await _save(current.copyWith(
+      preset: ChatThemePreset.custom,
+      customFontFamily: fontFamily,
+    ));
+  }
+
   Future<void> setCustomOutgoingColors({
     required String color1,
     String? color2,

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/chat_theme_model.dart';
 import '../constants/colors.dart';
-import '../constants/typography.dart';
 
 /// Tipe animasi masuk signature per preset tema.
 enum EntranceType {
@@ -344,88 +343,17 @@ class ChatPresetResolver {
     final fontSize = baseFontSize * pref.textScale;
     final activeFont = (fontFamily != null && fontFamily.isNotEmpty)
         ? fontFamily
-        : MekaarTypography.fontFamily;
+        : pref.effectiveFontFamily;
 
-    // Helper untuk meresolusi TextStyle sesuai Preset Font
+    // Helper untuk meresolusi TextStyle sesuai skema font tema aktif atau kustomisasi mandiri
     TextStyle resolveTextStyle(Color textColor) {
       try {
-        switch (pref.preset) {
-          case ChatThemePreset.comic:
-          case ChatThemePreset.comicPopArt:
-          case ChatThemePreset.diary:
-            return GoogleFonts.comicNeue(
-              color: textColor,
-              fontSize: fontSize + 1,
-              height: 1.3,
-              fontWeight: FontWeight.w700,
-            );
-          case ChatThemePreset.neuro:
-          case ChatThemePreset.neumorphism:
-            return GoogleFonts.getFont(
-              activeFont,
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.4,
-              fontWeight: FontWeight.w500,
-            );
-          case ChatThemePreset.mecha:
-          case ChatThemePreset.glass:
-          case ChatThemePreset.glassmorphism:
-          case ChatThemePreset.fireflyNight:
-            return GoogleFonts.spaceGrotesk(
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.35,
-              letterSpacing: 0.2,
-              fontWeight: FontWeight.w600,
-            );
-          case ChatThemePreset.pixel:
-          case ChatThemePreset.pixelGarden:
-          case ChatThemePreset.retroWave:
-          case ChatThemePreset.retroY2K:
-            return GoogleFonts.dotGothic16(
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            );
-          case ChatThemePreset.candy:
-          case ChatThemePreset.candyPop:
-          case ChatThemePreset.isometric3d:
-            return GoogleFonts.fredoka(
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.3,
-              fontWeight: FontWeight.w600,
-            );
-          case ChatThemePreset.eco:
-          case ChatThemePreset.solarpunk:
-            return GoogleFonts.comfortaa(
-              color: textColor,
-              fontSize: fontSize - 1,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            );
-          case ChatThemePreset.neonDreams:
-          case ChatThemePreset.neonCyberpunk:
-          case ChatThemePreset.monoVibe:
-          case ChatThemePreset.swissMinimalist:
-            return GoogleFonts.spaceGrotesk(
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.35,
-              fontWeight: FontWeight.w700,
-            );
-          case ChatThemePreset.mekaar:
-          case ChatThemePreset.dynamicTime:
-          case ChatThemePreset.custom:
-            return GoogleFonts.getFont(
-              activeFont,
-              color: textColor,
-              fontSize: fontSize,
-              height: 1.4,
-            );
-        }
+        return GoogleFonts.getFont(
+          activeFont,
+          color: textColor,
+          fontSize: fontSize,
+          height: 1.4,
+        );
       } catch (_) {
         return TextStyle(
           fontFamily: activeFont,
@@ -1069,13 +997,7 @@ class ChatPresetResolver {
         return ChatBubbleSpec(
           backgroundColor: const Color(0xFF0284C7),
           borderRadius: mekaarBorderRad,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x400284C7),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: const Color(0xFF0369A1), width: 1.0),
           textColor: Colors.white,
           fontFamily: activeFont,
           textStyle: resolveTextStyle(Colors.white),
@@ -1087,13 +1009,7 @@ class ChatPresetResolver {
         return ChatBubbleSpec(
           backgroundColor: const Color(0xFF1E293B),
           borderRadius: mekaarBorderRad,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x40000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: const Color(0xFF334155), width: 1.0),
           textColor: const Color(0xFFF1F5F9),
           fontFamily: activeFont,
           textStyle: resolveTextStyle(const Color(0xFFF1F5F9)),

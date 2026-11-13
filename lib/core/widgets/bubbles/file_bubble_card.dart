@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/file_export_service.dart';
 import '../../constants/colors.dart';
+import '../../constants/dimensions.dart';
 import '../../services/haptic_service.dart';
 import '../mekaar_snackbar.dart';
 import 'bubble_media_helper.dart';
@@ -157,13 +158,13 @@ class _FileBubbleCardState extends State<FileBubbleCard> {
       children: [
         InkWell(
           onTap: _handleTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(MekaarRadius.base),
           child: Container(
             constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(MekaarRadius.base),
               border: Border.all(
                 color: widget.textColor.withValues(alpha: 0.15),
                 width: 1,
@@ -176,7 +177,7 @@ class _FileBubbleCardState extends State<FileBubbleCard> {
                   height: 44,
                   decoration: BoxDecoration(
                     color: style.color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(MekaarRadius.sub),
                   ),
                   child: Icon(
                     style.icon,

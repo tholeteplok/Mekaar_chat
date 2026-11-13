@@ -7,6 +7,7 @@ import '../../../data/models/message_model.dart';
 import '../../../data/services/aegis_shredder_service.dart';
 import '../../../features/chat/providers/chat_provider.dart';
 import '../../constants/colors.dart';
+import '../../constants/dimensions.dart';
 import '../../constants/icons.dart';
 import 'bubble_media_helper.dart';
 import 'view_once_store.dart';
@@ -124,20 +125,24 @@ class _VoiceBubblePlayerState extends ConsumerState<VoiceBubblePlayer> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.75),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(MekaarRadius.sub),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     MekaarIcons.visibilityOff,
-                    color: Colors.white54,
+                    color: Color(0xFFE2EEFF),
                     size: 20,
                   ),
                   SizedBox(width: 8),
                   Text(
                     'Pesan suara telah diputar',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(
+                      color: Color(0xFFE2EEFF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -155,69 +160,92 @@ class _VoiceBubblePlayerState extends ConsumerState<VoiceBubblePlayer> {
     final mainColor = widget.isMe ? widget.textColor : accentColor;
     final activeWave = widget.isMe ? widget.textColor : accentColor;
     final inactiveWave = widget.isMe
-        ? widget.textColor.withValues(alpha: 0.35)
-        : MekaarColors.textMutedOf(context).withValues(alpha: 0.35);
+        ? widget.textColor.withValues(alpha: 0.50)
+        : MekaarColors.textMutedOf(context).withValues(alpha: 0.50);
 
-    return GestureDetector(
-      onTap: _togglePlay,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isLoading)
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: mainColor,
-                  ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Semantics(
+          button: true,
+          label: _isPlaying ? 'Jeda pesan suara' : 'Putar pesan suara',
+          value: _label(),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _togglePlay,
+              borderRadius: BorderRadius.circular(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
+                ),
+                child: Center(
+                  child: _isLoading
+                      ? SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: mainColor,
+                          ),
+                        )
+                      : Icon(
+                          _isPlaying
+                              ? MekaarIcons.pauseCircleFilled
+                              : MekaarIcons.playCircleFilled,
+                          size: 34,
+                          color: mainColor,
+                        ),
                 ),
               ),
-            )
-          else
-            Icon(
-              _isPlaying
-                  ? MekaarIcons.pauseCircleFilled
-                  : MekaarIcons.playCircleFilled,
-              size: 32,
-              color: mainColor,
             ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 100,
-            height: 20,
+          ),
+        ),
+        const SizedBox(width: 4),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _togglePlay,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(15, (index) {
-                final played = (index / 15) <= _progress;
-                return Container(
-                  width: 3,
-                  height: (4 + (index % 4) * 3.0).toDouble(),
-                  margin: const EdgeInsets.symmetric(horizontal: 1),
-                  decoration: BoxDecoration(
-                    color: played ? activeWave : inactiveWave,
-                    borderRadius: BorderRadius.circular(2),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 100,
+                  height: 20,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(15, (index) {
+                      final played = (index / 15) <= _progress;
+                      return Container(
+                        width: 3,
+                        height: (4 + (index % 4) * 3.0).toDouble(),
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        decoration: BoxDecoration(
+                          color: played ? activeWave : inactiveWave,
+                          borderRadius: BorderRadius.circular(MekaarRadius.xxs),
+                        ),
+                      );
+                    }),
                   ),
-                );
-              }),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _label(),
+                  style: TextStyle(
+                    color: widget.isMe
+                        ? widget.textColor
+                        : MekaarColors.textSecondaryOf(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            _label(),
-            style: TextStyle(
-              color: widget.isMe
-                  ? widget.textColor.withValues(alpha: 0.8)
-                  : MekaarColors.textMutedOf(context),
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
