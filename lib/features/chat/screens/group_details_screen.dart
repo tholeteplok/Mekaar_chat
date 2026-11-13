@@ -50,6 +50,11 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _groupData = {
+      'id': widget.roomId,
+      'name': widget.groupName,
+      'avatar_url': widget.groupAvatarUrl,
+    };
     _loadDetails();
   }
 
@@ -64,16 +69,25 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
       final chatRepo = ref.read(chatRepositoryProvider);
       final details = await chatRepo.getGroupDetails(widget.roomId);
       final prefs = await chatRepo.getRoomPreferences(widget.roomId);
-      if (details != null && mounted) {
+      if (mounted) {
         setState(() {
-          _groupData = details['room'] as Map<String, dynamic>?;
-          _participants = (details['participants'] as List?) ?? [];
-          _isMuted = prefs?.isMuted ?? false;
-          _isLoading = false;
+          if (details != null) {
+            _groupData = details['room'] as Map<String, dynamic>? ?? _groupData;
+            _participants = (details['participants'] as List?) ?? [];
+          }
+          if (prefs != null) {
+            _isMuted = prefs.isMuted;
+          }
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        MekaarSnackbar.error(context, 'Gagal menyinkronkan detail grup.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -816,9 +830,12 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
               message: 'Mengambil informasi dan anggota grup...',
               semanticLabel: 'Memuat detail grup',
             )
-          : ListView(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              children: [
+          : RefreshIndicator(
+              onRefresh: _loadDetails,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                children: [
                 // ──── 1. Header Profil Grup Interaktif ────
                 Center(
                   child: Column(
@@ -1165,19 +1182,37 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                         ).withValues(alpha: 0.15),
                       ),
                     ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredParticipants.length,
-                      separatorBuilder: (ctx, idx) => Divider(
-                        height: 1,
-                        thickness: 0.6,
-                        indent: 64,
-                        color: MekaarColors.borderOf(
-                          context,
-                        ).withValues(alpha: 0.2),
-                      ),
-                      itemBuilder: (context, index) {
+                    child: filteredParticipants.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 24,
+                              horizontal: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                _memberSearchQuery.isNotEmpty
+                                    ? 'Tidak ada anggota yang cocok dengan pencarian.'
+                                    : 'Belum ada data anggota yang dimuat.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: MekaarColors.textMutedOf(context),
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: filteredParticipants.length,
+                            separatorBuilder: (ctx, idx) => Divider(
+                              height: 1,
+                              thickness: 0.6,
+                              indent: 64,
+                              color: MekaarColors.borderOf(
+                                context,
+                              ).withValues(alpha: 0.2),
+                            ),
+                            itemBuilder: (context, index) {
                         final p = filteredParticipants[index];
                         final role = p['role'] as String? ?? 'member';
                         final profile =
@@ -1350,6 +1385,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 const SizedBox(height: 40),
               ],
             ),
+          ),
     );
   }
 }

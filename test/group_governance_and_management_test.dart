@@ -416,5 +416,52 @@ void main() {
       expect(find.text('Jadikan Pemilik Grup (Transfer)'), findsOneWidget);
       expect(find.text('Keluarkan dari Grup'), findsOneWidget);
     });
+
+    testWidgets(
+      'When getGroupDetails returns null, GroupDetailsScreen does not hang and renders fallback header',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        // Simulasikan database/jaringan gagal mengembalikan details (null)
+        fakeRepo.groupDetailsData = null;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              chatRepositoryProvider.overrideWithValue(fakeRepo),
+              authProvider.overrideWith(
+                (ref) => FakeGroupAuthNotifier(
+                  AuthState(user: User(id: 'user-owner', appMetadata: {}, userMetadata: {}, aud: 'authenticated', createdAt: DateTime.now().toIso8601String()), profile: testProfile),
+                ),
+              ),
+            ],
+            child: const MaterialApp(
+              home: GroupDetailsScreen(
+                roomId: 'room-group-fallback',
+                groupName: 'Grup Tangguh Mekaar',
+              ),
+            ),
+          ),
+        );
+
+        // Awalnya mungkin sempat memuat
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        // Loading view "Memuat Detail Grup" WAJIB HILANG (tidak freeze selamanya)
+        expect(find.text('Memuat Detail Grup'), findsNothing);
+
+        // Nama grup fallback dari constructor wajib tampil
+        expect(find.text('Grup Tangguh Mekaar'), findsOneWidget);
+
+        // State empty anggota ditampilkan dengan aman
+        expect(
+          find.text('Belum ada data anggota yang dimuat.'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

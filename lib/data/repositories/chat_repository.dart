@@ -1975,25 +1975,81 @@ class ChatRepository {
   /// Mendapatkan detail informasi & peserta grup.
   Future<Map<String, dynamic>?> getGroupDetails(String roomId) async {
     try {
-      final roomResp = await _supabaseService.client
-          .from('chat_rooms')
-          .select(
-            'id, name, avatar_url, description, created_by, created_at, is_announcement_only, members_can_edit_info, members_can_invite',
-          )
-          .eq('id', roomId)
-          .maybeSingle();
+      Map<String, dynamic>? roomResp;
+      try {
+        roomResp = await _supabaseService.client
+            .from('chat_rooms')
+            .select(
+              'id, name, avatar_url, description, created_by, created_at, is_announcement_only, members_can_edit_info, members_can_invite',
+            )
+            .eq('id', roomId)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {
+        // Fallback jika kolom migration 115 belum dieksekusi di database
+        roomResp = await _supabaseService.client
+            .from('chat_rooms')
+            .select(
+              'id, name, avatar_url, description, created_by, created_at',
+            )
+            .eq('id', roomId)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 8));
+      }
 
       if (roomResp == null) return null;
 
-      final participantsResp = await _supabaseService.client
+      // Ambil daftar peserta dari room_participants
+      final participantsRaw = await _supabaseService.client
           .from('room_participants')
-          .select(
-            'profile_id, role, joined_at, public_profiles(id, username, full_name, display_name, avatar_url)',
-          )
+          .select('profile_id, role, joined_at')
           .eq('room_id', roomId)
-          .isFilter('deleted_at', null);
+          .isFilter('deleted_at', null)
+          .timeout(const Duration(seconds: 8));
 
-      return {'room': roomResp, 'participants': participantsResp};
+      final participantsList = List<Map<String, dynamic>>.from(
+        (participantsRaw as List).map(
+          (e) => Map<String, dynamic>.from(e as Map),
+        ),
+      );
+
+      final profileIds = participantsList
+          .map((p) => p['profile_id'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      final Map<String, Map<String, dynamic>> profilesMap = {};
+      if (profileIds.isNotEmpty) {
+        try {
+          final profilesResp = await _supabaseService.client
+              .from('public_profiles')
+              .select('id, username, full_name, display_name, avatar_url')
+              .inFilter('id', profileIds)
+              .timeout(const Duration(seconds: 8));
+
+          for (final row in (profilesResp as List)) {
+            final m = Map<String, dynamic>.from(row as Map);
+            final id = m['id'] as String?;
+            if (id != null) {
+              profilesMap[id] = m;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Gabungkan profil ke masing-masing item peserta
+      for (final p in participantsList) {
+        final pid = p['profile_id'] as String;
+        p['public_profiles'] = profilesMap[pid] ?? {
+          'id': pid,
+          'display_name': 'Anggota',
+          'username': '',
+          'avatar_url': null,
+        };
+      }
+
+      return {'room': roomResp, 'participants': participantsList};
     } catch (_) {
       return null;
     }
