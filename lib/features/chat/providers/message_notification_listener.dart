@@ -10,6 +10,7 @@ import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/local_message_database.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
+import '../../settings/providers/notification_preferences_provider.dart';
 import '../../settings/providers/trip_monitor_scheduler.dart';
 import 'chat_provider.dart';
 import 'emoji_pack_provider.dart';
@@ -299,6 +300,35 @@ class MessageNotificationListener {
       }
     }
 
+    // Cek apakah room adalah group chat
+    bool isGroup = false;
+    String? groupName;
+    String? groupAvatar;
+    String? groupAvatarUrl;
+
+    final cachedRooms = _ref.read(chatRoomsProvider).valueOrNull ?? [];
+    final room = cachedRooms.cast<Map<String, dynamic>?>().firstWhere(
+      (r) => r?['id'] == roomId,
+      orElse: () => null,
+    );
+    if (room != null) {
+      isGroup = room['isGroup'] == true;
+      if (isGroup) {
+        groupName = room['name'] as String?;
+        groupAvatar = room['avatar'] as String?;
+        groupAvatarUrl = room['avatarUrl'] as String?;
+      }
+    }
+
+    // Jika pesan dari grup, periksa preferensi pengguna apakah notifikasi grup aktif
+    if (isGroup) {
+      final notifPrefs =
+          _ref.read(notificationPreferencesProvider).valueOrNull;
+      if (notifPrefs != null && !notifPrefs.groupNotificationsEnabled) {
+        return; // Pengguna mematikan notifikasi grup secara global
+      }
+    }
+
     // Cek apakah room/sender disembunyikan dalam Private Contact Vault (terisolasi per-slot)
     final isCloaked = VaultIsolationHelper.isRoomCloaked(
       _ref,
@@ -323,6 +353,18 @@ class MessageNotificationListener {
       // Tampilkan nama brand & teks netral tanpa membocorkan pengirim/isi pesan
       finalTitle = 'MEKAAR';
       finalBody = 'Pesan baru masuk';
+    } else if (isGroup) {
+      // Format Notifikasi Grup Standar: Judul = Nama Grup, Isi = Nama Pengirim: Isi Pesan
+      finalTitle = (groupName != null && groupName.isNotEmpty)
+          ? groupName
+          : 'Grup MEKAAR';
+      final formattedBody = formatNotificationBody(
+        msgType: msgType,
+        content: content,
+        isEncrypted: isEncrypted,
+        isStealthPreview: isStealthPreview,
+      );
+      finalBody = '$senderName: $formattedBody';
     } else {
       finalTitle = senderName;
       finalBody = formatNotificationBody(
@@ -335,18 +377,31 @@ class MessageNotificationListener {
 
     final avatarInitial = isCloaked
         ? null
-        : (senderName.isNotEmpty ? senderName[0].toUpperCase() : 'U');
+        : (isGroup
+            ? (groupAvatar ??
+                (groupName != null && groupName.isNotEmpty
+                    ? groupName[0].toUpperCase()
+                    : 'G'))
+            : (senderName.isNotEmpty ? senderName[0].toUpperCase() : 'U'));
+
+    final avatarUrl = isCloaked ? null : (isGroup ? groupAvatarUrl : null);
 
     await NotificationService.showMessageNotification(
       title: finalTitle,
       body: finalBody,
       roomId: roomId,
+      isGroup: isGroup,
+      groupName: isCloaked ? null : groupName,
+      senderName: isCloaked ? null : senderName,
       route: NotificationRoute(
         type: NotificationRouteType.message,
         roomId: roomId,
-        chatName: isCloaked ? null : senderName,
+        chatName: isCloaked ? null : (isGroup ? groupName : senderName),
         chatAvatar: avatarInitial,
+        chatAvatarUrl: avatarUrl,
         otherUserId: isCloaked ? null : senderId,
+        isGroup: isGroup,
+        groupName: isCloaked ? null : groupName,
       ),
     );
   }

@@ -74,5 +74,28 @@ void main() {
       final updatedValue = prefs.getBool('allow_guardian_alarm') ?? true;
       expect(updatedValue, isFalse);
     });
+
+    test('Preferensi notifikasi grup default aktif dan tersimpan dengan benar', () async {
+      final repo = NotificationPreferencesRepository();
+      var loaded = await repo.load();
+      expect(loaded.groupNotificationsEnabled, isTrue);
+      expect(loaded.groupMessageSound, NotificationPreferences.defaultMessageSound);
+
+      // Ubah switch notifikasi grup menjadi dinonaktifkan
+      await repo.save(loaded.copyWith(
+        groupNotificationsEnabled: false,
+        groupMessageSound: 'sounds/custom_group.wav',
+      ));
+
+      loaded = await repo.load();
+      expect(loaded.groupNotificationsEnabled, isFalse);
+      expect(loaded.groupMessageSound, 'sounds/custom_group.wav');
+    });
+
+    test('Saluran notifikasi grup terdaftar dengan ID khusus', () {
+      expect(NotificationService.groupMessageChannelId, 'mekaar_group_message_channel_v1');
+      expect(NotificationService.messageChannelId, 'mekaar_message_channel_v3');
+      expect(NotificationService.groupMessageChannelId, isNot(NotificationService.messageChannelId));
+    });
   });
 }

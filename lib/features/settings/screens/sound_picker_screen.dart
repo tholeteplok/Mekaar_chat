@@ -128,8 +128,9 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                     children: [
                       const SizedBox(height: 12),
 
+                      // --- Notifikasi Pesan Pribadi ---
                       MekaarSectionHeader(
-                        title: 'Nada Notifikasi Pesan',
+                        title: 'Notifikasi Pesan Pribadi',
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
                         trailing: Switch.adaptive(
                           value: prefs.messageSoundEnabled,
@@ -146,12 +147,58 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                           inactiveTrackColor: MekaarColors.surface2Of(context),
                         ),
                       ),
-                      SettingsNavTile(
-                        icon: SolarIconsOutline.volumeLoud,
-                        iconColor: MekaarColors.primaryOf(context),
-                        title: 'Nada Notifikasi Sistem',
-                        subtitle: 'Atur nada dering pesan di setelan sistem Android',
-                        onTap: () => NotificationService.openSystemNotificationSettings(),
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: prefs.messageSoundEnabled ? 1.0 : 0.45,
+                        child: IgnorePointer(
+                          ignoring: !prefs.messageSoundEnabled,
+                          child: SettingsNavTile(
+                            icon: SolarIconsOutline.chatRound,
+                            iconColor: MekaarColors.primaryOf(context),
+                            title: 'Nada Notifikasi Pribadi',
+                            subtitle: 'Atur nada dering pesan pribadi di setelan sistem Android',
+                            onTap: () => NotificationService.openSystemNotificationSettings(
+                              channelId: NotificationService.messageChannelId,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // --- Notifikasi Pesan Grup ---
+                      MekaarSectionHeader(
+                        title: 'Notifikasi Pesan Grup',
+                        padding: const EdgeInsets.only(left: 4, bottom: 8),
+                        trailing: Switch.adaptive(
+                          value: prefs.groupNotificationsEnabled,
+                          onChanged: (val) {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            ref
+                                .read(notificationPreferencesProvider.notifier)
+                                .toggleGroupNotifications(val);
+                          },
+                          activeThumbColor: MekaarColors.guardianTeal,
+                          activeTrackColor:
+                              MekaarColors.guardianTeal.withValues(alpha: 0.35),
+                          inactiveThumbColor: MekaarColors.textMutedOf(context),
+                          inactiveTrackColor: MekaarColors.surface2Of(context),
+                        ),
+                      ),
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: prefs.groupNotificationsEnabled ? 1.0 : 0.45,
+                        child: IgnorePointer(
+                          ignoring: !prefs.groupNotificationsEnabled,
+                          child: SettingsNavTile(
+                            icon: SolarIconsOutline.usersGroupTwoRounded,
+                            iconColor: MekaarColors.guardianTeal,
+                            title: 'Nada Notifikasi Grup',
+                            subtitle: 'Atur nada dering & saluran obrolan grup di setelan sistem Android',
+                            onTap: () => NotificationService.openSystemNotificationSettings(
+                              channelId: NotificationService.groupMessageChannelId,
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       SoundPreferenceSection(

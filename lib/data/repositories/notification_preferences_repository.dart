@@ -19,6 +19,10 @@ class NotificationPreferencesRepository {
         preferences.getString(NotificationPreferences.messageSoundKey),
         NotificationPreferences.defaultMessageSound,
       ),
+      groupMessageSound: _validatedPath(
+        preferences.getString(NotificationPreferences.groupMessageSoundKey),
+        NotificationPreferences.defaultMessageSound,
+      ),
       callSound: _validatedPath(
         preferences.getString(NotificationPreferences.callSoundKey),
         NotificationPreferences.defaultCallSound,
@@ -29,6 +33,11 @@ class NotificationPreferencesRepository {
       ),
       messageSoundEnabled:
           preferences.getBool(NotificationPreferences.messageSoundEnabledKey) ??
+          true,
+      groupNotificationsEnabled:
+          preferences.getBool(
+            NotificationPreferences.groupNotificationsEnabledKey,
+          ) ??
           true,
       callSoundEnabled:
           preferences.getBool(NotificationPreferences.callSoundEnabledKey) ??
@@ -45,6 +54,10 @@ class NotificationPreferencesRepository {
         value.messageSound,
       ),
       preferences.setString(
+        NotificationPreferences.groupMessageSoundKey,
+        value.groupMessageSound,
+      ),
+      preferences.setString(
         NotificationPreferences.callSoundKey,
         value.callSound,
       ),
@@ -55,6 +68,10 @@ class NotificationPreferencesRepository {
       preferences.setBool(
         NotificationPreferences.messageSoundEnabledKey,
         value.messageSoundEnabled,
+      ),
+      preferences.setBool(
+        NotificationPreferences.groupNotificationsEnabledKey,
+        value.groupNotificationsEnabled,
       ),
       preferences.setBool(
         NotificationPreferences.callSoundEnabledKey,

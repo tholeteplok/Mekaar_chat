@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:solar_icons/solar_icons.dart';
 
 import '../constants/colors.dart';
 import '../constants/motion.dart';
@@ -19,6 +20,8 @@ class MekaarInAppNotificationBanner extends StatefulWidget {
   final String body;
   final String? avatarInitial;
   final String? avatarUrl;
+  final bool isGroup;
+  final String? groupName;
   final VoidCallback? onTap;
   final VoidCallback onDismiss;
 
@@ -28,6 +31,8 @@ class MekaarInAppNotificationBanner extends StatefulWidget {
     required this.body,
     this.avatarInitial,
     this.avatarUrl,
+    this.isGroup = false,
+    this.groupName,
     this.onTap,
     required this.onDismiss,
   });
@@ -43,6 +48,8 @@ class MekaarInAppNotificationBanner extends StatefulWidget {
     required String body,
     String? avatarInitial,
     String? avatarUrl,
+    bool isGroup = false,
+    String? groupName,
     VoidCallback? onTap,
     Duration duration = const Duration(milliseconds: 3500),
   }) {
@@ -64,6 +71,8 @@ class MekaarInAppNotificationBanner extends StatefulWidget {
           body: body,
           avatarInitial: avatarInitial,
           avatarUrl: avatarUrl,
+          isGroup: isGroup,
+          groupName: groupName,
           onTap: () {
             dismiss();
             onTap?.call();
@@ -181,15 +190,30 @@ class _MekaarInAppNotificationBannerState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              widget.title,
-                              style: MekaarTypography.bodyMD.copyWith(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w700,
-                                color: MekaarColors.textPrimaryOf(context),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              children: [
+                                if (widget.isGroup) ...[
+                                  Icon(
+                                    SolarIconsBold.usersGroupTwoRounded,
+                                    size: 14,
+                                    color: MekaarColors.accentOf(context),
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    widget.title,
+                                    style: MekaarTypography.bodyMD.copyWith(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color:
+                                          MekaarColors.textPrimaryOf(context),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 2),
                             Text(

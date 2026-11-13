@@ -40,6 +40,9 @@ class NotificationPreferencesNotifier
   Future<void> updateMessageSound(String value) =>
       update((current) => current.copyWith(messageSound: value));
 
+  Future<void> updateGroupMessageSound(String value) =>
+      update((current) => current.copyWith(groupMessageSound: value));
+
   Future<void> updateCallSound(String value) =>
       update((current) => current.copyWith(callSound: value));
 
@@ -48,6 +51,9 @@ class NotificationPreferencesNotifier
 
   Future<void> toggleMessageSound(bool enabled) =>
       update((current) => current.copyWith(messageSoundEnabled: enabled));
+
+  Future<void> toggleGroupNotifications(bool enabled) =>
+      update((current) => current.copyWith(groupNotificationsEnabled: enabled));
 
   Future<void> toggleCallSound(bool enabled) =>
       update((current) => current.copyWith(callSoundEnabled: enabled));

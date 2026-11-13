@@ -16,6 +16,7 @@ import androidx.core.app.NotificationManagerCompat
 object MekaarMessageNotificationManager {
     private const val TAG = "MekaarMsgNotif"
     const val MESSAGE_CHANNEL_ID = "mekaar_message_channel_v3"
+    const val GROUP_MESSAGE_CHANNEL_ID = "mekaar_group_message_channel_v1"
 
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -33,12 +34,12 @@ object MekaarMessageNotificationManager {
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
                 .build()
 
-            val channel = NotificationChannel(
+            val personalChannel = NotificationChannel(
                 MESSAGE_CHANNEL_ID,
                 "Pesan MEKAAR",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Saluran notifikasi pesan masuk"
+                description = "Saluran notifikasi pesan masuk pribadi"
                 setSound(soundUri, audioAttributes)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 250, 250, 250)
@@ -46,7 +47,22 @@ object MekaarMessageNotificationManager {
                 lightColor = Color.BLUE
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
             }
-            notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(personalChannel)
+
+            val groupChannel = NotificationChannel(
+                GROUP_MESSAGE_CHANNEL_ID,
+                "Pesan Grup MEKAAR",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Saluran notifikasi obrolan grup"
+                setSound(soundUri, audioAttributes)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 250, 250)
+                enableLights(true)
+                lightColor = Color.BLUE
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
+            }
+            notificationManager.createNotificationChannel(groupChannel)
         }
     }
 
@@ -64,12 +80,27 @@ object MekaarMessageNotificationManager {
 
         createChannel(context)
 
+        val isGroup = data["isGroup"] == "true" || data["is_group"] == "true"
+        val groupName = data["groupName"] ?: data["group_name"]
+
+        // Jika notifikasi grup, periksa preferensi pengguna apakah notifikasi grup aktif
+        if (isGroup) {
+            val sharedPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val groupEnabled = sharedPrefs.getBoolean("flutter.group_notifications_enabled", true)
+            if (!groupEnabled) {
+                Log.d(TAG, "Notifikasi grup dinonaktifkan di setelan aplikasi. Drop notification.")
+                return
+            }
+        }
+
+        val targetChannelId = if (isGroup) GROUP_MESSAGE_CHANNEL_ID else MESSAGE_CHANNEL_ID
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = notificationManager.getNotificationChannel(MESSAGE_CHANNEL_ID)
+            val channel = notificationManager.getNotificationChannel(targetChannelId)
             if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) {
-                Log.d(TAG, "Saluran pesan dimatikan oleh pengguna di setelan OS.")
+                Log.d(TAG, "Saluran pesan ($targetChannelId) dimatikan oleh pengguna di setelan OS.")
                 return
             }
         }
@@ -84,11 +115,13 @@ object MekaarMessageNotificationManager {
 
         val displayTitle: String
         val displayBody: String
+        val summaryText: String
 
         if (isVaultLocked) {
             Log.d(TAG, "Pesan disamarkan (Vault Terkunci): roomId=$roomId")
             displayTitle = "MEKAAR"
             displayBody = "Pesan baru masuk"
+            summaryText = "MEKAAR"
         } else {
             // Self-Healing: Jika server mengirim generic "MEKAAR" padahal kontak terbuka (!isVaultLocked),
             // prioritaskan senderName asli, atau gunakan "Pesan Baru" jika hanya ada nama brand MEKAAR.
@@ -98,9 +131,17 @@ object MekaarMessageNotificationManager {
                 rawSenderName != "MEKAAR" -> rawSenderName
                 else -> "Pesan Baru"
             }
-            Log.d(TAG, "Pesan ditampilkan Rich: sender=$effectiveSenderName, roomId=$roomId")
-            displayTitle = effectiveSenderName
-            displayBody = rawBody
+            if (isGroup) {
+                displayTitle = if (!groupName.isNullOrEmpty()) groupName else "Grup MEKAAR"
+                displayBody = "$effectiveSenderName: $rawBody"
+                summaryText = if (!groupName.isNullOrEmpty()) groupName else "Grup MEKAAR"
+                Log.d(TAG, "Pesan grup ditampilkan Rich: group=$displayTitle, sender=$effectiveSenderName, roomId=$roomId")
+            } else {
+                displayTitle = effectiveSenderName
+                displayBody = rawBody
+                summaryText = "MEKAAR"
+                Log.d(TAG, "Pesan pribadi ditampilkan Rich: sender=$effectiveSenderName, roomId=$roomId")
+            }
         }
 
         val notificationId = getMessageNotificationId(roomId)
@@ -111,6 +152,8 @@ object MekaarMessageNotificationManager {
             putExtra("roomId", roomId)
             putExtra("senderId", senderId)
             putExtra("senderName", if (isVaultLocked) null else rawSenderName)
+            putExtra("isGroup", isGroup)
+            putExtra("groupName", if (isVaultLocked) null else groupName)
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -121,11 +164,11 @@ object MekaarMessageNotificationManager {
         )
 
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        val builder = NotificationCompat.Builder(context, MESSAGE_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, targetChannelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(displayTitle)
             .setContentText(displayBody)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(displayBody).setSummaryText("MEKAAR"))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(displayBody).setSummaryText(summaryText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(if (isVaultLocked) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)

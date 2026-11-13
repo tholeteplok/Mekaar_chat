@@ -29,6 +29,26 @@ void main() {
       expect(decoded.otherUserId, 'user-2');
     });
 
+    test('roundtrip route message grup dengan isGroup dan groupName', () {
+      const route = NotificationRoute(
+        type: NotificationRouteType.message,
+        roomId: 'room-group-1',
+        chatName: 'Keluarga Cemara',
+        chatAvatar: 'K',
+        isGroup: true,
+        groupName: 'Keluarga Cemara',
+      );
+
+      final decoded = NotificationRoute.fromPayload(route.encodePayload());
+
+      expect(decoded, isNotNull);
+      expect(decoded!.type, NotificationRouteType.message);
+      expect(decoded.roomId, 'room-group-1');
+      expect(decoded.chatName, 'Keluarga Cemara');
+      expect(decoded.isGroup, isTrue);
+      expect(decoded.groupName, 'Keluarga Cemara');
+    });
+
     test('roundtrip route call', () {
       const route = NotificationRoute(
         type: NotificationRouteType.call,

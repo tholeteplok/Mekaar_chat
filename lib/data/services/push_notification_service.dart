@@ -9,6 +9,7 @@ import 'notification_service.dart';
 import 'supabase_service.dart';
 import 'notification_dedup_service.dart';
 import '../repositories/device_repository.dart';
+import '../repositories/notification_preferences_repository.dart';
 import '../repositories/private_contact_repository.dart';
 import 'device_command_handler.dart';
 
@@ -142,6 +143,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         NotificationDedupService.markNotified(dedupKey);
       }
 
+      final isGroup =
+          data['isGroup'] == 'true' || data['is_group'] == 'true';
+      final groupName =
+          data['groupName'] as String? ?? data['group_name'] as String?;
+      final senderName =
+          data['senderName'] as String? ?? data['sender_name'] as String?;
+
+      if (isGroup) {
+        try {
+          final prefs = await NotificationPreferencesRepository().load();
+          if (!prefs.groupNotificationsEnabled) {
+            return; // Notifikasi grup dimatikan secara global oleh pengguna
+          }
+        } catch (_) {}
+      }
+
       String finalTitle = title;
       String finalBody = body;
       final senderId = data['senderId'] as String? ?? data['sender_id'] as String?;
@@ -158,13 +175,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           finalTitle = 'MEKAAR';
           finalBody = 'Pesan baru masuk';
         } else {
-          // Self-Healing untuk kontak terbuka (non-vault):
-          // Jika server FCM mengirimkan judul generic 'MEKAAR', pulihkan nama pengirim asli.
-          final senderName = data['senderName'] as String? ?? data['sender_name'] as String?;
-          if (senderName != null && senderName.isNotEmpty && senderName != 'MEKAAR') {
-            finalTitle = senderName;
-          } else if (finalTitle == 'MEKAAR') {
-            finalTitle = 'Pesan Baru';
+          if (isGroup) {
+            finalTitle = (groupName != null && groupName.isNotEmpty)
+                ? groupName
+                : 'Grup MEKAAR';
+            final sName = (senderName != null && senderName.isNotEmpty)
+                ? senderName
+                : 'Seseorang';
+            finalBody = '$sName: $body';
+          } else {
+            // Self-Healing untuk kontak terbuka (non-vault):
+            // Jika server FCM mengirimkan judul generic 'MEKAAR', pulihkan nama pengirim asli.
+            if (senderName != null && senderName.isNotEmpty && senderName != 'MEKAAR') {
+              finalTitle = senderName;
+            } else if (finalTitle == 'MEKAAR') {
+              finalTitle = 'Pesan Baru';
+            }
           }
         }
       } catch (_) {}
@@ -173,11 +199,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         title: finalTitle,
         body: finalBody,
         roomId: roomId,
+        isGroup: isGroup,
+        groupName: isVaultRoom ? null : groupName,
+        senderName: isVaultRoom ? null : senderName,
         route: NotificationRoute(
           type: NotificationRouteType.message,
           roomId: roomId,
-          chatName: isVaultRoom ? null : (data['senderName'] as String?),
-          otherUserId: isVaultRoom ? null : (data['senderId'] as String? ?? data['sender_id'] as String?),
+          chatName: isVaultRoom
+              ? null
+              : (isGroup ? groupName : (data['senderName'] as String?)),
+          otherUserId: isVaultRoom
+              ? null
+              : (data['senderId'] as String? ?? data['sender_id'] as String?),
+          isGroup: isGroup,
+          groupName: isVaultRoom ? null : groupName,
         ),
       );
     }

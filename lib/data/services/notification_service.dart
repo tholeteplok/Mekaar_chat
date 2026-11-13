@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../repositories/notification_preferences_repository.dart';
 import '../services/supabase_service.dart';
 import 'alarm_service.dart';
 import '../../core/navigation/app_navigator.dart';
@@ -32,6 +33,8 @@ class NotificationRoute {
   final String? chatAvatarUrl;
   final bool isGuardian;
   final String? otherUserId;
+  final bool isGroup;
+  final String? groupName;
 
   // Call
   final String? callId;
@@ -53,6 +56,8 @@ class NotificationRoute {
     this.chatAvatarUrl,
     this.isGuardian = false,
     this.otherUserId,
+    this.isGroup = false,
+    this.groupName,
     this.callId,
     this.callerId,
     this.callerName,
@@ -71,6 +76,8 @@ class NotificationRoute {
     'chatAvatarUrl': chatAvatarUrl,
     'isGuardian': isGuardian,
     'otherUserId': otherUserId,
+    'isGroup': isGroup,
+    'groupName': groupName,
     'callId': callId,
     'callerId': callerId,
     'callerName': callerName,
@@ -105,6 +112,8 @@ class NotificationRoute {
         chatAvatarUrl: decoded['chatAvatarUrl'] as String?,
         isGuardian: decoded['isGuardian'] == true,
         otherUserId: decoded['otherUserId'] as String?,
+        isGroup: decoded['isGroup'] == true,
+        groupName: decoded['groupName'] as String?,
         callId: decoded['callId'] as String?,
         callerId: decoded['callerId'] as String?,
         callerName: decoded['callerName'] as String?,
@@ -128,6 +137,7 @@ class NotificationService {
   static const String actionDeviceLostCall = 'device_lost_call';
   static const String _deviceLostPayloadPrefix = 'devicelost:';
   static const String messageChannelId = 'mekaar_message_channel_v3';
+  static const String groupMessageChannelId = 'mekaar_group_message_channel_v1';
   static const String legacyMessageChannelId = 'mekaar_message_channel_v2';
   static const String legacyOldMessageChannelId = 'mekaar_message_channel';
   static final Logger _logger = Logger();
@@ -241,7 +251,19 @@ class NotificationService {
         const AndroidNotificationChannel(
           messageChannelId,
           'Pesan MEKAAR',
-          description: 'Saluran notifikasi pesan masuk',
+          description: 'Saluran notifikasi pesan masuk pribadi',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+
+      // 2b. Channel Pesan Grup v1 (High Importance, terpisah untuk kustomisasi grup)
+      await androidImpl.createNotificationChannel(
+        const AndroidNotificationChannel(
+          groupMessageChannelId,
+          'Pesan Grup MEKAAR',
+          description: 'Saluran notifikasi obrolan grup',
           importance: Importance.high,
           playSound: true,
           enableVibration: true,
@@ -458,33 +480,47 @@ class NotificationService {
     String? roomId,
     NotificationRoute? route,
     String? groupKey,
+    bool isGroup = false,
+    String? groupName,
+    String? senderName,
   }) async {
+    // 1. Jika ini notifikasi grup, hormati preferensi switch on/off grup pengguna
+    if (isGroup) {
+      try {
+        final prefs = await NotificationPreferencesRepository().load();
+        if (!prefs.groupNotificationsEnabled) {
+          _logger.d(
+            'Notifikasi grup dinonaktifkan oleh pengguna. Drop notifikasi untuk room $roomId.',
+          );
+          return;
+        }
+      } catch (_) {}
+    }
+
     final systemNotificationsEnabled = await areNotificationsEnabled();
 
+    final effectiveRoute =
+        route ??
+        NotificationRoute(
+          type: NotificationRouteType.message,
+          roomId: roomId,
+          isGroup: isGroup,
+          groupName: groupName,
+        );
+
     if (!systemNotificationsEnabled) {
-      // OS mematikan notifikasi aplikasi di pengaturan ponsel:
-      // 1. Bungkam pemutaran suara AlarmService (tidak ada bunyi .wav)
-      // 2. Bungkam getaran HapticService
-      // 3. Lewati pendaftaran native _localNotificationsPlugin.show (karena akan di-drop OS)
-      // 4. Jika sedang berada di dalam aplikasi (foreground), tampilkan in-app banner senyap
-      //    (ala WhatsApp / Telegram in-app notification).
-      //    Jika aplikasi sedang minimize/background, hening total (zero alert).
       final lifecycle = WidgetsBinding.instance.lifecycleState;
       final isForeground =
           lifecycle == null || lifecycle == AppLifecycleState.resumed;
 
       if (isForeground) {
-        final effectiveRoute =
-            route ??
-            NotificationRoute(
-              type: NotificationRouteType.message,
-              roomId: roomId,
-            );
         MekaarInAppNotificationBanner.show(
           title: title,
           body: body,
           avatarInitial: effectiveRoute.chatAvatar,
           avatarUrl: effectiveRoute.chatAvatarUrl,
+          isGroup: isGroup,
+          groupName: groupName,
           onTap: () {
             _onNotificationTap?.call(effectiveRoute);
           },
@@ -494,17 +530,23 @@ class NotificationService {
     }
 
     // Suara notifikasi pesan murni mengikuti nada dering default sistem Android OS
-    // melalui NotificationChannel (mekaar_message_channel_v3), tidak diputar manual
+    // melalui NotificationChannel terpisah, tidak diputar manual
     // via AlarmService agar patuh pada pengaturan nada & profil suara sistem ponsel.
     await HapticService.trigger(MekaarHapticIntent.success);
 
     final notificationId = getMessageNotificationId(roomId, route);
+    final targetChannelId =
+        isGroup ? groupMessageChannelId : messageChannelId;
+    final targetChannelName = isGroup ? 'Pesan Grup MEKAAR' : 'Pesan MEKAAR';
+    final targetChannelDesc = isGroup
+        ? 'Saluran notifikasi obrolan grup'
+        : 'Saluran notifikasi pesan masuk pribadi';
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        messageChannelId,
-        'Pesan MEKAAR',
-        channelDescription: 'Saluran notifikasi pesan masuk',
+        targetChannelId,
+        targetChannelName,
+        channelDescription: targetChannelDesc,
         importance: Importance.high,
         priority: Priority.high,
         playSound: true,
@@ -514,7 +556,7 @@ class NotificationService {
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
-          summaryText: 'MEKAAR',
+          summaryText: isGroup ? (groupName ?? 'Grup MEKAAR') : 'MEKAAR',
         ),
       ),
       iOS: const DarwinNotificationDetails(
@@ -530,13 +572,7 @@ class NotificationService {
         title,
         body,
         details,
-        payload:
-            (route ??
-                    NotificationRoute(
-                      type: NotificationRouteType.message,
-                      roomId: roomId,
-                    ))
-                .encodePayload(),
+        payload: effectiveRoute.encodePayload(),
       );
     } catch (e) {
       _logger.e("NotificationService: Gagal menampilkan notifikasi pesan: $e");
