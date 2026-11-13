@@ -19,6 +19,7 @@ import 'package:mekaar_chat/data/repositories/private_contact_repository.dart';
 import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
 import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
+import 'package:mekaar_chat/features/auth/providers/auto_lock_provider.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -119,7 +120,7 @@ Future<void> _initializeSecondaryServices() async {
   // 2. Inisialisasi Notification Service lokal & channel Android
   try {
     await NotificationService.initialize(
-      onNotificationTap: _handleNotificationRoute,
+      onNotificationTap: handleNotificationRoute,
       onTripNotificationTap: (tripId) {
         final context = AppNavigator.currentContext;
         if (context != null && context.mounted) {
@@ -145,7 +146,7 @@ Future<void> _initializeSecondaryServices() async {
       },
       onCallAction: (route, {required accept}) async {
         if (accept) {
-          _handleNotificationRoute(route);
+          handleNotificationRoute(route);
         } else {
           final callId = route.callId;
           if (callId != null && callId.isNotEmpty) {
@@ -176,7 +177,7 @@ Future<void> _initializeSecondaryServices() async {
   // 3. Inisialisasi Push Notification FCM
   try {
     await PushNotificationService.initialize(
-      onNotificationClick: _handleNotificationRoute,
+      onNotificationClick: handleNotificationRoute,
     );
   } catch (e) {
     logger.w('PushNotificationService initialization non-fatal error: $e');
@@ -187,9 +188,24 @@ Future<void> _initializeSecondaryServices() async {
 ///
 /// `message` → buka chat room; `call` → buka layar panggilan masuk;
 /// `sos` → buka viewer SOS guardian (bukan SOSActiveScreen sisi korban).
-void _handleNotificationRoute(NotificationRoute route) async {
+void handleNotificationRoute(NotificationRoute route) async {
   final context = AppNavigator.currentContext;
   if (context == null || !context.mounted) return;
+
+  // ── KEAMANAN KUNCI APLIKASI (App Lock Security Guard) ──
+  // Cegah pembukaan pesan saat aplikasi sedang terkunci di PinScreen
+  // atau saat Auto-Lock jatuh tempo di background.
+  try {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final autoLock = container.read(autoLockControllerProvider);
+    if (autoLock.isAppLockedWithContainer(container)) {
+      autoLock.setPendingRoute(route);
+      if (!autoLock.isLockScreenActive) {
+        autoLock.lockApplicationWithContainer(container);
+      }
+      return;
+    }
+  } catch (_) {}
 
   switch (route.type) {
     case NotificationRouteType.message:

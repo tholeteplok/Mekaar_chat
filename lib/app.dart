@@ -78,6 +78,7 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
 
     return MaterialApp(
       navigatorKey: AppNavigator.navigatorKey,
+      navigatorObservers: [AppNavigator.observer],
       title: 'MEKAAR',
       theme: themeData,
       darkTheme: MekaarTheme.darkTheme(fontFamily),

@@ -24,6 +24,7 @@ import '../../chat/providers/chat_provider.dart';
 import '../../chat/providers/chat_draft_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auto_lock_provider.dart';
+import '../../../main.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
   final bool isSetup;
@@ -52,6 +53,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
   void initState() {
     super.initState();
     _autoLockController = ref.read(autoLockControllerProvider);
+    _autoLockController?.markPinScreenActive(true);
     _isSetupMode = widget.isSetup;
     _statusMessage = _isSetupMode
         ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
@@ -175,10 +177,20 @@ class _PinScreenState extends ConsumerState<PinScreen> {
               });
             } else {
               HapticService.trigger(MekaarHapticIntent.success);
+              final pendingRoute = ref
+                  .read(autoLockControllerProvider)
+                  .consumePendingRoute(isMasterAuth: true);
+
               if (authState.needsUsername) {
                 Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
               } else {
                 Navigator.pushReplacementNamed(context, AppRoutes.home);
+              }
+
+              if (pendingRoute != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  handleNotificationRoute(pendingRoute);
+                });
               }
             }
           }
@@ -291,10 +303,20 @@ class _PinScreenState extends ConsumerState<PinScreen> {
           if (!mounted) return;
           HapticService.trigger(MekaarHapticIntent.success);
 
+          final pendingRoute = ref
+              .read(autoLockControllerProvider)
+              .consumePendingRoute(isMasterAuth: !isDuress && !isDecoy);
+
           if (authState.needsUsername) {
             Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
           } else {
             Navigator.pushReplacementNamed(context, AppRoutes.home);
+          }
+
+          if (pendingRoute != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              handleNotificationRoute(pendingRoute);
+            });
           }
         }
       } else {

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/navigation/app_navigator.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../data/services/notification_service.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import 'auth_provider.dart';
 
@@ -93,6 +94,10 @@ final autoLockTimeoutProvider =
 class AutoLockController {
   DateTime? _lastPausedAt;
   bool _isLockScreenActive = false;
+  NotificationRoute? _pendingNotificationRoute;
+
+  bool get isLockScreenActive => _isLockScreenActive;
+  NotificationRoute? get pendingNotificationRoute => _pendingNotificationRoute;
 
   void markPinScreenActive(bool active) {
     _isLockScreenActive = active;
@@ -100,6 +105,74 @@ class AutoLockController {
 
   void onAppPaused() {
     _lastPausedAt = DateTime.now().toUtc();
+  }
+
+  /// Mendaftarkan rute notifikasi yang tertahan saat aplikasi terkunci.
+  void setPendingRoute(NotificationRoute route) {
+    _pendingNotificationRoute = route;
+  }
+
+  /// Mengambil rute yang tertunda jika PIN master sukses, atau membuang jika duress/decoy.
+  NotificationRoute? consumePendingRoute({required bool isMasterAuth}) {
+    final route = _pendingNotificationRoute;
+    _pendingNotificationRoute = null;
+    return isMasterAuth ? route : null;
+  }
+
+  /// Mengevaluasi apakah aplikasi sedang dalam status terkunci.
+  bool isAppLockedWithContainer(ProviderContainer container) {
+    if (_isLockScreenActive) return true;
+
+    final routeName = AppNavigator.currentRouteName;
+    if (routeName == AppRoutes.pin || routeName == AppRoutes.splash) {
+      return true;
+    }
+
+    final authState = container.read(authProvider);
+    if (!authState.isPinSet) return false;
+
+    // Evaluasi batas waktu latar belakang
+    final pausedAt = _lastPausedAt;
+    if (pausedAt != null) {
+      final timeout = container.read(autoLockTimeoutProvider);
+      if (timeout == AutoLockTimeout.system) {
+        return true;
+      } else if (timeout.duration != null) {
+        final elapsed = DateTime.now().toUtc().difference(pausedAt);
+        if (elapsed >= timeout.duration!) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool isAppLocked(WidgetRef ref) {
+    if (_isLockScreenActive) return true;
+
+    final routeName = AppNavigator.currentRouteName;
+    if (routeName == AppRoutes.pin || routeName == AppRoutes.splash) {
+      return true;
+    }
+
+    final authState = ref.read(authProvider);
+    if (!authState.isPinSet) return false;
+
+    final pausedAt = _lastPausedAt;
+    if (pausedAt != null) {
+      final timeout = ref.read(autoLockTimeoutProvider);
+      if (timeout == AutoLockTimeout.system) {
+        return true;
+      } else if (timeout.duration != null) {
+        final elapsed = DateTime.now().toUtc().difference(pausedAt);
+        if (elapsed >= timeout.duration!) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   /// Mengevaluasi apakah aplikasi perlu dikunci saat kembali aktif (resumed).
@@ -129,6 +202,24 @@ class AutoLockController {
       if (authState.user != null && authState.isPinSet) {
         lockApplication(ref);
       }
+    }
+  }
+
+  /// Mengunci aplikasi secara instan menggunakan ProviderContainer
+  void lockApplicationWithContainer(ProviderContainer container) {
+    if (_isLockScreenActive) return;
+
+    container.read(unlockedVaultSlotsProvider.notifier).state = {};
+    container.read(privateVaultUnlockedProvider.notifier).state = false;
+
+    final nav = AppNavigator.navigatorKey.currentState;
+    if (nav != null) {
+      _isLockScreenActive = true;
+      nav.pushNamedAndRemoveUntil(
+        AppRoutes.pin,
+        (route) => false,
+        arguments: false, // isSetup: false
+      );
     }
   }
 
