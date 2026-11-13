@@ -730,14 +730,9 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         .firstOrNull;
 
     return Container(
-      height: 270,
-      decoration: BoxDecoration(
-        color: MekaarColors.surfaceOf(context),
-        border: Border(
-          top: BorderSide(
-            color: MekaarColors.textMutedOf(context).withValues(alpha: 0.15),
-          ),
-        ),
+      height: 300,
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -1223,6 +1218,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                 child: _ReplyPreview(
                   message: widget.replyMessage!,
                   senderName: widget.replySenderName,
+                  primaryAccent: primaryAccent,
                   onCancel: widget.onCancelReply,
                 ),
               ),
@@ -1681,7 +1677,10 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
               isFloating: true,
               borderRadius: BorderRadius.circular(20),
               border: glassBorder,
-              customColor: glassBg,
+              customColor: glassBg ??
+                  (Theme.of(context).brightness == Brightness.dark
+                      ? MekaarColors.surfaceOf(context).withValues(alpha: 0.90)
+                      : MekaarColors.surfaceOf(context).withValues(alpha: 0.94)),
               child: _buildEmojiPickerPanel(),
             ),
           ],
@@ -1737,11 +1736,13 @@ class _BlinkingDotState extends State<_BlinkingDot>
 class _ReplyPreview extends StatelessWidget {
   final Message message;
   final String? senderName;
+  final Color primaryAccent;
   final VoidCallback onCancel;
 
   const _ReplyPreview({
     required this.message,
     this.senderName,
+    required this.primaryAccent,
     required this.onCancel,
   });
 
@@ -1768,9 +1769,9 @@ class _ReplyPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prefix = (senderName != null && senderName!.isNotEmpty)
-        ? 'Membalas $senderName: '
-        : 'Membalas: ';
+    final senderTitle = (senderName != null && senderName!.isNotEmpty)
+        ? senderName!
+        : 'Pesan';
     final previewBody = _formatPreviewText();
 
     return GestureDetector(
@@ -1782,44 +1783,85 @@ class _ReplyPreview extends StatelessWidget {
       },
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: MekaarSpacing.lg,
-          vertical: MekaarSpacing.sm,
+          horizontal: MekaarSpacing.md,
+          vertical: 8,
         ),
-        color: MekaarColors.surface2Of(context),
+        color: Colors.transparent,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              SolarIconsOutline.forward,
-              size: MekaarSizes.iconSm,
-              color: MekaarColors.textSecondaryOf(context),
+            // Vertical accent stripe
+            Container(
+              width: 3.5,
+              height: 36,
+              decoration: BoxDecoration(
+                color: primaryAccent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: MekaarSpacing.sm + 2),
+            // Text info (Sender & Snippet)
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        SolarIconsOutline.forward,
+                        size: 13,
+                        color: primaryAccent,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Membalas $senderTitle',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: primaryAccent,
+                            fontFamily: MekaarTypography.fontFamily,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    previewBody,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: MekaarColors.textSecondaryOf(context),
+                      fontFamily: MekaarTypography.fontFamily,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: MekaarSpacing.sm),
-            Expanded(
-              child: RichText(
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                text: TextSpan(
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: MekaarColors.textSecondaryOf(context),
-                    fontFamily: MekaarTypography.fontFamily,
+            // Dismiss button
+            Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () {
+                  HapticService.trigger(MekaarHapticIntent.selection);
+                  onCancel();
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    SolarIconsOutline.closeCircle,
+                    size: 20,
+                    color: MekaarColors.textMutedOf(context),
                   ),
-                  children: [
-                    TextSpan(
-                      text: prefix,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    TextSpan(text: previewBody),
-                  ],
                 ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(
-                SolarIconsOutline.closeCircle,
-                size: MekaarSizes.iconSm,
-              ),
-              onPressed: onCancel,
             ),
           ],
         ),
