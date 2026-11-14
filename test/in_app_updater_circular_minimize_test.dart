@@ -221,7 +221,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Memastikan sheet progress terbuka
-        expect(find.text('Mengunduh MEKAAR'), findsOneWidget);
+        expect(find.text('Mengunduh Pembaruan'), findsOneWidget);
         // Memastikan controller beralih dari minimized ke maximized (isMinimized = false)
         expect(fakeController.state.isMinimized, isFalse);
       },
@@ -270,7 +270,7 @@ void main() {
         await tester.tap(find.text('Buka Progress'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Mengunduh MEKAAR'), findsOneWidget);
+        expect(find.text('Mengunduh Pembaruan'), findsOneWidget);
         expect(fakeController.state.isMinimized, isFalse);
 
         // Simulasikan tap di luar sheet (pada barrier di pojok atas)
@@ -278,7 +278,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Sheet tertutup
-        expect(find.text('Mengunduh MEKAAR'), findsNothing);
+        expect(find.text('Mengunduh Pembaruan'), findsNothing);
 
         // Auto-minimize berhasil terpanggil!
         expect(fakeController.state.isMinimized, isTrue);
@@ -457,7 +457,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 4. Verifikasi sheet TIDAK tertutup (tetap terbuka) dan bertransisi in-place
-        expect(find.text('Mengunduh MEKAAR'), findsOneWidget);
+        expect(find.text('Mengunduh Pembaruan'), findsOneWidget);
         expect(find.byType(LinearProgressIndicator), findsOneWidget);
         expect(find.text('Jeda Unduhan'), findsOneWidget);
         expect(find.text('Minimalkan'), findsOneWidget);

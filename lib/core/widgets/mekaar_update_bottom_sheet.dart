@@ -258,7 +258,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
     if (isCompleted) {
       sheetTitle = 'Pembaruan Siap Dipasang!';
     } else if (isDownloading || isPaused) {
-      sheetTitle = 'Mengunduh MEKAAR';
+      sheetTitle = 'Mengunduh Pembaruan';
     } else if (hasError) {
       sheetTitle = 'Unduhan Terkendala';
     } else {

@@ -95,15 +95,15 @@ void main() {
 
       // Verifikasi judul halaman
       expect(find.text('Manajemen PIN Keamanan'), findsOneWidget);
-      expect(find.text('PIN Master, Tamu & Darurat'), findsOneWidget);
+      expect(find.text('PIN Utama, Tamu & Darurat'), findsOneWidget);
 
-      // Verifikasi Kartu PIN Master
-      expect(find.text('PIN Master (Utama)'), findsOneWidget);
+      // Verifikasi Kartu PIN Utama
+      expect(find.text('PIN Utama (Master)'), findsOneWidget);
       expect(find.text('Wajib & Aktif'), findsOneWidget);
-      expect(find.text('Ganti PIN Master'), findsOneWidget);
+      expect(find.text('Ganti PIN Utama'), findsOneWidget);
 
       // Verifikasi Kartu PIN Tamu
-      expect(find.text('PIN Tamu (Decoy)'), findsOneWidget);
+      expect(find.text('PIN Tamu'), findsOneWidget);
       expect(find.text('Atur PIN Tamu'), findsOneWidget);
 
       // Scroll ke bawah untuk melihat Kartu Kode Reset Cepat (karena berada di bawah lipatan)
@@ -144,9 +144,9 @@ void main() {
       expect(find.text('Ganti PIN Aplikasi'), findsOneWidget);
       expect(find.text('Aktif'), findsOneWidget);
 
-      // Zero-Knowledge: pastikan jejak Master, Tamu, dan SOS tidak muncul sama sekali
-      expect(find.text('PIN Master (Utama)'), findsNothing);
-      expect(find.text('PIN Tamu (Decoy)'), findsNothing);
+      // Zero-Knowledge: pastikan jejak Utama, Tamu, dan SOS tidak muncul sama sekali
+      expect(find.text('PIN Utama (Master)'), findsNothing);
+      expect(find.text('PIN Tamu'), findsNothing);
       expect(find.text('PIN Darurat (Silent SOS)'), findsNothing);
       expect(find.text('Kode Reset Cepat'), findsNothing);
     });
