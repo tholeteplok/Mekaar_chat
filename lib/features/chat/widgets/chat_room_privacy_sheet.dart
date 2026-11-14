@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
@@ -478,10 +479,10 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               // Section 1: Proteksi Layar & Konten
               _buildSectionHeader('Proteksi Layar & Konten'),
               _buildSwitchTile(
-                icon: isScreenProtOn ? SolarIconsBold.shieldCheck : SolarIconsOutline.shieldCross,
+                icon: isScreenProtOn ? SolarIconsBold.eyeClosed : SolarIconsOutline.eyeClosed,
                 iconColor: isScreenProtOn ? primaryColor : MekaarColors.textMutedOf(context),
-                title: 'Proteksi Layar & Screenshot',
-                subtitle: 'Cegah tangkapan layar dan sensor tampilan di recent apps',
+                title: MekaarCopy.limitScreenshotsTitle,
+                subtitle: 'Blokir screenshot sistem. Lawan bicara tetap dapat memotret dengan kamera lain',
                 value: isScreenProtOn,
                 onChanged: _canManagePrivacy
                     ? (_) => _toggleScreenProtection(isScreenProtOn)
@@ -532,10 +533,10 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 onTap: _canManagePrivacy ? _showScheduledWipeOptions : null,
               ),
               _buildSwitchTile(
-                icon: _burnOnExit ? SolarIconsBold.fire : SolarIconsOutline.fire,
+                icon: _burnOnExit ? SolarIconsBold.broom : SolarIconsOutline.broom,
                 iconColor: _burnOnExit ? MekaarColors.sosRed : MekaarColors.textMutedOf(context),
-                title: 'Hapus Saat Keluar (Burn on Exit)',
-                subtitle: 'Hanguskan riwayat obrolan seketika saat meninggalkan layar',
+                title: MekaarCopy.clearOnCloseTitle,
+                subtitle: MekaarCopy.clearOnCloseSubtitle,
                 value: _burnOnExit,
                 onChanged: _canManagePrivacy ? (_) => _toggleBurnOnExit() : null,
               ),

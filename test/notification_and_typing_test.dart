@@ -86,7 +86,7 @@ void main() {
           content: 'secret',
           isEncrypted: true,
         ),
-        '🔒 Pesan terenkripsi',
+        'Pesan baru',
       );
     });
 

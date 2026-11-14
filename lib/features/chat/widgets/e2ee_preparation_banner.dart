@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/motion.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../providers/e2ee_room_status_provider.dart';
 
@@ -86,39 +87,39 @@ class _E2eePreparationBannerState extends State<E2eePreparationBanner>
 
     switch (widget.status) {
       case E2eeRoomStatus.preparing:
-        iconData = SolarIconsOutline.shieldKeyhole;
+        iconData = SolarIconsOutline.lockKeyhole;
         accentColor = MekaarColors.safeTextOf(context);
-        message = 'Mekaar Aegis: Menyiapkan jalur percakapan privat...';
+        message = MekaarCopy.e2eeInitializingBanner;
         showSpinner = true;
         break;
       case E2eeRoomStatus.negotiating:
         iconData = SolarIconsOutline.lockKeyhole;
         accentColor = MekaarColors.accentTextOf(context);
-        message = 'Mekaar Aegis: Negosiasi kunci kriptografi...';
+        message = MekaarCopy.e2eeInitializingBanner;
         showSpinner = true;
         break;
       case E2eeRoomStatus.ready:
         iconData = SolarIconsBold.checkCircle;
         accentColor = MekaarColors.safeTextOf(context);
-        message = 'Mekaar Aegis: Percakapan terlindungi E2EE';
+        message = 'Percakapan pribadi aktif';
         showSpinner = false;
         break;
       case E2eeRoomStatus.groupServerEncrypted:
         iconData = SolarIconsOutline.shieldCheck;
         accentColor = MekaarColors.textSecondaryOf(context);
-        message = 'Obrolan Grup: Dilindungi Enkripsi Server & Transport';
+        message = 'Obrolan Grup: Enkripsi Server Aktif';
         showSpinner = false;
         break;
       case E2eeRoomStatus.peerMissingKey:
         iconData = SolarIconsOutline.infoCircle;
         accentColor = MekaarColors.warnAmber;
-        message = 'Menunggu penerima mengaktifkan kunci keamanan Mekaar Aegis';
+        message = 'Menunggu penerima mengaktifkan kunci keamanan';
         showSpinner = false;
         break;
       case E2eeRoomStatus.needsRestore:
         iconData = SolarIconsOutline.keyMinimalisticSquare;
         accentColor = MekaarColors.sosCoral;
-        message = 'Kunci Mekaar Aegis perlu dipulihkan dengan PIN';
+        message = 'Kunci obrolan perlu dipulihkan dengan PIN';
         showSpinner = false;
         break;
     }

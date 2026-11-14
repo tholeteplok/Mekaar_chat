@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_badge.dart';
@@ -245,7 +246,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
       context,
       title: 'Verifikasi PIN Master',
       subtitle:
-          'Masukkan PIN Master Anda untuk ${_isDuressEnabled ? "mengubah" : "mengatur"} PIN Darurat',
+          'Masukkan PIN Master Anda untuk ${_isDuressEnabled ? "mengubah" : "mengatur"} ${MekaarCopy.quickResetPinTitle}',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -253,7 +254,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
 
     final success = await MekaarChangePinSheet.show(
       context,
-      title: _isDuressEnabled ? 'Ganti PIN Darurat' : 'Atur PIN Darurat',
+      title: _isDuressEnabled ? 'Ganti ${MekaarCopy.quickResetPinTitle}' : 'Atur ${MekaarCopy.quickResetPinTitle}',
       onConfirmPin: (newPin) async {
         final isSamePrimary = await ref
             .read(authProvider.notifier)
@@ -713,7 +714,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        SolarIconsBold.shieldKeyhole,
+                        SolarIconsOutline.passwordMinimalisticInput,
                         color: isSosEnabled
                             ? MekaarColors.sosCoral
                             : MekaarColors.textMutedOf(context),
@@ -726,7 +727,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'PIN Darurat (Silent SOS)',
+                            MekaarCopy.quickResetPinTitle,
                             style: MekaarTypography.headingSM.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -734,7 +735,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                           const SizedBox(height: 2),
                           Text(
                             isSosEnabled
-                                ? 'Akses di Bawah Ancaman'
+                                ? 'Sembunyikan Obrolan & Bantuan'
                                 : 'Dinonaktifkan di Pengaturan',
                             style: MekaarTypography.caption.copyWith(
                               color: MekaarColors.textMutedOf(context),

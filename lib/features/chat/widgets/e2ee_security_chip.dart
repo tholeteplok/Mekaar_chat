@@ -6,6 +6,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/motion.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../providers/e2ee_room_status_provider.dart';
@@ -88,16 +89,16 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
 
     switch (widget.status) {
       case E2eeRoomStatus.preparing:
-        iconData = SolarIconsOutline.shieldKeyhole;
+        iconData = SolarIconsOutline.lockKeyhole;
         accentColor = MekaarColors.accentTextOf(context);
-        message = 'Percakapan privat sedang dipersiapkan...';
+        message = MekaarCopy.e2eeInitializingBanner;
         showSpinner = true;
         break;
 
       case E2eeRoomStatus.negotiating:
         iconData = SolarIconsOutline.lockKeyhole;
         accentColor = MekaarColors.accentTextOf(context);
-        message = 'Negosiasi kunci enkripsi Aegis...';
+        message = MekaarCopy.e2eeInitializingBanner;
         showSpinner = true;
         break;
 
@@ -122,7 +123,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
       case E2eeRoomStatus.needsRestore:
         iconData = SolarIconsOutline.keyMinimalisticSquare;
         accentColor = MekaarColors.sosCoral;
-        message = 'Kunci E2EE perlu dipulihkan via PIN';
+        message = 'Kunci obrolan perlu dipulihkan via PIN';
         showSpinner = false;
         if (widget.onRestore != null) {
           chipTapAction = () {
@@ -139,16 +140,16 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
         break;
 
       case E2eeRoomStatus.ready:
-        iconData = SolarIconsBold.shieldCheck;
+        iconData = SolarIconsBold.checkCircle;
         accentColor = MekaarColors.safeTextOf(context);
-        message = 'Terenkripsi End-to-End';
+        message = 'Obrolan Terenkripsi';
         showSpinner = false;
         break;
 
       case E2eeRoomStatus.groupServerEncrypted:
         iconData = SolarIconsOutline.shieldCheck;
         accentColor = MekaarColors.textSecondaryOf(context);
-        message = 'Enkripsi Server & Transport Aktif';
+        message = 'Enkripsi Server Aktif';
         showSpinner = false;
         break;
     }

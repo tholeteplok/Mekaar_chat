@@ -32,10 +32,10 @@ class MekaarLiveSafetyPill extends StatelessWidget {
       parts.add('$activeGuardiansCount Guardian Siaga');
     }
     if (isE2eeActive) {
-      parts.add('Aegis E2EE');
+      parts.add('Terenkripsi');
     }
     if (parts.isEmpty) {
-      parts.add('Aegis Aktif');
+      parts.add('Pribadi');
     }
     return parts.join(' • ');
   }

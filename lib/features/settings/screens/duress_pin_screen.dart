@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_banner.dart';
@@ -31,7 +32,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
   String _pin = '';
   String _confirmPin = '';
   bool _isConfirming = false;
-  String _status = 'Masukkan PIN Paksaan 6 digit.';
+  String _status = 'Masukkan Kode Reset Cepat 6 digit.';
 
   static const int _len = 6;
 
@@ -49,8 +50,8 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
           _enabled = enabled;
           _isLoading = false;
           _status = _enabled
-              ? 'PIN Paksaan aktif.'
-              : 'Masukkan PIN Paksaan 6 digit.';
+              ? 'Kode Reset Cepat aktif.'
+              : 'Masukkan Kode Reset Cepat 6 digit.';
         });
       }
     } catch (_) {
@@ -66,7 +67,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
         _pin = '';
         _confirmPin = '';
         _isConfirming = false;
-        _status = 'PIN Paksaan aktif.';
+        _status = 'Kode Reset Cepat aktif.';
       });
       return;
     }
@@ -91,8 +92,8 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
         _pin = '';
         _isConfirming = true;
         _status = _isEditing
-            ? 'Konfirmasi PIN Paksaan 6 digit baru.'
-            : 'Konfirmasi PIN Paksaan 6 digit.';
+            ? 'Konfirmasi Kode Reset Cepat 6 digit baru.'
+            : 'Konfirmasi Kode Reset Cepat 6 digit.';
       });
       return;
     }
@@ -102,7 +103,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
       setState(() {
         _pin = '';
         _isConfirming = false;
-        _status = 'PIN tidak cocok. Mulai dari awal.';
+        _status = 'Kode tidak cocok. Mulai dari awal.';
       });
       return;
     }
@@ -115,7 +116,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
       setState(() {
         _pin = '';
         _isConfirming = false;
-        _status = 'PIN Paksaan tidak boleh sama dengan PIN utama.';
+        _status = 'Kode Reset Cepat tidak boleh sama dengan PIN utama.';
       });
       return;
     }
@@ -128,7 +129,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
       setState(() {
         _pin = '';
         _isConfirming = false;
-        _status = 'PIN Paksaan tidak boleh sama dengan PIN Tamu.';
+        _status = 'Kode Reset Cepat tidak boleh sama dengan PIN Tamu.';
       });
       return;
     }
@@ -145,19 +146,19 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
           _pin = '';
           _confirmPin = '';
           _isConfirming = false;
-          _status = 'PIN Paksaan aktif.';
+          _status = 'Kode Reset Cepat aktif.';
         });
         MekaarSnackbar.success(
           context,
           wasEditing
-              ? 'PIN Paksaan berhasil diperbarui.'
-              : 'PIN Paksaan berhasil diatur.',
+              ? 'Kode Reset Cepat berhasil diperbarui.'
+              : 'Kode Reset Cepat berhasil diatur.',
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSetting = false);
-        MekaarSnackbar.error(context, 'Gagal mengatur PIN Paksaan: $e');
+        MekaarSnackbar.error(context, 'Gagal mengatur Kode Reset Cepat: $e');
       }
     }
   }
@@ -166,7 +167,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
     final isValid = await MekaarPinVerificationSheet.verify(
       context,
       title: 'Verifikasi PIN Utama',
-      subtitle: 'Masukkan PIN utama Anda untuk mengubah PIN Paksaan',
+      subtitle: 'Masukkan PIN utama Anda untuk mengubah Kode Reset Cepat',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -177,15 +178,15 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
       _pin = '';
       _confirmPin = '';
       _isConfirming = false;
-      _status = 'Masukkan PIN Paksaan 6 digit baru.';
+      _status = 'Masukkan Kode Reset Cepat 6 digit baru.';
     });
   }
 
   Future<void> _disable() async {
     final isValid = await MekaarPinVerificationSheet.verify(
       context,
-      title: 'Nonaktifkan PIN Paksaan',
-      subtitle: 'Masukkan PIN utama Anda untuk menonaktifkan PIN Paksaan',
+      title: 'Nonaktifkan Kode Reset Cepat',
+      subtitle: 'Masukkan PIN utama Anda untuk menonaktifkan Kode Reset Cepat',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -202,14 +203,14 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
           _pin = '';
           _confirmPin = '';
           _isConfirming = false;
-          _status = 'Masukkan PIN Paksaan 6 digit.';
+          _status = 'Masukkan Kode Reset Cepat 6 digit.';
         });
-        MekaarSnackbar.success(context, 'PIN Paksaan berhasil dinonaktifkan.');
+        MekaarSnackbar.success(context, 'Kode Reset Cepat berhasil dinonaktifkan.');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSetting = false);
-        MekaarSnackbar.error(context, 'Gagal menonaktifkan PIN Paksaan: $e');
+        MekaarSnackbar.error(context, 'Gagal menonaktifkan Kode Reset Cepat: $e');
       }
     }
   }
@@ -296,7 +297,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'PIN Paksaan Aktif',
+                  'Kode Reset Cepat Aktif',
                   style: MekaarTypography.headingSM.copyWith(
                     color: MekaarColors.successTextOf(context),
                     fontWeight: FontWeight.w700,
@@ -335,9 +336,9 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                 Expanded(
                   child: Text(
                     'Jika Anda dipaksa membuka aplikasi dalam kondisi ancaman, '
-                    'masukkan PIN Paksaan ini pada layar kunci.\n\n'
-                    'Aplikasi akan terbuka seperti biasa untuk mengelabui pelaku, '
-                    'tetapi sistem secara diam-diam memicu SOS dan mengirimkan lokasi darurat ke Guardian Anda.',
+                    'masukkan kode ini pada layar kunci.\n\n'
+                    'Aplikasi akan membuka tampilan obrolan kosong alami untuk mengelabui pelaku, '
+                    'tetapi sistem secara diam-diam memicu sinyal bantuan ke Guardian Anda.',
                     style: MekaarTypography.bodySM.copyWith(
                       color: MekaarColors.textSecondaryOf(context),
                       height: 1.45,
@@ -351,7 +352,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
           ElevatedButton.icon(
             onPressed: _startChangePin,
             icon: const Icon(SolarIconsOutline.pen),
-            label: const Text('Ubah PIN Paksaan'),
+            label: const Text('Ubah Kode Reset Cepat'),
             style: ElevatedButton.styleFrom(
               backgroundColor: MekaarColors.brandPrimary,
               foregroundColor: Colors.white,
@@ -365,7 +366,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
           OutlinedButton.icon(
             onPressed: _disable,
             icon: const Icon(SolarIconsOutline.trashBinTrash),
-            label: const Text('Nonaktifkan PIN Paksaan'),
+            label: const Text('Nonaktifkan Kode Reset Cepat'),
             style: OutlinedButton.styleFrom(
               foregroundColor: MekaarColors.sosRed,
               side: BorderSide(
@@ -403,8 +404,8 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                           color: MekaarColors.sosRed,
                           icon: SolarIconsOutline.shieldWarning,
                           content: Text(
-                            'PIN Paksaan TIDAK BOLEH sama dengan PIN utama. '
-                            'Saat dimasukkan, aplikasi terbuka normal namun diam-diam memicu SOS ke Guardian.',
+                            'Kode Reset Cepat TIDAK BOLEH sama dengan PIN utama. '
+                            'Saat dimasukkan, aplikasi terbuka normal namun diam-diam memicu sinyal bantuan ke Guardian.',
                             style: MekaarTypography.bodySM.copyWith(
                               color: MekaarColors.sosDeep,
                               fontWeight: FontWeight.w500,
@@ -503,7 +504,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
             _pin = '';
             _confirmPin = '';
             _isConfirming = false;
-            _status = 'PIN Paksaan aktif.';
+            _status = 'Kode Reset Cepat aktif.';
           });
         }
       },
@@ -514,8 +515,8 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
             children: [
               SettingsTopBar(
                 title: _enabled && !_isEditing
-                    ? 'PIN Paksaan (Duress)'
-                    : (_isEditing ? 'Ubah PIN Paksaan' : 'Buat PIN Paksaan'),
+                    ? MekaarCopy.quickResetPinTitle
+                    : (_isEditing ? 'Ubah ${MekaarCopy.quickResetPinTitle}' : 'Buat ${MekaarCopy.quickResetPinTitle}'),
                 onBack: _isEditing
                     ? () {
                         setState(() {
@@ -523,7 +524,7 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                           _pin = '';
                           _confirmPin = '';
                           _isConfirming = false;
-                          _status = 'PIN Paksaan aktif.';
+                          _status = 'Kode Reset Cepat aktif.';
                         });
                       }
                     : null,
@@ -537,11 +538,11 @@ class _DuressPinScreenState extends ConsumerState<DuressPinScreen> {
                         ? const Center(
                             child: MekaarStateView(
                               pose: MikaPose.neutral,
-                              title: 'Memproses PIN Paksaan',
+                              title: 'Memproses Kode Reset Cepat',
                               message:
                                   'Tunggu sebentar, kami mengamankan akun Anda.',
                               illustrationSize: 96,
-                              semanticLabel: 'Memproses PIN Paksaan',
+                              semanticLabel: 'Memproses Kode Reset Cepat',
                             ),
                           )
                         : _enabled && !_isEditing

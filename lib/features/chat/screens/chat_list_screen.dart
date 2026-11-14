@@ -25,10 +25,8 @@ import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../guardian/providers/guardian_provider.dart';
 import '../../sos/providers/sos_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../core/widgets/sos_button.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../../guardian/widgets/guardian_sos_alert_banner.dart';
@@ -95,7 +93,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     return hash;
   }
 
-  bool _isCheckingSOSGuardians = false;
   bool _isShareDialogActive = false;
 
   void _showShareTargetDialog(SharedPayload payload) {
@@ -226,41 +223,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         );
       }
     } catch (_) {}
-  }
-
-  Future<void> _triggerSOS() async {
-    final wasDuress = ref.read(authProvider).lastUnlockWasDuress;
-    final isSosActive =
-        ref.read(sosProvider).status == SOSStatus.active ||
-        ref.read(sosProvider).status == SOSStatus.queuedOffline;
-    if (isSosActive && !wasDuress) {
-      Navigator.pushNamed(context, AppRoutes.sosActive);
-      return;
-    }
-
-    if (_isCheckingSOSGuardians) return;
-    _isCheckingSOSGuardians = true;
-
-    try {
-      var loadStatus = ref.read(guardianLoadStatusProvider);
-      if (loadStatus != GuardianLoadStatus.data) {
-        await ref.read(guardianProvider.notifier).refreshGuardians();
-        loadStatus = ref.read(guardianLoadStatusProvider);
-      }
-      if (!mounted) return;
-
-      if (loadStatus == GuardianLoadStatus.data &&
-          activeGuardiansOf(ref.read(guardianProvider)).isEmpty) {
-        final shouldContinue = await MekaarDialog.showNoActiveGuardianWarning(
-          context: context,
-        );
-        if (!mounted || !shouldContinue) return;
-      }
-
-      Navigator.pushNamed(context, AppRoutes.sosActive);
-    } finally {
-      _isCheckingSOSGuardians = false;
-    }
   }
 
   Future<void> _handleMuteRoom(Map<String, dynamic> room) async {
@@ -723,7 +685,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                             horizontal: 16,
                             vertical: 10,
                           ),
-                          icon: SolarIconsOutline.shieldUser,
+                          icon: SolarIconsOutline.userPlus,
                           content: Text(
                             '$count Permintaan Chat Masuk Baru',
                             style: const TextStyle(
@@ -834,62 +796,43 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         padding: const EdgeInsets.symmetric(
           horizontal: 20,
         ).copyWith(bottom: 90),
-        child: Consumer(
-          builder: (context, ref, _) {
-            final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
-            final wasDuress = ref.watch(authProvider).lastUnlockWasDuress;
-            final isSosActive =
-                ref.watch(sosProvider).status == SOSStatus.active &&
-                !wasDuress;
-
-            return Row(
-              mainAxisAlignment: isSosEnabled
-                  ? MainAxisAlignment.spaceBetween
-                  : MainAxisAlignment.end,
-              children: [
-                // SOS Button on the left (Hanya jika fitur SOS aktif)
-                if (isSosEnabled)
-                  SOSButton(
-                    onPressed: _triggerSOS,
-                    isActive: isSosActive,
-                    size: 72,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            // Add Message Action Button on the right (Clean Solid FAB)
+            Container(
+              width: MekaarSizes.fab,
+              height: MekaarSizes.fab,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.blue,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.blue.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
-                // Add Message Action Button on the right (Clean Solid FAB)
-                Container(
-                  width: MekaarSizes.fab,
-                  height: MekaarSizes.fab,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.blue,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.blue.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkResponse(
-                      customBorder: const CircleBorder(),
-                      onTap: () {
-                        HapticService.trigger(MekaarHapticIntent.selection);
-                        Navigator.pushNamed(context, AppRoutes.newChat);
-                      },
-                      child: const Center(
-                        child: Icon(
-                          MekaarIcons.plus,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkResponse(
+                  customBorder: const CircleBorder(),
+                  onTap: () {
+                    HapticService.trigger(MekaarHapticIntent.selection);
+                    Navigator.pushNamed(context, AppRoutes.newChat);
+                  },
+                  child: const Center(
+                    child: Icon(
+                      MekaarIcons.newChat,
+                      color: Colors.white,
+                      size: 24,
                     ),
                   ),
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );

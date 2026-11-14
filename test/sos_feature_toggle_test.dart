@@ -143,8 +143,8 @@ void main() {
       );
       await tester.pump();
 
-      // Bar SOS bawah ("Tahan 2 dtk untuk darurat" & SOSButton) wajib muncul
-      expect(find.text('Tahan 2 dtk untuk darurat'), findsOneWidget);
+      // Bar SOS bawah ("Bantuan Darurat (Tahan 2 dtk)" & SOSButton) wajib muncul
+      expect(find.text('Bantuan Darurat (Tahan 2 dtk)'), findsOneWidget);
       expect(find.byType(SOSButton), findsOneWidget);
     });
   });
@@ -169,14 +169,13 @@ void main() {
       expect(content.contains('Fitur SOS Nonaktif'), isTrue);
     });
 
-    test('ChatListScreen mengondisikan SOSButton dan segment tab bar dengan sosFeatureEnabledProvider', () {
+    test('ChatListScreen mengondisikan kartu perjalanan dan FAB pesan baru', () {
       final file = File('lib/features/chat/screens/chat_list_screen.dart');
       final content = file.readAsStringSync();
       expect(content.contains('sosFeatureEnabledProvider'), isTrue);
       expect(content.contains('isSosEnabled'), isTrue);
-      expect(content.contains('MainAxisAlignment.spaceBetween'), isTrue);
-      expect(content.contains('MainAxisAlignment.end'), isTrue);
-      expect(content.contains('if (isSosEnabled)'), isTrue);
+      expect(content.contains('ActiveTripCard'), isTrue);
+      expect(content.contains('MekaarIcons.newChat'), isTrue);
     });
 
     test('MainNavigationScreen mengadaptasi 3 vs 4 tab navigasi bawah dengan shouldShowGuardianTabProvider', () {

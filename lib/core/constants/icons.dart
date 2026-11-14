@@ -27,6 +27,7 @@ class MekaarIcons {
   /// Ikon tambah / plus murni (FAB pesan baru & tombol tambah)
   static const plus = Icons.add_rounded;
   static const plusBold = Icons.add_rounded;
+  static const newChat = SolarIconsBold.penNewSquare;
 
   // ============ Navigasi & Aksi Dasar ============
   /// Panah kiri (kembali)

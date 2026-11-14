@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -414,7 +415,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                       ),
                       child: const Center(
                         child: Icon(
-                          SolarIconsBold.shieldKeyhole,
+                          SolarIconsOutline.keyMinimalisticSquare,
                           color: AppColors.blue,
                           size: 34,
                         ),
@@ -428,7 +429,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                           ? (_isConfirming
                               ? 'Konfirmasi PIN'
                               : 'Buat PIN Keamanan')
-                          : 'Buka Kunci Aplikasi',
+                          : MekaarCopy.unlockPinScreenTitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 22,
@@ -558,7 +559,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                         Text(
                           isSosActive
                               ? 'Sesi darurat SOS sedang aktif'
-                              : 'Tahan 2 dtk untuk darurat',
+                              : MekaarCopy.discreetEmergencyAction,
                           style: TextStyle(
                             color: isSosActive
                                 ? MekaarColors.sosRed

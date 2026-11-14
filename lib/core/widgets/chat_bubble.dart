@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../../data/models/chat_theme_model.dart';
 import '../../data/models/message_model.dart';
 import '../../features/settings/providers/chat_theme_provider.dart';
@@ -381,6 +382,15 @@ class ChatBubble extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      if (message.autoDeleteAt != null && !isDeleted) ...[
+                        Icon(
+                          SolarIconsOutline.stopwatch,
+                          size: 11,
+                          color: metaColor,
+                          semanticLabel: 'Pesan menghilang aktif',
+                        ),
+                        const SizedBox(width: 3),
+                      ],
                       if (message.isEdited && !isDeleted) ...[
                         Text(
                           'diedit ',
@@ -534,6 +544,15 @@ class ChatBubble extends ConsumerWidget {
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (message.autoDeleteAt != null && !isDeleted) ...[
+                        Icon(
+                          SolarIconsOutline.stopwatch,
+                          size: 10,
+                          color: metaColor,
+                          semanticLabel: 'Pesan menghilang aktif',
+                        ),
+                        const SizedBox(width: 3),
+                      ],
                       Text(
                         DateFormat(
                           'HH:mm',

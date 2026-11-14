@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/constants/strings.dart';
 import '../../../core/utils/emoji_shortcode_parser.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../data/models/message_model.dart';
@@ -246,7 +247,7 @@ class MessageNotificationListener {
     bool isStealthPreview = false,
   }) {
     if (isEncrypted) {
-      return '🔒 Pesan terenkripsi';
+      return MekaarCopy.hiddenPreviewFallback;
     }
     if (isStealthPreview) {
       return '••••••••';

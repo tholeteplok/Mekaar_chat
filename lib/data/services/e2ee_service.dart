@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/constants/strings.dart';
 import '../../core/storage/mekaar_secure_storage.dart';
 
 import 'supabase_service.dart';
@@ -51,7 +52,7 @@ class E2eeService {
   static const String algorithmName = 'xchacha20poly1305';
 
   /// Placeholder UI bila dekripsi gagal (mis. kunci belum ada di perangkat ini).
-  static const String undecryptableText = '🔒 Pesan terenkripsi';
+  static const String undecryptableText = MekaarCopy.hiddenPreviewFallback;
 
   final SupabaseService _supabase = SupabaseService();
   final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;

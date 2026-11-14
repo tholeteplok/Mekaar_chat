@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -1010,7 +1011,7 @@ class SettingsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'PIN Darurat (Duress PIN)',
+                            MekaarCopy.quickResetPinTitle,
                             style: MekaarTypography.bodyMD.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -1018,8 +1019,8 @@ class SettingsScreen extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             isDuressSet
-                                ? 'PIN Darurat telah aktif'
-                                : 'Melindungi saat dipaksa membuka ponsel',
+                                ? 'Kode telah aktif'
+                                : MekaarCopy.quickResetPinSubtitle,
                             style: MekaarTypography.caption.copyWith(
                               color: MekaarColors.textMutedOf(sheetContext),
                             ),
