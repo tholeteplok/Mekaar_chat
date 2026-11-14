@@ -16,6 +16,8 @@ import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
+import '../../../data/models/contact_model.dart';
+import '../../../data/repositories/contact_repository.dart';
 import '../../../data/repositories/forwarding_protection_repository.dart';
 import '../providers/chat_provider.dart';
 import '../providers/chat_draft_provider.dart';
@@ -1381,6 +1383,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
+  void _handleGroupSenderTap(String senderId) {
+    final currentUserId = ref.read(authProvider).user?.id ??
+        Supabase.instance.client.auth.currentUser?.id;
+    if (senderId == currentUserId) {
+      _pushNamedWithoutActiveRoom(AppRoutes.profile);
+      return;
+    }
+
+    final senderName = _participantNames[senderId] ?? 'Anggota';
+    final initial = senderName.isNotEmpty ? senderName[0].toUpperCase() : 'U';
+
+    final contacts = ref.read(userContactsProvider).value ?? const [];
+    final contact = contacts.cast<ContactItem?>().firstWhere(
+      (c) => c?.contactUserId == senderId,
+      orElse: () => null,
+    );
+
+    final dmRoomId = contact?.roomId ?? '';
+    final isGuardian = contact?.isGuardian ?? false;
+
+    _pushNamedWithoutActiveRoom(
+      AppRoutes.contactSettings,
+      arguments: {
+        'roomId': dmRoomId,
+        'chatName': senderName,
+        'chatAvatar': initial,
+        'otherUserId': senderId,
+        'isGuardian': isGuardian,
+      },
+    );
+  }
+
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
     final otherId = _effectiveOtherUserId;
@@ -1611,6 +1645,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   _clearSelection();
                 },
                 onSaveToVault: _handleSaveToVault,
+                onSenderTap: _effectiveIsGroup ? _handleGroupSenderTap : null,
                 getSenderDisplayName: _getSenderDisplayName,
                 flashIdListenable: _flashId,
                 onReplyTap: (id) => _jumpToMessage(id),

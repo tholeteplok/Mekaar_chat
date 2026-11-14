@@ -22,6 +22,7 @@ import '../../chat/providers/chat_provider.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/widgets/private_vault_dialogs.dart';
 import '../../chat/widgets/chat_room_privacy_sheet.dart';
+import '../../chat/widgets/send_chat_invite_dialog.dart';
 import '../../settings/providers/block_provider.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/repositories/report_repository.dart';
@@ -58,6 +59,14 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   String? _username;
   String? _bio;
   DateTime? _lastSeenAt;
+  String? _resolvedRoomId;
+  String _chatInvitationMode = 'approved_only';
+
+  String get _effectiveRoomId =>
+      (_resolvedRoomId != null && _resolvedRoomId!.isNotEmpty)
+          ? _resolvedRoomId!
+          : widget.roomId;
+  bool get _hasDirectRoom => _effectiveRoomId.isNotEmpty;
 
   @override
   void initState() {
@@ -67,7 +76,31 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
 
   Future<void> _loadPreferences() async {
     final repo = ref.read(chatRepositoryProvider);
-    final prefs = await repo.getRoomPreferences(widget.roomId);
+
+    // 1. Cek apakah ada roomId bilateral di cache jika widget.roomId kosong
+    String directRoom = widget.roomId;
+    if (directRoom.isEmpty) {
+      final cachedRooms = ref.read(chatRoomsProvider).valueOrNull ?? [];
+      final matching = cachedRooms.cast<Map<String, dynamic>?>().firstWhere(
+        (r) {
+          if (r == null) return false;
+          final isGroup = r['isGroup'] == true ||
+              r['is_group'] == true ||
+              r['room_type'] == 'group';
+          if (isGroup) return false;
+          return r['otherUserId'] == widget.otherUserId ||
+              r['other_user_id'] == widget.otherUserId;
+        },
+        orElse: () => null,
+      );
+      if (matching != null) {
+        directRoom = matching['id'] as String? ?? '';
+      }
+    }
+
+    final prefs = directRoom.isNotEmpty
+        ? await repo.getRoomPreferences(directRoom)
+        : null;
     final blocked = await ref
         .read(blockRepositoryProvider)
         .isBlocked(widget.otherUserId);
@@ -82,21 +115,26 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     String? peerAvatarUrl;
     String? peerUsername;
     String? peerBio;
+    String invitationMode = 'approved_only';
     try {
       final profileRow = await ref
           .read(supabaseServiceProvider)
           .client
           .from('public_profiles')
-          .select('avatar_url, username, bio')
+          .select('avatar_url, username, bio, chat_invitation_mode')
           .eq('id', widget.otherUserId)
           .maybeSingle();
       peerAvatarUrl = profileRow?['avatar_url'] as String?;
       peerUsername = profileRow?['username'] as String?;
       peerBio = profileRow?['bio'] as String?;
+      invitationMode =
+          profileRow?['chat_invitation_mode'] as String? ?? 'approved_only';
     } catch (_) {}
 
     if (!mounted) return;
     setState(() {
+      _resolvedRoomId = directRoom;
+      _chatInvitationMode = invitationMode;
       _isMuted = prefs?.isMuted ?? false;
       _isBlocked = blocked;
       _e2eeFingerprint = fingerprint;
@@ -108,6 +146,91 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     });
   }
 
+  Future<void> _handleChatTap() async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    // 1. Jika sudah ada direct room bilateral
+    if (_hasDirectRoom) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.chat,
+        arguments: {
+          'chatId': _effectiveRoomId,
+          'chatName': widget.chatName,
+          'chatAvatar': widget.chatAvatar,
+          'chatAvatarUrl': _avatarUrl,
+          'otherUserId': widget.otherUserId,
+          'isGroup': false,
+          'isGuardian': widget.isGuardian,
+        },
+      );
+      return;
+    }
+
+    // 2. Jika belum ada direct room, patuhi aturan chat_invitation_mode
+    final contacts = ref.read(userContactsProvider).value ?? const [];
+    final isContact = contacts.any((c) => c.contactUserId == widget.otherUserId);
+
+    if (!isContact) {
+      if (_chatInvitationMode == 'qr_only') {
+        MekaarDialog.show(
+          context: context,
+          title: 'Proteksi Undangan QR',
+          body:
+              '${widget.chatName} hanya menerima pesan baru melalui pemindaian QR Code kontak langsung.',
+        );
+        return;
+      }
+
+      if (_chatInvitationMode == 'approved_only') {
+        final sent = await SendChatInviteDialog.show(
+          context,
+          receiverId: widget.otherUserId,
+          receiverUsername: _username ?? widget.chatName,
+        );
+        if (sent == true && mounted) {
+          MekaarSnackbar.success(
+            context,
+            'Permintaan obrolan berhasil dikirim ke @${_username ?? widget.chatName}.',
+          );
+        }
+        return;
+      }
+    }
+
+    // 3. Mode 'all' atau kontak biasa: Buka / buat room baru
+    try {
+      final chatRepo = ref.read(chatRepositoryProvider);
+      final newRoomId = await chatRepo.createRoom(
+        widget.otherUserId,
+        widget.isGuardian ? 'guardian' : 'normal',
+      );
+      if (mounted) {
+        setState(() => _resolvedRoomId = newRoomId);
+        Navigator.pushNamed(
+          context,
+          AppRoutes.chat,
+          arguments: {
+            'chatId': newRoomId,
+            'chatName': widget.chatName,
+            'chatAvatar': widget.chatAvatar,
+            'chatAvatarUrl': _avatarUrl,
+            'otherUserId': widget.otherUserId,
+            'isGroup': false,
+            'isGuardian': widget.isGuardian,
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(
+          context,
+          'Gagal memulai obrolan: ${ErrorResolver.resolve(e)}',
+        );
+      }
+    }
+  }
+
   void _initiateCall(String callType) {
     final currentUserId = ref.read(authProvider).user?.id;
     if (currentUserId == null) {
@@ -117,11 +240,18 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
       );
       return;
     }
+    if (!_hasDirectRoom) {
+      MekaarSnackbar.info(
+        context,
+        'Mulai obrolan bilateral terlebih dahulu untuk melakukan panggilan.',
+      );
+      return;
+    }
     Navigator.pushNamed(
       context,
       AppRoutes.call,
       arguments: {
-        'roomId': widget.roomId,
+        'roomId': _effectiveRoomId,
         'chatName': widget.chatName,
         'callerId': currentUserId,
         'receiverId': widget.otherUserId,
@@ -194,7 +324,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     try {
       await ref
           .read(chatRepositoryProvider)
-          .updateRoomMute(widget.roomId, muted);
+          .updateRoomMute(_effectiveRoomId, muted);
     } catch (e) {
       if (mounted) {
         setState(() => _isMuted = previous);
@@ -315,6 +445,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isOnline = _isCurrentlyOnline(_lastSeenAt);
+    final contacts = ref.watch(userContactsProvider).value ?? const [];
+    final isContact =
+        contacts.any((c) => c.contactUserId == widget.otherUserId);
 
     return MekaarScaffold(
       flat: true,
@@ -340,7 +473,11 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                         imageUrl: _avatarUrl,
                         size: 88,
                         isGuardian: widget.isGuardian,
-                        heroTag: 'avatar-room-${widget.roomId}',
+                        heroTag: widget.otherUserId.isNotEmpty
+                            ? 'avatar-user-${widget.otherUserId}'
+                            : (_effectiveRoomId.isNotEmpty
+                                ? 'avatar-room-$_effectiveRoomId'
+                                : null),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -438,11 +575,17 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 // ──── 2. Quick Action Hub (4 Tombol Frosted Glass) ────
                 Consumer(
                   builder: (context, ref, _) {
+                    final contacts =
+                        ref.watch(userContactsProvider).value ?? const [];
+                    final isContact =
+                        contacts.any((c) => c.contactUserId == widget.otherUserId);
+
                     final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
-                    final hiddenUsers = ref.watch(hiddenContactUserIdsProvider);
+                    final hiddenUsers =
+                        ref.watch(hiddenContactUserIdsProvider);
                     final isHidden =
                         hiddenUsers.contains(widget.otherUserId) ||
-                        hiddenRooms.contains(widget.roomId);
+                        hiddenRooms.contains(_effectiveRoomId);
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -451,7 +594,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           _buildActionHubItem(
                             icon: SolarIconsOutline.chatRoundDots,
                             label: 'Obrolan',
-                            onTap: () => Navigator.pop(context),
+                            onTap: _handleChatTap,
                           ),
                           const SizedBox(width: 12),
                           _buildActionHubItem(
@@ -466,31 +609,62 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                             onTap: () => _initiateCall('video'),
                           ),
                           const SizedBox(width: 12),
-                          _buildActionHubItem(
-                            icon: isHidden
-                                ? SolarIconsOutline.eye
-                                : SolarIconsOutline.eyeClosed,
-                            label: isHidden ? 'Tampilkan' : 'Sembunyikan',
-                            isActive: isHidden,
-                            onTap: () {
-                              if (widget.otherUserId.isNotEmpty) {
-                                PrivateVaultDialogs.toggleContactHiddenWithAuth(
-                                  context,
-                                  ref,
-                                  contactUserId: widget.otherUserId,
-                                  contactName: widget.chatName,
-                                  roomId: widget.roomId,
+                          if (isContact)
+                            _buildActionHubItem(
+                              icon: isHidden
+                                  ? SolarIconsOutline.eye
+                                  : SolarIconsOutline.eyeClosed,
+                              label: isHidden ? 'Tampilkan' : 'Sembunyikan',
+                              isActive: isHidden,
+                              onTap: () {
+                                if (widget.otherUserId.isNotEmpty) {
+                                  PrivateVaultDialogs
+                                      .toggleContactHiddenWithAuth(
+                                    context,
+                                    ref,
+                                    contactUserId: widget.otherUserId,
+                                    contactName: widget.chatName,
+                                    roomId: _effectiveRoomId,
+                                  );
+                                } else {
+                                  PrivateVaultDialogs
+                                      .toggleRoomHiddenWithAuth(
+                                    context,
+                                    ref,
+                                    roomId: _effectiveRoomId,
+                                    chatName: widget.chatName,
+                                  );
+                                }
+                              },
+                            )
+                          else
+                            _buildActionHubItem(
+                              icon: SolarIconsOutline.userPlus,
+                              label: 'Tambah',
+                              onTap: () async {
+                                HapticService.trigger(
+                                  MekaarHapticIntent.selection,
                                 );
-                              } else {
-                                PrivateVaultDialogs.toggleRoomHiddenWithAuth(
-                                  context,
-                                  ref,
-                                  roomId: widget.roomId,
-                                  chatName: widget.chatName,
-                                );
-                              }
-                            },
-                          ),
+                                try {
+                                  await ref
+                                      .read(userContactsProvider.notifier)
+                                      .addContact(widget.otherUserId);
+                                  if (context.mounted) {
+                                    MekaarSnackbar.success(
+                                      context,
+                                      '${widget.chatName} berhasil ditambahkan ke kontak.',
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    MekaarSnackbar.error(
+                                      context,
+                                      'Gagal menambahkan kontak: ${ErrorResolver.resolve(e)}',
+                                    );
+                                  }
+                                }
+                              },
+                            ),
                         ],
                       ),
                     );
@@ -570,20 +744,21 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 const SizedBox(height: 20),
 
                 // ──── 4. Card Pengaturan Obrolan ────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    'Pengaturan Obrolan',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: MekaarColors.textSecondaryOf(context),
+                if (_hasDirectRoom) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'Pengaturan Obrolan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: MekaarColors.textSecondaryOf(context),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Column(
-                  children: [
+                  const SizedBox(height: 8),
+                  Column(
+                    children: [
                           // Pengaturan Privasi Obrolan Terpusat
                           ListTile(
                             leading: Icon(
@@ -612,7 +787,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                             onTap: () {
                               ChatRoomPrivacySheet.show(
                                 context,
-                                roomId: widget.roomId,
+                                roomId: _effectiveRoomId,
                                 onSettingsChanged: () {
                                   _loadPreferences();
                                 },
@@ -809,7 +984,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           ),
                         ],
                       ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                ],
 
                 // ──── 5. Card Tindakan (Danger Zone) ────
                 Padding(
@@ -826,113 +1002,117 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 const SizedBox(height: 8),
                 Column(
                   children: [
-                          // Hapus Chat
-                          ListTile(
-                            leading: const Icon(
-                              SolarIconsOutline.trashBinTrash,
-                              color: MekaarColors.sosRed,
-                            ),
-                            title: const Text('Hapus Chat (Hanya Saya)'),
-                            subtitle: const Text(
-                              'Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak',
-                            ),
-                            titleTextStyle: const TextStyle(
-                              color: MekaarColors.sosRed,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            subtitleTextStyle: TextStyle(
-                              fontSize: 12,
-                              color: MekaarColors.textSecondaryOf(context),
-                            ),
-                            onTap: () {
-                              MekaarDialog.showConfirmation<void>(
-                                context: context,
-                                title: 'Hapus Chat dari Daftar Anda?',
-                                message:
-                                    'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Kontak ini tetap tersimpan di daftar kontak Anda, dan rekan obrolan tetap dapat melihat percakapan ini.',
-                                isDestructive: true,
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Batal'),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: MekaarColors.sosRed,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    onPressed: () async {
-                                      Navigator.pop(context);
-                                      await ref
-                                          .read(chatActionsProvider)
-                                          .deleteChat(widget.roomId);
-                                      if (context.mounted) {
-                                        Navigator.of(context).pop();
-                                      }
-                                    },
-                                    child: const Text('Hapus (Hanya Saya)'),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const MekaarCardDivider(),
+                    if (_hasDirectRoom) ...[
+                      // Hapus Chat
+                      ListTile(
+                        leading: const Icon(
+                          SolarIconsOutline.trashBinTrash,
+                          color: MekaarColors.sosRed,
+                        ),
+                        title: const Text('Hapus Chat (Hanya Saya)'),
+                        subtitle: const Text(
+                          'Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak',
+                        ),
+                        titleTextStyle: const TextStyle(
+                          color: MekaarColors.sosRed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        subtitleTextStyle: TextStyle(
+                          fontSize: 12,
+                          color: MekaarColors.textSecondaryOf(context),
+                        ),
+                        onTap: () {
+                          MekaarDialog.showConfirmation<void>(
+                            context: context,
+                            title: 'Hapus Chat dari Daftar Anda?',
+                            message:
+                                'Obrolan ini hanya akan dihapus dari daftar pesan Anda. Kontak ini tetap tersimpan di daftar kontak Anda, dan rekan obrolan tetap dapat melihat percakapan ini.',
+                            isDestructive: true,
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Batal'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: MekaarColors.sosRed,
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () async {
+                                  Navigator.pop(context);
+                                  await ref
+                                      .read(chatActionsProvider)
+                                      .deleteChat(_effectiveRoomId);
+                                  if (context.mounted) {
+                                    Navigator.of(context).pop();
+                                  }
+                                },
+                                child: const Text('Hapus (Hanya Saya)'),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const MekaarCardDivider(),
+                    ],
 
-                          // Hapus Kontak (Otomatis Menghapus Percakapan)
-                          ListTile(
-                            leading: const Icon(
-                              SolarIconsOutline.userCross,
-                              color: MekaarColors.sosRed,
-                            ),
-                            title: const Text('Hapus Kontak'),
-                            subtitle: const Text(
-                              'Hapus dari buku kontak dan bersihkan seluruh riwayat chat',
-                            ),
-                            titleTextStyle: const TextStyle(
-                              color: MekaarColors.sosRed,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            subtitleTextStyle: TextStyle(
-                              fontSize: 12,
-                              color: MekaarColors.textSecondaryOf(context),
-                            ),
-                            onTap: () {
-                              MekaarDialog.showConfirmation<void>(
-                                context: context,
-                                title: 'Hapus Kontak ${widget.chatName}?',
-                                message:
-                                    'Kontak ini akan dihapus dari daftar kontak Anda. Seluruh riwayat obrolan bilateral dengannya juga akan dibersihkan secara otomatis.',
-                                isDestructive: true,
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Batal'),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: MekaarColors.sosRed,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    onPressed: () async {
-                                      Navigator.pop(context);
-                                      await ref
-                                          .read(userContactsProvider.notifier)
-                                          .deleteContact(widget.otherUserId);
-                                      if (context.mounted) {
-                                        MekaarSnackbar.success(
-                                          context,
-                                          'Kontak dan obrolan berhasil dihapus.',
-                                        );
-                                        Navigator.of(context).pop();
-                                      }
-                                    },
-                                    child: const Text('Hapus Kontak & Chat'),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const MekaarCardDivider(),
+                    if (isContact) ...[
+                      // Hapus Kontak (Otomatis Menghapus Percakapan)
+                      ListTile(
+                        leading: const Icon(
+                          SolarIconsOutline.userCross,
+                          color: MekaarColors.sosRed,
+                        ),
+                        title: const Text('Hapus Kontak'),
+                        subtitle: const Text(
+                          'Hapus dari buku kontak dan bersihkan seluruh riwayat chat',
+                        ),
+                        titleTextStyle: const TextStyle(
+                          color: MekaarColors.sosRed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        subtitleTextStyle: TextStyle(
+                          fontSize: 12,
+                          color: MekaarColors.textSecondaryOf(context),
+                        ),
+                        onTap: () {
+                          MekaarDialog.showConfirmation<void>(
+                            context: context,
+                            title: 'Hapus Kontak ${widget.chatName}?',
+                            message:
+                                'Kontak ini akan dihapus dari daftar kontak Anda. Seluruh riwayat obrolan bilateral dengannya juga akan dibersihkan secara otomatis.',
+                            isDestructive: true,
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Batal'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: MekaarColors.sosRed,
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () async {
+                                  Navigator.pop(context);
+                                  await ref
+                                      .read(userContactsProvider.notifier)
+                                      .deleteContact(widget.otherUserId);
+                                  if (context.mounted) {
+                                    MekaarSnackbar.success(
+                                      context,
+                                      'Kontak dan obrolan berhasil dihapus.',
+                                    );
+                                    Navigator.of(context).pop();
+                                  }
+                                },
+                                child: const Text('Hapus Kontak & Chat'),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const MekaarCardDivider(),
+                    ],
 
                           // Blokir
                           ListTile(
@@ -973,7 +1153,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
       context: context,
       builder: (_) => _ReportUserDialog(
         otherUserId: widget.otherUserId,
-        roomId: widget.roomId,
+        roomId: _effectiveRoomId,
       ),
     );
   }

@@ -126,6 +126,7 @@ class ChatMessageListView extends ConsumerStatefulWidget {
   final DateTime? entryLastReadAt;
   final String? currentUserId;
   final bool isFilterMode;
+  final void Function(String senderId)? onSenderTap;
 
   const ChatMessageListView({
     super.key,
@@ -165,6 +166,7 @@ class ChatMessageListView extends ConsumerStatefulWidget {
     this.entryLastReadAt,
     this.currentUserId,
     this.isFilterMode = false,
+    this.onSenderTap,
   });
 
   /// Buat daftar data entri secara cepat (O(N) data pointer tanpa alokasi widget eager).
@@ -644,6 +646,7 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
       senderName: widget.isGroup ? widget.participantNames[msg.senderId] : null,
       senderAvatarUrl: widget.isGroup ? widget.participantAvatars[msg.senderId] : null,
       showSenderAvatar: widget.isGroup && !isMe,
+      onSenderTap: widget.onSenderTap != null ? () => widget.onSenderTap!(msg.senderId) : null,
       replyToMessage: replyToMsg,
       replyToSenderName: replyToSender,
       onDelete: () => widget.onDeleteMessage(msg),

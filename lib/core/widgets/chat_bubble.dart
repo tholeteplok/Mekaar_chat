@@ -68,6 +68,7 @@ class ChatBubble extends ConsumerWidget {
   final String? senderName;
   final String? senderAvatarUrl;
   final bool showSenderAvatar;
+  final VoidCallback? onSenderTap;
   // Pesan yang dibalas & nama pengirimnya (untuk tampilan kutipan balas)
   final Message? replyToMessage;
   final String? replyToSenderName;
@@ -101,6 +102,7 @@ class ChatBubble extends ConsumerWidget {
     this.senderName,
     this.senderAvatarUrl,
     this.showSenderAvatar = false,
+    this.onSenderTap,
     this.replyToMessage,
     this.replyToSenderName,
     this.isSelected = false,
@@ -324,7 +326,7 @@ class ChatBubble extends ConsumerWidget {
                         )),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width *
-                  ((showSenderAvatar && !isMe) ? 0.70 : 0.76),
+                  ((showSenderAvatar && !isMe) ? 0.68 : 0.76),
             ),
             child: Builder(
               builder: (context) {
@@ -457,15 +459,25 @@ class ChatBubble extends ConsumerWidget {
                         senderName != null &&
                         senderName!.isNotEmpty &&
                         !isDeleted) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          senderName!,
-                          style: resolveBubbleTextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: MekaarColors.accentOf(context),
-                            fontFamily: fontFamily,
+                      GestureDetector(
+                        onTap: onSenderTap != null
+                            ? () {
+                                HapticService.trigger(
+                                  MekaarHapticIntent.selection,
+                                );
+                                onSenderTap!();
+                              }
+                            : null,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            senderName!,
+                            style: resolveBubbleTextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: MekaarColors.accentOf(context),
+                              fontFamily: fontFamily,
+                            ),
                           ),
                         ),
                       ),
@@ -505,7 +517,7 @@ class ChatBubble extends ConsumerWidget {
             selectionColor: MekaarColors.blue,
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width *
-                  ((showSenderAvatar && !isMe) ? 0.70 : 0.76),
+                  ((showSenderAvatar && !isMe) ? 0.68 : 0.76),
             ),
             customPadding: (isImage && hasImageCaption) || isVideo
                 ? EdgeInsets.zero
@@ -550,15 +562,25 @@ class ChatBubble extends ConsumerWidget {
                   children: [
                     if (hasHeader) spec.headerWidget!,
                     if (hasSenderName) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: Text(
-                          senderName!,
-                          style: resolveBubbleTextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: MekaarColors.accentOf(context),
-                            fontFamily: fontFamily,
+                      GestureDetector(
+                        onTap: onSenderTap != null
+                            ? () {
+                                HapticService.trigger(
+                                  MekaarHapticIntent.selection,
+                                );
+                                onSenderTap!();
+                              }
+                            : null,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            senderName!,
+                            style: resolveBubbleTextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: MekaarColors.accentOf(context),
+                              fontFamily: fontFamily,
+                            ),
                           ),
                         ),
                       ),
@@ -622,13 +644,34 @@ class ChatBubble extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 2, right: 8),
-                          child: Avatar(
-                            size: 30,
-                            imageUrl: senderAvatarUrl,
-                            initial: (senderName != null && senderName!.trim().isNotEmpty)
-                                ? senderName!.trim()[0].toUpperCase()
-                                : '?',
+                          padding: const EdgeInsets.only(bottom: 2, right: 4),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: onSenderTap != null
+                                  ? () {
+                                      HapticService.trigger(
+                                        MekaarHapticIntent.selection,
+                                      );
+                                      onSenderTap!();
+                                    }
+                                  : null,
+                              borderRadius: BorderRadius.circular(
+                                MekaarRadius.pill,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Avatar(
+                                  size: MekaarSizes.avatarMd,
+                                  imageUrl: senderAvatarUrl,
+                                  initial:
+                                      (senderName != null &&
+                                          senderName!.trim().isNotEmpty)
+                                      ? senderName!.trim()[0].toUpperCase()
+                                      : '?',
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                         Flexible(
@@ -643,7 +686,7 @@ class ChatBubble extends ConsumerWidget {
               ReactionsStrip(
                 reactions: message.reactions,
                 isMe: isMe,
-                leftIndent: (showSenderAvatar && !isMe) ? 38.0 : 0.0,
+                leftIndent: (showSenderAvatar && !isMe) ? 50.0 : 0.0,
                 onReact: onReact != null
                     ? (emoji) => onReact!(message, emoji)
                     : null,

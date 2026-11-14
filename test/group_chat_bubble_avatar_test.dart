@@ -45,7 +45,7 @@ void main() {
       expect(avatarFinder, findsOneWidget);
 
       final avatarWidget = tester.widget<Avatar>(avatarFinder);
-      expect(avatarWidget.size, 30.0);
+      expect(avatarWidget.size, 38.0);
       expect(avatarWidget.initial, 'A');
 
       // Teks pesan dan pengirim
@@ -150,7 +150,47 @@ void main() {
       expect(reactionsStripFinder, findsOneWidget);
 
       final reactionsStrip = tester.widget<ReactionsStrip>(reactionsStripFinder);
-      expect(reactionsStrip.leftIndent, 38.0);
+      expect(reactionsStrip.leftIndent, 50.0);
+    });
+
+    testWidgets('Mengetuk avatar atau nama pengirim memicu onSenderTap', (tester) async {
+      int tapCount = 0;
+      final msg = Message(
+        id: 'msg_tap_test_1',
+        roomId: 'room_group',
+        senderId: 'member_charlie',
+        content: 'Ketuk foto profil saya!',
+        type: MessageType.text,
+        createdAt: DateTime.utc(2026, 11, 13, 10, 4),
+        updatedAt: DateTime.utc(2026, 11, 13, 10, 4),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: ChatBubble(
+                message: msg,
+                isMe: false,
+                senderName: 'Charlie',
+                showSenderAvatar: true,
+                onSenderTap: () => tapCount++,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Ketuk Avatar
+      await tester.tap(find.byType(Avatar));
+      await tester.pumpAndSettle();
+      expect(tapCount, 1);
+
+      // 2. Ketuk Nama Pengirim
+      await tester.tap(find.text('Charlie'));
+      await tester.pumpAndSettle();
+      expect(tapCount, 2);
     });
   });
 }
