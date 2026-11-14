@@ -60,7 +60,7 @@ class MekaarHeaderSearchButton extends StatelessWidget {
       child: IconButton(
         icon: Icon(
           SolarIconsOutline.magnifier,
-          color: MekaarColors.primaryOf(context),
+          color: MekaarColors.textPrimaryOf(context),
         ),
         tooltip: tooltip,
         onPressed: () {

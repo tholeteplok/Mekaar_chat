@@ -63,14 +63,14 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Aksi PIN Master (Utama)
+  // Aksi PIN Utama (Master)
   // ─────────────────────────────────────────────────────────────────────────
   Future<void> _handleChangeMasterPin() async {
     HapticService.trigger(MekaarHapticIntent.selection);
     final verified = await MekaarPinVerificationSheet.verify(
       context,
-      title: 'Verifikasi PIN Master',
-      subtitle: 'Masukkan 6 digit PIN Master saat ini untuk melanjutkan',
+      title: 'Verifikasi PIN Utama',
+      subtitle: 'Masukkan 6 digit PIN Utama saat ini untuk melanjutkan',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -78,7 +78,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
 
     final success = await MekaarChangePinSheet.show(
       context,
-      title: 'Ganti PIN Master',
+      title: 'Ganti PIN Utama',
       onConfirmPin: (newPin) async {
         final isSameDecoy = await ref
             .read(authRepositoryProvider)
@@ -87,7 +87,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
           if (mounted) {
             MekaarSnackbar.error(
               context,
-              'PIN Master tidak boleh sama dengan PIN Tamu.',
+              'PIN Utama tidak boleh sama dengan PIN Tamu.',
             );
           }
           return false;
@@ -100,7 +100,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
           if (mounted) {
             MekaarSnackbar.error(
               context,
-              'PIN Master tidak boleh sama dengan PIN Darurat.',
+              'PIN Utama tidak boleh sama dengan PIN Darurat.',
             );
           }
           return false;
@@ -111,7 +111,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
     );
 
     if (success && mounted) {
-      MekaarSnackbar.success(context, 'PIN Master berhasil diperbarui.');
+      MekaarSnackbar.success(context, 'PIN Utama berhasil diperbarui.');
     }
   }
 
@@ -122,9 +122,9 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
     HapticService.trigger(MekaarHapticIntent.selection);
     final verified = await MekaarPinVerificationSheet.verify(
       context,
-      title: 'Verifikasi PIN Master',
+      title: 'Verifikasi PIN Utama',
       subtitle:
-          'Masukkan PIN Master Anda untuk ${_isDecoyEnabled ? "mengubah" : "mengatur"} PIN Tamu',
+          'Masukkan PIN Utama Anda untuk ${_isDecoyEnabled ? "mengubah" : "mengatur"} PIN Tamu',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -141,7 +141,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
           if (mounted) {
             MekaarSnackbar.error(
               context,
-              'PIN Tamu tidak boleh sama dengan PIN Master.',
+              'PIN Tamu tidak boleh sama dengan PIN Utama.',
             );
           }
           return false;
@@ -182,8 +182,8 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
     HapticService.trigger(MekaarHapticIntent.selection);
     final verified = await MekaarPinVerificationSheet.verify(
       context,
-      title: 'Verifikasi PIN Master',
-      subtitle: 'Masukkan PIN Master Anda untuk menonaktifkan PIN Tamu',
+      title: 'Verifikasi PIN Utama',
+      subtitle: 'Masukkan PIN Utama Anda untuk menonaktifkan PIN Tamu',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -244,9 +244,9 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
 
     final verified = await MekaarPinVerificationSheet.verify(
       context,
-      title: 'Verifikasi PIN Master',
+      title: 'Verifikasi PIN Utama',
       subtitle:
-          'Masukkan PIN Master Anda untuk ${_isDuressEnabled ? "mengubah" : "mengatur"} ${MekaarCopy.quickResetPinTitle}',
+          'Masukkan PIN Utama Anda untuk ${_isDuressEnabled ? "mengubah" : "mengatur"} ${MekaarCopy.quickResetPinTitle}',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -263,7 +263,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
           if (mounted) {
             MekaarSnackbar.error(
               context,
-              'PIN Darurat tidak boleh sama dengan PIN Master.',
+              'PIN Darurat tidak boleh sama dengan PIN Utama.',
             );
           }
           return false;
@@ -304,8 +304,8 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
     HapticService.trigger(MekaarHapticIntent.selection);
     final verified = await MekaarPinVerificationSheet.verify(
       context,
-      title: 'Verifikasi PIN Master',
-      subtitle: 'Masukkan PIN Master Anda untuk menonaktifkan PIN Darurat',
+      title: 'Verifikasi PIN Utama',
+      subtitle: 'Masukkan PIN Utama Anda untuk menonaktifkan PIN Darurat',
       allowDuress: false,
       allowDecoy: false,
     );
@@ -391,7 +391,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
               title: isDecoy ? 'PIN Keamanan' : 'Manajemen PIN Keamanan',
               subtitle: isDecoy
                   ? 'Kelola kode akses keamanan'
-                  : 'PIN Master, Tamu & Darurat',
+                  : 'PIN Utama, Tamu & Darurat',
             ),
             Expanded(
               child: _isLoading
@@ -519,7 +519,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'PIN Master (Utama)',
+                        'PIN Utama (Master)',
                         style: MekaarTypography.headingSM.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -554,7 +554,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
               child: ElevatedButton.icon(
                 onPressed: _handleChangeMasterPin,
                 icon: const Icon(SolarIconsOutline.pen, size: 18),
-                label: const Text('Ganti PIN Master'),
+                label: const Text('Ganti PIN Utama'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: MekaarColors.primaryOf(context),
                   foregroundColor: Colors.white,
@@ -602,7 +602,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'PIN Tamu (Decoy)',
+                        'PIN Tamu',
                         style: MekaarTypography.headingSM.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

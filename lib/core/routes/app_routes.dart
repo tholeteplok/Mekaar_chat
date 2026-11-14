@@ -15,6 +15,7 @@ import 'package:mekaar_chat/features/chat/screens/chat_requests_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
+import 'package:mekaar_chat/features/guardian/screens/guardian_find_phone_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/sos_viewer_screen.dart';
@@ -117,6 +118,7 @@ class AppRoutes {
   static const String guardianDetail = '/guardian/detail';
   static const String guardianSwap = '/guardian/swap';
   static const String guardianTracking = '/guardian/tracking';
+  static const String guardianFindPhone = '/guardian/find-phone';
   static const String settings = '/settings';
   static const String themeSettings = '/settings/theme';
   static const String chatThemeSettings = '/settings/theme/chat';
@@ -276,6 +278,17 @@ class AppRoutes {
 
       case AppRoutes.guardianTracking:
         return MekaarPageRoute(builder: (_) => const GuardianTrackingScreen());
+
+      case AppRoutes.guardianFindPhone:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final g = args['guardian'] as Guardian;
+        final targetUserId = args['targetUserId'] as String? ?? '';
+        return MekaarPageRoute(
+          builder: (_) => GuardianFindPhoneScreen(
+            guardian: g,
+            targetUserId: targetUserId,
+          ),
+        );
 
       case AppRoutes.settings:
         return MekaarPageRoute(builder: (_) => const SettingsScreen());

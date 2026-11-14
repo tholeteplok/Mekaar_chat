@@ -762,7 +762,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           // Pengaturan Privasi Obrolan Terpusat
                           ListTile(
                             leading: Icon(
-                              SolarIconsOutline.shieldKeyhole,
+                              SolarIconsOutline.incognito,
                               color: MekaarColors.textSecondaryOf(context),
                             ),
                             title: const Text(

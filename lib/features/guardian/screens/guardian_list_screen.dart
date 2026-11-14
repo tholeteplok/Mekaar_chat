@@ -84,7 +84,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                           IconButton(
                             icon: Icon(
                               SolarIconsOutline.userPlus,
-                              color: MekaarColors.primaryOf(context),
+                              color: MekaarColors.textPrimaryOf(context),
                             ),
                             tooltip: 'Tambah Guardian Baru',
                             onPressed: () => Navigator.pushNamed(
@@ -95,7 +95,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                         IconButton(
                           icon: Icon(
                             SolarIconsOutline.gps,
-                            color: MekaarColors.primaryOf(context),
+                            color: MekaarColors.textPrimaryOf(context),
                           ),
                           tooltip: 'Lacak Guardian',
                           onPressed: () => Navigator.pushNamed(
@@ -106,7 +106,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                         IconButton(
                           icon: Icon(
                             SolarIconsOutline.shieldCheck,
-                            color: MekaarColors.primaryOf(context),
+                            color: MekaarColors.textPrimaryOf(context),
                           ),
                           tooltip: 'Latihan SOS (Simulasi)',
                           onPressed: () =>
@@ -115,7 +115,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                         IconButton(
                           icon: Icon(
                             SolarIconsOutline.routing,
-                            color: MekaarColors.primaryOf(context),
+                            color: MekaarColors.textPrimaryOf(context),
                           ),
                           tooltip: 'Antar Aku Pulang',
                           onPressed: () => QuickTripSheet.show(context),

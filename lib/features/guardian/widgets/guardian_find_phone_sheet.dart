@@ -11,12 +11,12 @@ import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_banner.dart';
-import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_map_preview.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../../data/services/supabase_service.dart';
+import '../screens/guardian_find_phone_screen.dart';
 import '../../sos/providers/device_lost_provider.dart';
 
 /// Bottom sheet kontrol pemulihan perangkat bagi Guardian.
@@ -40,12 +40,13 @@ class GuardianFindPhoneSheet extends ConsumerStatefulWidget {
     required Guardian guardian,
     required String targetUserId,
   }) {
-    return MekaarBottomSheet.show(
-      context: context,
-      title: 'Bantu Temukan Ponsel',
-      builder: (ctx) => GuardianFindPhoneSheet(
-        guardian: guardian,
-        targetUserId: targetUserId,
+    return Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GuardianFindPhoneScreen(
+          guardian: guardian,
+          targetUserId: targetUserId,
+        ),
       ),
     );
   }

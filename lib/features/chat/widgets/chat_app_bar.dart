@@ -643,10 +643,10 @@ class ChatAppBar extends ConsumerWidget {
                   value: 'privacy_settings',
                   child: Row(
                     children: [
-                      const Icon(
-                        SolarIconsBold.shieldKeyhole,
+                      Icon(
+                        SolarIconsOutline.incognito,
                         size: 20,
-                        color: AppColors.blue,
+                        color: textPrimary,
                       ),
                       const SizedBox(width: 8),
                       Flexible(

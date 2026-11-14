@@ -552,7 +552,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                             PopupMenuButton<String>(
                               icon: Icon(
                                 SolarIconsOutline.menuDotsCircle,
-                                color: MekaarColors.primaryOf(context),
+                                color: MekaarColors.textPrimaryOf(context),
                               ),
                               tooltip: 'Menu Rahasia & Arsip',
                               elevation: 4,

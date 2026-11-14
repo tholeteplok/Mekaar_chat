@@ -7,23 +7,19 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_banner.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
-import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
-import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_provider.dart';
 import '../../settings/providers/block_provider.dart';
 import '../providers/guardian_provider.dart';
-import '../widgets/guardian_find_phone_sheet.dart';
 
 class GuardianDetailScreen extends ConsumerStatefulWidget {
   final Guardian guardian;
@@ -161,7 +157,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     Navigator.pushNamed(context, AppRoutes.guardianTracking);
   }
 
-  void _openFindPhoneSheet() {
+  void _openFindPhoneScreen() {
     final currentUserId = ref.read(authProvider).user?.id;
     final peerUserId = _getPeerUserId(currentUserId);
     if (peerUserId.isEmpty) {
@@ -169,10 +165,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
       return;
     }
 
-    GuardianFindPhoneSheet.show(
-      context: context,
-      guardian: widget.guardian,
-      targetUserId: peerUserId,
+    Navigator.pushNamed(
+      context,
+      AppRoutes.guardianFindPhone,
+      arguments: {
+        'guardian': widget.guardian,
+        'targetUserId': peerUserId,
+      },
     );
   }
 
@@ -421,7 +420,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   Widget build(BuildContext context) {
     final isPending = widget.guardian.status == 'pending';
     final isExpired = widget.guardian.isExpired;
-    final isDark = MekaarColors.isDarkContext(context);
 
     return MekaarScaffold(
       flat: true,
@@ -569,340 +567,310 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               ),
             ),
 
-            // ──── Tombol Akses: Bantu Temukan Ponsel ────
+            // ──── Pemulihan Perangkat ────
             if (!isPending && !isExpired) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: CustomCard(
-                  padding: const EdgeInsets.all(14),
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : MekaarColors.surfaceOf(context),
-                  border: Border.all(
-                    color: MekaarColors.primary.withValues(alpha: 0.25),
-                    width: 1,
+                child: Text(
+                  'Pemulihan Perangkat',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: MekaarColors.textSecondaryOf(context),
                   ),
-                  onTap: _openFindPhoneSheet,
-                  child: Row(
-                    children: [
-                      const MekaarIconBadge(
-                        icon: SolarIconsOutline.smartphone,
-                        color: MekaarColors.primary,
-                        backgroundColor: MekaarColors.infoLight,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Bantu Temukan Ponsel',
-                              style: MekaarTypography.labelLG.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Ponsel ${widget.guardian.name} terselip atau tertinggal? Bunyikan sirine atau kirim pesan layar kunci.',
-                              style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.textSecondaryOf(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        SolarIconsOutline.altArrowRight,
-                        size: 18,
-                        color: MekaarColors.primary,
-                      ),
-                    ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                leading: Icon(
+                  SolarIconsOutline.smartphone,
+                  color: MekaarColors.textSecondaryOf(context),
+                ),
+                title: const Text(
+                  'Bantu Temukan Ponsel',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Bunyikan sirine jarak jauh, siarkan kontak pemulihan, atau lacak GPS',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                ),
+                trailing: Icon(
+                  SolarIconsOutline.altArrowRight,
+                  size: 16,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+                onTap: _openFindPhoneScreen,
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: MekaarCardDivider(),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // ──── 3. Izin Keamanan ────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Izin Keamanan (Hanya Aktif Saat SOS)',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: MekaarColors.textSecondaryOf(context),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+              activeTrackColor: MekaarColors.guardianTeal,
+              secondary: Icon(
+                SolarIconsOutline.mapPoint,
+                color: _gpsEnabled
+                    ? MekaarColors.guardianTeal
+                    : MekaarColors.textSecondaryOf(context),
+              ),
+              title: const Text(
+                'Lacak Lokasi GPS',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                'Koordinat real-time dikirim ke guardian saat SOS.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              value: _gpsEnabled,
+              onChanged: (v) => _togglePermission('gps', v),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: MekaarCardDivider(),
+            ),
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+              activeTrackColor: MekaarColors.guardianTeal,
+              secondary: Icon(
+                SolarIconsOutline.microphone,
+                color: _micEnabled
+                    ? MekaarColors.guardianTeal
+                    : MekaarColors.textSecondaryOf(context),
+              ),
+              title: const Text(
+                'Akses Mikrofon',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                'Guardian mendengar audio sekitar perangkat saat SOS.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              value: _micEnabled,
+              onChanged: (v) => _togglePermission('mic', v),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: MekaarCardDivider(),
+            ),
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+              activeTrackColor: MekaarColors.guardianTeal,
+              secondary: Icon(
+                SolarIconsOutline.videocamera,
+                color: _videoEnabled
+                    ? MekaarColors.guardianTeal
+                    : MekaarColors.textSecondaryOf(context),
+              ),
+              title: const Text(
+                'Akses Kamera (Video Darurat)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                'Anda dapat mengirim video darurat ke guardian saat SOS aktif.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              value: _videoEnabled,
+              onChanged: (v) => _togglePermission('video', v),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: MekaarCardDivider(),
+            ),
+
+            if (isExpired) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: MekaarBanner(
+                  color: MekaarColors.sosRed,
+                  icon: SolarIconsOutline.danger,
+                  content: const Text(
+                    'Izin guardian ini sudah kadaluarsa. Simpan ulang untuk mengaktifkan kembali.',
+                    style: TextStyle(color: MekaarColors.sosRed),
                   ),
                 ),
               ),
             ],
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // ──── 3. Detail Konten Pengaturan ────
+            // ──── 4. Informasi Transmisi & Privasi ────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ──── Expiry Info Banner ────
-                  if (!isPending && !isExpired) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.successLight.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const MekaarIconBadge(
-                            icon: SolarIconsOutline.stopwatch,
-                            color: MekaarColors.success,
-                            backgroundColor: MekaarColors.successLight,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Izin Berakhir',
-                                  style: MekaarTypography.labelLG,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${widget.guardian.daysRemaining} hari lagi — perlu diperbarui agar tetap aktif.',
-                                  style: MekaarTypography.bodySM,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  if (isExpired) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: MekaarColors.sosLight.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const MekaarIconBadge(
-                            icon: SolarIconsOutline.danger,
-                            color: MekaarColors.sosRed,
-                            backgroundColor: MekaarColors.sosLight,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Izin guardian ini sudah kadaluarsa. Simpan ulang untuk mengaktifkan kembali.',
-                              style: MekaarTypography.bodySM.copyWith(
-                                color: MekaarColors.sosRed,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // ──── Izin Keamanan Section ────
-                  const MekaarSectionHeader(
-                    title: 'Izin Keamanan (Hanya Aktif Saat SOS)',
-                    padding: EdgeInsets.only(left: 4, top: 4, bottom: 8),
-                  ),
-                  Column(
-                    children: [
-                        SwitchListTile(
-                          activeThumbColor:
-                              Theme.of(context).colorScheme.primary,
-                          activeTrackColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.4),
-                          secondary: MekaarIconBadge(
-                            icon: SolarIconsOutline.mapPoint,
-                            color: _gpsEnabled
-                                ? MekaarColors.info
-                                : MekaarColors.textMutedOf(context),
-                            backgroundColor: _gpsEnabled
-                                ? MekaarColors.infoLight
-                                : MekaarColors.surface2Of(context),
-                          ),
-                          title: Text(
-                            'Lacak Lokasi GPS',
-                            style: MekaarTypography.labelLG,
-                          ),
-                          subtitle: Text(
-                            'Koordinat real-time dikirim ke guardian saat SOS.',
-                            style: MekaarTypography.bodySM,
-                          ),
-                          value: _gpsEnabled,
-                          onChanged: (v) => _togglePermission('gps', v),
-                        ),
-                        const MekaarCardDivider(),
-                        SwitchListTile(
-                          activeThumbColor:
-                              Theme.of(context).colorScheme.primary,
-                          activeTrackColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.4),
-                          secondary: MekaarIconBadge(
-                            icon: SolarIconsOutline.microphone,
-                            color: _micEnabled
-                                ? MekaarColors.guardianTeal
-                                : MekaarColors.textMutedOf(context),
-                            backgroundColor: _micEnabled
-                                ? MekaarColors.guardianLight
-                                : MekaarColors.surface2Of(context),
-                          ),
-                          title: Text(
-                            'Akses Mikrofon',
-                            style: MekaarTypography.labelLG,
-                          ),
-                          subtitle: Text(
-                            'Guardian mendengar audio sekitar perangkat saat SOS.',
-                            style: MekaarTypography.bodySM,
-                          ),
-                          value: _micEnabled,
-                          onChanged: (v) => _togglePermission('mic', v),
-                        ),
-                        const MekaarCardDivider(),
-                        SwitchListTile(
-                          activeThumbColor:
-                              Theme.of(context).colorScheme.primary,
-                          activeTrackColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.4),
-                          secondary: MekaarIconBadge(
-                            icon: SolarIconsOutline.videocamera,
-                            color: _videoEnabled
-                                ? MekaarColors.guardianTeal
-                                : MekaarColors.textMutedOf(context),
-                            backgroundColor: _videoEnabled
-                                ? MekaarColors.guardianLight
-                                : MekaarColors.surface2Of(context),
-                          ),
-                          title: Text(
-                            'Akses Kamera (Video Darurat)',
-                            style: MekaarTypography.labelLG,
-                          ),
-                          subtitle: Text(
-                            'Anda dapat mengirim video darurat ke guardian saat SOS aktif.',
-                            style: MekaarTypography.bodySM,
-                          ),
-                          value: _videoEnabled,
-                          onChanged: (v) => _togglePermission('video', v),
-                        ),
-                      ],
-                    ),
-
-                  // ──── Informasi Transmisi & Privasi ────
-                  const MekaarSectionHeader(
-                    title: 'Informasi Transmisi & Privasi',
-                    padding: EdgeInsets.only(left: 4, top: 20, bottom: 8),
-                  ),
-                  MekaarBanner(
-                    color: MekaarColors.primaryOf(context),
-                    icon: SolarIconsOutline.shieldCheck,
-                    margin: EdgeInsets.zero,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    content: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Transmisi Langsung (Zero-Knowledge)',
-                          style: MekaarTypography.labelLG.copyWith(
-                            color: MekaarColors.textPrimaryOf(context),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Audio dan video SOS hanya disiarkan langsung ke Guardian saat darurat. Tidak ada rekaman yang disimpan di server atau cloud demi menjaga privasi penuh.',
-                          style: MekaarTypography.bodySM.copyWith(
-                            color: MekaarColors.textSecondaryOf(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ──── 4. Tindakan & Zona Bahaya (Grouped Destructive Card) ────
-                  MekaarSectionHeader(
-                    title: 'Tindakan & Zona Bahaya',
-                    titleColor: MekaarColors.sosRed,
-                    padding: const EdgeInsets.only(left: 4, top: 20, bottom: 8),
-                  ),
-                  Column(
-                    children: [
-                        if (!isPending && !isExpired) ...[
-                          ListTile(
-                            leading: const MekaarIconBadge(
-                              icon: SolarIconsOutline.linkBroken,
-                              color: MekaarColors.warning,
-                              backgroundColor: MekaarColors.warningLight,
-                            ),
-                            title: Text(
-                              'Putus Paksa',
-                              style: MekaarTypography.labelLG.copyWith(
-                                color: MekaarColors.warning,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Putus hubungan instan dan blokir undangan selama 24 jam.',
-                              style: MekaarTypography.bodySM,
-                            ),
-                            onTap: _confirmBreakGuardian,
-                          ),
-                          const MekaarCardDivider(),
-                        ],
-                        ListTile(
-                          leading: const MekaarIconBadge(
-                            icon: SolarIconsOutline.trashBinMinimalistic,
-                            color: MekaarColors.sosRed,
-                            backgroundColor: MekaarColors.sosLight,
-                          ),
-                          title: Text(
-                            'Hapus Guardian',
-                            style: MekaarTypography.labelLG.copyWith(
-                              color: MekaarColors.sosRed,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Cabut semua izin dan hapus dari daftar guardian.',
-                            style: MekaarTypography.bodySM,
-                          ),
-                          onTap: _removeGuardian,
-                        ),
-                        const MekaarCardDivider(),
-                        ListTile(
-                          leading: const MekaarIconBadge(
-                            icon: SolarIconsOutline.userBlock,
-                            color: MekaarColors.sosRed,
-                            backgroundColor: MekaarColors.sosLight,
-                          ),
-                          title: Text(
-                            'Blokir Guardian',
-                            style: MekaarTypography.labelLG.copyWith(
-                              color: MekaarColors.sosRed,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Putus hubungan, hapus dari daftar, dan blokir total kontak.',
-                            style: MekaarTypography.bodySM,
-                          ),
-                          onTap: _confirmBlockGuardian,
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 32),
-                ],
+              child: Text(
+                'Informasi Transmisi & Privasi',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: MekaarColors.textSecondaryOf(context),
+                ),
               ),
             ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: MekaarBanner(
+                color: MekaarColors.primaryOf(context),
+                icon: SolarIconsOutline.shieldCheck,
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Transmisi Langsung (Zero-Knowledge)',
+                      style: MekaarTypography.labelLG.copyWith(
+                        color: MekaarColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Audio dan video SOS hanya disiarkan langsung ke Guardian saat darurat. Tidak ada rekaman yang disimpan di server atau cloud demi menjaga privasi penuh.',
+                      style: MekaarTypography.bodySM.copyWith(
+                        color: MekaarColors.textSecondaryOf(context),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ──── 5. Tindakan (Sesuai Info Kontak) ────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Tindakan',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: MekaarColors.textSecondaryOf(context),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (!isPending && !isExpired) ...[
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                leading: const Icon(
+                  SolarIconsOutline.linkBroken,
+                  color: MekaarColors.warnAmber,
+                ),
+                title: const Text('Putus Hubungan Guardian'),
+                subtitle: const Text(
+                  'Putus hubungan instan dan blokir undangan selama 24 jam',
+                ),
+                titleTextStyle: const TextStyle(
+                  color: MekaarColors.warnAmber,
+                  fontWeight: FontWeight.w600,
+                ),
+                subtitleTextStyle: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textSecondaryOf(context),
+                ),
+                onTap: _confirmBreakGuardian,
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: MekaarCardDivider(),
+              ),
+            ],
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+              leading: const Icon(
+                SolarIconsOutline.trashBinMinimalistic,
+                color: MekaarColors.sosRed,
+              ),
+              title: const Text('Hapus Guardian'),
+              subtitle: const Text(
+                'Cabut semua izin dan hapus dari daftar guardian',
+              ),
+              titleTextStyle: const TextStyle(
+                color: MekaarColors.sosRed,
+                fontWeight: FontWeight.w600,
+              ),
+              subtitleTextStyle: TextStyle(
+                fontSize: 12,
+                color: MekaarColors.textSecondaryOf(context),
+              ),
+              onTap: _removeGuardian,
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: MekaarCardDivider(),
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+              leading: const Icon(
+                SolarIconsOutline.userBlock,
+                color: MekaarColors.sosRed,
+              ),
+              title: const Text('Blokir Kontak Guardian'),
+              subtitle: const Text(
+                'Putus hubungan, hapus dari daftar, dan blokir total kontak',
+              ),
+              titleTextStyle: const TextStyle(
+                color: MekaarColors.sosRed,
+                fontWeight: FontWeight.w600,
+              ),
+              subtitleTextStyle: TextStyle(
+                fontSize: 12,
+                color: MekaarColors.textSecondaryOf(context),
+              ),
+              onTap: _confirmBlockGuardian,
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -921,6 +889,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         color: MekaarColors.sosRed,
       );
     }
+    final remainingDays = widget.guardian.daysRemaining;
+    final remainingText = remainingDays > 0 ? ' • Sisa $remainingDays hari' : '';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
@@ -944,7 +914,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
           ),
           const SizedBox(width: 5),
           Text(
-            'Guardian Aktif',
+            'Guardian Aktif$remainingText',
             style: TextStyle(
               color: MekaarColors.safeTextOf(context),
               fontSize: 11.5,

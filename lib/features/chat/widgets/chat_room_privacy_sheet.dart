@@ -9,6 +9,7 @@ import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_camera_off_icon.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -226,7 +227,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                 final selected = opt.$1 == _autoDeleteHours;
                 return ListTile(
                   leading: Icon(
-                    selected ? SolarIconsBold.history : SolarIconsOutline.history,
+                    selected ? SolarIconsBold.hourglass : SolarIconsOutline.hourglass,
                     color: selected ? MekaarColors.primaryOf(context) : null,
                   ),
                   title: Text(opt.$2),
@@ -406,7 +407,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                       borderRadius: BorderRadius.circular(MekaarRadius.sm),
                     ),
                     child: Icon(
-                      SolarIconsBold.shieldKeyhole,
+                      SolarIconsBold.incognito,
                       color: primaryColor,
                       size: 22,
                     ),
@@ -479,8 +480,18 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               // Section 1: Proteksi Layar & Konten
               _buildSectionHeader('Proteksi Layar & Konten'),
               _buildSwitchTile(
-                icon: isScreenProtOn ? SolarIconsBold.eyeClosed : SolarIconsOutline.eyeClosed,
-                iconColor: isScreenProtOn ? primaryColor : MekaarColors.textMutedOf(context),
+                iconWidget: isScreenProtOn
+                    ? MekaarCameraOffIcon(
+                        size: 20,
+                        color: primaryColor,
+                        style: MekaarSolarIconStyle.bold,
+                      )
+                    : Icon(
+                        SolarIconsOutline.camera,
+                        color: MekaarColors.textSecondaryOf(context),
+                        size: 20,
+                      ),
+                iconColor: primaryColor,
                 title: MekaarCopy.limitScreenshotsTitle,
                 subtitle: 'Blokir screenshot sistem. Lawan bicara tetap dapat memotret dengan kamera lain',
                 value: isScreenProtOn,
@@ -490,7 +501,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               ),
               _buildSwitchTile(
                 icon: isFwdProtOn ? SolarIconsBold.forbiddenCircle : SolarIconsOutline.forward,
-                iconColor: isFwdProtOn ? primaryColor : MekaarColors.textMutedOf(context),
+                iconColor: primaryColor,
                 title: 'Larang Teruskan Pesan',
                 subtitle: 'Pesan dari chat ini tidak dapat diteruskan ke obrolan lain',
                 value: isFwdProtOn,
@@ -499,8 +510,8 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                     : null,
               ),
               _buildSwitchTile(
-                icon: _isViewOnce ? SolarIconsBold.eyeClosed : SolarIconsOutline.eyeClosed,
-                iconColor: _isViewOnce ? primaryColor : MekaarColors.textMutedOf(context),
+                icon: _isViewOnce ? SolarIconsBold.eyeClosed : SolarIconsOutline.eye,
+                iconColor: primaryColor,
                 title: 'Mode Sekali Lihat Default',
                 subtitle: 'Media foto/video otomatis hangus setelah dibuka sekali',
                 value: _isViewOnce,
@@ -517,8 +528,9 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                     : 'Fitur di bawah ini tersinkronisasi dan menghapus pesan di perangkat Anda maupun rekan.',
               ),
               _buildNavTile(
-                icon: _autoDeleteHours > 0 ? SolarIconsBold.history : SolarIconsOutline.history,
-                iconColor: _autoDeleteHours > 0 ? primaryColor : MekaarColors.textMutedOf(context),
+                icon: _autoDeleteHours > 0 ? SolarIconsBold.hourglass : SolarIconsOutline.hourglass,
+                iconColor: primaryColor,
+                isActive: _autoDeleteHours > 0,
                 title: 'Pesan Menghilang',
                 subtitle: 'Pesan baru otomatis terhapus untuk semua pihak setelah batas waktu',
                 statusText: _autoDeleteLabel(),
@@ -526,15 +538,16 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               ),
               _buildNavTile(
                 icon: _scheduledWipeMode != 'off' ? SolarIconsBold.clockCircle : SolarIconsOutline.clockCircle,
-                iconColor: _scheduledWipeMode != 'off' ? primaryColor : MekaarColors.textMutedOf(context),
+                iconColor: primaryColor,
+                isActive: _scheduledWipeMode != 'off',
                 title: 'Pembersihan Terjadwal',
                 subtitle: 'Musnahkan riwayat pesan grup secara berkala pada jam tertentu',
                 statusText: _scheduledWipeLabel(),
                 onTap: _canManagePrivacy ? _showScheduledWipeOptions : null,
               ),
               _buildSwitchTile(
-                icon: _burnOnExit ? SolarIconsBold.broom : SolarIconsOutline.broom,
-                iconColor: _burnOnExit ? MekaarColors.sosRed : MekaarColors.textMutedOf(context),
+                icon: _burnOnExit ? SolarIconsBold.fire : SolarIconsOutline.fire,
+                iconColor: MekaarColors.sosRed,
                 title: MekaarCopy.clearOnCloseTitle,
                 subtitle: MekaarCopy.clearOnCloseSubtitle,
                 value: _burnOnExit,
@@ -557,7 +570,8 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   }
 
   Widget _buildSwitchTile({
-    required IconData icon,
+    IconData? icon,
+    Widget? iconWidget,
     required Color iconColor,
     required String title,
     required String subtitle,
@@ -565,15 +579,27 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     required ValueChanged<bool>? onChanged,
   }) {
     final themePrimary = MekaarColors.primaryOf(context);
+    final isEffectiveActive = value && onChanged != null;
     return ListTile(
       leading: Container(
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.10),
+          color: isEffectiveActive
+              ? iconColor.withValues(alpha: 0.12)
+              : MekaarColors.surface2Of(context),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: iconColor, size: 20),
+        child: Center(
+          child: iconWidget ??
+              Icon(
+                icon,
+                color: isEffectiveActive
+                    ? iconColor
+                    : MekaarColors.textSecondaryOf(context),
+                size: 20,
+              ),
+        ),
       ),
       title: Text(
         title,
@@ -603,23 +629,37 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   }
 
   Widget _buildNavTile({
-    required IconData icon,
+    IconData? icon,
+    Widget? iconWidget,
     required Color iconColor,
+    required bool isActive,
     required String title,
     required String subtitle,
     String? statusText,
     VoidCallback? onTap,
   }) {
     final primaryColor = MekaarColors.primaryOf(context);
+    final isEffectiveActive = isActive && onTap != null;
     return ListTile(
       leading: Container(
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.10),
+          color: isEffectiveActive
+              ? iconColor.withValues(alpha: 0.12)
+              : MekaarColors.surface2Of(context),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: iconColor, size: 20),
+        child: Center(
+          child: iconWidget ??
+              Icon(
+                icon,
+                color: isEffectiveActive
+                    ? iconColor
+                    : MekaarColors.textSecondaryOf(context),
+                size: 20,
+              ),
+        ),
       ),
       title: Text(
         title,

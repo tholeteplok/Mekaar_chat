@@ -254,7 +254,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                             _selectedMainTabIndex == 0
                                 ? SolarIconsOutline.sort
                                 : SolarIconsOutline.tuningSquare,
-                            color: MekaarColors.primaryOf(context),
+                            color: MekaarColors.textPrimaryOf(context),
                           ),
                           tooltip: _selectedMainTabIndex == 0
                               ? 'Filter & Tampilan Kontak'
