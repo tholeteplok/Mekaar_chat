@@ -23,7 +23,7 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(
-        find.text('Percakapan privat sedang dipersiapkan...'),
+        find.text('Menyiapkan ruang obrolan...'),
         findsOneWidget,
       );
     });
@@ -71,7 +71,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Kunci E2EE perlu dipulihkan via PIN'), findsOneWidget);
+      expect(find.text('Kunci obrolan perlu dipulihkan via PIN'), findsOneWidget);
       expect(find.text('Pulihkan'), findsOneWidget);
 
       await tester.tap(find.text('Pulihkan'));
@@ -95,14 +95,14 @@ void main() {
         ),
       );
 
-      expect(find.text('Terenkripsi End-to-End'), findsOneWidget);
+      expect(find.text('Obrolan Terenkripsi'), findsOneWidget);
 
       // Advance clock past the dismiss delay
       await tester.pump(const Duration(milliseconds: 150));
       await tester.pumpAndSettle();
 
       // Chip has faded out and collapsed
-      expect(find.text('Terenkripsi End-to-End'), findsNothing);
+      expect(find.text('Obrolan Terenkripsi'), findsNothing);
     });
 
     testWidgets('ChatComposer embeds E2eeSecurityChip when e2eeStatus is provided',
@@ -127,7 +127,7 @@ void main() {
 
       expect(find.byType(E2eeSecurityChip), findsOneWidget);
       expect(
-        find.text('Percakapan privat sedang dipersiapkan...'),
+        find.text('Menyiapkan ruang obrolan...'),
         findsOneWidget,
       );
 

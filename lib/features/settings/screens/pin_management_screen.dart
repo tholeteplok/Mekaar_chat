@@ -784,8 +784,8 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                           !isSosEnabled
                               ? 'Fitur SOS Nonaktif'
                               : (_isDuressEnabled
-                                  ? 'Ganti PIN Darurat'
-                                  : 'Atur PIN Darurat'),
+                                  ? 'Ganti ${MekaarCopy.quickResetPinTitle}'
+                                  : 'Atur ${MekaarCopy.quickResetPinTitle}'),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MekaarColors.surface2Of(context),

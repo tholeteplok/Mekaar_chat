@@ -106,15 +106,15 @@ void main() {
       expect(find.text('PIN Tamu (Decoy)'), findsOneWidget);
       expect(find.text('Atur PIN Tamu'), findsOneWidget);
 
-      // Scroll ke bawah untuk melihat Kartu PIN Darurat (karena berada di bawah lipatan)
+      // Scroll ke bawah untuk melihat Kartu Kode Reset Cepat (karena berada di bawah lipatan)
       await tester.scrollUntilVisible(
-        find.text('PIN Darurat (Silent SOS)'),
+        find.text('Kode Reset Cepat'),
         100.0,
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('PIN Darurat (Silent SOS)'), findsOneWidget);
-      expect(find.text('Atur PIN Darurat'), findsOneWidget);
+      expect(find.text('Kode Reset Cepat'), findsOneWidget);
+      expect(find.text('Atur Kode Reset Cepat'), findsOneWidget);
     });
 
     testWidgets('Mode Tamu (Decoy) berkamuflase hanya menampilkan 1 kartu tunggal',
@@ -148,6 +148,7 @@ void main() {
       expect(find.text('PIN Master (Utama)'), findsNothing);
       expect(find.text('PIN Tamu (Decoy)'), findsNothing);
       expect(find.text('PIN Darurat (Silent SOS)'), findsNothing);
+      expect(find.text('Kode Reset Cepat'), findsNothing);
     });
   });
 
