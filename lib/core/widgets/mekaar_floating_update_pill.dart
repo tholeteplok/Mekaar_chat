@@ -15,7 +15,7 @@ import 'mekaar_update_bottom_sheet.dart';
 /// Karakteristik:
 /// - Bentuk lingkaran 50x50 agar ergonomis dan tidak menutup bilah navigasi bawah
 /// - Menampilkan CircularProgressIndicator dengan teks persentase tengah (misal "45%") saat mengunduh (<100%)
-/// - Menampilkan ikon roket [SolarIconsBold.rocket2] berwarna hijau sukses saat unduhan 100% (siap dipasang)
+/// - Menampilkan ikon berkas terverifikasi [SolarIconsBold.fileCheck] berwarna hijau sukses saat unduhan 100% (siap dipasang)
 /// - Men-tap lingkaran langsung memicu Bottom Sheet instalasi (jika 100%) atau lembar progres (jika aktif)
 class MekaarFloatingUpdatePill extends ConsumerWidget {
   const MekaarFloatingUpdatePill({super.key});
@@ -119,7 +119,7 @@ class MekaarFloatingUpdatePill extends ConsumerWidget {
   }) {
     if (isCompleted) {
       return Icon(
-        SolarIconsBold.rocket2,
+        SolarIconsBold.fileCheck,
         color: MekaarColors.successTextOf(context),
         size: 22,
       );

@@ -533,7 +533,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                     Icon(
                                       SolarIconsOutline.copy,
                                       size: 13,
-                                      color: MekaarColors.accentOf(context),
+                                      color: MekaarColors.textSecondaryOf(context),
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
@@ -541,7 +541,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
-                                        color: MekaarColors.accentOf(context),
+                                        color: MekaarColors.textSecondaryOf(context),
                                       ),
                                     ),
                                   ],
@@ -586,9 +586,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   children: [
                           // Pengaturan Privasi Obrolan Terpusat
                           ListTile(
-                            leading: const Icon(
+                            leading: Icon(
                               SolarIconsOutline.shieldKeyhole,
-                              color: AppColors.blue,
+                              color: MekaarColors.textSecondaryOf(context),
                             ),
                             title: const Text(
                               'Pengaturan Privasi Obrolan',
@@ -623,9 +623,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
 
                           // Mute Switch
                           SwitchListTile(
-                            secondary: const Icon(
+                            secondary: Icon(
                               SolarIconsOutline.bellOff,
-                              color: MekaarColors.warnAmber,
+                              color: MekaarColors.textSecondaryOf(context),
                             ),
                             title: Text(
                               'Bisukan Notifikasi',
@@ -643,9 +643,9 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
 
                           // E2EE Safety Number Fingerprint
                           ListTile(
-                            leading: const Icon(
+                            leading: Icon(
                               SolarIconsOutline.shieldCheck,
-                              color: MekaarColors.guardianTeal,
+                              color: MekaarColors.textSecondaryOf(context),
                             ),
                             title: const Text('Sidik Jari Keamanan E2EE'),
                             subtitle: _e2eeFingerprint.isEmpty

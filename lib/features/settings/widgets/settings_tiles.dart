@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/mekaar_icon_badge.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 
@@ -258,19 +258,14 @@ class SettingsSwitchTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(
           children: [
-            // Icon Badge dengan background tint lembut
-            Container(
-              width: MekaarSizes.iconBadge,
-              height: MekaarSizes.iconBadge,
-              decoration: BoxDecoration(
-                color: effectiveIconBgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: effectiveIconColor,
-                size: 20,
-              ),
+            // Icon Badge dengan background tint lembut & padding proporsional tipis
+            MekaarIconBadge(
+              circle: true,
+              size: 38,
+              iconSize: 22,
+              icon: icon,
+              color: effectiveIconColor,
+              backgroundColor: effectiveIconBgColor,
             ),
             const SizedBox(width: 14),
             // Title & Subtitle
@@ -382,19 +377,14 @@ class SettingsNavTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
           children: [
-            // Icon Badge dengan background tint lembut
-            Container(
-              width: MekaarSizes.iconBadge,
-              height: MekaarSizes.iconBadge,
-              decoration: BoxDecoration(
-                color: effectiveIconBgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: effectiveIconColor,
-                size: 20,
-              ),
+            // Icon Badge dengan background tint lembut & padding proporsional tipis
+            MekaarIconBadge(
+              circle: true,
+              size: 38,
+              iconSize: 22,
+              icon: icon,
+              color: effectiveIconColor,
+              backgroundColor: effectiveIconBgColor,
             ),
             const SizedBox(width: 14),
             // Title & Subtitle

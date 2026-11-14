@@ -84,13 +84,13 @@ void main() {
         );
         expect(boxDecoration.shape, equals(BoxShape.circle));
 
-        // Ikon roket belum muncul saat unduhan belum 100%
-        expect(find.byIcon(SolarIconsBold.rocket2), findsNothing);
+        // Ikon fileCheck belum muncul saat unduhan belum 100%
+        expect(find.byIcon(SolarIconsBold.fileCheck), findsNothing);
       },
     );
 
     testWidgets(
-      'MekaarFloatingUpdatePill bertransisi ke ikon roket saat unduhan selesai (100%)',
+      'MekaarFloatingUpdatePill bertransisi ke ikon berkas terverifikasi saat unduhan selesai (100%)',
       (tester) async {
         final fakeController = FakeUpdateDownloadController(
           UpdateService(),
@@ -118,8 +118,8 @@ void main() {
         // Persentase teks tidak ada lagi saat selesai
         expect(find.text('100%'), findsNothing);
 
-        // Ikon roket SolarIconsBold.rocket2 tampil
-        expect(find.byIcon(SolarIconsBold.rocket2), findsOneWidget);
+        // Ikon berkas terverifikasi SolarIconsBold.fileCheck tampil
+        expect(find.byIcon(SolarIconsBold.fileCheck), findsOneWidget);
       },
     );
 

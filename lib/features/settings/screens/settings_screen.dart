@@ -39,7 +39,6 @@ class SettingsScreen extends ConsumerWidget {
         const SettingsSectionHeader(title: 'Tampilan'),
         SettingsNavTile(
           icon: SolarIconsOutline.palette2,
-          iconColor: MekaarColors.purple,
           title: 'Tampilan Aplikasi',
           onTap: () =>
               Navigator.pushNamed(context, AppRoutes.themeSettings),
@@ -84,7 +83,6 @@ class SettingsScreen extends ConsumerWidget {
         const SettingsDivider(),
         SettingsNavTile(
           icon: SolarIconsOutline.user,
-          iconColor: MekaarColors.info,
           title: 'Terakhir Dilihat & Online',
           valueText: ref.watch(lastSeenPrivacyProvider).label,
           onTap: () => _showLastSeenSheet(context, ref),
@@ -92,7 +90,6 @@ class SettingsScreen extends ConsumerWidget {
         const SettingsDivider(),
         SettingsSwitchTile(
           icon: SolarIconsOutline.checkCircle,
-          iconColor: MekaarColors.lime,
           title: 'Bukti Baca Pesan',
           value: ref.watch(readReceiptsProvider),
           onChanged: (value) =>
@@ -100,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SettingsDivider(),
         SettingsNavTile(
-          icon: SolarIconsOutline.shieldUser,
+          icon: SolarIconsOutline.userCheck,
           title: 'Proteksi Undangan Chat',
           valueText:
               ref.watch(chatInvitationModeProvider) == 'approved_only'
@@ -154,7 +151,6 @@ class SettingsScreen extends ConsumerWidget {
         const SettingsSectionHeader(title: 'Keamanan'),
         SettingsNavTile(
           icon: SolarIconsOutline.lockKeyhole,
-          iconColor: MekaarColors.yellow,
           title: isDecoy
               ? 'PIN Keamanan Aplikasi'
               : 'Manajemen PIN Keamanan',
@@ -164,7 +160,6 @@ class SettingsScreen extends ConsumerWidget {
         const SettingsDivider(),
         SettingsNavTile(
           icon: SolarIconsOutline.clockCircle,
-          iconColor: MekaarColors.info,
           title: 'Kunci Otomatis',
           valueText: ref.watch(autoLockTimeoutProvider).label,
           onTap: () => _showAutoLockBottomSheet(context, ref),
@@ -189,7 +184,6 @@ class SettingsScreen extends ConsumerWidget {
           const SettingsDivider(),
           SettingsNavTile(
             icon: SolarIconsOutline.smartphone,
-            iconColor: MekaarColors.brandPrimary,
             title: 'Perangkat Terhubung',
             onTap: () =>
                 Navigator.pushNamed(context, AppRoutes.connectedDevices),
@@ -204,7 +198,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const SettingsDivider(),
             SettingsNavTile(
-              icon: SolarIconsOutline.shieldCheck,
+              icon: SolarIconsOutline.playCircle,
               iconColor: MekaarColors.warnAmber,
               title: 'Latihan SOS (Simulasi)',
               onTap: () => Navigator.pushNamed(context, AppRoutes.sosDrill),
@@ -247,7 +241,6 @@ class SettingsScreen extends ConsumerWidget {
         const SettingsSectionHeader(title: 'Sistem'),
         SettingsSwitchTile(
           icon: SolarIconsOutline.smartphoneVibration,
-          iconColor: MekaarColors.purpleLight,
           title: 'Getaran (Haptics)',
           value: hapticsEnabled,
           onChanged: prefsAsync.hasValue

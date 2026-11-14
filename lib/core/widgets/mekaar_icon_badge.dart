@@ -12,6 +12,7 @@ class MekaarIconBadge extends StatelessWidget {
   final Color color;
   final Color? backgroundColor;
   final double size;
+  final double? iconSize;
   final bool circle;
 
   const MekaarIconBadge({
@@ -20,6 +21,7 @@ class MekaarIconBadge extends StatelessWidget {
     required this.color,
     this.backgroundColor,
     this.size = MekaarSizes.iconBadge,
+    this.iconSize,
     this.circle = false,
   });
 
@@ -36,7 +38,7 @@ class MekaarIconBadge extends StatelessWidget {
       ),
       child: Icon(
         icon,
-        size: size * 0.5,
+        size: iconSize ?? (size >= 44 ? 24.0 : 22.0),
         color: color,
       ),
     );

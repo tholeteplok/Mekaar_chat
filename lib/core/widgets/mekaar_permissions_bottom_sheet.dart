@@ -61,7 +61,7 @@ class MekaarPermissionsBottomSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                SolarIconsBold.shieldCheck,
+                SolarIconsBold.checklistMinimalistic,
                 color: accentColor,
                 size: 26,
               ),
@@ -207,7 +207,7 @@ class MekaarPermissionsBottomSheet extends StatelessWidget {
                   ),
                 ),
                 onPressed: onGrant,
-                icon: const Icon(SolarIconsBold.shieldCheck, size: 18),
+                icon: const Icon(SolarIconsBold.checkCircle, size: 18),
                 label: Text(
                   'Berikan Izin',
                   style: MekaarTypography.bodyMD.copyWith(

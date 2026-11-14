@@ -230,7 +230,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue,
+              backgroundColor: MekaarColors.accentOf(context),
               foregroundColor: Colors.white,
             ),
             child: const Text('Simpan'),
@@ -371,7 +371,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                               color: targetRole == 'owner'
                                   ? MekaarColors.warnAmber
                                   : targetRole == 'admin'
-                                      ? AppColors.blue
+                                      ? MekaarColors.guardianTeal
                                       : MekaarColors.textMutedOf(ctx),
                             ),
                           ),
@@ -425,9 +425,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
               if (_isOwner) ...[
                 if (targetRole == 'member')
                   ListTile(
-                    leading: const Icon(
-                      SolarIconsOutline.shieldCheck,
-                      color: AppColors.blue,
+                    leading: Icon(
+                      SolarIconsOutline.userCheck,
+                      color: MekaarColors.textSecondaryOf(context),
                       size: 22,
                     ),
                     title: const Text('Jadikan Admin'),
@@ -457,7 +457,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 if (targetRole == 'admin')
                   ListTile(
                     leading: const Icon(
-                      SolarIconsOutline.shieldCross,
+                      SolarIconsOutline.userCross,
                       color: MekaarColors.warnAmber,
                       size: 22,
                     ),
@@ -639,7 +639,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue,
+                  backgroundColor: MekaarColors.accentOf(context),
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Mengerti'),
@@ -768,7 +768,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
             padding: EdgeInsets.zero,
             border: glassBorder,
             customColor: isActive
-                ? AppColors.blue.withValues(alpha: 0.20)
+                ? MekaarColors.accentOf(context).withValues(alpha: 0.20)
                 : glassBg,
             child: InkWell(
               borderRadius: BorderRadius.circular(MekaarRadius.lg),
@@ -779,7 +779,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   size: 22,
                   color: iconColor ??
                       (isActive
-                          ? AppColors.blue
+                          ? MekaarColors.accentOf(context)
                           : MekaarColors.textPrimaryOf(context)),
                 ),
               ),
@@ -792,7 +792,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: isActive
-                  ? AppColors.blue
+                  ? MekaarColors.accentOf(context)
                   : MekaarColors.textSecondaryOf(context),
             ),
             textAlign: TextAlign.center,
@@ -863,7 +863,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: AppColors.blue,
+                                    color: MekaarColors.accentOf(context),
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: MekaarColors.surfaceOf(context),
@@ -906,7 +906,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                                   child: Icon(
                                     SolarIconsOutline.pen,
                                     size: 16,
-                                    color: AppColors.blue,
+                                    color: MekaarColors.textSecondaryOf(context),
                                   ),
                                 ),
                               ),
@@ -977,7 +977,6 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                             : SolarIconsOutline.bell,
                         label: _isMuted ? 'Dibisukan' : 'Bisukan',
                         isActive: _isMuted,
-                        iconColor: _isMuted ? MekaarColors.warnAmber : null,
                         onTap: () => _toggleMute(!_isMuted),
                       ),
                       if (_canInviteMembers) ...[
@@ -990,9 +989,8 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                       ],
                       const SizedBox(width: 10),
                       _buildActionHubItem(
-                        icon: SolarIconsBold.shieldKeyhole,
+                        icon: SolarIconsOutline.shieldKeyhole,
                         label: 'Privasi',
-                        iconColor: AppColors.blue,
                         onTap: () {
                           ChatRoomPrivacySheet.show(
                             context,
@@ -1072,7 +1070,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.blue,
+                    foregroundColor: MekaarColors.textSecondaryOf(context),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
@@ -1198,7 +1196,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                           decoration: BoxDecoration(
                             color: role == 'owner'
                                 ? MekaarColors.warnAmber.withValues(alpha: 0.15)
-                                : AppColors.blue.withValues(alpha: 0.15),
+                                : MekaarColors.guardianTeal.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(
                               MekaarRadius.sm,
                             ),
@@ -1210,7 +1208,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                               fontWeight: FontWeight.bold,
                               color: role == 'owner'
                                   ? MekaarColors.warnAmber
-                                  : AppColors.blue,
+                                  : MekaarColors.guardianTeal,
                             ),
                           ),
                         )
@@ -1370,12 +1368,12 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.blue.withValues(alpha: 0.12)
+              ? MekaarColors.accentOf(context).withValues(alpha: 0.12)
               : MekaarColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? AppColors.blue.withValues(alpha: 0.4)
+                ? MekaarColors.accentOf(context).withValues(alpha: 0.4)
                 : MekaarColors.borderOf(context).withValues(alpha: 0.2),
           ),
         ),
@@ -1385,7 +1383,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected
-                ? AppColors.blue
+                ? MekaarColors.accentOf(context)
                 : MekaarColors.textSecondaryOf(context),
           ),
         ),
@@ -1512,16 +1510,16 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 2),
       leading: Container(
-        width: 44,
-        height: 44,
+        width: 38,
+        height: 38,
         decoration: BoxDecoration(
-          color: AppColors.blue.withValues(alpha: 0.12),
+          color: MekaarColors.surface2Of(context),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Icon(
+        child: Icon(
           SolarIconsOutline.documentText,
-          color: AppColors.blue,
-          size: 24,
+          color: MekaarColors.textSecondaryOf(context),
+          size: 22,
         ),
       ),
       title: Text(
@@ -1541,7 +1539,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
       ),
       trailing: IconButton(
         icon: const Icon(SolarIconsOutline.downloadSquare, size: 22),
-        color: AppColors.blue,
+        color: MekaarColors.textSecondaryOf(context),
         onPressed: () async {
           HapticService.trigger(MekaarHapticIntent.selection);
           final file = await FileExportService.resolveOrDownloadFile(msg);
@@ -1599,9 +1597,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
           if (_isAdmin) ...[
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              secondary: const Icon(
+              secondary: Icon(
                 SolarIconsBold.volumeLoud,
-                color: AppColors.blue,
+                color: MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(
                 'Mode Siaran Darurat',
@@ -1618,16 +1616,16 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 ),
               ),
               value: _isAnnouncementOnly,
-              activeTrackColor: AppColors.blue,
+              activeTrackColor: MekaarColors.guardianTeal,
               onChanged: (val) =>
                   _updatePermission(isAnnouncementOnly: val),
             ),
             const MekaarCardDivider(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              secondary: const Icon(
+              secondary: Icon(
                 SolarIconsOutline.pen,
-                color: AppColors.blue,
+                color: MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(
                 'Edit Info Grup',
@@ -1644,16 +1642,16 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 ),
               ),
               value: _membersCanEditInfo,
-              activeTrackColor: AppColors.blue,
+              activeTrackColor: MekaarColors.guardianTeal,
               onChanged: (val) =>
                   _updatePermission(membersCanEditInfo: val),
             ),
             const MekaarCardDivider(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              secondary: const Icon(
+              secondary: Icon(
                 SolarIconsOutline.userPlus,
-                color: AppColors.blue,
+                color: MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(
                 'Tambah Anggota',
@@ -1670,16 +1668,16 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 ),
               ),
               value: _membersCanInvite,
-              activeTrackColor: AppColors.blue,
+              activeTrackColor: MekaarColors.guardianTeal,
               onChanged: (val) =>
                   _updatePermission(membersCanInvite: val),
             ),
           ] else ...[
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                SolarIconsOutline.shieldUser,
-                color: AppColors.blue,
+              leading: Icon(
+                SolarIconsOutline.userCheck,
+                color: MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(
                 'Aturan Grup',

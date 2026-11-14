@@ -18,7 +18,7 @@ import 'mekaar_snackbar.dart';
 /// 2. Transisi in-place: menekan "Perbarui Sekarang" langsung menjalankan progresbar di sheet yang sama
 /// 3. Catatan rilis tetap aktif (Opsi 1.A) selama pengunduhan
 /// 4. Kontrol bertumpuk penuh (Stacked Full-Width, Opsi 2) dengan tipografi teks murni tanpa ikon/emoji
-/// 5. Auto-minimize saat barrier/swipe down ditutup ke floating circular rocket button
+/// 5. Auto-minimize saat barrier/swipe down ditutup ke floating circular update pill
 class MekaarUpdateBottomSheet {
   MekaarUpdateBottomSheet._();
 
@@ -306,12 +306,12 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
             child: Center(
               child: Icon(
                 isCompleted
-                    ? SolarIconsBold.shieldCheck
+                    ? SolarIconsBold.fileCheck
                     : (hasError
-                        ? SolarIconsBold.dangerCircle
+                        ? SolarIconsBold.fileCorrupted
                         : (isDownloading || isPaused
-                            ? SolarIconsBold.shieldUp
-                            : SolarIconsBold.rocket2)),
+                            ? SolarIconsBold.fileDownload
+                            : SolarIconsBold.smartphoneUpdate)),
                 color: isCompleted
                     ? MekaarColors.successTextOf(context)
                     : (hasError ? MekaarColors.sosCoral : accentColor),
