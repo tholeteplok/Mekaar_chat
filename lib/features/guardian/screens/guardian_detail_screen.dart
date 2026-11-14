@@ -632,11 +632,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             const SizedBox(height: 8),
             SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-              activeTrackColor: MekaarColors.guardianTeal,
+              activeThumbColor: MekaarColors.primaryOf(context),
+              activeTrackColor:
+                  MekaarColors.primaryOf(context).withValues(alpha: 0.35),
               secondary: Icon(
                 SolarIconsOutline.mapPoint,
                 color: _gpsEnabled
-                    ? MekaarColors.guardianTeal
+                    ? MekaarColors.primaryOf(context)
                     : MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(
@@ -662,11 +664,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
             SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-              activeTrackColor: MekaarColors.guardianTeal,
+              activeThumbColor: MekaarColors.primaryOf(context),
+              activeTrackColor:
+                  MekaarColors.primaryOf(context).withValues(alpha: 0.35),
               secondary: Icon(
                 SolarIconsOutline.microphone,
                 color: _micEnabled
-                    ? MekaarColors.guardianTeal
+                    ? MekaarColors.primaryOf(context)
                     : MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(
@@ -692,11 +696,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ),
             SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-              activeTrackColor: MekaarColors.guardianTeal,
+              activeThumbColor: MekaarColors.primaryOf(context),
+              activeTrackColor:
+                  MekaarColors.primaryOf(context).withValues(alpha: 0.35),
               secondary: Icon(
                 SolarIconsOutline.videocamera,
                 color: _videoEnabled
-                    ? MekaarColors.guardianTeal
+                    ? MekaarColors.primaryOf(context)
                     : MekaarColors.textSecondaryOf(context),
               ),
               title: const Text(

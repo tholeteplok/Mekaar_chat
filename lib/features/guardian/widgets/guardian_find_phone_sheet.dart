@@ -529,7 +529,7 @@ class _GuardianFindPhoneSheetState
                   height: 46,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: MekaarColors.guardianTeal,
+                      backgroundColor: MekaarColors.primaryOf(context),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(

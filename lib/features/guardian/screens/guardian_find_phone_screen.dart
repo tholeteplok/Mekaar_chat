@@ -352,9 +352,7 @@ class _GuardianFindPhoneScreenState
                         _isAlarmActive
                             ? SolarIconsBold.bellBing
                             : SolarIconsOutline.volumeLoud,
-                        color: _isAlarmActive
-                            ? MekaarColors.sosRed
-                            : MekaarColors.guardianTeal,
+                        color: MekaarColors.sosRed,
                         size: 24,
                       ),
                       const SizedBox(width: 12),
@@ -394,7 +392,7 @@ class _GuardianFindPhoneScreenState
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isAlarmActive
                             ? MekaarColors.surface2Of(context)
-                            : MekaarColors.guardianTeal,
+                            : MekaarColors.sosRed,
                         foregroundColor: _isAlarmActive
                             ? MekaarColors.sosRed
                             : Colors.white,
@@ -505,8 +503,8 @@ class _GuardianFindPhoneScreenState
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(MekaarRadius.md),
-                        borderSide: const BorderSide(
-                          color: MekaarColors.guardianTeal,
+                        borderSide: BorderSide(
+                          color: MekaarColors.primaryOf(context),
                           width: 1.5,
                         ),
                       ),
@@ -542,8 +540,8 @@ class _GuardianFindPhoneScreenState
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(MekaarRadius.md),
-                        borderSide: const BorderSide(
-                          color: MekaarColors.guardianTeal,
+                        borderSide: BorderSide(
+                          color: MekaarColors.primaryOf(context),
                           width: 1.5,
                         ),
                       ),
@@ -559,7 +557,7 @@ class _GuardianFindPhoneScreenState
                     height: 46,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: MekaarColors.guardianTeal,
+                        backgroundColor: MekaarColors.primaryOf(context),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

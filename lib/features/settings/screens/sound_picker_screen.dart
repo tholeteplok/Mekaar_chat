@@ -177,9 +177,9 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                                 .read(notificationPreferencesProvider.notifier)
                                 .toggleGroupNotifications(val);
                           },
-                          activeThumbColor: MekaarColors.guardianTeal,
+                          activeThumbColor: MekaarColors.primaryOf(context),
                           activeTrackColor:
-                              MekaarColors.guardianTeal.withValues(alpha: 0.35),
+                              MekaarColors.primaryOf(context).withValues(alpha: 0.35),
                           inactiveThumbColor: MekaarColors.textMutedOf(context),
                           inactiveTrackColor: MekaarColors.surface2Of(context),
                         ),
@@ -191,7 +191,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                           ignoring: !prefs.groupNotificationsEnabled,
                           child: SettingsNavTile(
                             icon: SolarIconsOutline.usersGroupTwoRounded,
-                            iconColor: MekaarColors.guardianTeal,
+                            iconColor: MekaarColors.primaryOf(context),
                             title: 'Nada Notifikasi Grup',
                             subtitle: 'Atur nada dering & saluran obrolan grup di setelan sistem Android',
                             onTap: () => NotificationService.openSystemNotificationSettings(
@@ -207,7 +207,7 @@ class _SoundPickerScreenState extends ConsumerState<SoundPickerScreen> {
                         selectedPath: prefs.callSound,
                         previewingPath: _previewingPath,
                         previewIsPlaying: _isPlayingPreview,
-                        accentColor: MekaarColors.guardianTeal,
+                        accentColor: MekaarColors.primaryOf(context),
                         enabled: prefs.callSoundEnabled,
                         canDisable: true,
                         onSelected: (path) => ref
