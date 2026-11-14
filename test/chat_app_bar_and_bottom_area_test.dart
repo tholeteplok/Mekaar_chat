@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
+import 'package:mekaar_chat/data/services/local_message_database.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_app_bar.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_bottom_area.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_composer.dart';
@@ -11,6 +12,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ChatAppBar & ChatBottomArea Modular Tests (Fase 1 Refactoring)', () {
+    setUp(() async {
+      await LocalMessageDatabase.instance.switchMode(isDecoy: false);
+    });
+
     testWidgets('ChatAppBar merender mode normal dengan nama obrolan & tombol panggilan', (tester) async {
       final lastSeenNotifier = ValueNotifier<DateTime?>(DateTime.now());
 

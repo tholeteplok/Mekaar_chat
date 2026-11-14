@@ -81,6 +81,86 @@ void main() {
 
       expect(find.text('Batalkan'), findsOneWidget);
     });
+
+    testWidgets('MekaarSnackbar.undo otomatis hilang setelah durasi selesai (persist: false)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () {
+                    MekaarSnackbar.undo(
+                      context,
+                      'Pesan disembunyikan untuk Anda',
+                      duration: const Duration(seconds: 3),
+                      onUndo: () {},
+                    );
+                  },
+                  child: const Text('Show Undo'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Show Undo'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300)); // Entrance animation
+
+      expect(find.text('Pesan disembunyikan untuk Anda'), findsOneWidget);
+      expect(find.text('Urungkan'), findsOneWidget);
+
+      // Pompa waktu 3 detik + waktu animasi transisi keluar (exit animation)
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      // Memastikan snackbar benar-benar tertutup otomatis dan tidak terus melayang
+      expect(find.text('Pesan disembunyikan untuk Anda'), findsNothing);
+      expect(find.text('Urungkan'), findsNothing);
+    });
+
+    testWidgets('MekaarSnackbar.hide menyembunyikan snackbar seketika', (
+      tester,
+    ) async {
+      BuildContext? capturedContext;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                capturedContext = context;
+                return ElevatedButton(
+                  onPressed: () {
+                    MekaarSnackbar.undo(
+                      context,
+                      'Pesan disembunyikan untuk Anda',
+                      onUndo: () {},
+                    );
+                  },
+                  child: const Text('Show Undo'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Show Undo'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Pesan disembunyikan untuk Anda'), findsOneWidget);
+
+      MekaarSnackbar.hide(capturedContext!);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pesan disembunyikan untuk Anda'), findsNothing);
+    });
   });
 
   group('Deferred Commit (S2) Provider Tests (UX-11)', () {

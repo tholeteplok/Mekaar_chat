@@ -85,6 +85,11 @@ class MekaarSnackbar {
     );
   }
 
+  /// Menyembunyikan snackbar aktif seketika tanpa menunggu timer selesai.
+  static void hide(BuildContext context) {
+    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+  }
+
   /// Urungkan (Undo) — aksi dapat dibalik, durasi 5 detik, aksi SnackBarAction.
   static void undo(
     BuildContext context,
@@ -125,6 +130,8 @@ class MekaarSnackbar {
 
     messenger.showSnackBar(
       SnackBar(
+        persist: false,
+        dismissDirection: DismissDirection.horizontal,
         action: action,
         content: Row(
           children: [

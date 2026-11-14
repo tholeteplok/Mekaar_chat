@@ -1154,6 +1154,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     Timer? commitTimer;
     commitTimer = Timer(const Duration(seconds: 5), () async {
       _pendingHideTimers.remove(timerKey);
+      if (mounted) {
+        MekaarSnackbar.hide(context);
+      }
       for (final id in messageIds) {
         try {
           await ref
@@ -1174,6 +1177,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         commitTimer?.cancel();
         _pendingHideTimers.remove(timerKey);
         notifier.state = notifier.state.difference(idsSet);
+        if (mounted) {
+          MekaarSnackbar.hide(context);
+        }
       },
     );
   }
@@ -1582,6 +1588,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           }
         }
         if (didPop) {
+          MekaarSnackbar.hide(context);
           // Bersihkan status kamar aktif seketika layar mulai keluar (animasi pop)
           ref.read(activeRoomIdProvider.notifier).state = null;
           ref.read(chatActionsProvider).markRoomRead(widget.chatId);
