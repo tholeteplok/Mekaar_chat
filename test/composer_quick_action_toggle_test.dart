@@ -158,9 +158,10 @@ void main() {
       expect(find.text('Buka Kamera'), findsOneWidget);
       expect(find.text('Rekam Suara'), findsNothing);
 
-      // Tutup sheet
-      await tester.tapAt(const Offset(20, 20));
+      // Tutup sheet pertama secara deterministik dan pastikan tertutup
+      Navigator.of(composerKey.currentContext!).pop();
       await tester.pumpAndSettle();
+      expect(find.text('Buka Kamera'), findsNothing);
 
       // Alihkan mode ke Camera via tap micro-badge
       await tester.tap(find.bySemanticsLabel('Beralih ke kamera'));
@@ -174,6 +175,11 @@ void main() {
       // Sekarang Slot 2 harus "Rekam Suara" dan "Buka Kamera" tidak ada
       expect(find.text('Rekam Suara'), findsOneWidget);
       expect(find.text('Buka Kamera'), findsNothing);
+
+      // Tutup sheet kedua sebelum test selesai untuk mencegah unclosed modal route / pending timer
+      Navigator.of(composerKey.currentContext!).pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Rekam Suara'), findsNothing);
     });
 
     testWidgets('Persistence: Preferensi mode Kamera dimuat dari SharedPreferences saat init', (tester) async {
