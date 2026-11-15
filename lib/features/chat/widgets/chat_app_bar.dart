@@ -492,7 +492,7 @@ class ChatAppBar extends ConsumerWidget {
           showOnlineIndicator: !isGroup,
           isOnline: !isGroup && (isOnline || isTyping),
           subtitle: isGroup
-              ? '${participantCount > 0 ? '$participantCount anggota • ' : ''}Enkripsi Server'
+              ? (participantCount > 0 ? '$participantCount anggota' : null)
               : (isTyping
                     ? 'sedang mengetik...'
                     : _formatPresenceSubtitle(lastSeen)),

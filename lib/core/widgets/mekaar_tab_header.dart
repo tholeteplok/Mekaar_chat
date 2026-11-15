@@ -14,6 +14,7 @@ class MekaarTabHeader extends StatefulWidget {
   const MekaarTabHeader({
     super.key,
     required this.title,
+    this.titleColor,
     this.subtitle,
     this.action,
     this.isSearchActive = false,
@@ -28,6 +29,7 @@ class MekaarTabHeader extends StatefulWidget {
   });
 
   final String title;
+  final Color? titleColor;
   final Widget? subtitle;
   final Widget? action;
   final bool isSearchActive;
@@ -192,10 +194,16 @@ class _MekaarTabHeaderState extends State<MekaarTabHeader> {
   }
 
   Widget _buildNormalMode() {
+    final isDark = MekaarColors.isDarkContext(context);
+    final effectiveTitleColor = widget.titleColor ??
+        (widget.title == 'Mekaar' && !isDark
+            ? MekaarColors.primaryOf(context)
+            : MekaarColors.textPrimaryOf(context));
+
     final titleText = Text(
       widget.title,
       style: MekaarTypography.headingLG.copyWith(
-        color: MekaarColors.textPrimaryOf(context),
+        color: effectiveTitleColor,
         letterSpacing: -0.5,
         fontWeight: FontWeight.w800,
       ),

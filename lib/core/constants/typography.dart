@@ -12,20 +12,18 @@ class MekaarTypography {
   static String fontFamily = 'Plus Jakarta Sans';
 
   /// Font family eksklusif untuk Brand MEKAAR (Display / Hero / Wordmark)
-  static const String brandFontFamily = 'Mekaar';
-  static const List<String> brandFontFallbacks = ['PlusJakartaSans', 'sans-serif'];
+  static const String brandFontFamily = 'Baloo2';
+  static const List<String> brandFontFallbacks = ['Baloo 2', 'PlusJakartaSans', 'sans-serif'];
 
   /// Helper terpusat untuk teks Brand Display / Hero
   static TextStyle brandDisplay({
     double fontSize = 28,
-    FontWeight fontWeight = FontWeight.w600,
+    FontWeight fontWeight = FontWeight.w700,
     Color? color,
     double? letterSpacing,
     double? height,
   }) {
-    return TextStyle(
-      fontFamily: brandFontFamily,
-      fontFamilyFallback: brandFontFallbacks,
+    return GoogleFonts.baloo2(
       fontSize: fontSize,
       fontWeight: fontWeight,
       letterSpacing: letterSpacing,
@@ -37,14 +35,12 @@ class MekaarTypography {
   /// Helper terpusat untuk teks Brand Heading
   static TextStyle brandHeading({
     double fontSize = 22,
-    FontWeight fontWeight = FontWeight.w600,
+    FontWeight fontWeight = FontWeight.w700,
     Color? color,
     double? letterSpacing,
     double? height,
   }) {
-    return TextStyle(
-      fontFamily: brandFontFamily,
-      fontFamilyFallback: brandFontFallbacks,
+    return GoogleFonts.baloo2(
       fontSize: fontSize,
       fontWeight: fontWeight,
       letterSpacing: letterSpacing,
@@ -100,11 +96,9 @@ class MekaarTypography {
     height: 1.2,
   );
 
-  static TextStyle get wordmark => const TextStyle(
-    fontFamily: brandFontFamily,
-    fontFamilyFallback: brandFontFallbacks,
+  static TextStyle get wordmark => GoogleFonts.baloo2(
     fontSize: 38,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
     letterSpacing: -0.5,
     color: AppColors.blue,
   );

@@ -112,7 +112,7 @@ void main() {
         expect(find.text('Grup Mekaar'), findsNothing);
 
         // Subtitle menampilkan jumlah anggota, bukan status Daring 1-on-1
-        expect(find.text('5 anggota • Enkripsi Server'), findsOneWidget);
+        expect(find.text('5 anggota'), findsOneWidget);
         expect(find.text('Daring'), findsNothing);
 
         // Tombol panggilan video & suara disembunyikan untuk grup
