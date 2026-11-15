@@ -382,7 +382,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         IconButton(
                           icon: Icon(
                             SolarIconsOutline.qrCode,
-                            color: MekaarColors.primaryOf(context),
+                            color: MekaarColors.textPrimaryOf(context),
                           ),
                           tooltip: 'Kode QR & Pindai',
                           onPressed: () =>
