@@ -48,6 +48,26 @@ lib/
 - UI strings and comments are **Indonesian**.
 - PIN (6-digit) stored via `flutter_secure_storage`; hashed with `crypto` SHA-256. Auto-lockout after 5 fails (30 min). Never log or echo secrets.
 
+## Design System & UI Centralization Governance (MANDATORY)
+
+- **Zero Hardcoded UI**: Dilarang keras membuat styling ad-hoc, hardcoded hex colors (`Color(0x...)`), arbitrary dimensions/padding, atau menggunakan widget material standar jika sudah ada padanan sentralnya.
+- **Kamus Desain**: Wajib baca dan patuhi `docs/DESIGN_SYSTEM_CATALOG.md` sebelum membuat atau mengedit UI di `lib/features/`.
+- **Pemetaan Wajib**:
+  - Root layar: `MekaarScaffold` (Dilarang `Scaffold`).
+  - Top Bar: `CustomAppBar` atau `MekaarTopBar` (Dilarang `AppBar`).
+  - Kartu/Kontainer: `CustomCard` (Dilarang `Card` atau `Container(decoration: ...)`).
+  - Dialog: `MekaarDialog.showConfirmation` (Dilarang `AlertDialog` / `showDialog`).
+  - Bottom Sheet: `MekaarBottomSheet.show` (Dilarang `showModalBottomSheet`).
+  - Tokens: Gunakan `MekaarColors`, `MekaarDimensions`, `MekaarTypography`, `MekaarMotion`, `MekaarShadows`.
+- **Protokol Perubahan Desain (Design-First Gatekeeper)**:
+  - Jika sebuah fitur baru membutuhkan varian atau komponen UI yang belum ada di `lib/core/widgets/` atau `lib/core/constants/`:
+    1. **Dilarang** membuat styling lokal langsung di file screen fitur.
+    2. Perbarui spesifikasi desain di `docs/design.md`.
+    3. Perbarui/tambahkan komponen sentral di `lib/core/widgets/` atau token di `lib/core/constants/`.
+    4. Buat Implementation Plan dan minta persetujuan pengguna.
+    5. Setelah disetujui, baru gunakan komponen sentral tersebut di `lib/features/`.
+- **Enforcement Otomatis**: Pelanggaran aturan sentralisasi UI akan otomatis menggagalkan `flutter test` via pengujian arsitektur di `test/architecture/design_system_guardrail_test.dart`.
+
 ## Testing
 
 - Tests in `test/`: `unit_test.dart`, `widget_test.dart`, `webrtc_signaling_test.dart`, `read_receipt_and_wipe_test.dart`, dll.
