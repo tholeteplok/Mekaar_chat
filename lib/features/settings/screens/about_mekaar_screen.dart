@@ -149,9 +149,9 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         items: [
           (
             icon: SolarIconsBold.shieldKeyhole,
-            title: 'Aegis Shield E2EE',
+            title: 'Enkripsi Ujung-ke-Ujung (E2EE)',
             desc:
-                'Enkripsi asimetris X25519 & ChaCha20-Poly1305 / Aegis dengan verifikasi sidik jari kunci langsung antar lawan bicara.',
+                'Enkripsi asimetris X25519 & ChaCha20-Poly1305 dengan verifikasi SAS langsung antar lawan bicara.',
           ),
           (
             icon: SolarIconsBold.database,
@@ -175,7 +175,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       ),
       (
         tabName: 'Fisik & SOS',
-        pilarTitle: 'Pilar 2: Jaring Keselamatan Fisik',
+        pilarTitle: 'Pilar 2: Keselamatan & Respon Krisis',
         subtitle:
             'Contextual Human Safety — Eskalasi darurat & perlindungan di jalan',
         tagline:
@@ -210,7 +210,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       ),
       (
         tabName: 'Pertahanan',
-        pilarTitle: 'Pilar 3: Pertahanan di Lapangan',
+        pilarTitle: 'Pilar 3: Privasi & Brankas Perangkat',
         subtitle:
             'Data at Rest & Duress — Anti-inspeksi paksa & pemusnahan jejak',
         tagline:
@@ -964,7 +964,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
                   // ── 4. Footer Kriptografi & Lisensi ──
                   Center(
                     child: Text(
-                      'Mekaar Personal Safety System & Private Messenger\nDilindungi oleh Kriptografi & Komitmen Privasi Mutlak',
+                      'MEKAAR 2.0 • Private Chat & Safety Network\nOpen-source di bawah Lisensi MIT untuk lingkaran dekat',
                       style: MekaarTypography.caption.copyWith(
                         color: MekaarColors.textSecondaryOf(context),
                         fontSize: 12.5,

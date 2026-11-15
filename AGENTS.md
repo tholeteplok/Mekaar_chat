@@ -62,7 +62,7 @@ lib/
 - **Protokol Perubahan Desain (Design-First Gatekeeper)**:
   - Jika sebuah fitur baru membutuhkan varian atau komponen UI yang belum ada di `lib/core/widgets/` atau `lib/core/constants/`:
     1. **Dilarang** membuat styling lokal langsung di file screen fitur.
-    2. Perbarui spesifikasi desain di `docs/design.md`.
+    2. Perbarui spesifikasi desain di `docs/DESIGN_SYSTEM_CATALOG.md` (atau rancangan internal di `.docs/design.md`).
     3. Perbarui/tambahkan komponen sentral di `lib/core/widgets/` atau token di `lib/core/constants/`.
     4. Buat Implementation Plan dan minta persetujuan pengguna.
     5. Setelah disetujui, baru gunakan komponen sentral tersebut di `lib/features/`.

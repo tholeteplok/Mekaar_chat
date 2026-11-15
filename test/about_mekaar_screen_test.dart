@@ -63,7 +63,7 @@ void main() {
 
       // ── Tab 1: Komunikasi (Data in Motion) ──
       expect(find.text('Pilar 1: Keamanan Komunikasi'), findsOneWidget);
-      expect(find.text('Aegis Shield E2EE'), findsOneWidget);
+      expect(find.text('Enkripsi Ujung-ke-Ujung (E2EE)'), findsOneWidget);
       expect(find.text('Sanitasi Metadata Storage'), findsOneWidget);
       expect(find.text('Notifikasi Senyap & Mandiri (Silent FCM)'),
           findsOneWidget);
@@ -73,7 +73,7 @@ void main() {
       await tester.tap(find.text('Fisik & SOS'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Pilar 2: Jaring Keselamatan Fisik'), findsOneWidget);
+      expect(find.text('Pilar 2: Keselamatan & Respon Krisis'), findsOneWidget);
       expect(find.text('Focused SOS 72px'), findsOneWidget);
       expect(find.text('Guardian Network & Live Eskalasi'), findsOneWidget);
       expect(find.text('Berbagi Lokasi Berbasis Sesi'), findsOneWidget);
@@ -83,7 +83,7 @@ void main() {
       await tester.tap(find.text('Pertahanan'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Pilar 3: Pertahanan di Lapangan'), findsOneWidget);
+      expect(find.text('Pilar 3: Privasi & Brankas Perangkat'), findsOneWidget);
       expect(
           find.text('Plausible Deniability (Duress PIN)'), findsOneWidget);
       expect(

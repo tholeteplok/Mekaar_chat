@@ -125,8 +125,7 @@ Mekaar_chat/
 ├── assets/                # Font, ikon, audio dering, & ilustrasi
 ├── docs/                  # Dokumentasi publik & katalog sistem desain
 │   ├── screenshots/       # Gambar mockup aplikasi untuk README
-│   ├── DESIGN_SYSTEM_CATALOG.md # Kamus komponen & token sentral MEKAAR
-│   └── design.md          # Spesifikasi filosofi desain visual
+│   └── DESIGN_SYSTEM_CATALOG.md # Kamus komponen & token sentral MEKAAR
 ├── lib/
 │   ├── core/              # Design tokens (colors, typography), rute, & widget umum
 │   ├── data/              # Model data, repositori Supabase, SQLCipher, & WebRTC

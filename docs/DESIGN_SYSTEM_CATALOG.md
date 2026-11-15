@@ -1,4 +1,4 @@
-# 📘 MEKAAR 3.0 — Design System Catalog & Agent Governance
+# 📘 MEKAAR 2.0 — Design System Catalog & Agent Governance
 
 > **Buku Pegangan Utama Agen AI & Pengembang:**
 > Dokumen ini adalah Single Source of Truth (SSOT) teknis yang mengatur implementasi antarmuka (UI) pada aplikasi MEKAAR 3.0.
@@ -21,7 +21,7 @@ Sebelum menulis satu baris kode pun di `lib/features/`, setiap agen **WAJIB** me
     │                                │
     │                                ▼
     │                     [2. PROTOKOL DESAIN SISTEM]
-    │                     a. Buka & update spesifikasi di `.docs/design.md`.
+    │                     a. Perbarui `docs/DESIGN_SYSTEM_CATALOG.md` (atau arsip di `.docs/design.md`).
     │                     b. Buat token baru di `lib/core/constants/` ATAU
     │                        perluas widget sentral di `lib/core/widgets/`.
     │                     c. Ajukan Implementation Plan & minta persetujuan user.
