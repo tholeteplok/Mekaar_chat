@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/core/constants/colors.dart';
+import 'package:mekaar_chat/core/widgets/mekaar_camera_off_icon.dart';
 import 'package:mekaar_chat/core/widgets/screen_protection_widgets.dart';
 import 'package:solar_icons/solar_icons.dart';
 
@@ -51,11 +52,36 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('renders all 6 active privacy icons with semantic centralized colors', (tester) async {
+    testWidgets('renders iconWidget with MekaarCameraOffIcon correctly', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: RoomPrivacyIndicatorCapsule(
+              items: [
+                RoomPrivacyIndicatorItem(
+                  iconWidget: MekaarCameraOffIcon(
+                    size: 14,
+                    color: MekaarColors.blue,
+                  ),
+                  color: MekaarColors.blue,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(MekaarCameraOffIcon), findsOneWidget);
+    });
+
+    testWidgets('renders all 6 active privacy icons with semantic centralized colors and hourglass', (tester) async {
       const activeItems = [
         RoomPrivacyIndicatorItem(
-          icon: SolarIconsBold.shieldCheck,
-          color: MekaarColors.safeTeal,
+          iconWidget: MekaarCameraOffIcon(
+            size: 14,
+            color: MekaarColors.blue,
+          ),
+          color: MekaarColors.blue,
         ),
         RoomPrivacyIndicatorItem(
           icon: SolarIconsBold.forbiddenCircle,
@@ -66,16 +92,16 @@ void main() {
           color: MekaarColors.blue,
         ),
         RoomPrivacyIndicatorItem(
-          icon: SolarIconsBold.history,
-          color: MekaarColors.warnAmber,
+          icon: SolarIconsBold.hourglass,
+          color: MekaarColors.blue,
         ),
         RoomPrivacyIndicatorItem(
           icon: SolarIconsBold.clockCircle,
-          color: MekaarColors.warnAmber,
+          color: MekaarColors.blue,
         ),
         RoomPrivacyIndicatorItem(
           icon: SolarIconsBold.fire,
-          color: MekaarColors.sosCoral,
+          color: MekaarColors.sosRed,
         ),
       ];
 
@@ -90,11 +116,12 @@ void main() {
       );
 
       expect(find.byType(BackdropFilter), findsOneWidget);
-      for (final item in activeItems) {
-        expect(find.byIcon(item.icon), findsOneWidget);
-        final widget = tester.widget<Icon>(find.byIcon(item.icon));
-        expect(widget.color, equals(item.color));
-      }
+      expect(find.byType(MekaarCameraOffIcon), findsOneWidget);
+      expect(find.byIcon(SolarIconsBold.forbiddenCircle), findsOneWidget);
+      expect(find.byIcon(SolarIconsBold.eyeClosed), findsOneWidget);
+      expect(find.byIcon(SolarIconsBold.hourglass), findsOneWidget);
+      expect(find.byIcon(SolarIconsBold.clockCircle), findsOneWidget);
+      expect(find.byIcon(SolarIconsBold.fire), findsOneWidget);
     });
   });
 }

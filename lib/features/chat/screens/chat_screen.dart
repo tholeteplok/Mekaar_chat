@@ -15,6 +15,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/widgets/mekaar_camera_off_icon.dart';
 import '../../../core/widgets/screen_protection_widgets.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
@@ -2022,41 +2023,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   final activeItems = <RoomPrivacyIndicatorItem>[];
                   if (isScreenProtected) {
                     activeItems.add(
-                      const RoomPrivacyIndicatorItem(
-                        icon: SolarIconsBold.shieldCheck,
-                        color: MekaarColors.safeTeal,
+                      RoomPrivacyIndicatorItem(
+                        iconWidget: MekaarCameraOffIcon(
+                          size: 14,
+                          color: MekaarColors.primaryOf(context),
+                          style: MekaarSolarIconStyle.bold,
+                        ),
+                        color: MekaarColors.primaryOf(context),
                       ),
                     );
                   }
                   if (isForwardingProtected) {
                     activeItems.add(
-                      const RoomPrivacyIndicatorItem(
+                      RoomPrivacyIndicatorItem(
                         icon: SolarIconsBold.forbiddenCircle,
-                        color: MekaarColors.blue,
+                        color: MekaarColors.primaryOf(context),
                       ),
                     );
                   }
                   if (_isViewOnce) {
                     activeItems.add(
-                      const RoomPrivacyIndicatorItem(
+                      RoomPrivacyIndicatorItem(
                         icon: SolarIconsBold.eyeClosed,
-                        color: MekaarColors.blue,
+                        color: MekaarColors.primaryOf(context),
                       ),
                     );
                   }
                   if (_autoDeleteHours > 0) {
                     activeItems.add(
-                      const RoomPrivacyIndicatorItem(
-                        icon: SolarIconsBold.history,
-                        color: MekaarColors.warnAmber,
+                      RoomPrivacyIndicatorItem(
+                        icon: SolarIconsBold.hourglass,
+                        color: MekaarColors.primaryOf(context),
                       ),
                     );
                   }
                   if (_scheduledWipeMode != 'off') {
                     activeItems.add(
-                      const RoomPrivacyIndicatorItem(
+                      RoomPrivacyIndicatorItem(
                         icon: SolarIconsBold.clockCircle,
-                        color: MekaarColors.warnAmber,
+                        color: MekaarColors.primaryOf(context),
                       ),
                     );
                   }
@@ -2064,7 +2069,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     activeItems.add(
                       const RoomPrivacyIndicatorItem(
                         icon: SolarIconsBold.fire,
-                        color: MekaarColors.sosCoral,
+                        color: MekaarColors.sosRed,
                       ),
                     );
                   }

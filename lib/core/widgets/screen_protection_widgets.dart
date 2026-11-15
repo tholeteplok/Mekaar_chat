@@ -9,13 +9,15 @@ import '../constants/typography.dart';
 
 /// Item indikator privasi obrolan aktif dengan ikon dan token warna semantik.
 class RoomPrivacyIndicatorItem {
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final Color color;
 
   const RoomPrivacyIndicatorItem({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.color,
-  });
+  }) : assert(icon != null || iconWidget != null, 'Either icon or iconWidget must be provided');
 }
 
 /// Kapsul frosted glass tunggal adaptif untuk menampilkan icon-only indikator privasi obrolan aktif.
@@ -62,11 +64,12 @@ class RoomPrivacyIndicatorCapsule extends StatelessWidget {
         children: [
           for (int i = 0; i < items.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
-            Icon(
-              items[i].icon,
-              size: 14,
-              color: items[i].color,
-            ),
+            items[i].iconWidget ??
+                Icon(
+                  items[i].icon,
+                  size: 14,
+                  color: items[i].color,
+                ),
           ],
         ],
       ),
