@@ -565,7 +565,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                   ),
 
                 // â”€â”€ Dua pilar konvergensi (Babak 1) â”€â”€
-                if (iconOpacity > 0.01) ...[
+                if (val < 0.44) ...[
                   buildPillar(
                     icon: SolarIconsBold.chatRoundDots,
                     color: AppColors.safeTeal,
