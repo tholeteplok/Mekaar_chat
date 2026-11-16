@@ -49,6 +49,11 @@ class FakeChatRepository extends Fake implements ChatRepository {
   }
 
   @override
+  Future<int> getRoomDisappearingMinutes(String roomId) async {
+    return disappearingHoursToReturn * 60;
+  }
+
+  @override
   Future<Message> sendMessage(
     String roomId,
     String content, {

@@ -87,6 +87,12 @@ class FakeChatRepository extends Fake implements ChatRepository {
   Future<int> getRoomDisappearingHours(String roomId) async => 0;
 
   @override
+  Future<int> getRoomDisappearingMinutes(String roomId) async => 0;
+
+  @override
+  Future<void> updateRoomDisappearingDuration(String roomId, int minutes) async {}
+
+  @override
   Future<bool> getRoomBurnOnExit(String roomId) async => false;
 
   @override

@@ -51,8 +51,20 @@ class E2eeService {
   static const int _pbkdf2Iterations = 100000;
   static const String algorithmName = 'xchacha20poly1305';
 
-  /// Placeholder UI bila dekripsi gagal (mis. kunci belum ada di perangkat ini).
-  static const String undecryptableText = MekaarCopy.hiddenPreviewFallback;
+  /// Sentinel internal bila dekripsi gagal (mis. kunci belum ada di perangkat ini / MAC mismatch).
+  /// Pesan dengan isi ini akan disaring keluar dari UI sehingga tidak mengotori riwayat obrolan.
+  static const String undecryptableSentinel = '[mekaar_undecryptable_payload]';
+
+  /// Untuk kompatibilitas backward bagi pemanggil lama yang merujuk [undecryptableText].
+  static const String undecryptableText = undecryptableSentinel;
+
+  /// Memeriksa apakah teks pesan merupakan penanda gagal dekripsi.
+  static bool isUndecryptable(String? text) {
+    if (text == null || text.isEmpty) return false;
+    return text == undecryptableSentinel ||
+        text == '[mekaar_undecryptable_payload]' ||
+        text == MekaarCopy.hiddenPreviewFallback;
+  }
 
   final SupabaseService _supabase = SupabaseService();
   final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;

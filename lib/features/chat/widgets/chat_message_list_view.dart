@@ -374,7 +374,13 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
                               _hasRecordedInitialBatch = true;
                             }
 
-                            if (rawMessages.isEmpty && rawCalls.isEmpty) {
+                            // Clean Slate: Jika tidak ada pesan aktif yang terbaca di room (misal setelah instal ulang),
+                            // jangan tampilkan log panggilan lama sebagai orphan bubble agar kanvas obrolan benar-benar bersih murni.
+                            final effectiveCalls = rawMessages.isEmpty
+                                ? const <CallModel>[]
+                                : rawCalls;
+
+                            if (rawMessages.isEmpty && effectiveCalls.isEmpty) {
                               return const MekaarStateView(
                                 pose: MikaPose.sleep,
                                 title: 'Belum Ada Pesan',
@@ -395,8 +401,8 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
                                   }).toList();
 
                             final calls = (searchQuery.isEmpty || !isFilterMode)
-                                ? rawCalls
-                                : rawCalls
+                                ? effectiveCalls
+                                : effectiveCalls
                                       .where(
                                         (c) =>
                                             c.callType.toLowerCase().contains(

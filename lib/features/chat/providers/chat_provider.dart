@@ -500,6 +500,7 @@ class ChatActionsNotifier {
     bool isViewOnce = false,
     String? replyToId,
     int? autoDeleteHours,
+    int? autoDeleteMinutes,
     DateTime? scheduledWipeTargetAt,
     bool isGroup = false,
   }) async {
@@ -508,6 +509,8 @@ class ChatActionsNotifier {
     if (scheduledWipeTargetAt != null &&
         scheduledWipeTargetAt.toUtc().isAfter(nowUtc)) {
       autoDeleteAt = scheduledWipeTargetAt.toUtc();
+    } else if (autoDeleteMinutes != null && autoDeleteMinutes > 0) {
+      autoDeleteAt = nowUtc.add(Duration(minutes: autoDeleteMinutes));
     } else if (autoDeleteHours != null && autoDeleteHours > 0) {
       autoDeleteAt = nowUtc.add(Duration(hours: autoDeleteHours));
     }
@@ -580,8 +583,8 @@ class ChatActionsNotifier {
     }
 
     // 2. Ambil aturan pesan menghilang dari ruang tujuan
-    final targetDisappearingHours = await _chatRepository
-        .getRoomDisappearingHours(roomId);
+    final targetDisappearingMinutes = await _chatRepository
+        .getRoomDisappearingMinutes(roomId);
 
     // 3. Kirim pesan dengan mewarisi durasi auto-delete ruangan tujuan
     await sendMessage(
@@ -589,8 +592,8 @@ class ChatActionsNotifier {
       message.content,
       mediaUrl: message.mediaUrl,
       type: message.type,
-      autoDeleteHours: targetDisappearingHours > 0
-          ? targetDisappearingHours
+      autoDeleteMinutes: targetDisappearingMinutes > 0
+          ? targetDisappearingMinutes
           : null,
     );
   }

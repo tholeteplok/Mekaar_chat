@@ -183,13 +183,26 @@ class ChatRepository {
           if (contentSource.isEncrypted &&
               contentSource.content.isNotEmpty &&
               contentSource != localMsg) {
-            lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
+            final cached = _decryptedContentCache[msgId];
+            if (cached != null && !E2eeService.isUndecryptable(cached)) {
+              lastMessageText = MessagePreviewResolver.formatChatListPreview(
+                type: contentSource.type,
+                content: cached,
+                isUnreadFromOther: isUnreadFromOther,
+              );
+            } else {
+              lastMessageText = 'Mulai percakapan...';
+            }
           } else {
-            lastMessageText = MessagePreviewResolver.formatChatListPreview(
-              type: contentSource.type,
-              content: contentSource.content,
-              isUnreadFromOther: isUnreadFromOther,
-            );
+            if (E2eeService.isUndecryptable(contentSource.content)) {
+              lastMessageText = 'Mulai percakapan...';
+            } else {
+              lastMessageText = MessagePreviewResolver.formatChatListPreview(
+                type: contentSource.type,
+                content: contentSource.content,
+                isUnreadFromOther: isUnreadFromOther,
+              );
+            }
           }
         }
       }
@@ -436,13 +449,26 @@ class ChatRepository {
         if (contentSource.isEncrypted &&
             contentSource.content.isNotEmpty &&
             contentSource != localLastMsg) {
-          lastMessageText = isUnreadFromOther ? 'Pesan baru' : '••••••••';
+          final cached = _decryptedContentCache[chosenMsg.id];
+          if (cached != null && !E2eeService.isUndecryptable(cached)) {
+            lastMessageText = MessagePreviewResolver.formatChatListPreview(
+              type: contentSource.type,
+              content: cached,
+              isUnreadFromOther: isUnreadFromOther,
+            );
+          } else {
+            lastMessageText = 'Mulai percakapan...';
+          }
         } else {
-          lastMessageText = MessagePreviewResolver.formatChatListPreview(
-            type: contentSource.type,
-            content: contentSource.content,
-            isUnreadFromOther: isUnreadFromOther,
-          );
+          if (E2eeService.isUndecryptable(contentSource.content)) {
+            lastMessageText = 'Mulai percakapan...';
+          } else {
+            lastMessageText = MessagePreviewResolver.formatChatListPreview(
+              type: contentSource.type,
+              content: contentSource.content,
+              isUnreadFromOther: isUnreadFromOther,
+            );
+          }
         }
       }
 
@@ -639,6 +665,10 @@ class ChatRepository {
           }).toList();
 
           for (final lm in validLocal) {
+            if (E2eeService.isUndecryptable(lm.content)) {
+              unawaited(LocalMessageDatabase.instance.deleteMessage(lm.id));
+              continue;
+            }
             _decryptedContentCache[lm.id] = lm.content;
             messagePool[lm.id] = lm;
           }
@@ -779,6 +809,9 @@ class ChatRepository {
                 // 1. Cek cache in-memory RAM
                 final cached = _decryptedContentCache[m.id];
                 if (cached != null) {
+                  if (E2eeService.isUndecryptable(cached)) {
+                    return m.copyWith(content: E2eeService.undecryptableSentinel);
+                  }
                   return m.copyWith(content: cached);
                 }
 
@@ -787,6 +820,10 @@ class ChatRepository {
                   m.id,
                 );
                 if (localMsg != null && localMsg.content.isNotEmpty) {
+                  if (E2eeService.isUndecryptable(localMsg.content)) {
+                    unawaited(LocalMessageDatabase.instance.deleteMessage(m.id));
+                    return m.copyWith(content: E2eeService.undecryptableSentinel);
+                  }
                   _decryptedContentCache[m.id] = localMsg.content;
                   return m.copyWith(content: localMsg.content);
                 }
@@ -797,6 +834,9 @@ class ChatRepository {
                     roomId,
                     m.content,
                   );
+                  if (E2eeService.isUndecryptable(plain)) {
+                    return m.copyWith(content: E2eeService.undecryptableSentinel);
+                  }
                   // Batasi kapasitas cache dengan safe pruning (hapus 500 entri terlama, bukan .clear() total)
                   if (_decryptedContentCache.length > 2000) {
                     final keysToRemove = _decryptedContentCache.keys
@@ -809,19 +849,15 @@ class ChatRepository {
                   _decryptedContentCache[m.id] = plain;
                   final decrypted = m.copyWith(content: plain);
 
-                  // Simpan ke SQLite (baik teks biasa maupun undecryptableText)
-                  // agar tidak perlu diproses ulang berulang kali
+                  // Simpan ke SQLite hanya pesan yang berhasil terdekripsi
                   unawaited(
                     LocalMessageDatabase.instance.saveMessage(decrypted),
                   );
                   return decrypted;
                 } catch (_) {
-                  final failed = m.copyWith(
-                    content: E2eeService.undecryptableText,
+                  return m.copyWith(
+                    content: E2eeService.undecryptableSentinel,
                   );
-                  _decryptedContentCache[m.id] = E2eeService.undecryptableText;
-                  unawaited(LocalMessageDatabase.instance.saveMessage(failed));
-                  return failed;
                 }
               }
 
@@ -832,7 +868,11 @@ class ChatRepository {
           );
 
           for (final dm in decryptedMsgs) {
-            messagePool[dm.id] = dm;
+            if (E2eeService.isUndecryptable(dm.content)) {
+              messagePool.remove(dm.id);
+            } else {
+              messagePool[dm.id] = dm;
+            }
           }
 
           if (!controller.isClosed) {
@@ -984,12 +1024,13 @@ class ChatRepository {
                 roomId,
                 raw.content,
               );
+              if (E2eeService.isUndecryptable(plain)) {
+                return null;
+              }
               _decryptedContentCache[raw.id] = plain;
               resolvedMsg = raw.copyWith(content: plain);
             } catch (_) {
-              resolvedMsg = raw.copyWith(
-                content: E2eeService.undecryptableText,
-              );
+              return null;
             }
           } else {
             resolvedMsg = raw;
@@ -1001,6 +1042,10 @@ class ChatRepository {
 
     // 3. Masukkan ke pool aktif dan pancarkan pembaruan ke stream controller
     if (resolvedMsg != null && activePool != null) {
+      if (E2eeService.isUndecryptable(resolvedMsg.content)) {
+        activePool.remove(resolvedMsg.id);
+        return null;
+      }
       activePool[resolvedMsg.id] = resolvedMsg;
       final activeCtrl = _activeRoomControllers[roomId];
       if (activeCtrl != null && !activeCtrl.isClosed) {
@@ -1662,6 +1707,39 @@ class ChatRepository {
   }
 
   /// Set pesan menghilang level ruangan (tersinkronisasi untuk semua peserta).
+  /// Update durasi pesan menghilang level ruangan (dalam menit).
+  /// Memanggil RPC `set_room_disappearing_duration` dengan fallback ke `set_room_disappearing_hours`.
+  Future<void> updateRoomDisappearingDuration(String roomId, int minutes) async {
+    try {
+      await _supabaseService.client.rpc(
+        'set_room_disappearing_duration',
+        params: {'p_room_id': roomId, 'p_minutes': minutes},
+      );
+    } catch (_) {
+      // Fallback ke RPC jam lama bila migrasi 116 belum diaplikasikan di server
+      final hours = (minutes / 60).ceil();
+      await updateRoomDisappearingHours(roomId, hours);
+    }
+  }
+
+  /// Ambil setelan pesan menghilang level ruangan (dalam menit).
+  Future<int> getRoomDisappearingMinutes(String roomId) async {
+    try {
+      final room = await _supabaseService.client
+          .from('chat_rooms')
+          .select('disappearing_minutes, disappearing_hours')
+          .eq('id', roomId)
+          .maybeSingle();
+      if (room == null) return 0;
+      final mins = (room['disappearing_minutes'] as int?) ?? 0;
+      if (mins > 0) return mins;
+      final hours = (room['disappearing_hours'] as int?) ?? 0;
+      return hours * 60;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Memanggil RPC `set_room_disappearing_hours`.
   Future<void> updateRoomDisappearingHours(String roomId, int hours) async {
     await _supabaseService.client.rpc(
@@ -1673,12 +1751,8 @@ class ChatRepository {
   /// Ambil setelan pesan menghilang level ruangan (dalam jam).
   Future<int> getRoomDisappearingHours(String roomId) async {
     try {
-      final room = await _supabaseService.client
-          .from('chat_rooms')
-          .select('disappearing_hours')
-          .eq('id', roomId)
-          .maybeSingle();
-      return (room?['disappearing_hours'] as int?) ?? 0;
+      final mins = await getRoomDisappearingMinutes(roomId);
+      return (mins / 60).ceil();
     } catch (_) {
       return 0;
     }

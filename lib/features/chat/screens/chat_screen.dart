@@ -112,6 +112,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   String? _reactionAnchorMessageId;
 
   int get _autoDeleteHours => _controller.autoDeleteHours;
+  int get _autoDeleteMinutes => _controller.autoDeleteMinutes;
   bool get _burnOnExit => _controller.burnOnExit;
   String get _scheduledWipeMode => _controller.scheduledWipeMode;
   DateTime? get _scheduledWipeTargetAt => _controller.scheduledWipeTargetAt;
@@ -937,6 +938,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         isViewOnce: isViewOnceToSend,
         replyToId: replyToMessage?.id,
         autoDeleteHours: _autoDeleteHours,
+        autoDeleteMinutes: _autoDeleteMinutes > 0 ? _autoDeleteMinutes : null,
         scheduledWipeTargetAt: _scheduledWipeTargetAt,
         isGroup: _effectiveIsGroup,
       );

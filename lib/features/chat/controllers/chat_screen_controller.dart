@@ -45,6 +45,7 @@ class ChatScreenController extends ChangeNotifier {
   StreamSubscription? _roomSettingsSub;
 
   int _autoDeleteHours = 0;
+  int _autoDeleteMinutes = 0;
   bool _burnOnExit = false;
   bool _burnTriggered = false;
   String _scheduledWipeMode = 'off';
@@ -54,6 +55,7 @@ class ChatScreenController extends ChangeNotifier {
   bool _isDisposed = false;
 
   int get autoDeleteHours => _autoDeleteHours;
+  int get autoDeleteMinutes => _autoDeleteMinutes;
   bool get burnOnExit => _burnOnExit;
   bool get burnTriggered => _burnTriggered;
   String get scheduledWipeMode => _scheduledWipeMode;
@@ -141,7 +143,7 @@ class ChatScreenController extends ChangeNotifier {
     if (_isDisposed) return;
     try {
       final repo = ref.read(chatRepositoryProvider);
-      final roomAutoDelete = await repo.getRoomDisappearingHours(chatId);
+      final roomAutoDeleteMinutes = await repo.getRoomDisappearingMinutes(chatId);
       final roomBurnOnExit = await repo.getRoomBurnOnExit(chatId);
       String loadedWipeMode = 'off';
       DateTime? loadedWipeTarget;
@@ -172,7 +174,8 @@ class ChatScreenController extends ChangeNotifier {
 
       if (_isDisposed || !isMounted()) return;
 
-      _autoDeleteHours = roomAutoDelete;
+      _autoDeleteMinutes = roomAutoDeleteMinutes;
+      _autoDeleteHours = (_autoDeleteMinutes / 60).ceil();
       _burnOnExit = roomBurnOnExit;
       _scheduledWipeMode = loadedWipeMode;
       _scheduledWipeTargetAt = loadedWipeTarget;

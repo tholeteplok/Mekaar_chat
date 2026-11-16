@@ -13,6 +13,8 @@ import '../../../core/widgets/mekaar_camera_off_icon.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
+import '../../../core/utils/disappearing_time_helper.dart';
+import 'custom_disappearing_picker_sheet.dart';
 import '../widgets/scheduled_wipe_bottom_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -57,6 +59,7 @@ class ChatRoomPrivacySheet extends ConsumerStatefulWidget {
 
 class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   int _autoDeleteHours = 0;
+  int _autoDeleteMinutes = 0;
   String _scheduledWipeMode = 'off';
   TimeOfDay? _scheduledWipeTime;
   DateTime? _scheduledWipeTargetAt;
@@ -91,7 +94,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
         }
       }
 
-      final roomAutoDelete = await repo.getRoomDisappearingHours(widget.roomId);
+      final roomAutoDeleteMinutes = await repo.getRoomDisappearingMinutes(widget.roomId);
       final roomBurnOnExit = await repo.getRoomBurnOnExit(widget.roomId);
 
       String loadedWipeMode = 'off';
@@ -121,7 +124,8 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
 
       if (mounted) {
         setState(() {
-          _autoDeleteHours = roomAutoDelete;
+          _autoDeleteMinutes = roomAutoDeleteMinutes;
+          _autoDeleteHours = (_autoDeleteMinutes / 60).ceil();
           _burnOnExit = roomBurnOnExit;
           _scheduledWipeMode = loadedWipeMode;
           _scheduledWipeTime = loadedWipeTime;
@@ -137,13 +141,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     }
   }
 
-  String _autoDeleteLabel() {
-    if (_autoDeleteHours <= 0) return 'Mati';
-    if (_autoDeleteHours == 1) return '1 Jam';
-    if (_autoDeleteHours == 24) return '24 Jam';
-    if (_autoDeleteHours == 168) return '7 Hari';
-    return '$_autoDeleteHours Jam';
-  }
+  String _autoDeleteLabel() => DisappearingTimeHelper.format(_autoDeleteMinutes);
 
   String _scheduledWipeLabel() {
     if (_scheduledWipeMode == 'off' || _scheduledWipeTime == null) return 'Mati';
@@ -204,15 +202,25 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
   }
 
   Future<void> _showAutoDeleteOptions() async {
+    final isCustomActive = _autoDeleteMinutes > 0 &&
+        _autoDeleteMinutes != 60 &&
+        _autoDeleteMinutes != 1440;
+
     final choice = await MekaarBottomSheet.show<int>(
       context: context,
       showDragHandle: true,
       builder: (ctx) {
         final options = [
           (0, 'Mati', 'Pesan disimpan selamanya'),
-          (1, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
-          (24, '24 Jam', 'Pesan otomatis terhapus setelah 24 jam'),
-          (168, '7 Hari', 'Pesan otomatis terhapus setelah 7 hari'),
+          (60, '1 Jam', 'Pesan otomatis terhapus setelah 1 jam'),
+          (1440, '24 Jam', 'Pesan otomatis terhapus setelah 24 jam'),
+          (
+            -1,
+            'Kustom...',
+            isCustomActive
+                ? 'Aktif: ${_autoDeleteLabel()}'
+                : 'Atur durasi menit, jam, atau hari',
+          ),
         ];
         return MekaarBottomSheet(
           child: Column(
@@ -224,16 +232,24 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
               ),
               const SizedBox(height: 8),
               ...options.map((opt) {
-                final selected = opt.$1 == _autoDeleteHours;
+                final bool selected;
+                if (opt.$1 == -1) {
+                  selected = isCustomActive;
+                } else {
+                  selected = opt.$1 == _autoDeleteMinutes;
+                }
                 return ListTile(
                   leading: Icon(
-                    selected ? SolarIconsBold.hourglass : SolarIconsOutline.hourglass,
+                    selected
+                        ? SolarIconsBold.hourglass
+                        : SolarIconsOutline.hourglass,
                     color: selected ? MekaarColors.primaryOf(context) : null,
                   ),
                   title: Text(opt.$2),
                   subtitle: Text(opt.$3),
                   trailing: selected
-                      ? Icon(Icons.check, color: MekaarColors.primaryOf(context))
+                      ? Icon(Icons.check,
+                          color: MekaarColors.primaryOf(context))
                       : null,
                   onTap: () => Navigator.pop(ctx, opt.$1),
                 );
@@ -246,17 +262,37 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
     );
 
     if (choice != null) {
+      int? targetMinutes;
+      if (choice == -1) {
+        // Tampilkan Custom Duration Picker
+        if (!mounted) return;
+        targetMinutes = await CustomDisappearingPickerSheet.show(
+          context: context,
+          initialMinutes: _autoDeleteMinutes,
+        );
+        if (targetMinutes == null) return;
+      } else {
+        targetMinutes = choice;
+      }
+
+      final previousMinutes = _autoDeleteMinutes;
       final previousHours = _autoDeleteHours;
-      setState(() => _autoDeleteHours = choice);
+      setState(() {
+        _autoDeleteMinutes = targetMinutes!;
+        _autoDeleteHours = (_autoDeleteMinutes / 60).ceil();
+      });
       try {
         await ref
             .read(chatRepositoryProvider)
-            .updateRoomDisappearingHours(widget.roomId, choice);
+            .updateRoomDisappearingDuration(widget.roomId, targetMinutes);
         HapticService.trigger(MekaarHapticIntent.selection);
         widget.onSettingsChanged?.call();
       } catch (e) {
         if (mounted) {
-          setState(() => _autoDeleteHours = previousHours);
+          setState(() {
+            _autoDeleteMinutes = previousMinutes;
+            _autoDeleteHours = previousHours;
+          });
           MekaarSnackbar.error(
             context,
             'Gagal menyimpan pengaturan pesan menghilang: $e',
@@ -528,9 +564,9 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                     : 'Fitur di bawah ini tersinkronisasi dan menghapus pesan di perangkat Anda maupun rekan.',
               ),
               _buildNavTile(
-                icon: _autoDeleteHours > 0 ? SolarIconsBold.hourglass : SolarIconsOutline.hourglass,
+                icon: _autoDeleteMinutes > 0 ? SolarIconsBold.hourglass : SolarIconsOutline.hourglass,
                 iconColor: primaryColor,
-                isActive: _autoDeleteHours > 0,
+                isActive: _autoDeleteMinutes > 0,
                 title: 'Pesan Menghilang',
                 subtitle: 'Pesan baru otomatis terhapus untuk semua pihak setelah batas waktu',
                 statusText: _autoDeleteLabel(),
