@@ -18,8 +18,9 @@ ALTER TABLE public.profiles
 ALTER TABLE public.chat_rooms 
   ADD COLUMN IF NOT EXISTS encryption_version INTEGER NOT NULL DEFAULT 0;
 
--- 3. Perbarui view public.public_profiles
-DROP VIEW IF EXISTS public.public_profiles;
+-- 3. Perbarui view public.public_profiles beserta view dependennya (public.user_contacts_view)
+DROP VIEW IF EXISTS public.user_contacts_view;
+DROP VIEW IF EXISTS public.public_profiles CASCADE;
 
 CREATE VIEW public.public_profiles
 WITH (security_invoker = true, security_barrier = true)
@@ -30,15 +31,48 @@ SELECT
   full_name,
   display_name,
   avatar_url,
-  bio,
-  last_seen_at,
+  CASE
+    WHEN last_seen_privacy = 'nobody' THEN NULL::TIMESTAMPTZ
+    ELSE last_seen_at
+  END AS last_seen_at,
   last_seen_privacy,
   created_at,
   e2ee_public_key,
+  chat_invitation_mode,
+  bio,
   ed25519_identity_key
 FROM public.profiles;
 
 GRANT SELECT ON public.public_profiles TO authenticated;
+REVOKE ALL ON public.public_profiles FROM anon;
+
+-- Recreate public.user_contacts_view yang bergantung pada public.public_profiles
+CREATE VIEW public.user_contacts_view
+WITH (security_invoker = true, security_barrier = true)
+AS
+SELECT
+  c.id,
+  c.user_id,
+  c.contact_user_id,
+  c.alias_name,
+  c.is_vaulted,
+  c.vault_slot,
+  c.created_at,
+  p.username,
+  p.full_name,
+  p.display_name,
+  p.avatar_url,
+  p.bio,
+  EXISTS (
+    SELECT 1 FROM public.guardians g
+    WHERE (g.owner_id = c.user_id AND g.guardian_id = c.contact_user_id AND g.status = 'active')
+       OR (g.guardian_id = c.user_id AND g.owner_id = c.contact_user_id AND g.status = 'active')
+  ) AS is_guardian
+FROM public.user_contacts c
+JOIN public.public_profiles p ON p.id = c.contact_user_id;
+
+GRANT SELECT ON public.user_contacts_view TO authenticated;
+REVOKE ALL ON public.user_contacts_view FROM anon;
 
 -- 4. Perbarui create_group_room agar grup baru default ke encryption_version = 1
 CREATE OR REPLACE FUNCTION public.create_group_room(
