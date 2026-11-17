@@ -6,6 +6,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/widgets/mekaar_privacy_consent_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -46,6 +47,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_isLogin) {
       success = await ref.read(authProvider.notifier).login(email, password);
     } else {
+      // Tampilkan Privacy Consent Bottom Sheet sebelum registrasi akun baru
+      final consented =
+          await MekaarPrivacyConsentBottomSheet.show(context: context);
+      if (!consented || !mounted) return;
+
       success = await ref
           .read(authProvider.notifier)
           .register(email, password, username);

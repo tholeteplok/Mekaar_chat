@@ -10,6 +10,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_pin_dots_indicator.dart';
+import '../../../core/widgets/mekaar_privacy_consent_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/sos_button.dart';
@@ -19,6 +20,7 @@ import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
 import '../../../data/services/local_message_database.dart';
+import '../../../data/services/privacy_consent_service.dart';
 import '../../../data/repositories/private_contact_repository.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -57,7 +59,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     _autoLockController?.markPinScreenActive(true);
     _isSetupMode = widget.isSetup;
     _statusMessage = _isSetupMode
-        ? 'Buat PIN 6 digit untuk mengamankan aplikasi.'
+        ? 'Buat PIN 6 digit untuk mengamankan aplikasi. Lupa PIN = reset identitas & riwayat.'
         : 'Masukkan PIN 6 digit Anda untuk masuk.';
 
     // Self-healing: verifikasi kelayakan setup PIN agar pengguna yang sudah
@@ -160,6 +162,25 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       } else {
         // Confirmation entry in setup
         if (_pin == _confirmPin) {
+          // Informed consent check: jika belum pernah menyetujui kontrak privasi
+          final hasConsented =
+              await PrivacyConsentService.instance.hasConsented();
+          if (!hasConsented && mounted) {
+            final consented =
+                await MekaarPrivacyConsentBottomSheet.show(context: context);
+            if (!consented || !mounted) {
+              setState(() {
+                _isValidating = false;
+                _pin = '';
+                _confirmPin = '';
+                _isConfirming = false;
+                _statusMessage =
+                    'Persetujuan privasi diperlukan untuk membuat PIN.';
+              });
+              return;
+            }
+          }
+
           setState(() {
             _isValidating = true;
             _hasError = false;

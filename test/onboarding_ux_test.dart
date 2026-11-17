@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:solar_icons/solar_icons.dart';
 
 import 'package:mekaar_chat/core/routes/app_routes.dart';
 import 'package:mekaar_chat/features/auth/screens/onboarding_screen.dart';
@@ -84,12 +83,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.byType(WelcomeAnimationView), findsOneWidget);
-      expect(find.text('Mulai Sekarang'), findsOneWidget);
-      expect(find.byIcon(SolarIconsBold.chatRoundDots), findsOneWidget);
-      expect(find.byIcon(SolarIconsBold.shieldCheck), findsOneWidget);
 
-      // Settle animations up to Babak 3
-      await tester.pump(const Duration(milliseconds: 3800));
+      // Settle animations up to Babak 5 (v3 7000ms timeline)
+      await tester.pump(const Duration(milliseconds: 7000));
+      expect(find.text('Mulai Sekarang'), findsOneWidget);
 
       // Tap "Mulai Sekarang" -> triggers docking glide
       await tester.tap(find.text('Mulai Sekarang'));

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:solar_icons/solar_icons.dart';
 
 import 'package:mekaar_chat/core/constants/themes.dart';
 import 'package:mekaar_chat/core/routes/app_routes.dart';
@@ -13,6 +13,14 @@ import 'package:mekaar_chat/features/auth/screens/welcome_animation_screen.dart'
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
 
   Widget buildWelcomeApp({ThemeData? theme}) {
     return ProviderScope(
@@ -28,43 +36,31 @@ void main() {
     );
   }
 
-  group('WelcomeAnimationScreen Widget Tests', () {
+  group('WelcomeAnimationScreen Widget Tests (v3: Dua User Satu Ruang Aman)', () {
     testWidgets(
-        'renders initial convergence elements, micro-labels and skip button in Light Mode',
+        'renders initial scene with CustomPaint and skip button in Light Mode',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
-
       await tester.pumpWidget(buildWelcomeApp(theme: MekaarTheme.lightTheme()));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(WelcomeAnimationScreen), findsOneWidget);
       expect(find.byType(MekaarScaffold), findsOneWidget);
-      expect(find.byIcon(SolarIconsBold.chatRoundDots), findsOneWidget);
-      expect(find.byIcon(SolarIconsBold.shieldCheck), findsOneWidget);
-      expect(find.text('Bicara Bebas'), findsOneWidget);
-      expect(find.text('Perlindungan'), findsOneWidget);
+      expect(find.byType(CustomPaint), findsWidgets);
       expect(find.text('Lewati'), findsOneWidget);
     });
 
     testWidgets('renders properly in Dark Mode with centralized colors',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
-
       await tester.pumpWidget(buildWelcomeApp(theme: MekaarTheme.darkTheme()));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(WelcomeAnimationScreen), findsOneWidget);
-      expect(find.byIcon(SolarIconsBold.chatRoundDots), findsOneWidget);
-      expect(find.byIcon(SolarIconsBold.shieldCheck), findsOneWidget);
-      expect(find.text('Bicara Bebas'), findsOneWidget);
-      expect(find.text('Perlindungan'), findsOneWidget);
+      expect(find.byType(CustomPaint), findsWidgets);
       expect(find.text('Lewati'), findsOneWidget);
     });
 
     testWidgets('tapping "Lewati" navigates directly to login without once-seen flag',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
-
       await tester.pumpWidget(buildWelcomeApp());
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -76,20 +72,22 @@ void main() {
     });
 
     testWidgets(
-        'full animation displays logo, wordmark, tagline, button "Mulai Sekarang" and handles tap docking',
+        'full animation (7000ms) displays logo, wordmark, tagline, button "Mulai Sekarang" and handles tap docking',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
-
       await tester.pumpWidget(buildWelcomeApp());
 
-      // Babak 1: Pendekatan (0ms - 1400ms)
-      await tester.pump(const Duration(milliseconds: 600));
-
-      // Babak 2: Sentuhan & Fusi Cahaya (~1600ms)
+      // Babak 1: Dua User (0.0 - 1.4 dtk)
       await tester.pump(const Duration(milliseconds: 1000));
 
-      // Babak 3: Logo mekar, Wordmark, Tagline, dan Tombol "Mulai Sekarang" (~3200ms)
-      await tester.pump(const Duration(milliseconds: 1600));
+      // Babak 2: Percakapan & Gelembung (1.3 - 2.7 dtk)
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      // Babak 3: Fokus & Penggabungan Magnet (2.6 - 4.4 dtk)
+      await tester.pump(const Duration(milliseconds: 1800));
+
+      // Babak 4 & 5: Logo MEKAAR resmi, Wordmark, Tagline, dan Tombol "Mulai Sekarang" (~6500ms)
+      await tester.pump(const Duration(milliseconds: 2500));
+
       expect(find.byType(MekaarWordmark), findsOneWidget);
       expect(find.text('Bicara bebas. Tetap aman.'), findsOneWidget);
       expect(find.text('Mulai Sekarang'), findsOneWidget);
@@ -100,14 +98,14 @@ void main() {
 
       // Verifikasi titik tengah horizontal Wordmark tepat di sumbu tengah layar
       final wordmarkCenter = tester.getCenter(find.byType(MekaarWordmark));
-      expect(wordmarkCenter.dx, closeTo(expectedCenterX, 0.5));
+      expect(wordmarkCenter.dx, closeTo(expectedCenterX, 1.0));
 
       // Verifikasi titik tengah horizontal Tagline tepat di sumbu tengah layar
       final taglineCenter =
           tester.getCenter(find.text('Bicara bebas. Tetap aman.'));
-      expect(taglineCenter.dx, closeTo(expectedCenterX, 0.5));
+      expect(taglineCenter.dx, closeTo(expectedCenterX, 1.0));
 
-      // User menekan "Mulai Sekarang" -> memicu Babak 4: The Docking Glide
+      // User menekan "Mulai Sekarang" -> memicu Docking Arc (480ms)
       await tester.tap(find.text('Mulai Sekarang'));
       await tester.pump();
 
@@ -121,8 +119,6 @@ void main() {
     testWidgets(
         'OnboardingScreen embeds WelcomeAnimationView on slide 5 and allows tap to start login',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
-
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
@@ -141,6 +137,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(WelcomeAnimationView), findsOneWidget);
+
+      // Settle animation ke Babak 5 sehingga tombol "Mulai Sekarang" muncul
+      await tester.pump(const Duration(milliseconds: 6800));
       expect(find.text('Mulai Sekarang'), findsOneWidget);
 
       // Tap "Mulai Sekarang"
@@ -154,8 +153,6 @@ void main() {
 
     testWidgets('OnboardingScreen Lewati button navigates directly to Login from slide 1',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
-
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(

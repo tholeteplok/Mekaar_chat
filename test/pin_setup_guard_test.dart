@@ -127,7 +127,7 @@ void main() {
 
       // Verifikasi: Layar harus otomatis menjadi mode validasi (1x input), BUKAN mode buat PIN baru
       expect(find.text('Masukkan PIN 6 digit Anda untuk masuk.'), findsOneWidget);
-      expect(find.text('Buat PIN 6 digit untuk mengamankan aplikasi.'), findsNothing);
+      expect(find.textContaining('Buat PIN 6 digit'), findsNothing);
     });
 
     testWidgets('PinScreen(isSetup: true) tetap mode setup jika akun memang belum memiliki PIN', (tester) async {
@@ -159,7 +159,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verifikasi: Untuk user baru tanpa PIN, tetap tampil instruksi buat PIN (2x input)
-      expect(find.text('Buat PIN 6 digit untuk mengamankan aplikasi.'), findsOneWidget);
+      expect(find.textContaining('Buat PIN 6 digit untuk mengamankan aplikasi.'), findsOneWidget);
       expect(find.text('Masukkan PIN 6 digit Anda untuk masuk.'), findsNothing);
     });
   });

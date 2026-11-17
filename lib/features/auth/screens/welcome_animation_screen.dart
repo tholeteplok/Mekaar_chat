@@ -1,5 +1,6 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
@@ -13,40 +14,46 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 
-/// WelcomeAnimation â€” â€œDua Sinyal, Satu Ruang Amanâ€ (v2, lebih mulus)
+/// WelcomeAnimation — “Dua User, Satu Ruang Aman” (v3)
 ///
-/// Ide baru dibanding v1:
-/// Dua pilar MEKAAR (balon chat = â€œBicara Bebasâ€, perisai = â€œPerlindunganâ€)
-/// tidak lagi *bertabrakan lalu hilang*, melainkan *saling tertarik seperti
-/// magnet, menyatu, dan melebur* menjadi logo. Tidak ada satu frame pun
-/// yang kosong / pop / potong kasar â€” setiap elemen keluar tepat saat
-/// elemen berikutnya masuk (crossfade tumpang-tindih).
+/// Menggantikan koreografi v2. Ceritanya kini harfiah menggambarkan
+/// produknya — ruang obrolan privat antara dua orang:
 ///
-/// Babak (total tetap 3800ms agar ritme & tes lama tidak berubah):
-/// 1. Babak 1 â€” Magnet Approach (0.00â€“0.44)
-///    Ikon meluncur mengikuti busur halus (bukan garis lurus), dihubungkan
-///    â€œbenang cahayaâ€ yang menegang di tengah perjalanan, melambat dengan
-///    kurva magnet (cepat di awal, sangat lembut saat menyentuh), lalu
-///    menyusut kecil sambil melebur ke titik inti â€” bukan hilang mendadak.
-/// 2. Babak 2 â€” Genesis Bloom v2 (0.34â€“0.70)
-///    Titik inti cahaya muncul lebih dulu, disusul DUA cincin shockwave
-///    berjenjang + 8 partikel percik, lalu logo mekar dari skala 0.55
-///    dengan overshoot easeOutBack yang *dijinakkan* (maks Â±4%) dan
-///    diakhiri osilasi teredam (damped settle) â€” terasa â€œmendaratâ€,
-///    bukan berhenti mati.
-/// 3. Babak 3 â€” Identitas & Kendali (0.58â€“0.95)
-///    Wordmark naik + membesar halus, tagline masuk dengan letter-spacing
-///    yang menyempit ke posisi normal, tombol naik dengan stagger.
-///    Semua dihitung dari SATU AnimatedBuilder (satu sumber kebenaran
-///    per frame) agar tidak ada layer yang beda fase / jitter.
-/// 4. Babak 4 â€” Docking Arc (480ms, tetap)
-///    Logo & wordmark tidak lagi meluncur garis lurus diagonal ke header
-///    LoginScreen, melainkan mengikuti busur angkat (arc lift Â±28px di
-///    tengah jalan) â€” terasa melayang & mendarat, bukan terseret.
+/// Babak (total 7000ms — layar ini tampil sekali saat instalasi baru
+/// sebagai bagian onboarding, jadi durasinya bebas bernapas seperti
+/// referensi logo-animation 6–10 detik; ia BUKAN splash berulang):
+/// 1. Babak 1 — Dua User (0.0–1.4 dtk)
+///    Dua figur user (mint = safeTeal, biru = AppColors.blue) muncul di
+///    kiri & kanan bawah. Dari masing-masing user *keluar* satu gelembung
+///    percakapan yang tumbuh dari arah kepalanya (easeOutBack jinak).
+/// 2. Babak 2 — Percakapan (1.3–2.7 dtk)
+///    Titik ketikan kedua gelembung menyala BERGANTIAN — seperti dua
+///    orang sungguhan sedang chatting. Gelembung berayun halus (bobbing).
+/// 3. Babak 3 — Fokus & Penggabungan (2.6–4.4 dtk)
+///    Gelembung saling mendekat (kurva magnet). Bersamaan: kedua user
+///    MEMUDAR dan tenggelam, kamera mendorong masuk (zoom 1.0 → 1.28 ke
+///    titik fokus), dan lingkaran “ruang aman” tergambar mengelilingi
+///    gelembung. Di puncak zoom kedua gelembung docking melebur jadi
+///    SATU gelembung di dalam lingkaran yang menutup + satu denyut.
+/// 4. Babak 4 — Jembatan ke Logo (4.4–5.8 dtk)
+///    Kamera mundur ke 1.0. Gelembung tunggal memudar bersilangan
+///    (crossfade) menjadi logo MEKAAR resmi — posisi & ukuran akhir
+///    sama persis dengan v2 — lalu wordmark resmi naik, tagline masuk.
+/// 5. Babak 5 — Kendali (6.0–7.0 dtk)
+///    Tombol “Mulai Sekarang” naik; “Lewati” tersedia sejak awal.
 ///
-/// Aksesibilitas: menghormati reduce-motion sistem (MediaQuery
-/// disableAnimations) â€” animasi dilompati ke keadaan akhir yang statis,
-/// tanpa putaran / osilasi, dan tanpa auto-docking.
+/// Routing TIDAK berubah dari v2: layar ini menyatu dengan onboarding
+/// (mode isEmbedded + callback) dan menjadi jembatan ke auth screen —
+/// docking arc 480ms ke header LoginScreen lalu navigasi ke
+/// AppRoutes.login, persis seperti sebelumnya.
+///
+/// Teknis: seluruh adegan (user, gelembung, titik, lingkaran) digambar
+/// SATU CustomPainter dari satu AnimatedBuilder — transform & path saja,
+/// tanpa rebuild pohon widget per frame. Zoom kamera adalah Transform
+/// matriks pada layer adegan saja.
+///
+/// Aksesibilitas: menghormati reduce-motion sistem — animasi dilompati
+/// ke keadaan akhir statis, tanpa auto-docking.
 class WelcomeAnimationView extends ConsumerStatefulWidget {
   const WelcomeAnimationView({
     super.key,
@@ -70,13 +77,48 @@ class WelcomeAnimationView extends ConsumerStatefulWidget {
       WelcomeAnimationViewState();
 }
 
-/// Kurva pendekatan â€œmagnetâ€: berangkat mantap, melambat sangat halus
-/// tepat sebelum menyentuh titik fusi (tanpa hentakan easeInOut di akhir).
+/// Kurva pendekatan “magnet”: berangkat mantap, melambat sangat halus
+/// tepat sebelum menyentuh titik fusi.
 const Curve _magnetCurve = Cubic(0.25, 0.80, 0.25, 1.0);
 
 /// Potongan timeline: memetakan progres global 0..1 ke segmen [start, end].
 double _seg(double v, double start, double end) =>
     ((v - start) / (end - start)).clamp(0.0, 1.0);
+
+/// Sama seperti [_seg], tetapi dalam detik (garis waktu adegan = 7 dtk).
+double _segS(double s, double start, double end) =>
+    ((s - start) / (end - start)).clamp(0.0, 1.0);
+
+double _easeOutCubicS(double x) {
+  final t = x.clamp(0.0, 1.0);
+  return 1.0 - math.pow(1.0 - t, 3).toDouble();
+}
+
+double _easeInOutCubicS(double x) {
+  final t = x.clamp(0.0, 1.0);
+  return t < 0.5
+      ? 4.0 * t * t * t
+      : 1.0 - (math.pow(-2.0 * t + 2.0, 3) / 2).toDouble();
+}
+
+/// easeOutBack yang dijinakkan (c1 = 1.2, overshoot maks ±5%).
+double _easeOutBackTamed(double x) {
+  final t = x.clamp(0.0, 1.0);
+  const c1 = 1.2;
+  return 1.0 + (c1 + 1.0) * math.pow(t - 1.0, 3) + c1 * math.pow(t - 1.0, 2);
+}
+
+/// Zoom kamera adegan: dorong masuk 2.6–3.9 dtk (→1.28), tahan,
+/// mundur 4.45–5.1 dtk (→1.0).
+double _cameraZoom(double s) {
+  if (s < 2.6) return 1.0;
+  if (s < 3.9) return lerpDouble(1.0, 1.28, _easeInOutCubicS((s - 2.6) / 1.3))!;
+  if (s < 4.45) return 1.28;
+  if (s < 5.1) {
+    return lerpDouble(1.28, 1.0, _easeInOutCubicS((s - 4.45) / 0.65))!;
+  }
+  return 1.0;
+}
 
 class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
     with TickerProviderStateMixin {
@@ -97,10 +139,11 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
   void initState() {
     super.initState();
 
-    // Controller utama untuk Babak 1, 2, dan 3 (total durasi tetap 3800ms)
+    // Controller utama v3: 7000ms (dulu 3800ms di v2 — kini bebas
+    // karena layar ini hanya tampil sekali saat instalasi baru).
     _mainController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3800),
+      duration: const Duration(milliseconds: 7000),
     );
 
     // Controller docking ke header LoginScreen (tetap 480ms)
@@ -110,8 +153,8 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
     );
 
     _mainController.addListener(() {
-      // Haptic tepat saat dua ikon menyatu di tengah (~0.39 / Â±1480ms)
-      if (_mainController.value >= 0.39 && !_hapticTriggered) {
+      // Haptic tepat saat dua gelembung melebur (~3.92 dtk / 0.56)
+      if (_mainController.value >= 0.56 && !_hapticTriggered) {
         _hapticTriggered = true;
         HapticService.trigger(MekaarHapticIntent.success);
       }
@@ -120,7 +163,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
     _mainController.addStatusListener((status) {
       if (status == AnimationStatus.completed && !_isDocking && !_navigated) {
         if (!widget.isEmbedded && !_reducedMotion) {
-          // Auto-advance anggun setelah Babak 3 selesai (standalone)
+          // Auto-advance anggun setelah babak akhir selesai (standalone)
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted && !_isDocking && !_navigated) {
               startDocking();
@@ -149,7 +192,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
 
     // Hormati preferensi reduce-motion: tampilkan keadaan akhir secara
     // statis, tanpa haptic, tanpa auto-docking. Pengguna tetap bisa
-    // menekan â€œMulai Sekarangâ€ / â€œLewatiâ€ sendiri.
+    // menekan “Mulai Sekarang” / “Lewati” sendiri.
     if (MediaQuery.disableAnimationsOf(context)) {
       _reducedMotion = true;
       _hapticTriggered = true; // cegah haptic dari listener
@@ -217,107 +260,87 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
     final screenSize = MediaQuery.sizeOf(context);
     final safePadding = MediaQuery.paddingOf(context);
 
-    // Titik fokus terpadu: 0.38 Ã— tinggi layar (golden ratio vertikal)
+    // Titik fokus terpadu: 0.38 × tinggi layar (sama seperti v2)
     final focalCenterX = screenSize.width / 2;
     final focalCenterY = screenSize.height * 0.38;
+    final focal = Offset(focalCenterX, focalCenterY);
 
-    // Koordinat target presisi di LoginScreen (tetap seperti v1)
+    // Skala adegan: ruang gambar konsep 720pt dipetakan ke layar.
+    final sceneK = (math.min(screenSize.width, screenSize.height) / 720).clamp(
+      0.70,
+      1.15,
+    );
+
+    // Koordinat target presisi di LoginScreen (tetap seperti v1/v2)
     final targetX = 24.0;
     final targetY = safePadding.top + 52.0;
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        // â”€â”€ SATU AnimatedBuilder untuk seluruh panggung â”€â”€
-        // v1 memakai 4 AnimatedBuilder terpisah yang masing-masing
-        // menghitung ulang kurva & memotong layer dengan SizedBox.shrink
-        // di ambang berbeda â€” sumber utama kesan â€œpopâ€. Di v2 semua layer
-        // dihitung dari nilai (val, dock) yang sama dalam satu frame.
+        // ── SATU AnimatedBuilder untuk seluruh panggung ──
         AnimatedBuilder(
           animation: Listenable.merge([_mainController, _dockingController]),
           builder: (context, child) {
             final val = _mainController.value;
+            final s = val * 7.0; // posisi garis waktu adegan (detik)
             final dockVal = _dockingController.value;
             final dockCurve = MekaarMotion.emphasized.transform(dockVal);
             final exitOpacity = (1.0 - (dockVal * 3.0)).clamp(0.0, 1.0);
+            final zoom = _cameraZoom(s);
 
-            // â•â•â• Babak 1: Magnet Approach â•â•â•
-            final appearCurve =
-                MekaarMotion.standard.transform(_seg(val, 0.0, 0.07));
-            final approach = _seg(val, 0.04, 0.36);
-            final approachCurve = _magnetCurve.transform(approach);
-
-            final startDistance = math.min(130.0, screenSize.width * 0.34);
-            final distance = startDistance * (1.0 - approachCurve); // 130 â†’ 0
-            final centerGap = distance + 20.0; // jarak pusat ikon ke tengah
-
-            // Busur: ikon terangkat di tengah perjalanan, kembali 0 saat fusi
-            final arcLift = math.sin(approach * math.pi) * 10.0;
-            // Bobbing teredam: makin dekat fusi, makin tenang
-            final bobbing =
-                math.sin(approach * math.pi * 3) * 3.0 * (1.0 - approach);
-
-            final fuseShrink = 1.0 - 0.18 * _seg(val, 0.30, 0.38);
-            final iconScale = (0.80 + 0.20 * appearCurve) * fuseShrink;
-            final iconOpacity = appearCurve * (1.0 - _seg(val, 0.36, 0.44));
-            final labelOpacity = appearCurve * (1.0 - _seg(val, 0.10, 0.30));
-
-            // Benang cahaya antar-ikon: menegang di tengah, lepas saat fusi
-            final beamOpacity =
-                (math.sin(approach * math.pi) * 0.55).clamp(0.0, 1.0) *
-                    (1.0 - _seg(val, 0.36, 0.42));
-
-            // â•â•â• Babak 2: Genesis Bloom v2 â•â•â•
-            // Titik inti (muncul sebelum logo, menjembatani ikon â†’ logo)
-            final coreProgress = _seg(val, 0.34, 0.46);
-            final coreOpacity = coreProgress * (1.0 - _seg(val, 0.44, 0.52));
-            final coreDiameter = lerpDouble(
-                10, 46, MekaarMotion.standard.transform(coreProgress))!;
-
-            // Glow utama (memudar halus juga saat docking, bukan dipotong)
-            final glowProgress = _seg(val, 0.38, 0.70);
-            final glowRadius = screenSize.width *
-                (0.25 + 1.35 * MekaarMotion.standard.transform(glowProgress));
-            final glowOpacity = (1.0 - glowProgress) * 0.55 * (1.0 - dockCurve);
-
-            // Logo
-            final bloomProgress = _seg(val, 0.40, 0.64);
-            // easeOutBack dijinakkan: skala 0.55 â†’ maks Â±1.045 â†’ 1.00
-            final bloomScale =
-                0.55 + 0.45 * MekaarMotion.bounce.transform(bloomProgress);
-            final logoOpacity = _seg(val, 0.40, 0.50);
-            // Damped settle + napas akhir yang *berakhir* (bukan loop,
-            // agar layar tetap bisa settle & hemat baterai)
-            final settleY = math.sin(bloomProgress * math.pi * 2.2) *
-                (1.0 - bloomProgress) *
+            // ═══ Babak 4: Jembatan gelembung → logo resmi ═══
+            final bridge = _seg(val, 0.650, 0.721); // 4.55–5.05 dtk
+            final bridgeCurve = MekaarMotion.standard.transform(bridge);
+            final logoOpacity = _seg(val, 0.657, 0.714);
+            // Damped settle + napas akhir yang berakhir (bukan loop)
+            final settleY =
+                math.sin(bridge * math.pi * 2.2) *
+                (1.0 - bridge) *
                 4.0 *
-                bloomProgress;
-            final breathProgress = _seg(val, 0.64, 1.0);
-            final breathY = math.sin(breathProgress * math.pi * 2) *
+                bridge;
+            final breathProgress = _seg(val, 0.72, 1.0);
+            final breathY =
+                math.sin(breathProgress * math.pi * 2) *
                 1.5 *
-                _seg(val, 0.64, 0.75);
+                _seg(val, 0.72, 0.79);
+
+            // Glow lembut di balik logo saat jembatan berlangsung
+            final glowProgress = _seg(val, 0.63, 0.80);
+            final glowRadius =
+                screenSize.width *
+                (0.30 + 0.90 * MekaarMotion.standard.transform(glowProgress));
+            final glowOpacity =
+                (math.sin(glowProgress * math.pi) * 0.50 * (1.0 - dockCurve))
+                    .clamp(0.0, 1.0);
 
             const startLogoSize = 110.0;
             const targetLogoSize = 38.0;
+            final bridgeScale = 0.90 + 0.10 * bridgeCurve;
             final currentLogoSize = lerpDouble(
-              startLogoSize * bloomScale,
+              startLogoSize * bridgeScale,
               targetLogoSize,
               dockCurve,
             )!;
             final startLogoX = focalCenterX - (currentLogoSize / 2);
             final startLogoY =
                 focalCenterY - (currentLogoSize / 2) + settleY + breathY;
-            // Docking Arc: lurus di X, melengkung naik di Y
+            // Docking Arc: lurus di X, melengkung naik di Y (tetap)
             final currentLogoX = lerpDouble(startLogoX, targetX, dockCurve)!;
-            final currentLogoY = lerpDouble(startLogoY, targetY, dockCurve)! -
+            final currentLogoY =
+                lerpDouble(startLogoY, targetY, dockCurve)! -
                 math.sin(dockCurve * math.pi) * 28.0;
-            final currentLogoRadius =
-                lerpDouble(24.0, MekaarRadius.sm, dockCurve)!;
+            final currentLogoRadius = lerpDouble(
+              24.0,
+              MekaarRadius.sm,
+              dockCurve,
+            )!;
 
-            // â•â•â• Babak 3: Wordmark, Tagline, Tombol â•â•â•
-            final wordmarkProgress = _seg(val, 0.58, 0.80);
-            final wordmarkCurve =
-                MekaarMotion.standard.transform(wordmarkProgress);
+            // ═══ Babak 4–5: Wordmark, Tagline, Tombol ═══
+            final wordmarkProgress = _seg(val, 0.679, 0.821); // 4.75–5.75 dtk
+            final wordmarkCurve = MekaarMotion.standard.transform(
+              wordmarkProgress,
+            );
 
             const startWordmarkFontSize = 32.0;
             const targetWordmarkFontSize = 22.0;
@@ -328,91 +351,35 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
             )!;
 
             final startWordmarkX = focalCenterX;
-            final startWordmarkY = startLogoY +
+            final startWordmarkY =
+                startLogoY +
                 currentLogoSize +
                 20.0 +
                 (14.0 * (1.0 - wordmarkCurve));
             final targetWordmarkX = targetX + targetLogoSize + 12.0;
             final targetWordmarkY = targetY + 6.0;
-            final currentWordmarkX =
-                lerpDouble(startWordmarkX, targetWordmarkX, dockCurve)!;
+            final currentWordmarkX = lerpDouble(
+              startWordmarkX,
+              targetWordmarkX,
+              dockCurve,
+            )!;
             final currentWordmarkY =
                 lerpDouble(startWordmarkY, targetWordmarkY, dockCurve)! -
-                    math.sin(dockCurve * math.pi) * 20.0;
+                math.sin(dockCurve * math.pi) * 20.0;
 
-            final taglineProgress = _seg(val, 0.66, 0.86);
-            final taglineCurve =
-                MekaarMotion.standard.transform(taglineProgress);
+            final taglineProgress = _seg(val, 0.800, 0.886); // 5.60–6.20 dtk
+            final taglineCurve = MekaarMotion.standard.transform(
+              taglineProgress,
+            );
             final taglineY = focalCenterY + (110.0 / 2) + 68.0;
 
-            final buttonProgress = _seg(val, 0.76, 0.95);
+            final buttonProgress = _seg(val, 0.864, 0.971); // 6.05–6.80 dtk
             final buttonCurve = MekaarMotion.standard.transform(buttonProgress);
-
-            // Builder pilar ikon Babak 1 (dipakai dua kali: chat & shield)
-            Widget buildPillar({
-              required IconData icon,
-              required Color color,
-              required String label,
-              required double xOffset,
-              required double yOffset,
-              required double tilt,
-            }) {
-              return Positioned(
-                left: focalCenterX + xOffset - 50,
-                top: focalCenterY - 31 + yOffset,
-                width: 100,
-                child: Opacity(
-                  opacity: iconOpacity.clamp(0.0, 1.0),
-                  child: Transform.rotate(
-                    angle: tilt,
-                    child: Transform.scale(
-                      scale: iconScale,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 62,
-                            height: 62,
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: color, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: color.withValues(alpha: 0.2),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Icon(icon, color: color, size: 32),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Opacity(
-                            opacity: labelOpacity.clamp(0.0, 1.0),
-                            child: Text(
-                              label,
-                              style: MekaarTypography.caption.copyWith(
-                                color: color,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }
 
             return Stack(
               fit: StackFit.expand,
               children: [
-                // â”€â”€ Glow (Babak 2) â”€â”€
+                // ── Glow (Babak 4) ──
                 if (glowOpacity > 0.01)
                   Positioned(
                     left: focalCenterX - (glowRadius / 2),
@@ -437,155 +404,28 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                     ),
                   ),
 
-                // â”€â”€ Dua cincin shockwave berjenjang (Babak 2) â”€â”€
-                for (var ring = 0; ring < 2; ring++)
-                  Builder(
-                    builder: (context) {
-                      final ringStart = 0.38 + ring * 0.05;
-                      final ringProgress =
-                          _seg(val, ringStart, ringStart + 0.27);
-                      if (ringProgress <= 0.0 || ringProgress >= 1.0) {
-                        return const SizedBox.shrink();
-                      }
-                      final radius = lerpDouble(
-                        30,
-                        screenSize.width * 0.85,
-                        MekaarMotion.standard.transform(ringProgress),
-                      )!;
-                      return Positioned(
-                        left: focalCenterX - (radius / 2),
-                        top: focalCenterY - (radius / 2),
-                        width: radius,
-                        height: radius,
-                        child: Opacity(
-                          opacity:
-                              ((1.0 - ringProgress) * 0.35).clamp(0.0, 1.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: ring == 0
-                                    ? AppColors.safeTeal
-                                    : AppColors.blue,
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-
-                // â”€â”€ Benang cahaya antar-ikon (Babak 1) â”€â”€
-                if (beamOpacity > 0.01)
-                  Positioned(
-                    left: focalCenterX - centerGap,
-                    top: focalCenterY - 1,
-                    width: centerGap * 2,
-                    height: 2,
-                    child: Opacity(
-                      opacity: beamOpacity.clamp(0.0, 1.0),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppColors.safeTeal, AppColors.blue],
-                          ),
+                // ── Adegan: dua user, gelembung, lingkaran ruang aman ──
+                // Digambar satu painter; kamera = Transform pada layer ini.
+                if (dockVal == 0.0)
+                  Positioned.fill(
+                    // Alignment (0, -0.24) = titik fokus (0.5, 0.38) layar.
+                    child: Transform.scale(
+                      scale: zoom,
+                      alignment: const Alignment(0, -0.24),
+                      child: CustomPaint(
+                        painter: _ScenePainter(
+                          seconds: s,
+                          focal: focal,
+                          k: sceneK,
+                          colorA: AppColors.safeTeal,
+                          colorB: AppColors.blue,
                         ),
                       ),
                     ),
                   ),
 
-                // â”€â”€ 8 partikel percik (Babak 2) â”€â”€
-                for (var i = 0; i < 8; i++)
-                  Builder(
-                    builder: (context) {
-                      final sparkProgress = _seg(val, 0.38, 0.62);
-                      if (sparkProgress <= 0.0 || sparkProgress >= 1.0) {
-                        return const SizedBox.shrink();
-                      }
-                      final angle = (i * math.pi / 4) + 0.35;
-                      final sparkDistance =
-                          MekaarMotion.standard.transform(sparkProgress) *
-                              (54.0 + (i % 3) * 16.0);
-                      final sparkSize = 5.0 - (i % 2) * 2.0;
-                      return Positioned(
-                        left: focalCenterX +
-                            math.cos(angle) * sparkDistance -
-                            (sparkSize / 2),
-                        top: focalCenterY +
-                            math.sin(angle) * sparkDistance -
-                            (sparkSize / 2),
-                        width: sparkSize,
-                        height: sparkSize,
-                        child: Opacity(
-                          opacity: (1.0 - sparkProgress).clamp(0.0, 1.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: i.isEven
-                                  ? AppColors.safeTeal
-                                  : AppColors.blue,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-
-                // â”€â”€ Titik inti fusi (jembatan ikon â†’ logo) â”€â”€
-                if (coreOpacity > 0.01)
-                  Positioned(
-                    left: focalCenterX - (coreDiameter / 2),
-                    top: focalCenterY - (coreDiameter / 2),
-                    width: coreDiameter,
-                    height: coreDiameter,
-                    child: Opacity(
-                      opacity: coreOpacity.clamp(0.0, 1.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const RadialGradient(
-                            colors: [
-                              Colors.white,
-                              AppColors.safeTeal,
-                              AppColors.blue,
-                            ],
-                            stops: [0.0, 0.55, 1.0],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.blue.withValues(alpha: 0.35),
-                              blurRadius: 24,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // â”€â”€ Dua pilar konvergensi (Babak 1) â”€â”€
-                if (val < 0.44) ...[
-                  buildPillar(
-                    icon: SolarIconsBold.chatRoundDots,
-                    color: AppColors.safeTeal,
-                    label: 'Bicara Bebas',
-                    xOffset: -centerGap,
-                    yOffset: -arcLift + bobbing,
-                    tilt: 0.06 * (1.0 - approach),
-                  ),
-                  buildPillar(
-                    icon: SolarIconsBold.shieldCheck,
-                    color: AppColors.blue,
-                    label: 'Perlindungan',
-                    xOffset: centerGap,
-                    yOffset: -arcLift - bobbing,
-                    tilt: -0.06 * (1.0 - approach),
-                  ),
-                ],
-
-                // â”€â”€ Logo MEKAAR (Babak 2, 3, Docking Arc Babak 4) â”€â”€
-                if (bloomProgress > 0.0 || dockVal > 0.0)
+                // ── Logo MEKAAR resmi (Babak 4, 5, Docking Arc) ──
+                if (bridge > 0.0 || dockVal > 0.0)
                   Positioned(
                     left: currentLogoX,
                     top: currentLogoY,
@@ -595,22 +435,26 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                         width: currentLogoSize,
                         height: currentLogoSize,
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(currentLogoRadius),
+                          borderRadius: BorderRadius.circular(
+                            currentLogoRadius,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.blue.withValues(
                                 alpha: lerpDouble(0.25, 0.15, dockCurve)!,
                               ),
                               blurRadius: lerpDouble(20.0, 8.0, dockCurve)!,
-                              offset:
-                                  Offset(0, lerpDouble(8.0, 3.0, dockCurve)!),
+                              offset: Offset(
+                                0,
+                                lerpDouble(8.0, 3.0, dockCurve)!,
+                              ),
                             ),
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(currentLogoRadius),
+                          borderRadius: BorderRadius.circular(
+                            currentLogoRadius,
+                          ),
                           child: Image.asset(
                             'assets/logo/app_icon.webp',
                             width: currentLogoSize,
@@ -623,7 +467,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                     ),
                   ),
 
-                // â”€â”€ Wordmark MEKAAR â”€â”€
+                // ── Wordmark MEKAAR ──
                 if (wordmarkProgress > 0.0)
                   Positioned(
                     left: currentWordmarkX,
@@ -642,7 +486,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                     ),
                   ),
 
-                // â”€â”€ Tagline resmi MEKAAR â”€â”€
+                // ── Tagline resmi MEKAAR ──
                 if (taglineProgress > 0.0 && exitOpacity > 0.0)
                   Positioned(
                     top: taglineY + (10.0 * (1.0 - taglineCurve)),
@@ -657,14 +501,13 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
                           fontSize: 15,
                           color: MekaarColors.textSecondaryOf(context),
                           fontWeight: FontWeight.w600,
-                          // Menyempit dari 1.2 â†’ 0.3: terasa â€œmengunciâ€
                           letterSpacing: 0.3 + 0.9 * (1.0 - taglineCurve),
                         ),
                       ),
                     ),
                   ),
 
-                // â”€â”€ Tombol â€œMulai Sekarangâ€ (standalone) â”€â”€
+                // ── Tombol “Mulai Sekarang” (standalone) ──
                 if (widget.showStandAloneControls &&
                     !widget.isEmbedded &&
                     buttonProgress > 0.0 &&
@@ -716,7 +559,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
           },
         ),
 
-        // â”€â”€ Tombol â€œLewatiâ€ Standalone (tetap seperti v1) â”€â”€
+        // ── Tombol “Lewati” Standalone (tersedia sejak awal, tetap) ──
         if (widget.showStandAloneControls && !widget.isEmbedded)
           Positioned(
             top: safePadding.top + 16,
@@ -754,6 +597,269 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
     );
   }
 }
+
+/// Painter adegan v3: dua user, dua gelembung percakapan, gelembung
+/// gabungan, dan lingkaran “ruang aman”. Semua dihitung dari [seconds]
+/// (0–7) — satu sumber kebenaran per frame, tanpa widget per elemen.
+///
+/// Koordinat mengikuti ruang konsep 720pt yang diskalakan oleh [k];
+/// titik fokus adegan adalah [focal] (gelembung beristirahat di sana).
+class _ScenePainter extends CustomPainter {
+  const _ScenePainter({
+    required this.seconds,
+    required this.focal,
+    required this.k,
+    required this.colorA,
+    required this.colorB,
+  });
+
+  final double seconds;
+  final Offset focal;
+  final double k;
+  final Color colorA;
+  final Color colorB;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = seconds;
+
+    // ── Posisi dasar user ──
+    final userBaseY = math.min(focal.dy + 268 * k, size.height - 84);
+    final userAX = focal.dx - 210 * k;
+    final userBX = focal.dx + 210 * k;
+
+    // ── Dua user (memudar & tenggelam di Babak 3) ──
+    final userIn = _easeOutCubicS(_segS(s, 0.05, 0.55));
+    final userFade = 1.0 - _segS(s, 2.70, 3.60);
+    final userAlpha = userIn * userFade;
+    if (userAlpha > 0.01) {
+      final sink = 30 * k * _segS(s, 2.70, 3.60);
+      final uScale = 0.85 + 0.15 * userIn;
+      _drawUser(canvas, userAX, userBaseY + sink, uScale, colorA, userAlpha);
+      _drawUser(canvas, userBX, userBaseY + sink, uScale, colorB, userAlpha);
+    }
+
+    // ── Lingkaran ruang aman (tergambar saat pendekatan) ──
+    final ringFade = 1.0 - _segS(s, 4.55, 5.05);
+    if (s >= 2.85 && ringFade > 0.01) {
+      final sweepDeg = s < 3.85
+          ? 330 * _easeInOutCubicS(_segS(s, 2.85, 3.85))
+          : 360.0;
+      double ringAlpha;
+      if (s < 3.85) {
+        ringAlpha = 170 * _segS(s, 2.85, 3.25);
+      } else if (s > 4.4) {
+        // Napas halus setelah ruang terbentuk
+        ringAlpha =
+            150 * (0.35 + 0.3 * (0.5 + 0.5 * math.sin((s - 4.4) * 2.0))) + 40;
+      } else {
+        ringAlpha = 175;
+      }
+      if (sweepDeg > 0 && ringAlpha > 1) {
+        final ringPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(2.5, 5 * k)
+          ..color = colorA.withValues(alpha: (ringAlpha / 255) * ringFade);
+        canvas.drawArc(
+          Rect.fromCircle(center: focal, radius: 148 * k),
+          -math.pi / 2,
+          sweepDeg * math.pi / 180,
+          false,
+          ringPaint,
+        );
+      }
+      // Satu denyut tepat setelah penggabungan
+      final pp = _segS(s, 3.98, 4.68);
+      if (pp > 0.0 && pp < 1.0) {
+        final pulsePaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4 * k
+          ..color = colorA.withValues(alpha: 0.47 * (1.0 - pp) * ringFade);
+        canvas.drawCircle(
+          focal,
+          (148 + 42 * _easeOutCubicS(pp)) * k,
+          pulsePaint,
+        );
+      }
+    }
+
+    // ── Dua gelembung sinyal (hingga melebur ~4.08 dtk) ──
+    if (s < 4.08) {
+      _drawSignalBubble(
+        canvas,
+        s: s,
+        sign: -1,
+        userX: userAX,
+        userBaseY: userBaseY,
+        color: colorA,
+        emergeStart: 0.50,
+        talkStart: 1.30,
+        talkEnd: 1.95,
+        bobPhase: 0,
+      );
+      _drawSignalBubble(
+        canvas,
+        s: s,
+        sign: 1,
+        userX: userBX,
+        userBaseY: userBaseY,
+        color: colorB,
+        emergeStart: 0.70,
+        talkStart: 2.00,
+        talkEnd: 2.65,
+        bobPhase: math.pi,
+      );
+    }
+
+    // ── Gelembung gabungan (3.85 dtk → memudar ke logo 5.05 dtk) ──
+    final mp = _easeOutBackTamed(_segS(s, 3.85, 4.30));
+    final mergedAlpha = 1.0 - _segS(s, 4.55, 5.05);
+    if (mp > 0.01 && mergedAlpha > 0.01) {
+      final pop = mp.clamp(0.0, 1.06);
+      _drawBubble(
+        canvas,
+        center: focal,
+        w: 196 * k * pop,
+        h: 138 * k * pop,
+        color: colorA,
+        tail: _BubbleTail.center,
+        dotPhase: s * 5.2,
+        dotAmp: (s > 4.9 ? 4.5 : 6.0) * k,
+        alpha: mergedAlpha,
+      );
+    }
+  }
+
+  void _drawSignalBubble(
+    Canvas canvas, {
+    required double s,
+    required double sign,
+    required double userX,
+    required double userBaseY,
+    required Color color,
+    required double emergeStart,
+    required double talkStart,
+    required double talkEnd,
+    required double bobPhase,
+  }) {
+    final emerge = _easeOutBackTamed(_segS(s, emergeStart, emergeStart + 0.65));
+    if (emerge <= 0.0) return;
+
+    // Keluar dari arah kepala user → posisi istirahat → titik pendekatan
+    final startPos = Offset(userX - sign * 22 * k, userBaseY - 114 * k);
+    final restPos = Offset(focal.dx + sign * 148 * k, focal.dy);
+    final targetPos = Offset(focal.dx + sign * 54 * k, focal.dy);
+    final approach = _magnetCurve.transform(_segS(s, 2.60, 3.75));
+    final emerged = Offset.lerp(startPos, restPos, emerge)!;
+    var pos = Offset.lerp(emerged, targetPos, approach)!;
+    if (s > 1.4) {
+      final bob = math.sin(s * 2.2 + bobPhase) * 4 * k * (1.0 - approach);
+      pos = pos.translate(0, bob);
+    }
+
+    final grow = 1.0 + 0.07 * approach;
+    final shrink = 1.0 - 0.25 * _easeInOutCubicS(_segS(s, 3.70, 4.06));
+    final scaleF = math.max(0.05, emerge) * grow * shrink;
+    final alpha = 1.0 - _easeInOutCubicS(_segS(s, 3.78, 4.08));
+    if (alpha <= 0.01) return;
+
+    final talking = s > talkStart && s < talkEnd;
+    _drawBubble(
+      canvas,
+      center: pos,
+      w: 132 * k * scaleF,
+      h: 94 * k * scaleF,
+      color: color,
+      tail: sign < 0 ? _BubbleTail.left : _BubbleTail.right,
+      dotPhase: talking ? s * 9 : s * 2.2,
+      dotAmp: (talking ? 6.5 : 2.0) * k,
+      alpha: alpha,
+    );
+  }
+
+  void _drawUser(
+    Canvas canvas,
+    double cx,
+    double baseY,
+    double uScale,
+    Color color,
+    double alpha,
+  ) {
+    final paint = Paint()..color = color.withValues(alpha: 0.85 * alpha);
+    final sc = k * uScale;
+    // Kepala
+    canvas.drawCircle(Offset(cx, baseY - 96 * sc), 30 * sc, paint);
+    // Bahu: setengah cakram tepat di bawah kepala
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, baseY - 58 * sc), radius: 58 * sc),
+      0,
+      math.pi,
+      true,
+      paint,
+    );
+  }
+
+  void _drawBubble(
+    Canvas canvas, {
+    required Offset center,
+    required double w,
+    required double h,
+    required Color color,
+    required _BubbleTail tail,
+    required double dotPhase,
+    required double dotAmp,
+    required double alpha,
+  }) {
+    if (w <= 2 || h <= 2) return;
+    final paint = Paint()..color = color.withValues(alpha: alpha);
+    final rect = Rect.fromCenter(center: center, width: w, height: h);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(h * 0.30));
+
+    // Ekor gelembung
+    final tailPath = Path();
+    final y1 = rect.bottom;
+    switch (tail) {
+      case _BubbleTail.left:
+        tailPath
+          ..moveTo(center.dx - w * 0.18, y1 - 6)
+          ..lineTo(center.dx - w * 0.02, y1 - 6)
+          ..lineTo(center.dx - w * 0.20, y1 + h * 0.20);
+      case _BubbleTail.right:
+        tailPath
+          ..moveTo(center.dx + w * 0.02, y1 - 6)
+          ..lineTo(center.dx + w * 0.18, y1 - 6)
+          ..lineTo(center.dx + w * 0.20, y1 + h * 0.20);
+      case _BubbleTail.center:
+        tailPath
+          ..moveTo(center.dx - w * 0.06, y1 - 6)
+          ..lineTo(center.dx + w * 0.10, y1 - 6)
+          ..lineTo(center.dx - w * 0.02, y1 + h * 0.20);
+    }
+    tailPath.close();
+    canvas.drawPath(tailPath, paint);
+    canvas.drawRRect(rrect, paint);
+
+    // Tiga titik ketikan
+    final dotPaint = Paint()..color = Colors.white.withValues(alpha: alpha);
+    final spacing = w * 0.19;
+    final dr = h * 0.085;
+    for (var i = 0; i < 3; i++) {
+      final dx = center.dx + (i - 1) * spacing;
+      final bounce = -dotAmp * math.max(0.0, math.sin(dotPhase + i * 0.9));
+      canvas.drawCircle(Offset(dx, center.dy + bounce), dr, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScenePainter oldDelegate) =>
+      oldDelegate.seconds != seconds ||
+      oldDelegate.focal != focal ||
+      oldDelegate.k != k ||
+      oldDelegate.colorA != colorA ||
+      oldDelegate.colorB != colorB;
+}
+
+enum _BubbleTail { left, right, center }
 
 /// Standalone Screen wrapper untuk WelcomeAnimationView
 class WelcomeAnimationScreen extends StatelessWidget {
