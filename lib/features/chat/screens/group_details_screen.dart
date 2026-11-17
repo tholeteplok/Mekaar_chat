@@ -739,6 +739,57 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
     }
   }
 
+  Future<void> _upgradeToE2ee() async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => MekaarDialog(
+        title: 'Tingkatkan Keamanan Grup ke E2EE?',
+        message:
+            'Aktifkan enkripsi Signal Sender Keys dari ujung ke ujung. Server Mekaar dan pihak ketiga tidak akan dapat membaca isi pesan obrolan grup ini.\n\nPesan sebelum peningkatan tidak dapat diubah.',
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dCtx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MekaarColors.success,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tingkatkan Sekarang'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final success = await ref
+            .read(chatRepositoryProvider)
+            .upgradeGroupToE2ee(widget.roomId);
+        if (success) {
+          await _loadDetails();
+          if (mounted) {
+            MekaarSnackbar.success(
+              context,
+              'Grup berhasil ditingkatkan ke Enkripsi End-to-End!',
+            );
+          }
+        } else {
+          if (mounted) {
+            MekaarSnackbar.error(context, 'Gagal meningkatkan enkripsi grup.');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          MekaarSnackbar.error(context, 'Gagal meningkatkan enkripsi: $e');
+        }
+      }
+    }
+  }
+
   Widget _buildActionHubItem({
     required IconData icon,
     required String label,
@@ -1690,6 +1741,87 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   color: MekaarColors.textMutedOf(context),
                 ),
               ),
+            ),
+          ],
+          const SizedBox(height: 28),
+
+          // ──── Keamanan & Enkripsi Obrolan ────
+          Text(
+            'KEAMANAN & ENKRIPSI OBROLAN',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: MekaarColors.textMutedOf(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          if ((_groupData?['encryption_version'] as int? ?? 0) >= 1) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                SolarIconsBold.shieldCheck,
+                color: MekaarColors.success,
+                size: 24,
+              ),
+              title: const Text(
+                'Enkripsi End-to-End Aktif',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Pesan dalam grup ini diamankan menggunakan protokol Signal Sender Keys. Server Mekaar tidak dapat membaca isi pesan Anda.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+            ),
+          ] else ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                SolarIconsOutline.shieldKeyhole,
+                color: _isAdmin
+                    ? MekaarColors.accentOf(context)
+                    : MekaarColors.textMutedOf(context),
+                size: 24,
+              ),
+              title: const Text(
+                'Enkripsi Transport (Standar)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                _isAdmin
+                    ? 'Grup ini belum menggunakan enkripsi dari ujung ke ujung. Ketuk untuk meningkatkan ke Signal Sender Keys.'
+                    : 'Grup ini menggunakan enkripsi transport server.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+              trailing: _isAdmin
+                  ? ElevatedButton(
+                      onPressed: _upgradeToE2ee,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: MekaarColors.accentOf(context),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: const Text(
+                        'Tingkatkan',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    )
+                  : null,
             ),
           ],
           const SizedBox(height: 28),

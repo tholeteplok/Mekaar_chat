@@ -48,6 +48,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
     super.didUpdateWidget(oldWidget);
     if (widget.status != oldWidget.status) {
       if (widget.status != E2eeRoomStatus.ready &&
+          widget.status != E2eeRoomStatus.groupE2eeReady &&
           widget.status != E2eeRoomStatus.groupServerEncrypted) {
         _dismissTimer?.cancel();
         _dismissed = false;
@@ -58,6 +59,7 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
 
   void _evaluateDismissState() {
     if (widget.status == E2eeRoomStatus.ready ||
+        widget.status == E2eeRoomStatus.groupE2eeReady ||
         widget.status == E2eeRoomStatus.groupServerEncrypted) {
       _dismissTimer?.cancel();
       _dismissTimer = Timer(widget.autoDismissDelay, () {
@@ -143,6 +145,13 @@ class _E2eeSecurityChipState extends State<E2eeSecurityChip>
         iconData = SolarIconsBold.checkCircle;
         accentColor = MekaarColors.safeTextOf(context);
         message = 'Obrolan Terenkripsi';
+        showSpinner = false;
+        break;
+
+      case E2eeRoomStatus.groupE2eeReady:
+        iconData = SolarIconsBold.lockKeyhole;
+        accentColor = MekaarColors.safeTextOf(context);
+        message = 'Grup Terenkripsi E2EE';
         showSpinner = false;
         break;
 

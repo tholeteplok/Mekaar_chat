@@ -84,7 +84,10 @@ class FakeE2eeRoomStatusNotifier extends E2eeRoomStatusNotifier {
   }
 
   @override
-  Future<void> initializeRoomSecurity({bool isGroup = false}) async {}
+  Future<void> initializeRoomSecurity({
+    bool isGroup = false,
+    int encryptionVersion = 0,
+  }) async {}
 }
 
 void main() {

@@ -757,6 +757,57 @@ class ChatBubble extends ConsumerWidget {
     switch (message.type) {
       case MessageType.text:
         if (!message.isDeleted &&
+            message.content == '[mekaar_group_pending_key]') {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                SolarIconsOutline.lockKeyholeMinimalisticUnlocked,
+                size: 16,
+                color: MekaarColors.textMutedOf(context),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Pesan terenkripsi sedang memulihkan kunci...',
+                  style: resolveBubbleTextStyle(
+                    color: MekaarColors.textMutedOf(context),
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    fontFamily: fontFamily,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        if (!message.isDeleted &&
+            (message.content == '[mekaar_group_undecryptable]' ||
+                message.content == '[mekaar_undecryptable_payload]')) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                SolarIconsOutline.shieldWarning,
+                size: 16,
+                color: MekaarColors.sosCoral,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Pesan tidak dapat didekripsi',
+                  style: resolveBubbleTextStyle(
+                    color: MekaarColors.sosCoral,
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    fontFamily: fontFamily,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        if (!message.isDeleted &&
             (message.content.startsWith('📍 Auto Check-In') ||
                 message.content.startsWith('⚠️ Peringatan Keterlambatan'))) {
           final isWarning = message.content.startsWith('⚠️');

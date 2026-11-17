@@ -10,6 +10,7 @@ import '../../core/constants/strings.dart';
 import '../../core/storage/mekaar_secure_storage.dart';
 
 import 'supabase_service.dart';
+import 'group_e2ee_service.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
 /// Dilempar saat proses enkripsi gagal karena masalah *sementara*
@@ -262,14 +263,28 @@ class E2eeService {
     final pubB64 = _identityPublicB64;
     if (userId == null || pubB64 == null) return;
 
+    String? ed25519PubB64;
+    try {
+      final ed25519PubBytes =
+          await GroupE2eeService.instance.getIdentityPublicKey();
+      ed25519PubB64 = base64Encode(ed25519PubBytes);
+    } catch (e) {
+      _logger.w('Gagal mengekstrak ed25519 identity key: $e');
+    }
+
     if (!force) {
       try {
         final row = await _supabase.client
             .from('profiles')
-            .select('e2ee_public_key')
+            .select('e2ee_public_key, ed25519_identity_key')
             .eq('id', userId)
             .maybeSingle();
-        if (row != null && row['e2ee_public_key'] == pubB64) return;
+        if (row != null &&
+            row['e2ee_public_key'] == pubB64 &&
+            (ed25519PubB64 == null ||
+                row['ed25519_identity_key'] == ed25519PubB64)) {
+          return;
+        }
       } catch (e) {
         _logger.w('Gagal memeriksa kunci publik yang ada', error: e);
         return;
@@ -277,12 +292,17 @@ class E2eeService {
     }
 
     try {
+      final updateData = <String, dynamic>{
+        'e2ee_public_key': pubB64,
+        'e2ee_key_updated_at': DateTime.now().toIso8601String(),
+      };
+      if (ed25519PubB64 != null) {
+        updateData['ed25519_identity_key'] = ed25519PubB64;
+      }
+
       await _supabase.client
           .from('profiles')
-          .update({
-            'e2ee_public_key': pubB64,
-            'e2ee_key_updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', userId);
     } catch (e) {
       _logger.e('Gagal memperbarui kunci publik di profil', error: e);

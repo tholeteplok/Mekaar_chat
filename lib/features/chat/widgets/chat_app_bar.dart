@@ -16,6 +16,7 @@ import '../../../data/services/local_message_database.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../settings/providers/chat_theme_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/e2ee_room_status_provider.dart';
 import 'chat_selection_app_bar.dart';
 
 /// Sub-komponen modular untuk Floating App Bar pada ChatScreen.
@@ -482,6 +483,9 @@ class ChatAppBar extends ConsumerWidget {
             !LocalMessageDatabase.instance.isDecoy &&
             chatId != 'room_welcome_mekaar';
 
+        final e2eeStatus = ref.watch(e2eeRoomStatusProvider(chatId));
+        final isE2ee = !isGroup || e2eeStatus.isE2ee;
+
         return CustomAppBar(
           isMaterialHeader: true,
           title: chatName,
@@ -489,6 +493,7 @@ class ChatAppBar extends ConsumerWidget {
           avatarUrl: avatarUrl,
           avatarHeroTag: 'avatar-room-$chatId',
           isGuardian: isGuardian,
+          isE2ee: isE2ee,
           showOnlineIndicator: !isGroup,
           isOnline: !isGroup && (isOnline || isTyping),
           subtitle: isGroup

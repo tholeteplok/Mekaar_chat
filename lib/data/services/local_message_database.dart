@@ -28,7 +28,10 @@ class LocalMessageDatabase {
   static const String _decoyDbFileName = 'mekaar_decoy.db';
   static const String _ftsTableName = 'local_messages_fts';
   static const String _searchMetaTableName = 'search_index_meta';
-  static const int _dbVersion = 5;
+  static const String _groupSenderKeysTableName = 'group_sender_keys';
+  static const String _groupSenderStatesTableName = 'group_sender_states';
+  static const String _groupSkippedKeysTableName = 'group_skipped_keys';
+  static const int _dbVersion = 6;
   bool _ftsAvailable = true;
 
   /// Status apakah SQLite FTS5 aktif & tersedia di engine lokal
@@ -96,6 +99,7 @@ class LocalMessageDatabase {
           await _createDraftsTable(db);
           await _setupFtsAndSearchMetaTable(db);
           await _createCallsTable(db);
+          await _createGroupSenderKeyTables(db);
           if (_isDecoy) {
             await _seedDecoyWelcomeMessage(db);
           }
@@ -128,6 +132,9 @@ class LocalMessageDatabase {
                 'ALTER TABLE $_roomsCacheTableName ADD COLUMN scheduled_wipe_target_at TEXT',
               );
             } catch (_) {}
+          }
+          if (oldVersion < 6) {
+            await _createGroupSenderKeyTables(db);
           }
         },
       );
@@ -409,6 +416,46 @@ class LocalMessageDatabase {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_local_calls_room_created
       ON $_callsTableName (room_id, created_at DESC)
+    ''');
+  }
+
+  Future<void> _createGroupSenderKeyTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_groupSenderKeysTableName (
+        group_id TEXT PRIMARY KEY,
+        key_id INTEGER NOT NULL,
+        chain_key TEXT NOT NULL,
+        signing_seed TEXT NOT NULL,
+        signing_pub_key TEXT NOT NULL,
+        counter INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_groupSenderStatesTableName (
+        group_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        key_id INTEGER NOT NULL,
+        chain_key TEXT NOT NULL,
+        signing_pub_key TEXT NOT NULL,
+        counter INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (group_id, sender_id, key_id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_groupSkippedKeysTableName (
+        group_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        key_id INTEGER NOT NULL,
+        counter INTEGER NOT NULL,
+        message_key TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        PRIMARY KEY (group_id, sender_id, key_id, counter)
+      )
     ''');
   }
 

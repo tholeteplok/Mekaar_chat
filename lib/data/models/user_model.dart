@@ -37,6 +37,7 @@ class Profile {
   final DateTime? lastLoginAt;
   final DateTime? lastSeenAt;
   final String? e2eePublicKey;
+  final String? ed25519IdentityKey;
   final String? e2eeKeyBackup;
   final String? fcmToken;
   final bool isSuspended;
@@ -70,6 +71,7 @@ class Profile {
     this.lastLoginAt,
     this.lastSeenAt,
     this.e2eePublicKey,
+    this.ed25519IdentityKey,
     this.e2eeKeyBackup,
     this.fcmToken,
     this.isSuspended = false,
@@ -125,6 +127,7 @@ class Profile {
           ? DateTime.parse(json['last_seen_at'] as String)
           : null,
       e2eePublicKey: json['e2ee_public_key'] as String?,
+      ed25519IdentityKey: json['ed25519_identity_key'] as String?,
       e2eeKeyBackup: json['e2ee_key_backup'] as String?,
       fcmToken: json['fcm_token'] as String?,
       isSuspended: json['is_suspended'] as bool? ?? false,
@@ -164,6 +167,7 @@ class Profile {
       'last_login_at': lastLoginAt?.toIso8601String(),
       'last_seen_at': lastSeenAt?.toIso8601String(),
       'e2ee_public_key': e2eePublicKey,
+      'ed25519_identity_key': ed25519IdentityKey,
       'e2ee_key_backup': e2eeKeyBackup,
       'fcm_token': fcmToken,
       'is_suspended': isSuspended,
@@ -198,6 +202,7 @@ class Profile {
     DateTime? lastLoginAt,
     DateTime? lastSeenAt,
     String? e2eePublicKey,
+    String? ed25519IdentityKey,
     String? e2eeKeyBackup,
     String? fcmToken,
     bool? isSuspended,
@@ -231,6 +236,7 @@ class Profile {
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
       e2eePublicKey: e2eePublicKey ?? this.e2eePublicKey,
+      ed25519IdentityKey: ed25519IdentityKey ?? this.ed25519IdentityKey,
       e2eeKeyBackup: e2eeKeyBackup ?? this.e2eeKeyBackup,
       fcmToken: fcmToken ?? this.fcmToken,
       isSuspended: isSuspended ?? this.isSuspended,

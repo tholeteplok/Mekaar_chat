@@ -19,6 +19,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isGuardian;
   final bool showOnlineIndicator;
   final bool isOnline;
+  final bool isE2ee;
   final List<Widget>? actions;
   final VoidCallback? onBackPress;
   final VoidCallback? onAvatarTap;
@@ -41,6 +42,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isGuardian = false,
     this.showOnlineIndicator = false,
     this.isOnline = false,
+    this.isE2ee = false,
     this.actions,
     this.onBackPress,
     this.onAvatarTap,
@@ -134,19 +136,34 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color:
-                                textColor ??
-                                MekaarColors.textPrimaryOf(context),
-                            letterSpacing: -0.2,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color:
+                                      textColor ??
+                                      MekaarColors.textPrimaryOf(context),
+                                  letterSpacing: -0.2,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                        ),
+                        if (isE2ee) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            SolarIconsBold.lockKeyhole,
+                            size: 13,
+                            color: MekaarColors.success,
+                          ),
+                        ],
+                      ],
                     ),
                     if (showOnlineIndicator || subtitle != null) ...[
                       const SizedBox(height: 1),
@@ -265,18 +282,33 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              title,
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color:
-                                        textColor ??
-                                        MekaarColors.textPrimaryOf(context),
-                                    letterSpacing: -0.2,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    title,
+                                    style: Theme.of(context).textTheme.headlineSmall
+                                        ?.copyWith(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color:
+                                              textColor ??
+                                              MekaarColors.textPrimaryOf(context),
+                                          letterSpacing: -0.2,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                              overflow: TextOverflow.ellipsis,
+                                ),
+                                if (isE2ee) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    SolarIconsBold.lockKeyhole,
+                                    size: 13,
+                                    color: MekaarColors.success,
+                                  ),
+                                ],
+                              ],
                             ),
                             if (showOnlineIndicator || subtitle != null) ...[
                               Row(
@@ -417,14 +449,30 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3,
+                                ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isE2ee) ...[
+                      const SizedBox(width: 4),
+                      const Icon(
+                        SolarIconsBold.lockKeyhole,
+                        size: 13,
+                        color: MekaarColors.success,
+                      ),
+                    ],
+                  ],
                 ),
                 if (showOnlineIndicator || subtitle != null) ...[
                   const SizedBox(height: 2),

@@ -7,8 +7,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/message_preview_resolver.dart';
 import '../services/supabase_service.dart';
 import '../models/message_model.dart';
+import '../models/group_sender_key_models.dart';
 import '../models/room_participant_preferences.dart';
 import '../services/e2ee_service.dart';
+import '../services/group_e2ee_service.dart';
+import '../services/group_key_distribution_service.dart';
+import '../services/group_sender_key_store.dart';
 import '../services/local_message_database.dart';
 import '../services/aegis_shredder_service.dart';
 import 'reconnect_policy.dart';
@@ -27,6 +31,12 @@ class ChatRepository {
       {};
   final Map<String, Map<String, Message>> _activeRoomMessagePools = {};
 
+  /// Cache versi enkripsi room (0 = legacy TLS+RLS, 1 = Signal Sender Keys E2EE)
+  final Map<String, int> _roomEncryptionVersions = {};
+
+  /// Cache tipe room ('normal', 'group', 'guardian', dsb)
+  final Map<String, String> _roomTypeCache = {};
+
   @visibleForTesting
   Map<String, StreamController<List<Message>>> get activeRoomControllers =>
       _activeRoomControllers;
@@ -39,6 +49,127 @@ class ChatRepository {
 
   /// ID pengguna saat ini dari Supabase Auth
   String? get currentUserId => _supabaseService.currentUserId;
+
+  /// Mengambil versi enkripsi untuk suatu room.
+  Future<int> getRoomEncryptionVersion(String roomId) async {
+    if (_roomEncryptionVersions.containsKey(roomId)) {
+      return _roomEncryptionVersions[roomId]!;
+    }
+    try {
+      final res = await _supabaseService.client
+          .from('chat_rooms')
+          .select('encryption_version')
+          .eq('id', roomId)
+          .maybeSingle();
+      final ver = (res?['encryption_version'] as int?) ?? 0;
+      _roomEncryptionVersions[roomId] = ver;
+      return ver;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Memeriksa apakah room merupakan obrolan grup.
+  Future<bool> isGroupRoom(String roomId) async {
+    if (_roomTypeCache.containsKey(roomId)) {
+      return _roomTypeCache[roomId] == 'group';
+    }
+    try {
+      final res = await _supabaseService.client
+          .from('chat_rooms')
+          .select('room_type')
+          .eq('id', roomId)
+          .maybeSingle();
+      final type = res?['room_type'] as String? ?? 'normal';
+      _roomTypeCache[roomId] = type;
+      return type == 'group';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Meningkatkan grup obrolan lama ke versi enkripsi 1 (Signal Sender Keys E2EE).
+  Future<bool> upgradeGroupToE2ee(String roomId) async {
+    try {
+      final res = await _supabaseService.client.rpc(
+        'upgrade_group_encryption_version',
+        params: {'p_room_id': roomId},
+      );
+      if (res is Map && res['success'] == true) {
+        _roomEncryptionVersions[roomId] = 1;
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Memastikan sender key kita telah didistribusikan ke anggota grup aktif
+  Future<void> _ensureSenderKeyDistributedToGroupMembers(
+    String roomId,
+    String currentUserId,
+  ) async {
+    try {
+      final membersResp = await _supabaseService.client
+          .from('room_participants')
+          .select('profile_id')
+          .eq('room_id', roomId)
+          .isFilter('deleted_at', null);
+      final memberIds = (membersResp as List)
+          .map((r) => r['profile_id'] as String)
+          .where((id) => id != currentUserId)
+          .toList();
+      if (memberIds.isNotEmpty) {
+        await GroupKeyDistributionService.instance
+            .distributeSenderKeyToGroupMembers(
+          groupId: roomId,
+          currentUserId: currentUserId,
+          memberUserIds: memberIds,
+        );
+      }
+    } catch (_) {}
+  }
+
+  /// Mencoba mendekripsi ulang pesan grup yang sebelumnya tertunda (pending key)
+  Future<void> retryDecryptPendingGroupMessages(String roomId) async {
+    final pool = _activeRoomMessagePools[roomId];
+    final ctrl = _activeRoomControllers[roomId];
+    if (pool == null) return;
+
+    bool hasUpdated = false;
+    for (final entry in pool.entries) {
+      final msg = entry.value;
+      if (GroupE2eeService.isPendingKey(msg.content)) {
+        try {
+          final rawRow = await _supabaseService.client
+              .from('messages')
+              .select('content')
+              .eq('id', msg.id)
+              .maybeSingle();
+          if (rawRow != null) {
+            final rawEnvelope = rawRow['content'] as String;
+            final plain = await GroupE2eeService.instance.decryptGroupMessage(
+              groupId: roomId,
+              senderId: msg.senderId,
+              envelopeJson: rawEnvelope,
+            );
+            _decryptedContentCache[msg.id] = plain;
+            final updatedMsg = msg.copyWith(content: plain);
+            pool[msg.id] = updatedMsg;
+            unawaited(LocalMessageDatabase.instance.saveMessage(updatedMsg));
+            hasUpdated = true;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (hasUpdated && ctrl != null && !ctrl.isClosed) {
+      final sorted = pool.values.toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      ctrl.add(sorted);
+    }
+  }
 
   /// Eviksi lokal seketika (0ms optimistic deletion) dari memori RAM, database lokal, dan UI stream.
   void evictMessageLocally(String roomId, String messageId) {
@@ -212,6 +343,13 @@ class ChatRepository {
           ? DateTime.tryParse(otherLastReadRaw.toString())?.toLocal()
           : null;
 
+      final encVer = item['encryptionVersion'] as int? ??
+          item['encryption_version'] as int? ??
+          0;
+      final isGroup = item['isGroup'] as bool? ?? false;
+      _roomEncryptionVersions[roomId] = encVer;
+      _roomTypeCache[roomId] = isGroup ? 'group' : 'normal';
+
       roomsList.add({
         'id': roomId,
         'name': item['name'] as String? ?? 'User',
@@ -221,7 +359,8 @@ class ChatRepository {
         'timestamp': lastMessageTime,
         'unreadCount': unreadCount,
         'isGuardian': item['isGuardian'] as bool? ?? false,
-        'isGroup': item['isGroup'] as bool? ?? false,
+        'isGroup': isGroup,
+        'encryptionVersion': encVer,
         'memberCount': item['memberCount'] as int? ?? 0,
         'otherUserId': item['otherUserId'] as String? ?? userId,
         'otherUsername': '',
@@ -254,7 +393,7 @@ class ChatRepository {
     final roomsResponse = await _supabaseService.client
         .from('room_participants')
         .select(
-          'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description)',
+          'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description, encryption_version)',
         )
         .eq('profile_id', userId)
         .isFilter('deleted_at', null);
@@ -265,6 +404,9 @@ class ChatRepository {
       if (roomData == null) return null;
       final roomType = roomData['room_type'] as String;
       final bool isGroup = (roomType == 'group');
+      final encVer = (roomData['encryption_version'] as int?) ?? 0;
+      _roomEncryptionVersions[roomId] = encVer;
+      _roomTypeCache[roomId] = roomType;
 
       String chatName = 'Saved Messages';
       String chatAvatar = '';
@@ -482,6 +624,7 @@ class ChatRepository {
         'unreadCount': unreadCount,
         'isGuardian': isGuardian,
         'isGroup': isGroup,
+        'encryptionVersion': encVer,
         'memberCount': memberCount,
         'otherUserId': otherUserId,
         'otherUsername': profile?['username'] ?? '',
@@ -803,12 +946,37 @@ class ChatRepository {
             return true;
           }).toList();
 
+          final isGroup = await isGroupRoom(roomId);
+
           final decryptedMsgs = await Future.wait(
             msgs.map((m) async {
+              // Deteksi pesan sistem kontrol internal (SKDM atau Key Request)
+              if (m.type == MessageType.system && m.content.isNotEmpty) {
+                try {
+                  final isControl = await GroupKeyDistributionService.instance
+                      .handleIncomingSystemControlMessage(
+                    senderId: m.senderId,
+                    currentUserId: userId,
+                    rawContent: m.content,
+                  );
+                  if (isControl) {
+                    for (final activeId in _activeRoomControllers.keys) {
+                      if (activeId != roomId) {
+                        unawaited(retryDecryptPendingGroupMessages(activeId));
+                      }
+                    }
+                    return null;
+                  }
+                } catch (_) {}
+              }
+
               if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
                 // 1. Cek cache in-memory RAM
                 final cached = _decryptedContentCache[m.id];
                 if (cached != null) {
+                  if (GroupE2eeService.isPendingKey(cached)) {
+                    return m.copyWith(content: GroupE2eeService.pendingKeySentinel);
+                  }
                   if (E2eeService.isUndecryptable(cached)) {
                     return m.copyWith(content: E2eeService.undecryptableSentinel);
                   }
@@ -820,6 +988,9 @@ class ChatRepository {
                   m.id,
                 );
                 if (localMsg != null && localMsg.content.isNotEmpty) {
+                  if (GroupE2eeService.isPendingKey(localMsg.content)) {
+                    return m.copyWith(content: GroupE2eeService.pendingKeySentinel);
+                  }
                   if (E2eeService.isUndecryptable(localMsg.content)) {
                     unawaited(LocalMessageDatabase.instance.deleteMessage(m.id));
                     return m.copyWith(content: E2eeService.undecryptableSentinel);
@@ -830,11 +1001,49 @@ class ChatRepository {
 
                 // 3. Dekripsi kriptografis (pertama kali pesan diterima)
                 try {
-                  final plain = await E2eeService.instance.decryptForRoom(
-                    roomId,
-                    m.content,
-                  );
-                  if (E2eeService.isUndecryptable(plain)) {
+                  String plain;
+                  if (isGroup) {
+                    try {
+                      plain = await GroupE2eeService.instance
+                          .decryptGroupMessage(
+                        groupId: roomId,
+                        senderId: m.senderId,
+                        envelopeJson: m.content,
+                      );
+                    } on GroupE2eeMissingSenderStateException {
+                      if (m.senderId != userId) {
+                        final env = GroupMessageEnvelope.tryParse(m.content);
+                        final keyId = env?.keyId ?? 1;
+                        unawaited(
+                          GroupKeyDistributionService.instance
+                              .requestSenderKeyFromMember(
+                            groupId: roomId,
+                            currentUserId: userId,
+                            targetSenderId: m.senderId,
+                            keyId: keyId,
+                          ),
+                        );
+                      }
+                      _decryptedContentCache[m.id] =
+                          GroupE2eeService.pendingKeySentinel;
+                      final pendingMsg = m.copyWith(
+                        content: GroupE2eeService.pendingKeySentinel,
+                      );
+                      unawaited(
+                        LocalMessageDatabase.instance.saveMessage(pendingMsg),
+                      );
+                      return pendingMsg;
+                    } catch (_) {
+                      return m.copyWith(content: GroupE2eeService.undecryptableSentinel);
+                    }
+                  } else {
+                    plain = await E2eeService.instance.decryptForRoom(
+                      roomId,
+                      m.content,
+                    );
+                  }
+
+                  if (E2eeService.isUndecryptable(plain) || GroupE2eeService.isUndecryptable(plain)) {
                     return m.copyWith(content: E2eeService.undecryptableSentinel);
                   }
                   // Batasi kapasitas cache dengan safe pruning (hapus 500 entri terlama, bukan .clear() total)
@@ -856,7 +1065,9 @@ class ChatRepository {
                   return decrypted;
                 } catch (_) {
                   return m.copyWith(
-                    content: E2eeService.undecryptableSentinel,
+                    content: isGroup
+                        ? GroupE2eeService.undecryptableSentinel
+                        : E2eeService.undecryptableSentinel,
                   );
                 }
               }
@@ -868,7 +1079,9 @@ class ChatRepository {
           );
 
           for (final dm in decryptedMsgs) {
-            if (E2eeService.isUndecryptable(dm.content)) {
+            if (dm == null) continue;
+            if (E2eeService.isUndecryptable(dm.content) &&
+                !GroupE2eeService.isPendingKey(dm.content)) {
               messagePool.remove(dm.id);
             } else {
               messagePool[dm.id] = dm;
@@ -1020,11 +1233,21 @@ class ChatRepository {
           final raw = Message.fromJson(row);
           if (raw.isEncrypted && raw.content.isNotEmpty && !raw.isDeleted) {
             try {
-              final plain = await E2eeService.instance.decryptForRoom(
-                roomId,
-                raw.content,
-              );
-              if (E2eeService.isUndecryptable(plain)) {
+              final isGroup = await isGroupRoom(roomId);
+              String plain;
+              if (isGroup) {
+                plain = await GroupE2eeService.instance.decryptGroupMessage(
+                  groupId: roomId,
+                  senderId: raw.senderId,
+                  envelopeJson: raw.content,
+                );
+              } else {
+                plain = await E2eeService.instance.decryptForRoom(
+                  roomId,
+                  raw.content,
+                );
+              }
+              if (E2eeService.isUndecryptable(plain) || GroupE2eeService.isUndecryptable(plain)) {
                 return null;
               }
               _decryptedContentCache[raw.id] = plain;
@@ -1122,6 +1345,29 @@ class ChatRepository {
       }
       finalContent = envelope;
       isEncrypted = true;
+    } else if (content.isNotEmpty && isGroup) {
+      final encVersion = await getRoomEncryptionVersion(roomId);
+      if (encVersion == 1) {
+        try {
+          final groupEnvelope =
+              await GroupE2eeService.instance.encryptGroupMessage(
+            groupId: roomId,
+            senderId: userId,
+            plaintext: content,
+          );
+          finalContent = groupEnvelope.toJsonString();
+          isEncrypted = true;
+
+          // Background auto-distribute: pastikan seluruh anggota menerima sender key kita
+          unawaited(
+            _ensureSenderKeyDistributedToGroupMembers(roomId, userId),
+          );
+        } catch (e) {
+          throw Exception(
+            'Gagal mengenkripsi pesan grup (Sender Keys): $e',
+          );
+        }
+      }
     }
 
     final data = {
@@ -2043,6 +2289,19 @@ class ChatRepository {
         .from('room_participants')
         .insert(participantsToInsert);
 
+    // Grup baru otomatis terdaftar sebagai enkripsi v1 (Signal Sender Keys)
+    _roomEncryptionVersions[roomId] = 1;
+    _roomTypeCache[roomId] = 'group';
+
+    // Distribusikan Sender Key ke anggota awal grup
+    unawaited(
+      GroupKeyDistributionService.instance.distributeSenderKeyToGroupMembers(
+        groupId: roomId,
+        currentUserId: userId,
+        memberUserIds: participantIds,
+      ),
+    );
+
     return roomId;
   }
 
@@ -2054,13 +2313,13 @@ class ChatRepository {
         roomResp = await _supabaseService.client
             .from('chat_rooms')
             .select(
-              'id, name, avatar_url, description, created_by, created_at, is_announcement_only, members_can_edit_info, members_can_invite',
+              'id, name, avatar_url, description, created_by, created_at, is_announcement_only, members_can_edit_info, members_can_invite, encryption_version',
             )
             .eq('id', roomId)
             .maybeSingle()
             .timeout(const Duration(seconds: 8));
       } catch (_) {
-        // Fallback jika kolom migration 115 belum dieksekusi di database
+        // Fallback jika kolom migration 115/117 belum dieksekusi di database
         roomResp = await _supabaseService.client
             .from('chat_rooms')
             .select(
@@ -2072,6 +2331,9 @@ class ChatRepository {
       }
 
       if (roomResp == null) return null;
+      final encVer = (roomResp['encryption_version'] as int?) ?? 0;
+      _roomEncryptionVersions[roomId] = encVer;
+      _roomTypeCache[roomId] = 'group';
 
       // Ambil daftar peserta dari room_participants
       final participantsRaw = await _supabaseService.client
@@ -2149,6 +2411,18 @@ class ChatRepository {
         .toList();
 
     await _supabaseService.client.from('room_participants').upsert(toInsert);
+
+    // Distribusikan Sender Key ke anggota baru jika grup adalah E2EE (v1)
+    final encVersion = await getRoomEncryptionVersion(roomId);
+    if (encVersion == 1) {
+      unawaited(
+        GroupKeyDistributionService.instance.distributeSenderKeyToGroupMembers(
+          groupId: roomId,
+          currentUserId: userId,
+          memberUserIds: profileIds,
+        ),
+      );
+    }
   }
 
   /// Mengeluarkan anggota dari grup via RPC (Owner/Admin).
@@ -2160,6 +2434,33 @@ class ChatRepository {
         'p_target_profile_id': profileId,
       },
     );
+
+    // Rekeying otomatis untuk grup E2EE (v1) sesuai Bab §4.2
+    final userId = _supabaseService.currentUserId;
+    if (userId != null) {
+      final encVersion = await getRoomEncryptionVersion(roomId);
+      if (encVersion == 1) {
+        try {
+          final membersResp = await _supabaseService.client
+              .from('room_participants')
+              .select('profile_id')
+              .eq('room_id', roomId)
+              .isFilter('deleted_at', null);
+          final remainingIds = (membersResp as List)
+              .map((r) => r['profile_id'] as String)
+              .where((id) => id != userId && id != profileId)
+              .toList();
+          unawaited(
+            GroupKeyDistributionService.instance.rekeyGroupOnMembershipChange(
+              groupId: roomId,
+              currentUserId: userId,
+              remainingMemberIds: remainingIds,
+              excludedMemberId: profileId,
+            ),
+          );
+        } catch (_) {}
+      }
+    }
   }
 
   /// Keluar dari grup via RPC (dengan proteksi transfer kepemilikan jika Owner).
@@ -2170,6 +2471,7 @@ class ChatRepository {
         'p_room_id': roomId,
       },
     );
+    unawaited(SqlCipherSenderKeyStore.instance.clearGroup(roomId));
   }
 
   /// Mengangkat anggota menjadi Admin grup (Khusus Owner).

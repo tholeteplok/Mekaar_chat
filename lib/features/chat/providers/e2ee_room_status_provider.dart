@@ -9,6 +9,9 @@ enum E2eeRoomStatus {
   peerMissingKey,
   needsRestore,
   groupServerEncrypted,
+  groupE2eeReady;
+
+  bool get isE2ee => this == E2eeRoomStatus.ready || this == E2eeRoomStatus.groupE2eeReady;
 }
 
 class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
@@ -18,17 +21,27 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
     initializeRoomSecurity();
   }
 
-  void configureForRoom({required bool isGroup}) {
+  void configureForRoom({required bool isGroup, int encryptionVersion = 0}) {
     if (isGroup) {
-      state = E2eeRoomStatus.groupServerEncrypted;
-    } else if (state == E2eeRoomStatus.groupServerEncrypted || state == E2eeRoomStatus.preparing) {
+      if (encryptionVersion == 1) {
+        state = E2eeRoomStatus.groupE2eeReady;
+      } else {
+        state = E2eeRoomStatus.groupServerEncrypted;
+      }
+    } else if (state == E2eeRoomStatus.groupServerEncrypted ||
+        state == E2eeRoomStatus.groupE2eeReady ||
+        state == E2eeRoomStatus.preparing) {
       initializeRoomSecurity();
     }
   }
 
-  Future<void> initializeRoomSecurity({bool isGroup = false}) async {
+  Future<void> initializeRoomSecurity({bool isGroup = false, int encryptionVersion = 0}) async {
     if (isGroup) {
-      state = E2eeRoomStatus.groupServerEncrypted;
+      if (encryptionVersion == 1) {
+        state = E2eeRoomStatus.groupE2eeReady;
+      } else {
+        state = E2eeRoomStatus.groupServerEncrypted;
+      }
       return;
     }
 

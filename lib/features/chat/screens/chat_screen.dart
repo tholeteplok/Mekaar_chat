@@ -297,9 +297,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               _resolvedAvatarInitial = cached['avatar'] as String?;
               _resolvedAvatarUrl = cached['avatarUrl'] as String?;
             });
+            final encVer = cached['encryptionVersion'] as int? ??
+                cached['encryption_version'] as int? ??
+                0;
             ref
                 .read(e2eeRoomStatusProvider(widget.chatId).notifier)
-                .configureForRoom(isGroup: true);
+                .configureForRoom(isGroup: true, encryptionVersion: encVer);
             unawaited(_loadGroupParticipants());
           }
           return;
@@ -356,9 +359,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             }
             _resolvedAvatarUrl = roomData['avatar_url'] as String?;
           });
+          final encVer = (roomData['encryption_version'] as int?) ?? 0;
           ref
               .read(e2eeRoomStatusProvider(widget.chatId).notifier)
-              .configureForRoom(isGroup: true);
+              .configureForRoom(isGroup: true, encryptionVersion: encVer);
           unawaited(_loadGroupParticipants());
         }
         return;
@@ -548,9 +552,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (mounted) {
         ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
         unawaited(NotificationService.cancelMessageNotification(widget.chatId));
-        ref
-            .read(e2eeRoomStatusProvider(widget.chatId).notifier)
-            .configureForRoom(isGroup: _effectiveIsGroup);
+        if (_effectiveIsGroup) {
+          ref
+              .read(chatRepositoryProvider)
+              .getRoomEncryptionVersion(widget.chatId)
+              .then((ver) {
+            if (mounted) {
+              ref
+                  .read(e2eeRoomStatusProvider(widget.chatId).notifier)
+                  .configureForRoom(
+                    isGroup: true,
+                    encryptionVersion: ver,
+                  );
+            }
+          });
+        } else {
+          ref
+              .read(e2eeRoomStatusProvider(widget.chatId).notifier)
+              .configureForRoom(isGroup: false);
+        }
 
         if (widget.initialSharedFiles != null &&
             widget.initialSharedFiles!.isNotEmpty) {
