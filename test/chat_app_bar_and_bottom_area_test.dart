@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:mekaar_chat/data/services/local_message_database.dart';
 import 'package:mekaar_chat/features/chat/widgets/chat_app_bar.dart';
@@ -11,13 +13,25 @@ import 'package:mekaar_chat/features/chat/widgets/chat_selection_app_bar.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
   group('ChatAppBar & ChatBottomArea Modular Tests (Fase 1 Refactoring)', () {
     setUp(() async {
+      SharedPreferences.setMockInitialValues({});
       await LocalMessageDatabase.instance.switchMode(isDecoy: false);
     });
 
     testWidgets('ChatAppBar merender mode normal dengan nama obrolan & tombol panggilan', (tester) async {
-      final lastSeenNotifier = ValueNotifier<DateTime?>(DateTime.now());
+      final lastSeenNotifier = ValueNotifier<DateTime?>(DateTime.utc(2026, 11, 16, 12, 0));
+      final searchController = TextEditingController();
+      final inChatSearchFocusNode = FocusNode();
+      addTearDown(() {
+        lastSeenNotifier.dispose();
+        searchController.dispose();
+        inChatSearchFocusNode.dispose();
+      });
 
       await tester.pumpWidget(
         ProviderScope(
@@ -46,8 +60,8 @@ void main() {
                 onDeleteSelectedMessages: (_) {},
                 isSearching: false,
                 searchQuery: '',
-                searchController: TextEditingController(),
-                inChatSearchFocusNode: FocusNode(),
+                searchController: searchController,
+                inChatSearchFocusNode: inChatSearchFocusNode,
                 onCloseSearch: () {},
                 onSearchChanged: (_) {},
                 onClearSearchQuery: () {},
@@ -71,6 +85,12 @@ void main() {
     testWidgets('ChatAppBar merender input pencarian saat isSearching aktif', (tester) async {
       final lastSeenNotifier = ValueNotifier<DateTime?>(null);
       final searchController = TextEditingController(text: 'kata kunci');
+      final inChatSearchFocusNode = FocusNode();
+      addTearDown(() {
+        lastSeenNotifier.dispose();
+        searchController.dispose();
+        inChatSearchFocusNode.dispose();
+      });
 
       await tester.pumpWidget(
         ProviderScope(
@@ -100,7 +120,7 @@ void main() {
                 isSearching: true,
                 searchQuery: 'kata kunci',
                 searchController: searchController,
-                inChatSearchFocusNode: FocusNode(),
+                inChatSearchFocusNode: inChatSearchFocusNode,
                 onCloseSearch: () {},
                 onSearchChanged: (_) {},
                 onClearSearchQuery: () {},
@@ -122,6 +142,13 @@ void main() {
 
     testWidgets('ChatAppBar merender ChatSelectionAppBar saat isSelectionMode aktif', (tester) async {
       final lastSeenNotifier = ValueNotifier<DateTime?>(null);
+      final searchController = TextEditingController();
+      final inChatSearchFocusNode = FocusNode();
+      addTearDown(() {
+        lastSeenNotifier.dispose();
+        searchController.dispose();
+        inChatSearchFocusNode.dispose();
+      });
 
       await tester.pumpWidget(
         ProviderScope(
@@ -150,8 +177,8 @@ void main() {
                 onDeleteSelectedMessages: (_) {},
                 isSearching: false,
                 searchQuery: '',
-                searchController: TextEditingController(),
-                inChatSearchFocusNode: FocusNode(),
+                searchController: searchController,
+                inChatSearchFocusNode: inChatSearchFocusNode,
                 onCloseSearch: () {},
                 onSearchChanged: (_) {},
                 onClearSearchQuery: () {},
@@ -174,6 +201,10 @@ void main() {
       final textController = TextEditingController(text: 'Pesan draf');
       final composerFocusNode = FocusNode();
       final composerKey = GlobalKey<ChatComposerState>();
+      addTearDown(() {
+        textController.dispose();
+        composerFocusNode.dispose();
+      });
 
       await tester.pumpWidget(
         ProviderScope(
