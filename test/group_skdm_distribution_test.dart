@@ -515,4 +515,179 @@ void main() {
       expect(decrypted, equals('Pesan sebelum Bob sinkron'));
     });
   });
+
+  group('Fase 2 Sisa A & B: Identity Re-fetch & Persistent Membership Tracker', () {
+    test('Sisa A: Auto re-fetch kunci identitas dari profil saat pengirim berganti perangkat (cache invalidated & reverified)', () async {
+      final ed25519 = Ed25519();
+      final aliceOldKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 1));
+      final aliceOldPubB64 = base64Encode((await aliceOldKeyPair.extractPublicKey()).bytes);
+
+      final aliceNewKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 77));
+      final aliceNewPubB64 = base64Encode((await aliceNewKeyPair.extractPublicKey()).bytes);
+
+      // Database mock profil di server
+      final mockProfiles = <String, String>{
+        aliceId: aliceNewPubB64, // Profil di server sudah diperbarui ke kunci baru
+      };
+
+      final customBobStore = InMemorySenderKeyStore();
+      final customBobE2ee = GroupE2eeService(
+        store: customBobStore,
+        initialIdentityKeyPair: await ed25519.newKeyPairFromSeed(List.filled(32, 2)),
+      );
+
+      final customBobDistributor = GroupKeyDistributionService(
+        groupE2eeService: customBobE2ee,
+        chatRepository: fakeRepo,
+        senderKeyStore: customBobStore,
+        identityKeyResolver: (userId) async => mockProfiles[userId],
+      );
+
+      // Simulasikan Bob masih menyimpan cache kunci LAMA Alice dari sesi sebelumnya
+      customBobDistributor.cacheUserIdentityKey(aliceId, aliceOldPubB64);
+
+      // Alice (di HP baru) membuat sender key dan menandatangani SKDM dengan kunci identitas baru
+      final aliceNewE2ee = GroupE2eeService(
+        store: InMemorySenderKeyStore(),
+        initialIdentityKeyPair: aliceNewKeyPair,
+      );
+      final aliceNewDistributor = GroupKeyDistributionService(
+        groupE2eeService: aliceNewE2ee,
+        chatRepository: fakeRepo,
+        senderKeyStore: InMemorySenderKeyStore(),
+      );
+
+      final newRecord = await aliceNewE2ee.generateSenderKey(testGroupId, keyId: 5);
+      final newSkdm = await aliceNewDistributor.buildSignedSkdm(newRecord, aliceId);
+
+      // Bob memproses SKDM dari Alice HP baru
+      // Langkah: Verifikasi cache K1 gagal -> auto invalidate -> fetch K2 dari mockProfiles -> reverify sukses!
+      final success = await customBobDistributor.verifyAndProcessSkdm(
+        newSkdm,
+        expectedSenderId: aliceId,
+      );
+
+      expect(success, isTrue);
+
+      final registeredState = await customBobStore.getSenderState(testGroupId, aliceId, 5);
+      expect(registeredState, isNotNull);
+      expect(registeredState!.keyId, equals(5));
+    });
+
+    test('Sisa A (Negatif): Penyerang dengan kunci liar tetap ditolak setelah re-fetch (fail-closed)', () async {
+      final ed25519 = Ed25519();
+      final aliceValidKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 1));
+      final aliceValidPubB64 = base64Encode((await aliceValidKeyPair.extractPublicKey()).bytes);
+
+      final attackerKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 99));
+
+      final mockProfiles = <String, String>{
+        aliceId: aliceValidPubB64,
+      };
+
+      final customBobStore = InMemorySenderKeyStore();
+      final customBobE2ee = GroupE2eeService(
+        store: customBobStore,
+        initialIdentityKeyPair: await ed25519.newKeyPairFromSeed(List.filled(32, 2)),
+      );
+
+      final customBobDistributor = GroupKeyDistributionService(
+        groupE2eeService: customBobE2ee,
+        chatRepository: fakeRepo,
+        senderKeyStore: customBobStore,
+        identityKeyResolver: (userId) async => mockProfiles[userId],
+      );
+
+      // Mallory mencoba menandatangani SKDM Alice dengan kuncinya sendiri
+      final attackerE2ee = GroupE2eeService(
+        store: InMemorySenderKeyStore(),
+        initialIdentityKeyPair: attackerKeyPair,
+      );
+      final attackerDistributor = GroupKeyDistributionService(
+        groupE2eeService: attackerE2ee,
+        chatRepository: fakeRepo,
+        senderKeyStore: InMemorySenderKeyStore(),
+      );
+
+      final forgedRecord = await attackerE2ee.generateSenderKey(testGroupId, keyId: 1);
+      final forgedSkdm = await attackerDistributor.buildSignedSkdm(forgedRecord, aliceId);
+
+      final success = await customBobDistributor.verifyAndProcessSkdm(
+        forgedSkdm,
+        expectedSenderId: aliceId,
+      );
+
+      // Verifikasi awal & re-fetch terhadap profil Alice tetap gagal
+      expect(success, isFalse);
+      final registered = await customBobStore.getSenderState(testGroupId, aliceId, 1);
+      expect(registered, isNull);
+    });
+
+    test('Sisa B: Penanda persisten di SenderKeyStore mendeteksi penyusutan anggota saat aplikasi offline/tertutup', () async {
+      final customBobStore = InMemorySenderKeyStore();
+      final ed25519 = Ed25519();
+      final customBobE2ee = GroupE2eeService(
+        store: customBobStore,
+        initialIdentityKeyPair: await ed25519.newKeyPairFromSeed(List.filled(32, 2)),
+      );
+
+      // Simulasikan state sebelum aplikasi ditutup: Bob punya sender key dan penanda persisten {Alice, Bob, Charlie}
+      await customBobE2ee.generateSenderKey(testGroupId, keyId: 1);
+      await customBobStore.saveLastKnownMemberIds(testGroupId, [aliceId, bobId, charlieId]);
+
+      // Buat state dummy untuk Charlie di storage Bob
+      await customBobStore.saveSenderState(
+        SenderKeyState(
+          groupId: testGroupId,
+          senderId: charlieId,
+          keyId: 1,
+          chainKey: List.filled(32, 3),
+          signingPublicKeyBytes: List.filled(32, 3),
+          counter: 0,
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      expect(await customBobStore.getSenderState(testGroupId, charlieId, 1), isNotNull);
+
+      // Aplikasi Bob dibuka kembali (instans baru dengan in-memory cache KOSONG)
+      final newBobDistributor = GroupKeyDistributionService(
+        groupE2eeService: customBobE2ee,
+        chatRepository: fakeRepo,
+        senderKeyStore: customBobStore,
+      );
+
+      // Pengambilan daftar anggota saat ini dari server: Charlie sudah tidak ada (dikeluarkan saat Bob offline)
+      final currentMembers = [aliceId, bobId];
+
+      final rekeyed = await newBobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: currentMembers,
+      );
+
+      // Harus terdeteksi menyusut dan melakukan rekeying!
+      expect(rekeyed, isTrue);
+
+      // State Charlie harus terhapus dari storage Bob
+      final charlieStateAfter = await customBobStore.getSenderState(testGroupId, charlieId, 1);
+      expect(charlieStateAfter, isNull);
+
+      // Sender key Bob harus naik ke keyId 2
+      final newOurKey = await customBobStore.getOurSenderKey(testGroupId);
+      expect(newOurKey!.keyId, equals(2));
+
+      // Penanda persisten di database lokal harus terupdate ke {Alice, Bob}
+      final persistedMembers = await customBobStore.getLastKnownMemberIds(testGroupId);
+      expect(persistedMembers, equals([aliceId, bobId]));
+
+      // Pemanggilan kedua dengan daftar yang sama bersifat idempoten (tidak rekey lagi)
+      final secondCheck = await newBobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: currentMembers,
+      );
+      expect(secondCheck, isFalse);
+    });
+  });
 }

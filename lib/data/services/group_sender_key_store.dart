@@ -66,6 +66,13 @@ abstract class SenderKeyStore {
   /// Membersihkan skipped keys yang sudah kedaluwarsa.
   Future<void> purgeExpiredSkippedKeys([DateTime? now]);
 
+  /// Mengambil daftar ID anggota terakhir yang diketahui untuk suatu grup secara persisten.
+  /// Digunakan untuk mendeteksi penyusutan keanggotaan (membership shrink) bahkan setelah aplikasi di-restart.
+  Future<List<String>?> getLastKnownMemberIds(String groupId);
+
+  /// Menyimpan daftar ID anggota terakhir yang diketahui untuk suatu grup secara persisten.
+  Future<void> saveLastKnownMemberIds(String groupId, List<String> memberIds);
+
   /// Menghapus seluruh state sender key (misal saat logout atau wipe).
   Future<void> clearAll();
 }
@@ -76,6 +83,7 @@ class InMemorySenderKeyStore implements SenderKeyStore {
   final Map<String, SenderKeyRecord> _ourKeys = {};
   final Map<String, SenderKeyState> _senderStates = {};
   final Map<String, SkippedMessageKey> _skippedKeys = {};
+  final Map<String, List<String>> _persistedMemberIds = {};
 
   String _senderStateKey(String groupId, String senderId, int keyId) =>
       '$groupId:$senderId:$keyId';
@@ -145,6 +153,19 @@ class InMemorySenderKeyStore implements SenderKeyStore {
   Future<void> clearGroup(String groupId) async {
     await deleteOurSenderKey(groupId);
     await deleteSenderStatesForGroup(groupId);
+    _persistedMemberIds.remove(groupId);
+  }
+
+  @override
+  Future<List<String>?> getLastKnownMemberIds(String groupId) async {
+    final list = _persistedMemberIds[groupId];
+    return list != null ? List<String>.from(list) : null;
+  }
+
+  @override
+  Future<void> saveLastKnownMemberIds(String groupId, List<String> memberIds) async {
+    final sorted = List<String>.from(memberIds)..sort();
+    _persistedMemberIds[groupId] = sorted;
   }
 
   @override
@@ -191,9 +212,10 @@ class InMemorySenderKeyStore implements SenderKeyStore {
 
   @override
   Future<void> clearAll() async {
-    _ourKeys.clear;
-    _senderStates.clear;
-    _skippedKeys.clear;
+    _ourKeys.clear();
+    _senderStates.clear();
+    _skippedKeys.clear();
+    _persistedMemberIds.clear();
   }
 }
 
@@ -207,6 +229,7 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
   static const String tableOurKeys = 'group_sender_keys';
   static const String tableSenderStates = 'group_sender_states';
   static const String tableSkippedKeys = 'group_skipped_keys';
+  static const String tableMembershipTracker = 'group_membership_tracker';
 
   static final Ed25519 _ed25519 = Ed25519();
 
@@ -249,6 +272,14 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
         message_key TEXT NOT NULL,
         expires_at TEXT NOT NULL,
         PRIMARY KEY (group_id, sender_id, key_id, counter)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableMembershipTracker (
+        group_id TEXT PRIMARY KEY,
+        member_ids TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     ''');
   }
@@ -439,8 +470,72 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
 
   @override
   Future<void> clearGroup(String groupId) async {
-    await deleteOurSenderKey(groupId);
-    await deleteSenderStatesForGroup(groupId);
+    try {
+      final db = await _db;
+      await deleteOurSenderKey(groupId);
+      await deleteSenderStatesForGroup(groupId);
+      await db.delete(
+        tableMembershipTracker,
+        where: 'group_id = ?',
+        whereArgs: [groupId],
+      );
+    } catch (e) {
+      _logger.e('Gagal clear group $groupId: $e');
+    }
+  }
+
+  @override
+  Future<List<String>?> getLastKnownMemberIds(String groupId) async {
+    try {
+      final db = await _db;
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableMembershipTracker (
+          group_id TEXT PRIMARY KEY,
+          member_ids TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      final rows = await db.query(
+        tableMembershipTracker,
+        where: 'group_id = ?',
+        whereArgs: [groupId],
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      final raw = rows.first['member_ids'] as String;
+      final list = (jsonDecode(raw) as List).cast<String>();
+      return list;
+    } catch (e) {
+      _logger.w('Gagal membaca last known member IDs untuk grup $groupId: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<void> saveLastKnownMemberIds(String groupId, List<String> memberIds) async {
+    try {
+      final db = await _db;
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableMembershipTracker (
+          group_id TEXT PRIMARY KEY,
+          member_ids TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      final sorted = List<String>.from(memberIds)..sort();
+      await db.insert(
+        tableMembershipTracker,
+        {
+          'group_id': groupId,
+          'member_ids': jsonEncode(sorted),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      _logger.e('Gagal menyimpan last known member IDs untuk grup $groupId: $e');
+      rethrow;
+    }
   }
 
   @override
@@ -551,6 +646,7 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
       await db.delete(tableOurKeys);
       await db.delete(tableSenderStates);
       await db.delete(tableSkippedKeys);
+      await db.delete(tableMembershipTracker);
     } catch (e) {
       _logger.e('Gagal clear all sender keys: $e');
     }

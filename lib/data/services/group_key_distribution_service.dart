@@ -19,10 +19,12 @@ class GroupKeyDistributionService {
     ChatRepository? chatRepository,
     SenderKeyStore? senderKeyStore,
     SupabaseService? supabaseService,
+    Future<String?> Function(String userId)? identityKeyResolver,
   })  : _groupE2eeService = groupE2eeService ?? GroupE2eeService.instance,
         _chatRepository = chatRepository ?? ChatRepository(SupabaseService()),
         _senderKeyStore = senderKeyStore ?? SqlCipherSenderKeyStore.instance,
-        _supabase = supabaseService ?? SupabaseService();
+        _supabase = supabaseService ?? SupabaseService(),
+        _identityKeyResolver = identityKeyResolver;
 
   static final GroupKeyDistributionService instance =
       GroupKeyDistributionService();
@@ -34,9 +36,30 @@ class GroupKeyDistributionService {
   final ChatRepository _chatRepository;
   final SenderKeyStore _senderKeyStore;
   final SupabaseService _supabase;
+  final Future<String?> Function(String userId)? _identityKeyResolver;
 
   final Map<String, List<String>> _lastKnownMemberIdsCache = {};
   final Map<String, String> _identityKeyCache = {};
+
+  /// Mengambil kunci identitas Ed25519 langsung dari view public_profiles Supabase
+  /// atau menggunakan resolver kustom (misal pada unit testing).
+  Future<String?> _fetchIdentityKeyFromProfile(String userId) async {
+    final resolver = _identityKeyResolver;
+    if (resolver != null) {
+      return await resolver(userId);
+    }
+    try {
+      final row = await _supabase.client
+          .from('public_profiles')
+          .select('ed25519_identity_key')
+          .eq('id', userId)
+          .maybeSingle();
+      return row?['ed25519_identity_key'] as String?;
+    } catch (e) {
+      _logger.w('Gagal mengambil ed25519_identity_key untuk $userId dari Supabase: $e');
+      return null;
+    }
+  }
 
   /// Mendaftarkan atau mencache kunci identitas Ed25519 untuk seorang pengguna.
   void cacheUserIdentityKey(String userId, String identityKeyB64) {
@@ -105,36 +128,11 @@ class GroupKeyDistributionService {
       String? senderIdentityKeyB64 =
           expectedSenderIdentityKeyB64 ?? _identityKeyCache[expectedSenderId];
       if (senderIdentityKeyB64 == null || senderIdentityKeyB64.isEmpty) {
-        try {
-          final row = await _supabase.client
-              .from('public_profiles')
-              .select('ed25519_identity_key')
-              .eq('id', expectedSenderId)
-              .maybeSingle();
-          senderIdentityKeyB64 = row?['ed25519_identity_key'] as String?;
-          if (senderIdentityKeyB64 != null && senderIdentityKeyB64.isNotEmpty) {
-            _identityKeyCache[expectedSenderId] = senderIdentityKeyB64;
-          }
-        } catch (e) {
-          _logger.w('Gagal mengambil ed25519_identity_key untuk $expectedSenderId: $e');
+        senderIdentityKeyB64 = await _fetchIdentityKeyFromProfile(expectedSenderId);
+        if (senderIdentityKeyB64 != null && senderIdentityKeyB64.isNotEmpty) {
+          _identityKeyCache[expectedSenderId] = senderIdentityKeyB64;
         }
       }
-
-      if (senderIdentityKeyB64 == null || senderIdentityKeyB64.isEmpty) {
-        _logger.w('Kunci identitas Ed25519 untuk pengirim $expectedSenderId tidak ditemukan. SKDM ditolak.');
-        return false;
-      }
-
-      final identityPubKeyBytes = base64Decode(senderIdentityKeyB64);
-      if (identityPubKeyBytes.length != 32) {
-        _logger.w('Panjang kunci identitas Ed25519 pengirim tidak valid (harus 32 bytes). SKDM ditolak.');
-        return false;
-      }
-
-      final identityPubKey = SimplePublicKey(
-        identityPubKeyBytes,
-        type: KeyPairType.ed25519,
-      );
 
       final sigBytes = base64Decode(skdm.signatureB64);
       if (sigBytes.length != 64) {
@@ -142,13 +140,48 @@ class GroupKeyDistributionService {
         return false;
       }
 
-      final isValid = await _ed25519.verify(
-        utf8.encode(skdm.canonicalPayload),
-        signature: Signature(sigBytes, publicKey: identityPubKey),
-      );
+      bool isValid = false;
+      if (senderIdentityKeyB64 != null && senderIdentityKeyB64.isNotEmpty) {
+        final identityPubKeyBytes = base64Decode(senderIdentityKeyB64);
+        if (identityPubKeyBytes.length == 32) {
+          final identityPubKey = SimplePublicKey(
+            identityPubKeyBytes,
+            type: KeyPairType.ed25519,
+          );
+          isValid = await _ed25519.verify(
+            utf8.encode(skdm.canonicalPayload),
+            signature: Signature(sigBytes, publicKey: identityPubKey),
+          );
+        }
+      }
+
+      // Sisa A: Jika verifikasi awal gagal, batalkan cache lokal dan ambil ulang kunci segar dari profil (anggota ganti perangkat)
+      if (!isValid) {
+        _logger.w('Tanda tangan digital SKDM awal dari ${skdm.senderId} tidak cocok. Membatalkan cache dan mengambil identitas segar...');
+        _identityKeyCache.remove(expectedSenderId);
+        final freshIdentityKeyB64 = await _fetchIdentityKeyFromProfile(expectedSenderId);
+        if (freshIdentityKeyB64 != null &&
+            freshIdentityKeyB64.isNotEmpty &&
+            freshIdentityKeyB64 != senderIdentityKeyB64) {
+          final freshBytes = base64Decode(freshIdentityKeyB64);
+          if (freshBytes.length == 32) {
+            final freshPubKey = SimplePublicKey(freshBytes, type: KeyPairType.ed25519);
+            final isReverified = await _ed25519.verify(
+              utf8.encode(skdm.canonicalPayload),
+              signature: Signature(sigBytes, publicKey: freshPubKey),
+            );
+            if (isReverified) {
+              _logger.i('SKDM berhasil diverifikasi ulang dengan kunci identitas segar untuk $expectedSenderId (pengirim berganti perangkat)');
+              _identityKeyCache[expectedSenderId] = freshIdentityKeyB64;
+              senderIdentityKeyB64 = freshIdentityKeyB64;
+              isValid = true;
+            }
+          }
+        }
+      }
 
       if (!isValid) {
-        _logger.w('Tanda tangan digital identitas SKDM dari ${skdm.senderId} tidak valid / tidak cocok!');
+        _logger.w('Tanda tangan digital identitas SKDM dari ${skdm.senderId} tetap tidak valid / ditolak!');
         return false;
       }
 
@@ -171,10 +204,12 @@ class GroupKeyDistributionService {
   }
 
   /// Memeriksa apakah himpunan anggota grup menyusut (ada yang keluar / di-kick).
-  /// Sesuai Brief §4.2:
+  /// Sesuai Brief §4.2 & Review Sisa B:
   /// Saat keanggotaan menyusut dan pengguna saat ini masih berada di grup:
   /// Picu rekeying otomatis (keyId + 1), hapus state mantan anggota,
   /// dan distribusikan sender key baru ke anggota yang tersisa.
+  /// Penanda himpunan anggota terakhir dipersistensikan di SenderKeyStore untuk
+  /// mendeteksi penyusutan yang terjadi saat aplikasi sedang tertutup (offline).
   Future<bool> checkAndRekeyIfMembershipShrunk({
     required String groupId,
     required String currentUserId,
@@ -182,15 +217,18 @@ class GroupKeyDistributionService {
   }) async {
     if (!currentMemberIds.contains(currentUserId)) {
       _lastKnownMemberIdsCache.remove(groupId);
+      await _senderKeyStore.clearGroup(groupId);
       return false;
     }
 
     final sortedCurrent = List<String>.from(currentMemberIds)..sort();
-    final previous = _lastKnownMemberIdsCache[groupId];
+    List<String>? previous = _lastKnownMemberIdsCache[groupId];
+    previous ??= await _senderKeyStore.getLastKnownMemberIds(groupId);
 
-    // Jika belum ada riwayat sebelumnya, inisialisasi cache dan selesai.
+    // Jika belum ada riwayat sebelumnya, inisialisasi cache & database persisten lalu selesai.
     if (previous == null) {
       _lastKnownMemberIdsCache[groupId] = sortedCurrent;
+      await _senderKeyStore.saveLastKnownMemberIds(groupId, sortedCurrent);
       return false;
     }
 
@@ -234,7 +272,9 @@ class GroupKeyDistributionService {
           }
         }
 
+        // Penanda hanya dimajukan setelah rekey dan distribusi berhasil
         _lastKnownMemberIdsCache[groupId] = sortedCurrent;
+        await _senderKeyStore.saveLastKnownMemberIds(groupId, sortedCurrent);
         _logger.i('Rekeying pengamat pasif berhasil untuk grup $groupId (keyId: $nextKeyId)');
         return true;
       } catch (e) {
@@ -243,6 +283,7 @@ class GroupKeyDistributionService {
       }
     } else {
       _lastKnownMemberIdsCache[groupId] = sortedCurrent;
+      await _senderKeyStore.saveLastKnownMemberIds(groupId, sortedCurrent);
       return false;
     }
   }
