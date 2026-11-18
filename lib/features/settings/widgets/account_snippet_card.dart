@@ -3,36 +3,37 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
 
 /// Helper logout confirm — dipakai bersama oleh [AccountSnippetCard]
 /// dan [SettingsLogoutTile].
 Future<void> _showLogoutConfirm(BuildContext context, WidgetRef ref) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await MekaarDialog.showConfirmation<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Keluar Aplikasi?'),
-      content: const Text('PIN keamanan lokal akan dihapus demi privasi.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text(
-            'Keluar',
-            style: TextStyle(
-              color: MekaarColors.sosRed,
-              fontWeight: FontWeight.bold,
-            ),
+    title: MekaarCopy.logoutConfirmTitle,
+    message: MekaarCopy.logoutConfirmMessage,
+    isDestructive: true,
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, false),
+        child: const Text('Batal'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, true),
+        child: const Text(
+          MekaarCopy.logoutConfirmAction,
+          style: TextStyle(
+            color: MekaarColors.sosRed,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      ],
-    ),
+      ),
+    ],
   );
 
   if (confirmed == true && context.mounted) {
@@ -66,7 +67,12 @@ class AccountSnippetCard extends ConsumerWidget {
         profile?.fullName ??
         profile?.username ??
         'Pengguna';
-    final email = user?.email ?? profile?.username ?? '';
+    final username = profile?.username;
+    final handleText = (username != null && username.isNotEmpty)
+        ? '@$username'
+        : (user?.email?.isNotEmpty == true
+            ? user!.email!
+            : 'Info Profil & Akun');
 
     return InkWell(
       onTap: () {
@@ -83,7 +89,7 @@ class AccountSnippetCard extends ConsumerWidget {
               size: 46,
             ),
             const SizedBox(width: 14),
-            // Nama & email
+            // Nama & @username
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +107,7 @@ class AccountSnippetCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    email.isNotEmpty ? email : 'Info Pribadi & Keamanan Akun',
+                    handleText,
                     style: MekaarTypography.caption.copyWith(
                       fontSize: 12.5,
                       color: MekaarColors.textSecondaryOf(context),
@@ -153,7 +159,7 @@ class SettingsLogoutTile extends ConsumerWidget {
         ),
       ),
       title: Text(
-        'Keluar',
+        MekaarCopy.logoutTitle,
         style: MekaarTypography.bodyMD.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w700,
@@ -161,7 +167,7 @@ class SettingsLogoutTile extends ConsumerWidget {
         ),
       ),
       subtitle: Text(
-        'Sesi login dan PIN lokal akan dihapus.',
+        MekaarCopy.logoutSubtitle,
         style: MekaarTypography.bodySM.copyWith(
           fontSize: 13.5,
           color: MekaarColors.textMutedOf(context),

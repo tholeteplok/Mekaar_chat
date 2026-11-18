@@ -43,7 +43,6 @@ void main() {
       'lib/features/settings/screens/pin_management_screen.dart',
       'lib/features/settings/screens/security_logs_screen.dart',
       'lib/features/settings/screens/settings_screen.dart',
-      'lib/features/settings/widgets/account_snippet_card.dart',
       'lib/features/sos/screens/sos_drill_screen.dart',
       'lib/features/sos/screens/video_emergency_screen.dart',
     };

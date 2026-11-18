@@ -184,7 +184,7 @@ void main() {
       expect(content.contains('Pesan'), isTrue);
       expect(content.contains('Kontak'), isTrue);
       expect(content.contains('Guardian'), isTrue);
-      expect(content.contains('Setelan'), isTrue);
+      expect(content.contains('settingsTitle'), isTrue);
       // Memori spasial: tidak memangkas tab saat SOS nonaktif
       expect(content.contains('item.label != \'Guardian\''), isFalse);
     });

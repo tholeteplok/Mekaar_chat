@@ -137,4 +137,78 @@ abstract final class MekaarCopy {
   static const String guardianHubTitle = 'Pendamping Perjalanan';
   static const String guardianHubSubtitle =
       'Bagikan rute dan kabar perjalanan secara langsung kepada keluarga atau teman dekat.';
+
+  // ===========================================================================
+  // 8. PENGATURAN UTAMA (SETTINGS HUB & IA BARU)
+  // ===========================================================================
+  static const String settingsTitle = 'Pengaturan';
+
+  // Header Seksi
+  static const String settingsPrivacySection = 'Privasi';
+  static const String settingsSecuritySection = 'Keamanan';
+  static const String settingsSafetySection = 'Keselamatan & Guardian';
+  static const String settingsNotificationSection = 'Notifikasi & Suara';
+  static const String settingsDisplaySection = 'Tampilan';
+  static const String settingsAboutSection = 'Informasi';
+
+  // Seksi Privasi
+  static const String lastSeenTitle = 'Terakhir Dilihat & Online';
+  static const String readReceiptsTitle = 'Bukti Baca Pesan';
+  static const String chatInvitationsTitle = 'Undangan Chat';
+  static const String nearbyFriendsTitle = 'Teman Sekitar';
+  static const String nearbyFriendsEnableTitle = 'Aktifkan Teman Sekitar';
+  static const String nearbyFriendsPreviewTitle = 'Preview di Tab Kontak';
+  static const String nearbyFriendsContactsOnlyTitle = 'Hanya Kontak Saya';
+  static const String nearbyFriendsEveryoneTitle = 'Semua Pengguna di Sekitar';
+  static const String blockedListTitle = 'Daftar Blokir';
+  static const String relayCallsTitle = 'Sembunyikan Alamat IP Panggilan';
+  static const String relayCallsSubtitle =
+      'Alihkan panggilan via server relay Mekaar';
+
+  // Seksi Keamanan
+  static const String pinManagementTitle = 'Manajemen PIN Keamanan';
+  static const String pinManagementDecoyTitle = 'PIN Keamanan';
+  static const String autoLockTitle = 'Kunci Otomatis';
+  static const String twoStepVerificationTitle = 'Verifikasi 2 Langkah';
+  static const String twoStepDisableDialogTitle =
+      'Matikan Verifikasi 2 Langkah';
+  static const String connectedDevicesTitle = 'Perangkat Terhubung';
+  static const String blockScreenshotsTitle = 'Blokir Tangkapan Layar';
+
+  // Seksi Keselamatan & Guardian
+  static const String sosFeatureTitle = 'Fitur Darurat SOS';
+  static const String sosFeatureSubtitle =
+      'Aktifkan sirene, rekaman, dan sinyal darurat ke guardian';
+  static const String sosDisableDialogTitle =
+      'Nonaktifkan Fitur Darurat SOS?';
+  static const String sosLogsTitle = 'Riwayat SOS';
+  static const String sosLogsInactiveSubtitle = 'Fitur SOS nonaktif';
+  static const String sosDrillTitle = 'Latihan SOS';
+  static const String sosDrillSubtitle =
+      'Simulasi alur darurat tanpa sinyal nyata';
+  static const String guardianAlarmTitle = 'Izin Alarm Guardian';
+  static const String tripsTitle = 'Check-In & Perjalanan';
+  static const String findMyPhoneTitle = 'Temukan Ponsel Saya';
+
+  // Seksi Notifikasi & Suara
+  static const String notificationSoundsTitle = 'Nada Notifikasi';
+  static const String stealthChatPreviewTitle = 'Sembunyikan Cuplikan Pesan';
+  static const String notificationMaskingTitle = 'Samarkan Notifikasi Darurat';
+  static const String hapticsTitle = 'Getaran';
+
+  // Seksi Tampilan
+  static const String themeSettingsTitle = 'Tema & Mode Gelap';
+  static const String chatThemeTitle = 'Tema Ruang Obrolan';
+  static const String chatThemeSubtitle =
+      'Gelembung, warna, font & wallpaper obrolan';
+
+  // Seksi Informasi & Akun
+  static const String aboutTitle = 'Tentang Mekaar';
+  static const String logoutTitle = 'Keluar';
+  static const String logoutSubtitle = 'Sesi login dan PIN lokal akan dihapus.';
+  static const String logoutConfirmTitle = 'Keluar dari Akun?';
+  static const String logoutConfirmMessage =
+      'Sesi masuk dan PIN keamanan lokal di perangkat ini akan dihapus. '
+      'Anda harus masuk kembali dengan kata sandi.';
+  static const String logoutConfirmAction = 'Keluar';
 }

@@ -48,7 +48,7 @@ void main() {
   });
 
   group('P0-1 & P1-1: Restrukturisasi & Stabilisasi Tab Navigasi Utama', () {
-    testWidgets('MainNavigationScreen menampilkan 4 tab: Pesan, Kontak, Guardian, Setelan', (tester) async {
+    testWidgets('MainNavigationScreen menampilkan 4 tab: Pesan, Kontak, Guardian, Pengaturan', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -76,7 +76,7 @@ void main() {
       expect(navWidget.items[0].label, 'Pesan');
       expect(navWidget.items[1].label, 'Kontak');
       expect(navWidget.items[2].label, 'Guardian');
-      expect(navWidget.items[3].label, 'Setelan');
+      expect(navWidget.items[3].label, 'Pengaturan');
 
       // Verifikasi ikon tab Guardian
       expect(navWidget.items[2].inactiveIcon, SolarIconsOutline.shieldUser);
@@ -166,7 +166,7 @@ void main() {
       expect(navWidget.items[0].label, 'Pesan');
       expect(navWidget.items[1].label, 'Kontak');
       expect(navWidget.items[2].label, 'Guardian');
-      expect(navWidget.items[3].label, 'Setelan');
+      expect(navWidget.items[3].label, 'Pengaturan');
 
       // Flush pending check update timer dari ChatListScreen
       await tester.pump(const Duration(seconds: 2));

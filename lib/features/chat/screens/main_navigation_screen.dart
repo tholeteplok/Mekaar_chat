@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_bottom_nav.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
@@ -61,7 +62,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       activeIcon: SolarIconsBold.shieldUser,
     ),
     MekaarNavItem(
-      label: 'Setelan',
+      label: MekaarCopy.settingsTitle,
       inactiveIcon: SolarIconsOutline.settings,
       activeIcon: SolarIconsBold.settings,
     ),
