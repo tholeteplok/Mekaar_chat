@@ -339,10 +339,13 @@ void main() {
   });
 
   group('UX-13: Verifikasi Titik Akses UI & Routing', () {
-    test('SettingsScreen memuat tile navigasi Latihan SOS (Simulasi)', () {
+    test('SettingsScreen memuat tile navigasi Latihan SOS', () {
       final file = File('lib/features/settings/screens/settings_screen.dart');
       final content = file.readAsStringSync();
-      expect(content.contains('Latihan SOS (Simulasi)'), isTrue);
+      expect(
+        content.contains('sosDrillTitle') || content.contains('Latihan SOS'),
+        isTrue,
+      );
       expect(content.contains('AppRoutes.sosDrill'), isTrue);
     });
 

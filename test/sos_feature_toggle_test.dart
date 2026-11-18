@@ -153,11 +153,18 @@ void main() {
     test('SettingsScreen memuat toggle Fitur Darurat SOS, modal konfirmasi, dan wizard setup', () {
       final file = File('lib/features/settings/screens/settings_screen.dart');
       final content = file.readAsStringSync();
-      expect(content.contains('Fitur Darurat SOS'), isTrue);
+      expect(
+        content.contains('sosFeatureTitle') || content.contains('Fitur Darurat SOS'),
+        isTrue,
+      );
       expect(content.contains('sosFeatureEnabledProvider'), isTrue);
       expect(content.contains('_handleSosToggle'), isTrue);
       expect(content.contains('_showSafetySetupWizard'), isTrue);
-      expect(content.contains('Nonaktifkan Fitur Darurat SOS?'), isTrue);
+      expect(
+        content.contains('sosDisableDialogTitle') ||
+            content.contains('Nonaktifkan Fitur Darurat SOS?'),
+        isTrue,
+      );
       expect(content.contains('Lengkapi Proteksi SOS'), isTrue);
     });
 
