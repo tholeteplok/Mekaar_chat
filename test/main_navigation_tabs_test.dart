@@ -78,6 +78,10 @@ void main() {
       expect(navWidget.items[2].label, 'Guardian');
       expect(navWidget.items[3].label, 'Pengaturan');
 
+      // Verifikasi ikon tab Kontak (personal user, bukan grup multi-person)
+      expect(navWidget.items[1].inactiveIcon, SolarIconsOutline.userRounded);
+      expect(navWidget.items[1].activeIcon, SolarIconsBold.userRounded);
+
       // Verifikasi ikon tab Guardian
       expect(navWidget.items[2].inactiveIcon, SolarIconsOutline.shieldUser);
       expect(navWidget.items[2].activeIcon, SolarIconsBold.shieldUser);

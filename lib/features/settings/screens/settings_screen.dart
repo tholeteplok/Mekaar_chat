@@ -369,9 +369,6 @@ class SettingsScreen extends ConsumerWidget {
                     // ── 6. Informasi ──
                     _buildAboutSection(context),
 
-                    // ── Tombol Keluar di Dasar Halaman ──
-                    const SizedBox(height: MekaarSpacing.lg),
-                    const SettingsLogoutTile(),
                     const SizedBox(height: 110),
                   ],
                 ),

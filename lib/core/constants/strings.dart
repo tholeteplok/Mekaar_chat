@@ -37,6 +37,12 @@ abstract final class MekaarCopy {
   static const String mediaViewOncePreview = 'Media sekali lihat';
   static String mediaVoicePreview(String duration) => 'Pesan suara ($duration)';
 
+  // Aksi Header & Brankas Berkas
+  static const String vaultTitle = 'Brankas Berkas';
+  static const String vaultVerifyTitle = 'Buka Brankas Berkas';
+  static const String vaultVerifySubtitle =
+      'Masukkan PIN untuk mengakses berkas rahasia';
+
   // ===========================================================================
   // 3. RUANG OBROLAN & CATATAN ENKRIPSI (QUIET BY DESIGN)
   // ===========================================================================

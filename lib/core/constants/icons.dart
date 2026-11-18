@@ -12,7 +12,7 @@ class MekaarIcons {
   static const guardian = SolarIconsOutline.shieldKeyhole;
 
   /// Ikon grup — untuk chat grup
-  static const group = SolarIconsOutline.usersGroupRounded;
+  static const group = SolarIconsOutline.usersGroupTwoRounded;
 
   /// Ikon notifikasi mati — untuk chat yang di-mute
   static const muted = SolarIconsOutline.bellOff;
@@ -207,7 +207,7 @@ class MekaarIcons {
   static const lockOutline = SolarIconsOutline.lock;
 
   /// Groups outline
-  static const groupsOutline = SolarIconsOutline.usersGroupRounded;
+  static const groupsOutline = SolarIconsOutline.usersGroupTwoRounded;
 
   /// Shield outline
   static const shieldOutline = SolarIconsOutline.shield;

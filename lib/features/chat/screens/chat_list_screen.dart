@@ -7,6 +7,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
@@ -42,7 +43,6 @@ import '../../../core/widgets/mekaar_permissions_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../data/services/update_service.dart';
 import '../../guardian/widgets/active_trip_card.dart';
-import '../../guardian/widgets/quick_trip_sheet.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
@@ -585,82 +585,29 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 },
                               ),
                             ),
-                            PopupMenuButton<String>(
+                            IconButton(
                               icon: Icon(
-                                SolarIconsOutline.menuDotsCircle,
+                                SolarIconsOutline.safeSquare,
                                 color: MekaarColors.textPrimaryOf(context),
                               ),
-                              tooltip: 'Menu Tambahan',
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              color: MekaarColors.surfaceOf(context),
-                              onSelected: (value) async {
-                                if (value == 'vault') {
-                                  final verified =
-                                      await MekaarPinVerificationSheet.verify(
-                                        context,
-                                        title: 'Buka Brankas Berkas',
-                                        subtitle:
-                                            'Masukkan PIN untuk mengakses berkas rahasia',
-                                      );
-                                  if (verified && context.mounted) {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.vault,
-                                    );
-                                  }
-                                } else if (value == 'quick_trip') {
-                                  QuickTripSheet.show(context);
+                              tooltip: MekaarCopy.vaultTitle,
+                              onPressed: () async {
+                                HapticService.trigger(
+                                  MekaarHapticIntent.selection,
+                                );
+                                final verified =
+                                    await MekaarPinVerificationSheet.verify(
+                                  context,
+                                  title: MekaarCopy.vaultVerifyTitle,
+                                  subtitle: MekaarCopy.vaultVerifySubtitle,
+                                );
+                                if (verified && context.mounted) {
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.vault,
+                                  );
                                 }
                               },
-                              itemBuilder: (ctx) => [
-                                PopupMenuItem<String>(
-                                  value: 'quick_trip',
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        SolarIconsOutline.routing,
-                                        color: MekaarColors.primaryOf(context),
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Antar Aku Pulang',
-                                        style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(
-                                            context,
-                                          ),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                PopupMenuItem<String>(
-                                  value: 'vault',
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        SolarIconsOutline.safeSquare,
-                                        color: MekaarColors.primaryOf(context),
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Brankas Berkas',
-                                        style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(
-                                            context,
-                                          ),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),

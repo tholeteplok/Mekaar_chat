@@ -236,25 +236,22 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('PopupMenuButton tidak lagi menyertakan opsi Arsip Percakapan', (tester) async {
+    testWidgets('Header action memuat tombol Brankas Berkas langsung tanpa menu titik tiga dan tanpa duplikasi Antar Aku Pulang', (tester) async {
       await tester.pumpWidget(
         createSubject(rooms: [fakeActiveRoom]),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // Buka popup menu titik tiga (tooltip 'Menu Tambahan')
-      final menuButton = find.byTooltip('Menu Tambahan');
-      expect(menuButton, findsOneWidget);
-      await tester.tap(menuButton);
-      await tester.pumpAndSettle();
+      // Verifikasi tombol Brankas Berkas langsung tampil di header action
+      final vaultButton = find.byTooltip('Brankas Berkas');
+      expect(vaultButton, findsOneWidget);
 
-      // Opsi popup menu yang sah
-      expect(find.text('Antar Aku Pulang'), findsOneWidget);
-      expect(find.text('Brankas Berkas'), findsOneWidget);
+      // Menu popup titik tiga ditiadakan
+      expect(find.byTooltip('Menu Tambahan'), findsNothing);
 
-      // Opsi Arsip TIDAK boleh ada di popup menu lagi
-      expect(find.text('Arsip Percakapan'), findsNothing);
+      // Antar Aku Pulang tidak diduplikasi di header chat (tersedia di tab Guardian)
+      expect(find.text('Antar Aku Pulang'), findsNothing);
 
       // Flush pending update check timer dari ChatListScreen
       await tester.pump(const Duration(seconds: 2));
@@ -270,6 +267,7 @@ void main() {
       // Pada duress mode, action adalah null sehingga tidak ada tombol aksi di header
       expect(find.byTooltip('Cari Obrolan'), findsNothing);
       expect(find.byTooltip('Arsip Percakapan'), findsNothing);
+      expect(find.byTooltip('Brankas Berkas'), findsNothing);
       expect(find.byTooltip('Menu Tambahan'), findsNothing);
 
       // Flush pending update check timer dari ChatListScreen

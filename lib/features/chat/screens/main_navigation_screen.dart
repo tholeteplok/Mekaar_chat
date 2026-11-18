@@ -53,8 +53,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     ),
     MekaarNavItem(
       label: 'Kontak',
-      inactiveIcon: SolarIconsOutline.usersGroupTwoRounded,
-      activeIcon: SolarIconsBold.usersGroupTwoRounded,
+      inactiveIcon: SolarIconsOutline.userRounded,
+      activeIcon: SolarIconsBold.userRounded,
     ),
     MekaarNavItem(
       label: 'Guardian',

@@ -36,14 +36,13 @@ class MekaarBottomNav extends StatelessWidget {
   final Color? activeColor;
   final Color? inactiveColor;
 
-  // Ukuran Mekaar existing (tidak diubah).
-  static const double _tabDimension = 72.0;
-  static const double _barHeight = _tabDimension; // 72.0
-  static const double _tabWidth = _tabDimension; // 72.0
+  // Dimensi pill bar Mekaar.
+  static const double _barHeight = 72.0;
+  static const double _tabWidth = 74.0;
 
-  // Tipografi ala Rhytmu (lebih terbaca).
+  // Tipografi sentral navigasi (labelMD/caption 11.5px proporsional).
   static const double _iconSize = 24.0;
-  static const double _fontSize = 14.0;
+  static const double _fontSize = 11.5;
 
   // Outer pill radius Mekaar existing (tidak diubah).
   static const double _barCornerRadius = 100.0;
@@ -213,11 +212,18 @@ class MekaarBottomNav extends StatelessWidget {
                                               : effectiveInactive,
                                           letterSpacing: -0.2,
                                         ),
-                                        child: Text(
-                                          item.label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.clip,
-                                          softWrap: false,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 2,
+                                          ),
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              item.label,
+                                              maxLines: 1,
+                                              softWrap: false,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ],
