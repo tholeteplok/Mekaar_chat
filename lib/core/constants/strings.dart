@@ -149,7 +149,7 @@ abstract final class MekaarCopy {
   static const String settingsSafetySection = 'Keselamatan & Guardian';
   static const String settingsNotificationSection = 'Notifikasi & Suara';
   static const String settingsDisplaySection = 'Tampilan';
-  static const String settingsAboutSection = 'Informasi';
+  static const String settingsAboutSection = 'Tentang & Bantuan';
 
   // Seksi Privasi
   static const String lastSeenTitle = 'Terakhir Dilihat & Online';
@@ -189,6 +189,9 @@ abstract final class MekaarCopy {
   static const String guardianAlarmTitle = 'Izin Alarm Guardian';
   static const String tripsTitle = 'Check-In & Perjalanan';
   static const String findMyPhoneTitle = 'Temukan Ponsel Saya';
+  static const String safetyWizardTitle = 'Lengkapi Proteksi SOS';
+  static const String safetyWizardSubtitle =
+      'Fitur SOS telah aktif. Selesaikan konfigurasi agar perlindungan maksimal.';
 
   // Seksi Notifikasi & Suara
   static const String notificationSoundsTitle = 'Nada Notifikasi';

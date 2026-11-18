@@ -937,14 +937,14 @@ class SettingsScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Lengkapi Proteksi SOS',
+                          MekaarCopy.safetyWizardTitle,
                           style: MekaarTypography.headingMD.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Fitur SOS telah aktif. Selesaikan konfigurasi agar perlindungan maksimal.',
+                          MekaarCopy.safetyWizardSubtitle,
                           style: MekaarTypography.caption.copyWith(
                             color: MekaarColors.textMutedOf(sheetContext),
                           ),

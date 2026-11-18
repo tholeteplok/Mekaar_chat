@@ -165,7 +165,11 @@ void main() {
             content.contains('Nonaktifkan Fitur Darurat SOS?'),
         isTrue,
       );
-      expect(content.contains('Lengkapi Proteksi SOS'), isTrue);
+      expect(
+        content.contains('safetyWizardTitle') ||
+            content.contains('Lengkapi Proteksi SOS'),
+        isTrue,
+      );
     });
 
     test('PinManagementScreen mengadaptasi kartu PIN Darurat saat SOS nonaktif', () {

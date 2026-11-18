@@ -25,7 +25,6 @@ void main() {
     const legacyAllowlist = <String>{
       'lib/features/settings/screens/about_mekaar_screen.dart',
       'lib/features/settings/screens/add_trip_screen.dart',
-      'lib/features/settings/screens/advanced_privacy_settings_screen.dart',
       'lib/features/settings/screens/blocked_list_screen.dart',
       'lib/features/settings/screens/chat_theme_settings_screen.dart',
       'lib/features/settings/screens/connected_devices_screen.dart',
@@ -43,7 +42,8 @@ void main() {
 
     // Baseline literal judul/subjudul yang terukur.
     // settings_screen.dart dan account_snippet_card.dart telah 100% dimigrasikan ke MekaarCopy!
-    const baselineLiteralLines = 129;
+    // advanced_privacy_settings_screen.dart telah dihapus (dead code cleanup).
+    const baselineLiteralLines = 119;
 
     // Regex pendeteksi literal judul/subjudul hardcode (per baris):
     final titleLiteralRegex = RegExp(r"title:\s*'[^']+'");
