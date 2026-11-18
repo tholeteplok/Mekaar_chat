@@ -384,7 +384,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
                         ? downloadState.progress
                         : null),
                 backgroundColor: MekaarColors.surface2Of(context),
-                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                 minHeight: 8,
               ),
             ),
@@ -449,7 +449,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
         children: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.successTextOf(context),
+              backgroundColor: accentColor,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
               elevation: 0,
@@ -485,7 +485,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
                     minimumSize: const Size.fromHeight(42),
                     foregroundColor: MekaarColors.sosCoral,
                     side: BorderSide(
-                      color: MekaarColors.sosCoral.withValues(alpha: 0.35),
+                      color: MekaarColors.borderOf(context),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(MekaarRadius.md),
@@ -510,7 +510,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: accentColor,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -596,7 +596,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: accentColor,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -639,7 +639,7 @@ class _UnifiedUpdateSheetState extends ConsumerState<_UnifiedUpdateSheet> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: accentColor,
-            foregroundColor: Colors.black,
+            foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(48),
             elevation: 0,
             shape: RoundedRectangleBorder(
