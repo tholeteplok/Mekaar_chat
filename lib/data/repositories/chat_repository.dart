@@ -428,8 +428,8 @@ class ChatRepository {
       _roomEncryptionVersions[roomId] = encVer;
       _roomTypeCache[roomId] = roomType;
 
-      String chatName = 'Saved Messages';
-      String chatAvatar = '';
+      String chatName = 'User';
+      String chatAvatar = 'U';
       String? avatarUrl;
       String otherUserId = userId;
       bool isGuardian = (roomType == 'guardian');
@@ -453,7 +453,7 @@ class ChatRepository {
           memberCount = (membersResp as List).length;
         } catch (_) {}
       } else {
-        // Get other participant profile_id & last_read_at
+        // Get other participant profile_id & last_read_at (jika null berarti room mandiri)
         final otherParticipant = await _supabaseService.client
             .from('room_participants')
             .select('profile_id, last_read_at')
@@ -468,25 +468,30 @@ class ChatRepository {
               otherParticipant['last_read_at'].toString(),
             )?.toLocal();
           }
-          try {
-            final profileResponse = await _supabaseService.client
-                .from('public_profiles')
-                .select('id, username, full_name, display_name, avatar_url')
-                .eq('id', otherUserId)
-                .maybeSingle();
-            if (profileResponse != null) {
-              profile = profileResponse;
-              chatName =
-                  (profile['display_name'] as String?)?.isNotEmpty == true
-                  ? profile['display_name'] as String
-                  : profile['full_name'] as String? ??
-                        profile['username'] as String? ??
-                        'User';
-              chatAvatar = chatName.isNotEmpty ? chatName[0] : 'U';
-              avatarUrl = profile['avatar_url'] as String?;
-            }
-          } catch (_) {}
         }
+
+        try {
+          final profileResponse = await _supabaseService.client
+              .from('public_profiles')
+              .select('id, username, full_name, display_name, avatar_url')
+              .eq('id', otherUserId)
+              .maybeSingle();
+          if (profileResponse != null) {
+            profile = profileResponse;
+            final displayName = (profile['display_name'] as String?)?.trim();
+            final fullName = (profile['full_name'] as String?)?.trim();
+            final username = (profile['username'] as String?)?.trim();
+            chatName = (displayName != null && displayName.isNotEmpty)
+                ? displayName
+                : (fullName != null && fullName.isNotEmpty)
+                    ? fullName
+                    : (username != null && username.isNotEmpty)
+                        ? username
+                        : 'User';
+            chatAvatar = chatName.isNotEmpty ? chatName[0].toUpperCase() : 'U';
+            avatarUrl = profile['avatar_url'] as String?;
+          }
+        } catch (_) {}
       }
 
       // Check if history was cleared for this user
