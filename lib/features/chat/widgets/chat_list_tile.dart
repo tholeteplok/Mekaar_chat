@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
-import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
@@ -321,53 +319,7 @@ class ChatListTile extends StatelessWidget {
       ),
     );
 
-    // Bungkus dengan Slidable untuk swipe actions
-    return Slidable(
-      key: ValueKey(roomId),
-      endActionPane: ActionPane(
-        motion: const BehindMotion(),
-        children: [
-          if (onMute != null)
-            SlidableAction(
-              onPressed: (_) => onMute!(),
-              backgroundColor: MekaarColors.warnAmber,
-              foregroundColor: MekaarColors.textOnYellow,
-              icon: MekaarIcons.notificationsOff,
-              label: 'Bisukan',
-            ),
-          if (onArchive != null)
-            SlidableAction(
-              onPressed: (_) => onArchive!(),
-              backgroundColor: MekaarColors.textMutedOf(context),
-              foregroundColor: MekaarColors.textPrimaryOf(context),
-              icon: MekaarIcons.archive,
-              label: 'Arsip',
-            ),
-        ],
-      ),
-      startActionPane: ActionPane(
-        motion: const BehindMotion(),
-        children: [
-          if (onMarkRead != null && unreadCount > 0)
-            SlidableAction(
-              onPressed: (_) => onMarkRead!(),
-              backgroundColor: AppColors.blue,
-              foregroundColor: Colors.white,
-              icon: SolarIconsOutline.checkCircle,
-              label: 'Dibaca',
-            ),
-          if (onDelete != null)
-            SlidableAction(
-              onPressed: (_) => onDelete!(),
-              backgroundColor: MekaarColors.sosRed,
-              foregroundColor: Colors.white,
-              icon: MekaarIcons.delete,
-              label: 'Hapus',
-            ),
-        ],
-      ),
-      child: tile,
-    );
+    return tile;
   }
 }
 

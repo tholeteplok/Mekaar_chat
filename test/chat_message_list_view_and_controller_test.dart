@@ -259,7 +259,6 @@ void main() {
                 onInitiateCall: (_) {},
                 onDeleteSingleCall: (_) {},
                 onDeleteMessage: (_) {},
-                onSwipeDeleteMessage: (_) {},
                 onUnsendMessage: (_) {},
                 onReplyMessage: (_) {},
                 onForwardMessage: (_) {},

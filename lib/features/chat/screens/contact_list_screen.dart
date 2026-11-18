@@ -917,93 +917,18 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         final username = contact.username;
         final email = contact.email ?? '';
 
-        final isGuestActive = ref.watch(authProvider).isGuestActive;
-        return Dismissible(
-          key: ValueKey('contact_dismiss_${contact.contactUserId}'),
-          direction: isGuestActive
-              ? DismissDirection.startToEnd
-              : DismissDirection.horizontal,
-          // 1. Gestur kanan: Hapus Kontak
-          background: Container(
-            color: MekaarColors.sosRed,
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Icon(
-                  SolarIconsOutline.trashBinTrash,
-                  color: Colors.white,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Hapus Kontak',
-                  style: MekaarTypography.bodyMD.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 2. Gestur kiri: Sembunyikan Kontak ke Private Vault (dinonaktifkan di mode tamu)
-          secondaryBackground: isGuestActive
-              ? null
-              : Container(
-                  color: MekaarColors.guardianTeal,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        isHidden ? 'Tampilkan' : 'Sembunyikan',
-                        style: MekaarTypography.bodyMD.copyWith(
-                          color: MekaarColors.textOnTeal,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isHidden
-                            ? SolarIconsBold.eye
-                            : SolarIconsBold.shieldKeyhole,
-                        color: MekaarColors.textOnTeal,
-                        size: 22,
-                      ),
-                    ],
-                  ),
-                ),
-          confirmDismiss: (direction) async {
-            HapticService.trigger(MekaarHapticIntent.selection);
-            if (direction == DismissDirection.startToEnd) {
-              // Geser kanan -> Hapus Kontak
-              _confirmDeleteContact(context, contact);
-              return false;
-            } else {
-              // Geser kiri -> Sembunyikan ke Private Vault
-              await PrivateVaultDialogs.toggleContactHiddenWithAuth(
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _openChat(contact),
+            onLongPress: () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              _showContactContextMenu(
                 context,
-                ref,
-                contactUserId: contact.contactUserId,
-                contactName: name,
-                roomId: contact.roomId,
+                contact,
               );
-              return false;
-            }
-          },
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _openChat(contact),
-              onLongPress: () {
-                HapticService.trigger(MekaarHapticIntent.selection);
-                _showContactContextMenu(
-                  context,
-                  contact,
-                );
-              },
-              child: Padding(
+            },
+            child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
@@ -1129,9 +1054,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
     );
   }
 

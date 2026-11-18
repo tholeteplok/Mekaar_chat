@@ -132,9 +132,9 @@ void main() {
       expect(replied, true);
     });
 
-    testWidgets('ChatSwipeActionWrapper triggers delete on double left drag',
+    testWidgets('ChatSwipeActionWrapper ignores left drag safely',
         (tester) async {
-      bool deleted = false;
+      bool replied = false;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -144,7 +144,7 @@ void main() {
                 width: 300,
                 height: 100,
                 child: ChatSwipeActionWrapper(
-                  onDelete: () => deleted = true,
+                  onReply: () => replied = true,
                   child: const Text('Bubble Pesan 2'),
                 ),
               ),
@@ -154,15 +154,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // First drag left: does NOT delete yet, primes double-swipe window
-      await tester.drag(find.text('Bubble Pesan 2'), const Offset(-60, 0));
-      await tester.pump();
-      expect(deleted, false);
-
-      // Second drag left within 2 seconds: confirms delete
+      // Drag left by 60 pixels: should be completely ignored (no-op)
       await tester.drag(find.text('Bubble Pesan 2'), const Offset(-60, 0));
       await tester.pumpAndSettle();
-      expect(deleted, true);
+      expect(replied, false);
     });
 
     testWidgets('ReconnectingBadge renders reconnecting text', (tester) async {

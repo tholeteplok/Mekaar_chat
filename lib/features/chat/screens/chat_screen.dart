@@ -1315,11 +1315,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _clearSelection();
   }
 
-  void _confirmDeleteSingleMessage(Message msg) {
-    _clearSelection();
-    _hideMessagesWithUndo([msg.id], label: 'Pesan disembunyikan untuk Anda');
-  }
-
   void _confirmDeleteSingleCall(CallModel call) {
     _selectedMessageIds.clear();
     _selectedCallIds.clear();
@@ -1666,7 +1661,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 onInitiateCall: _initiateCall,
                 onDeleteSingleCall: _confirmDeleteSingleCall,
                 onDeleteMessage: _handleDeleteMessage,
-                onSwipeDeleteMessage: _confirmDeleteSingleMessage,
                 onUnsendMessage: _handleUnsendMessage,
                 onReplyMessage: _setReplyMessage,
                 onForwardMessage: _handleForwardMessage,

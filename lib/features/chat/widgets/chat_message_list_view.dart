@@ -114,7 +114,6 @@ class ChatMessageListView extends ConsumerStatefulWidget {
   final void Function(String callType) onInitiateCall;
   final void Function(CallModel call) onDeleteSingleCall;
   final void Function(Message msg) onDeleteMessage;
-  final void Function(Message msg) onSwipeDeleteMessage;
   final void Function(Message msg) onUnsendMessage;
   final void Function(Message? replyMsg) onReplyMessage;
   final void Function(Message msg) onForwardMessage;
@@ -154,7 +153,6 @@ class ChatMessageListView extends ConsumerStatefulWidget {
     required this.onInitiateCall,
     required this.onDeleteSingleCall,
     required this.onDeleteMessage,
-    required this.onSwipeDeleteMessage,
     required this.onUnsendMessage,
     required this.onReplyMessage,
     required this.onForwardMessage,
@@ -600,12 +598,7 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
 
       return RepaintBoundary(
         key: ValueKey('call_bubble_${call.id}'),
-        child: isSelectionMode
-            ? callWidget
-            : ChatSwipeActionWrapper(
-                onDelete: () => widget.onDeleteSingleCall(call),
-                child: callWidget,
-              ),
+        child: callWidget,
       );
     }
 
@@ -704,7 +697,6 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
         ? bubbleWithPill
         : ChatSwipeActionWrapper(
             onReply: () => widget.onReplyMessage(msg),
-            onDelete: () => widget.onSwipeDeleteMessage(msg),
             child: bubbleWithPill,
           );
 
