@@ -719,10 +719,9 @@ class _ScenePainter extends CustomPainter {
       _drawBubble(
         canvas,
         center: focal,
-        w: 196 * k * pop,
-        h: 138 * k * pop,
+        size: 196 * k * pop,
         color: colorA,
-        tail: _BubbleTail.center,
+        flipX: false,
         dotPhase: s * 5.2,
         dotAmp: (s > 4.9 ? 4.5 : 6.0) * k,
         alpha: mergedAlpha,
@@ -767,10 +766,9 @@ class _ScenePainter extends CustomPainter {
     _drawBubble(
       canvas,
       center: pos,
-      w: 132 * k * scaleF,
-      h: 94 * k * scaleF,
+      size: 132 * k * scaleF,
       color: color,
-      tail: sign < 0 ? _BubbleTail.left : _BubbleTail.right,
+      flipX: sign > 0,
       dotPhase: talking ? s * 9 : s * 2.2,
       dotAmp: (talking ? 6.5 : 2.0) * k,
       alpha: alpha,
@@ -785,69 +783,106 @@ class _ScenePainter extends CustomPainter {
     Color color,
     double alpha,
   ) {
-    final paint = Paint()..color = color.withValues(alpha: 0.85 * alpha);
     final sc = k * uScale;
-    // Kepala
-    canvas.drawCircle(Offset(cx, baseY - 96 * sc), 30 * sc, paint);
-    // Bahu: setengah cakram tepat di bawah kepala
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, baseY - 58 * sc), radius: 58 * sc),
-      0,
-      math.pi,
-      true,
-      paint,
+    // Glyph SolarIconsBold.user: tinta menempati ±15%–88% tinggi kotak
+    // em-nya; ukuran 176·sc menyamai lebar figur lama (±116·sc) dan
+    // bagian bawah tinta ditambatkan ke baseY.
+    final size = 176 * sc;
+    _paintGlyph(
+      canvas,
+      SolarIconsBold.user,
+      Offset(cx, baseY - 0.38 * size),
+      size,
+      color.withValues(alpha: 0.85 * alpha),
     );
   }
 
   void _drawBubble(
     Canvas canvas, {
     required Offset center,
-    required double w,
-    required double h,
+    required double size,
     required Color color,
-    required _BubbleTail tail,
+    required bool flipX,
     required double dotPhase,
     required double dotAmp,
     required double alpha,
   }) {
-    if (w <= 2 || h <= 2) return;
-    final paint = Paint()..color = color.withValues(alpha: alpha);
-    final rect = Rect.fromCenter(center: center, width: w, height: h);
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(h * 0.30));
+    if (size <= 2) return;
 
-    // Ekor gelembung
-    final tailPath = Path();
-    final y1 = rect.bottom;
-    switch (tail) {
-      case _BubbleTail.left:
-        tailPath
-          ..moveTo(center.dx - w * 0.18, y1 - 6)
-          ..lineTo(center.dx - w * 0.02, y1 - 6)
-          ..lineTo(center.dx - w * 0.20, y1 + h * 0.20);
-      case _BubbleTail.right:
-        tailPath
-          ..moveTo(center.dx + w * 0.02, y1 - 6)
-          ..lineTo(center.dx + w * 0.18, y1 - 6)
-          ..lineTo(center.dx + w * 0.20, y1 + h * 0.20);
-      case _BubbleTail.center:
-        tailPath
-          ..moveTo(center.dx - w * 0.06, y1 - 6)
-          ..lineTo(center.dx + w * 0.10, y1 - 6)
-          ..lineTo(center.dx - w * 0.02, y1 + h * 0.20);
-    }
-    tailPath.close();
-    canvas.drawPath(tailPath, paint);
-    canvas.drawRRect(rrect, paint);
+    // Badan gelembung: glyph SolarIconsBold.chatRound (balon bulat
+    // berekor kiri bawah); sisi kanan dicerminkan agar ekornya
+    // mengarah ke user kanan.
+    _paintGlyph(
+      canvas,
+      SolarIconsBold.chatRound,
+      center,
+      size,
+      color.withValues(alpha: alpha),
+      flipX: flipX,
+    );
 
-    // Tiga titik ketikan
+    // Tiga titik ketikan (tetap geometri: titiknya harus menari
+    // mengikuti fase bicara, tidak ada padanannya di glyph statis)
     final dotPaint = Paint()..color = Colors.white.withValues(alpha: alpha);
-    final spacing = w * 0.19;
-    final dr = h * 0.085;
+    final spacing = size * 0.19;
+    final dr = size * 0.075;
     for (var i = 0; i < 3; i++) {
       final dx = center.dx + (i - 1) * spacing;
       final bounce = -dotAmp * math.max(0.0, math.sin(dotPhase + i * 0.9));
       canvas.drawCircle(Offset(dx, center.dy + bounce), dr, dotPaint);
     }
+  }
+
+  /// Ukuran basis teks painter konstan untuk mengoptimalkan layout glyph ke O(1).
+  static const double _kBaseGlyphSize = 120.0;
+
+  /// Cache TextPainter per (glyph, fontFamily, warna) —
+  /// adegan me-repaint tiap frame selama ±7 detik, skala dinamis ditangani oleh
+  /// canvas.scale sehingga layout TextPainter hanya dipanggil 1 kali.
+  static final Map<String, TextPainter> _glyphCache = {};
+
+  /// Menggambar satu glyph ikon (IconData dari paket solar_icons)
+  /// terpusat di [center] dalam kotak em [size]×[size] secara efisien.
+  void _paintGlyph(
+    Canvas canvas,
+    IconData icon,
+    Offset center,
+    double size,
+    Color color, {
+    bool flipX = false,
+  }) {
+    if (size <= 0) return;
+    final key = '${icon.codePoint}|${icon.fontFamily}|${color.toARGB32()}';
+    var painter = _glyphCache[key];
+    if (painter == null) {
+      painter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            // Font paket dirujuk dengan awalan packages/<paket>/ —
+            // cara yang sama dipakai widget Icon internal.
+            fontFamily: icon.fontPackage == null
+                ? icon.fontFamily
+                : 'packages/${icon.fontPackage}/${icon.fontFamily}',
+            fontSize: _kBaseGlyphSize,
+            color: color,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      _glyphCache[key] = painter;
+    }
+
+    final scale = size / _kBaseGlyphSize;
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    if (flipX) {
+      canvas.scale(-scale, scale);
+    } else {
+      canvas.scale(scale, scale);
+    }
+    painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
+    canvas.restore();
   }
 
   @override
@@ -858,8 +893,6 @@ class _ScenePainter extends CustomPainter {
       oldDelegate.colorA != colorA ||
       oldDelegate.colorB != colorB;
 }
-
-enum _BubbleTail { left, right, center }
 
 /// Standalone Screen wrapper untuk WelcomeAnimationView
 class WelcomeAnimationScreen extends StatelessWidget {
