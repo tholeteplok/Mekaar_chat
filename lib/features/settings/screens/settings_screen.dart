@@ -123,6 +123,7 @@ class SettingsScreen extends ConsumerWidget {
           title: isDecoy
               ? MekaarCopy.pinManagementDecoyTitle
               : MekaarCopy.pinManagementTitle,
+          subtitle: isDecoy ? null : MekaarCopy.pinManagementSubtitle,
           onTap: () =>
               Navigator.pushNamed(context, AppRoutes.pinManagement),
         ),
@@ -156,6 +157,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.screenShare,
           iconColor: MekaarColors.guardianTeal,
           title: MekaarCopy.blockScreenshotsTitle,
+          subtitle: MekaarCopy.blockScreenshotsSubtitle,
           value: ref.watch(screenshotBlockProvider),
           onChanged: (value) =>
               ref.read(screenshotBlockProvider.notifier).toggle(value),
@@ -207,6 +209,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.volumeLoud,
           iconColor: MekaarColors.guardianTeal,
           title: MekaarCopy.guardianAlarmTitle,
+          subtitle: MekaarCopy.guardianAlarmSubtitle,
           value: ref.watch(allowGuardianAlarmProvider),
           onChanged: (value) => ref
               .read(allowGuardianAlarmProvider.notifier)
@@ -250,6 +253,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.eyeClosed,
           iconColor: MekaarColors.purpleLight,
           title: MekaarCopy.stealthChatPreviewTitle,
+          subtitle: MekaarCopy.stealthChatPreviewSubtitle,
           value: ref.watch(stealthChatPreviewProvider),
           onChanged: (value) => ref
               .read(stealthChatPreviewProvider.notifier)
@@ -260,6 +264,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.eye,
           iconColor: MekaarColors.warning,
           title: MekaarCopy.notificationMaskingTitle,
+          subtitle: MekaarCopy.notificationMaskingSubtitle,
           value: ref.watch(notificationMaskingProvider),
           onChanged: (value) => ref
               .read(notificationMaskingProvider.notifier)

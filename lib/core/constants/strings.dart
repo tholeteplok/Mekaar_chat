@@ -174,12 +174,16 @@ abstract final class MekaarCopy {
   // Seksi Keamanan
   static const String pinManagementTitle = 'Manajemen PIN Keamanan';
   static const String pinManagementDecoyTitle = 'PIN Keamanan';
+  static const String pinManagementSubtitle =
+      'PIN utama, PIN tamu & kode darurat';
   static const String autoLockTitle = 'Kunci Otomatis';
   static const String twoStepVerificationTitle = 'Verifikasi 2 Langkah';
   static const String twoStepDisableDialogTitle =
       'Matikan Verifikasi 2 Langkah';
   static const String connectedDevicesTitle = 'Perangkat Terhubung';
   static const String blockScreenshotsTitle = 'Blokir Tangkapan Layar';
+  static const String blockScreenshotsSubtitle =
+      'Cegah tangkapan layar di seluruh aplikasi';
 
   // Seksi Keselamatan & Guardian
   static const String sosFeatureTitle = 'Fitur Darurat SOS';
@@ -193,6 +197,8 @@ abstract final class MekaarCopy {
   static const String sosDrillSubtitle =
       'Simulasi alur darurat tanpa sinyal nyata';
   static const String guardianAlarmTitle = 'Izin Alarm Guardian';
+  static const String guardianAlarmSubtitle =
+      'Izinkan suara alarm untuk peringatan guardian';
   static const String tripsTitle = 'Check-In & Perjalanan';
   static const String findMyPhoneTitle = 'Temukan Ponsel Saya';
   static const String safetyWizardTitle = 'Lengkapi Proteksi SOS';
@@ -202,7 +208,11 @@ abstract final class MekaarCopy {
   // Seksi Notifikasi & Suara
   static const String notificationSoundsTitle = 'Nada Notifikasi';
   static const String stealthChatPreviewTitle = 'Sembunyikan Cuplikan Pesan';
+  static const String stealthChatPreviewSubtitle =
+      'Sembunyikan preview teks terakhir pada daftar obrolan publik';
   static const String notificationMaskingTitle = 'Samarkan Notifikasi Darurat';
+  static const String notificationMaskingSubtitle =
+      'Samarkan rincian nama pengirim & pesan saat darurat';
   static const String hapticsTitle = 'Getaran';
 
   // Seksi Tampilan
