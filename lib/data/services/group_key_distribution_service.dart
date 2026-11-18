@@ -18,9 +18,11 @@ class GroupKeyDistributionService {
     GroupE2eeService? groupE2eeService,
     ChatRepository? chatRepository,
     SenderKeyStore? senderKeyStore,
+    SupabaseService? supabaseService,
   })  : _groupE2eeService = groupE2eeService ?? GroupE2eeService.instance,
         _chatRepository = chatRepository ?? ChatRepository(SupabaseService()),
-        _senderKeyStore = senderKeyStore ?? SqlCipherSenderKeyStore.instance;
+        _senderKeyStore = senderKeyStore ?? SqlCipherSenderKeyStore.instance,
+        _supabase = supabaseService ?? SupabaseService();
 
   static final GroupKeyDistributionService instance =
       GroupKeyDistributionService();
@@ -31,6 +33,15 @@ class GroupKeyDistributionService {
   final GroupE2eeService _groupE2eeService;
   final ChatRepository _chatRepository;
   final SenderKeyStore _senderKeyStore;
+  final SupabaseService _supabase;
+
+  final Map<String, List<String>> _lastKnownMemberIdsCache = {};
+  final Map<String, String> _identityKeyCache = {};
+
+  /// Mendaftarkan atau mencache kunci identitas Ed25519 untuk seorang pengguna.
+  void cacheUserIdentityKey(String userId, String identityKeyB64) {
+    _identityKeyCache[userId] = identityKeyB64;
+  }
 
   /// Tipe payload kontrol sistem untuk distribusi sender key
   static const String controlTypeSkdm = 'group_skdm';
@@ -38,11 +49,13 @@ class GroupKeyDistributionService {
   /// Tipe payload kontrol sistem untuk permintaan kunci ulang (resync)
   static const String controlTypeSkRequest = 'group_sk_request';
 
-  /// Membangun dan menandatangani paket SKDM dari sebuah SenderKeyRecord milik kita.
+  /// Membangun dan menandatangani paket SKDM dari sebuah SenderKeyRecord milik kita
+  /// menggunakan Kunci Identitas Ed25519 pengirim (Brief §3.2, D1).
   Future<SenderKeyDistributionMessage> buildSignedSkdm(
     SenderKeyRecord record,
-    String senderId,
-  ) async {
+    String senderId, {
+    SimpleKeyPair? identityKeyPair,
+  }) async {
     final now = DateTime.now().toUtc();
     final canonical = SenderKeyDistributionMessage.buildCanonicalPayload(
       groupId: record.groupId,
@@ -53,9 +66,13 @@ class GroupKeyDistributionService {
       isoTime: now.toIso8601String(),
     );
 
+    // Ambil kunci identitas persisten pengirim untuk menandatangani SKDM
+    final signingIdentityKey = identityKeyPair ??
+        await _groupE2eeService.getOrGenerateIdentityKeyPair(userId: senderId);
+
     final signature = await _ed25519.sign(
       utf8.encode(canonical),
-      keyPair: record.signingKeyPair,
+      keyPair: signingIdentityKey,
     );
 
     return SenderKeyDistributionMessage(
@@ -70,11 +87,13 @@ class GroupKeyDistributionService {
     );
   }
 
-  /// Memverifikasi tanda tangan digital Ed25519 dan mendaftarkan state pengirim ke GroupE2eeService.
+  /// Memverifikasi tanda tangan digital Ed25519 terhadap kunci identitas pengirim
+  /// dan mendaftarkan state pengirim ke GroupE2eeService (Brief §3.2, D1).
   /// Mengembalikan `true` jika valid dan berhasil didaftarkan.
   Future<bool> verifyAndProcessSkdm(
     SenderKeyDistributionMessage skdm, {
     required String expectedSenderId,
+    String? expectedSenderIdentityKeyB64,
   }) async {
     if (skdm.senderId != expectedSenderId) {
       _logger.w('SKDM senderId (${skdm.senderId}) tidak cocok dengan pengirim 1:1 ($expectedSenderId)');
@@ -82,10 +101,41 @@ class GroupKeyDistributionService {
     }
 
     try {
-      final pubKey = SimplePublicKey(
-        skdm.signingPublicKeyBytes,
+      // 1. Ambil atau gunakan kunci identitas pengirim yang terpercaya dari cache/profil
+      String? senderIdentityKeyB64 =
+          expectedSenderIdentityKeyB64 ?? _identityKeyCache[expectedSenderId];
+      if (senderIdentityKeyB64 == null || senderIdentityKeyB64.isEmpty) {
+        try {
+          final row = await _supabase.client
+              .from('public_profiles')
+              .select('ed25519_identity_key')
+              .eq('id', expectedSenderId)
+              .maybeSingle();
+          senderIdentityKeyB64 = row?['ed25519_identity_key'] as String?;
+          if (senderIdentityKeyB64 != null && senderIdentityKeyB64.isNotEmpty) {
+            _identityKeyCache[expectedSenderId] = senderIdentityKeyB64;
+          }
+        } catch (e) {
+          _logger.w('Gagal mengambil ed25519_identity_key untuk $expectedSenderId: $e');
+        }
+      }
+
+      if (senderIdentityKeyB64 == null || senderIdentityKeyB64.isEmpty) {
+        _logger.w('Kunci identitas Ed25519 untuk pengirim $expectedSenderId tidak ditemukan. SKDM ditolak.');
+        return false;
+      }
+
+      final identityPubKeyBytes = base64Decode(senderIdentityKeyB64);
+      if (identityPubKeyBytes.length != 32) {
+        _logger.w('Panjang kunci identitas Ed25519 pengirim tidak valid (harus 32 bytes). SKDM ditolak.');
+        return false;
+      }
+
+      final identityPubKey = SimplePublicKey(
+        identityPubKeyBytes,
         type: KeyPairType.ed25519,
       );
+
       final sigBytes = base64Decode(skdm.signatureB64);
       if (sigBytes.length != 64) {
         _logger.w('Panjang tanda tangan SKDM tidak valid');
@@ -94,11 +144,11 @@ class GroupKeyDistributionService {
 
       final isValid = await _ed25519.verify(
         utf8.encode(skdm.canonicalPayload),
-        signature: Signature(sigBytes, publicKey: pubKey),
+        signature: Signature(sigBytes, publicKey: identityPubKey),
       );
 
       if (!isValid) {
-        _logger.w('Tanda tangan digital SKDM dari ${skdm.senderId} tidak valid!');
+        _logger.w('Tanda tangan digital identitas SKDM dari ${skdm.senderId} tidak valid / tidak cocok!');
         return false;
       }
 
@@ -112,12 +162,110 @@ class GroupKeyDistributionService {
         counter: 0,
       );
 
-      _logger.i('SKDM dari ${skdm.senderId} berhasil diverifikasi & didaftarkan untuk grup ${skdm.groupId}');
+      _logger.i('SKDM dari ${skdm.senderId} berhasil diverifikasi dengan identity key & didaftarkan untuk grup ${skdm.groupId}');
       return true;
     } catch (e) {
       _logger.e('Gagal memproses SKDM: $e');
       return false;
     }
+  }
+
+  /// Memeriksa apakah himpunan anggota grup menyusut (ada yang keluar / di-kick).
+  /// Sesuai Brief §4.2:
+  /// Saat keanggotaan menyusut dan pengguna saat ini masih berada di grup:
+  /// Picu rekeying otomatis (keyId + 1), hapus state mantan anggota,
+  /// dan distribusikan sender key baru ke anggota yang tersisa.
+  Future<bool> checkAndRekeyIfMembershipShrunk({
+    required String groupId,
+    required String currentUserId,
+    required List<String> currentMemberIds,
+  }) async {
+    if (!currentMemberIds.contains(currentUserId)) {
+      _lastKnownMemberIdsCache.remove(groupId);
+      return false;
+    }
+
+    final sortedCurrent = List<String>.from(currentMemberIds)..sort();
+    final previous = _lastKnownMemberIdsCache[groupId];
+
+    // Jika belum ada riwayat sebelumnya, inisialisasi cache dan selesai.
+    if (previous == null) {
+      _lastKnownMemberIdsCache[groupId] = sortedCurrent;
+      return false;
+    }
+
+    // Deteksi apakah ada anggota yang hilang dari daftar sebelumnya (membership shrink)
+    final removedMembers = previous.where((id) => !sortedCurrent.contains(id)).toList();
+    if (removedMembers.isNotEmpty) {
+      _logger.w('Deteksi pengurangan anggota di grup $groupId: $removedMembers. Memulai rekeying pengamat pasif...');
+      try {
+        final remainingMembers = sortedCurrent.where((id) => id != currentUserId).toList();
+        for (final removedId in removedMembers) {
+          await _senderKeyStore.deleteSenderStatesForSender(groupId, removedId);
+        }
+
+        // Jalankan rekeying sender key kita
+        final existingKey = await _senderKeyStore.getOurSenderKey(groupId);
+        final nextKeyId = (existingKey?.keyId ?? 0) + 1;
+        final newRecord = await _groupE2eeService.generateSenderKey(
+          groupId,
+          keyId: nextKeyId,
+        );
+
+        if (remainingMembers.isNotEmpty) {
+          final skdm = await buildSignedSkdm(newRecord, currentUserId);
+          final controlPayload = jsonEncode({
+            'type': controlTypeSkdm,
+            'payload': skdm.toJson(),
+          });
+
+          for (final memberId in remainingMembers) {
+            try {
+              final directRoomId = await _chatRepository.createRoom(memberId, 'normal');
+              await _chatRepository.sendMessage(
+                directRoomId,
+                controlPayload,
+                type: MessageType.system,
+                isGroup: false,
+              );
+            } catch (e) {
+              _logger.w('Gagal mengirimkan SKDM baru ke $memberId: $e');
+            }
+          }
+        }
+
+        _lastKnownMemberIdsCache[groupId] = sortedCurrent;
+        _logger.i('Rekeying pengamat pasif berhasil untuk grup $groupId (keyId: $nextKeyId)');
+        return true;
+      } catch (e) {
+        _logger.e('Gagal melakukan rekeying pengamat pasif: $e');
+        return false;
+      }
+    } else {
+      _lastKnownMemberIdsCache[groupId] = sortedCurrent;
+      return false;
+    }
+  }
+
+  /// Melakukan rotasi berkala sender key kita dan mendistribusikannya ke seluruh anggota grup (Brief §4.4, D3).
+  Future<SenderKeyRecord> rotateAndDistributeSenderKey({
+    required String groupId,
+    required String currentUserId,
+    required List<String> memberUserIds,
+  }) async {
+    final existingKey = await _senderKeyStore.getOurSenderKey(groupId);
+    final nextKeyId = (existingKey?.keyId ?? 0) + 1;
+    final newRecord = await _groupE2eeService.generateSenderKey(
+      groupId,
+      keyId: nextKeyId,
+    );
+    await distributeSenderKeyToGroupMembers(
+      groupId: groupId,
+      currentUserId: currentUserId,
+      memberUserIds: memberUserIds,
+    );
+    _logger.i('Rotasi berkala sender key berhasil untuk grup $groupId (keyId: $nextKeyId)');
+    return newRecord;
   }
 
   /// Mendistribusikan sender key aktif kita ke seluruh anggota grup via kanal 1:1 E2EE.
@@ -263,10 +411,7 @@ class GroupKeyDistributionService {
 
     // 3. Jika ada anggota yang dikeluarkan, hapus seluruh state pengirim miliknya
     if (excludedMemberId != null && excludedMemberId.isNotEmpty) {
-      // Hapus state pengirim yang di-kick agar tidak ada relasi kripto lama
-      for (int k = 1; k <= nextKeyId; k++) {
-        await _senderKeyStore.deleteSenderState(groupId, excludedMemberId, k);
-      }
+      await _senderKeyStore.deleteSenderStatesForSender(groupId, excludedMemberId);
       _logger.d('State sender key untuk anggota tereksklusi $excludedMemberId dihapus');
     }
 

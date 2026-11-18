@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 
+import '../../core/storage/mekaar_secure_storage.dart';
 import '../models/group_sender_key_models.dart';
 import 'group_sender_key_store.dart';
+import 'supabase_service.dart';
 
 /// Pengecualian dasar untuk kesalahan kriptografi obrolan grup E2EE.
 class GroupE2eeException implements Exception {
@@ -55,8 +58,15 @@ class GroupE2eeMissingSenderStateException extends GroupE2eeException {
 /// - Signing: Ed25519 digital signature terikat pada canonical AAD + Ciphertext.
 /// - Hard Limit: `maxSkippedKeys = 1000` per rantai pengirim.
 class GroupE2eeService {
-  GroupE2eeService({SenderKeyStore? store})
-      : _store = store ?? SqlCipherSenderKeyStore.instance;
+  GroupE2eeService({
+    SenderKeyStore? store,
+    FlutterSecureStorage? secureStorage,
+    SupabaseService? supabaseService,
+    SimpleKeyPair? initialIdentityKeyPair,
+  })  : _store = store ?? SqlCipherSenderKeyStore.instance,
+        _secureStorage = secureStorage ?? MekaarSecureStorage.instance,
+        _supabase = supabaseService ?? SupabaseService(),
+        _identityKeyPair = initialIdentityKeyPair;
 
   static final GroupE2eeService instance = GroupE2eeService();
 
@@ -75,9 +85,20 @@ class GroupE2eeService {
   static final Logger _logger = Logger();
 
   final SenderKeyStore _store;
+  final FlutterSecureStorage _secureStorage;
+  final SupabaseService _supabase;
 
   /// Batas maksimal penyimpanan skipped message keys per pengirim (anti-OOM).
   static const int maxSkippedKeys = 1000;
+
+  /// Batas maksimal pesan dalam satu rantai sender key sebelum dirotasi (Brief §4.4, D3).
+  static const int rotationMaxMessages = 5000;
+
+  /// Batas maksimal usia rantai sender key dalam hari sebelum dirotasi (Brief §4.4, D3).
+  static const int rotationMaxDays = 30;
+
+  /// Prefix kunci penyimpanan seed Ed25519 identitas di secure storage.
+  static const String _storageKeyPrefix = 'e2ee_ed25519_identity_seed_v1_';
 
   /// Info HKDF untuk menurunkan kunci pesan per counter.
   static const String infoMessageKey = 'mekaar-sk-msg';
@@ -92,16 +113,60 @@ class GroupE2eeService {
 
   SimpleKeyPair? _identityKeyPair;
 
-  /// Mengambil atau membuat pasangan kunci identitas Ed25519 untuk penandatanganan profil.
-  Future<SimpleKeyPair> getOrGenerateIdentityKeyPair() async {
+  String _getStorageKey(String? userId) {
+    final effectiveId = userId ?? _supabase.currentUserId ?? 'default_user';
+    return '$_storageKeyPrefix$effectiveId';
+  }
+
+  /// Memeriksa apakah sebuah sender key record telah melampaui ambang batas rotasi berkala.
+  static bool needsKeyRotation(SenderKeyRecord record, {DateTime? now}) {
+    final currentTime = now ?? DateTime.now().toUtc();
+    if (record.counter >= rotationMaxMessages) return true;
+    if (currentTime.difference(record.createdAt).inDays >= rotationMaxDays) return true;
+    return false;
+  }
+
+  /// Mengambil atau memuat pasangan kunci identitas Ed25519 persisten dari secure storage.
+  /// Jika belum ada, membuat seed 32-byte acak baru dan menyimpannya secara aman.
+  Future<SimpleKeyPair> getOrGenerateIdentityKeyPair({String? userId}) async {
     if (_identityKeyPair != null) return _identityKeyPair!;
-    _identityKeyPair = await _ed25519.newKeyPair();
+
+    final storageKey = _getStorageKey(userId);
+    try {
+      final raw = await _secureStorage.read(key: storageKey);
+      if (raw != null && raw.isNotEmpty) {
+        final seed = base64Decode(raw);
+        if (seed.length == 32) {
+          _identityKeyPair = await _ed25519.newKeyPairFromSeed(seed);
+          return _identityKeyPair!;
+        }
+      }
+    } catch (e) {
+      _logger.w('Gagal membaca ed25519 identity key dari secure storage: $e');
+    }
+
+    // Buat seed 32-byte acak baru
+    final seed = Uint8List(32);
+    for (int i = 0; i < 32; i++) {
+      seed[i] = _secureRandom.nextInt(256);
+    }
+
+    try {
+      await _secureStorage.write(
+        key: storageKey,
+        value: base64Encode(seed),
+      );
+    } catch (e) {
+      _logger.e('Gagal menyimpan ed25519 identity seed ke secure storage: $e');
+    }
+
+    _identityKeyPair = await _ed25519.newKeyPairFromSeed(seed);
     return _identityKeyPair!;
   }
 
   /// Mengambil byte kunci publik Ed25519 untuk verifikasi tanda tangan identitas.
-  Future<List<int>> getIdentityPublicKey() async {
-    final pair = await getOrGenerateIdentityKeyPair();
+  Future<List<int>> getIdentityPublicKey({String? userId}) async {
+    final pair = await getOrGenerateIdentityKeyPair(userId: userId);
     final pub = await pair.extractPublicKey();
     return pub.bytes;
   }
@@ -172,6 +237,7 @@ class GroupE2eeService {
     required String groupId,
     String senderId = 'me',
     required String plaintext,
+    Uint8List? fixedNonce,
   }) async {
     final currentKey = await getOrGenerateOurSenderKey(groupId);
 
@@ -189,10 +255,12 @@ class GroupE2eeService {
     );
     final nextChainKeyBytes = await nextChainSecretKey.extractBytes();
 
-    // 3. Buat Nonce 24-byte acak untuk XChaCha20-Poly1305
-    final nonce = Uint8List(24);
-    for (int i = 0; i < 24; i++) {
-      nonce[i] = _secureRandom.nextInt(256);
+    // 3. Buat Nonce 24-byte acak untuk XChaCha20-Poly1305 (atau fixedNonce untuk uji deterministik)
+    final nonce = fixedNonce ?? Uint8List(24);
+    if (fixedNonce == null) {
+      for (int i = 0; i < 24; i++) {
+        nonce[i] = _secureRandom.nextInt(256);
+      }
     }
     final nonceB64 = base64Encode(nonce);
 

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "description": "MEKAAR v2.5.x Pure Dart Signal Sender Keys Golden Protocol Test Vectors",
+  "hkdf_info_message_key": "mekaar-sk-msg",
+  "hkdf_info_chain_next": "mekaar-sk-next",
+  "initial_chain_key_hex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+  "chain_derivations": [
+    {
+      "counter": 0,
+      "chain_key_hex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+      "message_key_hex": "69f4018e16692a4f49ac8ab3c942b6ce1273b334eb87591db8043c265dff1856",
+      "next_chain_key_hex": "c9a746390cbebff7310800290f5a6e52e26a28616489476295fc50017a7a26af"
+    },
+    {
+      "counter": 1,
+      "chain_key_hex": "c9a746390cbebff7310800290f5a6e52e26a28616489476295fc50017a7a26af",
+      "message_key_hex": "78a6b9692ae33c5c13fa47a8bd59f5b2dad7accee970ced68a32e15ae5c924dd",
+      "next_chain_key_hex": "f6aac5764382021e12f5a7fa698a931ff6f47fc96c69ac7f90ac7c6f5b12d516"
+    },
+    {
+      "counter": 2,
+      "chain_key_hex": "f6aac5764382021e12f5a7fa698a931ff6f47fc96c69ac7f90ac7c6f5b12d516",
+      "message_key_hex": "4e35546705fd8614137cd4524bfe4170a637f2ae64f24b15e963874217042aeb",
+      "next_chain_key_hex": "a21ec4140468287be181eddb7e3e61af2272b70c7d9e5276bcc6fa4a353142dd"
+    },
+    {
+      "counter": 3,
+      "chain_key_hex": "a21ec4140468287be181eddb7e3e61af2272b70c7d9e5276bcc6fa4a353142dd",
+      "message_key_hex": "85e91c026cda812c31aa34d3c38256174a01d35a4f7c0b305d3091cb7eff4a46",
+      "next_chain_key_hex": "6a162c9e9979d04ae8f2738a251eba2c5a2b02ca8ac89c6a1dbac30ff4bab89b"
+    },
+    {
+      "counter": 4,
+      "chain_key_hex": "6a162c9e9979d04ae8f2738a251eba2c5a2b02ca8ac89c6a1dbac30ff4bab89b",
+      "message_key_hex": "87a2f736f1512047cf6ff40d313bbae30d2a053a187d7f170b3237a47b01bec7",
+      "next_chain_key_hex": "17730be22739725e55d344e7ac08b2f4cb3d86780cf8a425309a6cc471436e6a"
+    }
+  ],
+  "ed25519_vector": {
+    "seed_hex": "101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f",
+    "public_key_hex": "7776e870b93354f2a0b24c23f2a36cc4e80e223218c1b97926fdd018396a2b9b",
+    "public_key_b64": "d3bocLkzVPKgskwj8qNsxOgOIjIYwbl5Jv3QGDlqK5s=",
+    "payload": "MEKAAR_SKDM_V1:group_golden:user_alice:1:AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=:ERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLw==:2026-11-18T00:00:00.000Z",
+    "signature_b64": "Tz8LJaZLue1iMKVzcbucbm41g5XKsq6j2oEsk7MJAFXvDAronpXd6sE9t4B7qKyk8ZZBDUl0VmMyY8PZGfdgCA=="
+  },
+  "xchacha20_poly1305_vector": {
+    "key_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+    "nonce_hex": "0102030405060708090a0b0c0d0e0f101112131415161718",
+    "nonce_b64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcY",
+    "aad": "MEKAAR_GRP_V1:group_golden:user_alice:1:0:AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcY",
+    "plaintext": "MEKAAR E2EE GOLDEN TEST VECTOR 2026",
+    "ciphertext_combined_b64": "uDJQrzFIZcJI+I2UKsvjaUCX5c44ZaQ7x99XAua0TAbHkC8aNPeMnU6T/WUkfdL4ttrR"
+  }
+}

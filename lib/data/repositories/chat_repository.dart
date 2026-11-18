@@ -1349,6 +1349,28 @@ class ChatRepository {
       final encVersion = await getRoomEncryptionVersion(roomId);
       if (encVersion == 1) {
         try {
+          // Pemicu rotasi berkala (Temuan 3, Brief §4.4, D3: 5.000 pesan atau 30 hari)
+          final ourRecord =
+              await GroupE2eeService.instance.getOrGenerateOurSenderKey(roomId);
+          if (GroupE2eeService.needsKeyRotation(ourRecord)) {
+            try {
+              final membersResp = await _supabaseService.client
+                  .from('room_participants')
+                  .select('profile_id')
+                  .eq('room_id', roomId)
+                  .isFilter('deleted_at', null);
+              final memberIds = (membersResp as List)
+                  .map((r) => r['profile_id'] as String)
+                  .toList();
+              await GroupKeyDistributionService.instance
+                  .rotateAndDistributeSenderKey(
+                groupId: roomId,
+                currentUserId: userId,
+                memberUserIds: memberIds,
+              );
+            } catch (_) {}
+          }
+
           final groupEnvelope =
               await GroupE2eeService.instance.encryptGroupMessage(
             groupId: roomId,
@@ -2383,6 +2405,18 @@ class ChatRepository {
           'username': '',
           'avatar_url': null,
         };
+      }
+
+      // Deteksi penyusutan anggota untuk pengamat pasif (Temuan 2, Brief §4.2)
+      final currentUserId = _supabaseService.currentUserId;
+      if (currentUserId != null && encVer == 1 && profileIds.isNotEmpty) {
+        unawaited(
+          GroupKeyDistributionService.instance.checkAndRekeyIfMembershipShrunk(
+            groupId: roomId,
+            currentUserId: currentUserId,
+            currentMemberIds: profileIds,
+          ),
+        );
       }
 
       return {'room': roomResp, 'participants': participantsList};

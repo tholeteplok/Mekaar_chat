@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/data/models/group_skdm_models.dart';
 import 'package:mekaar_chat/data/services/group_e2ee_service.dart';
@@ -11,17 +12,26 @@ void main() {
     late InMemorySenderKeyStore bobStore;
     late GroupE2eeService aliceCrypto;
     late GroupE2eeService bobCrypto;
+    late String aliceIdentityKeyB64;
+    late String bobIdentityKeyB64;
 
     const String roomId = 'room_safety_group_001';
     const String aliceId = 'usr_alice_001';
     const String bobId = 'usr_bob_002';
 
-    setUp(() {
+    setUp(() async {
       aliceStore = InMemorySenderKeyStore();
       bobStore = InMemorySenderKeyStore();
 
-      aliceCrypto = GroupE2eeService(store: aliceStore);
-      bobCrypto = GroupE2eeService(store: bobStore);
+      final ed25519 = Ed25519();
+      final aliceIdentityPair = await ed25519.newKeyPairFromSeed(List.filled(32, 1));
+      final bobIdentityPair = await ed25519.newKeyPairFromSeed(List.filled(32, 2));
+
+      aliceIdentityKeyB64 = base64Encode((await aliceIdentityPair.extractPublicKey()).bytes);
+      bobIdentityKeyB64 = base64Encode((await bobIdentityPair.extractPublicKey()).bytes);
+
+      aliceCrypto = GroupE2eeService(store: aliceStore, initialIdentityKeyPair: aliceIdentityPair);
+      bobCrypto = GroupE2eeService(store: bobStore, initialIdentityKeyPair: bobIdentityPair);
     });
 
     test('Skenario 1: Enkripsi pesan grup menghasilkan ciphertext JSON valid (v1)', () async {
@@ -80,6 +90,7 @@ void main() {
         groupE2eeService: aliceCrypto,
         senderKeyStore: aliceStore,
       );
+      distService.cacheUserIdentityKey(bobId, bobIdentityKeyB64);
       final skdm = await distService.buildSignedSkdm(aliceRecord, aliceId);
 
       // 3. Bob menerima dan memverifikasi SKDM Alice
@@ -87,6 +98,7 @@ void main() {
         groupE2eeService: bobCrypto,
         senderKeyStore: bobStore,
       );
+      bobDistService.cacheUserIdentityKey(aliceId, aliceIdentityKeyB64);
       final verified = await bobDistService.verifyAndProcessSkdm(
         skdm,
         expectedSenderId: aliceId,

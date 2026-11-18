@@ -35,6 +35,9 @@ abstract class SenderKeyStore {
     int keyId,
   );
 
+  /// Menghapus seluruh state sender key untuk seorang anggota dalam suatu grup (misal saat anggota di-kick/keluar).
+  Future<void> deleteSenderStatesForSender(String groupId, String senderId);
+
   /// Menghapus seluruh state sender key untuk suatu grup (misal saat grup dihapus atau di-reset).
   Future<void> deleteSenderStatesForGroup(String groupId);
 
@@ -124,6 +127,12 @@ class InMemorySenderKeyStore implements SenderKeyStore {
   ) async {
     final key = _senderStateKey(groupId, senderId, keyId);
     _senderStates.remove(key);
+  }
+
+  @override
+  Future<void> deleteSenderStatesForSender(String groupId, String senderId) async {
+    _senderStates.removeWhere((k, _) => k.startsWith('$groupId:$senderId:'));
+    _skippedKeys.removeWhere((k, _) => k.startsWith('$groupId:$senderId:'));
   }
 
   @override
@@ -387,6 +396,25 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
       );
     } catch (e) {
       _logger.e('Gagal menghapus sender state: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteSenderStatesForSender(String groupId, String senderId) async {
+    try {
+      final db = await _db;
+      await db.delete(
+        tableSenderStates,
+        where: 'group_id = ? AND sender_id = ?',
+        whereArgs: [groupId, senderId],
+      );
+      await db.delete(
+        tableSkippedKeys,
+        where: 'group_id = ? AND sender_id = ?',
+        whereArgs: [groupId, senderId],
+      );
+    } catch (e) {
+      _logger.e('Gagal menghapus sender states ($groupId, $senderId): $e');
     }
   }
 

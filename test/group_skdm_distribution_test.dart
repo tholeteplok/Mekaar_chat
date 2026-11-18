@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:cryptography/cryptography.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mekaar_chat/data/models/group_sender_key_models.dart';
 import 'package:mekaar_chat/data/models/group_skdm_models.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
 import 'package:mekaar_chat/data/repositories/chat_repository.dart';
@@ -77,19 +80,32 @@ void main() {
   late GroupKeyDistributionService bobDistributor;
   late GroupKeyDistributionService charlieDistributor;
 
+  late String aliceIdentityKeyB64;
+  late String bobIdentityKeyB64;
+  late String charlieIdentityKeyB64;
+
   const testGroupId = 'group_room_security_101';
   const aliceId = 'usr_alice';
   const bobId = 'usr_bob';
   const charlieId = 'usr_charlie';
 
-  setUp(() {
+  setUp(() async {
     aliceStore = InMemorySenderKeyStore();
     bobStore = InMemorySenderKeyStore();
     charlieStore = InMemorySenderKeyStore();
 
-    aliceE2ee = GroupE2eeService(store: aliceStore);
-    bobE2ee = GroupE2eeService(store: bobStore);
-    charlieE2ee = GroupE2eeService(store: charlieStore);
+    final ed25519 = Ed25519();
+    final aliceIdentityKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 1));
+    final bobIdentityKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 2));
+    final charlieIdentityKeyPair = await ed25519.newKeyPairFromSeed(List.filled(32, 3));
+
+    aliceIdentityKeyB64 = base64Encode((await aliceIdentityKeyPair.extractPublicKey()).bytes);
+    bobIdentityKeyB64 = base64Encode((await bobIdentityKeyPair.extractPublicKey()).bytes);
+    charlieIdentityKeyB64 = base64Encode((await charlieIdentityKeyPair.extractPublicKey()).bytes);
+
+    aliceE2ee = GroupE2eeService(store: aliceStore, initialIdentityKeyPair: aliceIdentityKeyPair);
+    bobE2ee = GroupE2eeService(store: bobStore, initialIdentityKeyPair: bobIdentityKeyPair);
+    charlieE2ee = GroupE2eeService(store: charlieStore, initialIdentityKeyPair: charlieIdentityKeyPair);
 
     fakeRepo = FakeDirectChatRepository();
 
@@ -108,6 +124,18 @@ void main() {
       chatRepository: fakeRepo,
       senderKeyStore: charlieStore,
     );
+
+    aliceDistributor.cacheUserIdentityKey(aliceId, aliceIdentityKeyB64);
+    aliceDistributor.cacheUserIdentityKey(bobId, bobIdentityKeyB64);
+    aliceDistributor.cacheUserIdentityKey(charlieId, charlieIdentityKeyB64);
+
+    bobDistributor.cacheUserIdentityKey(aliceId, aliceIdentityKeyB64);
+    bobDistributor.cacheUserIdentityKey(bobId, bobIdentityKeyB64);
+    bobDistributor.cacheUserIdentityKey(charlieId, charlieIdentityKeyB64);
+
+    charlieDistributor.cacheUserIdentityKey(aliceId, aliceIdentityKeyB64);
+    charlieDistributor.cacheUserIdentityKey(bobId, bobIdentityKeyB64);
+    charlieDistributor.cacheUserIdentityKey(charlieId, charlieIdentityKeyB64);
   });
 
   group('SKDM & Request Model Serialization Tests', () {
@@ -167,15 +195,16 @@ void main() {
     });
   });
 
-  group('SKDM Signing & Distribution Tests', () {
-    test('Alice signs SKDM and Bob verifies & registers state successfully', () async {
+  group('Temuan 1: SKDM Signing & Identity Verification Tests (Brief §3.2, D1)', () {
+    test('Alice signs SKDM with Identity Key and Bob verifies & registers state successfully', () async {
       final aliceRecord = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
       final skdm = await aliceDistributor.buildSignedSkdm(aliceRecord, aliceId);
 
-      // Bob memproses SKDM
+      // Bob memproses SKDM menggunakan identity key Alice yang terpercaya
       final success = await bobDistributor.verifyAndProcessSkdm(
         skdm,
         expectedSenderId: aliceId,
+        expectedSenderIdentityKeyB64: aliceIdentityKeyB64,
       );
       expect(success, isTrue);
 
@@ -200,7 +229,31 @@ void main() {
       expect(decrypted, equals('Halo Bob dari Alice via SKDM!'));
     });
 
-    test('Tampered SKDM signature is rejected by receiver', () async {
+    test('Uji Negatif 1: SKDM dengan senderId Alice tetapi ditandatangani kunci identitas penyerang DITOLAK', () async {
+      final aliceRecord = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
+
+      // Penyerang (Mallory) menandatangani SKDM dengan kunci identitas penyerang
+      final attackerKey = await Ed25519().newKeyPair();
+      final attackerSkdm = await aliceDistributor.buildSignedSkdm(
+        aliceRecord,
+        aliceId,
+        identityKeyPair: attackerKey,
+      );
+
+      // Bob memverifikasi terhadap identity key Alice yang asli
+      final success = await bobDistributor.verifyAndProcessSkdm(
+        attackerSkdm,
+        expectedSenderId: aliceId,
+        expectedSenderIdentityKeyB64: aliceIdentityKeyB64,
+      );
+
+      // Wajib ditolak!
+      expect(success, isFalse);
+      final stateInBob = await bobStore.getSenderState(testGroupId, aliceId, 1);
+      expect(stateInBob, isNull);
+    });
+
+    test('Uji Negatif 2: SKDM dengan tanda tangan rusak / tampered DITOLAK', () async {
       final aliceRecord = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
       final skdm = await aliceDistributor.buildSignedSkdm(aliceRecord, aliceId);
 
@@ -221,89 +274,206 @@ void main() {
       final success = await bobDistributor.verifyAndProcessSkdm(
         tamperedSkdm,
         expectedSenderId: aliceId,
+        expectedSenderIdentityKeyB64: aliceIdentityKeyB64,
       );
       expect(success, isFalse);
 
       final stateInBob = await bobStore.getSenderState(testGroupId, aliceId, 1);
       expect(stateInBob, isNull);
     });
+
+    test('Uji Persistensi: Ed25519 Identity Key identik sebelum dan sesudah reload proses', () async {
+      // Mock storage lokal
+      FlutterSecureStorage.setMockInitialValues({});
+
+      final service1 = GroupE2eeService();
+      final pubKey1 = await service1.getIdentityPublicKey(userId: 'test_persist_user');
+      expect(pubKey1.length, equals(32));
+
+      // Simulasikan restart proses: buat instance baru tanpa in-memory cache
+      final service2 = GroupE2eeService();
+      final pubKey2 = await service2.getIdentityPublicKey(userId: 'test_persist_user');
+
+      // Kunci publik sebelum dan sesudah restart harus IDENTIK
+      expect(base64Encode(pubKey1), equals(base64Encode(pubKey2)));
+    });
   });
 
-  group('Membership Rekeying & Kick Exclusion Tests (§4.2)', () {
-    test('Rekeying upon kick: Kicked member cannot decrypt subsequent messages', () async {
-      // 1. Setup awal: Alice, Bob, Charlie dalam grup (keyId = 1)
-      final initialRecord = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
-      final initialSkdm = await aliceDistributor.buildSignedSkdm(initialRecord, aliceId);
+  group('Temuan 2: Rekeying Pengamat Pasif saat Membership Shrink (Brief §4.2)', () {
+    test('Pengamat pasif (Bob) otomatis rekeying saat Charlie di-kick oleh Alice', () async {
+      // 1. Inisialisasi awal: Alice, Bob, Charlie saling bertukar kunci
+      final aliceRec1 = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
+      final bobRec1 = await bobE2ee.generateSenderKey(testGroupId, keyId: 1);
 
-      await bobDistributor.verifyAndProcessSkdm(initialSkdm, expectedSenderId: aliceId);
-      await charlieDistributor.verifyAndProcessSkdm(initialSkdm, expectedSenderId: aliceId);
+      await bobDistributor.verifyAndProcessSkdm(
+        await aliceDistributor.buildSignedSkdm(aliceRec1, aliceId),
+        expectedSenderId: aliceId,
+        expectedSenderIdentityKeyB64: aliceIdentityKeyB64,
+      );
+      await charlieDistributor.verifyAndProcessSkdm(
+        await bobDistributor.buildSignedSkdm(bobRec1, bobId),
+        expectedSenderId: bobId,
+        expectedSenderIdentityKeyB64: bobIdentityKeyB64,
+      );
 
-      // Pesan 1: Bob dan Charlie sama-sama bisa baca
-      final env1 = await aliceE2ee.encryptGroupMessage(
+      // Pesan awal dari Bob: Charlie bisa baca
+      final msg1 = await bobE2ee.encryptGroupMessage(
         groupId: testGroupId,
-        senderId: aliceId,
-        plaintext: 'Pesan awal untuk semua anggota',
+        senderId: bobId,
+        plaintext: 'Pesan awal Bob untuk semua',
       );
       expect(
-        await bobE2ee.decryptGroupMessage(groupId: testGroupId, senderId: aliceId, envelope: env1),
-        equals('Pesan awal untuk semua anggota'),
-      );
-      expect(
-        await charlieE2ee.decryptGroupMessage(groupId: testGroupId, senderId: aliceId, envelope: env1),
-        equals('Pesan awal untuk semua anggota'),
+        await charlieE2ee.decryptGroupMessage(groupId: testGroupId, senderId: bobId, envelope: msg1),
+        equals('Pesan awal Bob untuk semua'),
       );
 
-      // 2. Charlie di-kick dari grup!
-      // Alice melakukan Rekeying wajib ke sisa anggota (Bob saja)
-      await aliceDistributor.rekeyGroupOnMembershipChange(
+      // Inisialisasi keanggotaan awal untuk Bob: [Alice, Bob, Charlie]
+      await bobDistributor.checkAndRekeyIfMembershipShrunk(
         groupId: testGroupId,
-        currentUserId: aliceId,
-        remainingMemberIds: [aliceId, bobId],
-        excludedMemberId: charlieId,
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId, charlieId],
       );
 
-      // Ambil kunci baru Alice (keyId: 2)
-      final newAliceRecord = await aliceStore.getOurSenderKey(testGroupId);
-      expect(newAliceRecord, isNotNull);
-      expect(newAliceRecord!.keyId, equals(2));
-
-      // Bob menerima SKDM baru (keyId: 2)
-      final rekeySkdm = await aliceDistributor.buildSignedSkdm(newAliceRecord, aliceId);
-      await bobDistributor.verifyAndProcessSkdm(rekeySkdm, expectedSenderId: aliceId);
-
-      // Charlie TIDAK menerima SKDM baru ini!
-
-      // 3. Alice mengirim pesan baru pasca-kick
-      final envPostKick = await aliceE2ee.encryptGroupMessage(
+      // 2. Alice mengeluarkan Charlie (Kick).
+      // Bob sebagai pengamat pasif mendeteksi anggota berkurang menjadi [Alice, Bob]
+      final rekeyed = await bobDistributor.checkAndRekeyIfMembershipShrunk(
         groupId: testGroupId,
-        senderId: aliceId,
-        plaintext: 'Pesan rahasia setelah Charlie dikeluarkan!',
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId],
       );
-      expect(envPostKick.keyId, equals(2));
+      expect(rekeyed, isTrue);
 
-      // Bob berhasil membaca pesan baru
-      final bobDecrypted = await bobE2ee.decryptGroupMessage(
+      // Kunci Bob sekarang harus naik ke keyId = 2
+      final newBobRecord = await bobStore.getOurSenderKey(testGroupId);
+      expect(newBobRecord, isNotNull);
+      expect(newBobRecord!.keyId, equals(2));
+
+      // Bob mengirim pesan baru setelah kick
+      final msgPostKick = await bobE2ee.encryptGroupMessage(
         groupId: testGroupId,
-        senderId: aliceId,
-        envelope: envPostKick,
+        senderId: bobId,
+        plaintext: 'Pesan rahasia Bob setelah Charlie di-kick!',
       );
-      expect(bobDecrypted, equals('Pesan rahasia setelah Charlie dikeluarkan!'));
+      expect(msgPostKick.keyId, equals(2));
 
-      // Charlie GAGAL membaca pesan baru (tidak punya keyId 2)
+      // Charlie TIDAK memiliki keyId = 2 milik Bob, gagal mendekripsi!
       expect(
         () => charlieE2ee.decryptGroupMessage(
           groupId: testGroupId,
-          senderId: aliceId,
-          envelope: envPostKick,
+          senderId: bobId,
+          envelope: msgPostKick,
         ),
         throwsA(isA<GroupE2eeMissingSenderStateException>()),
       );
+    });
+
+    test('Pengamat pasif (Bob & Alice) otomatis rekeying saat Charlie keluar sukarela (Leave)', () async {
+      await aliceDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: aliceId,
+        currentMemberIds: [aliceId, bobId, charlieId],
+      );
+      await bobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId, charlieId],
+      );
+
+      // Charlie keluar sukarela -> sisa [aliceId, bobId]
+      final aliceRekeyed = await aliceDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: aliceId,
+        currentMemberIds: [aliceId, bobId],
+      );
+      final bobRekeyed = await bobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId],
+      );
+
+      expect(aliceRekeyed, isTrue);
+      expect(bobRekeyed, isTrue);
+    });
+
+    test('Uji Idempotensi: Penyegaran daftar anggota berulang tanpa perubahan tidak memicu rekey tambahan', () async {
+      await bobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId],
+      );
+
+      // Panggilan kedua dengan anggota yang sama persis
+      final secondCall = await bobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId],
+      );
+      expect(secondCall, isFalse);
+
+      // Panggilan ketiga
+      final thirdCall = await bobDistributor.checkAndRekeyIfMembershipShrunk(
+        groupId: testGroupId,
+        currentUserId: bobId,
+        currentMemberIds: [aliceId, bobId],
+      );
+      expect(thirdCall, isFalse);
+    });
+  });
+
+  group('Temuan 3: Pemicu Rotasi Berkala Sender Key (Brief §4.4, D3)', () {
+    test('needsKeyRotation returns true when counter >= 5000', () {
+      final now = DateTime.now().toUtc();
+      final freshRecord = SenderKeyRecord(
+        groupId: 'grp_1',
+        keyId: 1,
+        chainKey: List.filled(32, 1),
+        signingKeyPair: SimpleKeyPairData([], publicKey: SimplePublicKey([], type: KeyPairType.ed25519), type: KeyPairType.ed25519),
+        signingPublicKeyBytes: List.filled(32, 2),
+        counter: 4999,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      expect(GroupE2eeService.needsKeyRotation(freshRecord), isFalse);
+
+      final expiredCounterRecord = freshRecord.copyWith(counter: 5000);
+      expect(GroupE2eeService.needsKeyRotation(expiredCounterRecord), isTrue);
+    });
+
+    test('needsKeyRotation returns true when key age >= 30 days', () {
+      final thirtyOneDaysAgo = DateTime.now().toUtc().subtract(const Duration(days: 31));
+      final oldRecord = SenderKeyRecord(
+        groupId: 'grp_1',
+        keyId: 1,
+        chainKey: List.filled(32, 1),
+        signingKeyPair: SimpleKeyPairData([], publicKey: SimplePublicKey([], type: KeyPairType.ed25519), type: KeyPairType.ed25519),
+        signingPublicKeyBytes: List.filled(32, 2),
+        counter: 10,
+        createdAt: thirtyOneDaysAgo,
+        updatedAt: thirtyOneDaysAgo,
+      );
+
+      expect(GroupE2eeService.needsKeyRotation(oldRecord), isTrue);
+    });
+
+    test('rotateAndDistributeSenderKey advances keyId and resets counter', () async {
+      final initialRec = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
+      expect(initialRec.keyId, equals(1));
+
+      // Picu rotasi
+      final rotated = await aliceDistributor.rotateAndDistributeSenderKey(
+        groupId: testGroupId,
+        currentUserId: aliceId,
+        memberUserIds: [aliceId, bobId],
+      );
+
+      expect(rotated.keyId, equals(2));
+      expect(rotated.counter, equals(0));
     });
   });
 
   group('Self-Healing & Resync Protocol Tests (§5.3)', () {
     test('Receiver without state requests key and successfully decrypts queued message', () async {
-      // Alice menghasilkan sender key dan pesan
       final aliceRecord = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
       final env = await aliceE2ee.encryptGroupMessage(
         groupId: testGroupId,
@@ -321,20 +491,7 @@ void main() {
         throwsA(isA<GroupE2eeMissingSenderStateException>()),
       );
 
-      // Bob mengirim pesan kontrol sender_key_request
-      final requestPayload = jsonEncode({
-        'type': GroupKeyDistributionService.controlTypeSkRequest,
-        'payload': SenderKeyRequest(
-          groupId: testGroupId,
-          requesterId: bobId,
-          targetSenderId: aliceId,
-          keyId: 1,
-          requestedAt: DateTime.now().toUtc(),
-        ).toJson(),
-      });
-      expect(requestPayload.isNotEmpty, isTrue);
-
-      // Alice menerima request tersebut dan otomatis membalas SKDM
+      // Bob menerima SKDM melalui pesan balasan self-healing
       final skdmGenerated = await aliceDistributor.buildSignedSkdm(aliceRecord, aliceId);
       final replyPayload = jsonEncode({
         'type': GroupKeyDistributionService.controlTypeSkdm,
