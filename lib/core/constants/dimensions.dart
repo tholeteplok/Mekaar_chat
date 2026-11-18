@@ -22,7 +22,7 @@ class MekaarRadius {
   static const double sm = 8; // Chip dalam gelembung, thumbnail balasan
   static const double sub = 10; // Overlay badge media, durasi voice
   static const double base = 12; // Chip, badge standar
-  static const double card = 16; // Standar baku kartu Citrea (tetap & presisi)
+  static const double card = 16; // Standar baku kartu (tetap & presisi)
   static const double md = 18; // Bubble chat, input bar
   static const double lg = 24; // Kartu chat list, sheet
   static const double xl = 32; // Extra rounded
