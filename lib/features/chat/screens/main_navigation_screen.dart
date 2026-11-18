@@ -29,31 +29,18 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _currentIndex = 0;
   late PageController _pageController;
 
-  Widget _buildScreenTab(int index, bool showGuardian) {
-    if (showGuardian) {
-      switch (index) {
-        case 0:
-          return const ChatListScreen();
-        case 1:
-          return const ContactListScreen();
-        case 2:
-          return const GuardianListScreen();
-        case 3:
-          return const SettingsScreen();
-        default:
-          return const SizedBox.shrink();
-      }
-    } else {
-      switch (index) {
-        case 0:
-          return const ChatListScreen();
-        case 1:
-          return const ContactListScreen();
-        case 2:
-          return const SettingsScreen();
-        default:
-          return const SizedBox.shrink();
-      }
+  Widget _buildScreenTab(int index) {
+    switch (index) {
+      case 0:
+        return const ChatListScreen();
+      case 1:
+        return const ContactListScreen();
+      case 2:
+        return const GuardianListScreen();
+      case 3:
+        return const SettingsScreen();
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -128,26 +115,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     }
 
     final hasPendingGuardian = ref.watch(hasPendingIncomingGuardiansProvider);
-    final showGuardian = ref.watch(shouldShowGuardianTabProvider);
-    final rawNavItems = showGuardian
-        ? _navItems
-        : _navItems.where((item) => item.label != 'Guardian').toList();
 
-    final tabCount = rawNavItems.length;
-    final effectiveIndex = _currentIndex.clamp(0, tabCount - 1);
-    if (effectiveIndex != _currentIndex) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() => _currentIndex = effectiveIndex);
-          if (_pageController.hasClients) {
-            _pageController.jumpToPage(effectiveIndex);
-          }
-        }
-      });
-    }
-
-    // Salin items dan tempel unreadCount di item Pesan dan Guardian
-    final items = rawNavItems.map((item) {
+    // Salin items dan tempel unreadCount di item Pesan dan Guardian.
+    // Selalu pertahankan 4 tab stabil demi integritas memori spasial pengguna (P1-1).
+    final items = _navItems.map((item) {
       if (item.label == 'Pesan') {
         return MekaarNavItem(
           label: item.label,
@@ -168,7 +139,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     }).toList();
 
     return PopScope(
-      canPop: effectiveIndex == 0,
+      canPop: _currentIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_currentIndex != 0) {
@@ -191,17 +162,16 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           children: [
             PageView.builder(
               controller: _pageController,
-              itemCount: tabCount,
+              itemCount: _navItems.length,
               onPageChanged: (index) {
                 FocusManager.instance.primaryFocus?.unfocus();
                 setState(() => _currentIndex = index);
               },
-              itemBuilder: (context, index) =>
-                  _buildScreenTab(index, showGuardian),
+              itemBuilder: (context, index) => _buildScreenTab(index),
             ),
             MekaarBottomNav(
               items: items,
-              currentIndex: effectiveIndex,
+              currentIndex: _currentIndex,
               onTap: (index) {
                 FocusManager.instance.primaryFocus?.unfocus();
                 if (_currentIndex != index) {

@@ -15,6 +15,7 @@ import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../sos/providers/sos_provider.dart';
 import '../providers/guardian_provider.dart';
 import '../../../data/models/guardian_model.dart';
 import '../widgets/active_trip_card.dart';
@@ -61,6 +62,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final isDuress = ref.watch(authProvider).isDuressActive;
+    final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
     final myGuardians = isDuress ? <Guardian>[] : ref.watch(guardianProvider);
     final whoAddedMe = isDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
     final myGuardiansStatus = ref.watch(guardianLoadStatusProvider);
@@ -80,7 +82,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (myGuardians.isNotEmpty)
+                        if (isSosEnabled && myGuardians.isNotEmpty)
                           IconButton(
                             icon: Icon(
                               SolarIconsOutline.userPlus,
@@ -103,15 +105,16 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                             AppRoutes.guardianTracking,
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(
-                            SolarIconsOutline.shieldCheck,
-                            color: MekaarColors.textPrimaryOf(context),
+                        if (isSosEnabled)
+                          IconButton(
+                            icon: Icon(
+                              SolarIconsOutline.shieldCheck,
+                              color: MekaarColors.textPrimaryOf(context),
+                            ),
+                            tooltip: 'Latihan SOS (Simulasi)',
+                            onPressed: () =>
+                                Navigator.pushNamed(context, AppRoutes.sosDrill),
                           ),
-                          tooltip: 'Latihan SOS (Simulasi)',
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.sosDrill),
-                        ),
                         IconButton(
                           icon: Icon(
                             SolarIconsOutline.routing,
@@ -157,6 +160,87 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
     List<Guardian> guardians,
     GuardianLoadStatus status,
   ) {
+    final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
+    if (!isSosEnabled) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+        child: AnimatedAppear(
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const MikaIllustration(
+                    type: MikaIllustrationType.emptyGuardian,
+                    size: 160,
+                    semanticLabel: 'Fitur Guardian belum aktif',
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Fitur Guardian Belum Aktif',
+                    style: MekaarTypography.headingMD,
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      'Aktifkan Fitur Darurat SOS untuk menambahkan kontak tepercaya sebagai pelindung darurat Anda.',
+                      style: MekaarTypography.bodyMD,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await ref
+                          .read(sosFeatureEnabledProvider.notifier)
+                          .setEnabled(true);
+                      if (mounted) {
+                        MekaarSnackbar.success(
+                          context,
+                          'Fitur Darurat SOS & Guardian berhasil diaktifkan',
+                        );
+                      }
+                    },
+                    icon: const Icon(SolarIconsBold.shieldCheck, size: 20),
+                    label: Text(
+                      'Aktifkan Fitur Guardian',
+                      style: MekaarTypography.labelLG.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 14,
+                      ),
+                      shape: const StadiumBorder(),
+                      elevation: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.settings),
+                    icon: const Icon(SolarIconsOutline.settings, size: 18),
+                    label: Text(
+                      'Buka Pengaturan Keamanan',
+                      style: MekaarTypography.labelMD.copyWith(
+                        color: MekaarColors.textSecondaryOf(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (status == GuardianLoadStatus.loading) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),

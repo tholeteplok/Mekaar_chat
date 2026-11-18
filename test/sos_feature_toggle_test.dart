@@ -65,7 +65,7 @@ void main() {
       expect(ref.read(shouldShowGuardianTabProvider), isTrue);
     });
 
-    test('Saat SOS nonaktif dan user hanya dijaga (whoAddedMe kosong), Tab Guardian disembunyikan (false)', () {
+    test('Saat SOS nonaktif dan user hanya dijaga (whoAddedMe kosong), Tab Guardian tetap tampil (true) demi memori spasial (P1-1)', () {
       final ref = ProviderContainer(
         overrides: [
           sosFeatureEnabledProvider.overrideWith((ref) => SOSFeatureEnabledNotifier(null, false)),
@@ -74,7 +74,7 @@ void main() {
       );
       addTearDown(ref.dispose);
 
-      expect(ref.read(shouldShowGuardianTabProvider), isFalse);
+      expect(ref.read(shouldShowGuardianTabProvider), isTrue);
     });
 
     test('Saat SOS nonaktif TETAPI user bertindak sebagai penjaga aktif (whoAddedMe ada), Tab Guardian WAJIB tampil (true)', () {
@@ -178,11 +178,15 @@ void main() {
       expect(content.contains('MekaarIcons.newChat'), isTrue);
     });
 
-    test('MainNavigationScreen mengadaptasi 3 vs 4 tab navigasi bawah dengan shouldShowGuardianTabProvider', () {
+    test('MainNavigationScreen mempertahankan 4 tab navigasi bawah secara stabil (P1-1)', () {
       final file = File('lib/features/chat/screens/main_navigation_screen.dart');
       final content = file.readAsStringSync();
-      expect(content.contains('shouldShowGuardianTabProvider'), isTrue);
-      expect(content.contains('item.label != \'Guardian\''), isTrue);
+      expect(content.contains('Pesan'), isTrue);
+      expect(content.contains('Kontak'), isTrue);
+      expect(content.contains('Guardian'), isTrue);
+      expect(content.contains('Setelan'), isTrue);
+      // Memori spasial: tidak memangkas tab saat SOS nonaktif
+      expect(content.contains('item.label != \'Guardian\''), isFalse);
     });
   });
 }

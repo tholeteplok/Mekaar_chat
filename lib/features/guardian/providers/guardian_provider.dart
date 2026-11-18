@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../../data/repositories/guardian_repository.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../sos/providers/sos_provider.dart';
 
 enum GuardianLoadStatus { loading, data, error }
 
@@ -165,18 +164,11 @@ final hasPendingIncomingGuardiansProvider = Provider<bool>((ref) {
 });
 
 /// Menentukan apakah Tab Guardian pada Bottom Navigation wajib ditampilkan.
-/// 1. Jika Fitur SOS aktif -> Selalu tampil (true).
-/// 2. Jika Fitur SOS nonaktif:
-///    - True jika pengguna berstatus sebagai "Penjaga Aktif" (ada orang yang dijaga).
-///    - False jika pengguna hanya berstatus "dijaga" (tidak menjaga siapa pun).
+///
+/// Berdasarkan prinsip kestabilan memori spasial navigasi bawah (P1-1),
+/// Bottom Navigation mempertahankan 4 tab secara stabil. Provider ini
+/// selalu mengembalikan true untuk kompatibilitas.
 final shouldShowGuardianTabProvider = Provider<bool>((ref) {
-  final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
-  if (isSosEnabled) return true;
-
-  final whoAddedMe = ref.watch(whoAddedMeProvider);
-  final isProtectingOthers = whoAddedMe.any(
-    (g) => !g.isExpired && (g.status == 'active' || g.status == 'pending'),
-  );
-  return isProtectingOthers;
+  return true;
 });
 
