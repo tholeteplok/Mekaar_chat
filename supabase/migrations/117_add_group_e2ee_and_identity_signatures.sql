@@ -187,6 +187,7 @@ SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
     v_user_id UUID := auth.uid();
+    v_result JSONB;
 BEGIN
     IF v_user_id IS NULL THEN
         RETURN '[]'::JSONB;
