@@ -21,7 +21,6 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_elastic_pull_scope.dart';
 import '../../../core/widgets/mekaar_header_search_button.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
-import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/skeletons.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -61,15 +60,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
   Timer? _searchDebounceTimer;
-  int _selectedTabIndex = 0;
-  final List<String> _tabs = ['Semua', 'Guardian'];
-  String get _selectedTab => _tabs[_selectedTabIndex];
 
   // Cache memoization untuk filter room
   int? _lastRoomsSignature;
   List<Map<String, dynamic>>? _cachedFiltered;
   String? _lastSearchQuery;
-  int? _lastTabIndex;
   Set<String>? _lastBlockedIds;
   Set<String>? _lastCloakedRoomIds;
   Set<String>? _lastCloakedContactUserIds;
@@ -485,6 +480,25 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final authState = ref.watch(authProvider);
     final wasDuress = authState.lastUnlockWasDuress;
 
+    final archivedUnreadCount = chatRoomsState.maybeWhen(
+      data: (rooms) {
+        final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
+        final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
+        return rooms.where((room) {
+          final isArchived = room['isArchived'] as bool? ?? false;
+          if (!isArchived) return false;
+          final roomId = room['id'] as String;
+          final otherUserId = room['otherUserId'] as String?;
+          if (cloakedRooms.contains(roomId)) return false;
+          if (otherUserId != null && cloakedContacts.contains(otherUserId)) {
+            return false;
+          }
+          return true;
+        }).fold<int>(0, (sum, room) => sum + ((room['unreadCount'] as int?) ?? 0));
+      },
+      orElse: () => 0,
+    );
+
     ref.listen<SharedPayload?>(sharedPayloadProvider, (prev, next) {
       if (next != null && next.isNotEmpty && mounted) {
         _showShareTargetDialog(next);
@@ -549,12 +563,34 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 setState(() => _isSearchActive = true);
                               },
                             ),
+                            Badge.count(
+                              count: archivedUnreadCount,
+                              isLabelVisible: archivedUnreadCount > 0,
+                              backgroundColor: MekaarColors.accentOf(context),
+                              textColor: MekaarColors.textOnBlue,
+                              child: IconButton(
+                                icon: Icon(
+                                  SolarIconsOutline.archiveCheck,
+                                  color: MekaarColors.textPrimaryOf(context),
+                                ),
+                                tooltip: 'Arsip Percakapan',
+                                onPressed: () {
+                                  HapticService.trigger(
+                                    MekaarHapticIntent.selection,
+                                  );
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.archivedChats,
+                                  );
+                                },
+                              ),
+                            ),
                             PopupMenuButton<String>(
                               icon: Icon(
                                 SolarIconsOutline.menuDotsCircle,
                                 color: MekaarColors.textPrimaryOf(context),
                               ),
-                              tooltip: 'Menu Rahasia & Arsip',
+                              tooltip: 'Menu Tambahan',
                               elevation: 4,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
@@ -575,11 +611,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       AppRoutes.vault,
                                     );
                                   }
-                                } else if (value == 'archive') {
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.archivedChats,
-                                  );
                                 } else if (value == 'quick_trip') {
                                   QuickTripSheet.show(context);
                                 }
@@ -619,28 +650,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       const SizedBox(width: 12),
                                       Text(
                                         'Brankas Berkas',
-                                        style: MekaarTypography.bodyMD.copyWith(
-                                          color: MekaarColors.textPrimaryOf(
-                                            context,
-                                          ),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                PopupMenuItem<String>(
-                                  value: 'archive',
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        SolarIconsOutline.archiveCheck,
-                                        color: MekaarColors.primaryOf(context),
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Arsip Percakapan',
                                         style: MekaarTypography.bodyMD.copyWith(
                                           color: MekaarColors.textPrimaryOf(
                                             context,
@@ -710,26 +719,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     if (!isSosEnabled) return const SizedBox.shrink();
                     return const ActiveTripCard(
                       margin: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    );
-                  },
-                ),
-                // Sliding Segment Tabs Bar (Hanya tampil jika fitur SOS & Guardian aktif)
-                Consumer(
-                  builder: (context, ref, _) {
-                    final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
-                    if (!isSosEnabled) return const SizedBox.shrink();
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 6),
-                        MekaarSlidingSegmentBar(
-                          tabs: _tabs,
-                          selectedIndex: _selectedTabIndex,
-                          onTabSelected: (index) =>
-                              setState(() => _selectedTabIndex = index),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
                     );
                   },
                 ),
@@ -867,13 +856,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         .map((c) => c.contactUserId)
         .toSet();
 
-    // Memoized filter rooms by query, tab, blocked IDs, and hidden vault state
+    // Memoized filter rooms by query, blocked IDs, and hidden vault state
     final roomsSignature = _computeRoomsSignature(rooms);
     final bool isCacheValid =
         _cachedFiltered != null &&
         _lastRoomsSignature == roomsSignature &&
         _lastSearchQuery == _searchQuery &&
-        _lastTabIndex == _selectedTabIndex &&
         setEquals(_lastBlockedIds, blockedIds) &&
         setEquals(_lastCloakedRoomIds, cloakedRoomIds) &&
         setEquals(_lastCloakedContactUserIds, cloakedContactUserIds);
@@ -958,11 +946,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
         if (!matchQuery) return false;
 
-        if (_selectedTab == 'Guardian') {
-          return (room['isGuardian'] as bool? ?? false) &&
-              !(room['isArchived'] as bool? ?? false);
-        }
-        // Tab 'Pesan' (inbox utama): tampilkan semua obrolan aktif yang tidak diarsipkan
+        // Inbox utama: tampilkan semua obrolan aktif yang tidak diarsipkan
         final isArchived = room['isArchived'] as bool? ?? false;
         return !isArchived;
       }).toList();
@@ -970,7 +954,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       _lastRoomsSignature = roomsSignature;
       _cachedFiltered = filtered;
       _lastSearchQuery = _searchQuery;
-      _lastTabIndex = _selectedTabIndex;
       _lastBlockedIds = Set<String>.from(blockedIds);
       _lastCloakedRoomIds = Set<String>.from(cloakedRoomIds);
       _lastCloakedContactUserIds = Set<String>.from(cloakedContactUserIds);
@@ -978,34 +961,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     if (filtered.isEmpty) {
       final hasSearch = _searchQuery.trim().isNotEmpty;
-      final isGuardianFilter = _selectedTab == 'Guardian';
-      final isArchiveFilter = _selectedTab == 'Arsip';
       final MikaIllustrationType emptyIllustration = hasSearch
           ? MikaIllustrationType.emptySearch
-          : isGuardianFilter
-          ? MikaIllustrationType.emptyGuardian
-          : isArchiveFilter
-          ? MikaIllustrationType.emptyArchive
           : MikaIllustrationType.emptyChat;
 
       return _EmptyChats(
         onStart: _showNewChatDialog,
         illustration: emptyIllustration,
-        title: hasSearch
-            ? 'Tidak Ditemukan'
-            : isGuardianFilter
-            ? 'Belum Ada Chat Guardian'
-            : isArchiveFilter
-            ? 'Arsip Bersih'
-            : 'Belum Ada Obrolan',
+        title: hasSearch ? 'Tidak Ditemukan' : 'Belum Ada Obrolan',
         message: hasSearch
             ? 'Tidak ada percakapan yang cocok dengan "${_searchQuery.trim()}".'
-            : isGuardianFilter
-            ? 'Chat dengan Guardian tepercaya akan muncul di filter ini.'
-            : isArchiveFilter
-            ? 'Belum ada obrolan yang diarsipkan.'
             : 'Mulai obrolan baru dengan kontak atau bagikan kode QR.',
-        showStartButton: !hasSearch && !isGuardianFilter && !isArchiveFilter,
+        showStartButton: !hasSearch,
         searchQuery: hasSearch ? _searchQuery.trim() : null,
       );
     }
