@@ -14,6 +14,7 @@ import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/theme_preference.dart';
+import '../../../core/constants/webrtc_config.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -98,10 +99,15 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.shieldNetwork,
           iconColor: MekaarColors.info,
           title: MekaarCopy.relayCallsTitle,
-          subtitle: MekaarCopy.relayCallsSubtitle,
-          value: ref.watch(relayCallsOnlyProvider),
-          onChanged: (value) =>
-              ref.read(relayCallsOnlyProvider.notifier).setEnabled(value),
+          subtitle: WebRtcConfig.hasTurnServer
+              ? MekaarCopy.relayCallsSubtitle
+              : MekaarCopy.relayCallsUnavailableSubtitle,
+          value: WebRtcConfig.hasTurnServer &&
+              ref.watch(relayCallsOnlyProvider),
+          onChanged: WebRtcConfig.hasTurnServer
+              ? (value) =>
+                  ref.read(relayCallsOnlyProvider.notifier).setEnabled(value)
+              : null,
         ),
       ],
     );

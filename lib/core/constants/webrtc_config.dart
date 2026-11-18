@@ -7,6 +7,9 @@ class WebRtcConfig {
   static const String _turnUsername = String.fromEnvironment('TURN_USERNAME');
   static const String _turnCredential = String.fromEnvironment('TURN_CREDENTIAL');
 
+  /// Memeriksa apakah server TURN terkonfigurasi saat build.
+  static bool get hasTurnServer => _turnUrl.isNotEmpty;
+
   /// Membangun konfigurasi ICE servers terpusat.
   /// Jika [relayOnly] bernilai true, hanya jalur TURN relay yang diizinkan
   /// guna mencegah kebocoran alamat IP publik/lokal ke peer (Anti-IP Leak).

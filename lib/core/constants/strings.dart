@@ -170,6 +170,8 @@ abstract final class MekaarCopy {
   static const String relayCallsTitle = 'Sembunyikan Alamat IP Panggilan';
   static const String relayCallsSubtitle =
       'Alihkan panggilan via server relay Mekaar';
+  static const String relayCallsUnavailableSubtitle =
+      'Belum tersedia — server relay belum aktif';
 
   // Seksi Keamanan
   static const String pinManagementTitle = 'Manajemen PIN Keamanan';
