@@ -95,7 +95,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SettingsDivider(),
         SettingsSwitchTile(
-          icon: SolarIconsOutline.routing,
+          icon: SolarIconsOutline.shieldNetwork,
           iconColor: MekaarColors.info,
           title: MekaarCopy.relayCallsTitle,
           subtitle: MekaarCopy.relayCallsSubtitle,
@@ -154,7 +154,7 @@ class SettingsScreen extends ConsumerWidget {
         ],
         const SettingsDivider(),
         SettingsSwitchTile(
-          icon: SolarIconsOutline.screenShare,
+          icon: SolarIconsOutline.monitorCamera,
           iconColor: MekaarColors.guardianTeal,
           title: MekaarCopy.blockScreenshotsTitle,
           subtitle: MekaarCopy.blockScreenshotsSubtitle,
@@ -206,7 +206,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SettingsDivider(),
         SettingsSwitchTile(
-          icon: SolarIconsOutline.volumeLoud,
+          icon: SolarIconsOutline.alarm,
           iconColor: MekaarColors.guardianTeal,
           title: MekaarCopy.guardianAlarmTitle,
           subtitle: MekaarCopy.guardianAlarmSubtitle,
@@ -261,7 +261,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SettingsDivider(),
         SettingsSwitchTile(
-          icon: SolarIconsOutline.eye,
+          icon: SolarIconsOutline.bellOff,
           iconColor: MekaarColors.warning,
           title: MekaarCopy.notificationMaskingTitle,
           subtitle: MekaarCopy.notificationMaskingSubtitle,
