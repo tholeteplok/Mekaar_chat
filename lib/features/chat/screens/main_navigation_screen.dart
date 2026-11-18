@@ -258,7 +258,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                             },
                             child: Container(
                               constraints: const BoxConstraints(
-                                minHeight: 44,
+                                minHeight: MekaarSizes.touchTargetMin,
                               ),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 10),

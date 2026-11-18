@@ -41,7 +41,8 @@ class MekaarSizes {
   static const double iconBadge = 44;
   static const double fab = 60; // FAB size to 60px (per design.md)
   static const double sos = 72;
-  static const double composerButton = 42;
+  /// Ukuran tombol aksi dan hit-target komposer standar (48dp, sejajar WCAG 2.2 SC 2.5.8).
+  static const double composerButton = 48;
   static const double chatMediaWidth = 220;
   static const double chatMediaHeight = 180;
 }

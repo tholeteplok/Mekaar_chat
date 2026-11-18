@@ -738,7 +738,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
         children: [
           // ──── Tab strip: Standar | pack terpasang... | Toko ────
           SizedBox(
-            height: 40,
+            height: MekaarSizes.touchTargetMin,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.md),
@@ -759,10 +759,10 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                   tooltip: 'Toko Emoji',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
+                    minWidth: MekaarSizes.touchTargetMin,
+                    minHeight: MekaarSizes.touchTargetMin,
                   ),
-                  splashRadius: 20,
+                  splashRadius: 24,
                   icon: Icon(
                     SolarIconsOutline.bagSmile,
                     size: 22,
@@ -882,7 +882,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
   Widget _buildStandardEmojiCategoryBar() {
     return SizedBox(
-      height: 36,
+      height: MekaarSizes.touchTargetMin,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: MekaarSpacing.md),
@@ -891,8 +891,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             IconButton(
               icon: const Icon(SolarIconsOutline.history, size: 18),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              splashRadius: 16,
+              constraints: const BoxConstraints(
+                minWidth: MekaarSizes.touchTargetMin,
+                minHeight: MekaarSizes.touchTargetMin,
+              ),
+              splashRadius: 24,
               color: MekaarColors.textMutedOf(context),
               tooltip: 'Sering Digunakan',
               onPressed: () => _scrollToCategory('recent'),
@@ -901,8 +904,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
             IconButton(
               icon: Icon(cat.icon, size: 18),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              splashRadius: 16,
+              constraints: const BoxConstraints(
+                minWidth: MekaarSizes.touchTargetMin,
+                minHeight: MekaarSizes.touchTargetMin,
+              ),
+              splashRadius: 24,
               color: MekaarColors.textSecondaryOf(context),
               tooltip: cat.title,
               onPressed: () => _scrollToCategory(cat.key),
@@ -1252,12 +1258,24 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: widget.onCancelEdit,
-                        child: Icon(
-                          SolarIconsOutline.closeSquare,
-                          size: 18,
-                          color: primaryAccent,
+                      Semantics(
+                        button: true,
+                        label: 'Batal edit',
+                        child: InkWell(
+                          onTap: widget.onCancelEdit,
+                          borderRadius: BorderRadius.circular(MekaarRadius.pill),
+                          child: Container(
+                            constraints: const BoxConstraints(
+                              minWidth: MekaarSizes.touchTargetMin,
+                              minHeight: MekaarSizes.touchTargetMin,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              SolarIconsOutline.closeSquare,
+                              size: 18,
+                              color: primaryAccent,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -1299,6 +1317,11 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                     child: Row(
                       children: [
                         IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: MekaarSizes.touchTargetMin,
+                            height: MekaarSizes.touchTargetMin,
+                          ),
                           icon: const Icon(
                             SolarIconsOutline.trashBinMinimalistic,
                             color: MekaarColors.sosRed,
@@ -1339,8 +1362,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                         PressableScale(
                           onTap: _stopAndSendRecording,
                           child: Container(
-                            width: 44,
-                            height: 44,
+                            width: MekaarSizes.touchTargetMin,
+                            height: MekaarSizes.touchTargetMin,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: primaryAccent,
@@ -1381,8 +1404,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints.tightFor(
-                                  width: 40,
-                                  height: 48,
+                                  width: MekaarSizes.touchTargetMin,
+                                  height: MekaarSizes.touchTargetMin,
                                 ),
                                 icon: AnimatedSwitcher(
                                   duration: context.motion(MekaarMotion.fast),
@@ -1474,8 +1497,8 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints.tightFor(
-                                  width: 40,
-                                  height: 48,
+                                  width: MekaarSizes.touchTargetMin,
+                                  height: MekaarSizes.touchTargetMin,
                                 ),
                                 icon: Icon(
                                   SolarIconsOutline.paperclip,
@@ -1505,6 +1528,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                                 ? 'Beralih ke kamera'
                                 : 'Beralih ke mikrofon',
                             child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
                               onTap: _toggleQuickActionMode,
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 4),
@@ -1849,9 +1873,13 @@ class _ReplyPreview extends StatelessWidget {
                   HapticService.trigger(MekaarHapticIntent.selection);
                   onCancel();
                 },
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
+                borderRadius: BorderRadius.circular(MekaarRadius.pill),
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: MekaarSizes.touchTargetMin,
+                    minHeight: MekaarSizes.touchTargetMin,
+                  ),
+                  alignment: Alignment.center,
                   child: Icon(
                     SolarIconsOutline.closeCircle,
                     size: 20,
