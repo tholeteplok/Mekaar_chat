@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -112,6 +113,33 @@ class GroupE2eeService {
   final Random _secureRandom = Random.secure();
 
   SimpleKeyPair? _identityKeyPair;
+  final Map<String, Future<void>> _chainLocks = {};
+
+  /// Serialisasi akses baca-ubah-tulis pada rantai kunci agar tidak korup akibat konkurensi async.
+  Future<T> _withChainLock<T>(String lockKey, Future<T> Function() action) async {
+    final prev = _chainLocks[lockKey] ?? Future<void>.value();
+    final completer = Completer<void>();
+    _chainLocks[lockKey] = completer.future;
+    try {
+      await prev;
+      return await action();
+    } finally {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+      if (identical(_chainLocks[lockKey], completer.future)) {
+        _chainLocks.remove(lockKey);
+      }
+    }
+  }
+
+  static bool _bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   String _getStorageKey(String? userId) {
     final effectiveId = userId ?? _supabase.currentUserId ?? 'default_user';
@@ -171,9 +199,38 @@ class GroupE2eeService {
     return pub.bytes;
   }
 
-  /// Menghasilkan pasangan sender key aktif baru untuk akun kita di suatu grup.
-  /// Dipanggil saat membuat grup, saat pertama kali mengirim pesan, atau saat rotasi/rekey.
-  Future<SenderKeyRecord> generateSenderKey(
+  /// Mengekstrak seed 32-byte Ed25519 identitas untuk disertakan dalam backup PIN.
+  Future<List<int>> exportIdentitySeed({String? userId}) async {
+    final pair = await getOrGenerateIdentityKeyPair(userId: userId);
+    return await pair.extractPrivateKeyBytes();
+  }
+
+  /// Memulihkan pasangan kunci identitas Ed25519 dari seed backup dan menyimpannya ke secure storage.
+  Future<void> importIdentitySeed(List<int> seed, {String? userId}) async {
+    if (seed.length != 32) {
+      throw const GroupE2eeException('Panjang seed identitas Ed25519 tidak valid');
+    }
+    final storageKey = _getStorageKey(userId);
+    await _secureStorage.write(key: storageKey, value: base64Encode(seed));
+    _identityKeyPair = await _ed25519.newKeyPairFromSeed(seed);
+  }
+
+  /// Membersihkan cache kunci identitas Ed25519 dari RAM saat logout.
+  void clearSession() {
+    _identityKeyPair = null;
+  }
+
+  /// Menghapus & membuat ulang kunci identitas Ed25519 (saat reset PIN / reset paksa E2EE).
+  Future<void> resetIdentity({String? userId}) async {
+    _identityKeyPair = null;
+    final storageKey = _getStorageKey(userId);
+    try {
+      await _secureStorage.delete(key: storageKey);
+    } catch (_) {}
+    await getOrGenerateIdentityKeyPair(userId: userId);
+  }
+
+  Future<SenderKeyRecord> _generateSenderKeyUnlocked(
     String groupId, {
     int keyId = 1,
   }) async {
@@ -202,11 +259,32 @@ class GroupE2eeService {
     return record;
   }
 
-  /// Membaca atau menginisialisasi sender key aktif kita untuk suatu grup.
-  Future<SenderKeyRecord> getOrGenerateOurSenderKey(String groupId) async {
+  Future<SenderKeyRecord> _getOrGenerateOurSenderKeyUnlocked(
+    String groupId,
+  ) async {
     final existing = await _store.getOurSenderKey(groupId);
     if (existing != null) return existing;
-    return await generateSenderKey(groupId, keyId: 1);
+    return await _generateSenderKeyUnlocked(groupId, keyId: 1);
+  }
+
+  /// Menghasilkan pasangan sender key aktif baru untuk akun kita di suatu grup.
+  /// Dipanggil saat membuat grup, saat pertama kali mengirim pesan, atau saat rotasi/rekey.
+  Future<SenderKeyRecord> generateSenderKey(
+    String groupId, {
+    int keyId = 1,
+  }) {
+    return _withChainLock(
+      'enc:$groupId',
+      () => _generateSenderKeyUnlocked(groupId, keyId: keyId),
+    );
+  }
+
+  /// Membaca atau menginisialisasi sender key aktif kita untuk suatu grup.
+  Future<SenderKeyRecord> getOrGenerateOurSenderKey(String groupId) {
+    return _withChainLock(
+      'enc:$groupId',
+      () => _getOrGenerateOurSenderKeyUnlocked(groupId),
+    );
   }
 
   /// Mendaftarkan atau memperbarui state sender key anggota lain (misal dari SKDM yang diterima).
@@ -217,19 +295,43 @@ class GroupE2eeService {
     required List<int> chainKey,
     required List<int> signingPublicKeyBytes,
     int counter = 0,
-  }) async {
-    final state = SenderKeyState(
-      groupId: groupId,
-      senderId: senderId,
-      keyId: keyId,
-      chainKey: chainKey,
-      signingPublicKeyBytes: signingPublicKeyBytes,
-      counter: counter,
-      updatedAt: DateTime.now().toUtc(),
-    );
+  }) {
+    if (keyId <= 0 || counter < 0) {
+      throw const GroupE2eeException('keyId atau counter SKDM tidak valid');
+    }
+    if (chainKey.length != 32 || signingPublicKeyBytes.length != 32) {
+      throw const GroupE2eeException('Panjang chainKey atau signingPublicKey SKDM tidak valid');
+    }
 
-    await _store.saveSenderState(state);
-    _logger.d('Sender state disimpan untuk $senderId di grup $groupId (keyId: $keyId, counter: $counter)');
+    return _withChainLock('dec:$groupId:$senderId:$keyId', () async {
+      // Anti-Rollback Guard: jangan timpa state dengan counter lebih tua jika signing key sama
+      final existing = await _store.getSenderState(groupId, senderId, keyId);
+      if (existing != null &&
+          _bytesEqual(existing.signingPublicKeyBytes, signingPublicKeyBytes) &&
+          existing.counter >= counter) {
+        _logger.d(
+          'Melewati registrasi SKDM basi/duplikat untuk $senderId (keyId: $keyId, '
+          'existingCounter: ${existing.counter}, incomingCounter: $counter)',
+        );
+        return;
+      }
+
+      final state = SenderKeyState(
+        groupId: groupId,
+        senderId: senderId,
+        keyId: keyId,
+        chainKey: chainKey,
+        signingPublicKeyBytes: signingPublicKeyBytes,
+        counter: counter,
+        updatedAt: DateTime.now().toUtc(),
+      );
+
+      await _store.saveSenderState(state);
+      if (keyId > 2) {
+        await _store.purgeOldSenderStates(groupId, senderId, keyId - 2);
+      }
+      _logger.d('Sender state disimpan untuk $senderId di grup $groupId (keyId: $keyId, counter: $counter)');
+    });
   }
 
   /// Mengenkripsi teks pesan grup menggunakan Sender Key aktif kita.
@@ -238,8 +340,9 @@ class GroupE2eeService {
     String senderId = 'me',
     required String plaintext,
     Uint8List? fixedNonce,
-  }) async {
-    final currentKey = await getOrGenerateOurSenderKey(groupId);
+  }) {
+    return _withChainLock('enc:$groupId', () async {
+      final currentKey = await _getOrGenerateOurSenderKeyUnlocked(groupId);
 
     // 1. Derivasi Message Key (32 bytes) dari Chain Key saat ini
     final msgSecretKey = await _hkdf.deriveKey(
@@ -317,6 +420,7 @@ class GroupE2eeService {
       ciphertextB64: ciphertextB64,
       signatureB64: signatureB64,
     );
+    });
   }
 
   /// Mendekripsi pesan grup menggunakan state sender key milik pengirim.
@@ -336,11 +440,16 @@ class GroupE2eeService {
       );
     }
 
-    // 0. Validasi identitas envelope
+    // 0. Validasi identitas envelope & batas dasar
     if (effectiveEnvelope.groupId != groupId ||
         effectiveEnvelope.senderId != senderId) {
       throw const GroupE2eeException('Metadata envelope tidak cocok dengan grup atau pengirim');
     }
+    if (effectiveEnvelope.keyId <= 0 || effectiveEnvelope.counter < 0) {
+      throw const GroupE2eeException('Nilai keyId atau counter envelope tidak valid');
+    }
+
+    return _withChainLock('dec:$groupId:$senderId:${effectiveEnvelope.keyId}', () async {
 
     // 1. Ambil state pengirim untuk (groupId, senderId, keyId)
     final state = await _store.getSenderState(groupId, senderId, effectiveEnvelope.keyId);
@@ -486,6 +595,9 @@ class GroupE2eeService {
       final cipherText = combinedCipher.sublist(0, combinedCipher.length - 16);
       final macBytes = combinedCipher.sublist(combinedCipher.length - 16);
       final nonceBytes = base64Decode(effectiveEnvelope.nonceB64);
+      if (nonceBytes.length != 24) {
+        throw const GroupE2eeException('Panjang nonce XChaCha20 tidak valid (harus 24 byte)');
+      }
 
       final secretBox = SecretBox(
         cipherText,
@@ -504,5 +616,6 @@ class GroupE2eeService {
       if (e is GroupE2eeException) rethrow;
       throw GroupE2eeException('Gagal mendekripsi ciphertext: $e', e);
     }
+    });
   }
 }

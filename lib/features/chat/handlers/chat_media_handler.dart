@@ -118,11 +118,19 @@ class ChatMediaHandler {
       String? fileKeyB64;
       String url;
 
-      // Periksa apakah kamar mendukung E2EE (peer key tersedia) tanpa enkripsi dummy yang boros
-      final peerKey = otherUserId != null
-          ? await E2eeService.instance.getPeerPublicKey(otherUserId)
-          : null;
-      if (peerKey != null && peerKey.isNotEmpty) {
+      // Periksa apakah kamar mendukung E2EE (grup v1 atau 1:1 dengan peer key)
+      bool shouldEncryptMedia = false;
+      if (isGroup) {
+        final encVer = await ref
+            .read(chatRepositoryProvider)
+            .getRoomEncryptionVersion(chatId);
+        shouldEncryptMedia = encVer >= 1;
+      } else if (otherUserId != null) {
+        final peerKey = await E2eeService.instance.getPeerPublicKey(otherUserId);
+        shouldEncryptMedia = peerKey != null && peerKey.isNotEmpty;
+      }
+
+      if (shouldEncryptMedia) {
         // Kamar chat mendukung E2EE, enkripsi & unggah media
         final result = await uploader.uploadEncryptedChatMedia(file, chatId);
         url = result.url;

@@ -1207,6 +1207,19 @@ class LocalMessageDatabase {
         try {
           await txn.delete(_callsTableName);
         } catch (_) {}
+        try {
+          await txn.delete(_roomsCacheTableName);
+        } catch (_) {}
+        try {
+          await txn.delete(_draftsTableName);
+        } catch (_) {}
+        try {
+          await txn.delete(_groupSenderKeysTableName);
+          await txn.delete(_groupSenderStatesTableName);
+          await txn.delete(_groupSkippedKeysTableName);
+          await txn.delete('group_membership_tracker');
+          await txn.delete('group_skdm_distributed');
+        } catch (_) {}
       });
     } catch (e) {
       _logger.w('Gagal mengosongkan LocalMessageDatabase: $e');

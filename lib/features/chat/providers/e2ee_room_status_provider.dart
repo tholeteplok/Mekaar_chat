@@ -39,6 +39,7 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
     if (isGroup) {
       if (encryptionVersion == 1) {
         state = E2eeRoomStatus.groupE2eeReady;
+        unawaited(E2eeService.instance.ensureIdentity());
       } else {
         state = E2eeRoomStatus.groupServerEncrypted;
       }

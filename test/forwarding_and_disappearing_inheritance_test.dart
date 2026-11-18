@@ -54,6 +54,9 @@ class FakeChatRepository extends Fake implements ChatRepository {
   }
 
   @override
+  Future<bool> isGroupRoom(String roomId) async => false;
+
+  @override
   Future<Message> sendMessage(
     String roomId,
     String content, {

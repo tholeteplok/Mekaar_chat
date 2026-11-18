@@ -8,6 +8,7 @@ import '../../../core/utils/emoji_shortcode_parser.dart';
 import '../../../core/utils/message_preview_resolver.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/services/group_key_distribution_service.dart';
 import '../../../data/services/local_message_database.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/notification_dedup_service.dart';
@@ -72,25 +73,28 @@ class MessageNotificationListener {
     }
 
     // 0ms Instant Inbox Mutation:
-    // Langsung pindahkan room ke paling atas dan update unread count seketika (0 ms)
-    // tanpa menunggu round-trip HTTP dekripsi E2EE yang dapat memakan waktu beberapa detik.
-    final instantPreview = formatPreviewText(
-      msgType: msgType,
-      content: content,
-      isEncrypted: isEncrypted,
-      isFromOtherUser: isFromOtherUser,
-    );
+    // Jangan mutasi inbox jika pesan berpotensi merupakan paket kontrol internal E2EE (system + encrypted).
+    final isPotentialControl = msgType == 'system' && isEncrypted;
     final createdAt =
         DateTime.tryParse(newRow['created_at'] as String? ?? '')?.toUtc() ??
             DateTime.now().toUtc();
 
-    _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
-      roomId: roomId,
-      previewText: instantPreview,
-      timestamp: createdAt,
-      isFromOtherUser: isFromOtherUser,
-      isCurrentlyInRoom: isCurrentlyInRoom,
-    );
+    if (!isPotentialControl) {
+      final instantPreview = formatPreviewText(
+        msgType: msgType,
+        content: content,
+        isEncrypted: isEncrypted,
+        isFromOtherUser: isFromOtherUser,
+      );
+
+      _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
+        roomId: roomId,
+        previewText: instantPreview,
+        timestamp: createdAt,
+        isFromOtherUser: isFromOtherUser,
+        isCurrentlyInRoom: isCurrentlyInRoom,
+      );
+    }
 
     // Pembaruan Background Local-First:
     // Dekripsi background, simpan ke database SQLite lokal, dan kirim notifikasi sistem.
@@ -139,6 +143,30 @@ class MessageNotificationListener {
       } catch (_) {
         decryptedContent = E2eeService.undecryptableText;
       }
+    }
+
+    // Intersepsi paket kontrol sistem E2EE (SKDM / SK Request) sebelum menyimpan ke lokal atau mengirim notifikasi
+    final msgId = newRow['id'] as String?;
+    if (msgType == 'system' &&
+        isEncrypted &&
+        decryptedContent != rawContent &&
+        !E2eeService.isUndecryptable(decryptedContent)) {
+      try {
+        final isControl = await GroupKeyDistributionService.instance
+            .handleIncomingSystemControlMessage(
+          senderId: senderId,
+          currentUserId: currentUserId,
+          rawContent: decryptedContent,
+        );
+        if (isControl) {
+          if (msgId != null) {
+            unawaited(
+              _ref.read(chatRepositoryProvider).hideMessageForMe(msgId, roomId: roomId),
+            );
+          }
+          return;
+        }
+      } catch (_) {}
     }
 
     if (messageObj != null) {

@@ -252,6 +252,7 @@ class WelcomeAnimationViewState extends ConsumerState<WelcomeAnimationView>
   void dispose() {
     _mainController.dispose();
     _dockingController.dispose();
+    _ScenePainter.clearGlyphCache();
     super.dispose();
   }
 
@@ -841,6 +842,14 @@ class _ScenePainter extends CustomPainter {
   /// canvas.scale sehingga layout TextPainter hanya dipanggil 1 kali.
   static final Map<String, TextPainter> _glyphCache = {};
 
+  /// Membebaskan seluruh objek native ui.Paragraph yang tersimpan di cache saat layar ditutup.
+  static void clearGlyphCache() {
+    for (final painter in _glyphCache.values) {
+      painter.dispose();
+    }
+    _glyphCache.clear();
+  }
+
   /// Menggambar satu glyph ikon (IconData dari paket solar_icons)
   /// terpusat di [center] dalam kotak em [size]×[size] secara efisien.
   void _paintGlyph(
@@ -852,7 +861,10 @@ class _ScenePainter extends CustomPainter {
     bool flipX = false,
   }) {
     if (size <= 0) return;
-    final key = '${icon.codePoint}|${icon.fontFamily}|${color.toARGB32()}';
+    // Kuantisasi alpha ke 20 tingkat (langkah 5%) agar cache tidak membengkak per frame
+    final quantizedAlpha = ((color.a * 20).round() / 20).clamp(0.0, 1.0);
+    final quantizedColor = color.withValues(alpha: quantizedAlpha);
+    final key = '${icon.codePoint}|${icon.fontFamily}|${quantizedColor.toARGB32()}';
     var painter = _glyphCache[key];
     if (painter == null) {
       painter = TextPainter(
@@ -865,7 +877,7 @@ class _ScenePainter extends CustomPainter {
                 ? icon.fontFamily
                 : 'packages/${icon.fontPackage}/${icon.fontFamily}',
             fontSize: _kBaseGlyphSize,
-            color: color,
+            color: quantizedColor,
           ),
         ),
         textDirection: TextDirection.ltr,

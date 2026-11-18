@@ -168,7 +168,7 @@ void main() {
       expect(
         parsed.canonicalPayload,
         equals(
-          'MEKAAR_SKDM_V1:grp_test:usr_alice:1:${base64Encode(chainKey)}:${base64Encode(pubKey)}:${now.toIso8601String()}',
+          'MEKAAR_SKDM_V1:grp_test:usr_alice:1:0:${base64Encode(chainKey)}:${base64Encode(pubKey)}:${now.toIso8601String()}',
         ),
       );
     });

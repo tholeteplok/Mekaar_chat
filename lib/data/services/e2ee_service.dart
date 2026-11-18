@@ -244,6 +244,9 @@ class E2eeService {
     _roomKeys.clear();
     _needsRestore = false;
 
+    // Reset kunci Ed25519 identitas grup sebelum mempublikasikan kunci publik baru
+    await GroupE2eeService.instance.resetIdentity(userId: userId);
+
     // Generate kunci baru
     await _generateAndPublishIdentity(userId);
 
@@ -642,9 +645,21 @@ class E2eeService {
       if (userId == null || identity == null) return;
 
       final privBytes = await identity.extractPrivateKeyBytes();
+      List<int>? edSeed;
+      try {
+        edSeed = await GroupE2eeService.instance.exportIdentitySeed(userId: userId);
+      } catch (_) {}
+
+      final secretPayload = edSeed != null
+          ? utf8.encode(jsonEncode({
+              'x25519': base64Encode(privBytes),
+              'ed25519': base64Encode(edSeed),
+            }))
+          : privBytes;
+
       final salt = _randomBytes(16);
       final wrapKey = await _pinKeyArgon2id(pin, salt);
-      final box = await _cipher.encrypt(privBytes, secretKey: wrapKey);
+      final box = await _cipher.encrypt(secretPayload, secretKey: wrapKey);
 
       await _supabase.client
           .from('profiles')
@@ -700,25 +715,42 @@ class E2eeService {
         nonceLength: 24,
         macLength: 16,
       );
-      final privBytes = await _cipher.decrypt(box, secretKey: wrapKey);
+      final decryptedBytes = await _cipher.decrypt(box, secretKey: wrapKey);
+
+      List<int> privBytes = decryptedBytes;
+      List<int>? edSeed;
+      try {
+        final maybeJson = jsonDecode(utf8.decode(decryptedBytes));
+        if (maybeJson is Map && maybeJson['x25519'] is String) {
+          privBytes = base64Decode(maybeJson['x25519'] as String);
+          if (maybeJson['ed25519'] is String) {
+            edSeed = base64Decode(maybeJson['ed25519'] as String);
+          }
+        }
+      } catch (_) {
+        // Legacy format: raw 32-byte X25519 seed
+      }
 
       await _loadIdentityFromBytes(privBytes);
+      if (edSeed != null && edSeed.length == 32) {
+        await GroupE2eeService.instance.importIdentitySeed(edSeed, userId: userId);
+      }
 
       // Auto-upgrade backup KDF to Argon2id-v3 in background if it was legacy
       if (kdfType != 'argon2id-v3' || version < 3) {
         backupWithPin(pin);
       }
 
-      // Self-healing: Jika public key di server berbeda dengan hasil restore backup,
-      // perbarui public key di server agar cocok dengan private key asli dari backup.
-      if (expectedPub != null &&
+      // Self-healing: Pastikan kunci publik X25519 dan Ed25519 di server selalu sinkron dengan perangkat aktif.
+      final needsForcePublish = expectedPub != null &&
           expectedPub.isNotEmpty &&
-          expectedPub != _identityPublicB64) {
+          expectedPub != _identityPublicB64;
+      if (needsForcePublish) {
         _logger.w('Self-healing: Kunci publik di server ($expectedPub) '
             'berbeda dengan kunci hasil restore ($_identityPublicB64). '
             'Memperbarui kunci publik di server agar cocok dengan backup.');
-        await _publishPublicKeyIfNeeded(force: true);
       }
+      await _publishPublicKeyIfNeeded(force: needsForcePublish);
 
       await _secureStorage.write(
         key: _storageKeyFor(userId),
@@ -748,6 +780,9 @@ class E2eeService {
     _identityPublicB64 = null;
     _roomKeys.clear();
     _needsRestore = false;
+
+    // Reset kunci Ed25519 identitas grup sebelum mempublikasikan kunci publik baru
+    await GroupE2eeService.instance.resetIdentity(userId: userId);
 
     // Generate kunci baru
     await _generateAndPublishIdentity(userId);

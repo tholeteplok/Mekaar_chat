@@ -9,6 +9,7 @@ class SenderKeyDistributionMessage {
   final String groupId;
   final String senderId;
   final int keyId;
+  final int counter;
   final List<int> chainKey;
   final List<int> signingPublicKeyBytes;
   final DateTime createdAt;
@@ -19,6 +20,7 @@ class SenderKeyDistributionMessage {
     required this.groupId,
     required this.senderId,
     required this.keyId,
+    this.counter = 0,
     required this.chainKey,
     required this.signingPublicKeyBytes,
     required this.createdAt,
@@ -26,16 +28,17 @@ class SenderKeyDistributionMessage {
   });
 
   /// Format kanonikal string untuk penandatanganan dan verifikasi Ed25519:
-  /// `MEKAAR_SKDM_V1:{groupId}:{senderId}:{keyId}:{chainKeyB64}:{pubKeyB64}:{isoTime}`
+  /// `MEKAAR_SKDM_V1:{groupId}:{senderId}:{keyId}:{counter}:{chainKeyB64}:{pubKeyB64}:{isoTime}`
   static String buildCanonicalPayload({
     required String groupId,
     required String senderId,
     required int keyId,
+    int counter = 0,
     required String chainKeyB64,
     required String signingPubKeyB64,
     required String isoTime,
   }) {
-    return 'MEKAAR_SKDM_V1:$groupId:$senderId:$keyId:$chainKeyB64:$signingPubKeyB64:$isoTime';
+    return 'MEKAAR_SKDM_V1:$groupId:$senderId:$keyId:$counter:$chainKeyB64:$signingPubKeyB64:$isoTime';
   }
 
   /// String kanonikal data yang ditandatangani untuk SKDM ini
@@ -43,6 +46,7 @@ class SenderKeyDistributionMessage {
         groupId: groupId,
         senderId: senderId,
         keyId: keyId,
+        counter: counter,
         chainKeyB64: base64Encode(chainKey),
         signingPubKeyB64: base64Encode(signingPublicKeyBytes),
         isoTime: createdAt.toUtc().toIso8601String(),
@@ -54,6 +58,7 @@ class SenderKeyDistributionMessage {
       'gid': groupId,
       'sid': senderId,
       'kid': keyId,
+      'ctr': counter,
       'ck': base64Encode(chainKey),
       'spk': base64Encode(signingPublicKeyBytes),
       'cat': createdAt.toUtc().toIso8601String(),
@@ -80,7 +85,8 @@ class SenderKeyDistributionMessage {
 
       final gid = map['gid'] as String?;
       final sid = map['sid'] as String?;
-      final kid = map['kid'] as int?;
+      final kid = (map['kid'] as num?)?.toInt();
+      final ctr = (map['ctr'] as num?)?.toInt() ?? 0;
       final ck = map['ck'] as String?;
       final spk = map['spk'] as String?;
       final cat = map['cat'] as String?;
@@ -89,6 +95,8 @@ class SenderKeyDistributionMessage {
       if (gid == null ||
           sid == null ||
           kid == null ||
+          kid <= 0 ||
+          ctr < 0 ||
           ck == null ||
           spk == null ||
           cat == null ||
@@ -97,10 +105,11 @@ class SenderKeyDistributionMessage {
       }
 
       return SenderKeyDistributionMessage(
-        version: map['v'] as int? ?? 1,
+        version: (map['v'] as num?)?.toInt() ?? 1,
         groupId: gid,
         senderId: sid,
         keyId: kid,
+        counter: ctr,
         chainKey: base64Decode(ck),
         signingPublicKeyBytes: base64Decode(spk),
         createdAt: DateTime.parse(cat),

@@ -582,9 +582,10 @@ class ChatActionsNotifier {
       throw Exception('Tipe pesan ini tidak dapat diteruskan');
     }
 
-    // 2. Ambil aturan pesan menghilang dari ruang tujuan
+    // 2. Ambil aturan pesan menghilang & tipe grup dari ruang tujuan
     final targetDisappearingMinutes = await _chatRepository
         .getRoomDisappearingMinutes(roomId);
+    final targetIsGroup = await _chatRepository.isGroupRoom(roomId);
 
     // 3. Kirim pesan dengan mewarisi durasi auto-delete ruangan tujuan
     await sendMessage(
@@ -595,6 +596,7 @@ class ChatActionsNotifier {
       autoDeleteMinutes: targetDisappearingMinutes > 0
           ? targetDisappearingMinutes
           : null,
+      isGroup: targetIsGroup,
     );
   }
 
@@ -621,10 +623,12 @@ class ChatActionsNotifier {
       return 'LIVE:$lat,$lng:$secs';
     }
 
+    final isGroup = await _chatRepository.isGroupRoom(roomId);
     final message = await _chatRepository.sendMessage(
       roomId,
       formatContent(loc.latitude!, loc.longitude!),
       type: MessageType.location,
+      isGroup: isGroup,
     );
 
     // Throttle: update paling sering setiap 10 detik untuk menghindari

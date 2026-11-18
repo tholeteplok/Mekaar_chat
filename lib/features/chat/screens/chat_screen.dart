@@ -341,7 +341,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       // Periksa apakah ini room grup di database
       final roomData = await client
           .from('chat_rooms')
-          .select('room_type, name, avatar_url')
+          .select('room_type, name, avatar_url, encryption_version')
           .eq('id', widget.chatId)
           .maybeSingle();
 

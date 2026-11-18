@@ -80,6 +80,8 @@ void main() {
       expect(find.byIcon(SolarIconsOutline.videocamera), findsOneWidget);
       expect(find.byIcon(SolarIconsOutline.phoneRounded), findsOneWidget);
       expect(find.byIcon(SolarIconsOutline.menuDots), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('ChatAppBar merender input pencarian saat isSearching aktif', (tester) async {

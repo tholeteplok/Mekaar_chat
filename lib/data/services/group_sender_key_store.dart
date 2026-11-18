@@ -73,6 +73,23 @@ abstract class SenderKeyStore {
   /// Menyimpan daftar ID anggota terakhir yang diketahui untuk suatu grup secara persisten.
   Future<void> saveLastKnownMemberIds(String groupId, List<String> memberIds);
 
+  /// Mengambil himpunan ID anggota yang sudah menerima SKDM untuk (groupId, keyId).
+  Future<Set<String>> getDistributedMemberIds(String groupId, int keyId);
+
+  /// Menandai anggota tertentu telah menerima SKDM untuk (groupId, keyId).
+  Future<void> markMembersDistributed(
+    String groupId,
+    int keyId,
+    Iterable<String> memberIds,
+  );
+
+  /// Menghapus state sender key & skipped keys kuno dengan keyId < minKeyIdToKeep.
+  Future<void> purgeOldSenderStates(
+    String groupId,
+    String senderId,
+    int minKeyIdToKeep,
+  );
+
   /// Menghapus seluruh state sender key (misal saat logout atau wipe).
   Future<void> clearAll();
 }
@@ -84,6 +101,7 @@ class InMemorySenderKeyStore implements SenderKeyStore {
   final Map<String, SenderKeyState> _senderStates = {};
   final Map<String, SkippedMessageKey> _skippedKeys = {};
   final Map<String, List<String>> _persistedMemberIds = {};
+  final Map<String, Set<String>> _distributedMembers = {};
 
   String _senderStateKey(String groupId, String senderId, int keyId) =>
       '$groupId:$senderId:$keyId';
@@ -154,6 +172,7 @@ class InMemorySenderKeyStore implements SenderKeyStore {
     await deleteOurSenderKey(groupId);
     await deleteSenderStatesForGroup(groupId);
     _persistedMemberIds.remove(groupId);
+    _distributedMembers.removeWhere((k, _) => k.startsWith('$groupId:'));
   }
 
   @override
@@ -166,6 +185,42 @@ class InMemorySenderKeyStore implements SenderKeyStore {
   Future<void> saveLastKnownMemberIds(String groupId, List<String> memberIds) async {
     final sorted = List<String>.from(memberIds)..sort();
     _persistedMemberIds[groupId] = sorted;
+  }
+
+  @override
+  Future<Set<String>> getDistributedMemberIds(String groupId, int keyId) async {
+    final set = _distributedMembers['$groupId:$keyId'];
+    return set != null ? Set<String>.from(set) : <String>{};
+  }
+
+  @override
+  Future<void> markMembersDistributed(
+    String groupId,
+    int keyId,
+    Iterable<String> memberIds,
+  ) async {
+    final set = _distributedMembers.putIfAbsent('$groupId:$keyId', () => <String>{});
+    set.addAll(memberIds);
+  }
+
+  @override
+  Future<void> purgeOldSenderStates(
+    String groupId,
+    String senderId,
+    int minKeyIdToKeep,
+  ) async {
+    _senderStates.removeWhere(
+      (k, v) =>
+          v.groupId == groupId &&
+          v.senderId == senderId &&
+          v.keyId < minKeyIdToKeep,
+    );
+    _skippedKeys.removeWhere(
+      (k, v) =>
+          v.groupId == groupId &&
+          v.senderId == senderId &&
+          v.keyId < minKeyIdToKeep,
+    );
   }
 
   @override
@@ -216,6 +271,7 @@ class InMemorySenderKeyStore implements SenderKeyStore {
     _senderStates.clear();
     _skippedKeys.clear();
     _persistedMemberIds.clear();
+    _distributedMembers.clear();
   }
 }
 
@@ -230,6 +286,7 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
   static const String tableSenderStates = 'group_sender_states';
   static const String tableSkippedKeys = 'group_skipped_keys';
   static const String tableMembershipTracker = 'group_membership_tracker';
+  static const String tableSkdmDistributed = 'group_skdm_distributed';
 
   static final Ed25519 _ed25519 = Ed25519();
 
@@ -280,6 +337,16 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
         group_id TEXT PRIMARY KEY,
         member_ids TEXT NOT NULL,
         updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableSkdmDistributed (
+        group_id TEXT NOT NULL,
+        key_id INTEGER NOT NULL,
+        member_id TEXT NOT NULL,
+        distributed_at TEXT NOT NULL,
+        PRIMARY KEY (group_id, key_id, member_id)
       )
     ''');
   }
@@ -479,6 +546,11 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
         where: 'group_id = ?',
         whereArgs: [groupId],
       );
+      await db.delete(
+        tableSkdmDistributed,
+        where: 'group_id = ?',
+        whereArgs: [groupId],
+      );
     } catch (e) {
       _logger.e('Gagal clear group $groupId: $e');
     }
@@ -535,6 +607,94 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
     } catch (e) {
       _logger.e('Gagal menyimpan last known member IDs untuk grup $groupId: $e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<Set<String>> getDistributedMemberIds(String groupId, int keyId) async {
+    try {
+      final db = await _db;
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableSkdmDistributed (
+          group_id TEXT NOT NULL,
+          key_id INTEGER NOT NULL,
+          member_id TEXT NOT NULL,
+          distributed_at TEXT NOT NULL,
+          PRIMARY KEY (group_id, key_id, member_id)
+        )
+      ''');
+      final rows = await db.query(
+        tableSkdmDistributed,
+        columns: ['member_id'],
+        where: 'group_id = ? AND key_id = ?',
+        whereArgs: [groupId, keyId],
+      );
+      return rows.map((r) => r['member_id'] as String).toSet();
+    } catch (e) {
+      _logger.w('Gagal membaca distributed members ($groupId, $keyId): $e');
+      return <String>{};
+    }
+  }
+
+  @override
+  Future<void> markMembersDistributed(
+    String groupId,
+    int keyId,
+    Iterable<String> memberIds,
+  ) async {
+    final ids = memberIds.toList();
+    if (ids.isEmpty) return;
+    try {
+      final db = await _db;
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableSkdmDistributed (
+          group_id TEXT NOT NULL,
+          key_id INTEGER NOT NULL,
+          member_id TEXT NOT NULL,
+          distributed_at TEXT NOT NULL,
+          PRIMARY KEY (group_id, key_id, member_id)
+        )
+      ''');
+      final now = DateTime.now().toUtc().toIso8601String();
+      final batch = db.batch();
+      for (final memberId in ids) {
+        batch.insert(
+          tableSkdmDistributed,
+          {
+            'group_id': groupId,
+            'key_id': keyId,
+            'member_id': memberId,
+            'distributed_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      _logger.w('Gagal menandai distributed members ($groupId, $keyId): $e');
+    }
+  }
+
+  @override
+  Future<void> purgeOldSenderStates(
+    String groupId,
+    String senderId,
+    int minKeyIdToKeep,
+  ) async {
+    try {
+      final db = await _db;
+      await db.delete(
+        tableSenderStates,
+        where: 'group_id = ? AND sender_id = ? AND key_id < ?',
+        whereArgs: [groupId, senderId, minKeyIdToKeep],
+      );
+      await db.delete(
+        tableSkippedKeys,
+        where: 'group_id = ? AND sender_id = ? AND key_id < ?',
+        whereArgs: [groupId, senderId, minKeyIdToKeep],
+      );
+    } catch (e) {
+      _logger.w('Gagal membersihkan sender state kuno ($groupId, $senderId): $e');
     }
   }
 
@@ -647,6 +807,9 @@ class SqlCipherSenderKeyStore implements SenderKeyStore {
       await db.delete(tableSenderStates);
       await db.delete(tableSkippedKeys);
       await db.delete(tableMembershipTracker);
+      try {
+        await db.delete(tableSkdmDistributed);
+      } catch (_) {}
     } catch (e) {
       _logger.e('Gagal clear all sender keys: $e');
     }

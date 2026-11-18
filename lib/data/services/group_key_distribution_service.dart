@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:logger/logger.dart';
@@ -6,6 +7,7 @@ import '../models/group_sender_key_models.dart';
 import '../models/group_skdm_models.dart';
 import '../models/message_model.dart';
 import '../repositories/chat_repository.dart';
+import 'e2ee_service.dart';
 import 'group_e2ee_service.dart';
 import 'group_sender_key_store.dart';
 import 'supabase_service.dart';
@@ -20,26 +22,70 @@ class GroupKeyDistributionService {
     SenderKeyStore? senderKeyStore,
     SupabaseService? supabaseService,
     Future<String?> Function(String userId)? identityKeyResolver,
+    Future<bool> Function(String groupId, String senderId, String currentUserId)?
+        membershipVerifier,
   })  : _groupE2eeService = groupE2eeService ?? GroupE2eeService.instance,
         _chatRepository = chatRepository ?? ChatRepository(SupabaseService()),
         _senderKeyStore = senderKeyStore ?? SqlCipherSenderKeyStore.instance,
         _supabase = supabaseService ?? SupabaseService(),
-        _identityKeyResolver = identityKeyResolver;
+        _identityKeyResolver = identityKeyResolver,
+        _membershipVerifier = membershipVerifier;
 
   static final GroupKeyDistributionService instance =
       GroupKeyDistributionService();
 
   static final Logger _logger = Logger();
   static final Ed25519 _ed25519 = Ed25519();
+  static const Duration _controlCooldown = Duration(seconds: 15);
 
   final GroupE2eeService _groupE2eeService;
   final ChatRepository _chatRepository;
   final SenderKeyStore _senderKeyStore;
   final SupabaseService _supabase;
   final Future<String?> Function(String userId)? _identityKeyResolver;
+  final Future<bool> Function(
+      String groupId, String senderId, String currentUserId)? _membershipVerifier;
 
   final Map<String, List<String>> _lastKnownMemberIdsCache = {};
   final Map<String, String> _identityKeyCache = {};
+  final Map<String, DateTime> _skRequestCooldown = {};
+  final Map<String, DateTime> _skReplyCooldown = {};
+  bool _isSyncingControlMessages = false;
+
+  /// Membersihkan seluruh cache in-memory saat pengguna logout.
+  void clearSession() {
+    _lastKnownMemberIdsCache.clear();
+    _identityKeyCache.clear();
+    _skRequestCooldown.clear();
+    _skReplyCooldown.clear();
+    _isSyncingControlMessages = false;
+  }
+
+  /// Memverifikasi apakah pengirim dan pengguna saat ini sama-sama anggota aktif grup (PCS enforcement).
+  Future<bool> _verifyBothActiveGroupMembers(
+    String groupId,
+    String senderId,
+    String currentUserId,
+  ) async {
+    final verifier = _membershipVerifier;
+    if (verifier != null) {
+      return await verifier(groupId, senderId, currentUserId);
+    }
+    try {
+      final rows = await _supabase.client
+          .from('room_participants')
+          .select('profile_id')
+          .eq('room_id', groupId)
+          .inFilter('profile_id', [senderId, currentUserId])
+          .isFilter('deleted_at', null);
+      final activeIds =
+          (rows as List).map((r) => r['profile_id'] as String).toSet();
+      return activeIds.contains(senderId) && activeIds.contains(currentUserId);
+    } catch (e) {
+      _logger.w('Gagal memverifikasi keanggotaan aktif grup $groupId (fail-closed): $e');
+      return false;
+    }
+  }
 
   /// Mengambil kunci identitas Ed25519 langsung dari view public_profiles Supabase
   /// atau menggunakan resolver kustom (misal pada unit testing).
@@ -84,6 +130,7 @@ class GroupKeyDistributionService {
       groupId: record.groupId,
       senderId: senderId,
       keyId: record.keyId,
+      counter: record.counter,
       chainKeyB64: base64Encode(record.chainKey),
       signingPubKeyB64: base64Encode(record.signingPublicKeyBytes),
       isoTime: now.toIso8601String(),
@@ -103,6 +150,7 @@ class GroupKeyDistributionService {
       groupId: record.groupId,
       senderId: senderId,
       keyId: record.keyId,
+      counter: record.counter,
       chainKey: record.chainKey,
       signingPublicKeyBytes: record.signingPublicKeyBytes,
       createdAt: now,
@@ -185,14 +233,14 @@ class GroupKeyDistributionService {
         return false;
       }
 
-      // Daftarkan ke engine GroupE2eeService
+      // Daftarkan ke engine GroupE2eeService beserta counter akurat
       await _groupE2eeService.registerSenderKeyState(
         groupId: skdm.groupId,
         senderId: skdm.senderId,
         keyId: skdm.keyId,
         chainKey: skdm.chainKey,
         signingPublicKeyBytes: skdm.signingPublicKeyBytes,
-        counter: 0,
+        counter: skdm.counter,
       );
 
       _logger.i('SKDM dari ${skdm.senderId} berhasil diverifikasi dengan identity key & didaftarkan untuk grup ${skdm.groupId}');
@@ -257,6 +305,7 @@ class GroupKeyDistributionService {
             'payload': skdm.toJson(),
           });
 
+          final newlyDistributed = <String>[];
           for (final memberId in remainingMembers) {
             try {
               final directRoomId = await _chatRepository.createRoom(memberId, 'normal');
@@ -266,9 +315,17 @@ class GroupKeyDistributionService {
                 type: MessageType.system,
                 isGroup: false,
               );
+              newlyDistributed.add(memberId);
             } catch (e) {
               _logger.w('Gagal mengirimkan SKDM baru ke $memberId: $e');
             }
+          }
+          if (newlyDistributed.isNotEmpty) {
+            await _senderKeyStore.markMembersDistributed(
+              groupId,
+              newRecord.keyId,
+              newlyDistributed,
+            );
           }
         }
 
@@ -311,21 +368,31 @@ class GroupKeyDistributionService {
 
   /// Mendistribusikan sender key aktif kita ke seluruh anggota grup via kanal 1:1 E2EE.
   /// Anggota yang sedang offline akan menerima pesan ini saat kembali online (Store-and-Forward).
+  /// Menggunakan pelacakan persisten agar tidak membanjiri anggota yang sudah menerima keyId aktif.
   Future<void> distributeSenderKeyToGroupMembers({
     required String groupId,
     required String currentUserId,
     required List<String> memberUserIds,
+    bool forceResend = false,
   }) async {
     final ourRecord = await _groupE2eeService.getOrGenerateOurSenderKey(groupId);
+    final alreadyDistributed = forceResend
+        ? <String>{}
+        : await _senderKeyStore.getDistributedMemberIds(groupId, ourRecord.keyId);
+
+    final pendingTargets = memberUserIds
+        .where((id) => id != currentUserId && !alreadyDistributed.contains(id))
+        .toList();
+    if (pendingTargets.isEmpty) return;
+
     final skdm = await buildSignedSkdm(ourRecord, currentUserId);
     final controlPayload = jsonEncode({
       'type': controlTypeSkdm,
       'payload': skdm.toJson(),
     });
 
-    for (final memberId in memberUserIds) {
-      if (memberId == currentUserId) continue;
-
+    final newlyDistributed = <String>[];
+    for (final memberId in pendingTargets) {
       try {
         // Dapatkan atau buat kanal obrolan 1:1 langsung
         final directRoomId = await _chatRepository.createRoom(memberId, 'normal');
@@ -337,10 +404,19 @@ class GroupKeyDistributionService {
           type: MessageType.system,
           isGroup: false,
         );
-        _logger.d('SKDM terkirim ke anggota $memberId untuk grup $groupId');
+        newlyDistributed.add(memberId);
+        _logger.d('SKDM terkirim ke anggota $memberId untuk grup $groupId (keyId: ${ourRecord.keyId}, ctr: ${ourRecord.counter})');
       } catch (e) {
         _logger.w('Gagal mendistribusikan SKDM ke anggota $memberId: $e');
       }
+    }
+
+    if (newlyDistributed.isNotEmpty) {
+      await _senderKeyStore.markMembersDistributed(
+        groupId,
+        ourRecord.keyId,
+        newlyDistributed,
+      );
     }
   }
 
@@ -351,12 +427,20 @@ class GroupKeyDistributionService {
     required String targetSenderId,
     required int keyId,
   }) async {
+    final cooldownKey = '$groupId:$targetSenderId:$keyId';
+    final now = DateTime.now().toUtc();
+    final lastSent = _skRequestCooldown[cooldownKey];
+    if (lastSent != null && now.difference(lastSent) < _controlCooldown) {
+      return;
+    }
+    _skRequestCooldown[cooldownKey] = now;
+
     final request = SenderKeyRequest(
       groupId: groupId,
       requesterId: currentUserId,
       targetSenderId: targetSenderId,
       keyId: keyId,
-      requestedAt: DateTime.now().toUtc(),
+      requestedAt: now,
     );
 
     final controlPayload = jsonEncode({
@@ -399,7 +483,34 @@ class GroupKeyDistributionService {
       } else if (type == controlTypeSkRequest) {
         final req = SenderKeyRequest.tryParse(payload);
         if (req == null) return false;
-        if (req.targetSenderId != currentUserId) return false;
+        if (req.targetSenderId != currentUserId) return true;
+        if (req.requesterId != senderId || senderId == currentUserId) {
+          _logger.w('Menolak sender_key_request palsu: requesterId (${req.requesterId}) != senderId ($senderId)');
+          return true;
+        }
+
+        // PCS Enforcement (Temuan T1): Verifikasi bahwa peminta dan kita masih anggota aktif grup!
+        final isAuthorized = await _verifyBothActiveGroupMembers(
+          req.groupId,
+          senderId,
+          currentUserId,
+        );
+        if (!isAuthorized) {
+          _logger.w(
+            'PCS BLOCK: Menolak sender_key_request dari $senderId untuk grup ${req.groupId} '
+            'karena bukan anggota aktif.',
+          );
+          return true;
+        }
+
+        // Rate-limit balasan SKDM agar tidak terjadi badai loop
+        final replyCooldownKey = '${req.groupId}:$senderId';
+        final now = DateTime.now().toUtc();
+        final lastReply = _skReplyCooldown[replyCooldownKey];
+        if (lastReply != null && now.difference(lastReply) < _controlCooldown) {
+          return true;
+        }
+        _skReplyCooldown[replyCooldownKey] = now;
 
         // Requester meminta kunci aktif kita untuk grup tersebut
         final ourRecord = await _groupE2eeService.getOrGenerateOurSenderKey(req.groupId);
@@ -416,6 +527,11 @@ class GroupKeyDistributionService {
           type: MessageType.system,
           isGroup: false,
         );
+        await _senderKeyStore.markMembersDistributed(
+          req.groupId,
+          ourRecord.keyId,
+          [senderId],
+        );
         _logger.i('Auto-reply SKDM dikirimkan balik ke $senderId untuk grup ${req.groupId}');
         return true;
       }
@@ -424,6 +540,74 @@ class GroupKeyDistributionService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Memanen pesan kontrol E2EE 1:1 (SKDM / SK Request) yang tiba saat pengguna sedang offline
+  /// agar pertukaran kunci grup langsung selesai tanpa harus membuka ruang obrolan 1:1 pengirim.
+  Future<int> syncPendingControlMessages() async {
+    if (_isSyncingControlMessages) return 0;
+    final currentUserId = _supabase.currentUserId;
+    if (currentUserId == null) return 0;
+
+    _isSyncingControlMessages = true;
+    int processedCount = 0;
+    try {
+      final hiddenRows = await _supabase.client
+          .from('hidden_messages')
+          .select('message_id')
+          .eq('profile_id', currentUserId)
+          .timeout(const Duration(seconds: 4));
+      final hiddenIds = (hiddenRows as List)
+          .map((r) => r['message_id'] as String?)
+          .whereType<String>()
+          .toSet();
+
+      final rows = await _supabase.client
+          .from('messages')
+          .select('id, room_id, sender_id, content, msg_type, is_encrypted')
+          .eq('msg_type', 'system')
+          .eq('is_encrypted', true)
+          .eq('is_deleted', false)
+          .eq('is_silent_deleted', false)
+          .neq('sender_id', currentUserId)
+          .order('created_at', ascending: true)
+          .limit(50)
+          .timeout(const Duration(seconds: 6));
+
+      for (final row in (rows as List)) {
+        final msgId = row['id'] as String?;
+        final roomId = row['room_id'] as String?;
+        final senderId = row['sender_id'] as String?;
+        final rawContent = row['content'] as String?;
+        if (msgId == null ||
+            roomId == null ||
+            senderId == null ||
+            rawContent == null ||
+            rawContent.isEmpty ||
+            hiddenIds.contains(msgId)) {
+          continue;
+        }
+
+        try {
+          final plain = await E2eeService.instance.decryptForRoom(roomId, rawContent);
+          if (E2eeService.isUndecryptable(plain)) continue;
+
+          final handled = await handleIncomingSystemControlMessage(
+            senderId: senderId,
+            currentUserId: currentUserId,
+            rawContent: plain,
+          );
+          if (handled) {
+            processedCount++;
+            unawaited(_chatRepository.hideMessageForMe(msgId, roomId: roomId));
+          }
+        } catch (_) {}
+      }
+    } catch (_) {
+    } finally {
+      _isSyncingControlMessages = false;
+    }
+    return processedCount;
   }
 
   /// Menjalankan Rekeying Wajib saat ada anggota yang keluar atau dikeluarkan (Kick) dari grup.
@@ -463,6 +647,7 @@ class GroupKeyDistributionService {
       'payload': skdm.toJson(),
     });
 
+    final newlyDistributed = <String>[];
     for (final memberId in remainingMemberIds) {
       if (memberId == currentUserId || memberId == excludedMemberId) continue;
 
@@ -474,9 +659,17 @@ class GroupKeyDistributionService {
           type: MessageType.system,
           isGroup: false,
         );
+        newlyDistributed.add(memberId);
       } catch (e) {
         _logger.w('Gagal mengirim rekey SKDM ke $memberId: $e');
       }
+    }
+    if (newlyDistributed.isNotEmpty) {
+      await _senderKeyStore.markMembersDistributed(
+        groupId,
+        newRecord.keyId,
+        newlyDistributed,
+      );
     }
 
     _logger.i('Rekeying grup $groupId selesai (KeyId baru: $nextKeyId)');
