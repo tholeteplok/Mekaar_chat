@@ -114,7 +114,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       unawaited(NotificationService.cancelAllMessageNotifications());
     }
 
+    final pendingIncomingCount = ref.watch(pendingIncomingGuardianCountProvider);
     final hasPendingGuardian = ref.watch(hasPendingIncomingGuardiansProvider);
+    final effectiveGuardianCount = pendingIncomingCount > 0
+        ? pendingIncomingCount
+        : (hasPendingGuardian ? 1 : 0);
 
     // Salin items dan tempel unreadCount di item Pesan dan Guardian.
     // Selalu pertahankan 4 tab stabil demi integritas memori spasial pengguna (P1-1).
@@ -132,7 +136,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           label: item.label,
           inactiveIcon: item.inactiveIcon,
           activeIcon: item.activeIcon,
-          unreadCount: hasPendingGuardian ? 1 : null,
+          unreadCount: effectiveGuardianCount > 0 ? effectiveGuardianCount : null,
         );
       }
       return item;

@@ -112,6 +112,33 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
 
+    testWidgets('Tab Guardian menampilkan jumlah riil saat ada multiple undangan pending (P2-4)', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            chatRepositoryProvider.overrideWithValue(FakeChatRepository()),
+            cloakedRoomIdsProvider.overrideWith((ref) => <String>{}),
+            cloakedContactUserIdsProvider.overrideWith((ref) => <String>{}),
+            pendingIncomingGuardianCountProvider.overrideWithValue(3),
+          ],
+          child: const MaterialApp(
+            home: MainNavigationScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      final navFinder = find.byType(MekaarBottomNav);
+      final navWidget = tester.widget<MekaarBottomNav>(navFinder);
+
+      // Verifikasi bahwa jumlah undangan riil adalah 3, bukan hardcoded 1
+      expect(navWidget.items[2].unreadCount, 3, reason: 'Badge harus menampilkan 3 sesuai jumlah undangan riil');
+
+      // Flush pending check update timer dari ChatListScreen
+      await tester.pump(const Duration(seconds: 2));
+    });
+
     testWidgets('MainNavigationScreen tetap menampilkan 4 tab stabil saat Fitur SOS nonaktif (P1-1)', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
