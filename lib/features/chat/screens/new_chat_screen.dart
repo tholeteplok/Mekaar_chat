@@ -9,7 +9,6 @@ import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
-import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_search_field.dart';
 import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -17,14 +16,12 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/contact_model.dart';
-import '../../settings/providers/block_provider.dart';
-import '../../../data/repositories/chat_request_repository.dart';
 import '../../../data/repositories/contact_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
+import '../widgets/add_contact_sheet.dart';
 import '../widgets/private_vault_dialogs.dart';
-import '../widgets/send_chat_invite_dialog.dart';
 
 /// Layar penuh "Pesan Baru" (standar WhatsApp/Telegram).
 /// Menyediakan navigasi cepat untuk Grup Baru, Kontak Baru (via search / QR),
@@ -111,221 +108,6 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
         setState(() => _isActionInProgress = false);
       }
     }
-  }
-
-  void _showSearchGlobalUserDialog(BuildContext context) {
-    final searchController = TextEditingController();
-    bool isSearching = false;
-    String errorMessage = '';
-
-    MekaarBottomSheet.show(
-      context: context,
-      title: 'Kontak Baru',
-      showDragHandle: true,
-      builder: (sheetCtx) {
-        return StatefulBuilder(
-          builder: (stateCtx, setSheetState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Masukkan username atau email teman Anda untuk memulai obrolan langsung.',
-                  style: MekaarTypography.bodySM.copyWith(
-                    color: MekaarColors.textSecondaryOf(context),
-                  ),
-                ),
-                const SizedBox(height: MekaarSpacing.md),
-                MekaarSearchField(
-                  controller: searchController,
-                  hintText: 'Username atau Email',
-                  errorText: errorMessage.isNotEmpty ? errorMessage : null,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(stateCtx),
-                        child: const Text('Batal'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: isSearching
-                            ? null
-                            : () async {
-                                final query = searchController.text.trim();
-                                if (query.isEmpty) {
-                                  setSheetState(
-                                    () => errorMessage = 'Input tidak boleh kosong',
-                                  );
-                                  return;
-                                }
-
-                                setSheetState(() {
-                                  isSearching = true;
-                                  errorMessage = '';
-                                });
-
-                                try {
-                                  final Map<String, dynamic>? profile;
-                                  final isDuress = ref.read(authProvider).isDuressActive;
-
-                                  if (isDuress) {
-                                    await Future.delayed(const Duration(milliseconds: 600));
-                                    profile = null;
-                                  } else {
-                                    profile = await ref
-                                        .read(chatRepositoryProvider)
-                                        .searchProfile(query);
-                                  }
-
-                                  if (profile == null) {
-                                    setSheetState(() {
-                                      isSearching = false;
-                                      errorMessage = 'Pengguna tidak ditemukan';
-                                    });
-                                    return;
-                                  }
-
-                                  final myId =
-                                      ref.read(supabaseServiceProvider).currentUserId;
-                                  if (profile['id'] == myId) {
-                                    setSheetState(() {
-                                      isSearching = false;
-                                      errorMessage =
-                                          'Tidak bisa memulai chat dengan diri sendiri';
-                                    });
-                                    return;
-                                  }
-
-                                  // Cegah memulai chat dengan pengguna yang diblokir
-                                  final alreadyBlocked = await ref
-                                      .read(blockRepositoryProvider)
-                                      .isBlocked(profile['id'] as String);
-                                  if (alreadyBlocked) {
-                                    setSheetState(() {
-                                      isSearching = false;
-                                      errorMessage = 'Pengguna ini telah Anda blokir';
-                                    });
-                                    return;
-                                  }
-
-                                  // Cek proteksi undangan chat
-                                  final chatReqRepo =
-                                      ref.read(chatRequestRepositoryProvider);
-                                  final isApproved = await chatReqRepo
-                                      .isChatApproved(profile['id'] as String);
-
-                                  if (!isApproved) {
-                                    if (!stateCtx.mounted) return;
-                                    await SendChatInviteDialog.show(
-                                      stateCtx,
-                                      receiverId: profile['id'] as String,
-                                      receiverUsername:
-                                          profile['username'] as String? ?? 'User',
-                                    );
-                                    if (stateCtx.mounted) {
-                                      Navigator.pop(stateCtx);
-                                    }
-                                    return;
-                                  }
-
-                                  // Proteksi Private Vault jika cloaked
-                                  if (!stateCtx.mounted) return;
-                                  final targetUserId = profile['id'] as String;
-                                  final isCloaked =
-                                      VaultIsolationHelper.isContactCloaked(
-                                    ref,
-                                    targetUserId,
-                                  );
-                                  final targetSlot =
-                                      VaultIsolationHelper.getContactVaultSlot(
-                                    ref,
-                                    targetUserId,
-                                  );
-
-                                  if (isCloaked) {
-                                    final unlocked =
-                                        await PrivateVaultDialogs.showUnlockPasscodeDialog(
-                                      stateCtx,
-                                      ref,
-                                      targetSlot,
-                                    );
-                                    if (!unlocked || !stateCtx.mounted) return;
-                                  }
-
-                                  // Daftarkan kontak secara eksplisit & sinkronkan state kontak instan
-                                  await ref
-                                      .read(userContactsProvider.notifier)
-                                      .addContact(profile['id'] as String);
-
-                                  // Buat atau buka room chat
-                                  final roomId = await ref
-                                      .read(chatRoomsProvider.notifier)
-                                      .getOrCreateRoom(
-                                        profile['id'],
-                                        'normal',
-                                        screenshotEnabled:
-                                            ref.read(screenshotBlockProvider),
-                                      );
-
-                                  if (stateCtx.mounted) {
-                                    Navigator.pop(stateCtx);
-                                    if (mounted) {
-                                      final rawName =
-                                          (profile['display_name'] as String?)?.isNotEmpty == true
-                                              ? profile['display_name'] as String
-                                              : profile['full_name'] as String? ??
-                                                  profile['username'] as String? ??
-                                                  'User';
-                                      Navigator.pushReplacementNamed(
-                                        context,
-                                        AppRoutes.chat,
-                                        arguments: {
-                                          'chatId': roomId,
-                                          'chatName': rawName,
-                                          'chatAvatar': rawName.isNotEmpty ? rawName[0] : 'U',
-                                          'isGuardian': false,
-                                          'otherUserId': profile['id'] as String?,
-                                          'chatAvatarUrl': profile['avatar_url'] as String?,
-                                        },
-                                      );
-                                    }
-                                  }
-                                } catch (e) {
-                                  setSheetState(() {
-                                    isSearching = false;
-                                    errorMessage = 'Gagal membuat chat: $e';
-                                  });
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: isSearching
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Cari & Chat'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _buildQuickActionItem({
@@ -474,7 +256,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                 },
               ),
             ),
-            onTap: () => _showSearchGlobalUserDialog(context),
+            onTap: () => AddContactSheet.show(context, replaceRouteOnChat: true),
           ),
 
           // Bilah Pencarian Kontak Saya

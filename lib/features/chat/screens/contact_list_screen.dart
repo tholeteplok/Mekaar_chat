@@ -28,6 +28,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/nearby_friends_provider.dart';
 import '../providers/private_vault_provider.dart';
+import '../widgets/add_contact_sheet.dart';
 import '../widgets/nearby_friends_canvas.dart';
 import '../widgets/private_vault_dialogs.dart';
 
@@ -377,6 +378,17 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                 ),
                               ];
                             }
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            SolarIconsOutline.userPlus,
+                            color: MekaarColors.textPrimaryOf(context),
+                          ),
+                          tooltip: 'Tambah Kontak Baru',
+                          onPressed: () {
+                            HapticService.trigger(MekaarHapticIntent.selection);
+                            AddContactSheet.show(context);
                           },
                         ),
                         IconButton(
@@ -863,16 +875,33 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 ),
                 if (!hasFilter) ...[
                   const SizedBox(height: MekaarSpacing.xl),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRoutes.contactQrScan);
-                    },
-                    icon: const Icon(SolarIconsOutline.qrCode, size: 18),
-                    label: const Text('Pindai Kode QR'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    ),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          HapticService.trigger(MekaarHapticIntent.selection);
+                          AddContactSheet.show(context);
+                        },
+                        icon: const Icon(SolarIconsOutline.userPlus, size: 18),
+                        label: const Text('Tambah Kontak'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pushNamed(context, AppRoutes.contactQrScan);
+                        },
+                        icon: const Icon(SolarIconsOutline.qrCode, size: 18),
+                        label: const Text('Pindai Kode QR'),
+                      ),
+                    ],
                   ),
                 ],
               ],
