@@ -15,6 +15,8 @@ import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_elastic_pull_scope.dart';
 import '../../../core/widgets/mekaar_header_search_button.dart';
+import '../../../core/widgets/mekaar_selection_header.dart';
+import '../../../core/widgets/mekaar_selection_indicator.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_sliding_segment_bar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -48,6 +50,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   Timer? _searchDebounceTimer;
   String _searchQuery = '';
   bool _isSearchActive = false;
+  bool _isSelectionMode = false;
+  final Set<String> _selectedContactIds = <String>{};
   double _pullProgress = 0.0;
   bool _isRefreshing = false;
   double _collapseProgress = 0.0;
@@ -181,6 +185,209 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     }
   }
 
+  void _enterSelectionMode([String? initialContactId]) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      _isSelectionMode = true;
+      _selectedContactIds.clear();
+      if (initialContactId != null && initialContactId.isNotEmpty) {
+        _selectedContactIds.add(initialContactId);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    if (!_isSelectionMode && _selectedContactIds.isEmpty) return;
+    setState(() {
+      _isSelectionMode = false;
+      _selectedContactIds.clear();
+    });
+  }
+
+  void _toggleContactSelection(String contactUserId) {
+    if (contactUserId.isEmpty) return;
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      if (_selectedContactIds.contains(contactUserId)) {
+        _selectedContactIds.remove(contactUserId);
+        if (_selectedContactIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedContactIds.add(contactUserId);
+      }
+    });
+  }
+
+  void _toggleSelectAllContacts(List<ContactItem> visibleContacts) {
+    final visibleIds = visibleContacts
+        .map((c) => c.contactUserId)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final allSelected =
+        visibleIds.isNotEmpty && visibleIds.every(_selectedContactIds.contains);
+    setState(() {
+      if (allSelected) {
+        _selectedContactIds.clear();
+      } else {
+        _selectedContactIds
+          ..clear()
+          ..addAll(visibleIds);
+      }
+    });
+  }
+
+  List<ContactItem> _computeVisibleContacts(
+    List<ContactItem> items, {
+    required bool isDuress,
+    required Set<int> unlockedSlots,
+    required Set<String> hiddenContactUserIds,
+    required bool isVaultUnlocked,
+  }) {
+    final allContacts = isDuress ? <ContactItem>[] : items;
+    final filteredContacts = allContacts.where((contact) {
+      if (contact.isVaulted) {
+        if (!unlockedSlots.contains(contact.vaultSlot)) return false;
+      } else if (hiddenContactUserIds.contains(contact.contactUserId)) {
+        if (!isVaultUnlocked) return false;
+      }
+
+      final name = contact.effectiveName.toLowerCase();
+      final username = contact.username.toLowerCase();
+      final email = (contact.email ?? '').toLowerCase();
+      final q = _searchQuery.toLowerCase();
+      return name.contains(q) || username.contains(q) || email.contains(q);
+    }).toList();
+
+    if (_selectedSortIndex == 0) {
+      filteredContacts.sort(
+        (a, b) => a.effectiveName.toLowerCase().compareTo(
+          b.effectiveName.toLowerCase(),
+        ),
+      );
+    } else {
+      filteredContacts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return filteredContacts;
+  }
+
+  void _openCreateGroupFromSelection(List<ContactItem> selectedContacts) {
+    if (selectedContacts.isEmpty) return;
+    final ids = selectedContacts.map((c) => c.contactUserId).toList();
+    final profiles = selectedContacts
+        .map(
+          (c) => <String, dynamic>{
+            'id': c.contactUserId,
+            'display_name': c.effectiveName,
+            'full_name': c.effectiveName,
+            'username': c.username,
+            'avatar_url': c.avatarUrl,
+          },
+        )
+        .toList();
+    _exitSelectionMode();
+    Navigator.pushNamed(
+      context,
+      AppRoutes.createGroupDetails,
+      arguments: {
+        'selectedUserIds': ids,
+        'selectedUserProfiles': profiles,
+      },
+    );
+  }
+
+  void _confirmBulkVaultContacts(List<ContactItem> selectedContacts) {
+    if (selectedContacts.isEmpty) return;
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Sembunyikan ${selectedContacts.length} Kontak ke Vault?',
+      message:
+          'Kontak terpilih akan disembunyikan ke Private Vault dan tidak tampil di daftar utama.',
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            final hiddenNotifier = ref.read(
+              hiddenContactUserIdsProvider.notifier,
+            );
+            final contactsNotifier = ref.read(userContactsProvider.notifier);
+            for (final contact in selectedContacts) {
+              await hiddenNotifier.hideContact(contact.contactUserId);
+              try {
+                await contactsNotifier.updateVaultStatus(
+                  contact.contactUserId,
+                  true,
+                  vaultSlot: 1,
+                );
+              } catch (_) {}
+            }
+            if (!mounted) return;
+            _exitSelectionMode();
+            MekaarSnackbar.success(
+              context,
+              '${selectedContacts.length} kontak disembunyikan ke Private Vault.',
+            );
+          },
+          child: const Text('Sembunyikan'),
+        ),
+      ],
+    );
+  }
+
+  void _confirmBulkDeleteContacts(List<ContactItem> selectedContacts) {
+    if (selectedContacts.isEmpty) return;
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Hapus ${selectedContacts.length} Kontak?',
+      message:
+          'Kontak terpilih akan dihapus dari daftar kontak Anda beserta riwayat obrolan bilateralnya.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () async {
+            Navigator.pop(context);
+            final count = selectedContacts.length;
+            final isGuest = ref.read(authProvider).isGuestActive;
+            if (isGuest) {
+              for (final contact in selectedContacts) {
+                await VaultIsolationHelper.silentVaultTarget(
+                  ref,
+                  roomId: contact.roomId,
+                  contactUserId: contact.contactUserId,
+                );
+              }
+              if (!mounted) return;
+              _exitSelectionMode();
+              MekaarSnackbar.success(context, '$count kontak berhasil dihapus.');
+              return;
+            }
+
+            final notifier = ref.read(userContactsProvider.notifier);
+            for (final contact in selectedContacts) {
+              await notifier.deleteContact(contact.contactUserId);
+            }
+            if (!mounted) return;
+            _exitSelectionMode();
+            MekaarSnackbar.success(context, '$count kontak berhasil dihapus.');
+          },
+          child: const Text('Hapus Kontak & Chat'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -193,14 +400,83 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final nearbyState = ref.watch(nearbyFriendsProvider);
 
-    return Scaffold(
+    final visibleContacts = contactsAsync.maybeWhen(
+      data: (items) => _computeVisibleContacts(
+        items,
+        isDuress: isDuress,
+        unlockedSlots: unlockedSlots,
+        hiddenContactUserIds: hiddenContactUserIds,
+        isVaultUnlocked: isVaultUnlocked,
+      ),
+      orElse: () => const <ContactItem>[],
+    );
+    final selectedContacts = _isSelectionMode
+        ? visibleContacts
+            .where((c) => _selectedContactIds.contains(c.contactUserId))
+            .toList()
+        : const <ContactItem>[];
+    final allContactsSelected = _isSelectionMode &&
+        visibleContacts.isNotEmpty &&
+        visibleContacts.every(
+          (c) => _selectedContactIds.contains(c.contactUserId),
+        );
+
+    return PopScope(
+      canPop: !_isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isSelectionMode) {
+          _exitSelectionMode();
+        }
+      },
+      child: Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            MekaarTabHeader(
+            if (_isSelectionMode && _selectedMainTabIndex == 0)
+              MekaarSelectionHeader(
+                key: const ValueKey('contact_list_selection_header'),
+                selectedCount: _selectedContactIds.length,
+                allSelected: allContactsSelected,
+                onClose: _exitSelectionMode,
+                onToggleSelectAll: () =>
+                    _toggleSelectAllContacts(visibleContacts),
+                actions: [
+                  MekaarSelectionAction(
+                    key: const ValueKey('contact_bulk_delete_btn'),
+                    icon: SolarIconsOutline.userCross,
+                    label: 'Hapus Kontak',
+                    tooltip: 'Hapus Kontak',
+                    isDestructive: true,
+                    onPressed: selectedContacts.isEmpty
+                        ? null
+                        : () => _confirmBulkDeleteContacts(selectedContacts),
+                  ),
+                  MekaarSelectionAction(
+                    key: const ValueKey('contact_bulk_create_group_btn'),
+                    icon: SolarIconsOutline.usersGroupTwoRounded,
+                    label: 'Buat Grup',
+                    tooltip: 'Buat Grup dengan Kontak Terpilih',
+                    onPressed: selectedContacts.isEmpty
+                        ? null
+                        : () => _openCreateGroupFromSelection(selectedContacts),
+                  ),
+                  if (!authState.isDecoyActive)
+                    MekaarSelectionAction(
+                      key: const ValueKey('contact_bulk_vault_btn'),
+                      icon: SolarIconsOutline.shieldKeyhole,
+                      label: 'Sembunyikan ke Vault',
+                      tooltip: 'Sembunyikan ke Private Vault',
+                      onPressed: selectedContacts.isEmpty
+                          ? null
+                          : () => _confirmBulkVaultContacts(selectedContacts),
+                    ),
+                ],
+              )
+            else
+              MekaarTabHeader(
               key: const ValueKey('contact_list_tab_header'),
               title: 'Kontak',
               isSearchActive: _isSearchActive,
@@ -302,11 +578,22 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                     .read(nearbyFriendsProvider.notifier)
                                     .refreshNearby(force: true);
                                 break;
+                              case 'select_mode':
+                                _enterSelectionMode();
+                                break;
                             }
                           },
                           itemBuilder: (ctx) {
                             if (_selectedMainTabIndex == 0) {
                               return [
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'select_mode',
+                                  icon: SolarIconsOutline.checkSquare,
+                                  label: 'Pilih Beberapa',
+                                  isSelected: false,
+                                ),
+                                const PopupMenuDivider(height: 1),
                                 _buildFilterMenuItem(
                                   context: ctx,
                                   value: 'sort_az',
@@ -411,6 +698,9 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               selectedIndex: _selectedMainTabIndex,
               onTabSelected: (index) {
                 HapticService.trigger(MekaarHapticIntent.selection);
+                if (index != 0 && _isSelectionMode) {
+                  _exitSelectionMode();
+                }
                 setState(() => _selectedMainTabIndex = index);
               },
             ),
@@ -480,43 +770,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                             ),
                           ),
                         ),
-                        data: (items) {
-                          final allContacts = isDuress ? <ContactItem>[] : items;
-
-                          // Filter berdasarkan vault cloaking terisolasi & pencarian
-                          final filteredContacts = allContacts.where((contact) {
-                            // Cloaking Private Vault: sembunyikan kontak jika slot vault kontak terkait belum dibuka
-                            if (contact.isVaulted) {
-                              final isSlotOpen = unlockedSlots.contains(contact.vaultSlot);
-                              if (!isSlotOpen) return false;
-                            } else if (hiddenContactUserIds.contains(contact.contactUserId)) {
-                              if (!isVaultUnlocked) return false;
-                            }
-
-                            final name = contact.effectiveName.toLowerCase();
-                            final username = contact.username.toLowerCase();
-                            final email = (contact.email ?? '').toLowerCase();
-                            final q = _searchQuery.toLowerCase();
-                            return name.contains(q) || username.contains(q) || email.contains(q);
-                          }).toList();
-
-                          // Urutkan berdasarkan tab pill filter aktif
-                          if (_selectedSortIndex == 0) {
-                            // A-Z: Urutkan secara alfabetis berdasarkan nama
-                            filteredContacts.sort(
-                              (a, b) => a.effectiveName.toLowerCase().compareTo(
-                                b.effectiveName.toLowerCase(),
-                              ),
-                            );
-                          } else {
-                            // Baru Ditambahkan: Urutkan berdasarkan waktu penambahan kontak
-                            filteredContacts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-                          }
-
-                          return filteredContacts.isEmpty
+                        data: (_) {
+                          return visibleContacts.isEmpty
                               ? _buildEmptyState()
                               : _buildContactsCard(
-                                  filteredContacts,
+                                  visibleContacts,
                                   hiddenContactUserIds,
                                   hiddenRoomIds,
                                   isVaultUnlocked,
@@ -540,6 +798,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -759,12 +1018,28 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
           final username = contact.username;
           final email = contact.email ?? '';
 
+          final isSelected = _selectedContactIds.contains(contact.contactUserId);
+
           return Material(
-            color: Colors.transparent,
+            color: MekaarSelectionColors.rowHighlight(
+              context,
+              isSelected: _isSelectionMode && isSelected,
+            ),
+            borderRadius: BorderRadius.circular(12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () => _openChat(contact),
+              onTap: () {
+                if (_isSelectionMode) {
+                  _toggleContactSelection(contact.contactUserId);
+                  return;
+                }
+                _openChat(contact);
+              },
               onLongPress: () {
+                if (_isSelectionMode) {
+                  _toggleContactSelection(contact.contactUserId);
+                  return;
+                }
                 HapticService.trigger(MekaarHapticIntent.selection);
                 _showContactContextMenu(context, contact);
               },
@@ -774,33 +1049,31 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        Avatar(
-                          imageUrl: contact.avatarUrl,
-                          initial: avatar,
-                          isGuardian: isGuardian,
-                          size: 52,
-                        ),
-                        if (isHidden && isVaultUnlocked)
-                          Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: MekaarColors.accentOf(context),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: MekaarColors.surfaceOf(context),
-                                width: 1.5,
+                    MekaarSelectionAvatar(
+                      imageUrl: contact.avatarUrl,
+                      initial: avatar,
+                      isGuardian: isGuardian,
+                      size: 52,
+                      isSelectionMode: _isSelectionMode,
+                      isSelected: isSelected,
+                      fallbackBadge: (isHidden && isVaultUnlocked)
+                          ? Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.accentOf(context),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: MekaarColors.surfaceOf(context),
+                                  width: 1.5,
+                                ),
                               ),
-                            ),
-                            child: const Icon(
-                              SolarIconsOutline.lockKeyhole,
-                              size: 10,
-                              color: Colors.white,
-                            ),
-                          ),
-                      ],
+                              child: const Icon(
+                                SolarIconsOutline.lockKeyhole,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -947,11 +1220,26 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         final username = contact.username;
         final email = contact.email ?? '';
 
+        final isSelected = _selectedContactIds.contains(contact.contactUserId);
+
         return Material(
-          color: Colors.transparent,
+          color: MekaarSelectionColors.rowHighlight(
+            context,
+            isSelected: _isSelectionMode && isSelected,
+          ),
           child: InkWell(
-            onTap: () => _openChat(contact),
+            onTap: () {
+              if (_isSelectionMode) {
+                _toggleContactSelection(contact.contactUserId);
+                return;
+              }
+              _openChat(contact);
+            },
             onLongPress: () {
+              if (_isSelectionMode) {
+                _toggleContactSelection(contact.contactUserId);
+                return;
+              }
               HapticService.trigger(MekaarHapticIntent.selection);
               _showContactContextMenu(
                 context,
@@ -962,11 +1250,13 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
-                    Avatar(
+                    MekaarSelectionAvatar(
                       imageUrl: contact.avatarUrl,
                       initial: avatar,
                       isGuardian: isGuardian,
                       size: 48,
+                      isSelectionMode: _isSelectionMode,
+                      isSelected: isSelected,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1057,29 +1347,31 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: Icon(
-                        SolarIconsOutline.infoCircle,
-                        color: mutedColor,
-                        size: 20,
+                    if (!_isSelectionMode) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: Icon(
+                          SolarIconsOutline.infoCircle,
+                          color: mutedColor,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          HapticService.trigger(MekaarHapticIntent.selection);
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.contactSettings,
+                            arguments: {
+                              'roomId': contact.roomId ?? '',
+                              'chatName': name,
+                              'chatAvatar': avatar,
+                              'otherUserId': contact.contactUserId,
+                              'isGuardian': isGuardian,
+                            },
+                          );
+                        },
+                        tooltip: 'Info Kontak',
                       ),
-                      onPressed: () {
-                        HapticService.trigger(MekaarHapticIntent.selection);
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.contactSettings,
-                          arguments: {
-                            'roomId': contact.roomId ?? '',
-                            'chatName': name,
-                            'chatAvatar': avatar,
-                            'otherUserId': contact.contactUserId,
-                            'isGuardian': isGuardian,
-                          },
-                        );
-                      },
-                      tooltip: 'Info Kontak',
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -1170,7 +1462,18 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                   );
                 },
               ),
-              if (!ref.read(authProvider).isGuestActive)
+              ListTile(
+                leading: Icon(
+                  SolarIconsOutline.checkSquare,
+                  color: MekaarColors.textPrimaryOf(context),
+                ),
+                title: const Text('Pilih Beberapa'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _enterSelectionMode(contact.contactUserId);
+                },
+              ),
+              if (!ref.read(authProvider).isDecoyActive)
                 ListTile(
                   leading: Icon(
                     isHidden
