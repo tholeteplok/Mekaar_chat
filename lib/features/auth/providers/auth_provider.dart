@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../data/services/aegis_memory_guard_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/e2ee_service.dart';
@@ -1109,83 +1110,113 @@ final pinLockEnabledProvider =
 
 // Default proteksi untuk room baru. Enforcement layar aktif dikelola oleh
 // ScreenProtectionController berdasarkan room/surface yang sedang terbuka.
-class ScreenshotBlockNotifier extends StateNotifier<bool> {
+class ScreenshotBlockNotifier extends StateNotifier<bool>
+    with EphemeralSettingGuard {
   ScreenshotBlockNotifier() : super(false) {
     _load();
   }
 
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool('is_screenshot_blocked') ?? false;
+      final saved = prefs.getBool('is_screenshot_blocked') ?? false;
+      if (mounted) state = saved;
     } catch (_) {}
   }
 
   Future<void> toggle(bool enabled) async {
+    state = enabled;
+    if (isEphemeralSession) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_screenshot_blocked', enabled);
-      state = enabled;
     } catch (_) {}
   }
 }
 
 final screenshotBlockProvider =
     StateNotifierProvider<ScreenshotBlockNotifier, bool>((ref) {
-      return ScreenshotBlockNotifier();
+      return ScreenshotBlockNotifier()
+        ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
     });
 
 // Notification Masking (blind spot #2): sembunyikan konten SOS/Alarm di layar
 // kunci HP korban agar pelaku tidak curiga. Default AKTIF (fitur keamanan).
-class NotificationMaskingNotifier extends StateNotifier<bool> {
+class NotificationMaskingNotifier extends StateNotifier<bool>
+    with EphemeralSettingGuard {
+  bool _persistedValue = true;
+
   NotificationMaskingNotifier() : super(true) {
     _load();
   }
 
+  bool get enforcedValue => isEphemeralSession ? _persistedValue : state;
+
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool('is_notification_masked') ?? true;
+      final saved = prefs.getBool('is_notification_masked') ?? true;
+      _persistedValue = saved;
+      if (mounted) state = saved;
     } catch (_) {}
   }
 
   Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    if (isEphemeralSession) return;
+    _persistedValue = enabled;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_notification_masked', enabled);
-      state = enabled;
     } catch (_) {}
   }
 }
 
 final notificationMaskingProvider =
     StateNotifierProvider<NotificationMaskingNotifier, bool>((ref) {
-      return NotificationMaskingNotifier();
+      return NotificationMaskingNotifier()
+        ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
     });
 
 // Allow Guardian Alarm (user permission to let guardian trigger sirens): Default AKTIF (true).
-class AllowGuardianAlarmNotifier extends StateNotifier<bool> {
+class AllowGuardianAlarmNotifier extends StateNotifier<bool>
+    with EphemeralSettingGuard {
+  bool _persistedValue = true;
+
   AllowGuardianAlarmNotifier() : super(true) {
     _load();
   }
 
+  bool get enforcedValue => isEphemeralSession ? _persistedValue : state;
+
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool('allow_guardian_alarm') ?? true;
+      final saved = prefs.getBool('allow_guardian_alarm') ?? true;
+      _persistedValue = saved;
+      if (mounted) state = saved;
     } catch (_) {}
   }
 
   Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    if (isEphemeralSession) return;
+    _persistedValue = enabled;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('allow_guardian_alarm', enabled);
-      state = enabled;
     } catch (_) {}
   }
 }
 
 final allowGuardianAlarmProvider =
     StateNotifierProvider<AllowGuardianAlarmNotifier, bool>((ref) {
-      return AllowGuardianAlarmNotifier();
+      return AllowGuardianAlarmNotifier()
+        ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
     });

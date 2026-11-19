@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/navigation/app_navigator.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../data/services/notification_service.dart';
 import '../../chat/providers/private_vault_provider.dart';
 import 'auth_provider.dart';
@@ -63,23 +64,41 @@ enum AutoLockTimeout {
 }
 
 /// Notifier untuk mengelola preferensi Auto-Lock Timeout pengguna.
-class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout> {
+class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout>
+    with EphemeralSettingGuard {
   static const String prefKey = 'mekaar_auto_lock_timeout';
   final SharedPreferences? _prefs;
+  AutoLockTimeout _persistedTimeout = AutoLockTimeout.thirtySeconds;
 
   AutoLockTimeoutNotifier([this._prefs]) : super(AutoLockTimeout.thirtySeconds) {
-    _load();
+    if (_prefs != null) {
+      final saved = AutoLockTimeout.fromKey(_prefs.getString(prefKey));
+      _persistedTimeout = saved;
+      state = saved;
+    } else {
+      _load();
+    }
   }
+
+  /// Timeout sebenarnya milik pemilik (tetap ditegakkan meski Guest mengubah tampilan RAM).
+  AutoLockTimeout get enforcedTimeout =>
+      isEphemeralSession ? _persistedTimeout : state;
+
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final savedKey = prefs.getString(prefKey);
-    state = AutoLockTimeout.fromKey(savedKey);
+    final loaded = AutoLockTimeout.fromKey(savedKey);
+    _persistedTimeout = loaded;
+    if (mounted) state = loaded;
   }
 
   Future<void> setTimeout(AutoLockTimeout timeout) async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
     state = timeout;
+    if (isEphemeralSession) return;
+    _persistedTimeout = timeout;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
     await prefs.setString(prefKey, timeout.keyName);
   }
 }
@@ -87,7 +106,8 @@ class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout> {
 /// Provider preferensi AutoLockTimeout.
 final autoLockTimeoutProvider =
     StateNotifierProvider<AutoLockTimeoutNotifier, AutoLockTimeout>((ref) {
-  return AutoLockTimeoutNotifier();
+  return AutoLockTimeoutNotifier()
+    ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
 });
 
 /// Controller terpusat untuk memantau lifecycle background dan mengeksekusi Auto-Lock.
@@ -131,10 +151,11 @@ class AutoLockController {
     final authState = container.read(authProvider);
     if (!authState.isPinSet) return false;
 
-    // Evaluasi batas waktu latar belakang
+    // Evaluasi batas waktu latar belakang (selalu tegakkan nilai persisten Master)
     final pausedAt = _lastPausedAt;
     if (pausedAt != null) {
-      final timeout = container.read(autoLockTimeoutProvider);
+      final timeout =
+          container.read(autoLockTimeoutProvider.notifier).enforcedTimeout;
       if (timeout == AutoLockTimeout.system) {
         return true;
       } else if (timeout.duration != null) {
@@ -161,7 +182,8 @@ class AutoLockController {
 
     final pausedAt = _lastPausedAt;
     if (pausedAt != null) {
-      final timeout = ref.read(autoLockTimeoutProvider);
+      final timeout =
+          ref.read(autoLockTimeoutProvider.notifier).enforcedTimeout;
       if (timeout == AutoLockTimeout.system) {
         return true;
       } else if (timeout.duration != null) {
@@ -182,7 +204,8 @@ class AutoLockController {
 
     if (pausedAt == null || _isLockScreenActive) return;
 
-    final timeout = ref.read(autoLockTimeoutProvider);
+    final timeout =
+        ref.read(autoLockTimeoutProvider.notifier).enforcedTimeout;
     if (timeout == AutoLockTimeout.off) return;
 
     final now = DateTime.now().toUtc();
@@ -211,6 +234,7 @@ class AutoLockController {
 
     container.read(unlockedVaultSlotsProvider.notifier).state = {};
     container.read(privateVaultUnlockedProvider.notifier).state = false;
+    unawaited(GuestSessionGuard.restoreMasterPreferences(container));
 
     final nav = AppNavigator.navigatorKey.currentState;
     if (nav != null) {
@@ -227,9 +251,10 @@ class AutoLockController {
   void lockApplication(WidgetRef ref) {
     if (_isLockScreenActive) return;
 
-    // 1. Segel brankas dari memori (RAM)
+    // 1. Segel brankas dari memori (RAM) dan bersihkan override sesi tamu
     ref.read(unlockedVaultSlotsProvider.notifier).state = {};
     ref.read(privateVaultUnlockedProvider.notifier).state = false;
+    unawaited(GuestSessionGuard.restoreMasterPreferences(ref));
 
     // 2. Arahkan navigator ke PinScreen
     final nav = AppNavigator.navigatorKey.currentState;

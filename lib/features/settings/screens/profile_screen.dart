@@ -13,6 +13,7 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../widgets/settings_tiles.dart';
@@ -36,6 +37,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   Future<void> _handlePickAndUploadAvatar(ImageSource source) async {
     if (_isUploadingAvatar) return;
+
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      await GuestSessionGuard.triggerSafeSilentClose(ref);
+      return;
+    }
 
     setState(() => _isUploadingAvatar = true);
 
@@ -69,6 +75,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   Future<void> _handleDeleteAvatar() async {
     if (_isUploadingAvatar) return;
+
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      await GuestSessionGuard.triggerSafeSilentClose(ref);
+      return;
+    }
 
     setState(() => _isUploadingAvatar = true);
 
@@ -193,6 +204,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     FocusManager.instance.primaryFocus?.unfocus();
     final newName = _displayNameController.text.trim();
     setState(() => _isEditingDisplayName = false);
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      _displayNameController.text =
+          ref.read(authProvider).profile?.displayName ??
+          ref.read(authProvider).profile?.fullName ??
+          '';
+      await GuestSessionGuard.triggerSafeSilentClose(ref);
+      return;
+    }
     try {
       await ref.read(authProvider.notifier).updateDisplayName(newName);
       if (mounted) {
@@ -217,6 +236,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       return;
     }
     setState(() => _isEditingBio = false);
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      _bioController.text = ref.read(authProvider).profile?.bio ?? '';
+      await GuestSessionGuard.triggerSafeSilentClose(ref);
+      return;
+    }
     try {
       await ref.read(authProvider.notifier).updateBio(newBio);
       if (mounted) {
@@ -238,6 +262,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       confirmLabel: 'Keluar',
       confirmColor: MekaarColors.sosRed,
       onConfirm: () async {
+        if (GuestSessionGuard.isRestrictedSession(ref)) {
+          await GuestSessionGuard.triggerSafeSilentClose(ref);
+          return;
+        }
         final nav = Navigator.of(context);
         await ref.read(authProvider.notifier).logout();
         nav.pushNamedAndRemoveUntil('/login', (route) => false);
@@ -250,6 +278,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   Future<void> _saveAllChanges() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      setState(() {
+        _isEditingDisplayName = false;
+        _isEditingBio = false;
+      });
+      final profile = ref.read(authProvider).profile;
+      _displayNameController.text =
+          profile?.displayName ?? profile?.fullName ?? '';
+      _bioController.text = profile?.bio ?? '';
+      await GuestSessionGuard.triggerSafeSilentClose(ref);
+      return;
+    }
     if (_isEditingDisplayName) {
       await _saveDisplayName();
     }

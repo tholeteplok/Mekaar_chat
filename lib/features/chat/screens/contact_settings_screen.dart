@@ -11,6 +11,7 @@ import '../../settings/widgets/settings_tiles.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/utils/error_resolver.dart';
@@ -367,6 +368,10 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
       ),
     );
     if (confirmed == true) {
+      if (GuestSessionGuard.isRestrictedSession(ref)) {
+        await GuestSessionGuard.triggerSafeSilentClose(ref);
+        return;
+      }
       if (_isBlocked) {
         await ref.read(blockProvider.notifier).unblockUser(widget.otherUserId);
       } else {

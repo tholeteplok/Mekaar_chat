@@ -65,8 +65,10 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
     } else {
       protectionController.leaveMandatorySurface('global_screenshot_block');
     }
-    // Sync Notification Masking preference ke service statis.
-    NotificationService.maskingEnabled = ref.watch(notificationMaskingProvider);
+    // Sync Notification Masking preference ke service statis (patuhi nilai persisten Master).
+    ref.watch(notificationMaskingProvider);
+    NotificationService.maskingEnabled =
+        ref.read(notificationMaskingProvider.notifier).enforcedValue;
 
     // Tema otomatis berbasis waktu: MaterialApp menerima ThemeData final
     // yang sudah di-resolve (light/dark + palet sesuai preferensi).

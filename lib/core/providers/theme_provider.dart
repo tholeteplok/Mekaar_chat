@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/theme_resolver.dart';
 import '../constants/theme_preference.dart';
+import '../services/guest_session_guard.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import 'font_provider.dart';
 import 'time_tick_provider.dart';
 
@@ -17,7 +19,8 @@ const ThemePreference _kDefaultThemePref = ThemePreference.auto;
 /// key `app_theme_preference`. Key lama `app_theme_mode` (Sistem/Terang/
 /// Gelap) di-migrate sekali untuk backward compatibility.
 class ThemePreferenceNotifier
-    extends StateNotifier<AsyncValue<ThemePreference>> {
+    extends StateNotifier<AsyncValue<ThemePreference>>
+    with EphemeralSettingGuard {
   ThemePreferenceNotifier() : super(const AsyncValue.loading()) {
     _load();
   }
@@ -27,6 +30,8 @@ class ThemePreferenceNotifier
 
   /// Default first-run: Otomatis (ikuti jam device).
   static const ThemePreference defaultPreference = ThemePreference.auto;
+
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     state = const AsyncValue.loading();
@@ -53,6 +58,7 @@ class ThemePreferenceNotifier
 
   Future<void> setPreference(ThemePreference pref) async {
     state = AsyncValue.data(pref);
+    if (isEphemeralSession) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_key, _toString(pref));
@@ -106,7 +112,8 @@ class ThemePreferenceNotifier
 
 final themePreferenceProvider = StateNotifierProvider<ThemePreferenceNotifier,
     AsyncValue<ThemePreference>>((ref) {
-  return ThemePreferenceNotifier();
+  return ThemePreferenceNotifier()
+    ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
 });
 
 /// Provider tema final untuk [MaterialApp]. Menggabungkan preferensi user

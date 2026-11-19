@@ -4,6 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/database_key_service.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/providers/auto_lock_provider.dart';
+import '../../features/settings/providers/notification_preferences_provider.dart';
+import '../../features/settings/providers/privacy_provider.dart';
+import '../providers/theme_provider.dart';
+
+/// Mixin ringan agar notifier preferensi mendukung Lapis 1 (Ephemeral RAM-Only)
+/// saat sesi Tamu / Duress aktif tanpa menulis perubahan ke disk persisten.
+mixin EphemeralSettingGuard {
+  bool Function()? _isEphemeralSession;
+
+  void attachEphemeralGuard(bool Function() guard) {
+    _isEphemeralSession = guard;
+  }
+
+  bool get isEphemeralSession => _isEphemeralSession?.call() ?? false;
+}
 
 /// Layanan terpusat untuk proteksi sesi terbatas (Mode Tamu / Decoy & Mode Darurat / Duress).
 ///
@@ -34,8 +49,43 @@ class GuestSessionGuard {
   static bool isRestrictedSessionRef(Ref ref) =>
       ref.read(authProvider).isDecoyActive;
 
-  /// Memulihkan preferensi persisten milik Master ke memori (diimplementasikan penuh pada T20).
-  static Future<void> restoreMasterPreferences(dynamic ref) async {}
+  static T? _tryRead<T>(dynamic ref, ProviderListenable<T> provider) {
+    try {
+      if (ref is WidgetRef) return ref.read(provider);
+      if (ref is Ref) return ref.read(provider);
+      if (ref is ProviderContainer) return ref.read(provider);
+    } catch (_) {}
+    return null;
+  }
+
+  /// Memulihkan seluruh preferensi persisten milik Master ke memori (membersihkan
+  /// override sementara dari sesi Tamu / Duress).
+  static Future<void> restoreMasterPreferences(dynamic ref) async {
+    final tasks = <Future<void>>[];
+
+    void scheduleReload(Future<void> Function()? fn) {
+      if (fn == null) return;
+      tasks.add(() async {
+        try {
+          await fn();
+        } catch (_) {}
+      }());
+    }
+
+    scheduleReload(_tryRead(ref, autoLockTimeoutProvider.notifier)?.reload);
+    scheduleReload(_tryRead(ref, screenshotBlockProvider.notifier)?.reload);
+    scheduleReload(_tryRead(ref, stealthChatPreviewProvider.notifier)?.reload);
+    scheduleReload(_tryRead(ref, notificationMaskingProvider.notifier)?.reload);
+    scheduleReload(_tryRead(ref, allowGuardianAlarmProvider.notifier)?.reload);
+    scheduleReload(
+      _tryRead(ref, notificationPreferencesProvider.notifier)?.reload,
+    );
+    scheduleReload(_tryRead(ref, themePreferenceProvider.notifier)?.reload);
+
+    if (tasks.isNotEmpty) {
+      await Future.wait(tasks);
+    }
+  }
 
   /// Menjalankan Lapis 3 (*Safe Silent Close*): membatalkan mutasi apa pun secara implisit,
   /// memulihkan preferensi Master di RAM, menyegel brankas + mengunci aplikasi ke `PinScreen`,

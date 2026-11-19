@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/guest_session_guard.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../data/models/notification_preferences.dart';
 import '../../../data/repositories/notification_preferences_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final notificationPreferencesRepositoryProvider =
     Provider<NotificationPreferencesRepository>((ref) {
@@ -9,7 +12,8 @@ final notificationPreferencesRepositoryProvider =
     });
 
 class NotificationPreferencesNotifier
-    extends StateNotifier<AsyncValue<NotificationPreferences>> {
+    extends StateNotifier<AsyncValue<NotificationPreferences>>
+    with EphemeralSettingGuard {
   final NotificationPreferencesRepository _repository;
 
   NotificationPreferencesNotifier(this._repository)
@@ -17,14 +21,20 @@ class NotificationPreferencesNotifier
     load();
   }
 
+  Future<void> reload() => load();
+
   Future<void> load() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(_repository.load);
   }
 
   Future<void> save(NotificationPreferences value) async {
-    await _repository.save(value);
     state = AsyncValue.data(value);
+    if (isEphemeralSession) {
+      HapticService.updateEnabled(value.hapticsEnabled);
+      return;
+    }
+    await _repository.save(value);
   }
 
   Future<void> update(
@@ -70,5 +80,6 @@ final notificationPreferencesProvider =
       final repository = ref.watch(
         notificationPreferencesRepositoryProvider,
       );
-      return NotificationPreferencesNotifier(repository);
+      return NotificationPreferencesNotifier(repository)
+        ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
     });

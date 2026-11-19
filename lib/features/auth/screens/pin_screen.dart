@@ -7,6 +7,7 @@ import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_pin_dots_indicator.dart';
@@ -269,10 +270,11 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                 await ref.read(hiddenContactUserIdsProvider.notifier).loadHiddenContacts();
                 await ref.read(hiddenRoomIdsProvider.notifier).loadHiddenRooms();
                 if (!isDecoy) {
-                  // Mode Master: Otomatis membuka seluruh slot brankas vault!
+                  // Mode Master: Otomatis membuka seluruh slot brankas vault & pulihkan preferensi persisten!
                   ref.read(unlockedVaultSlotsProvider.notifier).state = {1, 2, 3};
                   ref.read(privateVaultUnlockedProvider.notifier).state = true;
                   unawaited(vaultRepo.syncToNativeVault(isVaultUnlocked: true));
+                  unawaited(GuestSessionGuard.restoreMasterPreferences(ref));
                 } else {
                   // Mode Tamu / Duress: Segel seluruh brankas vault!
                   ref.read(unlockedVaultSlotsProvider.notifier).state = {};
