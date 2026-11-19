@@ -52,6 +52,8 @@ Dilarang keras menggunakan widget bawaan Flutter jika padanan sentralnya sudah t
 | **Root Layar / Halaman** | `Scaffold(...)` | `MekaarScaffold(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_scaffold.dart';` |
 | **Header Layar / Top Bar** | `AppBar(...)` | `CustomAppBar(...)` atau `MekaarTopBar(...)` | `import 'package:mekaar_chat/core/widgets/custom_app_bar.dart';`<br>`import 'package:mekaar_chat/core/widgets/mekaar_top_bar.dart';` |
 | **Header Tab / Sub-seksi** | Header teks biasa | `MekaarTabHeader(...)` atau `MekaarSectionHeader(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_tab_header.dart';`<br>`import 'package:mekaar_chat/core/widgets/mekaar_section_header.dart';` |
+| **Header Seleksi Massal (Multi-Select)** | AppBar/Row aksi ad-hoc | `MekaarSelectionHeader(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_selection_header.dart';` |
+| **Indikator & Avatar Seleksi** | Badge centang & sorotan warna lokal | `MekaarSelectionAvatar(...)` & `MekaarSelectionColors` | `import 'package:mekaar_chat/core/widgets/mekaar_selection_indicator.dart';` |
 | **Kartu / Kontainer Konten** | `Card(...)`, `Container(decoration: ...)` | `CustomCard(...)` | `import 'package:mekaar_chat/core/widgets/custom_card.dart';` |
 | **Divider Kartu / Seksi** | `Divider(...)` mentah | `MekaarCardDivider(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_card_divider.dart';` |
 | **Tile Info / Pengaturan** | `ListTile(...)` acak | `MekaarInfoTile(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_info_tile.dart';` |
