@@ -23,7 +23,6 @@ void main() {
       'lib/features/chat/screens/call_screen.dart',
       'lib/features/chat/screens/chat_list_screen.dart',
       'lib/features/chat/screens/contact_list_screen.dart',
-      'lib/features/chat/screens/contact_settings_screen.dart',
       'lib/features/chat/screens/create_group_details_screen.dart',
       'lib/features/chat/screens/create_group_select_members_screen.dart',
       'lib/features/chat/screens/emoji_store_screen.dart',

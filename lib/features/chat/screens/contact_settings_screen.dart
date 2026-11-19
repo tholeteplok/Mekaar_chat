@@ -6,8 +6,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
-import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../settings/widgets/settings_tiles.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
@@ -517,9 +517,8 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           const SizedBox(width: 5),
                           Text(
                             _formatPresenceSubtitle(_lastSeenAt),
-                            style: TextStyle(
+                            style: MekaarTypography.subtitle.copyWith(
                               fontSize: 12,
-                              fontWeight: FontWeight.w500,
                               color: isOnline
                                   ? MekaarColors.successTextOf(context)
                                   : MekaarColors.textMutedOf(context),
@@ -743,284 +742,174 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   ),
                 const SizedBox(height: 20),
 
-                // ──── 4. Card Pengaturan Obrolan ────
+                // ──── 4. Pengaturan Obrolan (Terpusat via SettingsTiles) ────
                 if (_hasDirectRoom) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Pengaturan Obrolan',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: MekaarColors.textSecondaryOf(context),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  const SettingsSectionHeader(title: 'Pengaturan Obrolan'),
                   Column(
                     children: [
-                          // Pengaturan Privasi Obrolan Terpusat
-                          ListTile(
-                            leading: Icon(
-                              SolarIconsOutline.incognito,
-                              color: MekaarColors.textSecondaryOf(context),
-                            ),
-                            title: const Text(
-                              'Pengaturan Privasi Obrolan',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Proteksi layar, anti-forward, pesan menghilang, & self-destruct',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: MekaarColors.textMutedOf(context),
-                              ),
-                            ),
-                            trailing: Icon(
-                              SolarIconsOutline.altArrowRight,
-                              size: 16,
-                              color: MekaarColors.textMutedOf(context),
-                            ),
-                            onTap: () {
-                              ChatRoomPrivacySheet.show(
-                                context,
-                                roomId: _effectiveRoomId,
-                                onSettingsChanged: () {
-                                  _loadPreferences();
-                                },
-                              );
+                      SettingsNavTile(
+                        icon: SolarIconsOutline.incognito,
+                        iconColor: MekaarColors.guardianTeal,
+                        title: 'Pengaturan Privasi Obrolan',
+                        subtitle:
+                            'Proteksi layar, anti-forward, pesan menghilang, & self-destruct',
+                        onTap: () {
+                          ChatRoomPrivacySheet.show(
+                            context,
+                            roomId: _effectiveRoomId,
+                            onSettingsChanged: () {
+                              _loadPreferences();
                             },
-                          ),
-                          const MekaarCardDivider(),
-
-                          // Mute Switch
-                          SwitchListTile(
-                            secondary: Icon(
-                              SolarIconsOutline.bellOff,
-                              color: MekaarColors.textSecondaryOf(context),
-                            ),
-                            title: Text(
-                              'Bisukan Notifikasi',
-                              style: MekaarTypography.labelLG,
-                            ),
-                            subtitle: Text(
-                              'Nonaktifkan suara notifikasi dari chat ini',
-                              style: MekaarTypography.bodySM,
-                            ),
-                            value: _isMuted,
-                            activeTrackColor: MekaarColors.guardianTeal,
-                            onChanged: _toggleMute,
-                          ),
-                          const MekaarCardDivider(),
-
-                          // E2EE Safety Number Fingerprint
-                          ListTile(
-                            leading: Icon(
-                              SolarIconsOutline.shieldCheck,
-                              color: MekaarColors.textSecondaryOf(context),
-                            ),
-                            title: const Text('Sidik Jari Keamanan E2EE'),
-                            subtitle: _e2eeFingerprint.isEmpty
-                                ? Text(
-                                    'Belum mengaktifkan E2EE',
-                                    style: MekaarTypography.bodySM,
-                                  )
-                                : _showE2eeFingerprint
-                                ? Text(
-                                    _e2eeFingerprint,
-                                    style: MekaarTypography.monoMD.copyWith(
-                                      color: MekaarColors.textSecondaryOf(
+                          );
+                        },
+                      ),
+                      const SettingsDivider(),
+                      SettingsSwitchTile(
+                        icon: SolarIconsOutline.bellOff,
+                        iconColor: MekaarColors.warnAmber,
+                        title: 'Bisukan Notifikasi',
+                        subtitle: 'Nonaktifkan suara notifikasi dari chat ini',
+                        value: _isMuted,
+                        onChanged: _toggleMute,
+                      ),
+                      const SettingsDivider(),
+                      SettingsNavTile(
+                        icon: SolarIconsOutline.shieldCheck,
+                        iconColor: MekaarColors.guardianTeal,
+                        title: 'Sidik Jari Keamanan E2EE',
+                        subtitle: _e2eeFingerprint.isEmpty
+                            ? 'Belum mengaktifkan E2EE'
+                            : (_showE2eeFingerprint
+                                ? _e2eeFingerprint
+                                : 'Ketuk ikon mata untuk melihat'),
+                        trailing: _e2eeFingerprint.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  _showE2eeFingerprint
+                                      ? SolarIconsOutline.eyeClosed
+                                      : SolarIconsOutline.eye,
+                                  color: MekaarColors.textSecondaryOf(context),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _showE2eeFingerprint =
+                                        !_showE2eeFingerprint;
+                                  });
+                                },
+                              )
+                            : null,
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => MekaarDialog(
+                              icon: const Icon(
+                                SolarIconsBold.shieldCheck,
+                                color: MekaarColors.guardianTeal,
+                                size: 26,
+                              ),
+                              title: 'Mekaar Aegis Shield (E2EE)',
+                              customContent: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pesan dan panggilan dalam obrolan ini dilindungi oleh enkripsi ujung-ke-ujung (E2EE) protokol Aegis menggunakan pasangan kunci asimetris X25519 & ChaCha20-Poly1305.',
+                                    style: TextStyle(
+                                      color: MekaarColors.textPrimaryOf(
                                         context,
                                       ),
-                                      letterSpacing: 1.0,
-                                    ),
-                                  )
-                                : Text(
-                                    'Ketuk ikon mata untuk melihat',
-                                    style: MekaarTypography.bodySM,
-                                  ),
-                            trailing: _e2eeFingerprint.isNotEmpty
-                                ? IconButton(
-                                    icon: Icon(
-                                      _showE2eeFingerprint
-                                          ? SolarIconsOutline.eyeClosed
-                                          : SolarIconsOutline.eye,
-                                      color: MekaarColors.textSecondaryOf(
-                                        context,
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _showE2eeFingerprint =
-                                            !_showE2eeFingerprint;
-                                      });
-                                    },
-                                  )
-                                : null,
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      MekaarRadius.lg,
+                                      fontSize: 13,
+                                      height: 1.4,
                                     ),
                                   ),
-                                  title: const Row(
-                                    children: [
-                                      Icon(
-                                        SolarIconsBold.shieldCheck,
-                                        color: MekaarColors.guardianTeal,
-                                        size: 26,
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text(
-                                        'Mekaar Aegis Shield (E2EE)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                  const SizedBox(height: 14),
+                                  if (_e2eeFingerprint.isNotEmpty) ...[
+                                    Text(
+                                      'Sidik Jari Kunci Keamanan:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.5,
+                                        color: MekaarColors.textPrimaryOf(
+                                          context,
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  content: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Pesan dan panggilan dalam obrolan ini dilindungi oleh enkripsi ujung-ke-ujung (E2EE) protokol Aegis menggunakan pasangan kunci asimetris X25519 & ChaCha20-Poly1305.',
-                                        style: TextStyle(
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: MekaarColors.surface2Of(
+                                          context,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          MekaarRadius.sm,
+                                        ),
+                                      ),
+                                      child: SelectableText(
+                                        _e2eeFingerprint,
+                                        style: MekaarTypography.monoMD.copyWith(
+                                          fontSize: 12,
                                           color: MekaarColors.textPrimaryOf(
                                             context,
                                           ),
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 14),
-                                      if (_e2eeFingerprint.isNotEmpty) ...[
-                                        Text(
-                                          'Sidik Jari Kunci Keamanan:',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12.5,
-                                            color: MekaarColors.textPrimaryOf(
-                                              context,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: MekaarColors.surface2Of(
-                                              context,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              MekaarRadius.sm,
-                                            ),
-                                          ),
-                                          child: SelectableText(
-                                            _e2eeFingerprint,
-                                            style: MekaarTypography.monoMD
-                                                .copyWith(
-                                                  fontSize: 12,
-                                                  color:
-                                                      MekaarColors.textPrimaryOf(
-                                                        context,
-                                                      ),
-                                                  letterSpacing: 1.0,
-                                                ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                      ],
-                                      Text(
-                                        'Komitmen Privasi Mutlak:',
-                                        style: TextStyle(
-                                          color: MekaarColors.safeTextOf(
-                                            context,
-                                          ),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Hanya Anda dan lawan bicara yang memegang kunci untuk membaca pesan ini. Server MEKAAR tidak memiliki akses ke konten percakapan Anda.',
-                                        style: TextStyle(
-                                          color: MekaarColors.textMutedOf(
-                                            context,
-                                          ),
-                                          fontSize: 12,
-                                          height: 1.35,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text(
-                                        'Tutup',
-                                        style: TextStyle(
-                                          color: MekaarColors.guardianTeal,
-                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.0,
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(height: 10),
                                   ],
+                                  Text(
+                                    'Komitmen Privasi Mutlak:',
+                                    style: TextStyle(
+                                      color: MekaarColors.safeTextOf(context),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Hanya Anda dan lawan bicara yang memegang kunci untuk membaca pesan ini. Server MEKAAR tidak memiliki akses ke konten percakapan Anda.',
+                                    style: TextStyle(
+                                      color: MekaarColors.textMutedOf(context),
+                                      fontSize: 12,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text(
+                                    'Tutup',
+                                    style: TextStyle(
+                                      color: MekaarColors.guardianTeal,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              );
-                            },
-                          ),
-                        ],
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                  const SizedBox(height: 24),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                 ],
 
-                // ──── 5. Card Tindakan (Danger Zone) ────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    'Tindakan',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: MekaarColors.textSecondaryOf(context),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                // ──── 5. Tindakan (Danger Zone) ────
+                const SettingsSectionHeader(title: 'Tindakan'),
                 Column(
                   children: [
                     if (_hasDirectRoom) ...[
-                      // Hapus Chat
-                      ListTile(
-                        leading: const Icon(
-                          SolarIconsOutline.trashBinTrash,
-                          color: MekaarColors.sosRed,
-                        ),
-                        title: const Text('Hapus Chat (Hanya Saya)'),
-                        subtitle: const Text(
-                          'Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak',
-                        ),
-                        titleTextStyle: const TextStyle(
-                          color: MekaarColors.sosRed,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        subtitleTextStyle: TextStyle(
-                          fontSize: 12,
-                          color: MekaarColors.textSecondaryOf(context),
-                        ),
+                      SettingsNavTile(
+                        icon: SolarIconsOutline.trashBinTrash,
+                        isDestructive: true,
+                        title: 'Hapus Chat (Hanya Saya)',
+                        subtitle:
+                            'Hapus dari daftar pesan; kontak tetap tersimpan di buku kontak',
                         onTap: () {
                           MekaarDialog.showConfirmation<void>(
                             context: context,
@@ -1053,28 +942,15 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           );
                         },
                       ),
-                      const MekaarCardDivider(),
+                      const SettingsDivider(),
                     ],
-
                     if (isContact) ...[
-                      // Hapus Kontak (Otomatis Menghapus Percakapan)
-                      ListTile(
-                        leading: const Icon(
-                          SolarIconsOutline.userCross,
-                          color: MekaarColors.sosRed,
-                        ),
-                        title: const Text('Hapus Kontak'),
-                        subtitle: const Text(
-                          'Hapus dari buku kontak dan bersihkan seluruh riwayat chat',
-                        ),
-                        titleTextStyle: const TextStyle(
-                          color: MekaarColors.sosRed,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        subtitleTextStyle: TextStyle(
-                          fontSize: 12,
-                          color: MekaarColors.textSecondaryOf(context),
-                        ),
+                      SettingsNavTile(
+                        icon: SolarIconsOutline.userCross,
+                        isDestructive: true,
+                        title: 'Hapus Kontak',
+                        subtitle:
+                            'Hapus dari buku kontak dan bersihkan seluruh riwayat chat',
                         onTap: () {
                           MekaarDialog.showConfirmation<void>(
                             context: context,
@@ -1111,37 +987,31 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                           );
                         },
                       ),
-                      const MekaarCardDivider(),
+                      const SettingsDivider(),
                     ],
-
-                          // Blokir
-                          ListTile(
-                            leading: Icon(
-                              SolarIconsOutline.dangerTriangle,
-                              color: _isBlocked
-                                  ? MekaarColors.guardianTeal
-                                  : MekaarColors.sosCoral,
-                            ),
-                            title: Text(
-                              _isBlocked
-                                  ? 'Buka Blokir Kontak'
-                                  : 'Blokir Kontak',
-                            ),
-                            onTap: _toggleBlock,
-                          ),
-                          const MekaarCardDivider(),
-
-                          // Laporkan Pengguna
-                          ListTile(
-                            leading: const Icon(
-                              SolarIconsOutline.flag,
-                              color: MekaarColors.warnAmber,
-                            ),
-                            title: const Text('Laporkan Pengguna'),
-                            onTap: _showReportDialog,
-                          ),
-                        ],
-                      ),
+                    SettingsNavTile(
+                      icon: SolarIconsOutline.dangerTriangle,
+                      iconColor: _isBlocked
+                          ? MekaarColors.guardianTeal
+                          : MekaarColors.sosCoral,
+                      isDestructive: !_isBlocked,
+                      title: _isBlocked ? 'Buka Blokir Kontak' : 'Blokir Kontak',
+                      subtitle: _isBlocked
+                          ? 'Izinkan kembali pesan dan panggilan dari kontak ini'
+                          : 'Cegah kontak ini mengirim pesan atau menelepon Anda',
+                      onTap: _toggleBlock,
+                    ),
+                    const SettingsDivider(),
+                    SettingsNavTile(
+                      icon: SolarIconsOutline.flag,
+                      iconColor: MekaarColors.warnAmber,
+                      title: 'Laporkan Pengguna',
+                      subtitle:
+                          'Laporkan spam, pelecehan, atau penipuan ke tim moderasi',
+                      onTap: _showReportDialog,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 20),
               ],
             ),
@@ -1223,9 +1093,13 @@ class _ReportUserDialogState extends ConsumerState<_ReportUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Laporkan Pengguna'),
-      content: SingleChildScrollView(
+    return MekaarDialog(
+      icon: const Icon(
+        SolarIconsOutline.flag,
+        color: MekaarColors.warnAmber,
+      ),
+      title: 'Laporkan Pengguna',
+      customContent: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
