@@ -183,6 +183,8 @@ abstract final class MekaarCopy {
   static const String twoStepDisableDialogTitle =
       'Matikan Verifikasi 2 Langkah';
   static const String connectedDevicesTitle = 'Perangkat Terhubung';
+  static const String connectedDevicesSubtitle =
+      'Kelola sesi & perangkat tertaut';
   static const String blockScreenshotsTitle = 'Blokir Tangkapan Layar';
   static const String blockScreenshotsSubtitle =
       'Cegah tangkapan layar di seluruh aplikasi';
@@ -204,13 +206,19 @@ abstract final class MekaarCopy {
   static const String guardianAlarmSubtitle =
       'Izinkan suara alarm untuk peringatan guardian';
   static const String tripsTitle = 'Check-In & Perjalanan';
+  static const String tripsSubtitle =
+      'Pantau perjalanan aman & riwayat check-in';
   static const String findMyPhoneTitle = 'Temukan Ponsel Saya';
+  static const String findMyPhoneSubtitle =
+      'Lacak lokasi saat darurat atau hilang';
   static const String safetyWizardTitle = 'Lengkapi Proteksi SOS';
   static const String safetyWizardSubtitle =
       'Fitur SOS telah aktif. Selesaikan konfigurasi agar perlindungan maksimal.';
 
   // Seksi Notifikasi & Suara
   static const String notificationSoundsTitle = 'Nada Notifikasi';
+  static const String notificationSoundsSubtitle =
+      'Nada dering pesan, panggilan & sirene';
   static const String stealthChatPreviewTitle = 'Sembunyikan Cuplikan Pesan';
   static const String stealthChatPreviewSubtitle =
       'Sembunyikan preview teks terakhir pada daftar obrolan publik';
@@ -218,6 +226,8 @@ abstract final class MekaarCopy {
   static const String notificationMaskingSubtitle =
       'Samarkan rincian nama pengirim & pesan saat darurat';
   static const String hapticsTitle = 'Getaran';
+  static const String hapticsSubtitle =
+      'Getaran pesan masuk & respons sentuhan';
 
   // Seksi Tampilan
   static const String themeSettingsTitle = 'Tema & Mode Gelap';
@@ -227,6 +237,8 @@ abstract final class MekaarCopy {
 
   // Seksi Informasi & Akun
   static const String aboutTitle = 'Tentang Mekaar';
+  static const String aboutSubtitle =
+      'Versi aplikasi, lisensi & info privasi';
   static const String logoutTitle = 'Keluar';
   static const String logoutSubtitle = 'Sesi login dan PIN lokal akan dihapus.';
   static const String logoutConfirmTitle = 'Keluar dari Akun?';

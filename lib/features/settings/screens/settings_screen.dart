@@ -153,6 +153,7 @@ class SettingsScreen extends ConsumerWidget {
           SettingsNavTile(
             icon: SolarIconsOutline.smartphone,
             title: MekaarCopy.connectedDevicesTitle,
+            subtitle: MekaarCopy.connectedDevicesSubtitle,
             valueText: deviceCount > 0 ? '$deviceCount' : null,
             onTap: () =>
                 Navigator.pushNamed(context, AppRoutes.connectedDevices),
@@ -226,12 +227,14 @@ class SettingsScreen extends ConsumerWidget {
           icon: SolarIconsOutline.mapPoint,
           iconColor: MekaarColors.guardianTeal,
           title: MekaarCopy.tripsTitle,
+          subtitle: MekaarCopy.tripsSubtitle,
           onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
         ),
         const SettingsDivider(),
         SettingsNavTile(
           icon: SolarIconsOutline.gps,
           title: MekaarCopy.findMyPhoneTitle,
+          subtitle: MekaarCopy.findMyPhoneSubtitle,
           onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
         ),
       ],
@@ -252,6 +255,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavTile(
           icon: SolarIconsOutline.bell,
           title: MekaarCopy.notificationSoundsTitle,
+          subtitle: MekaarCopy.notificationSoundsSubtitle,
           onTap: () => Navigator.pushNamed(context, AppRoutes.soundPicker),
         ),
         const SettingsDivider(),
@@ -280,6 +284,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSwitchTile(
           icon: SolarIconsOutline.smartphoneVibration,
           title: MekaarCopy.hapticsTitle,
+          subtitle: MekaarCopy.hapticsSubtitle,
           value: hapticsEnabled,
           onChanged: prefsAsync.hasValue
               ? (value) => ref
@@ -335,6 +340,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavTile(
           icon: SolarIconsOutline.infoCircle,
           title: MekaarCopy.aboutTitle,
+          subtitle: MekaarCopy.aboutSubtitle,
           onTap: () => Navigator.pushNamed(context, AppRoutes.about),
         ),
       ],
