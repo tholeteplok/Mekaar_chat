@@ -194,6 +194,8 @@ abstract final class MekaarCopy {
   static const String sosDisableDialogTitle =
       'Nonaktifkan Fitur Darurat SOS?';
   static const String sosLogsTitle = 'Riwayat SOS';
+  static const String sosLogsSubtitle =
+      'Catatan pemicu SOS, latihan & sinyal darurat';
   static const String sosLogsInactiveSubtitle = 'Fitur SOS nonaktif';
   static const String sosDrillTitle = 'Latihan SOS';
   static const String sosDrillSubtitle =

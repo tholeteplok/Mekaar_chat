@@ -197,7 +197,7 @@ class SettingsScreen extends ConsumerWidget {
               ? MekaarColors.sosRed
               : MekaarColors.textMutedOf(context),
           title: MekaarCopy.sosLogsTitle,
-          subtitle: isSosEnabled ? null : MekaarCopy.sosLogsInactiveSubtitle,
+          subtitle: MekaarCopy.sosLogsSubtitle,
           onTap: () => Navigator.pushNamed(context, AppRoutes.logs),
         ),
         const SettingsDivider(),
