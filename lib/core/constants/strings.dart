@@ -246,4 +246,5 @@ abstract final class MekaarCopy {
       'Sesi masuk dan PIN keamanan lokal di perangkat ini akan dihapus. '
       'Anda harus masuk kembali dengan kata sandi.';
   static const String logoutConfirmAction = 'Keluar';
+  static const String myQrTooltip = 'Kode QR Saya';
 }

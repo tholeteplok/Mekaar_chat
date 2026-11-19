@@ -86,7 +86,7 @@ class AccountSnippetCard extends ConsumerWidget {
             Avatar(
               initial: displayName,
               imageUrl: profile?.avatarUrl,
-              size: 46,
+              size: 56,
             ),
             const SizedBox(width: 14),
             // Nama & @username
@@ -98,7 +98,7 @@ class AccountSnippetCard extends ConsumerWidget {
                   Text(
                     displayName,
                     style: MekaarTypography.bodyMD.copyWith(
-                      fontSize: 15.5,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: MekaarColors.textPrimaryOf(context),
                     ),
@@ -108,8 +108,8 @@ class AccountSnippetCard extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                     handleText,
-                    style: MekaarTypography.caption.copyWith(
-                      fontSize: 12.5,
+                    style: MekaarTypography.subtitle.copyWith(
+                      fontSize: 13,
                       color: MekaarColors.textSecondaryOf(context),
                     ),
                     maxLines: 1,
@@ -119,6 +119,18 @@ class AccountSnippetCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
+            if (!authState.isDuressActive)
+              IconButton(
+                icon: Icon(
+                  SolarIconsOutline.qrCode,
+                  size: 22,
+                  color: MekaarColors.primaryOf(context),
+                ),
+                tooltip: MekaarCopy.myQrTooltip,
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.myQr);
+                },
+              ),
             // Chevron arrow
             Icon(
               SolarIconsOutline.altArrowRight,
