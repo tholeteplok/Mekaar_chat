@@ -9,6 +9,7 @@ import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_change_pin_sheet.dart';
+import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -189,32 +190,26 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
     );
     if (!verified || !mounted) return;
 
-    final confirm = await showDialog<bool>(
+    final confirm = await MekaarDialog.showConfirmation<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: MekaarColors.surface2Of(ctx),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(MekaarRadius.lg),
-        ),
-        title: const Text('Nonaktifkan PIN Tamu?'),
-        content: const Text(
+      title: 'Nonaktifkan PIN Tamu?',
+      message:
           'PIN Tamu akan dihapus. Pengguna tidak akan dapat mengakses mode tamu hingga PIN diatur kembali.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.sosRed,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Nonaktifkan'),
-          ),
-        ],
-      ),
+          child: const Text('Nonaktifkan'),
+        ),
+      ],
     );
 
     if (confirm != true || !mounted) return;
@@ -311,32 +306,26 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
     );
     if (!verified || !mounted) return;
 
-    final confirm = await showDialog<bool>(
+    final confirm = await MekaarDialog.showConfirmation<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: MekaarColors.surface2Of(ctx),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(MekaarRadius.lg),
-        ),
-        title: const Text('Nonaktifkan PIN Darurat?'),
-        content: const Text(
+      title: 'Nonaktifkan PIN Darurat?',
+      message:
           'PIN Darurat akan dihapus. Memasukkan PIN ini di layar kunci tidak akan memicu Silent SOS lagi.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.sosRed,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Nonaktifkan'),
-          ),
-        ],
-      ),
+          child: const Text('Nonaktifkan'),
+        ),
+      ],
     );
 
     if (confirm != true || !mounted) return;
@@ -447,7 +436,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                     const SizedBox(height: 2),
                     Text(
                       'Kode akses 6 digit untuk mengunci aplikasi',
-                      style: MekaarTypography.caption.copyWith(
+                      style: MekaarTypography.subtitle.copyWith(
                         color: MekaarColors.textMutedOf(context),
                       ),
                     ),
@@ -527,7 +516,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'Akses Penuh & Kunci Brankas',
-                        style: MekaarTypography.caption.copyWith(
+                        style: MekaarTypography.subtitle.copyWith(
                           color: MekaarColors.textMutedOf(context),
                         ),
                       ),
@@ -610,7 +599,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'Akses Bersih Saat Dipinjamkan',
-                        style: MekaarTypography.caption.copyWith(
+                        style: MekaarTypography.subtitle.copyWith(
                           color: MekaarColors.textMutedOf(context),
                         ),
                       ),
@@ -737,7 +726,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
                             isSosEnabled
                                 ? 'Sembunyikan Obrolan & Bantuan'
                                 : 'Dinonaktifkan di Pengaturan',
-                            style: MekaarTypography.caption.copyWith(
+                            style: MekaarTypography.subtitle.copyWith(
                               color: MekaarColors.textMutedOf(context),
                             ),
                           ),

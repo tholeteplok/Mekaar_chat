@@ -39,7 +39,6 @@ void main() {
       'lib/features/guardian/screens/sos_viewer_screen.dart',
       'lib/features/map/screens/location_map_screen.dart',
       'lib/features/settings/screens/decoy_pin_screen.dart',
-      'lib/features/settings/screens/pin_management_screen.dart',
       'lib/features/settings/screens/security_logs_screen.dart',
       'lib/features/settings/screens/settings_screen.dart',
       'lib/features/sos/screens/sos_drill_screen.dart',

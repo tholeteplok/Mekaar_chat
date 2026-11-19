@@ -452,7 +452,9 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       subtitle: Text(
                         opt.description,
-                        style: MekaarTypography.caption,
+                        style: MekaarTypography.subtitle.copyWith(
+                          color: MekaarColors.textSecondaryOf(context),
+                        ),
                       ),
                       trailing: selected
                           ? Icon(
@@ -959,7 +961,7 @@ class SettingsScreen extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           MekaarCopy.safetyWizardSubtitle,
-                          style: MekaarTypography.caption.copyWith(
+                          style: MekaarTypography.subtitle.copyWith(
                             color: MekaarColors.textMutedOf(sheetContext),
                           ),
                         ),
@@ -998,7 +1000,7 @@ class SettingsScreen extends ConsumerWidget {
                             hasGuardians
                                 ? 'Guardian aktif terhubung'
                                 : 'Belum ada Guardian yang menerima sinyal SOS',
-                            style: MekaarTypography.caption.copyWith(
+                            style: MekaarTypography.subtitle.copyWith(
                               color: MekaarColors.textMutedOf(sheetContext),
                             ),
                           ),
@@ -1069,7 +1071,7 @@ class SettingsScreen extends ConsumerWidget {
                             isDuressSet
                                 ? 'Kode telah aktif'
                                 : MekaarCopy.quickResetPinSubtitle,
-                            style: MekaarTypography.caption.copyWith(
+                            style: MekaarTypography.subtitle.copyWith(
                               color: MekaarColors.textMutedOf(sheetContext),
                             ),
                           ),
