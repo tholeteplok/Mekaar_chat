@@ -16,6 +16,7 @@ import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mika_illustration.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 import '../widgets/chat_list_tile.dart';
@@ -102,7 +103,19 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
           ),
           onPressed: () async {
             Navigator.pop(context);
-            await ref.read(chatActionsProvider).deleteChat(room['id'] as String);
+            final roomId = room['id'] as String?;
+            final otherUserId = room['otherUserId'] as String?;
+            if (ref.read(authProvider).isGuestActive) {
+              await VaultIsolationHelper.silentVaultTarget(
+                ref,
+                roomId: roomId,
+                contactUserId: otherUserId,
+              );
+              if (!mounted) return;
+              MekaarSnackbar.success(context, 'Obrolan berhasil dihapus dari arsip');
+              return;
+            }
+            await ref.read(chatActionsProvider).deleteChat(roomId ?? '');
             if (!mounted) return;
             MekaarSnackbar.success(context, 'Obrolan berhasil dihapus dari arsip');
             ref.read(chatRoomsProvider.notifier).refreshRooms();

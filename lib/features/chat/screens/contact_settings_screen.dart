@@ -932,6 +932,16 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                 ),
                                 onPressed: () async {
                                   Navigator.pop(context);
+                                  if (ref.read(authProvider).isGuestActive) {
+                                    await VaultIsolationHelper.silentVaultTarget(
+                                      ref,
+                                      roomId: _effectiveRoomId,
+                                    );
+                                    if (context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
+                                    return;
+                                  }
                                   await ref
                                       .read(chatActionsProvider)
                                       .deleteChat(_effectiveRoomId);
@@ -973,6 +983,21 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                                 ),
                                 onPressed: () async {
                                   Navigator.pop(context);
+                                  if (ref.read(authProvider).isGuestActive) {
+                                    await VaultIsolationHelper.silentVaultTarget(
+                                      ref,
+                                      roomId: _effectiveRoomId,
+                                      contactUserId: widget.otherUserId,
+                                    );
+                                    if (context.mounted) {
+                                      MekaarSnackbar.success(
+                                        context,
+                                        'Kontak dan obrolan berhasil dihapus.',
+                                      );
+                                      Navigator.of(context).pop();
+                                    }
+                                    return;
+                                  }
                                   await ref
                                       .read(userContactsProvider.notifier)
                                       .deleteContact(widget.otherUserId);

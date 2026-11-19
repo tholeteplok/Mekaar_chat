@@ -249,6 +249,27 @@ class VaultIsolationHelper {
 
     return false;
   }
+
+  /// Mengeksekusi Silent Vaulting terpusat untuk Mode Tamu: menyembunyikan
+  /// room dan/atau kontak ke vault secara lokal & idempoten tanpa menghapus
+  /// data asli milik Master di server maupun SQLite.
+  static Future<void> silentVaultTarget(
+    WidgetRef ref, {
+    String? roomId,
+    String? contactUserId,
+  }) async {
+    if (roomId != null && roomId.isNotEmpty) {
+      final roomNotifier = ref.read(hiddenRoomIdsProvider.notifier);
+      if (!roomNotifier.isHidden(roomId)) {
+        await roomNotifier.toggleHide(roomId);
+      }
+    }
+    if (contactUserId != null && contactUserId.isNotEmpty) {
+      await ref.read(hiddenContactUserIdsProvider.notifier).hideContact(
+            contactUserId,
+          );
+    }
+  }
 }
 
 class HiddenContactUserIdsNotifier extends StateNotifier<Set<String>> {
