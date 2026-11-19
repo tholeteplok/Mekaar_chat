@@ -479,7 +479,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                         guardian.name,
                         style: MekaarTypography.bodyMD.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontSize: 15.5,
+                          fontSize: 16,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -487,7 +487,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                         const SizedBox(height: 2),
                         Text(
                           guardian.email,
-                          style: MekaarTypography.caption.copyWith(
+                          style: MekaarTypography.subtitle.copyWith(
                             color: MekaarColors.textMutedOf(context),
                           ),
                           overflow: TextOverflow.ellipsis,

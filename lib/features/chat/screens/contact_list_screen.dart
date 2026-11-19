@@ -950,7 +950,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                   name,
                                   style: MekaarTypography.bodyMD.copyWith(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w600,
                                     color: primaryColor,
                                   ),
                                   maxLines: 1,
@@ -1017,8 +1017,8 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                           const SizedBox(height: 2),
                           Text(
                             username.isNotEmpty ? '@$username' : email,
-                            style: MekaarTypography.bodySM.copyWith(
-                              fontSize: 13.5,
+                            style: MekaarTypography.subtitle.copyWith(
+                              fontSize: 13,
                               color: mutedColor,
                             ),
                             maxLines: 1,

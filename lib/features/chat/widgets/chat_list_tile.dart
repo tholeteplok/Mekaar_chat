@@ -106,8 +106,11 @@ class ChatListTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             name,
-                            style: MekaarTypography.headingSM.copyWith(
-                              fontWeight: FontWeight.w800,
+                            style: MekaarTypography.bodyMD.copyWith(
+                              fontSize: 16,
+                              fontWeight: unreadCount > 0
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
                               color: nameColor,
                             ),
                             maxLines: 1,
@@ -262,15 +265,16 @@ class ChatListTile extends StatelessWidget {
                                     )
                                   : null;
 
-                              final previewTextStyle = MekaarTypography.labelLG
+                              final previewTextStyle = MekaarTypography.subtitle
                                   .copyWith(
+                                    fontSize: 13.5,
                                     fontWeight: unreadCount > 0
                                         ? FontWeight.w600
                                         : FontWeight.w400,
                                     letterSpacing: isDots ? 2.0 : null,
                                     color: unreadCount > 0
                                         ? MekaarColors.textPrimaryOf(context)
-                                        : MekaarColors.textMutedOf(context),
+                                        : MekaarColors.textSecondaryOf(context),
                                   );
 
                               if (receiptStatus != null) {
