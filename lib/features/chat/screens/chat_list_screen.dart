@@ -1006,15 +1006,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   setState(() => _isSearchActive = true);
                                 },
                               ),
-                              IconButton(
-                                key: const ValueKey('chat_list_select_mode_btn'),
-                                icon: Icon(
-                                  SolarIconsOutline.checkSquare,
-                                  color: MekaarColors.textPrimaryOf(context),
-                                ),
-                                tooltip: 'Pilih Beberapa',
-                                onPressed: () => _enterSelectionMode(),
-                              ),
                               Badge.count(
                                 count: archivedUnreadCount,
                                 isLabelVisible: archivedUnreadCount > 0,

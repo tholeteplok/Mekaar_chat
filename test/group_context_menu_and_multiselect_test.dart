@@ -352,13 +352,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Masuk multi-select dari tombol header
-      await tester.tap(
+      // Ikon multi-select di header tidak ditampilkan (masuk lewat bottom sheet)
+      expect(
         find.byKey(const ValueKey('chat_list_select_mode_btn')),
+        findsNothing,
       );
+
+      // Masuk multi-select lewat tekan-tahan item -> Pilih Beberapa di bottom sheet
+      await tester.longPress(find.text('Keluarga Mekaar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pilih Beberapa'));
       await tester.pumpAndSettle();
 
-      expect(find.text('0 dipilih'), findsOneWidget);
+      expect(find.text('1 dipilih'), findsOneWidget);
 
       // Pilih Semua
       await tester.tap(
@@ -391,9 +397,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey('chat_list_select_mode_btn')),
-      );
+      await tester.longPress(find.text('Keluarga Mekaar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pilih Beberapa'));
       await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const ValueKey('mekaar_selection_select_all_btn')),
