@@ -148,6 +148,16 @@ class MekaarTypography {
     height: 1.4,
   );
 
+  /// Sub-judul terpusat untuk tile pengaturan, kartu, top bar, dan komponen daftar.
+  /// Menggunakan bobot w400 (Regular) agar lebih tipis dari judul (w600/w700)
+  /// dan menciptakan hierarki visual yang bersih, tenang, serta konsisten.
+  static TextStyle get subtitle => _font(
+    fontSize: 12.5,
+    fontWeight: FontWeight.w400,
+    height: 1.35,
+    letterSpacing: 0.1,
+  );
+
   // ─────────────────────────────────────────
   // Label — Chip, badge, caption
   // ─────────────────────────────────────────

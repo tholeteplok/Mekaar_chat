@@ -188,7 +188,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               subtitle ?? (isOnline ? 'Online' : 'Offline'),
                               style: TextStyle(
                                 fontSize: 11.5,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w400,
                                 color: isOnline && showOnlineIndicator
                                     ? MekaarColors.success
                                     : (subtitleColor ??
@@ -336,7 +336,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                           (isOnline ? 'Online' : 'Offline'),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w400,
                                         color: isOnline && showOnlineIndicator
                                             ? MekaarColors.success
                                             : (subtitleColor ??
@@ -496,7 +496,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         subtitle ?? (isOnline ? 'Online' : 'Offline'),
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w400,
                           color: isOnline && showOnlineIndicator
                               ? MekaarColors.success
                               : MekaarColors.textMutedOf(context),

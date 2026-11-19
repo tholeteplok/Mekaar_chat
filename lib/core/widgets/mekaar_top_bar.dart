@@ -120,7 +120,7 @@ class MekaarTopBar extends StatelessWidget implements PreferredSizeWidget {
                         subtitle!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: MekaarTypography.caption.copyWith(
+                        style: MekaarTypography.subtitle.copyWith(
                           color: MekaarColors.textSecondaryOf(context),
                           fontSize: 13,
                         ),

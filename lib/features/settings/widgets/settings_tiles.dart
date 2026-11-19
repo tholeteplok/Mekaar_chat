@@ -115,7 +115,7 @@ class _SettingsExpandableCardState extends State<SettingsExpandableCard> {
                               (_isExpanded
                                   ? 'Ketuk untuk menutup'
                                   : 'Ketuk untuk melihat detail'),
-                          style: MekaarTypography.caption.copyWith(
+                          style: MekaarTypography.subtitle.copyWith(
                             fontSize: 12,
                             color: MekaarColors.textSecondaryOf(context),
                           ),
@@ -288,8 +288,7 @@ class SettingsSwitchTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: MekaarTypography.caption.copyWith(
-                        fontSize: 12.5,
+                      style: MekaarTypography.subtitle.copyWith(
                         color: MekaarColors.textSecondaryOf(context),
                       ),
                       maxLines: 2,
@@ -395,8 +394,7 @@ class SettingsNavTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: MekaarTypography.caption.copyWith(
-                        fontSize: 12.5,
+                      style: MekaarTypography.subtitle.copyWith(
                         color: MekaarColors.textSecondaryOf(context),
                       ),
                       maxLines: 2,

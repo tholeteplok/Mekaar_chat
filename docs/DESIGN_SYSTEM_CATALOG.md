@@ -161,7 +161,8 @@ Path: `import 'package:mekaar_chat/core/constants/typography.dart';`
     * `MekaarTypography.bodyLG` (18px, w400, height: 1.6).
     * `MekaarTypography.bodyMD` (16px, w400, height: 1.5).
     * `MekaarTypography.bodySM` (14px, w400, height: 1.4).
-  * **Label, Badge & Caption:**
+  * **Label, Badge, Subtitle & Caption:**
+    * `MekaarTypography.subtitle` (12.5px, w400, height: 1.35, letterSpacing: 0.1 — subjudul tipis terpusat untuk tile pengaturan, kartu, top bar & daftar).
     * `MekaarTypography.labelLG` (14px, w600).
     * `MekaarTypography.labelMD` (11px, w600, letterSpacing: 0.2).
     * `MekaarTypography.labelSM` (11px, w700, letterSpacing: 0.2).
