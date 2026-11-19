@@ -7,8 +7,8 @@ import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/icons.dart';
 import '../../../core/utils/message_preview_resolver.dart';
-import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/bubbles/read_receipt_icon.dart';
+import '../../../core/widgets/mekaar_selection_indicator.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -49,6 +49,8 @@ class ChatListTile extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onArchive;
   final bool isHidden;
+  final bool isSelectionMode;
+  final bool isSelected;
 
   const ChatListTile({
     super.key,
@@ -60,6 +62,8 @@ class ChatListTile extends StatelessWidget {
     this.onDelete,
     this.onArchive,
     this.isHidden = false,
+    this.isSelectionMode = false,
+    this.isSelected = false,
   });
 
   @override
@@ -79,7 +83,10 @@ class ChatListTile extends StatelessWidget {
     final nameColor = MekaarColors.textPrimaryOf(context);
 
     final tile = Material(
-      color: Colors.transparent,
+      color: MekaarSelectionColors.rowHighlight(
+        context,
+        isSelected: isSelectionMode && isSelected,
+      ),
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
@@ -87,7 +94,7 @@ class ChatListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           child: Row(
             children: [
-              Avatar(
+              MekaarSelectionAvatar(
                 initial: (room['avatar'] as String?)?.isNotEmpty == true
                     ? room['avatar'] as String
                     : (name.isNotEmpty ? name[0] : 'U'),
@@ -95,6 +102,8 @@ class ChatListTile extends StatelessWidget {
                 size: MekaarSizes.avatarLg,
                 isGuardian: isGuardian,
                 heroTag: roomId.isNotEmpty ? 'avatar-room-$roomId' : null,
+                isSelectionMode: isSelectionMode,
+                isSelected: isSelected,
               ),
               const SizedBox(width: 14),
               Expanded(

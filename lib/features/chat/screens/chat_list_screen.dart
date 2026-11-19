@@ -10,6 +10,7 @@ import '../../../core/constants/icons.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/utils/permissions.dart';
@@ -21,6 +22,7 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
 import '../../../core/widgets/mekaar_elastic_pull_scope.dart';
 import '../../../core/widgets/mekaar_header_search_button.dart';
+import '../../../core/widgets/mekaar_selection_header.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/skeletons.dart';
 import '../../../core/widgets/mika_illustration.dart';
@@ -55,6 +57,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with AutomaticKeepAliveClientMixin {
   String _searchQuery = '';
   bool _isSearchActive = false;
+  bool _isSelectionMode = false;
+  final Set<String> _selectedRoomIds = <String>{};
   double _pullProgress = 0.0;
   bool _isRefreshing = false;
   late final TextEditingController _searchController;
@@ -243,12 +247,305 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     ref.read(chatRoomsProvider.notifier).refreshRooms();
   }
 
+  bool _isGroupRoom(Map<String, dynamic> room) =>
+      room['isGroup'] == true ||
+      room['is_group'] == true ||
+      room['room_type'] == 'group' ||
+      room['type'] == 'group';
+
+  String _roomIdOf(Map<String, dynamic> room) =>
+      (room['id'] ?? room['room_id'] ?? '') as String;
+
+  void _enterSelectionMode([String? initialRoomId]) {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      _isSelectionMode = true;
+      _selectedRoomIds.clear();
+      if (initialRoomId != null && initialRoomId.isNotEmpty) {
+        _selectedRoomIds.add(initialRoomId);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    if (!_isSelectionMode && _selectedRoomIds.isEmpty) return;
+    setState(() {
+      _isSelectionMode = false;
+      _selectedRoomIds.clear();
+    });
+  }
+
+  void _toggleRoomSelection(String roomId) {
+    if (roomId.isEmpty) return;
+    HapticService.trigger(MekaarHapticIntent.selection);
+    setState(() {
+      if (_selectedRoomIds.contains(roomId)) {
+        _selectedRoomIds.remove(roomId);
+        if (_selectedRoomIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedRoomIds.add(roomId);
+      }
+    });
+  }
+
+  void _toggleSelectAllRooms(List<Map<String, dynamic>> visibleRooms) {
+    final visibleIds = visibleRooms
+        .map(_roomIdOf)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final allSelected =
+        visibleIds.isNotEmpty && visibleIds.every(_selectedRoomIds.contains);
+    setState(() {
+      if (allSelected) {
+        _selectedRoomIds.clear();
+      } else {
+        _selectedRoomIds
+          ..clear()
+          ..addAll(visibleIds);
+      }
+    });
+  }
+
+  Future<void> _handleBulkMarkAsRead(
+    List<Map<String, dynamic>> selectedRooms,
+  ) async {
+    final targets = selectedRooms.where((room) {
+      final unread = (room['unreadCount'] ?? room['unread_count']) as int? ?? 0;
+      return unread > 0;
+    }).toList();
+    if (targets.isEmpty) return;
+
+    final actions = ref.read(chatActionsProvider);
+    for (final room in targets) {
+      final roomId = _roomIdOf(room);
+      if (roomId.isNotEmpty) {
+        await actions.markRoomRead(roomId);
+      }
+    }
+    if (!mounted) return;
+    _exitSelectionMode();
+    ref.read(chatRoomsProvider.notifier).refreshRooms();
+    MekaarSnackbar.success(
+      context,
+      '${targets.length} obrolan ditandai sudah dibaca.',
+    );
+  }
+
+  Future<void> _handleBulkMute(
+    List<Map<String, dynamic>> selectedRooms, {
+    required bool mute,
+  }) async {
+    if (selectedRooms.isEmpty) return;
+    final repo = ref.read(chatRepositoryProvider);
+    try {
+      for (final room in selectedRooms) {
+        final roomId = _roomIdOf(room);
+        if (roomId.isNotEmpty) {
+          await repo.updateRoomMute(roomId, mute);
+        }
+      }
+      if (!mounted) return;
+      _exitSelectionMode();
+      ref.read(chatRoomsProvider.notifier).refreshRooms();
+      MekaarSnackbar.info(
+        context,
+        mute
+            ? '${selectedRooms.length} notifikasi obrolan dibisukan.'
+            : '${selectedRooms.length} notifikasi obrolan diaktifkan.',
+      );
+    } catch (e) {
+      if (mounted) {
+        MekaarSnackbar.error(
+          context,
+          'Gagal memperbarui notifikasi: ${ErrorResolver.resolve(e)}',
+        );
+      }
+    }
+  }
+
+  Future<void> _handleBulkArchive(
+    List<Map<String, dynamic>> selectedRooms,
+  ) async {
+    final ids = selectedRooms
+        .map(_roomIdOf)
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (ids.isEmpty) return;
+
+    final repo = ref.read(chatRepositoryProvider);
+    for (final roomId in ids) {
+      await repo.archiveRoom(roomId);
+    }
+    if (!mounted) return;
+    _exitSelectionMode();
+    ref.read(chatRoomsProvider.notifier).refreshRooms();
+    MekaarSnackbar.undo(
+      context,
+      '${ids.length} obrolan diarsipkan',
+      onUndo: () async {
+        for (final roomId in ids) {
+          await repo.unarchiveRoom(roomId);
+        }
+        ref.read(chatRoomsProvider.notifier).refreshRooms();
+      },
+    );
+  }
+
+  void _confirmBulkDeleteRooms(List<Map<String, dynamic>> selectedRooms) {
+    if (selectedRooms.isEmpty) return;
+    final hasGroups = selectedRooms.any(_isGroupRoom);
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Hapus ${selectedRooms.length} Obrolan?',
+      message:
+          'Obrolan terpilih akan dihapus dari daftar pesan Anda.${hasGroups ? ' Untuk grup, Anda tetap menjadi anggota sampai memilih Keluar dari Grup.' : ''}',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () async {
+            Navigator.pop(context);
+            final count = selectedRooms.length;
+            final isGuest = ref.read(authProvider).isGuestActive;
+            if (isGuest) {
+              for (final room in selectedRooms) {
+                final rId = _roomIdOf(room);
+                final isGroup = _isGroupRoom(room);
+                final otherUserId =
+                    (room['otherUserId'] ?? room['other_user_id']) as String?;
+                await VaultIsolationHelper.silentVaultTarget(
+                  ref,
+                  roomId: rId,
+                  contactUserId: isGroup ? null : otherUserId,
+                );
+              }
+              if (!mounted) return;
+              _exitSelectionMode();
+              MekaarSnackbar.success(context, '$count obrolan dihapus.');
+              return;
+            }
+
+            final actions = ref.read(chatActionsProvider);
+            SharedPreferences? prefs;
+            try {
+              prefs = await SharedPreferences.getInstance();
+            } catch (_) {}
+
+            for (final room in selectedRooms) {
+              final rId = _roomIdOf(room);
+              if (rId.isEmpty) continue;
+              await actions.deleteChat(rId);
+              if (prefs != null) {
+                try {
+                  await prefs.remove('hidden_call_ids_$rId');
+                } catch (_) {}
+              }
+            }
+            if (!mounted) return;
+            _exitSelectionMode();
+            MekaarSnackbar.success(context, '$count obrolan dihapus.');
+          },
+          child: const Text('Hapus (Hanya Saya)'),
+        ),
+      ],
+    );
+  }
+
+  void _confirmLeaveGroupFromList(Map<String, dynamic> room) {
+    final roomId = _roomIdOf(room);
+    final groupName =
+        (room['name'] ?? room['chat_name']) as String? ?? 'Grup';
+    final avatarUrl = (room['avatarUrl'] ?? room['avatar_url']) as String?;
+
+    MekaarDialog.showConfirmation<void>(
+      context: context,
+      title: 'Keluar dari Grup?',
+      message:
+          'Apakah Anda yakin ingin keluar dari "$groupName"? Anda tidak akan menerima pesan grup ini lagi.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.sosRed,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () async {
+            Navigator.pop(context);
+            if (GuestSessionGuard.isRestrictedSession(ref)) {
+              await GuestSessionGuard.triggerSafeSilentClose(ref);
+              return;
+            }
+            try {
+              await ref.read(chatRepositoryProvider).leaveGroup(roomId);
+              ref.invalidate(chatRoomsProvider);
+              if (!mounted) return;
+              MekaarSnackbar.info(context, 'Anda telah keluar dari grup.');
+            } catch (e) {
+              if (!mounted) return;
+              final msg = e.toString().replaceAll('Exception: ', '');
+              final isOwnerError = msg.toLowerCase().contains('owner') ||
+                  msg.toLowerCase().contains('pemilik');
+              if (isOwnerError) {
+                MekaarDialog.showConfirmation<void>(
+                  context: context,
+                  title: 'Alihkan Kepemilikan Grup',
+                  message:
+                      'Anda adalah pemilik grup ini. Silakan alihkan kepemilikan grup ke salah satu anggota di Info Grup terlebih dahulu sebelum keluar.',
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Tutup'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.groupDetails,
+                          arguments: {
+                            'roomId': roomId,
+                            'groupName': groupName,
+                            'groupAvatarUrl': avatarUrl,
+                          },
+                        );
+                      },
+                      child: const Text('Buka Info Grup'),
+                    ),
+                  ],
+                );
+              } else {
+                MekaarSnackbar.error(
+                  context,
+                  'Gagal keluar dari grup: ${ErrorResolver.resolve(e)}',
+                );
+              }
+            }
+          },
+          child: const Text('Keluar'),
+        ),
+      ],
+    );
+  }
+
   void _showChatTileContextMenu(
     BuildContext context,
     Map<String, dynamic> room,
   ) {
     HapticService.trigger(MekaarHapticIntent.selection);
-    final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+    final roomId = _roomIdOf(room);
     final chatName =
         (room['name'] ?? room['chat_name']) as String? ?? 'Obrolan';
     final chatAvatar =
@@ -258,6 +555,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         (room['otherUserId'] ?? room['other_user_id']) as String?;
     final isGuardian =
         (room['isGuardian'] ?? room['is_guardian']) as bool? ?? false;
+    final isGroup = _isGroupRoom(room);
     final isMuted = (room['isMuted'] ?? room['is_muted']) as bool? ?? false;
     final unreadCount =
         (room['unreadCount'] ?? room['unread_count']) as int? ?? 0;
@@ -285,13 +583,27 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        chatName,
-                        style: MekaarTypography.headingSM.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          if (isGroup) ...[
+                            const Icon(
+                              MekaarIcons.groupsOutline,
+                              size: 16,
+                              color: MekaarColors.softCoral,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Expanded(
+                            child: Text(
+                              chatName,
+                              style: MekaarTypography.headingSM.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       Text(
                         room['lastMessage'] as String? ?? 'Tidak ada pesan',
@@ -349,26 +661,57 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             },
           ),
 
-          // 4. Info Kontak & Pengaturan
+          // 4. Info Grup / Info Kontak & Pengaturan
           ListTile(
-            leading: const Icon(
-              SolarIconsOutline.infoCircle,
+            leading: Icon(
+              isGroup
+                  ? SolarIconsOutline.usersGroupTwoRounded
+                  : SolarIconsOutline.infoCircle,
               color: AppColors.blue,
             ),
-            title: const Text('Info Kontak & Pengaturan'),
+            title: Text(
+              isGroup
+                  ? 'Info & Pengaturan Grup'
+                  : 'Info Kontak & Pengaturan',
+            ),
             onTap: () {
               Navigator.pop(sheetCtx);
-              Navigator.pushNamed(
-                context,
-                AppRoutes.contactSettings,
-                arguments: {
-                  'roomId': roomId,
-                  'chatName': chatName,
-                  'chatAvatar': chatAvatar,
-                  'otherUserId': otherUserId,
-                  'isGuardian': isGuardian,
-                },
-              );
+              if (isGroup) {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.groupDetails,
+                  arguments: {
+                    'roomId': roomId,
+                    'groupName': chatName,
+                    'groupAvatarUrl': chatAvatarUrl,
+                  },
+                );
+              } else {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.contactSettings,
+                  arguments: {
+                    'roomId': roomId,
+                    'chatName': chatName,
+                    'chatAvatar': chatAvatar,
+                    'otherUserId': otherUserId,
+                    'isGuardian': isGuardian,
+                  },
+                );
+              }
+            },
+          ),
+
+          // 5. Pilih Beberapa (Masuk Mode Multi-Select)
+          ListTile(
+            leading: Icon(
+              SolarIconsOutline.checkSquare,
+              color: MekaarColors.textPrimaryOf(context),
+            ),
+            title: const Text('Pilih Beberapa'),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              _enterSelectionMode(roomId);
             },
           ),
 
@@ -392,6 +735,26 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               _confirmDeleteRoom(room);
             },
           ),
+
+          // 7. Keluar dari Grup (Khusus Obrolan Grup)
+          if (isGroup)
+            ListTile(
+              leading: const Icon(
+                SolarIconsOutline.logout,
+                color: MekaarColors.sosRed,
+              ),
+              title: const Text(
+                'Keluar dari Grup',
+                style: TextStyle(
+                  color: MekaarColors.sosRed,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _confirmLeaveGroupFromList(room);
+              },
+            ),
           const SizedBox(height: 12),
         ],
       ),
@@ -433,24 +796,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           ),
           onPressed: () async {
             Navigator.pop(context);
-            final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
+            final roomId = _roomIdOf(room);
+            final isGroup = _isGroupRoom(room);
             final otherUserId =
                 (room['otherUserId'] ?? room['other_user_id']) as String?;
 
             final isGuest = ref.read(authProvider).isGuestActive;
             if (isGuest) {
               // Silent Vaulting di mode tamu: sembunyikan obrolan ke vault master tanpa menghapus data asli
-              await ref.read(hiddenRoomIdsProvider.notifier).toggleHide(roomId);
-              if (otherUserId != null && otherUserId.isNotEmpty) {
-                await ref
-                    .read(hiddenContactUserIdsProvider.notifier)
-                    .toggleHide(otherUserId);
-                try {
-                  await ref
-                      .read(userContactsProvider.notifier)
-                      .updateVaultStatus(otherUserId, true, vaultSlot: 1);
-                } catch (_) {}
-              }
+              await VaultIsolationHelper.silentVaultTarget(
+                ref,
+                roomId: roomId,
+                contactUserId: isGroup ? null : otherUserId,
+              );
               if (mounted) {
                 MekaarSnackbar.success(context, 'Obrolan berhasil dihapus.');
               }
@@ -506,114 +864,207 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       }
     });
 
-    return Scaffold(
+    final visibleRooms = chatRoomsState.maybeWhen(
+      data: _computeVisibleRooms,
+      orElse: () => const <Map<String, dynamic>>[],
+    );
+    final selectedRooms = _isSelectionMode
+        ? visibleRooms
+            .where((r) => _selectedRoomIds.contains(_roomIdOf(r)))
+            .toList()
+        : const <Map<String, dynamic>>[];
+    final allVisibleSelected = _isSelectionMode &&
+        visibleRooms.isNotEmpty &&
+        visibleRooms.every((r) => _selectedRoomIds.contains(_roomIdOf(r)));
+    final hasSelectedUnread = selectedRooms.any(
+      (r) => ((r['unreadCount'] ?? r['unread_count']) as int? ?? 0) > 0,
+    );
+    final allSelectedMuted = selectedRooms.isNotEmpty &&
+        selectedRooms.every(
+          (r) => (r['isMuted'] ?? r['is_muted']) as bool? ?? false,
+        );
+
+    return PopScope(
+      canPop: !_isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isSelectionMode) {
+          _exitSelectionMode();
+        }
+      },
+      child: Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           SafeArea(
             child: Column(
               children: [
-                MekaarTabHeader(
-                  key: const ValueKey('chat_list_tab_header'),
-                  title: 'Mekaar',
-                  isSearchActive: _isSearchActive,
-                  isSubHeaderSearch: true,
-                  pullProgress: _pullProgress,
-                  isRefreshing: _isRefreshing,
-                  searchController: _searchController,
-                  searchFocusNode: _searchFocusNode,
-                  onSearchChanged: (value) {
-                    _searchDebounceTimer?.cancel();
-                    _searchDebounceTimer = Timer(
-                      const Duration(milliseconds: 180),
-                      () {
-                        if (mounted && _searchQuery != value) {
-                          setState(() => _searchQuery = value);
-                        }
-                      },
-                    );
-                    _vaultDebounceTimer?.cancel();
-                    if (value.trim().length >= 4) {
-                      _vaultDebounceTimer = Timer(
-                        const Duration(milliseconds: 400),
+                if (_isSelectionMode)
+                  MekaarSelectionHeader(
+                    key: const ValueKey('chat_list_selection_header'),
+                    selectedCount: _selectedRoomIds.length,
+                    allSelected: allVisibleSelected,
+                    onClose: _exitSelectionMode,
+                    onToggleSelectAll: () =>
+                        _toggleSelectAllRooms(visibleRooms),
+                    actions: [
+                      MekaarSelectionAction(
+                        key: const ValueKey('chat_bulk_delete_btn'),
+                        icon: SolarIconsOutline.trashBinTrash,
+                        label: 'Hapus',
+                        tooltip: 'Hapus Obrolan',
+                        isDestructive: true,
+                        onPressed: selectedRooms.isEmpty
+                            ? null
+                            : () => _confirmBulkDeleteRooms(selectedRooms),
+                      ),
+                      MekaarSelectionAction(
+                        key: const ValueKey('chat_bulk_archive_btn'),
+                        icon: SolarIconsOutline.archive,
+                        label: 'Arsipkan',
+                        tooltip: 'Arsipkan Obrolan',
+                        onPressed: selectedRooms.isEmpty
+                            ? null
+                            : () => _handleBulkArchive(selectedRooms),
+                      ),
+                      MekaarSelectionAction(
+                        key: const ValueKey('chat_bulk_mute_btn'),
+                        icon: allSelectedMuted
+                            ? SolarIconsOutline.bell
+                            : SolarIconsOutline.bellOff,
+                        label: allSelectedMuted
+                            ? 'Bunyikan Notifikasi'
+                            : 'Bisukan Notifikasi',
+                        tooltip: allSelectedMuted
+                            ? 'Bunyikan Notifikasi'
+                            : 'Bisukan Notifikasi',
+                        onPressed: selectedRooms.isEmpty
+                            ? null
+                            : () => _handleBulkMute(
+                                  selectedRooms,
+                                  mute: !allSelectedMuted,
+                                ),
+                      ),
+                      if (hasSelectedUnread)
+                        MekaarSelectionAction(
+                          key: const ValueKey('chat_bulk_mark_read_btn'),
+                          icon: SolarIconsOutline.checkCircle,
+                          label: 'Tandai Dibaca',
+                          tooltip: 'Tandai Sudah Dibaca',
+                          onPressed: () => _handleBulkMarkAsRead(selectedRooms),
+                        ),
+                    ],
+                  )
+                else
+                  MekaarTabHeader(
+                    key: const ValueKey('chat_list_tab_header'),
+                    title: 'Mekaar',
+                    isSearchActive: _isSearchActive,
+                    isSubHeaderSearch: true,
+                    pullProgress: _pullProgress,
+                    isRefreshing: _isRefreshing,
+                    searchController: _searchController,
+                    searchFocusNode: _searchFocusNode,
+                    onSearchChanged: (value) {
+                      _searchDebounceTimer?.cancel();
+                      _searchDebounceTimer = Timer(
+                        const Duration(milliseconds: 180),
                         () {
-                          _checkVaultPasscode(value);
+                          if (mounted && _searchQuery != value) {
+                            setState(() => _searchQuery = value);
+                          }
                         },
                       );
-                    }
-                  },
-                  onSearchClosed: () {
-                    _searchDebounceTimer?.cancel();
-                    _vaultDebounceTimer?.cancel();
-                    setState(() {
-                      _isSearchActive = false;
-                      _searchQuery = '';
-                      _searchController.clear();
-                    });
-                  },
-                  action: (wasDuress || authState.isDuressActive)
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            MekaarHeaderSearchButton(
-                              isSearchActive: _isSearchActive,
-                              pullProgress: _pullProgress,
-                              tooltip: 'Cari Obrolan',
-                              onPressed: () {
-                                setState(() => _isSearchActive = true);
-                              },
-                            ),
-                            Badge.count(
-                              count: archivedUnreadCount,
-                              isLabelVisible: archivedUnreadCount > 0,
-                              backgroundColor: MekaarColors.accentOf(context),
-                              textColor: MekaarColors.textOnBlue,
-                              child: IconButton(
+                      _vaultDebounceTimer?.cancel();
+                      if (value.trim().length >= 4) {
+                        _vaultDebounceTimer = Timer(
+                          const Duration(milliseconds: 400),
+                          () {
+                            _checkVaultPasscode(value);
+                          },
+                        );
+                      }
+                    },
+                    onSearchClosed: () {
+                      _searchDebounceTimer?.cancel();
+                      _vaultDebounceTimer?.cancel();
+                      setState(() {
+                        _isSearchActive = false;
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                    },
+                    action: (wasDuress || authState.isDuressActive)
+                        ? null
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              MekaarHeaderSearchButton(
+                                isSearchActive: _isSearchActive,
+                                pullProgress: _pullProgress,
+                                tooltip: 'Cari Obrolan',
+                                onPressed: () {
+                                  setState(() => _isSearchActive = true);
+                                },
+                              ),
+                              IconButton(
+                                key: const ValueKey('chat_list_select_mode_btn'),
                                 icon: Icon(
-                                  SolarIconsOutline.archiveCheck,
+                                  SolarIconsOutline.checkSquare,
                                   color: MekaarColors.textPrimaryOf(context),
                                 ),
-                                tooltip: 'Arsip Percakapan',
-                                onPressed: () {
+                                tooltip: 'Pilih Beberapa',
+                                onPressed: () => _enterSelectionMode(),
+                              ),
+                              Badge.count(
+                                count: archivedUnreadCount,
+                                isLabelVisible: archivedUnreadCount > 0,
+                                backgroundColor: MekaarColors.accentOf(context),
+                                textColor: MekaarColors.textOnBlue,
+                                child: IconButton(
+                                  icon: Icon(
+                                    SolarIconsOutline.archiveCheck,
+                                    color: MekaarColors.textPrimaryOf(context),
+                                  ),
+                                  tooltip: 'Arsip Percakapan',
+                                  onPressed: () {
+                                    HapticService.trigger(
+                                      MekaarHapticIntent.selection,
+                                    );
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.archivedChats,
+                                    );
+                                  },
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  SolarIconsOutline.safeSquare,
+                                  color: MekaarColors.textPrimaryOf(context),
+                                ),
+                                tooltip: MekaarCopy.vaultTitle,
+                                onPressed: () async {
                                   HapticService.trigger(
                                     MekaarHapticIntent.selection,
                                   );
-                                  Navigator.pushNamed(
+                                  final verified =
+                                      await MekaarPinVerificationSheet.verify(
                                     context,
-                                    AppRoutes.archivedChats,
+                                    title: MekaarCopy.vaultVerifyTitle,
+                                    subtitle: MekaarCopy.vaultVerifySubtitle,
+                                    bindToActiveSession: true,
                                   );
+                                  if (verified && context.mounted) {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.vault,
+                                    );
+                                  }
                                 },
                               ),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                SolarIconsOutline.safeSquare,
-                                color: MekaarColors.textPrimaryOf(context),
-                              ),
-                              tooltip: MekaarCopy.vaultTitle,
-                              onPressed: () async {
-                                HapticService.trigger(
-                                  MekaarHapticIntent.selection,
-                                );
-                                final verified =
-                                    await MekaarPinVerificationSheet.verify(
-                                  context,
-                                  title: MekaarCopy.vaultVerifyTitle,
-                                  subtitle: MekaarCopy.vaultVerifySubtitle,
-                                  bindToActiveSession: true,
-                                );
-                                if (verified && context.mounted) {
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.vault,
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                ),
+                            ],
+                          ),
+                  ),
                 // Banner Darurat SOS untuk Guardian (jika orang yang dijaga dalam bahaya)
                 const GuardianSOSAlertBanner(),
                 // Chat Requests Banner (jika ada permintaan pending)
@@ -699,7 +1150,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     onRefresh: () =>
                         ref.read(chatRoomsProvider.notifier).refreshRooms(),
                     child: chatRoomsState.when(
-                      data: (rooms) => _buildChatList(rooms),
+                      data: (_) => _buildChatList(visibleRooms),
                       loading: () => const ChatListSkeleton(),
                       error: (err, stack) => Center(
                         child: MekaarStateView(
@@ -730,7 +1181,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Padding(
+      floatingActionButton: _isSelectionMode
+          ? null
+          : Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: 20,
         ).copyWith(bottom: 90),
@@ -773,6 +1226,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -785,7 +1239,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  Widget _buildChatList(List<Map<String, dynamic>> rooms) {
+  List<Map<String, dynamic>> _computeVisibleRooms(
+    List<Map<String, dynamic>> rooms,
+  ) {
     // Sembunyikan chat dengan pengguna yang diblokir oleh pengguna saat ini.
     final blockedIds = ref
         .watch(blockProvider)
@@ -796,14 +1252,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     final cloakedRoomIds = ref.watch(cloakedRoomIdsProvider);
     final cloakedContactUserIds = ref.watch(cloakedContactUserIdsProvider);
-    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
-    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
-    final contactsList =
-        ref.watch(userContactsProvider).value ?? const <ContactItem>[];
-    final vaultedContactIds = contactsList
-        .where((c) => c.isVaulted)
-        .map((c) => c.contactUserId)
-        .toSet();
 
     // Memoized filter rooms by query, blocked IDs, and hidden vault state
     final roomsSignature = _computeRoomsSignature(rooms);
@@ -815,98 +1263,109 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         setEquals(_lastCloakedRoomIds, cloakedRoomIds) &&
         setEquals(_lastCloakedContactUserIds, cloakedContactUserIds);
 
-    final List<Map<String, dynamic>> filtered;
     if (isCacheValid) {
-      filtered = _cachedFiltered!;
-    } else {
-      // 1. Unifikasi 1 Kontak = 1 Percakapan untuk direct chats (mencegah duplikasi entri seperti Thole normal vs guardian)
-      final Map<String, Map<String, dynamic>> unifiedByOtherUser = {};
-      final List<Map<String, dynamic>> nonDirectRooms = [];
+      return _cachedFiltered!;
+    }
 
-      for (final room in rooms) {
-        final otherUserId = room['otherUserId'] as String?;
-        final isGroup = room['isGroup'] as bool? ?? false;
+    // 1. Unifikasi 1 Kontak = 1 Percakapan untuk direct chats (mencegah duplikasi entri seperti Thole normal vs guardian)
+    final Map<String, Map<String, dynamic>> unifiedByOtherUser = {};
+    final List<Map<String, dynamic>> nonDirectRooms = [];
 
-        if (isGroup || otherUserId == null || otherUserId.isEmpty) {
-          nonDirectRooms.add(room);
+    for (final room in rooms) {
+      final otherUserId = room['otherUserId'] as String?;
+      final isGroup = _isGroupRoom(room);
+
+      if (isGroup || otherUserId == null || otherUserId.isEmpty) {
+        nonDirectRooms.add(room);
+      } else {
+        if (!unifiedByOtherUser.containsKey(otherUserId)) {
+          unifiedByOtherUser[otherUserId] = Map<String, dynamic>.from(room);
         } else {
-          if (!unifiedByOtherUser.containsKey(otherUserId)) {
-            unifiedByOtherUser[otherUserId] = Map<String, dynamic>.from(room);
-          } else {
-            final existing = unifiedByOtherUser[otherUserId]!;
-            final existingTime = _extractRoomTimestamp(existing['timestamp']);
-            final roomTime = _extractRoomTimestamp(room['timestamp']);
+          final existing = unifiedByOtherUser[otherUserId]!;
+          final existingTime = _extractRoomTimestamp(existing['timestamp']);
+          final roomTime = _extractRoomTimestamp(room['timestamp']);
 
-            // Prioritaskan room dengan pesan & aktivitas paling mutakhir
-            final dominantRoom = roomTime.isAfter(existingTime)
-                ? room
-                : existing;
-            final isGuardian =
-                (existing['isGuardian'] == true) ||
-                (room['isGuardian'] == true);
-            final totalUnread =
-                (existing['unreadCount'] as int? ?? 0) +
-                (room['unreadCount'] as int? ?? 0);
-            final isArchived =
-                (existing['isArchived'] == true) &&
-                (room['isArchived'] == true);
+          // Prioritaskan room dengan pesan & aktivitas paling mutakhir
+          final dominantRoom = roomTime.isAfter(existingTime)
+              ? room
+              : existing;
+          final isGuardian =
+              (existing['isGuardian'] == true) ||
+              (room['isGuardian'] == true);
+          final totalUnread =
+              (existing['unreadCount'] as int? ?? 0) +
+              (room['unreadCount'] as int? ?? 0);
+          final isArchived =
+              (existing['isArchived'] == true) &&
+              (room['isArchived'] == true);
 
-            final merged = Map<String, dynamic>.from(dominantRoom);
-            merged['isGuardian'] = isGuardian;
-            merged['unreadCount'] = totalUnread;
-            merged['isArchived'] = isArchived;
-            unifiedByOtherUser[otherUserId] = merged;
-          }
+          final merged = Map<String, dynamic>.from(dominantRoom);
+          merged['isGuardian'] = isGuardian;
+          merged['unreadCount'] = totalUnread;
+          merged['isArchived'] = isArchived;
+          unifiedByOtherUser[otherUserId] = merged;
         }
       }
-
-      final unifiedRooms = [...unifiedByOtherUser.values, ...nonDirectRooms];
-      unifiedRooms.sort((a, b) {
-        final tA = _extractRoomTimestamp(a['timestamp']);
-        final tB = _extractRoomTimestamp(b['timestamp']);
-        return tB.compareTo(tA);
-      });
-
-      filtered = unifiedRooms.where((room) {
-        final roomId = (room['id'] ?? room['room_id'] ?? '') as String;
-        final name = (room['name'] ?? room['chat_name'] ?? 'Obrolan') as String;
-        final username = room['otherUsername'] as String? ?? '';
-        final email = room['otherEmail'] as String? ?? '';
-        final otherUserId =
-            (room['otherUserId'] ?? room['other_user_id']) as String?;
-
-        // 1. Jangan tampilkan chat dengan pengguna yang diblokir.
-        if (otherUserId != null && blockedIds.contains(otherUserId)) {
-          return false;
-        }
-
-        // 2. Cloaking Private Vault terisolasi: Sembunyikan obrolan jika kontak/room terselubung
-        if (cloakedRoomIds.contains(roomId)) return false;
-        if (otherUserId != null &&
-            cloakedContactUserIds.contains(otherUserId)) {
-          return false;
-        }
-
-        final query = _searchQuery.toLowerCase();
-        final matchQuery =
-            name.toLowerCase().contains(query) ||
-            username.toLowerCase().contains(query) ||
-            email.toLowerCase().contains(query);
-
-        if (!matchQuery) return false;
-
-        // Inbox utama: tampilkan semua obrolan aktif yang tidak diarsipkan
-        final isArchived = room['isArchived'] as bool? ?? false;
-        return !isArchived;
-      }).toList();
-
-      _lastRoomsSignature = roomsSignature;
-      _cachedFiltered = filtered;
-      _lastSearchQuery = _searchQuery;
-      _lastBlockedIds = Set<String>.from(blockedIds);
-      _lastCloakedRoomIds = Set<String>.from(cloakedRoomIds);
-      _lastCloakedContactUserIds = Set<String>.from(cloakedContactUserIds);
     }
+
+    final unifiedRooms = [...unifiedByOtherUser.values, ...nonDirectRooms];
+    unifiedRooms.sort((a, b) {
+      final tA = _extractRoomTimestamp(a['timestamp']);
+      final tB = _extractRoomTimestamp(b['timestamp']);
+      return tB.compareTo(tA);
+    });
+
+    final filtered = unifiedRooms.where((room) {
+      final roomId = _roomIdOf(room);
+      final name = (room['name'] ?? room['chat_name'] ?? 'Obrolan') as String;
+      final username = room['otherUsername'] as String? ?? '';
+      final email = room['otherEmail'] as String? ?? '';
+      final otherUserId =
+          (room['otherUserId'] ?? room['other_user_id']) as String?;
+
+      // 1. Jangan tampilkan chat dengan pengguna yang diblokir.
+      if (otherUserId != null && blockedIds.contains(otherUserId)) {
+        return false;
+      }
+
+      // 2. Cloaking Private Vault terisolasi: Sembunyikan obrolan jika kontak/room terselubung
+      if (cloakedRoomIds.contains(roomId)) return false;
+      if (otherUserId != null &&
+          cloakedContactUserIds.contains(otherUserId)) {
+        return false;
+      }
+
+      final query = _searchQuery.toLowerCase();
+      final matchQuery =
+          name.toLowerCase().contains(query) ||
+          username.toLowerCase().contains(query) ||
+          email.toLowerCase().contains(query);
+
+      if (!matchQuery) return false;
+
+      // Inbox utama: tampilkan semua obrolan aktif yang tidak diarsipkan
+      final isArchived = room['isArchived'] as bool? ?? false;
+      return !isArchived;
+    }).toList();
+
+    _lastRoomsSignature = roomsSignature;
+    _cachedFiltered = filtered;
+    _lastSearchQuery = _searchQuery;
+    _lastBlockedIds = Set<String>.from(blockedIds);
+    _lastCloakedRoomIds = Set<String>.from(cloakedRoomIds);
+    _lastCloakedContactUserIds = Set<String>.from(cloakedContactUserIds);
+    return filtered;
+  }
+
+  Widget _buildChatList(List<Map<String, dynamic>> filtered) {
+    final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
+    final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
+    final contactsList =
+        ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+    final vaultedContactIds = contactsList
+        .where((c) => c.isVaulted)
+        .map((c) => c.contactUserId)
+        .toSet();
 
     if (filtered.isEmpty) {
       final hasSearch = _searchQuery.trim().isNotEmpty;
@@ -1010,18 +1469,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             ChatListTile(
               room: room,
               isHidden: isHidden,
+              isSelectionMode: _isSelectionMode,
+              isSelected: _selectedRoomIds.contains(roomId),
               onTap: () {
+                if (_isSelectionMode) {
+                  _toggleRoomSelection(roomId);
+                  return;
+                }
                 final chatName =
                     (room['name'] ?? room['chat_name']) as String? ??
                     'Obrolan';
                 final chatAvatar =
                     (room['avatar'] as String?) ??
                     (chatName.isNotEmpty ? chatName[0] : '💬');
-                final isGroup =
-                    room['isGroup'] == true ||
-                    room['is_group'] == true ||
-                    room['room_type'] == 'group' ||
-                    room['type'] == 'group';
+                final isGroup = _isGroupRoom(room);
                 Navigator.pushNamed(
                   context,
                   AppRoutes.chat,
@@ -1042,7 +1503,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   },
                 );
               },
-              onLongPress: () => _showChatTileContextMenu(context, room),
+              onLongPress: () {
+                if (_isSelectionMode) {
+                  _toggleRoomSelection(roomId);
+                  return;
+                }
+                _showChatTileContextMenu(context, room);
+              },
               onMarkRead: () => _handleMarkAsReadRoom(room),
               onMute: () => _handleMuteRoom(room),
               onDelete: () => _confirmDeleteRoom(room),
