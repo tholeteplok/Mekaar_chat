@@ -19,6 +19,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
   final String subtitle;
   final bool allowDuress;
   final bool allowDecoy;
+  final bool bindToActiveSession;
 
   const MekaarPinVerificationSheet({
     super.key,
@@ -26,6 +27,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
     required this.subtitle,
     this.allowDuress = true,
     this.allowDecoy = false,
+    this.bindToActiveSession = false,
   });
 
   /// Menampilkan sheet verifikasi PIN modal.
@@ -36,6 +38,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
     String subtitle = 'Masukkan 6 digit PIN untuk melanjutkan',
     bool allowDuress = true,
     bool allowDecoy = false,
+    bool bindToActiveSession = false,
   }) async {
     final result = await MekaarBottomSheet.show<bool>(
       context: context,
@@ -45,6 +48,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
         subtitle: subtitle,
         allowDuress: allowDuress,
         allowDecoy: allowDecoy,
+        bindToActiveSession: bindToActiveSession,
       ),
     );
     return result ?? false;
@@ -92,31 +96,33 @@ class _MekaarPinVerificationSheetState
     final stopwatch = Stopwatch()..start();
 
     try {
-      final isValid = await ref
-          .read(authProvider.notifier)
-          .validatePIN(
-            _pin,
-            allowDuress: widget.allowDuress,
-            allowDecoy: widget.allowDecoy,
-          );
+      final notifier = ref.read(authProvider.notifier);
+      final isValid = widget.bindToActiveSession
+          ? await notifier.verifyActiveSessionPin(_pin)
+          : await notifier.validatePIN(
+              _pin,
+              allowDuress: widget.allowDuress,
+              allowDecoy: widget.allowDecoy,
+            );
 
       if (!mounted) return;
 
       if (isValid) {
         final authState = ref.read(authProvider);
-        final isDecoy = authState.isDecoyActive;
+        final vaultSpace = authState.vaultSpace;
         try {
           final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
             _pin,
-            isDuress: isDecoy,
+            space: vaultSpace,
           );
           DatabaseKeyService.instance.setActiveVaultKey(
             vaultKey,
-            isDuress: isDecoy,
+            space: vaultSpace,
           );
           await LocalVaultDatabase.instance.openVault(
             key: vaultKey,
-            isDuress: isDecoy,
+            space: vaultSpace,
+            pin: _pin,
           );
         } catch (_) {}
 

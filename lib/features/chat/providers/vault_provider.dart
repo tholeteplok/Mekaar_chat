@@ -7,15 +7,18 @@ import '../../../data/services/aegis_shredder_service.dart';
 import '../../../data/services/aegis_stream_cipher_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final vaultRepositoryProvider = Provider<VaultRepository>((ref) {
-  return VaultRepository(LocalVaultDatabase.instance);
+  final space = ref.watch(authProvider.select((s) => s.vaultSpace));
+  return VaultRepository(LocalVaultDatabase.instance, space: space);
 });
 
 final vaultFilterProvider = StateProvider<VaultFileType?>((ref) => null);
 
 final vaultItemsProvider =
     StateNotifierProvider<VaultNotifier, AsyncValue<List<VaultItem>>>((ref) {
+  ref.watch(authProvider.select((s) => s.unlockMode));
   final repo = ref.watch(vaultRepositoryProvider);
   final filter = ref.watch(vaultFilterProvider);
   return VaultNotifier(repo, filter);
@@ -24,11 +27,17 @@ final vaultItemsProvider =
 class VaultRepository {
   final LocalVaultDatabase _db;
   final Directory? _customVaultDir;
+  final VaultSpace? _space;
   static const String _vaultFolder = 'vault_files';
 
-  VaultRepository(this._db, {Directory? vaultDir}) : _customVaultDir = vaultDir;
+  VaultRepository(
+    this._db, {
+    Directory? vaultDir,
+    VaultSpace? space,
+  })  : _customVaultDir = vaultDir,
+        _space = space;
 
-  /// Mendapatkan direktori privat terisolasi untuk brankas berkas.
+  /// Mendapatkan direktori privat terisolasi untuk brankas berkas sesuai ruang PIN.
   Future<Directory> _getVaultDirectory() async {
     final customDir = _customVaultDir;
     if (customDir != null) {
@@ -38,7 +47,10 @@ class VaultRepository {
       return customDir;
     }
     final appDocDir = await getApplicationDocumentsDirectory();
-    final vaultDir = Directory('${appDocDir.path}/$_vaultFolder');
+    final effectiveSpace = _space ?? _db.activeSpace;
+    final vaultDir = Directory(
+      '${appDocDir.path}/$_vaultFolder/${effectiveSpace.folderName}',
+    );
     if (!await vaultDir.exists()) {
       await vaultDir.create(recursive: true);
     }

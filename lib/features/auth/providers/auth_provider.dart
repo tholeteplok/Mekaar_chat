@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/services/aegis_memory_guard_service.dart';
+import '../../../data/services/database_key_service.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/services/local_vault_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../../../data/models/user_model.dart';
@@ -62,6 +64,12 @@ class AuthState {
       unlockMode == AuthUnlockMode.duress || lastUnlockWasDuress;
 
   bool get isDecoyActive => isGuestActive || isDuressActive;
+
+  VaultSpace get vaultSpace {
+    if (isDuressActive) return VaultSpace.duress;
+    if (isGuestActive) return VaultSpace.guest;
+    return VaultSpace.master;
+  }
 
   bool get needsUsername =>
       !isLoading && user != null && profile != null && !profile!.hasUsername;
@@ -628,8 +636,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Mengubah PIN secara cerdas dan natural (mendukung Honeypot Decoy Swap):
-  /// - Jika PIN saat ini cocok dengan Master PIN: perbarui Master PIN.
-  /// - Jika PIN saat ini cocok dengan Decoy/Guest PIN: perbarui Decoy PIN (Honeypot).
+  /// - Jika PIN saat ini cocok dengan Master PIN: perbarui Master PIN + rekey Brankas Master.
+  /// - Jika PIN saat ini cocok dengan Decoy/Guest PIN: perbarui Decoy PIN (Honeypot) + rekey Brankas Tamu.
   /// Mengembalikan true bila salah satu PIN berhasil diperbarui.
   Future<bool> changePinNaturally({
     required String currentPin,
@@ -640,13 +648,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final isMaster = await _authRepository.validatePIN(currentPin);
       if (isMaster) {
         await setupPIN(newPin);
+        try {
+          await LocalVaultDatabase.instance.rekeyOpenVault(
+            space: VaultSpace.master,
+            newPin: newPin,
+          );
+        } catch (_) {}
         return true;
       }
 
       final isDecoy = await _authRepository.validateDecoyPIN(currentPin);
       if (isDecoy) {
+        final collidesMaster = await _authRepository.validatePIN(newPin);
+        final collidesDuress = await _authRepository.validateDuressPIN(newPin);
+        if (collidesMaster || collidesDuress) {
+          state = state.copyWith(
+            isLoading: false,
+            error:
+                'Kombinasi PIN ini tidak dapat digunakan. Pilih 6 digit lainnya.',
+          );
+          return false;
+        }
         // Honeypot Decoy Swap: perbarui PIN Tamu secara nyata tanpa menyentuh Master PIN
         await _authRepository.setDecoyPIN(newPin);
+        try {
+          await LocalVaultDatabase.instance.rekeyOpenVault(
+            space: VaultSpace.guest,
+            newPin: newPin,
+          );
+        } catch (_) {}
         state = state.copyWith(isLoading: false);
         return true;
       }
@@ -660,22 +690,95 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Memperbarui PIN untuk mode sesi aktif saat ini:
-  /// - Di Mode Master: perbarui Master PIN.
-  /// - Di Mode Tamu / Decoy: perbarui Decoy PIN (Honeypot Decoy Swap).
+  /// - Di Mode Master: perbarui Master PIN + rekey Brankas Master.
+  /// - Di Mode Tamu / Decoy: perbarui Decoy PIN (Honeypot) + cegah kolisi + rekey Brankas Tamu.
+  /// - Di Mode Duress: ditolak secara aman tanpa menimpa PIN Tamu maupun PIN Utama.
   Future<bool> updateActivePin(String newPin) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      if (state.isDecoyActive) {
+      if (state.isDuressActive) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Gagal memperbarui PIN. Coba lagi nanti.',
+        );
+        return false;
+      }
+
+      if (state.isGuestActive) {
+        final collidesMaster = await _authRepository.validatePIN(newPin);
+        final collidesDuress = await _authRepository.validateDuressPIN(newPin);
+        if (collidesMaster || collidesDuress) {
+          state = state.copyWith(
+            isLoading: false,
+            error:
+                'Kombinasi PIN ini tidak dapat digunakan. Pilih 6 digit lainnya.',
+          );
+          return false;
+        }
         // Honeypot Decoy Swap: perbarui PIN Tamu secara nyata
         await _authRepository.setDecoyPIN(newPin);
+        try {
+          await LocalVaultDatabase.instance.rekeyOpenVault(
+            space: VaultSpace.guest,
+            newPin: newPin,
+          );
+        } catch (_) {}
       } else {
         // Mode Master: perbarui PIN Master
         await setupPIN(newPin);
+        try {
+          await LocalVaultDatabase.instance.rekeyOpenVault(
+            space: VaultSpace.master,
+            newPin: newPin,
+          );
+        } catch (_) {}
       }
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _translateError(e));
+      return false;
+    }
+  }
+
+  /// Memverifikasi PIN yang terikat eksklusif ke mode sesi aktif saat ini
+  /// tanpa mengubah global `unlockMode` (mencegah eskalasi/downgrade sesi diam-diam).
+  Future<bool> verifyActiveSessionPin(String pin) async {
+    if (state.isPinLocked) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    final bool isValid;
+    if (state.isDuressActive) {
+      isValid = await _authRepository.validateDuressPIN(pin);
+    } else if (state.isGuestActive) {
+      isValid = await _authRepository.validateDecoyPIN(pin);
+    } else {
+      isValid = await _authRepository.validatePIN(pin);
+    }
+
+    if (isValid) {
+      await _authRepository.clearPinLockout();
+      state = state.copyWith(
+        pinAttempts: 0,
+        pinLockedUntil: null,
+        isLoading: false,
+      );
+      return true;
+    } else {
+      final newAttempts = state.pinAttempts + 1;
+      DateTime? lockedUntil;
+      if (newAttempts >= 5) {
+        final serverTime = await _authRepository.getServerTime();
+        lockedUntil = serverTime.add(const Duration(minutes: 30));
+      }
+      await _authRepository.savePinLockout(newAttempts, lockedUntil);
+
+      state = state.copyWith(
+        pinAttempts: newAttempts,
+        pinLockedUntil: lockedUntil,
+        isLoading: false,
+      );
       return false;
     }
   }

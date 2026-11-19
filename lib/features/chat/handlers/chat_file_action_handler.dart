@@ -10,12 +10,31 @@ import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/file_export_service.dart';
 import '../../../data/services/local_vault_database.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/vault_provider.dart';
 
 /// Handler terisolasi untuk aksi berkas: dekripsi media, ekspor ke folder unduhan
 /// publik Mekaar, dan penyimpanan aman ke Brankas Berkas.
 class ChatFileActionHandler {
   const ChatFileActionHandler._();
+
+  /// Memastikan brankas berkas untuk ruang sesi aktif (`master`/`guest`/`duress`) telah terbuka.
+  static Future<bool> _ensureVaultSpaceUnlocked(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final activeSpace = ref.read(authProvider).vaultSpace;
+    final db = LocalVaultDatabase.instance;
+    if (db.isUnlocked && db.activeSpace == activeSpace) {
+      return true;
+    }
+    return MekaarPinVerificationSheet.verify(
+      context,
+      title: 'Buka Brankas Berkas',
+      subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
+      bindToActiveSession: true,
+    );
+  }
 
   /// Menyimpan satu pesan media ke Brankas Berkas.
   static Future<void> saveToVault(
@@ -52,14 +71,8 @@ class ChatFileActionHandler {
       }
 
       if (!context.mounted) return;
-      if (!LocalVaultDatabase.instance.isUnlocked) {
-        final verified = await MekaarPinVerificationSheet.verify(
-          context,
-          title: 'Buka Brankas Berkas',
-          subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
-        );
-        if (!verified || !context.mounted) return;
-      }
+      final verified = await _ensureVaultSpaceUnlocked(context, ref);
+      if (!verified || !context.mounted) return;
 
       final senderName = isGroup
           ? (participantNames[message.senderId] ?? effectiveChatName)
@@ -160,14 +173,8 @@ class ChatFileActionHandler {
   }) async {
     if (savableMessages.isEmpty) return;
 
-    if (!LocalVaultDatabase.instance.isUnlocked) {
-      final verified = await MekaarPinVerificationSheet.verify(
-        context,
-        title: 'Buka Brankas Berkas',
-        subtitle: 'Masukkan PIN untuk menyimpan berkas ke Brankas Berkas',
-      );
-      if (!verified || !context.mounted) return;
-    }
+    final verified = await _ensureVaultSpaceUnlocked(context, ref);
+    if (!verified || !context.mounted) return;
 
     if (!context.mounted) return;
     MekaarSnackbar.info(

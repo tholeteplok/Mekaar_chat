@@ -282,20 +282,21 @@ class _PinScreenState extends ConsumerState<PinScreen> {
               } catch (_) {}
             }(),
 
-            // 4. Inisialisasi kunci brankas (Argon2id v2 tanpa PBKDF2 100k redundan)
+            // 4. Inisialisasi kunci brankas 3-jalur (Argon2id v2 sesuai ruang Master/Guest/Duress)
             () async {
               try {
+                final vaultSpace = authState.vaultSpace;
                 final vaultKey = await DatabaseKeyService.instance.deriveVaultKey(
                   _pin,
-                  isDuress: isDuress,
+                  space: vaultSpace,
                 );
                 DatabaseKeyService.instance.setActiveVaultKey(
                   vaultKey,
-                  isDuress: isDuress,
+                  space: vaultSpace,
                 );
                 await LocalVaultDatabase.instance.openVault(
                   key: vaultKey,
-                  isDuress: isDuress,
+                  space: vaultSpace,
                   pin: _pin,
                 );
               } catch (_) {}

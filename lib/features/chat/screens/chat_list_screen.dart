@@ -600,6 +600,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   context,
                                   title: MekaarCopy.vaultVerifyTitle,
                                   subtitle: MekaarCopy.vaultVerifySubtitle,
+                                  bindToActiveSession: true,
                                 );
                                 if (verified && context.mounted) {
                                   Navigator.pushNamed(

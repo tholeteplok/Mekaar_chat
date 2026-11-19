@@ -346,8 +346,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
       context,
       title: 'Verifikasi PIN Saat Ini',
       subtitle: 'Masukkan 6 digit PIN Anda yang aktif untuk melanjutkan',
-      allowDuress: false,
-      allowDecoy: true,
+      bindToActiveSession: true,
     );
     if (!verified || !mounted) return;
 
@@ -355,7 +354,15 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
       context,
       title: 'Ganti PIN Aplikasi',
       onConfirmPin: (newPin) async {
-        return await ref.read(authProvider.notifier).updateActivePin(newPin);
+        final updated =
+            await ref.read(authProvider.notifier).updateActivePin(newPin);
+        if (!updated && mounted) {
+          final err = ref.read(authProvider).error;
+          if (err != null && err.isNotEmpty) {
+            MekaarSnackbar.error(context, err);
+          }
+        }
+        return updated;
       },
     );
 

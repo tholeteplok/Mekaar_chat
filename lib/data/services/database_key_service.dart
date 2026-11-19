@@ -8,11 +8,30 @@ import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'aegis_memory_guard_service.dart';
 
+/// Isolasi 3 jalur ruang Brankas Berkas berbasis mode PIN yang sedang aktif.
+enum VaultSpace {
+  master,
+  guest,
+  duress;
+
+  String get dbFileName => switch (this) {
+        VaultSpace.master => 'mekaar_vault.db',
+        VaultSpace.guest => 'mekaar_vault_guest.db',
+        VaultSpace.duress => 'mekaar_vault_decoy.db',
+      };
+
+  String get folderName => switch (this) {
+        VaultSpace.master => 'master',
+        VaultSpace.guest => 'guest',
+        VaultSpace.duress => 'duress',
+      };
+}
+
 /// Layanan terpusat untuk mengelola dan menurunkan kunci enkripsi database lokal (SQLCipher).
 ///
 /// Menyediakan:
 /// 1. Kunci acak 256-bit berbasis Hardware Keystore (`FlutterSecureStorage`) untuk database pesan.
-/// 2. Kunci turunan KDF (PBKDF2-HMAC-SHA256 100.000 iterasi) dari PIN pengguna untuk brankas berkas.
+/// 2. Kunci turunan KDF (Argon2id / legacy PBKDF2) dari PIN pengguna untuk brankas berkas 3 jalur.
 /// 3. Pemusnahan forensik file (*secure shredding*) untuk file database dan WAL lama.
 class DatabaseKeyService {
   DatabaseKeyService._();
@@ -24,22 +43,39 @@ class DatabaseKeyService {
   static const String _messageDbKeyStorageKey = 'sqlcipher_message_db_key_v1';
   static const String _decoyMessageDbKeyStorageKey = 'sqlcipher_decoy_message_db_key_v1';
   static const String _masterVaultSaltStorageKey = 'sqlcipher_vault_master_salt_v2';
+  static const String _guestVaultSaltStorageKey = 'sqlcipher_vault_guest_salt_v2';
   static const String _decoyVaultSaltStorageKey = 'sqlcipher_vault_decoy_salt_v2';
   static const int _pbkdf2Iterations = 100000;
 
   /// Kunci runtime in-memory untuk brankas berkas yang dibuka saat ini
   String? _activeVaultKey;
   String? _activeLegacyVaultKey;
-  bool _isVaultDuress = false;
+  VaultSpace _activeVaultSpace = VaultSpace.master;
   BigInt? _activeVaultKeySlotId;
 
   /// Slot ID kunci aktif di memori Aegis Memory Guard (Rust heap terisolasi).
   BigInt? get activeVaultKeySlotId => _activeVaultKeySlotId;
 
+  static VaultSpace resolveVaultSpace({
+    VaultSpace? space,
+    bool isDuress = false,
+  }) =>
+      space ?? (isDuress ? VaultSpace.duress : VaultSpace.master);
+
+  String _saltStorageKeyFor(VaultSpace space) => switch (space) {
+        VaultSpace.master => _masterVaultSaltStorageKey,
+        VaultSpace.guest => _guestVaultSaltStorageKey,
+        VaultSpace.duress => _decoyVaultSaltStorageKey,
+      };
+
   /// Mendapatkan salt acak 32-byte unik per perangkat dari Hardware Keystore.
   /// Mencegah serangan pre-computed rainbow table lintas perangkat.
-  Future<List<int>> getOrCreateVaultSalt({required bool isDuress}) async {
-    final storageKey = isDuress ? _decoyVaultSaltStorageKey : _masterVaultSaltStorageKey;
+  Future<List<int>> getOrCreateVaultSalt({
+    bool isDuress = false,
+    VaultSpace? space,
+  }) async {
+    final resolvedSpace = resolveVaultSpace(space: space, isDuress: isDuress);
+    final storageKey = _saltStorageKeyFor(resolvedSpace);
     try {
       final existingB64 = await _secureStorage.read(key: storageKey);
       if (existingB64 != null && existingB64.isNotEmpty) {
@@ -114,25 +150,57 @@ class DatabaseKeyService {
     }
   }
 
-  /// Menurunkan kunci enkripsi 256-bit dari PIN pengguna menggunakan Argon2id (64MB)
-  /// dengan random salt unik per perangkat (v2).
+  /// Menurunkan kunci enkripsi 256-bit dari PIN pengguna menggunakan Argon2id
+  /// dengan random salt unik per ruang brankas (v2).
   /// Mendukung fallback ke legacy PBKDF2 (v1) untuk auto-migrasi database lama.
   Future<String> deriveVaultKey(
     String pin, {
-    required bool isDuress,
+    bool isDuress = false,
+    VaultSpace? space,
     bool forceLegacy = false,
+    bool updateActiveSlot = true,
   }) async {
+    final resolvedSpace = resolveVaultSpace(space: space, isDuress: isDuress);
     if (forceLegacy) {
-      return deriveLegacyVaultKey(pin, isDuress: isDuress);
+      return deriveLegacyVaultKey(pin, space: resolvedSpace);
     }
 
+    final derived = await _deriveArgon2KeyAndSlot(
+      pin,
+      space: resolvedSpace,
+      assignActiveSlot: updateActiveSlot,
+    );
+    return derived.key;
+  }
+
+  /// Menurunkan pasangan kunci Argon2id + slot AegisMemoryGuard baru tanpa
+  /// menimpa `_activeVaultKeySlotId` (digunakan saat rekey atomik brankas).
+  Future<({String key, BigInt? slotId})> deriveVaultKeyForRekey(
+    String pin, {
+    required VaultSpace space,
+  }) =>
+      _deriveArgon2KeyAndSlot(
+        pin,
+        space: space,
+        assignActiveSlot: false,
+      );
+
+  Future<({String key, BigInt? slotId})> _deriveArgon2KeyAndSlot(
+    String pin, {
+    required VaultSpace space,
+    required bool assignActiveSlot,
+  }) async {
     try {
-      final salt = await getOrCreateVaultSalt(isDuress: isDuress);
+      final salt = await getOrCreateVaultSalt(space: space);
+      BigInt? slotId;
       try {
-        _activeVaultKeySlotId = await AegisMemoryGuardService.instance.deriveVaultKey(
+        slotId = await AegisMemoryGuardService.instance.deriveVaultKey(
           passcode: pin,
           salt: salt,
         );
+        if (assignActiveSlot) {
+          _activeVaultKeySlotId = slotId;
+        }
       } catch (e) {
         _logger.w('Gagal mengisolasi kunci di AegisMemoryGuard: $e');
       }
@@ -149,22 +217,36 @@ class DatabaseKeyService {
       );
 
       final keyBytes = await secretKey.extractBytes();
-      return keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      final hexKey = keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      return (key: hexKey, slotId: slotId);
     } catch (e) {
       _logger.w('Argon2id derivation gagal, fallback ke legacy: $e');
-      return deriveLegacyVaultKey(pin, isDuress: isDuress);
+      final legacyKey = await deriveLegacyVaultKey(pin, space: space);
+      return (key: legacyKey, slotId: null);
     }
   }
 
   /// Menurunkan kunci legacy PBKDF2 (100.000 iterasi) secara on-demand khusus untuk migrasi database lama.
-  Future<String> deriveLegacyVaultKey(String pin, {required bool isDuress}) async {
-    final hexKey = await _deriveLegacyVaultKey(pin, isDuress: isDuress);
+  Future<String> deriveLegacyVaultKey(
+    String pin, {
+    bool isDuress = false,
+    VaultSpace? space,
+  }) async {
+    final resolvedSpace = resolveVaultSpace(space: space, isDuress: isDuress);
+    final hexKey = await _deriveLegacyVaultKey(pin, space: resolvedSpace);
     _activeLegacyVaultKey = hexKey;
     return hexKey;
   }
 
-  Future<String> _deriveLegacyVaultKey(String pin, {required bool isDuress}) async {
-    final saltPrefix = isDuress ? 'mekaar_vault_decoy_salt_' : 'mekaar_vault_master_salt_';
+  Future<String> _deriveLegacyVaultKey(
+    String pin, {
+    required VaultSpace space,
+  }) async {
+    final saltPrefix = switch (space) {
+      VaultSpace.master => 'mekaar_vault_master_salt_',
+      VaultSpace.guest => 'mekaar_vault_guest_salt_',
+      VaultSpace.duress => 'mekaar_vault_decoy_salt_',
+    };
     final salt = utf8.encode('${saltPrefix}v1_secure');
 
     final pbkdf2 = Pbkdf2(
@@ -184,9 +266,17 @@ class DatabaseKeyService {
   }
 
   /// Mengatur kunci aktif brankas di memori aplikasi setelah verifikasi PIN berhasil.
-  void setActiveVaultKey(String key, {required bool isDuress}) {
+  void setActiveVaultKey(
+    String key, {
+    bool isDuress = false,
+    VaultSpace? space,
+    BigInt? slotId,
+  }) {
     _activeVaultKey = key;
-    _isVaultDuress = isDuress;
+    _activeVaultSpace = resolveVaultSpace(space: space, isDuress: isDuress);
+    if (slotId != null) {
+      _activeVaultKeySlotId = slotId;
+    }
   }
 
   /// Mendapatkan kunci aktif brankas saat ini.
@@ -195,14 +285,20 @@ class DatabaseKeyService {
   /// Kunci legacy yang diturunkan sementara untuk re-keying database lama
   String? get activeLegacyVaultKey => _activeLegacyVaultKey;
 
+  /// Ruang brankas yang sedang aktif saat ini.
+  VaultSpace get activeVaultSpace => _activeVaultSpace;
+
   /// Mengetahui apakah brankas yang sedang aktif adalah Decoy (Duress).
-  bool get isVaultDuress => _isVaultDuress;
+  bool get isVaultDuress => _activeVaultSpace == VaultSpace.duress;
+
+  /// Mengetahui apakah brankas yang sedang aktif adalah Ruang Tamu (Guest).
+  bool get isVaultGuest => _activeVaultSpace == VaultSpace.guest;
 
   /// Mengunci kembali brankas dan membersihkan kunci dari memori.
   Future<void> lockVault() async {
     _activeVaultKey = null;
     _activeLegacyVaultKey = null;
-    _isVaultDuress = false;
+    _activeVaultSpace = VaultSpace.master;
     final slotId = _activeVaultKeySlotId;
     _activeVaultKeySlotId = null;
     if (slotId != null) {

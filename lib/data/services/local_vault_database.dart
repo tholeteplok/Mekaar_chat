@@ -3,39 +3,45 @@ import 'dart:io';
 import 'package:logger/logger.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../models/vault_item.dart';
+import 'aegis_memory_guard_service.dart';
+import 'aegis_stream_cipher_service.dart';
 import 'database_key_service.dart';
 
-/// Database SQLite lokal terenkripsi (SQLCipher AES-256) untuk Brankas Berkas.
+/// Database SQLite lokal terenkripsi (SQLCipher AES-256) untuk Brankas Berkas 3-Jalur.
 ///
 /// Fitur Keamanan:
-/// 1. Terkunci matematis menggunakan KDF (PBKDF2) dari Master PIN pengguna.
-/// 2. Isolasi Decoy Vault: Saat Duress PIN dimasukkan, membuka `mekaar_vault_decoy.db`
-///    terpisah; database master tidak disentuh atau dimuat ke memori sama sekali.
-/// 3. Migrasi otomatis dari SQLite plaintext legacy disertai pemusnahan forensik (*shredding*).
+/// 1. Terkunci matematis menggunakan KDF (Argon2id / PBKDF2 legacy) per jalur masuk:
+///    - Master (`mekaar_vault.db`)
+///    - Guest (`mekaar_vault_guest.db`)
+///    - Duress (`mekaar_vault_decoy.db`)
+/// 2. Database antar ruang terisolasi fisik dan kriptografis secara total.
+/// 3. Migrasi otomatis dari SQLite plaintext legacy khusus ruang Master disertai shredding.
 class LocalVaultDatabase {
   LocalVaultDatabase._();
   static final LocalVaultDatabase instance = LocalVaultDatabase._();
 
   static final Logger _logger = Logger();
   static const String _tableName = 'vault_items';
-  static const String _masterDbFileName = 'mekaar_vault.db';
-  static const String _decoyDbFileName = 'mekaar_vault_decoy.db';
   static const int _dbVersion = 1;
 
   Database? _db;
   Completer<Database>? _dbInitCompleter;
-  bool _isDuressActive = false;
+  VaultSpace _activeSpace = VaultSpace.master;
 
   /// Memeriksa apakah brankas sedang dalam status terbuka
   bool get isUnlocked => _db != null && _db!.isOpen;
 
+  /// Ruang brankas yang sedang aktif saat ini.
+  VaultSpace get activeSpace => _activeSpace;
+
   /// Memeriksa apakah database yang terbuka saat ini adalah Decoy (Duress)
-  bool get isDuress => _isDuressActive;
+  bool get isDuress => _activeSpace == VaultSpace.duress;
 
   /// Membuka brankas berkas menggunakan kunci enkripsi SQLCipher yang diturunkan dari PIN.
   Future<Database> openVault({
     required String key,
-    required bool isDuress,
+    bool isDuress = false,
+    VaultSpace? space,
     String? pin,
   }) async {
     if (_db != null && _db!.isOpen) {
@@ -44,16 +50,20 @@ class LocalVaultDatabase {
       _dbInitCompleter = null;
     }
 
-    _isDuressActive = isDuress;
+    final resolvedSpace = DatabaseKeyService.resolveVaultSpace(
+      space: space,
+      isDuress: isDuress,
+    );
+    _activeSpace = resolvedSpace;
     _dbInitCompleter = Completer<Database>();
 
     try {
       final dbPath = await getDatabasesPath();
-      final fileName = isDuress ? _decoyDbFileName : _masterDbFileName;
+      final fileName = resolvedSpace.dbFileName;
       final path = '$dbPath/$fileName';
 
       // Jika master vault, cek dan migrasikan jika file lokal masih berupa SQLite plaintext legacy
-      if (!isDuress) {
+      if (resolvedSpace == VaultSpace.master) {
         await _checkAndMigrateLegacyPlaintextDb(path, key);
       }
 
@@ -71,7 +81,7 @@ class LocalVaultDatabase {
           try {
             legacyKey = await DatabaseKeyService.instance.deriveLegacyVaultKey(
               pin,
-              isDuress: isDuress,
+              space: resolvedSpace,
             );
           } catch (_) {}
         }
@@ -101,6 +111,76 @@ class LocalVaultDatabase {
     }
   }
 
+  /// Melakukan re-keying database brankas dan berkas `.aegis` yang sedang terbuka
+  /// ketika PIN pemilik jalur tersebut diubah (misalnya Honeypot Decoy Swap di Guest Mode).
+  Future<bool> rekeyOpenVault({
+    required VaultSpace space,
+    required String newPin,
+  }) async {
+    if (_db == null || !_db!.isOpen || _activeSpace != space) {
+      return false;
+    }
+
+    final oldSlotId = DatabaseKeyService.instance.activeVaultKeySlotId;
+    final derived = await DatabaseKeyService.instance.deriveVaultKeyForRekey(
+      newPin,
+      space: space,
+    );
+
+    await _db!.execute("PRAGMA rekey = '${derived.key}';");
+
+    if (oldSlotId != null && derived.slotId != null && oldSlotId != derived.slotId) {
+      final rows = await _db!.query(_tableName);
+      for (final row in rows) {
+        final item = VaultItem.fromMap(row);
+        if (!item.localPath.endsWith('.aegis')) continue;
+        final encFile = File(item.localPath);
+        if (!await encFile.exists()) continue;
+
+        File? tempPlain;
+        final rekeyPath = '${item.localPath}.rekey';
+        try {
+          tempPlain = await AegisStreamCipherService.instance.decryptToTempFile(
+            encryptedPath: item.localPath,
+            keySlotId: oldSlotId,
+            fileExtension: item.fileName.split('.').last,
+          );
+          await AegisStreamCipherService.instance.encryptFileStream(
+            srcPath: tempPlain.path,
+            dstPath: rekeyPath,
+            keySlotId: derived.slotId!,
+          );
+          await File(rekeyPath).rename(item.localPath);
+        } catch (e) {
+          _logger.w('Gagal re-enkripsi berkas brankas ${item.fileName}: $e');
+          try {
+            await DatabaseKeyService.instance.shredFile(File(rekeyPath));
+          } catch (_) {}
+        } finally {
+          if (tempPlain != null) {
+            try {
+              await DatabaseKeyService.instance.shredFile(tempPlain);
+            } catch (_) {}
+          }
+        }
+      }
+    }
+
+    DatabaseKeyService.instance.setActiveVaultKey(
+      derived.key,
+      space: space,
+      slotId: derived.slotId,
+    );
+
+    if (oldSlotId != null && derived.slotId != null && oldSlotId != derived.slotId) {
+      try {
+        await AegisMemoryGuardService.instance.zeroizeKey(oldSlotId);
+      } catch (_) {}
+    }
+
+    return true;
+  }
+
   Future<Database> get database async {
     if (_db != null && _db!.isOpen) return _db!;
 
@@ -115,7 +195,7 @@ class LocalVaultDatabase {
 
     return openVault(
       key: activeKey,
-      isDuress: DatabaseKeyService.instance.isVaultDuress,
+      space: DatabaseKeyService.instance.activeVaultSpace,
     );
   }
 
@@ -321,6 +401,7 @@ class LocalVaultDatabase {
 
   /// Menutup koneksi database (untuk testing atau saat reset akun).
   Future<void> close() async {
+    _activeSpace = VaultSpace.master;
     if (_db != null && _db!.isOpen) {
       await _db!.close();
       _db = null;
