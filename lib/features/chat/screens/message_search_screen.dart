@@ -83,6 +83,7 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
 
   Future<void> _checkVaultPasscode(String query) async {
     if (query.trim().isEmpty) return;
+    if (ref.read(authProvider).isDecoyActive) return;
     try {
       final repo = ref.read(privateContactRepositoryProvider);
       final matchedSlot = await repo.checkAnySlotPasscode(query.trim());

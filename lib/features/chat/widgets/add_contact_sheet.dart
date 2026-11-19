@@ -101,6 +101,18 @@ class _AddContactSheetContentState
         return;
       }
 
+      // Cegah existence oracle: di Mode Tamu/Duress, kontak vault terselubung
+      // diperlakukan identik seperti akun tidak ditemukan.
+      final targetUserId = profile['id'] as String;
+      if (ref.read(authProvider).isDecoyActive &&
+          VaultIsolationHelper.isContactCloaked(ref, targetUserId)) {
+        setState(() {
+          _isSearching = false;
+          _errorMessage = 'Pengguna tidak ditemukan';
+        });
+        return;
+      }
+
       final myId = ref.read(supabaseServiceProvider).currentUserId;
       if (profile['id'] == myId) {
         setState(() {
@@ -143,7 +155,6 @@ class _AddContactSheetContentState
       }
 
       // Proteksi Private Vault jika cloaked
-      final targetUserId = profile['id'] as String;
       final isCloaked = VaultIsolationHelper.isContactCloaked(
         ref,
         targetUserId,

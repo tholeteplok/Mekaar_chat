@@ -574,6 +574,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                 // ──── 2. Quick Action Hub (4 Tombol Frosted Glass) ────
                 Consumer(
                   builder: (context, ref, _) {
+                    final isDecoy = ref.watch(authProvider).isDecoyActive;
                     final contacts =
                         ref.watch(userContactsProvider).value ?? const [];
                     final isContact =
@@ -607,63 +608,65 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                             label: 'Video',
                             onTap: () => _initiateCall('video'),
                           ),
-                          const SizedBox(width: 12),
-                          if (isContact)
-                            _buildActionHubItem(
-                              icon: isHidden
-                                  ? SolarIconsOutline.eye
-                                  : SolarIconsOutline.eyeClosed,
-                              label: isHidden ? 'Tampilkan' : 'Sembunyikan',
-                              isActive: isHidden,
-                              onTap: () {
-                                if (widget.otherUserId.isNotEmpty) {
-                                  PrivateVaultDialogs
-                                      .toggleContactHiddenWithAuth(
-                                    context,
-                                    ref,
-                                    contactUserId: widget.otherUserId,
-                                    contactName: widget.chatName,
-                                    roomId: _effectiveRoomId,
-                                  );
-                                } else {
-                                  PrivateVaultDialogs
-                                      .toggleRoomHiddenWithAuth(
-                                    context,
-                                    ref,
-                                    roomId: _effectiveRoomId,
-                                    chatName: widget.chatName,
-                                  );
-                                }
-                              },
-                            )
-                          else
-                            _buildActionHubItem(
-                              icon: SolarIconsOutline.userPlus,
-                              label: 'Tambah',
-                              onTap: () async {
-                                HapticService.trigger(
-                                  MekaarHapticIntent.selection,
-                                );
-                                try {
-                                  await ref
-                                      .read(userContactsProvider.notifier)
-                                      .addContact(widget.otherUserId);
-                                  if (context.mounted) {
-                                    MekaarSnackbar.success(
+                          if (!isContact || !isDecoy) ...[
+                            const SizedBox(width: 12),
+                            if (isContact)
+                              _buildActionHubItem(
+                                icon: isHidden
+                                    ? SolarIconsOutline.eye
+                                    : SolarIconsOutline.eyeClosed,
+                                label: isHidden ? 'Tampilkan' : 'Sembunyikan',
+                                isActive: isHidden,
+                                onTap: () {
+                                  if (widget.otherUserId.isNotEmpty) {
+                                    PrivateVaultDialogs
+                                        .toggleContactHiddenWithAuth(
                                       context,
-                                      '${widget.chatName} berhasil ditambahkan ke kontak.',
+                                      ref,
+                                      contactUserId: widget.otherUserId,
+                                      contactName: widget.chatName,
+                                      roomId: _effectiveRoomId,
+                                    );
+                                  } else {
+                                    PrivateVaultDialogs
+                                        .toggleRoomHiddenWithAuth(
+                                      context,
+                                      ref,
+                                      roomId: _effectiveRoomId,
+                                      chatName: widget.chatName,
                                     );
                                   }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    MekaarSnackbar.error(
-                                      context,
-                                      'Gagal menambahkan kontak: ${ErrorResolver.resolve(e)}',
-                                    );
+                                },
+                              )
+                            else
+                              _buildActionHubItem(
+                                icon: SolarIconsOutline.userPlus,
+                                label: 'Tambah',
+                                onTap: () async {
+                                  HapticService.trigger(
+                                    MekaarHapticIntent.selection,
+                                  );
+                                  try {
+                                    await ref
+                                        .read(userContactsProvider.notifier)
+                                        .addContact(widget.otherUserId);
+                                    if (context.mounted) {
+                                      MekaarSnackbar.success(
+                                        context,
+                                        '${widget.chatName} berhasil ditambahkan ke kontak.',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      MekaarSnackbar.error(
+                                        context,
+                                        'Gagal menambahkan kontak: ${ErrorResolver.resolve(e)}',
+                                      );
+                                    }
                                   }
-                                }
-                              },
-                            ),
+                                },
+                              ),
+                          ],
                         ],
                       ),
                     );

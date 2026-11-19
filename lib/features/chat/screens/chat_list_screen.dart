@@ -163,6 +163,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   Future<void> _checkVaultPasscode(String query) async {
     if (query.trim().isEmpty) return;
+    if (ref.read(authProvider).isDecoyActive) return;
     final repo = ref.read(privateContactRepositoryProvider);
     final matchedSlot = await repo.checkAnySlotPasscode(query.trim());
     if (matchedSlot != null && mounted) {
