@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
@@ -63,8 +64,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
     super.build(context);
     final isDuress = ref.watch(authProvider).isDuressActive;
     final isSosEnabled = ref.watch(sosFeatureEnabledProvider);
-    final myGuardians = isDuress ? <Guardian>[] : ref.watch(guardianProvider);
-    final whoAddedMe = isDuress ? <Guardian>[] : ref.watch(whoAddedMeProvider);
+    final myGuardians = ref.watch(visibleMyGuardiansProvider);
+    final whoAddedMe = ref.watch(visibleWhoAddedMeProvider);
     final myGuardiansStatus = ref.watch(guardianLoadStatusProvider);
     final whoAddedMeStatus = ref.watch(whoAddedMeLoadStatusProvider);
     final pendingCount = ref.watch(pendingIncomingGuardianCountProvider);
@@ -192,6 +193,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () async {
+                      if (GuestSessionGuard.isRestrictedSession(ref)) {
+                        await GuestSessionGuard.triggerSafeSilentClose(ref);
+                        return;
+                      }
                       await ref
                           .read(sosFeatureEnabledProvider.notifier)
                           .setEnabled(true);
@@ -577,6 +582,10 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                       ),
                       tooltip: 'Terima undangan Guardian',
                       onPressed: () async {
+                        if (GuestSessionGuard.isRestrictedSession(ref)) {
+                          await GuestSessionGuard.triggerSafeSilentClose(ref);
+                          return;
+                        }
                         try {
                           await ref
                               .read(whoAddedMeProvider.notifier)
@@ -627,6 +636,11 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
         TextButton(
           onPressed: () async {
             final navigator = Navigator.of(context);
+            if (GuestSessionGuard.isRestrictedSession(ref)) {
+              navigator.pop();
+              await GuestSessionGuard.triggerSafeSilentClose(ref);
+              return;
+            }
             try {
               await ref.read(whoAddedMeProvider.notifier).reject(guardian.id);
             } catch (e) {

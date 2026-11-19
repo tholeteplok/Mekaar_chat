@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../../data/repositories/guardian_repository.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../chat/providers/private_vault_provider.dart';
 
 enum GuardianLoadStatus { loading, data, error }
 
@@ -148,12 +149,52 @@ final whoAddedMeProvider =
       return WhoAddedMeNotifier(repo, ref);
     });
 
+/// Mengambil ID user lawan dari relasi Guardian secara konsisten.
+String guardianPeerUserId(Guardian guardian, String? currentUserId) {
+  if (guardian.guardianId.isNotEmpty && guardian.guardianId != currentUserId) {
+    return guardian.guardianId;
+  }
+  if (guardian.ownerId.isNotEmpty && guardian.ownerId != currentUserId) {
+    return guardian.ownerId;
+  }
+  return guardian.guardianId;
+}
+
+List<Guardian> _filterGuardiansForActiveMode(Ref ref, List<Guardian> guardians) {
+  final authState = ref.watch(authProvider);
+  if (authState.isDuressActive) return const <Guardian>[];
+  if (!authState.isGuestActive) return guardians;
+
+  final cloakedIds = ref.watch(cloakedContactUserIdsProvider);
+  final currentUserId = authState.user?.id;
+  return guardians.where((guardian) {
+    final peerId = guardianPeerUserId(guardian, currentUserId);
+    return !cloakedIds.contains(peerId) &&
+        !cloakedIds.contains(guardian.guardianId) &&
+        !cloakedIds.contains(guardian.ownerId);
+  }).toList(growable: false);
+}
+
+/// Daftar Guardian saya yang tersaring sesuai jalur sesi aktif:
+/// - Master: tampil penuh
+/// - Tamu: Guardian non-vault tampil normal; Guardian dalam Private Vault tersaring keluar
+/// - Duress: kosong total
+final visibleMyGuardiansProvider = Provider<List<Guardian>>((ref) {
+  final guardians = ref.watch(guardianProvider);
+  return _filterGuardiansForActiveMode(ref, guardians);
+});
+
+/// Daftar relasi "Siapa yang Menambahkan Saya" yang tersaring sesuai jalur sesi aktif.
+final visibleWhoAddedMeProvider = Provider<List<Guardian>>((ref) {
+  final list = ref.watch(whoAddedMeProvider);
+  return _filterGuardiansForActiveMode(ref, list);
+});
+
 /// Provider jumlah undangan guardian masuk yang masih menunggu persetujuan (pending & !isExpired).
 final pendingIncomingGuardianCountProvider = Provider<int>((ref) {
-  final isDecoy = ref.watch(authProvider).isDecoyActive;
-  if (isDecoy) return 0;
-  final whoAddedMe = ref.watch(whoAddedMeProvider);
-  return whoAddedMe
+  if (ref.watch(authProvider).isDuressActive) return 0;
+  final visibleWhoAddedMe = ref.watch(visibleWhoAddedMeProvider);
+  return visibleWhoAddedMe
       .where((g) => g.status == 'pending' && !g.isExpired)
       .length;
 });

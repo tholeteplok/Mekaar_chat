@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
@@ -187,6 +188,11 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
       if (type == 'video') _videoEnabled = value;
     });
 
+    // Lapis 1 (Ephemeral RAM-Only): Mode Tamu/Duress hanya mengubah tampilan lokal sesi.
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      return;
+    }
+
     try {
       await ref.read(guardianProvider.notifier).updateGuardianPermissions(
         widget.guardian.id,
@@ -209,6 +215,10 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   }
 
   Future<void> _initiateSwap() async {
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      await GuestSessionGuard.triggerSafeSilentClose(ref);
+      return;
+    }
     Navigator.pushNamed(
       context,
       '/guardian/swap',
@@ -242,6 +252,10 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     );
 
     if (confirmed == true && mounted) {
+      if (GuestSessionGuard.isRestrictedSession(ref)) {
+        await GuestSessionGuard.triggerSafeSilentClose(ref);
+        return;
+      }
       await ref
           .read(guardianProvider.notifier)
           .removeGuardian(widget.guardian.id);
@@ -264,6 +278,10 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         TextButton(
           onPressed: () async {
             Navigator.pop(context);
+            if (GuestSessionGuard.isRestrictedSession(ref)) {
+              await GuestSessionGuard.triggerSafeSilentClose(ref);
+              return;
+            }
             try {
               await ref
                   .read(guardianProvider.notifier)
@@ -319,6 +337,10 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     );
 
     if (confirmed == true && mounted) {
+      if (GuestSessionGuard.isRestrictedSession(ref)) {
+        await GuestSessionGuard.triggerSafeSilentClose(ref);
+        return;
+      }
       try {
         final currentUserId = ref.read(authProvider).user?.id;
         final guardianUserId = _getPeerUserId(currentUserId);
