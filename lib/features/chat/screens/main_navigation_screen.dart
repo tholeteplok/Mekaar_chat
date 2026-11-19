@@ -194,7 +194,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               },
             ),
             Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
+              top: MediaQuery.of(context).padding.top + 64,
               left: 16,
               right: 16,
               child: Consumer(
