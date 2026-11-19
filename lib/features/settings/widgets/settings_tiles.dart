@@ -299,19 +299,7 @@ class SettingsSwitchTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // State Label + Switch
-            Text(
-              value ? 'Aktif' : 'Nonaktif',
-              style: MekaarTypography.caption.copyWith(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-                color: value
-                    ? themePrimary
-                    : MekaarColors.textMutedOf(context),
-              ),
-            ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Switch.adaptive(
               value: value,
               onChanged: onChanged == null

@@ -69,7 +69,7 @@ void main() {
       expect(find.text('PIN Keamanan'), findsOneWidget);
       expect(find.text('Aktif'), findsOneWidget);
       expect(find.text('Fitur Darurat SOS'), findsOneWidget);
-      expect(find.text('Nonaktif'), findsOneWidget);
+      expect(find.byType(Switch), findsOneWidget);
 
       // Tap Nav Tile
       await tester.tap(find.text('PIN Keamanan'));
@@ -80,7 +80,8 @@ void main() {
       await tester.tap(find.text('Fitur Darurat SOS'));
       await tester.pumpAndSettle();
       expect(switchValue, isTrue);
-      expect(find.text('Aktif'), findsNWidgets(2)); // Value text NavTile + Switch label
+      final switchWidget = tester.widget<Switch>(find.byType(Switch));
+      expect(switchWidget.value, isTrue);
     });
 
     testWidgets('ChatListTile renders edge-to-edge without card borders', (tester) async {
