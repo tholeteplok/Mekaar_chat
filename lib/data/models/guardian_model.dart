@@ -25,16 +25,19 @@ class Guardian {
     required this.updatedAt,
   });
 
+  bool get isPermanent => expiresAt == null;
+
   int get daysRemaining {
     if (expiresAt == null) return 0;
-    final diff = expiresAt!.difference(DateTime.now()).inDays;
-    return diff > 0 ? diff : 0;
+    final diff = expiresAt!.toUtc().difference(DateTime.now().toUtc());
+    if (diff.isNegative) return 0;
+    return diff.inDays;
   }
 
   bool get isExpired {
     if (status == 'expired') return true;
     if (expiresAt == null) return false;
-    return expiresAt!.isBefore(DateTime.now());
+    return expiresAt!.toUtc().isBefore(DateTime.now().toUtc());
   }
 
   factory Guardian.fromJson(Map<String, dynamic> json) {

@@ -83,6 +83,19 @@ class GuardiansNotifier extends StateNotifier<List<Guardian>> {
     await refreshGuardians();
   }
 
+  Future<void> updateGuardianDuration(
+    String guardianRelationId, {
+    required DateTime? expiresAt,
+    bool reactivateIfExpired = false,
+  }) async {
+    await _guardianRepository.updateGuardianDuration(
+      guardianRelationId,
+      expiresAt: expiresAt,
+      reactivateIfExpired: reactivateIfExpired,
+    );
+    await refreshGuardians();
+  }
+
   Future<void> initiateRoleSwap(
     String guardianRelationId, {
     Map<String, dynamic>? newPermissions,

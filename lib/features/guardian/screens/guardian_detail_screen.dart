@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
@@ -8,6 +9,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_badge.dart';
 import '../../../core/widgets/mekaar_banner.dart';
@@ -36,6 +38,9 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
   late bool _gpsEnabled;
   late bool _micEnabled;
   late bool _videoEnabled;
+  late DateTime? _expiresAt;
+  late String _status;
+  bool _isUpdatingDuration = false;
   String? _avatarUrl;
 
   @override
@@ -44,7 +49,248 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     _gpsEnabled = widget.guardian.permissions['gps'] ?? false;
     _micEnabled = widget.guardian.permissions['mic'] ?? false;
     _videoEnabled = widget.guardian.permissions['video'] ?? false;
+    _expiresAt = widget.guardian.expiresAt;
+    _status = widget.guardian.status;
     _loadPeerProfile();
+  }
+
+  bool get _isPending => _status == 'pending';
+  bool get _isPermanent => _expiresAt == null;
+
+  bool get _isExpired {
+    if (_status == 'expired') return true;
+    final exp = _expiresAt;
+    if (exp == null) return false;
+    return exp.toUtc().isBefore(DateTime.now().toUtc());
+  }
+
+  int get _remainingDays {
+    final exp = _expiresAt;
+    if (exp == null) return 0;
+    final diff = exp.toUtc().difference(DateTime.now().toUtc());
+    if (diff.isNegative) return 0;
+    return diff.inDays;
+  }
+
+  String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    try {
+      return DateFormat('d MMM yyyy', 'id_ID').format(local);
+    } catch (_) {
+      return '${local.day}/${local.month}/${local.year}';
+    }
+  }
+
+  String _formatExpiryLabel() {
+    if (_isExpired) {
+      return 'Masa aktif telah berakhir (ketuk untuk perpanjang)';
+    }
+    if (_isPermanent) {
+      return 'Permanen (Berlaku tanpa batas waktu)';
+    }
+    final remaining = _remainingDays;
+    final remainingPart =
+        remaining == 0 ? '< 1 hari lagi' : 'Sisa $remaining hari';
+    return '$remainingPart • Berakhir ${_formatDate(_expiresAt!)}';
+  }
+
+  Future<void> _applyGuardianDuration(
+    DateTime? newExpiresAt, {
+    required String successLabel,
+  }) async {
+    final prevExpiresAt = _expiresAt;
+    final prevStatus = _status;
+    final wasExpired = _isExpired;
+
+    setState(() {
+      _isUpdatingDuration = true;
+      _expiresAt = newExpiresAt;
+      if (wasExpired) {
+        _status = 'active';
+      }
+    });
+
+    if (GuestSessionGuard.isRestrictedSession(ref)) {
+      if (mounted) {
+        setState(() => _isUpdatingDuration = false);
+        MekaarSnackbar.success(context, successLabel);
+      }
+      return;
+    }
+
+    try {
+      await ref.read(guardianProvider.notifier).updateGuardianDuration(
+            widget.guardian.id,
+            expiresAt: newExpiresAt,
+            reactivateIfExpired: wasExpired,
+          );
+      if (mounted) {
+        MekaarSnackbar.success(context, successLabel);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _expiresAt = prevExpiresAt;
+          _status = prevStatus;
+        });
+        MekaarSnackbar.error(
+          context,
+          'Gagal memperbarui masa aktif: ${e.toString().replaceAll('Exception: ', '')}',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingDuration = false);
+      }
+    }
+  }
+
+  Future<void> _confirmPermanentDuration() async {
+    final confirmed = await MekaarDialog.showConfirmation<bool>(
+      context: context,
+      title: 'Jadikan Guardian Permanen?',
+      message:
+          'Akses darurat untuk ${widget.guardian.name} tidak akan memiliki tanggal kedaluwarsa otomatis dan tetap aktif sampai Anda mencabut, memutus, atau menghapus hubungan ini secara manual.',
+      isDestructive: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.warnAmber,
+            foregroundColor: Colors.black,
+          ),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Tetap Jadikan Permanen'),
+        ),
+      ],
+    );
+
+    if (confirmed == true && mounted) {
+      await _applyGuardianDuration(
+        null,
+        successLabel: 'Masa aktif Guardian diatur menjadi Permanen.',
+      );
+    }
+  }
+
+  Future<void> _pickCustomExpiryDate() async {
+    final nowLocal = DateTime.now();
+    final firstDate = DateTime(nowLocal.year, nowLocal.month, nowLocal.day)
+        .add(const Duration(days: 1));
+    final lastDate = DateTime(nowLocal.year, nowLocal.month, nowLocal.day)
+        .add(const Duration(days: 365));
+    final currentLocal = _expiresAt?.toLocal();
+    final initialDate = (currentLocal != null &&
+            !currentLocal.isBefore(firstDate) &&
+            !currentLocal.isAfter(lastDate))
+        ? DateTime(currentLocal.year, currentLocal.month, currentLocal.day)
+        : firstDate.add(const Duration(days: 6));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: 'Pilih Tanggal Berakhir Guardian',
+      cancelText: 'Batal',
+      confirmText: 'Simpan',
+    );
+    if (picked == null || !mounted) return;
+
+    final endOfDayUtc =
+        DateTime(picked.year, picked.month, picked.day, 23, 59, 59).toUtc();
+    await _applyGuardianDuration(
+      endOfDayUtc,
+      successLabel: 'Masa aktif berakhir pada ${_formatDate(endOfDayUtc)}.',
+    );
+  }
+
+  void _showDurationPickerSheet() {
+    HapticService.trigger(MekaarHapticIntent.selection);
+    MekaarBottomSheet.show<void>(
+      context: context,
+      showDragHandle: true,
+      title: 'Masa Aktif Guardian',
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                SolarIconsOutline.clockCircle,
+                color: MekaarColors.primaryOf(context),
+              ),
+              title: const Text('7 Hari dari Sekarang'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _applyGuardianDuration(
+                  DateTime.now().toUtc().add(const Duration(days: 7)),
+                  successLabel: 'Masa aktif Guardian diatur menjadi 7 hari.',
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                SolarIconsOutline.calendar,
+                color: MekaarColors.primaryOf(context),
+              ),
+              title: const Text('30 Hari dari Sekarang'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _applyGuardianDuration(
+                  DateTime.now().toUtc().add(const Duration(days: 30)),
+                  successLabel: 'Masa aktif Guardian diatur menjadi 30 hari.',
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                SolarIconsOutline.calendarMark,
+                color: MekaarColors.primaryOf(context),
+              ),
+              title: const Text('90 Hari (3 Bulan)'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _applyGuardianDuration(
+                  DateTime.now().toUtc().add(const Duration(days: 90)),
+                  successLabel: 'Masa aktif Guardian diatur menjadi 90 hari.',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                SolarIconsOutline.infinity,
+                color: MekaarColors.warnAmber,
+              ),
+              title: const Text('Permanen (Tanpa Batas)'),
+              subtitle: const Text(
+                'Tetap aktif sampai dicabut atau dihapus secara manual',
+              ),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _confirmPermanentDuration();
+              },
+            ),
+            const MekaarCardDivider(),
+            ListTile(
+              leading: Icon(
+                SolarIconsOutline.calendarAdd,
+                color: MekaarColors.textSecondaryOf(context),
+              ),
+              title: const Text('Pilih Tanggal Berakhir...'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _pickCustomExpiryDate();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   String _getPeerUserId(String? currentUserId) {
@@ -440,8 +686,8 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = widget.guardian.status == 'pending';
-    final isExpired = widget.guardian.isExpired;
+    final isPending = _isPending;
+    final isExpired = _isExpired;
 
     return MekaarScaffold(
       flat: true,
@@ -638,6 +884,69 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ],
 
             const SizedBox(height: 16),
+
+            // ──── 2b. Manajemen Masa Aktif Guardian ────
+            if (!isPending) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Masa Aktif Hubungan',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: MekaarColors.textSecondaryOf(context),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                key: const ValueKey('guardian_duration_tile'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                leading: Icon(
+                  _isPermanent
+                      ? SolarIconsOutline.infinity
+                      : SolarIconsOutline.clockCircle,
+                  color: _isExpired
+                      ? MekaarColors.sosRed
+                      : (_isPermanent
+                            ? MekaarColors.warnAmber
+                            : MekaarColors.primaryOf(context)),
+                ),
+                title: const Text(
+                  'Masa Aktif Guardian',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  _formatExpiryLabel(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _isExpired
+                        ? MekaarColors.sosRed
+                        : MekaarColors.textMutedOf(context),
+                  ),
+                ),
+                trailing: _isUpdatingDuration
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        SolarIconsOutline.altArrowRight,
+                        size: 16,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                onTap: _isUpdatingDuration ? null : _showDurationPickerSheet,
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: MekaarCardDivider(),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // ──── 3. Izin Keamanan ────
             Padding(
@@ -917,8 +1226,14 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         color: MekaarColors.sosRed,
       );
     }
-    final remainingDays = widget.guardian.daysRemaining;
-    final remainingText = remainingDays > 0 ? ' • Sisa $remainingDays hari' : '';
+    final String remainingText;
+    if (_isPermanent) {
+      remainingText = ' • Permanen';
+    } else if (_remainingDays > 0) {
+      remainingText = ' • Sisa $_remainingDays hari';
+    } else {
+      remainingText = ' • < 1 hari';
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(

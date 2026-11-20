@@ -152,7 +152,7 @@ class GuardianRepository {
         .eq('id', guardianRelationId);
   }
 
-  // Update permissions & storage options
+  // Update permissions & storage options (tanpa menimpa expires_at pilihan user)
   Future<void> updatePermissions(
     String guardianRelationId, {
     required Map<String, bool> permissions,
@@ -163,11 +163,25 @@ class GuardianRepository {
         .update({
           'permissions': permissions,
           'storage_option': storageOption,
-          'expires_at': DateTime.now()
-              .toUtc()
-              .add(const Duration(days: 7))
-              .toIso8601String(), // extend 7 days upon update
         })
+        .eq('id', guardianRelationId);
+  }
+
+  /// Memperbarui batas waktu / masa aktif relasi Guardian (null = Permanen).
+  Future<void> updateGuardianDuration(
+    String guardianRelationId, {
+    required DateTime? expiresAt,
+    bool reactivateIfExpired = false,
+  }) async {
+    final payload = <String, dynamic>{
+      'expires_at': expiresAt?.toUtc().toIso8601String(),
+    };
+    if (reactivateIfExpired) {
+      payload['status'] = 'active';
+    }
+    await _supabaseService.client
+        .from('guardians')
+        .update(payload)
         .eq('id', guardianRelationId);
   }
 

@@ -554,17 +554,25 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          SolarIconsOutline.clockCircle,
+                          guardian.isPermanent
+                              ? SolarIconsOutline.infinity
+                              : SolarIconsOutline.clockCircle,
                           size: 13,
-                          color: guardian.daysRemaining <= 3
+                          color: !guardian.isPermanent &&
+                                  guardian.daysRemaining <= 3
                               ? MekaarColors.warning
                               : MekaarColors.successTextOf(context),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${guardian.daysRemaining} hari lagi',
+                          guardian.isPermanent
+                              ? 'Permanen'
+                              : (guardian.daysRemaining == 0
+                                    ? '< 1 hari lagi'
+                                    : '${guardian.daysRemaining} hari lagi'),
                           style: MekaarTypography.labelSM.copyWith(
-                            color: guardian.daysRemaining <= 3
+                            color: !guardian.isPermanent &&
+                                    guardian.daysRemaining <= 3
                                 ? MekaarColors.warning
                                 : MekaarColors.successTextOf(context),
                             fontWeight: FontWeight.w500,
