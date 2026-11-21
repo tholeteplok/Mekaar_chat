@@ -94,6 +94,14 @@ void main() {
       final tabBarView = tester.widget<TabBarView>(find.byType(TabBarView));
       expect(tabBarView.physics, isA<NeverScrollableScrollPhysics>());
       expect(tabBarView.controller?.index, 1);
+
+      // Verifikasi empty state copy baru untuk tab Menjaga (T28)
+      expect(find.text('Belum Menjaga Siapapun'), findsOneWidget);
+      expect(find.text('Belum Ada Yang Menjaga'), findsNothing);
+      expect(
+        find.text('Belum ada kontak yang menambahkan Anda sebagai Guardian mereka.'),
+        findsOneWidget,
+      );
     });
   });
 }

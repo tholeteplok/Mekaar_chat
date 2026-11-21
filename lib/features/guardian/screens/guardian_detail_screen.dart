@@ -17,6 +17,7 @@ import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
+import '../../../core/widgets/mekaar_section_header.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../data/models/guardian_model.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -404,24 +405,6 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
     Navigator.pushNamed(context, AppRoutes.guardianTracking);
   }
 
-  void _openFindPhoneScreen() {
-    final currentUserId = ref.read(authProvider).user?.id;
-    final peerUserId = _getPeerUserId(currentUserId);
-    if (peerUserId.isEmpty) {
-      MekaarSnackbar.error(context, 'Pengguna target tidak ditemukan.');
-      return;
-    }
-
-    Navigator.pushNamed(
-      context,
-      AppRoutes.guardianFindPhone,
-      arguments: {
-        'guardian': widget.guardian,
-        'targetUserId': peerUserId,
-      },
-    );
-  }
-
   Future<void> _togglePermission(String type, bool value) async {
     HapticService.trigger(MekaarHapticIntent.selection);
     final previousGps = _gpsEnabled;
@@ -763,6 +746,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ──── 1. Header Profil (Avatar Besar di Tengah, Nama, Email, Badge) ────
             Center(
@@ -835,68 +819,13 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
               ),
             ),
 
-            // ──── Pemulihan Perangkat ────
-            if (!isPending && !isExpired) ...[
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Pemulihan Perangkat',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: MekaarColors.textSecondaryOf(context),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                leading: Icon(
-                  SolarIconsOutline.smartphone,
-                  color: MekaarColors.textSecondaryOf(context),
-                ),
-                title: const Text(
-                  'Bantu Temukan Ponsel',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  'Bunyikan sirine jarak jauh, siarkan kontak pemulihan, atau lacak GPS',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: MekaarColors.textMutedOf(context),
-                  ),
-                ),
-                trailing: Icon(
-                  SolarIconsOutline.altArrowRight,
-                  size: 16,
-                  color: MekaarColors.textMutedOf(context),
-                ),
-                onTap: _openFindPhoneScreen,
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: MekaarCardDivider(),
-              ),
-            ],
-
             const SizedBox(height: 16),
 
             // ──── 2b. Manajemen Masa Aktif Guardian ────
             if (!isPending) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Masa Aktif Hubungan',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: MekaarColors.textSecondaryOf(context),
-                  ),
-                ),
+              const MekaarSectionHeader(
+                title: 'Masa Aktif Hubungan',
+                padding: EdgeInsets.symmetric(horizontal: 20),
               ),
               const SizedBox(height: 8),
               ListTile(
@@ -949,16 +878,9 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             ],
 
             // ──── 3. Izin Keamanan ────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Izin Keamanan (Hanya Aktif Saat SOS)',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: MekaarColors.textSecondaryOf(context),
-                ),
-              ),
+            const MekaarSectionHeader(
+              title: 'Izin Keamanan (Hanya Aktif Saat SOS)',
+              padding: EdgeInsets.symmetric(horizontal: 20),
             ),
             const SizedBox(height: 8),
             SwitchListTile(
@@ -1125,16 +1047,9 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
             const SizedBox(height: 24),
 
             // ──── 5. Tindakan (Sesuai Info Kontak) ────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Tindakan',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: MekaarColors.textSecondaryOf(context),
-                ),
-              ),
+            const MekaarSectionHeader(
+              title: 'Tindakan',
+              padding: EdgeInsets.symmetric(horizontal: 20),
             ),
             const SizedBox(height: 8),
             if (!isPending && !isExpired) ...[

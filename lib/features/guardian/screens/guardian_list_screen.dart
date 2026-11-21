@@ -403,11 +403,11 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen>
               const MikaIllustration(
                 type: MikaIllustrationType.emptyGuardian,
                 size: 160,
-                semanticLabel: 'Belum ada yang menambahkan Anda',
+                semanticLabel: 'Belum menjaga siapapun',
               ),
               const SizedBox(height: 16),
               Text(
-                'Belum Ada Yang Menjaga',
+                'Belum Menjaga Siapapun',
                 style: MekaarTypography.headingMD,
               ),
               const SizedBox(height: 8),

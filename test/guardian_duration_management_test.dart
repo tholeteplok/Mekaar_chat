@@ -247,5 +247,40 @@ void main() {
 
       expect(spyRepo.updateDurationCallCount, 0);
     });
+
+    testWidgets('Judul seksi pada GuardianDetailScreen rata kiri menggunakan MekaarSectionHeader', (
+      tester,
+    ) async {
+      final nowUtc = DateTime.now().toUtc();
+      final guardian = Guardian(
+        id: 'rel-align-1',
+        ownerId: 'owner-1',
+        guardianId: 'guard-3',
+        name: 'Andi',
+        email: 'andi@example.com',
+        permissions: const {'gps': true, 'mic': true, 'video': false},
+        storageOption: 'stream_only',
+        status: 'active',
+        expiresAt: nowUtc.add(const Duration(days: 7)),
+        createdAt: nowUtc,
+        updatedAt: nowUtc,
+      );
+
+      final spyRepo = _SpyGuardianRepo();
+      await tester.pumpWidget(
+        buildDetailScreen(guardian: guardian, spyRepo: spyRepo),
+      );
+      await tester.pumpAndSettle();
+
+      for (final title in [
+        'Masa Aktif Hubungan',
+        'Izin Keamanan (Hanya Aktif Saat SOS)',
+        'Tindakan',
+      ]) {
+        final finder = find.text(title);
+        expect(finder, findsOneWidget);
+        expect(tester.getTopLeft(finder).dx, 20.0);
+      }
+    });
   });
 }

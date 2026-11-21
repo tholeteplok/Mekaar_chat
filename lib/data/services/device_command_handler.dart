@@ -4,11 +4,8 @@ import 'package:logger/logger.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/device_lost_model.dart';
-import '../repositories/device_lost_repository.dart';
 import '../services/alarm_service.dart';
 import '../services/location_service.dart';
-import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/navigation/app_navigator.dart';
@@ -18,8 +15,8 @@ import '../../core/navigation/app_navigator.dart';
 /// Mendukung tipe perintah:
 /// - `alarm`: Membunyikan sirine SOS di perangkat ini
 /// - `stop_alarm`: Menghentikan sirine
-/// - `lock`: Mengunci layar perangkat ini dengan pesan khusus (Device Lost Lock)
 /// - `locate`: Mengirim koordinat GPS perangkat ini kembali ke server
+/// - `logout`: Keluar dari sesi perangkat secara jarak jauh
 class DeviceCommandHandler {
   static final Logger _logger = Logger();
 
@@ -44,50 +41,10 @@ class DeviceCommandHandler {
       switch (commandType) {
         case 'alarm':
           await AlarmService.playSOSAlarm();
-          final recoveryContact = payload['recoveryContact'] as String?;
-          final lockMessage = payload['lockMessage'] as String? ??
-              'Sirine pemulihan ponsel berbunyi keras. Jika menemukan ponsel ini, hubungi kontak pemilik/guardian.';
-          await NotificationService.showDeviceLostNotification(
-            lockMessage: lockMessage,
-            recoveryContact: recoveryContact,
-          );
           break;
 
         case 'stop_alarm':
           await AlarmService.stopAlarm();
-          final repo = DeviceLostRepository(SupabaseService());
-          final currentLostState = await repo.getDeviceLostState();
-          if (!currentLostState.isLocked) {
-            await NotificationService.cancelDeviceLostNotification();
-          }
-          break;
-
-        case 'lock':
-          final lockMessage = payload['lockMessage'] as String? ??
-              'Ponsel ini dilaporkan hilang. Harap hubungi kontak pemulihan.';
-          final recoveryContact = payload['recoveryContact'] as String?;
-
-          final repo = DeviceLostRepository(SupabaseService());
-          await repo.setDeviceLostState(DeviceLostState(
-            isLocked: true,
-            lockMessage: lockMessage,
-            recoveryContact: recoveryContact,
-            lockedAt: DateTime.now(),
-          ));
-
-          await NotificationService.showDeviceLostNotification(
-            lockMessage: lockMessage,
-            recoveryContact: recoveryContact,
-          );
-
-          // Jika app sedang aktif di foreground, langsung arahkan ke lock screen
-          final context = AppNavigator.currentContext;
-          if (context != null && context.mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              AppRoutes.deviceLostLock,
-              (route) => false,
-            );
-          }
           break;
 
         case 'locate':

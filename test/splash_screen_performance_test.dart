@@ -5,15 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show User;
 import 'package:mekaar_chat/core/routes/app_routes.dart';
-import 'package:mekaar_chat/data/models/device_lost_model.dart';
 import 'package:mekaar_chat/data/models/sos_session_model.dart';
 import 'package:mekaar_chat/data/models/user_model.dart';
 import 'package:mekaar_chat/data/repositories/auth_repository.dart';
-import 'package:mekaar_chat/data/repositories/device_lost_repository.dart';
 import 'package:mekaar_chat/data/repositories/sos_repository.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 import 'package:mekaar_chat/features/auth/screens/splash_screen.dart';
-import 'package:mekaar_chat/features/sos/providers/device_lost_provider.dart';
 import 'package:mekaar_chat/features/sos/providers/sos_provider.dart';
 
 class _FakeAuthRepository implements AuthRepository {
@@ -61,19 +58,6 @@ class _MockAuthNotifier extends StateNotifier<AuthState>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeDeviceLostRepository implements DeviceLostRepository {
-  final bool isLocked;
-  _FakeDeviceLostRepository({this.isLocked = false});
-
-  @override
-  Future<DeviceLostState> getDeviceLostState() async {
-    return DeviceLostState(isLocked: isLocked);
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class _FakeSosRepository implements SOSRepository {
   final SOSSession? activeSession;
   final Duration delay;
@@ -103,17 +87,14 @@ void main() {
     Widget createHarness({
       required AuthState initialAuthState,
       AuthRepository? authRepo,
-      DeviceLostRepository? deviceLostRepo,
       SOSRepository? sosRepo,
     }) {
       final fakeAuthRepo = authRepo ?? _FakeAuthRepository();
-      final fakeDeviceLostRepo = deviceLostRepo ?? _FakeDeviceLostRepository();
       final fakeSosRepo = sosRepo ?? _FakeSosRepository();
 
       return ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(fakeAuthRepo),
-          deviceLostRepositoryProvider.overrideWithValue(fakeDeviceLostRepo),
           sosRepositoryProvider.overrideWithValue(fakeSosRepo),
           authProvider.overrideWith(
             (ref) => _MockAuthNotifier(initialAuthState),
@@ -129,8 +110,6 @@ void main() {
                 const Scaffold(body: Text('Onboarding Screen')),
             AppRoutes.sosActive: (_) =>
                 const Scaffold(body: Text('SOS Active Screen')),
-            AppRoutes.deviceLostLock: (_) =>
-                const Scaffold(body: Text('Device Lost Screen')),
           },
         ),
       );
@@ -188,42 +167,6 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Onboarding Screen'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'SplashScreen memprioritaskan DeviceLostLock jika perangkat terkunci',
-      (tester) async {
-        final authState = AuthState(
-          user: const User(
-            id: 'test-user-id',
-            appMetadata: {},
-            userMetadata: {},
-            aud: 'authenticated',
-            createdAt: '2026-01-01',
-          ),
-          profile: Profile(
-            id: 'test-user-id',
-            username: 'testuser',
-            email: 'test@mekaar.id',
-            pinHash: 'hash',
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-          isPinSet: true,
-        );
-
-        await tester.pumpWidget(
-          createHarness(
-            initialAuthState: authState,
-            deviceLostRepo: _FakeDeviceLostRepository(isLocked: true),
-          ),
-        );
-
-        await tester.pump(const Duration(milliseconds: 600));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Device Lost Screen'), findsOneWidget);
       },
     );
 

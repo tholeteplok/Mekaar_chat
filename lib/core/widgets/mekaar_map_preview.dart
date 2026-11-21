@@ -10,8 +10,6 @@ import '../constants/colors.dart';
 /// Dipakai di:
 /// - Preview titik tujuan Auto Check-In (`AddTripScreen`) — read-only,
 ///   tap membuka full picker, circle geofence live mengikuti slider.
-/// - "Temukan Ponsel Saya" (`DeviceLostScreen`) — konteks darurat,
-///   marker ikon smartphone `sosRed`, tanpa circle.
 ///
 /// Konvensi warna sesuai design.md §7/§9: aksen `brand.blue` untuk
 /// konteks rutin; warna darurat (`sos.coral`/`sosRed`) hanya via

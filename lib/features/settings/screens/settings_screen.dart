@@ -230,13 +230,6 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: MekaarCopy.tripsSubtitle,
           onTap: () => Navigator.pushNamed(context, AppRoutes.tripList),
         ),
-        const SettingsDivider(),
-        SettingsNavTile(
-          icon: SolarIconsOutline.gps,
-          title: MekaarCopy.findMyPhoneTitle,
-          subtitle: MekaarCopy.findMyPhoneSubtitle,
-          onTap: () => Navigator.pushNamed(context, AppRoutes.deviceLost),
-        ),
       ],
     );
   }

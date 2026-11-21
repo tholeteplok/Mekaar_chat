@@ -164,7 +164,7 @@ class _ConnectedDevicesScreenState
         ),
         title: 'Keluarkan & Logout?',
         message:
-            'Sesi pada "${device.deviceLabel ?? device.platform}" akan diputuskan dan data akun akan dikeluarkan.\n\n⚠️ Jika perangkat hilang atau dicuri, gunakan menu "Temukan Ponsel Saya" terlebih dahulu untuk mengunci layar atau melacak lokasi sebelum mengeluarkan perangkat.',
+            'Sesi pada "${device.deviceLabel ?? device.platform}" akan diputuskan dan data akun akan dikeluarkan.\n\n⚠️ Jika perangkat hilang atau dicuri, segera amankan akun dengan mengubah kata sandi/PIN serta gunakan fitur pelacakan bawaan perangkat (Find My Device / Find My) sebelum mengeluarkan sesi.',
         isDestructive: true,
         actions: [
           TextButton(

@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/data/models/device_lost_model.dart';
 import 'package:mekaar_chat/data/services/alarm_service.dart';
-import 'package:mekaar_chat/data/services/notification_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,11 +35,6 @@ void main() {
       // Memastikan stopAlarm tidak crash saat audio tidak sedang berputar
       await AlarmService.stopAlarm();
       expect(AlarmService.isPlaying, isFalse);
-    });
-
-    test('NotificationService device lost constants are properly defined', () {
-      expect(NotificationService.deviceLostNotificationId, 8001);
-      expect(NotificationService.actionDeviceLostCall, 'device_lost_call');
     });
   });
 }

@@ -208,9 +208,6 @@ abstract final class MekaarCopy {
   static const String tripsTitle = 'Check-In & Perjalanan';
   static const String tripsSubtitle =
       'Pantau perjalanan aman & riwayat check-in';
-  static const String findMyPhoneTitle = 'Temukan Ponsel Saya';
-  static const String findMyPhoneSubtitle =
-      'Lacak lokasi saat darurat atau hilang';
   static const String safetyWizardTitle = 'Lengkapi Proteksi SOS';
   static const String safetyWizardSubtitle =
       'Fitur SOS telah aktif. Selesaikan konfigurasi agar perlindungan maksimal.';

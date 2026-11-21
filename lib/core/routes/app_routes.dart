@@ -15,7 +15,6 @@ import 'package:mekaar_chat/features/chat/screens/chat_requests_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_list_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/add_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_detail_screen.dart';
-import 'package:mekaar_chat/features/guardian/screens/guardian_find_phone_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/swap_guardian_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/guardian_tracking_screen.dart';
 import 'package:mekaar_chat/features/guardian/screens/sos_viewer_screen.dart';
@@ -43,8 +42,6 @@ import 'package:mekaar_chat/features/auth/screens/two_factor_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_active_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/sos_drill_screen.dart';
 import 'package:mekaar_chat/features/sos/screens/video_emergency_screen.dart';
-import 'package:mekaar_chat/features/sos/screens/device_lost_screen.dart';
-import 'package:mekaar_chat/features/sos/screens/device_lost_lock_screen.dart';
 import 'package:mekaar_chat/features/map/screens/location_map_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/call_screen.dart';
 import 'package:mekaar_chat/features/chat/screens/my_qr_screen.dart';
@@ -117,7 +114,6 @@ class AppRoutes {
   static const String guardianDetail = '/guardian/detail';
   static const String guardianSwap = '/guardian/swap';
   static const String guardianTracking = '/guardian/tracking';
-  static const String guardianFindPhone = '/guardian/find-phone';
   static const String settings = '/settings';
   static const String themeSettings = '/settings/theme';
   static const String chatThemeSettings = '/settings/theme/chat';
@@ -138,8 +134,6 @@ class AppRoutes {
   static const String sosViewer = '/sos/viewer';
   static const String sosVideo = '/sos/video';
   static const String sosDrill = '/sos/drill';
-  static const String deviceLost = '/sos/lost';
-  static const String deviceLostLock = '/sos/lost/lock';
   static const String map = '/map';
   static const String mapPicker = '/map/picker';
   static const String call = '/call';
@@ -272,17 +266,6 @@ class AppRoutes {
       case AppRoutes.guardianTracking:
         return MekaarPageRoute(builder: (_) => const GuardianTrackingScreen());
 
-      case AppRoutes.guardianFindPhone:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
-        final g = args['guardian'] as Guardian;
-        final targetUserId = args['targetUserId'] as String? ?? '';
-        return MekaarPageRoute(
-          builder: (_) => GuardianFindPhoneScreen(
-            guardian: g,
-            targetUserId: targetUserId,
-          ),
-        );
-
       case AppRoutes.settings:
         return MekaarPageRoute(builder: (_) => const SettingsScreen());
 
@@ -367,12 +350,6 @@ class AppRoutes {
 
       case AppRoutes.sosDrill:
         return MekaarPageRoute(builder: (_) => const SosDrillScreen());
-
-      case AppRoutes.deviceLost:
-        return MekaarPageRoute(builder: (_) => const DeviceLostScreen());
-
-      case AppRoutes.deviceLostLock:
-        return MekaarPageRoute(builder: (_) => const DeviceLostLockScreen());
 
       case AppRoutes.map:
         final args = settings.arguments as Map<String, dynamic>? ?? {};

@@ -7,10 +7,8 @@ import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_wordmark.dart';
 import '../../../data/services/e2ee_service.dart';
-import '../../../data/models/device_lost_model.dart';
 import '../../../data/models/sos_session_model.dart';
 import '../../sos/providers/sos_provider.dart';
-import '../../sos/providers/device_lost_provider.dart';
 import '../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -61,13 +59,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final authState = ref.read(authProvider);
     if (authState.user != null) {
-      // 2. Paralelisasi Pengecekan Pra-Navigasi (Device Lost, Duress, Active SOS)
-      final deviceLostRepo = ref.read(deviceLostRepositoryProvider);
+      // 2. Paralelisasi Pengecekan Pra-Navigasi (Duress, Active SOS)
       final sosRepo = ref.read(sosRepositoryProvider);
       final authRepo = ref.read(authRepositoryProvider);
 
       final preNavChecks = await Future.wait([
-        deviceLostRepo.getDeviceLostState(),
         authRepo.getDuressUnlockStatus(),
         sosRepo.getActiveSOS().timeout(
           const Duration(milliseconds: 600),
@@ -77,17 +73,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       if (!mounted) return;
 
-      final lostState = preNavChecks[0] as DeviceLostState;
-      final isDuress = preNavChecks[1] as bool;
-      final activeSos = preNavChecks[2] as SOSSession?;
+      final isDuress = preNavChecks[0] as bool;
+      final activeSos = preNavChecks[1] as SOSSession?;
 
-      // 0. Device Lost Lockout Check
-      if (lostState.isLocked) {
-        Navigator.pushReplacementNamed(context, AppRoutes.deviceLostLock);
-        return;
-      }
-
-      // 0b. Active SOS Lockdown Check (Bypass normal navigation straight to SOSActiveScreen)
+      // 0. Active SOS Lockdown Check (Bypass normal navigation straight to SOSActiveScreen)
       // Mode duress adalah mode senyap (stealth): jangan bypass ke SOSActiveScreen
       if (activeSos != null && !isDuress) {
         Navigator.pushReplacementNamed(context, AppRoutes.sosActive);
