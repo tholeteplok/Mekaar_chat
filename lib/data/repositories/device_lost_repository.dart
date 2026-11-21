@@ -4,6 +4,16 @@ import '../../core/storage/mekaar_secure_storage.dart';
 import '../models/device_lost_model.dart';
 import '../services/supabase_service.dart';
 
+/// Kanal perintah jarak jauh perangkat (remote command channel) via tabel `device_commands`.
+///
+/// Catatan historis (K6): Penamaan `device_lost` merupakan warisan dari fitur
+/// "Temukan Ponsel Saya / Bantu Temukan Ponsel" yang UI-nya telah didekomisi pada
+/// v2.6.4 (`25932c4`). File ini **sengaja dipertahankan** karena [sendRemoteCommand]
+/// aktif digunakan oleh:
+/// - `SosViewerScreen` untuk memicu sirine darurat (`commandType: 'alarm'`) pada
+///   perangkat korban SOS.
+/// - `ConnectedDevicesScreen` untuk remote logout sesi perangkat (`commandType: 'logout'`).
+/// Lihat: `docs/keputusan/2026-11-21-dekomisi-find-my-phone.md`.
 class DeviceLostRepository {
   final SupabaseService _supabaseService;
   final FlutterSecureStorage _secureStorage = MekaarSecureStorage.instance;

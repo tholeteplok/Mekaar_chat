@@ -6,8 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/utils/emoji_shortcode_parser.dart';
 import '../../../core/utils/message_preview_resolver.dart';
+import '../../../data/models/group_sender_key_models.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/e2ee_service.dart';
+import '../../../data/services/group_e2ee_service.dart';
 import '../../../data/services/group_key_distribution_service.dart';
 import '../../../data/services/local_message_database.dart';
 import '../../../data/services/notification_service.dart';
@@ -135,8 +137,17 @@ class MessageNotificationListener {
 
     if (isEncrypted && rawContent.isNotEmpty) {
       try {
-        decryptedContent =
-            await E2eeService.instance.decryptForRoom(roomId, rawContent);
+        if (GroupMessageEnvelope.tryParse(rawContent) != null) {
+          decryptedContent =
+              await GroupE2eeService.instance.decryptGroupMessage(
+            groupId: roomId,
+            senderId: senderId,
+            envelopeJson: rawContent,
+          );
+        } else {
+          decryptedContent =
+              await E2eeService.instance.decryptForRoom(roomId, rawContent);
+        }
         if (messageObj != null) {
           messageObj = messageObj.copyWith(content: decryptedContent);
         }
@@ -169,21 +180,24 @@ class MessageNotificationListener {
       } catch (_) {}
     }
 
-    if (messageObj != null) {
+    final isDecryptionFailed = isEncrypted &&
+        (decryptedContent == rawContent ||
+            E2eeService.isUndecryptable(decryptedContent) ||
+            GroupE2eeService.isUndecryptable(decryptedContent));
+
+    if (messageObj != null && !isDecryptionFailed) {
       unawaited(LocalMessageDatabase.instance.saveMessage(messageObj));
     }
-
-    final isStillEncrypted = isEncrypted && decryptedContent == rawContent;
 
     final previewText = formatPreviewText(
       msgType: msgType,
       content: decryptedContent,
-      isEncrypted: isStillEncrypted,
+      isEncrypted: isDecryptionFailed,
       isFromOtherUser: isFromOtherUser,
     );
 
-    // Perbarui preview teks jika berbeda dari instant generic preview (misal jika non-encrypted)
-    if (!isStillEncrypted) {
+    // Perbarui preview teks jika berhasil didekripsi atau pesan non-encrypted
+    if (!isDecryptionFailed) {
       _ref.read(chatRoomsProvider.notifier).updateLastMessageLocally(
         roomId: roomId,
         previewText: previewText,
@@ -218,7 +232,7 @@ class MessageNotificationListener {
       roomId,
       senderId,
       decryptedContent,
-      isStillEncrypted,
+      isDecryptionFailed,
       msgType: msgType,
     );
   }

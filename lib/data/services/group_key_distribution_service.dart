@@ -146,7 +146,7 @@ class GroupKeyDistributionService {
     );
 
     return SenderKeyDistributionMessage(
-      version: 1,
+      version: SenderKeyDistributionMessage.currentVersion,
       groupId: record.groupId,
       senderId: senderId,
       keyId: record.keyId,
@@ -166,6 +166,13 @@ class GroupKeyDistributionService {
     required String expectedSenderId,
     String? expectedSenderIdentityKeyB64,
   }) async {
+    if (skdm.version != SenderKeyDistributionMessage.currentVersion) {
+      _logger.w(
+        'Menolak SKDM versi v=${skdm.version} dari ${skdm.senderId}: '
+        'protokol mewajibkan SKDM v${SenderKeyDistributionMessage.currentVersion} (MEKAAR_SKDM_V2).',
+      );
+      return false;
+    }
     if (skdm.senderId != expectedSenderId) {
       _logger.w('SKDM senderId (${skdm.senderId}) tidak cocok dengan pengirim 1:1 ($expectedSenderId)');
       return false;
@@ -478,7 +485,14 @@ class GroupKeyDistributionService {
 
       if (type == controlTypeSkdm) {
         final skdm = SenderKeyDistributionMessage.tryParse(payload);
-        if (skdm == null) return false;
+        if (skdm == null) {
+          final versionErr =
+              SenderKeyDistributionMessage.detectUnsupportedVersionError(payload);
+          if (versionErr != null) {
+            _logger.w(versionErr);
+          }
+          return false;
+        }
         return await verifyAndProcessSkdm(skdm, expectedSenderId: senderId);
       } else if (type == controlTypeSkRequest) {
         final req = SenderKeyRequest.tryParse(payload);

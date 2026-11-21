@@ -35,6 +35,13 @@ class ChatRepository {
     _decryptedUpdatedAtCache.clear();
     _roomEncryptionVersions.clear();
     _roomTypeCache.clear();
+    _activeRoomMessagePools.clear();
+    for (final controller in _activeRoomControllers.values) {
+      if (!controller.isClosed) {
+        unawaited(controller.close());
+      }
+    }
+    _activeRoomControllers.clear();
   }
 
   /// Registry stream controller dan message pool per room yang sedang aktif di layar.
@@ -48,6 +55,9 @@ class ChatRepository {
 
   /// Cache tipe room ('normal', 'group', 'guardian', dsb)
   final Map<String, String> _roomTypeCache = {};
+
+  @visibleForTesting
+  Map<String, String> get decryptedContentCache => _decryptedContentCache;
 
   @visibleForTesting
   Map<String, StreamController<List<Message>>> get activeRoomControllers =>
@@ -274,6 +284,7 @@ class ChatRepository {
       final roomId = item['id'] as String? ?? '';
       if (roomId.isEmpty) continue;
 
+      final isGroup = item['isGroup'] as bool? ?? false;
       final unreadCount = item['unreadCount'] as int? ?? 0;
       final lastMsgRaw = item['lastMessage'] as Map<String, dynamic>?;
 
@@ -331,30 +342,13 @@ class ChatRepository {
               : ((lastMsgRaw['senderId'] ?? lastMsgRaw['sender_id']) as String?);
           lastMsgIsSending = localMsg?.isSending ?? false;
 
-          if (contentSource.isEncrypted &&
-              contentSource.content.isNotEmpty &&
-              contentSource != localMsg) {
-            final cached = _decryptedContentCache[msgId];
-            if (cached != null && !E2eeService.isUndecryptable(cached)) {
-              lastMessageText = MessagePreviewResolver.formatChatListPreview(
-                type: contentSource.type,
-                content: cached,
-                isUnreadFromOther: isUnreadFromOther,
-              );
-            } else {
-              lastMessageText = 'Mulai percakapan...';
-            }
-          } else {
-            if (E2eeService.isUndecryptable(contentSource.content)) {
-              lastMessageText = 'Mulai percakapan...';
-            } else {
-              lastMessageText = MessagePreviewResolver.formatChatListPreview(
-                type: contentSource.type,
-                content: contentSource.content,
-                isUnreadFromOther: isUnreadFromOther,
-              );
-            }
-          }
+          lastMessageText = await resolveLastMessageText(
+            roomId: roomId,
+            isGroup: isGroup,
+            contentSource: contentSource,
+            localMsg: localMsg,
+            isUnreadFromOther: isUnreadFromOther,
+          );
         }
       }
 
@@ -366,7 +360,6 @@ class ChatRepository {
       final encVer = item['encryptionVersion'] as int? ??
           item['encryption_version'] as int? ??
           0;
-      final isGroup = item['isGroup'] as bool? ?? false;
       _roomEncryptionVersions[roomId] = encVer;
       _roomTypeCache[roomId] = isGroup ? 'group' : 'normal';
 
@@ -607,36 +600,20 @@ class ChatRepository {
             unreadCount > 0 && chosenMsg.senderId != userId;
         lastMessageTime = chosenMsg.createdAt;
 
-        // Gunakan pesan lokal yang sudah terdekripsi jika ID-nya cocok
-        final contentSource =
-            (localLastMsg != null && localLastMsg.id == chosenMsg.id)
-            ? localLastMsg
-            : chosenMsg;
+        // Gunakan pesan lokal yang sudah terdekripsi jika ID-nya cocok dan bukan sentinel gagal dekripsi
+        final hasValidLocal = localLastMsg != null &&
+            localLastMsg.id == chosenMsg.id &&
+            !E2eeService.isUndecryptable(localLastMsg.content) &&
+            !GroupE2eeService.isUndecryptable(localLastMsg.content);
+        final contentSource = hasValidLocal ? localLastMsg : chosenMsg;
 
-        if (contentSource.isEncrypted &&
-            contentSource.content.isNotEmpty &&
-            contentSource != localLastMsg) {
-          final cached = _decryptedContentCache[chosenMsg.id];
-          if (cached != null && !E2eeService.isUndecryptable(cached)) {
-            lastMessageText = MessagePreviewResolver.formatChatListPreview(
-              type: contentSource.type,
-              content: cached,
-              isUnreadFromOther: isUnreadFromOther,
-            );
-          } else {
-            lastMessageText = 'Mulai percakapan...';
-          }
-        } else {
-          if (E2eeService.isUndecryptable(contentSource.content)) {
-            lastMessageText = 'Mulai percakapan...';
-          } else {
-            lastMessageText = MessagePreviewResolver.formatChatListPreview(
-              type: contentSource.type,
-              content: contentSource.content,
-              isUnreadFromOther: isUnreadFromOther,
-            );
-          }
-        }
+        lastMessageText = await resolveLastMessageText(
+          roomId: roomId,
+          isGroup: isGroup,
+          contentSource: contentSource,
+          localMsg: hasValidLocal ? localLastMsg : null,
+          isUnreadFromOther: isUnreadFromOther,
+        );
       }
 
       return {
@@ -678,6 +655,87 @@ class ChatRepository {
     });
     unawaited(LocalMessageDatabase.instance.saveRoomsCache(roomsList));
     return roomsList;
+  }
+
+  /// Menyelesaikan cuplikan pesan terakhir untuk ditampilkan di daftar chat.
+  ///
+  /// Mencoba membaca dari [localMsg] atau `_decryptedContentCache` terlebih dahulu,
+  /// dan jika cache miss (misal pesan baru masuk sebelum room dibuka), mendekripsi
+  /// secara langsung untuk 1-on-1 maupun grup sebelum fallback.
+  @visibleForTesting
+  Future<String> resolveLastMessageText({
+    required String roomId,
+    required bool isGroup,
+    required Message contentSource,
+    required Message? localMsg,
+    required bool isUnreadFromOther,
+  }) async {
+    String? resolvedPlain;
+
+    if (contentSource.isEncrypted &&
+        contentSource.content.isNotEmpty &&
+        contentSource != localMsg) {
+      final cached = _decryptedContentCache[contentSource.id];
+      if (cached != null &&
+          !E2eeService.isUndecryptable(cached) &&
+          !GroupE2eeService.isUndecryptable(cached)) {
+        resolvedPlain = cached;
+      } else {
+        try {
+          String plain;
+          if (isGroup ||
+              GroupMessageEnvelope.tryParse(contentSource.content) != null) {
+            plain = await GroupE2eeService.instance.decryptGroupMessage(
+              groupId: roomId,
+              senderId: contentSource.senderId,
+              envelopeJson: contentSource.content,
+            );
+          } else {
+            plain = await E2eeService.instance.decryptForRoom(
+              roomId,
+              contentSource.content,
+            );
+          }
+
+          if (plain != contentSource.content &&
+              !E2eeService.isUndecryptable(plain) &&
+              !GroupE2eeService.isUndecryptable(plain) &&
+              plain.isNotEmpty) {
+            _decryptedContentCache[contentSource.id] = plain;
+            _decryptedUpdatedAtCache[contentSource.id] =
+                contentSource.updatedAt.toUtc();
+            resolvedPlain = plain;
+          }
+        } catch (_) {
+          // Biarkan resolvedPlain null untuk fallback aman di bawah
+        }
+      }
+    } else if (!E2eeService.isUndecryptable(contentSource.content) &&
+        !GroupE2eeService.isUndecryptable(contentSource.content)) {
+      resolvedPlain = contentSource.content;
+    }
+
+    if (resolvedPlain != null) {
+      return MessagePreviewResolver.formatChatListPreview(
+        type: contentSource.type,
+        content: resolvedPlain,
+        isUnreadFromOther: isUnreadFromOther,
+      );
+    }
+
+    if (contentSource.type != MessageType.text) {
+      return MessagePreviewResolver.formatChatListPreview(
+        type: contentSource.type,
+        content: null,
+        isUnreadFromOther: isUnreadFromOther,
+      );
+    }
+
+    if (isUnreadFromOther && contentSource.isEncrypted) {
+      return '🔒 Pesan baru';
+    }
+
+    return 'Mulai percakapan...';
   }
 
   // Create normal or guardian chat room atomically via RPC.

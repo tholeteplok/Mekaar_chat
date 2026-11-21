@@ -1,3 +1,9 @@
+/// Model status historis perangkat hilang (legacy Find My Phone).
+///
+/// Catatan (K6): UI fitur *Find My Phone* telah didekomisi pada v2.6.4 (`25932c4`),
+/// namun model ini tetap dipertahankan untuk kompatibilitas metode penyimpanan
+/// di `DeviceLostRepository` dan serialisasi lama.
+/// Lihat: `docs/keputusan/2026-11-21-dekomisi-find-my-phone.md`.
 class DeviceLostState {
   final bool isLocked;
   final String lockMessage;

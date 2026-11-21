@@ -2,7 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/core/constants/strings.dart';
 import 'package:mekaar_chat/core/utils/message_preview_resolver.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
+import 'package:mekaar_chat/data/repositories/chat_repository.dart';
 import 'package:mekaar_chat/data/services/e2ee_service.dart';
+import 'package:mekaar_chat/data/services/supabase_service.dart';
+
+class _FakeSupabaseService extends Fake implements SupabaseService {}
 
 void main() {
   group('Clean Slate & Undecryptable History Sentinel Tests', () {
@@ -112,6 +116,73 @@ void main() {
       expect(filteredMessages.length, equals(1));
       expect(filteredMessages.first.id, equals('msg-new'));
       expect(filteredMessages.first.content, equals('Halo, saya baru pasang ulang aplikasi!'));
+    });
+
+    test('6. ChatRepository.resolveLastMessageText tidak menampilkan "Mulai percakapan..." untuk pesan baru masuk', () async {
+      final repo = ChatRepository(_FakeSupabaseService());
+      final now = DateTime.utc(2026, 11, 21, 14, 0);
+
+      // a) Pesan teks baru masuk (belum terdekripsi / key pending) -> '🔒 Pesan baru'
+      final unreadEncryptedText = Message(
+        id: 'msg-unread-1',
+        roomId: 'room-1',
+        senderId: 'user-other',
+        content: '{"v":1,"ct":"abc"}',
+        type: MessageType.text,
+        createdAt: now,
+        updatedAt: now,
+        isEncrypted: true,
+      );
+      final unreadPreview = await repo.resolveLastMessageText(
+        roomId: 'room-1',
+        isGroup: false,
+        contentSource: unreadEncryptedText,
+        localMsg: null,
+        isUnreadFromOther: true,
+      );
+      expect(unreadPreview, equals('🔒 Pesan baru'));
+
+      // b) Pesan media baru masuk terenkripsi -> '📷 Foto baru'
+      final unreadEncryptedImage = unreadEncryptedText.copyWith(
+        id: 'msg-unread-img',
+        type: MessageType.image,
+      );
+      final imgPreview = await repo.resolveLastMessageText(
+        roomId: 'room-1',
+        isGroup: true,
+        contentSource: unreadEncryptedImage,
+        localMsg: null,
+        isUnreadFromOther: true,
+      );
+      expect(imgPreview, equals('📷 Foto baru'));
+
+      // c) Pesan lokal yang sudah terdekripsi -> tampilkan isi asli
+      final decryptedLocal = unreadEncryptedText.copyWith(
+        id: 'msg-local-ok',
+        content: 'Halo, ini pesan baru!',
+      );
+      final localPreview = await repo.resolveLastMessageText(
+        roomId: 'room-1',
+        isGroup: false,
+        contentSource: decryptedLocal,
+        localMsg: decryptedLocal,
+        isUnreadFromOther: true,
+      );
+      expect(localPreview, equals('Halo, ini pesan baru!'));
+
+      // d) Riwayat lama sudah terbaca yang tak dapat didekripsi -> tetap 'Mulai percakapan...'
+      final oldReadUndecryptable = unreadEncryptedText.copyWith(
+        id: 'msg-old-read',
+        content: E2eeService.undecryptableSentinel,
+      );
+      final oldPreview = await repo.resolveLastMessageText(
+        roomId: 'room-1',
+        isGroup: false,
+        contentSource: oldReadUndecryptable,
+        localMsg: null,
+        isUnreadFromOther: false,
+      );
+      expect(oldPreview, equals('Mulai percakapan...'));
     });
   });
 }

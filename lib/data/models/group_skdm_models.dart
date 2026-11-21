@@ -5,6 +5,8 @@ import 'dart:convert';
 /// Dikirimkan secara Store-and-Forward melalui kanal obrolan 1:1 terenkripsi E2EE
 /// kepada setiap anggota grup. Memuat chain key awal dan kunci publik penandatangan Ed25519.
 class SenderKeyDistributionMessage {
+  static const int currentVersion = 2;
+
   final int version;
   final String groupId;
   final String senderId;
@@ -16,7 +18,7 @@ class SenderKeyDistributionMessage {
   final String signatureB64;
 
   const SenderKeyDistributionMessage({
-    this.version = 1,
+    this.version = currentVersion,
     required this.groupId,
     required this.senderId,
     required this.keyId,
@@ -28,7 +30,7 @@ class SenderKeyDistributionMessage {
   });
 
   /// Format kanonikal string untuk penandatanganan dan verifikasi Ed25519:
-  /// `MEKAAR_SKDM_V1:{groupId}:{senderId}:{keyId}:{counter}:{chainKeyB64}:{pubKeyB64}:{isoTime}`
+  /// `MEKAAR_SKDM_V2:{groupId}:{senderId}:{keyId}:{counter}:{chainKeyB64}:{pubKeyB64}:{isoTime}`
   static String buildCanonicalPayload({
     required String groupId,
     required String senderId,
@@ -38,7 +40,7 @@ class SenderKeyDistributionMessage {
     required String signingPubKeyB64,
     required String isoTime,
   }) {
-    return 'MEKAAR_SKDM_V1:$groupId:$senderId:$keyId:$counter:$chainKeyB64:$signingPubKeyB64:$isoTime';
+    return 'MEKAAR_SKDM_V2:$groupId:$senderId:$keyId:$counter:$chainKeyB64:$signingPubKeyB64:$isoTime';
   }
 
   /// String kanonikal data yang ditandatangani untuk SKDM ini
@@ -81,7 +83,7 @@ class SenderKeyDistributionMessage {
         return null;
       }
 
-      if (map['v'] != 1) return null;
+      if (map['v'] != currentVersion) return null;
 
       final gid = map['gid'] as String?;
       final sid = map['sid'] as String?;
@@ -105,7 +107,7 @@ class SenderKeyDistributionMessage {
       }
 
       return SenderKeyDistributionMessage(
-        version: (map['v'] as num?)?.toInt() ?? 1,
+        version: currentVersion,
         groupId: gid,
         senderId: sid,
         keyId: kid,
@@ -118,6 +120,26 @@ class SenderKeyDistributionMessage {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Mendeteksi apakah payload SKDM menggunakan versi protokol yang tidak didukung
+  /// (mis. `v = 1`) untuk menghasilkan pesan penolakan eksplisit.
+  static String? detectUnsupportedVersionError(dynamic raw) {
+    try {
+      Map<String, dynamic>? map;
+      if (raw is String) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) map = decoded;
+      } else if (raw is Map<String, dynamic>) {
+        map = raw;
+      }
+      if (map == null || !map.containsKey('v')) return null;
+      final v = map['v'];
+      if (v != currentVersion) {
+        return 'Paket SKDM versi v=$v ditolak: protokol membutuhkan SKDM v$currentVersion (MEKAAR_SKDM_V2). Harap perbarui aplikasi.';
+      }
+    } catch (_) {}
+    return null;
   }
 }
 

@@ -138,7 +138,7 @@ void main() {
 
     test('Skenario 4: Format payload pesan kontrol sistem SKDM dan SK Request', () {
       final sampleSkdm = SenderKeyDistributionMessage(
-        version: 1,
+        version: SenderKeyDistributionMessage.currentVersion,
         groupId: roomId,
         senderId: aliceId,
         keyId: 1,

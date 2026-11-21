@@ -145,7 +145,7 @@ void main() {
       final pubKey = List.filled(32, 9);
 
       final skdm = SenderKeyDistributionMessage(
-        version: 1,
+        version: 2,
         groupId: 'grp_test',
         senderId: 'usr_alice',
         keyId: 1,
@@ -159,7 +159,8 @@ void main() {
       final parsed = SenderKeyDistributionMessage.tryParse(jsonStr);
 
       expect(parsed, isNotNull);
-      expect(parsed!.groupId, equals('grp_test'));
+      expect(parsed!.version, equals(2));
+      expect(parsed.groupId, equals('grp_test'));
       expect(parsed.senderId, equals('usr_alice'));
       expect(parsed.keyId, equals(1));
       expect(parsed.chainKey, equals(chainKey));
@@ -168,7 +169,7 @@ void main() {
       expect(
         parsed.canonicalPayload,
         equals(
-          'MEKAAR_SKDM_V1:grp_test:usr_alice:1:0:${base64Encode(chainKey)}:${base64Encode(pubKey)}:${now.toIso8601String()}',
+          'MEKAAR_SKDM_V2:grp_test:usr_alice:1:0:${base64Encode(chainKey)}:${base64Encode(pubKey)}:${now.toIso8601String()}',
         ),
       );
     });
@@ -688,6 +689,65 @@ void main() {
         currentMemberIds: currentMembers,
       );
       expect(secondCheck, isFalse);
+    });
+
+    test('K2 Opsi B: Paket SKDM V1 ditolak eksplisit dengan pesan jelas dan V2 lolos', () async {
+      final now = DateTime.utc(2026, 11, 21, 15, 0, 0);
+      final chainKey = List.filled(32, 7);
+      final pubKey = List.filled(32, 9);
+
+      // 1. Paket V1 mentah ditolak tryParse & terdeteksi dengan pesan penolakan eksplisit
+      final legacyV1Json = {
+        'v': 1,
+        'gid': testGroupId,
+        'sid': aliceId,
+        'kid': 1,
+        'ctr': 0,
+        'ck': base64Encode(chainKey),
+        'spk': base64Encode(pubKey),
+        'cat': now.toIso8601String(),
+        'sig': base64Encode(List.filled(64, 1)),
+      };
+      expect(SenderKeyDistributionMessage.tryParse(legacyV1Json), isNull);
+      final errMsg = SenderKeyDistributionMessage.detectUnsupportedVersionError(legacyV1Json);
+      expect(errMsg, isNotNull);
+      expect(errMsg, contains('v=1'));
+      expect(errMsg, contains('MEKAAR_SKDM_V2'));
+
+      // 2. verifyAndProcessSkdm menolak objek SKDM versi 1 secara eksplisit
+      final v1Obj = SenderKeyDistributionMessage(
+        version: 1,
+        groupId: testGroupId,
+        senderId: aliceId,
+        keyId: 1,
+        chainKey: chainKey,
+        signingPublicKeyBytes: pubKey,
+        createdAt: now,
+        signatureB64: base64Encode(List.filled(64, 1)),
+      );
+      final v1Accepted = await bobDistributor.verifyAndProcessSkdm(
+        v1Obj,
+        expectedSenderId: aliceId,
+        expectedSenderIdentityKeyB64: aliceIdentityKeyB64,
+      );
+      expect(v1Accepted, isFalse);
+
+      // 3. Paket V2 yang ditandatangani valid lolos verifikasi
+      final aliceKey = await aliceE2ee.generateSenderKey(testGroupId, keyId: 1);
+      final v2Skdm = await aliceDistributor.buildSignedSkdm(
+        aliceKey,
+        aliceId,
+      );
+      expect(v2Skdm.version, equals(2));
+      expect(v2Skdm.canonicalPayload, startsWith('MEKAAR_SKDM_V2:'));
+      expect(SenderKeyDistributionMessage.detectUnsupportedVersionError(v2Skdm.toJson()), isNull);
+
+      final v2Accepted = await bobDistributor.verifyAndProcessSkdm(
+        v2Skdm,
+        expectedSenderId: aliceId,
+        expectedSenderIdentityKeyB64: aliceIdentityKeyB64,
+      );
+      expect(v2Accepted, isTrue);
     });
   });
 }

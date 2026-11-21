@@ -19,7 +19,17 @@ import 'forwarding_protection_provider.dart';
 // ─────────────────────────────────────────
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
-  return ChatRepository(supabaseService);
+  final repo = ChatRepository(supabaseService);
+  ref.listen<String?>(
+    authProvider.select((s) => s.user?.id),
+    (prevUserId, nextUserId) {
+      if (prevUserId != null && nextUserId == null) {
+        repo.clearSessionCaches();
+      }
+    },
+  );
+  ref.onDispose(repo.clearSessionCaches);
+  return repo;
 });
 
 // ─────────────────────────────────────────
