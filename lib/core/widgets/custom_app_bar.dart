@@ -19,7 +19,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isGuardian;
   final bool showOnlineIndicator;
   final bool isOnline;
-  final bool isE2ee;
   final List<Widget>? actions;
   final VoidCallback? onBackPress;
   final VoidCallback? onAvatarTap;
@@ -42,7 +41,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isGuardian = false,
     this.showOnlineIndicator = false,
     this.isOnline = false,
-    this.isE2ee = false,
     this.actions,
     this.onBackPress,
     this.onAvatarTap,
@@ -155,14 +153,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (isE2ee) ...[
-                          const SizedBox(width: 4),
-                          const Icon(
-                            SolarIconsBold.lockKeyhole,
-                            size: 13,
-                            color: MekaarColors.success,
-                          ),
-                        ],
                       ],
                     ),
                     if (showOnlineIndicator || subtitle != null) ...[
@@ -300,14 +290,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (isE2ee) ...[
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    SolarIconsBold.lockKeyhole,
-                                    size: 13,
-                                    color: MekaarColors.success,
-                                  ),
-                                ],
                               ],
                             ),
                             if (showOnlineIndicator || subtitle != null) ...[
@@ -464,14 +446,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (isE2ee) ...[
-                      const SizedBox(width: 4),
-                      const Icon(
-                        SolarIconsBold.lockKeyhole,
-                        size: 13,
-                        color: MekaarColors.success,
-                      ),
-                    ],
                   ],
                 ),
                 if (showOnlineIndicator || subtitle != null) ...[

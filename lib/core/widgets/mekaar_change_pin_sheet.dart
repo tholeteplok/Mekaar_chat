@@ -3,6 +3,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../constants/colors.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
+import 'animations.dart';
 import 'mekaar_bottom_sheet.dart';
 import 'mekaar_pin_dots_indicator.dart';
 
@@ -211,39 +212,37 @@ class _MekaarChangePinSheetState extends State<MekaarChangePinSheet> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: row.map((key) {
             if (key.isEmpty) {
-              return const SizedBox(width: 72, height: 60);
+              return const SizedBox(width: 72, height: 64);
             }
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              width: 72,
-              height: 56,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _isSubmitting ? null : () => _handleKey(key),
-                  borderRadius: BorderRadius.circular(28),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: key == '⌫'
-                          ? Colors.transparent
-                          : MekaarColors.surface2Of(context),
-                    ),
-                    alignment: Alignment.center,
-                    child: key == '⌫'
-                        ? Icon(
-                            SolarIconsOutline.backspace,
-                            color: MekaarColors.textPrimaryOf(context),
-                            size: 24,
-                          )
-                        : Text(
-                            key,
-                            style: MekaarTypography.headingLG.copyWith(
-                              color: MekaarColors.textPrimaryOf(context),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: PressableScale(
+                scale: 0.92,
+                haptic: false,
+                onTap: _isSubmitting ? null : () => _handleKey(key),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: key == '⌫'
+                        ? Colors.transparent
+                        : MekaarColors.surface2Of(context),
                   ),
+                  alignment: Alignment.center,
+                  child: key == '⌫'
+                      ? Icon(
+                          SolarIconsOutline.backspace,
+                          color: MekaarColors.textPrimaryOf(context),
+                          size: 24,
+                        )
+                      : Text(
+                          key,
+                          style: MekaarTypography.headingLG.copyWith(
+                            color: MekaarColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             );

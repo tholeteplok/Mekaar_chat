@@ -9,6 +9,7 @@ import '../../../core/constants/strings.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_pin_dots_indicator.dart';
 import '../../../core/widgets/mekaar_privacy_consent_bottom_sheet.dart';
@@ -632,21 +633,25 @@ class _PinScreenState extends ConsumerState<PinScreen> {
         width: 74,
         height: 74,
         child: Center(
-          child: TextButton(
-            onPressed: isButtonDisabled ? null : _showForgotPinDialog,
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(70, 70),
-              shape: const CircleBorder(),
-            ),
-            child: Text(
-              'Lupa\nPIN?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isButtonDisabled ? textSecondary.withValues(alpha: 0.4) : textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
+          child: PressableScale(
+            scale: 0.92,
+            onTap: isButtonDisabled ? null : _showForgotPinDialog,
+            child: SizedBox(
+              width: 70,
+              height: 70,
+              child: Center(
+                child: Text(
+                  'Lupa\nPIN?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isButtonDisabled
+                        ? textSecondary.withValues(alpha: 0.4)
+                        : textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
+                ),
               ),
             ),
           ),
@@ -661,40 +666,42 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       label: isBackspace ? 'Hapus digit terakhir' : 'Angka $key',
       onTap: isButtonDisabled ? null : () => _handleKeyPress(key),
       child: ExcludeSemantics(
-        child: Container(
-          width: 74,
-          height: 74,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isBackspace ? Colors.transparent : surface2,
-            border: Border.all(
-              color: isBackspace
-                  ? Colors.transparent
-                  : cardBorder.withValues(alpha: 0.4),
-              width: 1,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkResponse(
-              customBorder: const CircleBorder(),
-              onTap: isButtonDisabled ? null : () => _handleKeyPress(key),
-              child: Center(
-                child: isBackspace
-                    ? Icon(
-                        SolarIconsOutline.closeSquare,
-                        color: isButtonDisabled ? textPrimary.withValues(alpha: 0.4) : textPrimary,
-                        size: 26,
-                      )
-                    : Text(
-                        key,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w400,
-                          color: isButtonDisabled ? textPrimary.withValues(alpha: 0.4) : textPrimary,
-                        ),
-                      ),
+        child: PressableScale(
+          scale: 0.92,
+          haptic: false,
+          onTap: isButtonDisabled ? null : () => _handleKeyPress(key),
+          child: Container(
+            width: 74,
+            height: 74,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isBackspace ? Colors.transparent : surface2,
+              border: Border.all(
+                color: isBackspace
+                    ? Colors.transparent
+                    : cardBorder.withValues(alpha: 0.4),
+                width: 1,
               ),
+            ),
+            child: Center(
+              child: isBackspace
+                  ? Icon(
+                      SolarIconsOutline.closeSquare,
+                      color: isButtonDisabled
+                          ? textPrimary.withValues(alpha: 0.4)
+                          : textPrimary,
+                      size: 26,
+                    )
+                  : Text(
+                      key,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w400,
+                        color: isButtonDisabled
+                            ? textPrimary.withValues(alpha: 0.4)
+                            : textPrimary,
+                      ),
+                    ),
             ),
           ),
         ),
