@@ -124,8 +124,25 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onTextChanged);
+    _effectiveFocusNode.addListener(_onFocusChanged);
     _loadRecentEmojis();
     _loadQuickActionMode();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatComposer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      (oldWidget.focusNode ?? _internalFocusNode)
+          ?.removeListener(_onFocusChanged);
+      _effectiveFocusNode.addListener(_onFocusChanged);
+    }
+  }
+
+  void _onFocusChanged() {
+    if (_effectiveFocusNode.hasFocus && _showEmojiPicker) {
+      closeEmojiPicker();
+    }
   }
 
   Future<void> _loadQuickActionMode() async {
@@ -188,6 +205,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   @override
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
+    _effectiveFocusNode.removeListener(_onFocusChanged);
     _internalFocusNode?.dispose();
     _recordTimer?.cancel();
     _audioRecorder?.dispose();
@@ -200,12 +218,18 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       MekaarSnackbar.info(context, 'Menyiapkan enkripsi kamar...');
       return;
     }
+    final shouldKeepKeyboardFocus =
+        !_showEmojiPicker && _effectiveFocusNode.hasFocus;
     widget.onSend();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _effectiveFocusNode.canRequestFocus) {
-        _effectiveFocusNode.requestFocus();
-      }
-    });
+    if (shouldKeepKeyboardFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            !_showEmojiPicker &&
+            _effectiveFocusNode.canRequestFocus) {
+          _effectiveFocusNode.requestFocus();
+        }
+      });
+    }
   }
 
   void _onTextChanged() {
@@ -701,6 +725,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       _effectiveFocusNode.requestFocus();
     } else {
       _effectiveFocusNode.unfocus();
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
       setState(() => _showEmojiPicker = true);
       widget.onEmojiPanelVisibilityChanged?.call(true);
     }

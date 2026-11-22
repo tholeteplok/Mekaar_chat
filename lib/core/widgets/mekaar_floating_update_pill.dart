@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../constants/colors.dart';
 import '../constants/shadows.dart';
 import '../constants/typography.dart';
+import '../navigation/app_navigator.dart';
 import '../providers/update_download_provider.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_update_bottom_sheet.dart';
@@ -63,20 +64,26 @@ class MekaarFloatingUpdatePill extends ConsumerWidget {
 
     return Material(
       color: Colors.transparent,
-      child: Tooltip(
-        message: tooltipMessage,
+      child: Semantics(
+        label: tooltipMessage,
+        button: true,
         child: InkWell(
           onTap: () {
+            final targetContext = Navigator.maybeOf(context) != null
+                ? context
+                : AppNavigator.currentContext;
+            if (targetContext == null || !targetContext.mounted) return;
+
             HapticService.trigger(MekaarHapticIntent.selection);
             if (isCompleted && downloadState.info != null) {
               MekaarUpdateBottomSheet.showInstallSheet(
-                context: context,
+                context: targetContext,
                 info: downloadState.info!,
               );
             } else if (downloadState.info != null) {
               ref.read(updateDownloadProvider.notifier).maximize();
               MekaarUpdateBottomSheet.showProgressSheet(
-                context: context,
+                context: targetContext,
                 info: downloadState.info!,
               );
             }

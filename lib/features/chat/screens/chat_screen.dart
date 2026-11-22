@@ -510,6 +510,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _lastBottomInset = bottomInset;
 
       if (keyboardOpened) {
+        if (_isEmojiPickerOpen) {
+          _composerKey.currentState?.closeEmojiPicker();
+          setState(() => _isEmojiPickerOpen = false);
+        }
         final isNearBottom = !_scrollController.hasClients ||
             _scrollController.position.pixels < 150;
         if (isNearBottom) {
@@ -622,6 +626,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       final myLastRead = await repo.getMyLastRead(widget.chatId);
       if (mounted && myLastRead != null) {
         setState(() => _entryLastReadAt = myLastRead);
+        final currentUserId =
+            ref.read(authProvider).user?.id ??
+            Supabase.instance.client.auth.currentUser?.id;
+        _tryJumpToOldestUnread(
+          ref.read(chatMessagesProvider(widget.chatId)).valueOrNull,
+          currentUserId,
+        );
       }
     }
     ref.read(chatActionsProvider).markRoomRead(widget.chatId);
@@ -934,10 +945,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       isSending: true,
     );
 
+    _hasJumpedToUnread = true;
+    if (_entryLastReadAt != null && mounted) {
+      setState(() => _entryLastReadAt = null);
+    }
     ref
         .read(pendingMessagesProvider(widget.chatId).notifier)
         .addPending(optimisticMessage);
     _scrollToBottom();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _scrollToBottom();
+      }
+    });
 
     // Mutasi lokal list room agar pesan langsung tampil di daftar percakapan (0 ms)
     ref
@@ -1050,6 +1070,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       );
 
   void _scrollToBottom({bool animate = true}) {
+    _hasJumpedToUnread = true;
     if (_scrollController.hasClients) {
       if (animate) {
         _scrollController.animateTo(
@@ -1060,6 +1081,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       } else {
         _scrollController.jumpTo(0.0);
       }
+    }
+  }
+
+  /// Melompat satu kali ke pesan unread tertua saat pertama kali masuk room (UX-08).
+  /// Tidak akan membajak posisi scroll jika pengguna sudah fokus mengetik atau
+  /// menggulir secara manual.
+  void _tryJumpToOldestUnread(List<Message>? messages, String? currentUserId) {
+    if (_hasJumpedToUnread ||
+        _entryLastReadAt == null ||
+        widget.jumpToMessageId != null) {
+      return;
+    }
+    if (messages == null || messages.isEmpty || currentUserId == null) {
+      return;
+    }
+    if (_composerFocusNode.hasFocus ||
+        (_scrollController.hasClients &&
+            _scrollController.position.pixels > 24)) {
+      _hasJumpedToUnread = true;
+      return;
+    }
+
+    final unreadMessages = messages
+        .where(
+          (m) =>
+              m.senderId != currentUserId &&
+              !m.isDeleted &&
+              m.createdAt.isAfter(_entryLastReadAt!),
+        )
+        .toList();
+    _hasJumpedToUnread = true;
+    if (unreadMessages.isNotEmpty) {
+      unreadMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final oldestUnread = unreadMessages.first;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _jumpToMessage(
+            oldestUnread.id,
+            fromBottom: true,
+            duration: Duration.zero,
+            triggerHaptic: false,
+          );
+        }
+      });
     }
   }
 
@@ -1543,36 +1608,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         if (!_hasJumpedToUnread &&
             _entryLastReadAt != null &&
             widget.jumpToMessageId == null) {
-          final unreadMessages = nextList
-              .where(
-                (m) =>
-                    m.senderId != currentUserId &&
-                    !m.isDeleted &&
-                    m.createdAt.isAfter(_entryLastReadAt!),
-              )
-              .toList();
-          _hasJumpedToUnread = true;
-          if (unreadMessages.isNotEmpty) {
-            unreadMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-            final oldestUnread = unreadMessages.first;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _jumpToMessage(
-                  oldestUnread.id,
-                  fromBottom: true,
-                  duration: Duration.zero,
-                  triggerHaptic: false,
-                );
-              }
-            });
-          }
+          _tryJumpToOldestUnread(nextList, currentUserId);
         } else if (hasNewMessages && prevList != null) {
           // Auto-scroll cerdas saat pesan baru tiba di sesi obrolan aktif
           final countNew = nextList.length - prevList.length;
           if (countNew > 0) {
+            final lastIsFromSelf = nextList.last.senderId == currentUserId;
             final isNearBottom = !_scrollController.hasClients ||
                 _scrollController.position.pixels < 120 ||
-                _composerFocusNode.hasFocus;
+                _composerFocusNode.hasFocus ||
+                lastIsFromSelf;
             if (isNearBottom) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {

@@ -319,5 +319,59 @@ void main() {
       expect(find.byType(TweenAnimationBuilder<double>), findsNothing);
       expect(find.text('2 pesan belum dibaca'), findsOneWidget);
     });
+
+    test('setelah balasan dikirim (entryLastReadAt dibersihkan), unread divider tidak lagi disisipkan', () {
+      final lastRead = DateTime.utc(2026, 11, 22, 6, 0);
+      final messages = List.generate(4, (i) {
+        final t = lastRead.add(Duration(minutes: i + 1));
+        return Message(
+          id: 'unread-$i',
+          roomId: 'room-1',
+          senderId: 'other-user',
+          content: 'Pesan baru $i',
+          type: MessageType.text,
+          createdAt: t,
+          updatedAt: t,
+        );
+      });
+
+      final beforeReply = ChatMessageListView.buildItemEntries(
+        messages,
+        const [],
+        currentUserId: 'me',
+        entryLastReadAt: lastRead,
+      );
+      expect(
+        beforeReply.where((e) => e.kind == ChatItemKind.unreadDivider).length,
+        equals(1),
+      );
+
+      // Setelah user membalas, ChatScreen membersihkan entryLastReadAt menjadi null
+      final replyTime = lastRead.add(const Duration(minutes: 10));
+      final withReply = [
+        ...messages,
+        Message(
+          id: 'reply-1',
+          roomId: 'room-1',
+          senderId: 'me',
+          content: 'Siap, diterima!',
+          type: MessageType.text,
+          createdAt: replyTime,
+          updatedAt: replyTime,
+        ),
+      ];
+      final afterReply = ChatMessageListView.buildItemEntries(
+        withReply,
+        const [],
+        currentUserId: 'me',
+        entryLastReadAt: null,
+      );
+      expect(
+        afterReply.any((e) => e.kind == ChatItemKind.unreadDivider),
+        isFalse,
+      );
+      // Pesan balasan terbaru berada di indeks paling bawah (index 0 pada reverse ListView)
+      expect(afterReply.first.message?.id, equals('reply-1'));
+    });
   });
 }
