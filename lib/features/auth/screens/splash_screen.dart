@@ -10,6 +10,7 @@ import '../../../data/services/e2ee_service.dart';
 import '../../../data/models/sos_session_model.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/auto_lock_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -44,6 +45,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final minPresentation = Future.delayed(const Duration(milliseconds: 500));
     final authNotifier = ref.read(authProvider.notifier);
     final pinLockNotifier = ref.read(pinLockEnabledProvider.notifier);
+    final autoLockNotifier = ref.read(autoLockTimeoutProvider.notifier);
 
     // Tunggu inisialisasi lokal + batas waktu presentasi visual selesai secara paralel
     await Future.wait([
@@ -53,6 +55,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         onTimeout: () {},
       ),
       pinLockNotifier.initialized,
+      autoLockNotifier.initialized,
     ]);
 
     if (!mounted) return;
@@ -115,6 +118,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       if (!mounted) return;
       final isPinLockEnabled = ref.read(pinLockEnabledProvider);
+      final isAutoLockOff =
+          ref.read(autoLockTimeoutProvider.notifier).enforcedTimeout ==
+              AutoLockTimeout.off;
 
       // Cek apakah E2EE memerlukan restore (perangkat baru / reinstall).
       // Jika ya, PAKSA layar PIN meskipun PIN Lock dinonaktifkan,
@@ -130,7 +136,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (!mounted) return;
 
       if (isPinSet) {
-        if (isPinLockEnabled || e2eeNeedsRestore) {
+        if ((isPinLockEnabled && !isAutoLockOff) || e2eeNeedsRestore) {
           // Go to validation screen (1x input)
           Navigator.pushReplacementNamed(
             context,

@@ -43,10 +43,31 @@ void main() {
       expect(AutoLockTimeout.fromKey('system'), AutoLockTimeout.system);
       expect(AutoLockTimeout.fromKey('30s'), AutoLockTimeout.thirtySeconds);
       expect(AutoLockTimeout.fromKey('1m'), AutoLockTimeout.oneMinute);
-      expect(AutoLockTimeout.fromKey('5m'), AutoLockTimeout.fiveMinutes);
+      expect(AutoLockTimeout.fromKey('5m'), AutoLockTimeout.custom);
+      expect(AutoLockTimeout.fromKey('custom'), AutoLockTimeout.custom);
       expect(AutoLockTimeout.fromKey('off'), AutoLockTimeout.off);
       expect(AutoLockTimeout.fromKey('unknown_key'), AutoLockTimeout.thirtySeconds);
       expect(AutoLockTimeout.fromKey(null), AutoLockTimeout.thirtySeconds);
+    });
+
+    test('setCustomDuration menyimpan durasi kustom dan memuat ulang via initialized', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final notifier = AutoLockTimeoutNotifier(prefs);
+
+      await notifier.setCustomDuration(const Duration(minutes: 15));
+      expect(notifier.state, AutoLockTimeout.custom);
+      expect(notifier.customDuration, const Duration(minutes: 15));
+      expect(notifier.enforcedDuration, const Duration(minutes: 15));
+      expect(prefs.getString(AutoLockTimeoutNotifier.prefKey), 'custom');
+      expect(
+        prefs.getInt(AutoLockTimeoutNotifier.customDurationSecondsKey),
+        900,
+      );
+
+      final reloadedNotifier = AutoLockTimeoutNotifier();
+      await reloadedNotifier.initialized;
+      expect(reloadedNotifier.state, AutoLockTimeout.custom);
+      expect(reloadedNotifier.customDuration, const Duration(minutes: 15));
     });
   });
 
@@ -148,8 +169,8 @@ void main() {
       expect(find.text('Saat Layar Terkunci'), findsOneWidget);
       expect(find.text('30 Detik'), findsOneWidget);
       expect(find.text('1 Menit'), findsOneWidget);
-      expect(find.text('5 Menit'), findsOneWidget);
-      expect(find.text('Saat Aplikasi Ditutup'), findsOneWidget);
+      expect(find.text('Kustom'), findsOneWidget);
+      expect(find.text('Nonaktif (Tanpa Kunci)'), findsOneWidget);
 
       // Pilih '1 Menit'
       await tester.tap(find.text('1 Menit'));

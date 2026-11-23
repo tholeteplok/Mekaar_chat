@@ -11,6 +11,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_tab_header.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
+import '../../../core/widgets/mekaar_custom_duration_picker_sheet.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/theme_preference.dart';
@@ -137,7 +138,9 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavTile(
           icon: SolarIconsOutline.clockCircle,
           title: MekaarCopy.autoLockTitle,
-          valueText: ref.watch(autoLockTimeoutProvider).label,
+          valueText: ref.watch(autoLockTimeoutProvider) == AutoLockTimeout.custom
+              ? 'Kustom (${MekaarCustomDurationPickerSheet.formatDuration(ref.read(autoLockTimeoutProvider.notifier).customDuration)})'
+              : ref.watch(autoLockTimeoutProvider).label,
           onTap: () => _showAutoLockBottomSheet(context, ref),
         ),
         if (!isDecoy) ...[
@@ -401,6 +404,9 @@ class SettingsScreen extends ConsumerWidget {
         return Consumer(
           builder: (context, sheetRef, _) {
             final current = sheetRef.watch(autoLockTimeoutProvider);
+            final customDuration = sheetRef
+                .read(autoLockTimeoutProvider.notifier)
+                .customDuration;
             final options = AutoLockTimeout.values;
 
             return SafeArea(
@@ -424,17 +430,28 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   ...options.map((opt) {
                     final selected = opt == current;
+                    final isCustom = opt == AutoLockTimeout.custom;
+                    final isOff = opt == AutoLockTimeout.off;
+                    final displayTitle = isCustom && selected
+                        ? 'Kustom (${MekaarCustomDurationPickerSheet.formatDuration(customDuration)})'
+                        : opt.label;
+                    final displayDescription = isCustom && selected
+                        ? 'Terkunci jika aplikasi berada di latar belakang selama ${MekaarCustomDurationPickerSheet.formatDuration(customDuration)}.'
+                        : opt.description;
+
                     return ListTile(
                       leading: Icon(
                         selected
                             ? SolarIconsBold.checkCircle
-                            : SolarIconsOutline.clockCircle,
+                            : (isOff
+                                ? SolarIconsOutline.lockUnlocked
+                                : SolarIconsOutline.clockCircle),
                         color: selected
                             ? MekaarColors.primaryOf(context)
                             : null,
                       ),
                       title: Text(
-                        opt.label,
+                        displayTitle,
                         style: TextStyle(
                           fontWeight:
                               selected ? FontWeight.bold : FontWeight.normal,
@@ -444,7 +461,7 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                       subtitle: Text(
-                        opt.description,
+                        displayDescription,
                         style: MekaarTypography.subtitle.copyWith(
                           color: MekaarColors.textSecondaryOf(context),
                         ),
@@ -455,8 +472,28 @@ class SettingsScreen extends ConsumerWidget {
                               color: MekaarColors.primaryOf(context),
                             )
                           : null,
-                      onTap: () {
+                      onTap: () async {
                         HapticService.trigger(MekaarHapticIntent.selection);
+                        if (isCustom) {
+                          Navigator.pop(ctx);
+                          final pickedDuration =
+                              await _showCustomAutoLockPicker(
+                            context,
+                            customDuration,
+                          );
+                          if (pickedDuration != null && context.mounted) {
+                            await ref
+                                .read(autoLockTimeoutProvider.notifier)
+                                .setCustomDuration(pickedDuration);
+                            if (context.mounted) {
+                              MekaarSnackbar.success(
+                                context,
+                                'Kunci otomatis diatur: ${MekaarCustomDurationPickerSheet.formatDuration(pickedDuration)}',
+                              );
+                            }
+                          }
+                          return;
+                        }
                         sheetRef
                             .read(autoLockTimeoutProvider.notifier)
                             .setTimeout(opt);
@@ -475,6 +512,51 @@ class SettingsScreen extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  Future<Duration?> _showCustomAutoLockPicker(
+    BuildContext context,
+    Duration initialDuration,
+  ) {
+    return MekaarCustomDurationPickerSheet.show(
+      context: context,
+      title: 'Kustom Kunci Otomatis',
+      subtitle: 'Pilih durasi waktu sebelum aplikasi terkunci otomatis',
+      headerIcon: SolarIconsBold.clockCircle,
+      units: const [
+        MekaarDurationUnit.second,
+        MekaarDurationUnit.minute,
+        MekaarDurationUnit.hour,
+      ],
+      initialDuration: initialDuration,
+      minFor: (unit) => unit == MekaarDurationUnit.second ? 5 : 1,
+      maxFor: (unit) {
+        switch (unit) {
+          case MekaarDurationUnit.second:
+            return 59;
+          case MekaarDurationUnit.minute:
+            return 59;
+          case MekaarDurationUnit.hour:
+            return 24;
+          case MekaarDurationUnit.day:
+            return 1;
+        }
+      },
+      quickPresetsFor: (unit) {
+        switch (unit) {
+          case MekaarDurationUnit.second:
+            return const [10, 15, 30, 45];
+          case MekaarDurationUnit.minute:
+            return const [2, 5, 10, 15, 30];
+          case MekaarDurationUnit.hour:
+            return const [1, 2, 6, 12];
+          case MekaarDurationUnit.day:
+            return const [];
+        }
+      },
+      descriptionBuilder: (duration) =>
+          'Aplikasi akan meminta PIN otomatis setelah berada di latar belakang selama ${MekaarCustomDurationPickerSheet.formatDuration(duration)}.',
     );
   }
 
