@@ -521,8 +521,8 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     return MekaarCustomDurationPickerSheet.show(
       context: context,
-      title: 'Kustom Kunci Otomatis',
-      subtitle: 'Pilih durasi waktu sebelum aplikasi terkunci otomatis',
+      title: MekaarCopy.customAutoLockTitle,
+      subtitle: MekaarCopy.customAutoLockSubtitle,
       headerIcon: SolarIconsBold.clockCircle,
       units: const [
         MekaarDurationUnit.second,

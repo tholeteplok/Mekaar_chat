@@ -179,6 +179,9 @@ abstract final class MekaarCopy {
   static const String pinManagementSubtitle =
       'PIN utama, PIN tamu & kode darurat';
   static const String autoLockTitle = 'Kunci Otomatis';
+  static const String customAutoLockTitle = 'Kustom Kunci Otomatis';
+  static const String customAutoLockSubtitle =
+      'Pilih durasi waktu sebelum aplikasi terkunci otomatis';
   static const String twoStepVerificationTitle = 'Verifikasi 2 Langkah';
   static const String twoStepDisableDialogTitle =
       'Matikan Verifikasi 2 Langkah';
