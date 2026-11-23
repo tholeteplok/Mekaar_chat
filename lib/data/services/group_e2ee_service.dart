@@ -611,7 +611,7 @@ class GroupE2eeService {
         aad: utf8.encode(effectiveEnvelope.canonicalAad),
       );
 
-      return utf8.decode(decryptedBytes);
+      return utf8.decode(decryptedBytes, allowMalformed: true);
     } catch (e) {
       if (e is GroupE2eeException) rethrow;
       throw GroupE2eeException('Gagal mendekripsi ciphertext: $e', e);

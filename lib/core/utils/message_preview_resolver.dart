@@ -1,6 +1,7 @@
 import 'dart:convert';
 import '../../data/models/message_model.dart';
 import 'emoji_shortcode_parser.dart';
+import 'mekaar_text_encoding.dart';
 
 /// Helper terpusat untuk memformat cuplikan pesan (preview) di daftar chat,
 /// notifikasi, dan widget terkait secara konsisten tanpa duplikasi atau kebocoran JSON payload.
@@ -45,6 +46,8 @@ class MessagePreviewResolver {
     if (name.contains(r'\')) {
       name = name.split(r'\').last;
     }
+    name = MekaarTextEncoding.sanitizeFileName(name, fallback: '');
+    if (name.isEmpty) return false;
 
     final dotIdx = name.lastIndexOf('.');
     if (dotIdx == -1 || dotIdx == name.length - 1) return false;

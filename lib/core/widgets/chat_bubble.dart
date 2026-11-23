@@ -1224,7 +1224,7 @@ int _getEmojiOnlyCount(String text) {
   if (chars.length > 4) return 0;
 
   final emojiRegex = RegExp(
-    r'^[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\s]+$',
+    r'^(?:[0-9#*]\u{FE0F}?\u{20E3}|[\u{1F000}-\u{1FAFF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{203C}\u{2049}\u{2122}\u{2139}\u{2194}-\u{21AA}\u{25AA}-\u{25FE}\u{2934}-\u{2935}\u{3030}\u{303D}\u{3297}\u{3299}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u{200D}\u{FE0E}\u{FE0F}\s])+$',
     unicode: true,
   );
 

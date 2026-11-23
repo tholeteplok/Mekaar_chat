@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/typography.dart';
+import '../utils/mekaar_text_encoding.dart';
 
 class Avatar extends StatelessWidget {
   final String? initial;
@@ -26,9 +27,7 @@ class Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final innerSize = isGuardian ? size - 4 : size;
-    final letter = initial?.isNotEmpty == true
-        ? initial![0].toUpperCase()
-        : '?';
+    final letter = MekaarTextEncoding.firstGrapheme(initial, fallback: '?');
 
     Widget avatarChild;
 

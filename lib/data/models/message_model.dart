@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/utils/mekaar_text_encoding.dart';
 
 enum MessageType { text, image, voice, video, system, location, file }
 
@@ -199,8 +200,10 @@ class FileAttachmentMeta {
       try {
         final map = jsonDecode(trimmed) as Map<String, dynamic>;
         return FileAttachmentMeta(
-          fileName:
-              map['file_name'] as String? ?? fallbackName ?? 'Berkas Dokumen',
+          fileName: MekaarTextEncoding.sanitizeFileName(
+            map['file_name'] as String? ?? fallbackName,
+            fallback: 'Berkas Dokumen',
+          ),
           fileSize: (map['file_size'] as num?)?.toInt() ?? 0,
           mimeType: map['mime_type'] as String?,
           keyB64: map['key'] as String?,
@@ -209,7 +212,10 @@ class FileAttachmentMeta {
       } catch (_) {}
     }
     return FileAttachmentMeta(
-      fileName: fallbackName ?? 'Berkas Dokumen',
+      fileName: MekaarTextEncoding.sanitizeFileName(
+        fallbackName,
+        fallback: 'Berkas Dokumen',
+      ),
       fileSize: 0,
       caption: trimmed.isNotEmpty ? trimmed : null,
     );

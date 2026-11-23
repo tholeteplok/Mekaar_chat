@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/mekaar_text_encoding.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/repositories/message_search_repository.dart';
 import '../../../data/services/local_message_database.dart';
@@ -125,7 +126,7 @@ final groupedSearchResultsProvider =
               'Obrolan';
           final rawAvatar =
               roomData?['avatar'] as String? ??
-              (rawName.isNotEmpty ? rawName[0].toUpperCase() : '💬');
+              MekaarTextEncoding.firstGrapheme(rawName, fallback: '💬');
           final avatarUrl =
               roomData?['avatarUrl'] as String? ??
               roomData?['avatar_url'] as String?;

@@ -7,6 +7,7 @@ import '../constants/colors.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 import '../utils/link_risk.dart';
+import '../utils/mekaar_text_encoding.dart';
 import 'mekaar_snackbar.dart';
 
 /// Regex standar deteksi tautan (http, https, dan www)
@@ -453,6 +454,7 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
     }
     _recognizers.clear();
 
+    final textDirection = MekaarTextEncoding.detectTextDirection(widget.text);
     final matches = _urlRegex.allMatches(widget.text).toList();
     if (matches.isEmpty) {
       if (widget.highlightQuery != null &&
@@ -462,9 +464,17 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
           style: widget.baseStyle,
           highlightQuery: widget.highlightQuery,
         );
-        return Text.rich(TextSpan(children: spans), style: widget.baseStyle);
+        return Text.rich(
+          TextSpan(children: spans),
+          style: widget.baseStyle,
+          textDirection: textDirection,
+        );
       }
-      return Text(widget.text, style: widget.baseStyle);
+      return Text(
+        widget.text,
+        style: widget.baseStyle,
+        textDirection: textDirection,
+      );
     }
 
     final spans = <InlineSpan>[];
@@ -522,6 +532,10 @@ class _MekaarLinkTextState extends State<MekaarLinkText> {
       );
     }
 
-    return Text.rich(TextSpan(children: spans), style: widget.baseStyle);
+    return Text.rich(
+      TextSpan(children: spans),
+      style: widget.baseStyle,
+      textDirection: textDirection,
+    );
   }
 }
