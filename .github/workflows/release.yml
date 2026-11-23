@@ -172,6 +172,46 @@ jobs:
             exit 1
           fi
 
+      - name: Verify Firebase & Release Keystore Parity
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'mekaar_secure_key_2026' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'mekaar' }}
+        run: |
+          KEYSTORE_SHA1=$(keytool -list -v -keystore android/app/mekaar_release.jks -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
+            | sed -n 's/^[[:space:]]*SHA1:[[:space:]]*//p' | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          export KEYSTORE_SHA1
+          python3 - << 'EOF'
+          import json, os, sys
+
+          keystore_sha1 = os.environ.get("KEYSTORE_SHA1", "").strip()
+          if len(keystore_sha1) != 40:
+              print("::error ::Gagal mengekstrak SHA-1 dari android/app/mekaar_release.jks.")
+              sys.exit(1)
+
+          with open("android/app/google-services.json", "r", encoding="utf-8") as f:
+              gs = json.load(f)
+
+          clients = gs.get("client", [])
+          prod_client = next(
+              (c for c in clients if c.get("client_info", {}).get("android_client_info", {}).get("package_name") == "com.mekaar.app"),
+              None,
+          )
+          if not prod_client:
+              print("::error ::GOOGLE_SERVICES_JSON tidak memiliki client package_name 'com.mekaar.app'.")
+              sys.exit(1)
+
+          cert_hashes = {
+              oc.get("android_info", {}).get("certificate_hash", "").strip().lower()
+              for oc in prod_client.get("oauth_client", [])
+              if oc.get("android_info", {}).get("certificate_hash")
+          }
+          if cert_hashes and keystore_sha1 not in cert_hashes:
+              print("::error ::SHA-1 keystore release tidak cocok dengan certificate_hash com.mekaar.app di GOOGLE_SERVICES_JSON.")
+              sys.exit(1)
+
+          print("Verified google-services.json includes com.mekaar.app matching release keystore SHA-1.")
+          EOF
+
       - name: Install Dependencies
         run: flutter pub get
 

@@ -26,3 +26,24 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# MEKAAR Native Receivers, Notification Managers & JNI Bridge
+-keep class com.mekaar.mekaar_chat.** { *; }
+
+# Firebase Cloud Messaging
+-keep class com.google.firebase.messaging.** { *; }
+
+# Flutter Local Notifications & Gson
+-keep class com.dexterous.flutterlocalnotifications.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class * extends com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
