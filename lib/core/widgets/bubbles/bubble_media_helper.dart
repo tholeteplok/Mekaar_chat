@@ -99,27 +99,69 @@ void registerLocalMedia(String messageId, File file, {String? url}) {
   }
 }
 
-/// Parser payload media cerdas: mengekstrak fileKeyB64 dan caption.
+/// Parser payload media cerdas: mengekstrak fileKeyB64, caption, dan jenis media (sticker/gif).
 /// Kompatibel 100% dengan pesan E2EE JSON baru maupun pesan lawas plain text / raw key.
-({String fileKeyB64, String caption}) parseMediaPayload(Message message) {
+({String fileKeyB64, String caption, String? kind}) parseMediaPayload(
+  Message message,
+) {
   final content = message.content.trim();
   if (content.startsWith('{') && content.endsWith('}')) {
     try {
       final decoded = jsonDecode(content);
       if (decoded is Map<String, dynamic>) {
+        final rawKind = decoded['kind'] as String?;
+        final normalizedKind = (rawKind == 'sticker' || rawKind == 'gif')
+            ? rawKind
+            : null;
         return (
           fileKeyB64: decoded['key'] as String? ?? '',
           caption: decoded['caption'] as String? ?? '',
+          kind: normalizedKind,
         );
       }
     } catch (_) {}
   }
   // Fallback: pesan legacy
   if (message.isEncrypted) {
-    return (fileKeyB64: message.content, caption: '');
+    return (fileKeyB64: message.content, caption: '', kind: null);
   } else {
-    return (fileKeyB64: '', caption: message.content);
+    return (fileKeyB64: '', caption: message.content, kind: null);
   }
+}
+
+/// Mengenali jenis stiker/GIF dari berkas sementara hasil keyboard rich content (Gboard Emoji Kitchen / GIF).
+String? inferKeyboardMediaKind(String filePath) {
+  if (filePath.isEmpty) return null;
+  final normalized = filePath.replaceAll('\\', '/');
+  final fileName = normalized.split('/').last.toLowerCase();
+  if (!fileName.startsWith('gboard_')) return null;
+  if (fileName.endsWith('.gif')) return 'gif';
+  return 'sticker';
+}
+
+/// Menentukan secara deterministik apakah pesan gambar merupakan stiker (Dapur Emoji/keyboard) atau GIF.
+bool isStickerOrGifMessage(Message msg) {
+  if (msg.type != MessageType.image) return false;
+  if (msg.isViewOnce) return false;
+
+  final payload = parseMediaPayload(msg);
+  if (payload.kind == 'sticker' || payload.kind == 'gif') {
+    return true;
+  }
+
+  final url = (msg.mediaUrl ?? '').toLowerCase();
+  final content = msg.content.toLowerCase();
+  if (url.contains('gboard_') || content.contains('gboard_')) return true;
+  if ((url.endsWith('.gif') ||
+          url.endsWith('.webp') ||
+          url.contains('.gif?') ||
+          url.contains('.webp?')) &&
+      (msg.content.isEmpty ||
+          msg.content == msg.mediaUrl ||
+          msg.isEncrypted)) {
+    return true;
+  }
+  return false;
 }
 
 /// Mendapatkan file media dari RAM memory cache atau disk cache lokal secara sinkron (0ms).

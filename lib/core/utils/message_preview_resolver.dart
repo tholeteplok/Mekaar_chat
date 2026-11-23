@@ -99,7 +99,15 @@ class MessagePreviewResolver {
         if (decoded is Map<String, dynamic>) {
           final fileName = decoded['file_name'] as String?;
           final caption = decoded['caption'] as String?;
+          final mediaKind = _extractMediaKind(decoded);
           final hasKey = decoded.containsKey('key');
+
+          if (mediaKind == 'sticker') {
+            return isUnreadFromOther ? '✨ Stiker baru' : '✨ Stiker';
+          }
+          if (mediaKind == 'gif') {
+            return isUnreadFromOther ? '🎞️ GIF baru' : '🎞️ GIF';
+          }
 
           // Pesan berkas / lampiran dokumen
           if (fileName != null || type == MessageType.file || rawMsgType == 'file') {
@@ -177,6 +185,9 @@ class MessagePreviewResolver {
         if (decoded is Map<String, dynamic>) {
           final fileName = decoded['file_name'] as String?;
           final caption = decoded['caption'] as String?;
+          final mediaKind = _extractMediaKind(decoded);
+          if (mediaKind == 'sticker') return '✨ Stiker';
+          if (mediaKind == 'gif') return '🎞️ GIF';
           if (fileName != null) {
             if (isRecognizedDocument(fileName)) return '📄 Dokumen';
             return '📎 Berkas';
@@ -196,6 +207,12 @@ class MessagePreviewResolver {
       return '📎 Berkas';
     }
     return replaceCustomEmojiTokens(trimmed, (_) => '[emoji]');
+  }
+
+  static String? _extractMediaKind(Map<String, dynamic> decoded) {
+    final kind = decoded['kind'] as String?;
+    if (kind == 'sticker' || kind == 'gif') return kind;
+    return null;
   }
 
   static MessageType? _parseMessageType(String typeStr) {

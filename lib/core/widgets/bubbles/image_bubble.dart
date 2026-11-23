@@ -262,27 +262,38 @@ class ImageBubble extends ConsumerWidget {
     Object? heroTag,
   }) {
     if (isSticker) {
-      Widget stickerWidget = Image.file(
-        file,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.medium,
-      );
-      if (heroTag != null) {
-        stickerWidget = Hero(tag: heroTag, child: stickerWidget);
-      }
-
-      return GestureDetector(
-        onTap: () => _openViewer(context, file, heroTag: heroTag),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 180,
-            maxHeight: 180,
-            minWidth: 80,
-            minHeight: 80,
-          ),
-          child: stickerWidget,
+      Widget stickerWidget = ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 160,
+          maxHeight: 160,
+          minWidth: 80,
+          minHeight: 80,
+        ),
+        child: Image.file(
+          file,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
         ),
       );
+
+      if (isSelected) {
+        stickerWidget = DecoratedBox(
+          decoration: BoxDecoration(
+            color: MekaarColors.blue.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.35
+                  : 0.22,
+            ),
+            borderRadius: BorderRadius.circular(MekaarRadius.sub),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: stickerWidget,
+          ),
+        );
+      }
+
+      return stickerWidget;
     }
 
     final bubbleWidth = MediaQuery.of(context).size.width * 0.76;

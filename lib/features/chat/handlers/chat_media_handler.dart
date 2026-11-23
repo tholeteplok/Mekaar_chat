@@ -93,6 +93,37 @@ class ChatMediaHandler {
     }
   }
 
+  /// Menyusun payload `content` untuk pesan gambar/stiker/GIF yang kompatibel
+  /// mundur dengan penguraian kunci E2EE (`parseMediaPayload`).
+  static String buildImageContentPayload({
+    String? fileKeyB64,
+    String? caption,
+    String? mediaKind,
+  }) {
+    final trimmedCaption = caption?.trim();
+    final hasCaption = trimmedCaption != null && trimmedCaption.isNotEmpty;
+    final hasKey = fileKeyB64 != null && fileKeyB64.isNotEmpty;
+    final normalizedKind = (mediaKind == 'sticker' || mediaKind == 'gif')
+        ? mediaKind
+        : null;
+
+    if (normalizedKind != null) {
+      return jsonEncode({
+        if (hasKey) 'key': fileKeyB64,
+        'kind': normalizedKind,
+        if (hasCaption) 'caption': trimmedCaption,
+      });
+    }
+
+    if (hasKey && hasCaption) {
+      return jsonEncode({'key': fileKeyB64, 'caption': trimmedCaption});
+    }
+    if (hasKey) {
+      return fileKeyB64;
+    }
+    return trimmedCaption ?? '';
+  }
+
   /// Mengunggah media ke Supabase Storage (dengan enkripsi E2EE jika peer key tersedia)
   /// dan mengirim pesan media ke ruang obrolan.
   static Future<void> sendMedia(
@@ -105,6 +136,7 @@ class ChatMediaHandler {
     required MessageType type,
     String? caption,
     bool? isViewOnce,
+    String? mediaKind,
     Message? replyMessage,
     required int autoDeleteHours,
     required DateTime? scheduledWipeTargetAt,
@@ -141,7 +173,12 @@ class ChatMediaHandler {
       }
 
       uploadedUrl = url;
-      final isViewOnceToSend = isViewOnce ?? false;
+      final effectiveMediaKind = type == MessageType.image
+          ? (mediaKind ?? inferKeyboardMediaKind(file.path))
+          : null;
+      final isViewOnceToSend = effectiveMediaKind != null
+          ? false
+          : (isViewOnce ?? false);
 
       final trimmedCaption = caption?.trim();
       String contentPayload;
@@ -157,17 +194,12 @@ class ChatMediaHandler {
           keyB64: fileKeyB64,
           caption: trimmedCaption,
         ).toContentJson();
-      } else if (fileKeyB64 != null && fileKeyB64.isNotEmpty) {
-        if (trimmedCaption != null && trimmedCaption.isNotEmpty) {
-          contentPayload = jsonEncode({
-            'key': fileKeyB64,
-            'caption': trimmedCaption,
-          });
-        } else {
-          contentPayload = fileKeyB64;
-        }
       } else {
-        contentPayload = trimmedCaption ?? '';
+        contentPayload = buildImageContentPayload(
+          fileKeyB64: fileKeyB64,
+          caption: trimmedCaption,
+          mediaKind: effectiveMediaKind,
+        );
       }
 
       final replyId = replyMessage?.id;

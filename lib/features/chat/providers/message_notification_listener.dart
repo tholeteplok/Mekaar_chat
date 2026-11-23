@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -296,6 +297,17 @@ class MessageNotificationListener {
     }
     switch (msgType) {
       case 'image':
+        final trimmed = content.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            final decoded = jsonDecode(trimmed);
+            if (decoded is Map<String, dynamic>) {
+              final kind = decoded['kind'] as String?;
+              if (kind == 'sticker') return '✨ Stiker';
+              if (kind == 'gif') return '🎞️ GIF';
+            }
+          } catch (_) {}
+        }
         return '📷 Foto';
       case 'voice':
         return '🎤 Pesan suara';

@@ -19,6 +19,7 @@ import '../../../core/constants/motion.dart';
 import '../../../data/services/media_compressor.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
+import '../../../core/widgets/bubbles/bubble_media_helper.dart';
 import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
@@ -1166,7 +1167,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
       );
       await tempFile.writeAsBytes(bytes);
 
-      await widget.onSendMedia!(tempFile, MessageType.image);
+      await widget.onSendMedia!(tempFile, MessageType.image, isViewOnce: false);
     } catch (e) {
       if (mounted) {
         MekaarSnackbar.error(
@@ -1796,6 +1797,12 @@ class _ReplyPreview extends StatelessWidget {
     if (message.isDeleted) return '🚫 Pesan telah dihapus';
     switch (message.type) {
       case MessageType.image:
+        final imagePayload = parseMediaPayload(message);
+        if (imagePayload.kind == 'sticker') return '✨ Stiker';
+        if (imagePayload.kind == 'gif') return '🎞️ GIF';
+        if (imagePayload.caption.trim().isNotEmpty) {
+          return '📷 ${imagePayload.caption.trim()}';
+        }
         return '📷 Foto';
       case MessageType.video:
         return '🎥 Video';

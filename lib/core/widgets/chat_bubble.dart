@@ -194,23 +194,7 @@ class ChatBubble extends ConsumerWidget {
     );
   }
 
-  bool _isStickerOrGifMessage(Message msg) {
-    if (msg.type != MessageType.image) return false;
-    if (msg.isViewOnce) return false;
-    final url = (msg.mediaUrl ?? '').toLowerCase();
-    final content = msg.content.toLowerCase();
-    if (url.contains('gboard_') || content.contains('gboard_')) return true;
-    if ((url.endsWith('.gif') ||
-            url.endsWith('.webp') ||
-            url.contains('.gif?') ||
-            url.contains('.webp?')) &&
-        (msg.content.isEmpty ||
-            msg.content == msg.mediaUrl ||
-            msg.isEncrypted)) {
-      return true;
-    }
-    return false;
-  }
+  bool _isStickerOrGifMessage(Message msg) => isStickerOrGifMessage(msg);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -268,7 +252,7 @@ class ChatBubble extends ConsumerWidget {
     final isMedia = isImage || isVideo;
     final mediaPayload = isMedia
         ? parseMediaPayload(message)
-        : (fileKeyB64: '', caption: '');
+        : (fileKeyB64: '', caption: '', kind: null);
     final hasImageCaption = isImage && mediaPayload.caption.trim().isNotEmpty;
     final hasMediaCaption = isMedia && mediaPayload.caption.trim().isNotEmpty;
     final hasReply = message.replyToId != null && !isDeleted;
@@ -277,6 +261,7 @@ class ChatBubble extends ConsumerWidget {
         !isMe && senderName != null && senderName!.isNotEmpty && !isDeleted;
     final isPureFramelessImage =
         isImage &&
+        !isSticker &&
         !hasImageCaption &&
         !hasReply &&
         !hasHeader &&
@@ -1103,9 +1088,15 @@ class ChatBubble extends ConsumerWidget {
         switch (target.type) {
           case MessageType.image:
             final imagePayload = parseMediaPayload(target);
-            previewText = imagePayload.caption.isNotEmpty
-                ? '📷 ${imagePayload.caption}'
-                : '📷 Foto';
+            if (imagePayload.kind == 'sticker') {
+              previewText = '✨ Stiker';
+            } else if (imagePayload.kind == 'gif') {
+              previewText = '🎞️ GIF';
+            } else {
+              previewText = imagePayload.caption.isNotEmpty
+                  ? '📷 ${imagePayload.caption}'
+                  : '📷 Foto';
+            }
             break;
           case MessageType.voice:
             previewText = '🎙️ Pesan Suara';
