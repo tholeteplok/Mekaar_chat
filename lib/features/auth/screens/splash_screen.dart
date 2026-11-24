@@ -11,6 +11,7 @@ import '../../../data/models/sos_session_model.dart';
 import '../../sos/providers/sos_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auto_lock_provider.dart';
+import '../services/master_session_bootstrap.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -145,7 +146,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           );
         } else {
           // Bypass PIN lock screen if disabled in settings
-          // AND E2EE doesn't need restore
+          // AND E2EE doesn't need restore.
+          // Pastikan seluruh sesi Master (kontak Vault, draft, cache room, & purge terjadwal) tetap aktif!
+          await MasterSessionBootstrap.prepareSession(
+            ref,
+            isDecoy: false,
+            isDuress: false,
+            reloadLocalRooms: true,
+            triggerPurge: true,
+          );
+          if (!mounted) return;
           if (authState.needsUsername) {
             Navigator.pushReplacementNamed(context, AppRoutes.setUsername);
           } else {

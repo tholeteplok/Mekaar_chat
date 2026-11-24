@@ -401,7 +401,7 @@ class NotificationService {
     } catch (_) {}
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        const MethodChannel('com.mekaar.mekaar_chat/call_intent')
+        await const MethodChannel('com.mekaar.mekaar_chat/call_intent')
             .invokeMethod('cancelMessageNotification', {'roomId': roomId});
       } catch (_) {}
     }
@@ -414,7 +414,7 @@ class NotificationService {
     } catch (_) {}
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        const MethodChannel('com.mekaar.mekaar_chat/call_intent')
+        await const MethodChannel('com.mekaar.mekaar_chat/call_intent')
             .invokeMethod('cancelAllMessageNotifications');
       } catch (_) {}
     }

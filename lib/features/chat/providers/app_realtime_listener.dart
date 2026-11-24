@@ -89,6 +89,18 @@ class AppRealtimeListener {
     });
   }
 
+  Future<void> _runPurgeAndSyncRooms() async {
+    try {
+      final purged =
+          await _ref.read(chatRepositoryProvider).purgeExpiredMessages();
+      if (purged > 0) {
+        await _ref
+            .read(chatRoomsProvider.notifier)
+            .reloadFromLocalCache(syncRemoteInBackground: true);
+      }
+    } catch (_) {}
+  }
+
   /// Memverifikasi dan memulihkan koneksi channel jika mati atau terputus
   /// (misalnya saat aplikasi kembali ke foreground / resumed).
   void reconnectIfNeeded() {
@@ -139,11 +151,9 @@ class AppRealtimeListener {
     // yang subscribe bersamaan di window waktu yang sama.
     _periodicPurgeTimer?.cancel();
     _periodicPurgeTimer = Timer.periodic(const Duration(minutes: 10), (_) {
-      try {
-        _ref.read(chatRepositoryProvider).purgeExpiredMessages();
-      } catch (_) {}
+      unawaited(_runPurgeAndSyncRooms());
     });
-    unawaited(_ref.read(chatRepositoryProvider).purgeExpiredMessages());
+    unawaited(_runPurgeAndSyncRooms());
 
     _startHeartbeatTimer();
 

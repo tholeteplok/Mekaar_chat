@@ -7,7 +7,6 @@ import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/services/guest_session_guard.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/animations.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
@@ -21,14 +20,12 @@ import '../../sos/providers/sos_provider.dart';
 import '../../../data/services/e2ee_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
-import '../../../data/services/local_message_database.dart';
 import '../../../data/services/privacy_consent_service.dart';
-import '../../../data/repositories/private_contact_repository.dart';
 import '../../chat/providers/private_vault_provider.dart';
-import '../../chat/providers/chat_provider.dart';
 import '../../chat/providers/chat_draft_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auto_lock_provider.dart';
+import '../services/master_session_bootstrap.dart';
 import '../../../main.dart';
 
 class PinScreen extends ConsumerStatefulWidget {
@@ -247,45 +244,17 @@ class _PinScreenState extends ConsumerState<PinScreen> {
           final isDecoy = authState.isDecoyActive;
           final isDuress = authState.isDuressActive;
 
-          // Isolasi database pesan: HANYA beralih ke mekaar_decoy.db jika mode Duress (<10ms)
-          // Mode Tamu (Guest) tetap menggunakan database utama untuk obrolan reguler
-          await LocalMessageDatabase.instance.switchMode(isDecoy: isDuress);
-
-          // Segera invalidasi draf pesan untuk mode database yang aktif
-          ref.invalidate(chatDraftsProvider);
-
-          // Eksekusi paralel I/O lokal (draf, local-first rooms cache, preload vault, dan init vault key)
+          // Eksekusi paralel I/O lokal (mode DB, draf, rooms cache, preload & buka Vault, dan init vault key)
           await Future.wait([
-            // 1. Muat ulang draf pesan lokal
-            ref.read(chatDraftsProvider.notifier).reloadDrafts(),
+            MasterSessionBootstrap.prepareSession(
+              ref,
+              isDecoy: isDecoy,
+              isDuress: isDuress,
+              reloadLocalRooms: true,
+              triggerPurge: !isDuress,
+            ),
 
-            // 2. Segera muat daftar room dari SQLite lokal secara instan (0ms, zero network blocking)
-            // Sinkronisasi remote Supabase berjalan di latar belakang hanya jika bukan duress
-            ref.read(chatRoomsProvider.notifier).reloadFromLocalCache(syncRemoteInBackground: !isDuress),
-
-            // 3. Preload set vault rahasia secara tuntas (0ms latency, anti-flash)
-            () async {
-              try {
-                final vaultRepo = ref.read(privateContactRepositoryProvider);
-                await vaultRepo.preloadCache();
-                await ref.read(hiddenContactUserIdsProvider.notifier).loadHiddenContacts();
-                await ref.read(hiddenRoomIdsProvider.notifier).loadHiddenRooms();
-                if (!isDecoy) {
-                  // Mode Master: Otomatis membuka seluruh slot brankas vault & pulihkan preferensi persisten!
-                  ref.read(unlockedVaultSlotsProvider.notifier).state = {1, 2, 3};
-                  ref.read(privateVaultUnlockedProvider.notifier).state = true;
-                  unawaited(vaultRepo.syncToNativeVault(isVaultUnlocked: true));
-                  unawaited(GuestSessionGuard.restoreMasterPreferences(ref));
-                } else {
-                  // Mode Tamu / Duress: Segel seluruh brankas vault!
-                  ref.read(unlockedVaultSlotsProvider.notifier).state = {};
-                  ref.read(privateVaultUnlockedProvider.notifier).state = false;
-                  unawaited(vaultRepo.syncToNativeVault(isVaultUnlocked: false));
-                }
-              } catch (_) {}
-            }(),
-
-            // 4. Inisialisasi kunci brankas 3-jalur (Argon2id v2 sesuai ruang Master/Guest/Duress)
+            // Inisialisasi kunci brankas 3-jalur (Argon2id v2 sesuai ruang Master/Guest/Duress)
             () async {
               try {
                 final vaultSpace = authState.vaultSpace;

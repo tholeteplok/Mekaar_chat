@@ -480,6 +480,24 @@ class LocalMessageDatabase {
     if (rooms.isEmpty) return;
     try {
       final db = await database;
+      // Pertahankan metadata pembersihan terjadwal lokal jika payload inbox tidak menyertakannya
+      final existingWipes = <String, Map<String, Object?>>{};
+      try {
+        final existingRows = await db.query(
+          _roomsCacheTableName,
+          columns: [
+            'room_id',
+            'scheduled_wipe_mode',
+            'scheduled_wipe_time',
+            'scheduled_wipe_target_at',
+          ],
+        );
+        for (final row in existingRows) {
+          final id = row['room_id'] as String?;
+          if (id != null) existingWipes[id] = row;
+        }
+      } catch (_) {}
+
       final batch = db.batch();
       final now = DateTime.now().toUtc().toIso8601String();
 
@@ -496,6 +514,16 @@ class LocalMessageDatabase {
 
         final rawJson = jsonEncode(serializableMap);
         final timestampStr = r['timestamp']?.toString() ?? now;
+        final existingWipe = existingWipes[roomId];
+        final wipeMode = r.containsKey('scheduled_wipe_mode')
+            ? (r['scheduled_wipe_mode'] as String? ?? 'off')
+            : (existingWipe?['scheduled_wipe_mode'] as String? ?? 'off');
+        final wipeTime = r.containsKey('scheduled_wipe_time')
+            ? r['scheduled_wipe_time'] as String?
+            : existingWipe?['scheduled_wipe_time'] as String?;
+        final wipeTarget = r.containsKey('scheduled_wipe_target_at')
+            ? r['scheduled_wipe_target_at'] as String?
+            : existingWipe?['scheduled_wipe_target_at'] as String?;
 
         batch.insert(_roomsCacheTableName, {
           'room_id': roomId,
@@ -517,12 +545,9 @@ class LocalMessageDatabase {
           'is_group': (r['isGroup'] == true || r['is_group'] == true) ? 1 : 0,
           'member_count':
               r['memberCount'] as int? ?? r['member_count'] as int? ?? 0,
-          'scheduled_wipe_mode':
-              r['scheduled_wipe_mode'] as String? ?? 'off',
-          'scheduled_wipe_time':
-              r['scheduled_wipe_time'] as String?,
-          'scheduled_wipe_target_at':
-              r['scheduled_wipe_target_at'] as String?,
+          'scheduled_wipe_mode': wipeMode,
+          'scheduled_wipe_time': wipeTime,
+          'scheduled_wipe_target_at': wipeTarget,
           'raw_json': rawJson,
           'updated_at': timestampStr,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
@@ -1126,8 +1151,10 @@ class LocalMessageDatabase {
     }
   }
 
-  /// Hapus pesan-pesan yang waktu autoDeleteAt sudah kedaluwarsa
-  Future<void> purgeExpiredMessages() async {
+  /// Hapus pesan-pesan yang waktu autoDeleteAt atau pembersihan terjadwalnya sudah kedaluwarsa.
+  /// Mengembalikan himpunan `roomId` yang terkena eksekusi pembersihan terjadwal lokal.
+  Future<Set<String>> purgeExpiredMessages() async {
+    final Set<String> wipedRoomIds = {};
     try {
       final db = await database;
       final nowUtc = DateTime.now().toUtc();
@@ -1167,27 +1194,57 @@ class LocalMessageDatabase {
         );
       });
 
-      // Evaluasi dan bersihkan pesan pada kamar yang scheduled wipe-nya sudah jatuh tempo
+      // Evaluasi dan bersihkan pesan pada kamar yang scheduled wipe-nya sudah jatuh tempo (timezone-agnostic)
       try {
-        final dueRooms = await db.query(
+        final scheduledRooms = await db.query(
           _roomsCacheTableName,
-          columns: ['room_id', 'scheduled_wipe_target_at'],
+          columns: [
+            'room_id',
+            'scheduled_wipe_mode',
+            'scheduled_wipe_time',
+            'scheduled_wipe_target_at',
+          ],
           where:
-              'scheduled_wipe_target_at IS NOT NULL AND scheduled_wipe_target_at <= ?',
-          whereArgs: [nowIsoUtc],
+              "scheduled_wipe_mode != 'off' AND scheduled_wipe_target_at IS NOT NULL",
         );
-        for (final r in dueRooms) {
+        for (final r in scheduledRooms) {
           final rId = r['room_id'] as String?;
+          final mode = r['scheduled_wipe_mode'] as String? ?? 'off';
+          final timeStr = r['scheduled_wipe_time'] as String?;
           final targetStr = r['scheduled_wipe_target_at'] as String?;
-          if (rId != null && targetStr != null) {
-            final targetTime = DateTime.tryParse(targetStr)?.toUtc() ?? nowUtc;
-            await executeRoomScheduledWipeLocal(rId, targetTime);
+          if (rId == null || targetStr == null) continue;
+
+          final targetTime = DateTime.tryParse(targetStr)?.toUtc();
+          if (targetTime == null || targetTime.isAfter(nowUtc)) continue;
+
+          await executeRoomScheduledWipeLocal(rId, targetTime);
+          wipedRoomIds.add(rId);
+
+          if (mode == 'one_shot') {
+            await saveRoomScheduledWipe(
+              roomId: rId,
+              mode: 'off',
+              timeString: null,
+              targetAtUtc: null,
+            );
+          } else if (mode == 'daily') {
+            var nextTarget = targetTime.add(const Duration(days: 1));
+            while (!nextTarget.isAfter(nowUtc)) {
+              nextTarget = nextTarget.add(const Duration(days: 1));
+            }
+            await saveRoomScheduledWipe(
+              roomId: rId,
+              mode: 'daily',
+              timeString: timeStr,
+              targetAtUtc: nextTarget,
+            );
           }
         }
       } catch (_) {}
     } catch (e) {
       _logger.w('Gagal membersihkan pesan kedaluwarsa di SQLite: $e');
     }
+    return wipedRoomIds;
   }
 
   /// Bersihkan seluruh database lokal (saat logout)

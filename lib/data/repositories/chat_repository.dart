@@ -1949,14 +1949,31 @@ class ChatRepository {
       }
     }
 
-    unawaited(LocalMessageDatabase.instance.purgeExpiredMessages());
+    final wipedRoomIds = await LocalMessageDatabase.instance.purgeExpiredMessages();
+    for (final wipedRoomId in wipedRoomIds) {
+      final pool = _activeRoomMessagePools[wipedRoomId];
+      final controller = _activeRoomControllers[wipedRoomId];
+      if (pool != null && pool.isNotEmpty) {
+        for (final msgId in pool.keys) {
+          _decryptedContentCache.remove(msgId);
+        }
+        pool.clear();
+        if (controller != null && !controller.isClosed) {
+          controller.add(const []);
+        }
+      }
+    }
+
     try {
       final response = await _supabaseService.client.rpc(
         'purge_expired_messages',
       );
-      return (response as int?) ?? 0;
+      final serverDeleted = (response as int?) ?? 0;
+      return serverDeleted > wipedRoomIds.length
+          ? serverDeleted
+          : wipedRoomIds.length;
     } catch (_) {
-      return 0;
+      return wipedRoomIds.length;
     }
   }
 

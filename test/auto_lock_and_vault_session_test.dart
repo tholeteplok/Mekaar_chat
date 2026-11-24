@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_bottom_sheet.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_custom_duration_picker_sheet.dart';
 import 'package:mekaar_chat/features/auth/providers/auto_lock_provider.dart';
+import 'package:mekaar_chat/features/auth/services/master_session_bootstrap.dart';
+import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
 import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
 
 void main() {
@@ -13,6 +16,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
   });
 
   group('AutoLockTimeout & Notifier Tests', () {
@@ -295,6 +299,47 @@ void main() {
         const Duration(seconds: 15),
       );
       expect(find.text('Kustom (15 Detik)'), findsOneWidget);
+    });
+
+    testWidgets('MasterSessionBootstrap membuka seluruh slot kontak Vault saat sesi Master tanpa PIN (AutoLockTimeout.off)', (tester) async {
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  capturedRef = ref;
+                  return ElevatedButton(
+                    onPressed: () async {
+                      await MasterSessionBootstrap.prepareSession(
+                        ref,
+                        isDecoy: false,
+                        isDuress: false,
+                        reloadLocalRooms: false,
+                        triggerPurge: false,
+                      );
+                    },
+                    child: const Text('Bootstrap Master'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(capturedRef.read(unlockedVaultSlotsProvider), isEmpty);
+      expect(capturedRef.read(privateVaultUnlockedProvider), isFalse);
+
+      await tester.tap(find.text('Bootstrap Master'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      expect(capturedRef.read(unlockedVaultSlotsProvider), {1, 2, 3});
+      expect(capturedRef.read(privateVaultUnlockedProvider), isTrue);
     });
   });
 }

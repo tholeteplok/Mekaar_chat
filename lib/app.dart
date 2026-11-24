@@ -52,7 +52,15 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
       unawaited(ref.read(autoLockControllerProvider).handleAppResumed(ref));
 
       // Pemicu otomatis pembersihan pesan kedaluwarsa & pembersihan terjadwal saat aplikasi aktif kembali
-      unawaited(ref.read(chatRepositoryProvider).purgeExpiredMessages());
+      unawaited(() async {
+        final purged =
+            await ref.read(chatRepositoryProvider).purgeExpiredMessages();
+        if (purged > 0 && mounted) {
+          await ref
+              .read(chatRoomsProvider.notifier)
+              .reloadFromLocalCache(syncRemoteInBackground: true);
+        }
+      }());
     }
   }
 

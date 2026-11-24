@@ -843,6 +843,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             );
       }
     } else if (state == AppLifecycleState.resumed) {
+      // Evaluasi ulang jadwal pembersihan & pesan kedaluwarsa saat kembali ke room dari background
+      unawaited(_controller.loadRoomSettings());
+      unawaited(
+        ref
+            .read(chatRepositoryProvider)
+            .purgeExpiredMessages(targetRoomId: widget.chatId),
+      );
       if (_wasKeyboardOpenOnPause && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
