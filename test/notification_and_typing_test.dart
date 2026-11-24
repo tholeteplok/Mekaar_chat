@@ -191,11 +191,12 @@ void main() {
   });
 
   group('ContactListScreen & Nearby Visual Parity Tests', () {
-    test('ContactListScreen mendefinisikan main tabs Semua Kontak dan Teman Sekitar', () {
-      const mainTabs = ['Semua Kontak', 'Teman Sekitar'];
-      expect(mainTabs.length, 2);
-      expect(mainTabs[0], 'Semua Kontak');
-      expect(mainTabs[1], 'Teman Sekitar');
+    test('ContactListScreen mendefinisikan main tabs Kontak, Grup, dan Sekitar', () {
+      const mainTabs = ['Kontak', 'Grup', 'Sekitar'];
+      expect(mainTabs.length, 3);
+      expect(mainTabs[0], 'Kontak');
+      expect(mainTabs[1], 'Grup');
+      expect(mainTabs[2], 'Sekitar');
     });
 
     test('NearbyFriendsCanvas mendukung showInternalHeader flag untuk mencegah judul ganda', () {
@@ -205,13 +206,14 @@ void main() {
 
     test('ContactListScreen header popup menu mendefinisikan icon dinamis sesuai tab aktif', () {
       IconData getFilterHeaderIcon(int mainTabIndex) {
-        return mainTabIndex == 0
-            ? SolarIconsOutline.sort
-            : SolarIconsOutline.tuningSquare;
+        return mainTabIndex == 2
+            ? SolarIconsOutline.tuningSquare
+            : SolarIconsOutline.sort;
       }
 
       expect(getFilterHeaderIcon(0), equals(SolarIconsOutline.sort));
-      expect(getFilterHeaderIcon(1), equals(SolarIconsOutline.tuningSquare));
+      expect(getFilterHeaderIcon(1), equals(SolarIconsOutline.sort));
+      expect(getFilterHeaderIcon(2), equals(SolarIconsOutline.tuningSquare));
     });
 
     test('ContactListScreen popup menu opsi memiliki nilai aksi yang valid', () {

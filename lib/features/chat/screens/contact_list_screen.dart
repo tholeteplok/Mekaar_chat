@@ -56,7 +56,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
   bool _isRefreshing = false;
   double _collapseProgress = 0.0;
   int _selectedMainTabIndex = 0;
-  final List<String> _mainTabs = const ['Semua Kontak', 'Teman Sekitar'];
+  final List<String> _mainTabs = const ['Kontak', 'Grup', 'Sekitar'];
   int _selectedSortIndex = 0;
 
   bool _isGridView = false;
@@ -271,6 +271,63 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     return filteredContacts;
   }
 
+  bool _isGroupRoom(Map<String, dynamic> room) =>
+      room['isGroup'] == true ||
+      room['roomType'] == 'group' ||
+      room['room_type'] == 'group';
+
+  List<Map<String, dynamic>> _computeVisibleGroups(
+    List<Map<String, dynamic>> rooms, {
+    required bool isDuress,
+    required Set<int> unlockedSlots,
+    required Set<String> hiddenRoomIds,
+    required bool isVaultUnlocked,
+  }) {
+    if (isDuress) return const <Map<String, dynamic>>[];
+
+    final isAnyVaultUnlocked = unlockedSlots.isNotEmpty || isVaultUnlocked;
+    final query = _searchQuery.toLowerCase();
+
+    final filtered = rooms.where((room) {
+      if (!_isGroupRoom(room)) return false;
+
+      final roomId = (room['id'] ?? room['room_id'] ?? '').toString();
+      if (roomId.isEmpty) return false;
+      if (hiddenRoomIds.contains(roomId) && !isAnyVaultUnlocked) return false;
+
+      if (query.isNotEmpty) {
+        final name = (room['name'] ?? '').toString().toLowerCase();
+        if (!name.contains(query)) return false;
+      }
+      return true;
+    }).toList();
+
+    if (_selectedSortIndex == 0) {
+      filtered.sort(
+        (a, b) => (a['name'] ?? '')
+            .toString()
+            .toLowerCase()
+            .compareTo((b['name'] ?? '').toString().toLowerCase()),
+      );
+    } else {
+      filtered.sort((a, b) {
+        final aRaw = a['timestamp'];
+        final bRaw = b['timestamp'];
+        final aTime = aRaw is DateTime
+            ? aRaw
+            : DateTime.tryParse(aRaw?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = bRaw is DateTime
+            ? bRaw
+            : DateTime.tryParse(bRaw?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+    }
+
+    return filtered;
+  }
+
   void _openCreateGroupFromSelection(List<ContactItem> selectedContacts) {
     if (selectedContacts.isEmpty) return;
     final ids = selectedContacts.map((c) => c.contactUserId).toList();
@@ -394,6 +451,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
     final authState = ref.watch(authProvider);
     final isDuress = authState.isDuressActive;
     final contactsAsync = ref.watch(userContactsProvider);
+    final chatRoomsAsync = ref.watch(chatRoomsProvider);
     final isVaultUnlocked = ref.watch(privateVaultUnlockedProvider);
     final unlockedSlots = ref.watch(unlockedVaultSlotsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
@@ -409,6 +467,16 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         isVaultUnlocked: isVaultUnlocked,
       ),
       orElse: () => const <ContactItem>[],
+    );
+    final visibleGroups = chatRoomsAsync.maybeWhen(
+      data: (rooms) => _computeVisibleGroups(
+        rooms,
+        isDuress: isDuress,
+        unlockedSlots: unlockedSlots,
+        hiddenRoomIds: hiddenRoomIds,
+        isVaultUnlocked: isVaultUnlocked,
+      ),
+      orElse: () => const <Map<String, dynamic>>[],
     );
     final selectedContacts = _isSelectionMode
         ? visibleContacts
@@ -485,7 +553,11 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
               isRefreshing: _isRefreshing,
               searchController: _searchController,
               searchFocusNode: _searchFocusNode,
-              searchHint: 'Cari nama, username, atau email...',
+              searchHint: _selectedMainTabIndex == 1
+                  ? 'Cari nama grup...'
+                  : (_selectedMainTabIndex == 2
+                      ? 'Cari teman di sekitar...'
+                      : 'Cari nama, username, atau email...'),
               onSearchChanged: (val) {
                 _searchDebounceTimer?.cancel();
                 _searchDebounceTimer =
@@ -529,14 +601,16 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         ),
                         PopupMenuButton<String>(
                           icon: Icon(
-                            _selectedMainTabIndex == 0
-                                ? SolarIconsOutline.sort
-                                : SolarIconsOutline.tuningSquare,
+                            _selectedMainTabIndex == 2
+                                ? SolarIconsOutline.tuningSquare
+                                : SolarIconsOutline.sort,
                             color: MekaarColors.textPrimaryOf(context),
                           ),
                           tooltip: _selectedMainTabIndex == 0
                               ? 'Filter & Tampilan Kontak'
-                              : 'Filter & Radar Sekitar',
+                              : (_selectedMainTabIndex == 1
+                                  ? 'Filter & Tampilan Grup'
+                                  : 'Filter & Radar Sekitar'),
                           elevation: 4,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -624,6 +698,38 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                   isSelected: _isGridView,
                                 ),
                               ];
+                            } else if (_selectedMainTabIndex == 1) {
+                              return [
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'sort_az',
+                                  icon: SolarIconsOutline.sortByAlphabet,
+                                  label: 'A - Z (Nama Grup)',
+                                  isSelected: _selectedSortIndex == 0,
+                                ),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'sort_recent',
+                                  icon: SolarIconsOutline.sortByTime,
+                                  label: 'Aktivitas Terbaru',
+                                  isSelected: _selectedSortIndex == 1,
+                                ),
+                                const PopupMenuDivider(height: 1),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'view_list',
+                                  icon: SolarIconsOutline.list,
+                                  label: 'Tampilan Daftar (List)',
+                                  isSelected: !_isGridView,
+                                ),
+                                _buildFilterMenuItem(
+                                  context: ctx,
+                                  value: 'view_grid',
+                                  icon: SolarIconsOutline.menuDotsSquare,
+                                  label: 'Tampilan Kotak (Grid)',
+                                  isSelected: _isGridView,
+                                ),
+                              ];
                             } else {
                               return [
                                 _buildFilterMenuItem(
@@ -669,14 +775,30 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                           },
                         ),
                         IconButton(
+                          key: ValueKey(
+                            _selectedMainTabIndex == 1
+                                ? 'contact_header_create_group_btn'
+                                : 'contact_header_add_contact_btn',
+                          ),
                           icon: Icon(
-                            SolarIconsOutline.userPlus,
+                            _selectedMainTabIndex == 1
+                                ? SolarIconsOutline.usersGroupTwoRounded
+                                : SolarIconsOutline.userPlus,
                             color: MekaarColors.textPrimaryOf(context),
                           ),
-                          tooltip: 'Tambah Kontak Baru',
+                          tooltip: _selectedMainTabIndex == 1
+                              ? 'Buat Grup Baru'
+                              : 'Tambah Kontak Baru',
                           onPressed: () {
                             HapticService.trigger(MekaarHapticIntent.selection);
-                            AddContactSheet.show(context);
+                            if (_selectedMainTabIndex == 1) {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.createGroupSelectMembers,
+                              );
+                            } else {
+                              AddContactSheet.show(context);
+                            }
                           },
                         ),
                         IconButton(
@@ -692,7 +814,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                     ),
             ),
             const SizedBox(height: 6),
-            // Tab Atas Utama: ['Semua Kontak', 'Teman Sekitar']
+            // Tab Atas Utama: ['Kontak', 'Grup', 'Sekitar']
             MekaarSlidingSegmentBar(
               tabs: _mainTabs,
               selectedIndex: _selectedMainTabIndex,
@@ -731,9 +853,19 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                 },
                 onRefresh: () async {
                   try {
-                    await ref
-                        .read(userContactsProvider.notifier)
-                        .refreshContacts(forceLoading: false);
+                    if (_selectedMainTabIndex == 1) {
+                      await ref
+                          .read(chatRoomsProvider.notifier)
+                          .refreshRooms(forceLoading: false);
+                    } else if (_selectedMainTabIndex == 2) {
+                      await ref
+                          .read(nearbyFriendsProvider.notifier)
+                          .refreshNearby(force: true);
+                    } else {
+                      await ref
+                          .read(userContactsProvider.notifier)
+                          .refreshContacts(forceLoading: false);
+                    }
                   } finally {
                     if (mounted && _isRefreshing) {
                       setState(() => _isRefreshing = false);
@@ -781,19 +913,26 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                                 );
                         },
                       )
-                    : SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                        padding: const EdgeInsets.only(bottom: 110),
-                        child: NearbyFriendsCanvas(
-                          collapseProgress: 0.0,
-                          showInternalHeader: false,
-                          onSettingsOpened: () {
-                            _awaitingLocationPermissionForNearby = true;
-                          },
-                        ),
-                      ),
+                    : _selectedMainTabIndex == 1
+                        ? _buildGroupsTabContent(
+                            chatRoomsAsync,
+                            visibleGroups,
+                            hiddenRoomIds,
+                            isVaultUnlocked,
+                          )
+                        : SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.only(bottom: 110),
+                            child: NearbyFriendsCanvas(
+                              collapseProgress: 0.0,
+                              showInternalHeader: false,
+                              onSettingsOpened: () {
+                                _awaitingLocationPermissionForNearby = true;
+                              },
+                            ),
+                          ),
               ),
             ),
           ],
@@ -844,6 +983,547 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
         MekaarSnackbar.error(context, 'Gagal membuka obrolan: $e');
       }
     }
+  }
+
+  void _openGroupChat(Map<String, dynamic> group) {
+    final roomId = (group['id'] ?? group['room_id'] ?? '').toString();
+    if (roomId.isEmpty) return;
+    final name = (group['name'] ?? 'Grup').toString();
+    final avatar = name.isNotEmpty ? name[0].toUpperCase() : 'G';
+    final avatarUrl = group['avatarUrl'] as String?;
+
+    HapticService.trigger(MekaarHapticIntent.selection);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.chat,
+      arguments: {
+        'chatId': roomId,
+        'chatName': name,
+        'chatAvatar': avatar,
+        'chatAvatarUrl': avatarUrl,
+        'isGuardian': false,
+        'isGroup': true,
+      },
+    );
+  }
+
+  void _openGroupDetails(Map<String, dynamic> group) {
+    final roomId = (group['id'] ?? group['room_id'] ?? '').toString();
+    if (roomId.isEmpty) return;
+    final name = (group['name'] ?? 'Grup').toString();
+    final avatarUrl = group['avatarUrl'] as String?;
+
+    HapticService.trigger(MekaarHapticIntent.selection);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.groupDetails,
+      arguments: {
+        'roomId': roomId,
+        'groupName': name,
+        'groupAvatarUrl': avatarUrl,
+      },
+    );
+  }
+
+  Widget _buildGroupsTabContent(
+    AsyncValue<List<Map<String, dynamic>>> chatRoomsAsync,
+    List<Map<String, dynamic>> visibleGroups,
+    Set<String> hiddenRoomIds,
+    bool isVaultUnlocked,
+  ) {
+    return chatRoomsAsync.when(
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.only(top: 60),
+          child: MekaarStateView(
+            pose: MikaPose.neutral,
+            title: 'Memuat Grup',
+            message: 'Sedang mengambil daftar grup Anda...',
+          ),
+        ),
+      ),
+      error: (err, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 60),
+          child: MekaarStateView(
+            illustration: ErrorResolver.resolveIllustration(err),
+            stateIcon: ErrorResolver.resolveIllustration(err) == null
+                ? ErrorResolver.resolveIcon(err)
+                : null,
+            stateIconColor: ErrorResolver.resolveIconColor(err, context),
+            title: 'Gagal Memuat Grup',
+            message: ErrorResolver.resolve(err),
+            actionLabel: 'Coba Lagi',
+            onAction: () => ref
+                .read(chatRoomsProvider.notifier)
+                .refreshRooms(forceLoading: false),
+          ),
+        ),
+      ),
+      data: (_) {
+        return visibleGroups.isEmpty
+            ? _buildGroupsEmptyState()
+            : _buildGroupsCard(visibleGroups, hiddenRoomIds, isVaultUnlocked);
+      },
+    );
+  }
+
+  Widget _buildGroupsCard(
+    List<Map<String, dynamic>> groups,
+    Set<String> hiddenRoomIds,
+    bool isVaultUnlocked,
+  ) {
+    return _isGridView
+        ? ListView(
+            controller: _contactsScrollController,
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ).copyWith(bottom: 110),
+            children: [
+              _buildGroupsGridContent(groups, hiddenRoomIds, isVaultUnlocked),
+            ],
+          )
+        : _buildGroupsListContent(groups, hiddenRoomIds, isVaultUnlocked);
+  }
+
+  String _formatGroupIdentitySubtitle(Map<String, dynamic> group) {
+    final memberCount = group['memberCount'] as int? ?? 0;
+    final encVer = group['encryptionVersion'] as int? ?? 0;
+    if (memberCount > 0) {
+      return encVer >= 1 ? '$memberCount Anggota • Terenkripsi' : '$memberCount Anggota';
+    }
+    return encVer >= 1 ? 'Grup Terenkripsi' : 'Grup';
+  }
+
+  Widget _buildGroupsGridContent(
+    List<Map<String, dynamic>> groups,
+    Set<String> hiddenRoomIds,
+    bool isVaultUnlocked,
+  ) {
+    final primaryColor = MekaarColors.textPrimaryOf(context);
+    final mutedColor = MekaarColors.textSecondaryOf(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: groups.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.82,
+        ),
+        itemBuilder: (context, index) {
+          final group = groups[index];
+          final roomId = (group['id'] ?? group['room_id'] ?? '').toString();
+          final name = (group['name'] ?? 'Grup').toString();
+          final avatar = name.isNotEmpty ? name[0].toUpperCase() : 'G';
+          final avatarUrl = group['avatarUrl'] as String?;
+          final memberCount = group['memberCount'] as int? ?? 0;
+          final isHidden = hiddenRoomIds.contains(roomId);
+
+          return Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _openGroupChat(group),
+              onLongPress: () {
+                HapticService.trigger(MekaarHapticIntent.selection);
+                _showGroupContextMenu(context, group);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Avatar(
+                          imageUrl: avatarUrl,
+                          initial: avatar,
+                          isGuardian: false,
+                          size: 52,
+                        ),
+                        if (isHidden && isVaultUnlocked)
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: MekaarColors.accentOf(context),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: MekaarColors.surfaceOf(context),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: const Icon(
+                                SolarIconsOutline.lockKeyhole,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      name,
+                      style: MekaarTypography.bodyMD.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: primaryColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      memberCount > 0 ? '$memberCount Anggota' : 'Grup',
+                      style: MekaarTypography.bodySM.copyWith(
+                        fontSize: 11,
+                        color: mutedColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGroupsListContent(
+    List<Map<String, dynamic>> groups,
+    Set<String> hiddenRoomIds,
+    bool isVaultUnlocked,
+  ) {
+    final primaryColor = MekaarColors.textPrimaryOf(context);
+    final mutedColor = MekaarColors.textSecondaryOf(context);
+
+    return ListView.separated(
+      controller: _contactsScrollController,
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      padding: const EdgeInsets.only(top: 4, bottom: 110),
+      itemCount: groups.length,
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        thickness: 0.8,
+        indent: 78,
+        endIndent: 0,
+        color: MekaarColors.borderOf(context).withValues(alpha: 0.35),
+      ),
+      itemBuilder: (context, index) {
+        final group = groups[index];
+        final roomId = (group['id'] ?? group['room_id'] ?? '').toString();
+        final name = (group['name'] ?? 'Grup').toString();
+        final avatar = name.isNotEmpty ? name[0].toUpperCase() : 'G';
+        final avatarUrl = group['avatarUrl'] as String?;
+        final isHidden = hiddenRoomIds.contains(roomId);
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _openGroupChat(group),
+            onLongPress: () {
+              HapticService.trigger(MekaarHapticIntent.selection);
+              _showGroupContextMenu(context, group);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Avatar(
+                    imageUrl: avatarUrl,
+                    initial: avatar,
+                    isGuardian: false,
+                    size: 48,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: MekaarTypography.bodyMD.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: primaryColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isHidden && isVaultUnlocked) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: MekaarColors.accentOf(
+                                    context,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      SolarIconsOutline.lockKeyhole,
+                                      size: 11,
+                                      color: MekaarColors.accentOf(context),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Vault',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: MekaarColors.accentOf(context),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatGroupIdentitySubtitle(group),
+                          style: MekaarTypography.subtitle.copyWith(
+                            fontSize: 13,
+                            color: mutedColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      SolarIconsOutline.infoCircle,
+                      color: mutedColor,
+                      size: 20,
+                    ),
+                    onPressed: () => _openGroupDetails(group),
+                    tooltip: 'Info & Anggota Grup',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupsEmptyState() {
+    final hasFilter = _searchQuery.isNotEmpty;
+    return ListView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      padding: const EdgeInsets.only(bottom: 110),
+      children: [
+        const SizedBox(height: 60),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                MikaIllustration(
+                  type: hasFilter
+                      ? MikaIllustrationType.emptySearch
+                      : MikaIllustrationType.emptyContacts,
+                  size: 160,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  hasFilter ? 'Grup Tidak Ditemukan' : 'Belum Ada Grup',
+                  style: MekaarTypography.headingMD.copyWith(
+                    color: MekaarColors.textPrimaryOf(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  hasFilter
+                      ? 'Tidak ada grup yang cocok dengan kata kunci pencarian.'
+                      : 'Buat grup baru untuk berkomunikasi aman bersama keluarga atau tim Anda.',
+                  style: MekaarTypography.bodyMD.copyWith(
+                    color: MekaarColors.textSecondaryOf(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (!hasFilter) ...[
+                  const SizedBox(height: MekaarSpacing.xl),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      HapticService.trigger(MekaarHapticIntent.selection);
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.createGroupSelectMembers,
+                      );
+                    },
+                    icon: const Icon(
+                      SolarIconsOutline.usersGroupTwoRounded,
+                      size: 18,
+                    ),
+                    label: const Text('Buat Grup Baru'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showGroupContextMenu(
+    BuildContext context,
+    Map<String, dynamic> group,
+  ) {
+    final roomId = (group['id'] ?? group['room_id'] ?? '').toString();
+    if (roomId.isEmpty) return;
+    final name = (group['name'] ?? 'Grup').toString();
+    final avatar = name.isNotEmpty ? name[0].toUpperCase() : 'G';
+    final avatarUrl = group['avatarUrl'] as String?;
+    final memberCount = group['memberCount'] as int? ?? 0;
+    final isHidden = ref.read(hiddenRoomIdsProvider).contains(roomId);
+
+    MekaarBottomSheet.show(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Avatar(
+                      imageUrl: avatarUrl,
+                      initial: avatar,
+                      isGuardian: false,
+                      size: 40,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: MekaarTypography.bodyMD.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (memberCount > 0)
+                            Text(
+                              '$memberCount Anggota',
+                              style: MekaarTypography.caption.copyWith(
+                                color: MekaarColors.textSecondaryOf(context),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(
+                  SolarIconsOutline.chatRoundDots,
+                  color: AppColors.blue,
+                ),
+                title: const Text('Buka Obrolan Grup'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openGroupChat(group);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  SolarIconsOutline.usersGroupTwoRounded,
+                  color: MekaarColors.accentTextOf(context),
+                ),
+                title: const Text('Info & Anggota Grup'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openGroupDetails(group);
+                },
+              ),
+              if (!ref.read(authProvider).isDecoyActive)
+                ListTile(
+                  leading: Icon(
+                    isHidden
+                        ? SolarIconsOutline.eye
+                        : SolarIconsOutline.shieldKeyhole,
+                    color: MekaarColors.guardianTeal,
+                  ),
+                  title: Text(
+                    isHidden
+                        ? 'Keluarkan dari Private Vault'
+                        : 'Sembunyikan ke Private Vault',
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    PrivateVaultDialogs.toggleRoomHiddenWithAuth(
+                      context,
+                      ref,
+                      roomId: roomId,
+                      chatName: name,
+                    );
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _confirmDeleteContact(BuildContext context, ContactItem contact) {
