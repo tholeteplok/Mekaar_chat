@@ -211,7 +211,7 @@ class _MekaarCustomDurationPickerSheetState
     final minVal = _minFor(_unit);
     final maxVal = widget.maxFor(_unit);
 
-    return MekaarBottomSheet(
+    return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -437,6 +437,10 @@ class _MekaarCustomDurationPickerSheetState
                 flex: 2,
                 child: ElevatedButton(
                   onPressed: () {
+                    final parsed = int.tryParse(_controller.text);
+                    if (parsed != null) {
+                      _value = _clampValue(parsed, _unit);
+                    }
                     HapticService.trigger(MekaarHapticIntent.selection);
                     Navigator.pop(context, _calculatedDuration);
                   },

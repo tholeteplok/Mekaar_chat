@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -77,6 +78,8 @@ class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout>
   AutoLockTimeout _persistedTimeout = AutoLockTimeout.thirtySeconds;
   Duration _customDuration = defaultCustomDuration;
   Duration _persistedCustomDuration = defaultCustomDuration;
+  final ValueNotifier<Duration> customDurationListenable =
+      ValueNotifier<Duration>(defaultCustomDuration);
   late final Future<void> initialized;
 
   AutoLockTimeoutNotifier([this._prefs]) : super(AutoLockTimeout.thirtySeconds) {
@@ -89,6 +92,7 @@ class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout>
       _persistedTimeout = saved;
       _customDuration = loadedCustom;
       _persistedCustomDuration = loadedCustom;
+      customDurationListenable.value = loadedCustom;
       state = saved;
       initialized = Future.value();
     } else {
@@ -127,7 +131,10 @@ class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout>
     _persistedTimeout = loaded;
     _persistedCustomDuration = loadedCustom;
     _customDuration = loadedCustom;
-    if (mounted) state = loaded;
+    if (mounted) {
+      customDurationListenable.value = loadedCustom;
+      state = loaded;
+    }
   }
 
   Future<void> setTimeout(AutoLockTimeout timeout) async {
@@ -142,6 +149,7 @@ class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout>
     final clampedSeconds = duration.inSeconds.clamp(5, 86400);
     final sanitized = Duration(seconds: clampedSeconds);
     _customDuration = sanitized;
+    customDurationListenable.value = sanitized;
     state = AutoLockTimeout.custom;
     if (isEphemeralSession) return;
     _persistedTimeout = AutoLockTimeout.custom;
@@ -149,6 +157,12 @@ class AutoLockTimeoutNotifier extends StateNotifier<AutoLockTimeout>
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     await prefs.setString(prefKey, AutoLockTimeout.custom.keyName);
     await prefs.setInt(customDurationSecondsKey, clampedSeconds);
+  }
+
+  @override
+  void dispose() {
+    customDurationListenable.dispose();
+    super.dispose();
   }
 }
 

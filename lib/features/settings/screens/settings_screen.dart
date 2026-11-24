@@ -135,13 +135,20 @@ class SettingsScreen extends ConsumerWidget {
               Navigator.pushNamed(context, AppRoutes.pinManagement),
         ),
         const SettingsDivider(),
-        SettingsNavTile(
-          icon: SolarIconsOutline.clockCircle,
-          title: MekaarCopy.autoLockTitle,
-          valueText: ref.watch(autoLockTimeoutProvider) == AutoLockTimeout.custom
-              ? 'Kustom (${MekaarCustomDurationPickerSheet.formatDuration(ref.read(autoLockTimeoutProvider.notifier).customDuration)})'
-              : ref.watch(autoLockTimeoutProvider).label,
-          onTap: () => _showAutoLockBottomSheet(context, ref),
+        ValueListenableBuilder<Duration>(
+          valueListenable:
+              ref.watch(autoLockTimeoutProvider.notifier).customDurationListenable,
+          builder: (context, customDuration, _) {
+            final currentAutoLock = ref.watch(autoLockTimeoutProvider);
+            return SettingsNavTile(
+              icon: SolarIconsOutline.clockCircle,
+              title: MekaarCopy.autoLockTitle,
+              valueText: currentAutoLock == AutoLockTimeout.custom
+                  ? 'Kustom (${MekaarCustomDurationPickerSheet.formatDuration(customDuration)})'
+                  : currentAutoLock.label,
+              onTap: () => _showAutoLockBottomSheet(context, ref),
+            );
+          },
         ),
         if (!isDecoy) ...[
           const SettingsDivider(),
@@ -396,13 +403,16 @@ class SettingsScreen extends ConsumerWidget {
   // ─────────────────────────────────────────────────
   // BOTTOM SHEET: Kunci Otomatis (Auto-Lock Timeout)
   // ─────────────────────────────────────────────────
-  void _showAutoLockBottomSheet(BuildContext context, WidgetRef ref) {
-    MekaarBottomSheet.show(
+  Future<void> _showAutoLockBottomSheet(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final selectedOption = await MekaarBottomSheet.show<AutoLockTimeout>(
       context: context,
       showDragHandle: true,
       builder: (ctx) {
         return Consumer(
-          builder: (context, sheetRef, _) {
+          builder: (sheetContext, sheetRef, _) {
             final current = sheetRef.watch(autoLockTimeoutProvider);
             final customDuration = sheetRef
                 .read(autoLockTimeoutProvider.notifier)
@@ -447,7 +457,7 @@ class SettingsScreen extends ConsumerWidget {
                                 ? SolarIconsOutline.lockUnlocked
                                 : SolarIconsOutline.clockCircle),
                         color: selected
-                            ? MekaarColors.primaryOf(context)
+                            ? MekaarColors.primaryOf(sheetContext)
                             : null,
                       ),
                       title: Text(
@@ -456,52 +466,25 @@ class SettingsScreen extends ConsumerWidget {
                           fontWeight:
                               selected ? FontWeight.bold : FontWeight.normal,
                           color: selected
-                              ? MekaarColors.primaryOf(context)
+                              ? MekaarColors.primaryOf(sheetContext)
                               : null,
                         ),
                       ),
                       subtitle: Text(
                         displayDescription,
                         style: MekaarTypography.subtitle.copyWith(
-                          color: MekaarColors.textSecondaryOf(context),
+                          color: MekaarColors.textSecondaryOf(sheetContext),
                         ),
                       ),
                       trailing: selected
                           ? Icon(
                               Icons.check,
-                              color: MekaarColors.primaryOf(context),
+                              color: MekaarColors.primaryOf(sheetContext),
                             )
                           : null,
-                      onTap: () async {
+                      onTap: () {
                         HapticService.trigger(MekaarHapticIntent.selection);
-                        if (isCustom) {
-                          Navigator.pop(ctx);
-                          final pickedDuration =
-                              await _showCustomAutoLockPicker(
-                            context,
-                            customDuration,
-                          );
-                          if (pickedDuration != null && context.mounted) {
-                            await ref
-                                .read(autoLockTimeoutProvider.notifier)
-                                .setCustomDuration(pickedDuration);
-                            if (context.mounted) {
-                              MekaarSnackbar.success(
-                                context,
-                                'Kunci otomatis diatur: ${MekaarCustomDurationPickerSheet.formatDuration(pickedDuration)}',
-                              );
-                            }
-                          }
-                          return;
-                        }
-                        sheetRef
-                            .read(autoLockTimeoutProvider.notifier)
-                            .setTimeout(opt);
-                        Navigator.pop(ctx);
-                        MekaarSnackbar.success(
-                          context,
-                          'Kunci otomatis diatur: ${opt.label}',
-                        );
+                        Navigator.pop(ctx, opt);
                       },
                     );
                   }),
@@ -513,6 +496,35 @@ class SettingsScreen extends ConsumerWidget {
         );
       },
     );
+
+    if (selectedOption == null || !context.mounted) return;
+
+    if (selectedOption == AutoLockTimeout.custom) {
+      final currentCustom =
+          ref.read(autoLockTimeoutProvider.notifier).customDuration;
+      final pickedDuration =
+          await _showCustomAutoLockPicker(context, currentCustom);
+      if (pickedDuration != null && context.mounted) {
+        await ref
+            .read(autoLockTimeoutProvider.notifier)
+            .setCustomDuration(pickedDuration);
+        if (context.mounted) {
+          MekaarSnackbar.success(
+            context,
+            'Kunci otomatis diatur: ${MekaarCustomDurationPickerSheet.formatDuration(pickedDuration)}',
+          );
+        }
+      }
+      return;
+    }
+
+    await ref.read(autoLockTimeoutProvider.notifier).setTimeout(selectedOption);
+    if (context.mounted) {
+      MekaarSnackbar.success(
+        context,
+        'Kunci otomatis diatur: ${selectedOption.label}',
+      );
+    }
   }
 
   Future<Duration?> _showCustomAutoLockPicker(

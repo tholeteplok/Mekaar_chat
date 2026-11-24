@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mekaar_chat/core/widgets/mekaar_bottom_sheet.dart';
+import 'package:mekaar_chat/core/widgets/mekaar_custom_duration_picker_sheet.dart';
 import 'package:mekaar_chat/features/auth/providers/auto_lock_provider.dart';
 import 'package:mekaar_chat/features/chat/widgets/private_vault_dialogs.dart';
 
@@ -178,6 +179,122 @@ void main() {
 
       // Verifikasi state telah terupdate
       expect(capturedRef.read(autoLockTimeoutProvider), AutoLockTimeout.oneMinute);
+    });
+
+    testWidgets('Alur pemilihan Kustom memperbarui durasi, listenable, dan SharedPreferences', (tester) async {
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  capturedRef = ref;
+                  final notifier = ref.watch(autoLockTimeoutProvider.notifier);
+                  return ValueListenableBuilder<Duration>(
+                    valueListenable: notifier.customDurationListenable,
+                    builder: (ctx, customDuration, _) {
+                      final current = ref.watch(autoLockTimeoutProvider);
+                      return Column(
+                        children: [
+                          Text(
+                            current == AutoLockTimeout.custom
+                                ? 'Kustom (${MekaarCustomDurationPickerSheet.formatDuration(customDuration)})'
+                                : current.label,
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final selected =
+                                  await MekaarBottomSheet.show<AutoLockTimeout>(
+                                context: context,
+                                builder: (ctx) {
+                                  return Consumer(
+                                    builder: (sheetContext, sheetRef, _) {
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: AutoLockTimeout.values
+                                            .map(
+                                              (opt) => ListTile(
+                                                title: Text(opt.label),
+                                                onTap: () =>
+                                                    Navigator.pop(ctx, opt),
+                                              ),
+                                            )
+                                            .toList(),
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                              if (selected == AutoLockTimeout.custom &&
+                                  context.mounted) {
+                                final picked =
+                                    await MekaarCustomDurationPickerSheet.show(
+                                  context: context,
+                                  title: 'Kustom Kunci Otomatis',
+                                  subtitle:
+                                      'Pilih durasi waktu sebelum aplikasi terkunci otomatis',
+                                  headerIcon: Icons.lock_clock,
+                                  units: const [
+                                    MekaarDurationUnit.second,
+                                    MekaarDurationUnit.minute,
+                                    MekaarDurationUnit.hour,
+                                  ],
+                                  initialDuration: notifier.customDuration,
+                                  minFor: (u) =>
+                                      u == MekaarDurationUnit.second ? 5 : 1,
+                                  maxFor: (u) =>
+                                      u == MekaarDurationUnit.hour ? 24 : 59,
+                                  quickPresetsFor: (u) =>
+                                      u == MekaarDurationUnit.second
+                                          ? const [10, 15, 30, 45]
+                                          : const [2, 5, 10, 15],
+                                  descriptionBuilder: (d) =>
+                                      'Durasi: ${MekaarCustomDurationPickerSheet.formatDuration(d)}',
+                                );
+                                if (picked != null && context.mounted) {
+                                  await ref
+                                      .read(autoLockTimeoutProvider.notifier)
+                                      .setCustomDuration(picked);
+                                }
+                              }
+                            },
+                            child: const Text('Pilih Kustom'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Pilih Kustom'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kustom'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kustom Kunci Otomatis'), findsOneWidget);
+
+      await tester.tap(find.text('Detik').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('15 Detik'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Terapkan Durasi'));
+      await tester.pumpAndSettle();
+
+      expect(capturedRef.read(autoLockTimeoutProvider), AutoLockTimeout.custom);
+      expect(
+        capturedRef.read(autoLockTimeoutProvider.notifier).enforcedDuration,
+        const Duration(seconds: 15),
+      );
+      expect(find.text('Kustom (15 Detik)'), findsOneWidget);
     });
   });
 }
