@@ -478,7 +478,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       trailing: selected
                           ? Icon(
-                              Icons.check,
+                              MekaarIcons.check,
                               color: MekaarColors.primaryOf(sheetContext),
                             )
                           : null,

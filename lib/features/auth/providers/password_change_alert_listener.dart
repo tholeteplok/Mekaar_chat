@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/colors.dart';
@@ -81,7 +82,7 @@ class PasswordChangeAlertListener {
       title: '🚨 Password Diubah di Sesi Lain',
       message:
           'Sistem mendeteksi bahwa kata sandi akun MEKAAR Anda baru saja diubah melalui perangkat/sesi lain.\n\nDemi keamanan data & pesan E2EE Anda, harap verifikasi identitas atau keluar dari sesi ini.',
-      icon: const Icon(Icons.security_rounded, color: MekaarColors.sosRed, size: 28),
+      icon: const Icon(SolarIconsOutline.shieldWarning, color: MekaarColors.sosRed, size: 28),
       barrierDismissible: false,
       isDestructive: true,
       actions: [

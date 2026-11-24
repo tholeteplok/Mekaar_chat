@@ -112,7 +112,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
                 height: 48,
                 child: ElevatedButton.icon(
                   onPressed: () => _launchSupportEmail(context, displayReason),
-                  icon: const Icon(Icons.support_agent_rounded, size: 20),
+                  icon: const Icon(SolarIconsOutline.chatRoundDots, size: 20),
                   label: Text(
                     'Hubungi Tim Keselamatan (Banding)',
                     style: MekaarTypography.labelLG.copyWith(
@@ -134,7 +134,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
                   onPressed: () async {
                     await ref.read(authProvider.notifier).logout();
                   },
-                  icon: const Icon(Icons.logout_rounded, size: 20, color: MekaarColors.sosRed),
+                  icon: const Icon(SolarIconsOutline.logout, size: 20, color: MekaarColors.sosRed),
                   label: Text(
                     'Keluar dari Akun',
                     style: MekaarTypography.labelLG.copyWith(

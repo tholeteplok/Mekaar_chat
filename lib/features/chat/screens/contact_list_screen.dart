@@ -1852,7 +1852,7 @@ class _ContactListScreenState extends ConsumerState<ContactListScreen>
                         onPressed: () {
                           Navigator.pushNamed(context, AppRoutes.contactQrScan);
                         },
-                        icon: const Icon(SolarIconsOutline.qrCode, size: 18),
+                        icon: const Icon(SolarIconsOutline.scanner, size: 18),
                         label: const Text('Pindai Kode QR'),
                       ),
                     ],

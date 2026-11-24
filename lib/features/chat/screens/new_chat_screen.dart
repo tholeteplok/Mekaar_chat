@@ -247,7 +247,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(SolarIconsOutline.qrCode, size: 20),
+                icon: const Icon(SolarIconsOutline.scanner, size: 20),
                 color: AppColors.blue,
                 tooltip: 'Pindai Kode QR',
                 onPressed: () {

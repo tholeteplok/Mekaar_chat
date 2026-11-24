@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
@@ -248,7 +249,7 @@ class _ChatRoomPrivacySheetState extends ConsumerState<ChatRoomPrivacySheet> {
                   title: Text(opt.$2),
                   subtitle: Text(opt.$3),
                   trailing: selected
-                      ? Icon(Icons.check,
+                      ? Icon(MekaarIcons.check,
                           color: MekaarColors.primaryOf(context))
                       : null,
                   onTap: () => Navigator.pop(ctx, opt.$1),

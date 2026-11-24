@@ -7,6 +7,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/motion.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/icons.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/providers/font_provider.dart';
 import '../../../core/services/haptic_service.dart';
@@ -693,7 +694,7 @@ class _ChatThemeSettingsScreenState
                             color: AppColors.blue,
                           ),
                           child: const Icon(
-                            Icons.check,
+                            MekaarIcons.check,
                             size: 10,
                             color: Colors.white,
                           ),
@@ -1194,7 +1195,7 @@ class _ChatThemeSettingsScreenState
                   ),
                   child: isSelected
                       ? Icon(
-                          Icons.check,
+                          MekaarIcons.check,
                           size: 14,
                           color: color.computeLuminance() < 0.45
                               ? Colors.white
@@ -1263,7 +1264,7 @@ class _ChatThemeSettingsScreenState
                     ),
                     child: isSelected
                         ? Icon(
-                            Icons.check,
+                            MekaarIcons.check,
                             size: 14,
                             color: color.computeLuminance() < 0.45
                                 ? Colors.white

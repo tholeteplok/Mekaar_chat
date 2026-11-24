@@ -161,7 +161,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.guardianQrScan);
                     },
-                    icon: const Icon(SolarIconsOutline.qrCode, size: 18),
+                    icon: const Icon(SolarIconsOutline.scanner, size: 18),
                     label: const Text('Pindai QR'),
                   ),
                 ),
@@ -171,7 +171,7 @@ class _AddGuardianScreenState extends ConsumerState<AddGuardianScreen> {
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.guardianQrInvite);
                     },
-                    icon: const Icon(SolarIconsOutline.share, size: 18),
+                    icon: const Icon(SolarIconsOutline.qrCode, size: 18),
                     label: const Text('QR Saya'),
                   ),
                 ),

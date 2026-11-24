@@ -261,8 +261,8 @@ class PrivateVaultDialogs {
                       suffixIcon: IconButton(
                         icon: Icon(
                           obscureCode
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
+                              ? SolarIconsOutline.eyeClosed
+                              : SolarIconsOutline.eye,
                           size: 20,
                         ),
                         onPressed: () =>
@@ -286,8 +286,8 @@ class PrivateVaultDialogs {
                       suffixIcon: IconButton(
                         icon: Icon(
                           obscureConfirm
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
+                              ? SolarIconsOutline.eyeClosed
+                              : SolarIconsOutline.eye,
                           size: 20,
                         ),
                         onPressed: () => setDialogState(
@@ -442,8 +442,8 @@ class PrivateVaultDialogs {
                       suffixIcon: IconButton(
                         icon: Icon(
                           obscureCode
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
+                              ? SolarIconsOutline.eyeClosed
+                              : SolarIconsOutline.eye,
                           size: 20,
                         ),
                         onPressed: () =>
