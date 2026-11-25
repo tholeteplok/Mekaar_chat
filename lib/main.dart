@@ -217,6 +217,11 @@ void handleNotificationRoute(NotificationRoute route) async {
       try {
         final container = ProviderScope.containerOf(context, listen: false);
         if (container.read(activeRoomIdProvider) == roomId) {
+          unawaited(
+            container
+                .read(chatRepositoryProvider)
+                .syncRoomMessagesNow(roomId, forceResubscribe: true),
+          );
           return;
         }
       } catch (_) {}

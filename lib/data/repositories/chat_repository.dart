@@ -36,6 +36,8 @@ class ChatRepository {
     _roomEncryptionVersions.clear();
     _roomTypeCache.clear();
     _activeRoomMessagePools.clear();
+    _activeRoomSyncCallbacks.clear();
+    _inFlightRoomSyncs.clear();
     for (final controller in _activeRoomControllers.values) {
       if (!controller.isClosed) {
         unawaited(controller.close());
@@ -44,11 +46,14 @@ class ChatRepository {
     _activeRoomControllers.clear();
   }
 
-  /// Registry stream controller dan message pool per room yang sedang aktif di layar.
-  /// Memungkinkan eviksi optimistik 0ms saat pesan dihapus oleh pengguna.
+  /// Registry stream controller, message pool, dan callback sync per room yang sedang aktif di layar.
+  /// Memungkinkan eviksi optimistik 0ms dan injeksi pesan masuk 0ms.
   final Map<String, StreamController<List<Message>>> _activeRoomControllers =
       {};
   final Map<String, Map<String, Message>> _activeRoomMessagePools = {};
+  final Map<String, Future<void> Function({bool forceResubscribe})>
+      _activeRoomSyncCallbacks = {};
+  final Map<String, Future<void>> _inFlightRoomSyncs = {};
 
   /// Cache versi enkripsi room (0 = legacy TLS+RLS, 1 = Signal Sender Keys E2EE)
   final Map<String, int> _roomEncryptionVersions = {};
@@ -66,6 +71,10 @@ class ChatRepository {
   @visibleForTesting
   Map<String, Map<String, Message>> get activeRoomMessagePools =>
       _activeRoomMessagePools;
+
+  @visibleForTesting
+  Map<String, Future<void> Function({bool forceResubscribe})>
+      get activeRoomSyncCallbacks => _activeRoomSyncCallbacks;
 
   ChatRepository(this._supabaseService);
 
@@ -214,6 +223,92 @@ class ChatRepository {
         controller.add(sorted);
       }
     }
+  }
+
+  /// Menyuntikkan pesan baru/terbaru yang sudah didekripsi dari channel global
+  /// ke memory pool & stream `ChatScreen` yang aktif secara 0ms.
+  void ingestIncomingMessage(Message message) {
+    if (message.isSilentDeleted) {
+      evictMessageLocally(message.roomId, message.id);
+      return;
+    }
+
+    final isPlainValid = message.content.isNotEmpty &&
+        !E2eeService.isUndecryptable(message.content) &&
+        !GroupE2eeService.isUndecryptable(message.content) &&
+        !GroupE2eeService.isPendingKey(message.content);
+
+    if (isPlainValid && !message.isDeleted) {
+      final cachedAt = _decryptedUpdatedAtCache[message.id];
+      final incomingAt = message.updatedAt.toUtc();
+      if (cachedAt == null || !incomingAt.isBefore(cachedAt)) {
+        _decryptedContentCache[message.id] = message.content;
+        _decryptedUpdatedAtCache[message.id] = incomingAt;
+      }
+    }
+
+    final pool = _activeRoomMessagePools[message.roomId];
+    final controller = _activeRoomControllers[message.roomId];
+    if (pool != null && controller != null && !controller.isClosed) {
+      final existing = pool[message.id];
+      if (existing != null &&
+          existing.updatedAt.toUtc().isAfter(message.updatedAt.toUtc()) &&
+          !message.isDeleted) {
+        return;
+      }
+      pool[message.id] = message;
+      final sorted = pool.values.toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      controller.add(sorted);
+    }
+  }
+
+  /// Menangani pembaruan pesan (edit, soft-delete, silent-delete) dari channel global.
+  void handleExternalMessageUpdate(Map<String, dynamic> newRow) {
+    final roomId = newRow['room_id'] as String?;
+    final msgId = newRow['id'] as String?;
+    if (roomId == null || msgId == null) return;
+    if (!_activeRoomControllers.containsKey(roomId)) return;
+
+    if (newRow['is_silent_deleted'] == true) {
+      evictMessageLocally(roomId, msgId);
+      return;
+    }
+
+    unawaited(syncRoomMessagesNow(roomId));
+  }
+
+  /// Menarik pesan terbaru & menyembuhkan socket per-room jika sedang stale/retry.
+  Future<void> syncRoomMessagesNow(
+    String roomId, {
+    bool forceResubscribe = false,
+  }) async {
+    if (LocalMessageDatabase.instance.isDecoy) return;
+    final cb = _activeRoomSyncCallbacks[roomId];
+    if (cb == null) return;
+
+    if (!forceResubscribe && _inFlightRoomSyncs.containsKey(roomId)) {
+      return _inFlightRoomSyncs[roomId]!;
+    }
+
+    final future = cb(forceResubscribe: forceResubscribe).whenComplete(() {
+      _inFlightRoomSyncs.remove(roomId);
+    });
+    _inFlightRoomSyncs[roomId] = future;
+    return future;
+  }
+
+  /// Memulihkan & menyinkronkan ulang seluruh stream room aktif (pasca background/resume).
+  Future<void> reconnectActiveRoomStreams() async {
+    if (LocalMessageDatabase.instance.isDecoy) return;
+    final roomIds = _activeRoomSyncCallbacks.keys.toList();
+    if (roomIds.isEmpty) return;
+    await Future.wait(
+      roomIds.map(
+        (id) => syncRoomMessagesNow(id, forceResubscribe: true)
+            .catchError((_) {}),
+      ),
+    );
   }
 
   Future<Set<String>> _getHiddenMessageIds(String userId) async {
@@ -923,47 +1018,7 @@ class ChatRepository {
       if (controller.isClosed) return;
 
       DateTime? historyClearedAt;
-      try {
-        final p = await _supabaseService.client
-            .from('room_participants')
-            .select('history_cleared_at')
-            .eq('room_id', roomId)
-            .eq('profile_id', userId)
-            .maybeSingle()
-            .timeout(const Duration(seconds: 4));
-        if (p != null && p['history_cleared_at'] != null) {
-          historyClearedAt = DateTime.parse(p['history_cleared_at'] as String);
-          final now = DateTime.now().toUtc();
-          if (historyClearedAt.isAfter(now)) {
-            historyClearedAt = now;
-          }
-        }
-      } catch (_) {}
-
       Set<String> hiddenMsgIds = {};
-      try {
-        final hiddenData = await _supabaseService.client
-            .from('hidden_messages')
-            .select('message_id')
-            .eq('profile_id', userId)
-            .timeout(const Duration(seconds: 4));
-
-        for (var row in hiddenData) {
-          hiddenMsgIds.add(row['message_id'] as String);
-        }
-      } catch (_) {}
-
-      // Perbarui tampilan cache lokal jika filter jaringan berhasil didapatkan
-      if (historyClearedAt != null || hiddenMsgIds.isNotEmpty) {
-        await emitLocalCache(
-          historyCleared: historyClearedAt,
-          hiddenIds: hiddenMsgIds,
-        );
-      }
-
-      // Guard: jangan subscribe jika stream sudah di-cancel (race condition)
-      if (controller.isClosed) return;
-
       List<Map<String, dynamic>>? pendingBatch;
       bool isProcessing = false;
 
@@ -1000,14 +1055,15 @@ class ChatRepository {
             }
           }
 
+          final clearedAt = historyClearedAt;
+
           // 2. Eviksi pesan yang di-silent delete, disembunyikan, atau kedaluwarsa dari messagePool
           for (final m in rawMsgs) {
             final isExpired =
                 m.autoDeleteAt != null && m.autoDeleteAt!.isBefore(now);
             final isHidden = hiddenMsgIds.contains(m.id);
             final isHistoryCleared =
-                historyClearedAt != null &&
-                !m.createdAt.isAfter(historyClearedAt);
+                clearedAt != null && !m.createdAt.isAfter(clearedAt);
 
             if (m.isSilentDeleted ||
                 isHidden ||
@@ -1020,8 +1076,7 @@ class ChatRepository {
           }
 
           var msgs = rawMsgs.where((m) {
-            if (historyClearedAt != null &&
-                !m.createdAt.isAfter(historyClearedAt)) {
+            if (clearedAt != null && !m.createdAt.isAfter(clearedAt)) {
               return false;
             }
             if (m.isSilentDeleted || hiddenMsgIds.contains(m.id)) return false;
@@ -1289,6 +1344,119 @@ class ChatRepository {
         }
       };
 
+      Future<void> fetchLatestViaRest() async {
+        if (controller.isClosed || LocalMessageDatabase.instance.isDecoy) {
+          return;
+        }
+        try {
+          final rows = await _supabaseService.client
+              .from('messages')
+              .select()
+              .eq('room_id', roomId)
+              .order('created_at', ascending: false)
+              .limit(50)
+              .timeout(const Duration(seconds: 4));
+          if (controller.isClosed) return;
+          final maps = List<Map<String, dynamic>>.from(rows);
+          if (isProcessing) {
+            pendingBatch = maps;
+            return;
+          }
+          isProcessing = true;
+          await processBatch(maps);
+        } catch (_) {}
+      }
+
+      Future<void> loadMetadataAndApplyFilters() async {
+        try {
+          final results = await Future.wait([
+            _supabaseService.client
+                .from('room_participants')
+                .select('history_cleared_at')
+                .eq('room_id', roomId)
+                .eq('profile_id', userId)
+                .maybeSingle()
+                .timeout(const Duration(milliseconds: 2500))
+                .catchError((_) => null),
+            _supabaseService.client
+                .from('hidden_messages')
+                .select('message_id')
+                .eq('profile_id', userId)
+                .timeout(const Duration(milliseconds: 2500))
+                .catchError((_) => <Map<String, dynamic>>[]),
+          ]);
+
+          if (controller.isClosed) return;
+
+          final participantRow = results[0] as Map<String, dynamic>?;
+          if (participantRow != null &&
+              participantRow['history_cleared_at'] != null) {
+            var parsed = DateTime.parse(
+              participantRow['history_cleared_at'] as String,
+            );
+            final now = DateTime.now().toUtc();
+            if (parsed.isAfter(now)) {
+              parsed = now;
+            }
+            historyClearedAt = parsed;
+          }
+
+          final hiddenRows = results[1] as List<dynamic>?;
+          if (hiddenRows != null) {
+            final nextHidden = <String>{};
+            for (final row in hiddenRows) {
+              if (row is Map<String, dynamic> && row['message_id'] is String) {
+                nextHidden.add(row['message_id'] as String);
+              }
+            }
+            hiddenMsgIds = nextHidden;
+          }
+
+          if (historyClearedAt != null || hiddenMsgIds.isNotEmpty) {
+            final ids = messagePool.keys.toList();
+            bool mutated = false;
+            for (final id in ids) {
+              final m = messagePool[id];
+              if (m == null) continue;
+              final isCleared = historyClearedAt != null &&
+                  !m.createdAt.isAfter(historyClearedAt!);
+              final isHidden = hiddenMsgIds.contains(id);
+              if (isCleared || isHidden) {
+                messagePool.remove(id);
+                _decryptedContentCache.remove(id);
+                mutated = true;
+              }
+            }
+            if (mutated && !controller.isClosed) {
+              final sorted = messagePool.values.toList()
+                ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+              controller.add(sorted);
+            }
+          }
+        } catch (_) {}
+      }
+
+      _activeRoomSyncCallbacks[roomId] = ({bool forceResubscribe = false}) async {
+        if (controller.isClosed || LocalMessageDatabase.instance.isDecoy) return;
+        await emitLocalCache(
+          historyCleared: historyClearedAt,
+          hiddenIds: hiddenMsgIds,
+        );
+        await fetchLatestViaRest();
+        if (forceResubscribe ||
+            streamSubscription == null ||
+            (retryTimer?.isActive ?? false)) {
+          retryTimer?.cancel();
+          retryAttempt = 0;
+          if (!controller.isClosed) {
+            await subscribe();
+          }
+        }
+      };
+
+      // Paralel tanpa waterfall: metadata, fast REST fetch (~150ms), dan WebSocket Realtime
+      unawaited(loadMetadataAndApplyFilters());
+      unawaited(fetchLatestViaRest());
       await subscribe();
     }
 
@@ -1299,6 +1467,8 @@ class ChatRepository {
       if (_activeRoomControllers[roomId] == controller) {
         _activeRoomControllers.remove(roomId);
         _activeRoomMessagePools.remove(roomId);
+        _activeRoomSyncCallbacks.remove(roomId);
+        _inFlightRoomSyncs.remove(roomId);
       }
     };
 

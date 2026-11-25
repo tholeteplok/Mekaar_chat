@@ -188,6 +188,9 @@ class MessageNotificationListener {
 
     if (messageObj != null && !isDecryptionFailed) {
       unawaited(LocalMessageDatabase.instance.saveMessage(messageObj));
+      try {
+        _ref.read(chatRepositoryProvider).ingestIncomingMessage(messageObj);
+      } catch (_) {}
     }
 
     final previewText = formatPreviewText(
@@ -259,6 +262,11 @@ class MessageNotificationListener {
   void handleMessageChange(PostgresChangePayload payload) {
     if (_disposed) return;
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
+    try {
+      _ref
+          .read(chatRepositoryProvider)
+          .handleExternalMessageUpdate(payload.newRecord);
+    } catch (_) {}
   }
 
   /// Filter murni (tanpa side-effect) untuk menentukan apakah sebuah pesan

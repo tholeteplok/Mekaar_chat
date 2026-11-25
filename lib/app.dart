@@ -61,6 +61,11 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
               .reloadFromLocalCache(syncRemoteInBackground: true);
         }
       }());
+
+      // Pulihkan & sinkronkan ulang stream room aktif yang mungkin stale pasca-background
+      try {
+        unawaited(ref.read(chatRepositoryProvider).reconnectActiveRoomStreams());
+      } catch (_) {}
     }
   }
 

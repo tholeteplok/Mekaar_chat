@@ -556,6 +556,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (mounted) {
         ref.read(activeRoomIdProvider.notifier).state = widget.chatId;
         unawaited(NotificationService.cancelMessageNotification(widget.chatId));
+        try {
+          unawaited(
+            ref
+                .read(chatRepositoryProvider)
+                .syncRoomMessagesNow(widget.chatId),
+          );
+        } catch (_) {}
         if (_effectiveIsGroup) {
           ref
               .read(chatRepositoryProvider)
@@ -850,6 +857,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             .read(chatRepositoryProvider)
             .purgeExpiredMessages(targetRoomId: widget.chatId),
       );
+      try {
+        unawaited(
+          ref
+              .read(chatRepositoryProvider)
+              .syncRoomMessagesNow(widget.chatId, forceResubscribe: true),
+        );
+      } catch (_) {}
       if (_wasKeyboardOpenOnPause && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
