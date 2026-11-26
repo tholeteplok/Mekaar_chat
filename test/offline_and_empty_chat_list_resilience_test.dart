@@ -18,6 +18,7 @@ import 'package:mekaar_chat/features/guardian/providers/guardian_provider.dart';
 import 'package:mekaar_chat/features/settings/providers/block_provider.dart';
 import 'package:mekaar_chat/features/sos/providers/sos_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 class _ResilienceStubChatRepository extends ChatRepository {
   List<Map<String, dynamic>> cachedRooms = [];
@@ -352,5 +353,65 @@ void main() {
         await tester.pump(const Duration(seconds: 2));
       },
     );
+  });
+
+  group('Resilience: ChatRepository.shouldFallbackToLegacyGetRooms', () {
+    test('PostgrestException dari get_user_inbox selalu fallback ke legacy, sedangkan network/auth tidak', () {
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const PostgrestException(message: 'function does not exist', code: '42883'),
+        ),
+        isTrue,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const PostgrestException(message: 'Could not find the function', code: 'PGRST202'),
+        ),
+        isTrue,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const PostgrestException(message: 'column encryption_version does not exist', code: '42703'),
+        ),
+        isTrue,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const PostgrestException(message: 'permission denied', code: '42501'),
+        ),
+        isTrue,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const PostgrestException(message: 'relation does not exist', code: '42P01'),
+        ),
+        isTrue,
+      );
+
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const SocketException('Network unreachable'),
+        ),
+        isFalse,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          TimeoutException('Request timed out'),
+        ),
+        isFalse,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          'RealtimeSubscribeException(timedOut)',
+        ),
+        isFalse,
+      );
+      expect(
+        ChatRepository.shouldFallbackToLegacyGetRooms(
+          const AuthException('Sesi belum siap'),
+        ),
+        isFalse,
+      );
+    });
   });
 }

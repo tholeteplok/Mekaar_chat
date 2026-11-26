@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/error_resolver.dart';
 import '../../core/utils/message_preview_resolver.dart';
 import '../services/supabase_service.dart';
 import '../models/message_model.dart';
@@ -332,6 +333,17 @@ class ChatRepository {
     return LocalMessageDatabase.instance.getCachedRooms();
   }
 
+  /// Menentukan apakah kegagalan RPC `get_user_inbox` harus fallback ke `_getRoomsLegacy`.
+  /// Error jaringan/timeout (`ErrorResolver.isNetworkError`) dan `AuthException` TIDAK boleh
+  /// fallback ke N+1 query, sedangkan seluruh `PostgrestException` (error SQL/skema/izin RPC di server)
+  /// WAJIB fallback ke `_getRoomsLegacy` agar daftar chat pengguna tetap termuat.
+  @visibleForTesting
+  static bool shouldFallbackToLegacyGetRooms(Object error) {
+    if (error is AuthException) return false;
+    if (ErrorResolver.isNetworkError(error)) return false;
+    return true;
+  }
+
   // Get active chat rooms for current user
   Future<List<Map<String, dynamic>>> getRooms() async {
     // Zero-Leak Decoy: Jangan sentuh Supabase jika dalam mode Decoy/Duress
@@ -377,16 +389,15 @@ class ChatRepository {
         return parsedRooms;
       }
     } catch (e) {
-      // Hanya fallback ke legacy N+1 query jika fungsi RPC get_user_inbox belum ada di server.
-      // Untuk error jaringan, timeout, atau sesi/auth, lempar ulang agar tidak memicu N+1
-      // query berantai di jaringan yang sedang goyang.
-      final isMissingRpc = e is PostgrestException &&
-          (e.code == '42883' ||
-              e.code == 'PGRST202' ||
-              e.message.toLowerCase().contains('does not exist') ||
-              e.message.toLowerCase().contains('could not find the function'));
-      if (!isMissingRpc) {
+      if (!shouldFallbackToLegacyGetRooms(e)) {
         rethrow;
+      }
+      if (e is PostgrestException && (e.code == '42501' || e.code == 'PGRST301')) {
+        try {
+          await _supabaseService.client.auth
+              .refreshSession()
+              .timeout(const Duration(seconds: 5));
+        } catch (_) {}
       }
     }
 
@@ -568,14 +579,26 @@ class ChatRepository {
     Set<String> hiddenMsgIds,
   ) async {
     // Get rooms the current user participates in, filtering out deleted rooms
-    final roomsResponse = await _supabaseService.client
-        .from('room_participants')
-        .select(
-          'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description, encryption_version)',
-        )
-        .eq('profile_id', userId)
-        .isFilter('deleted_at', null)
-        .timeout(const Duration(seconds: 8));
+    dynamic roomsResponse;
+    try {
+      roomsResponse = await _supabaseService.client
+          .from('room_participants')
+          .select(
+            'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description, encryption_version)',
+          )
+          .eq('profile_id', userId)
+          .isFilter('deleted_at', null)
+          .timeout(const Duration(seconds: 8));
+    } on PostgrestException {
+      roomsResponse = await _supabaseService.client
+          .from('room_participants')
+          .select(
+            'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description)',
+          )
+          .eq('profile_id', userId)
+          .isFilter('deleted_at', null)
+          .timeout(const Duration(seconds: 8));
+    }
 
     final roomFutures = (roomsResponse as List).map((row) async {
       final roomId = row['room_id'] as String;
