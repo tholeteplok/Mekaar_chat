@@ -258,7 +258,7 @@ class _ArchivedChatsScreenState extends ConsumerState<ArchivedChatsScreen> {
                 final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
                 final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
                 final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
-                final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+                final contactsList = ref.watch(userContactsProvider).valueOrNull ?? const <ContactItem>[];
                 final vaultedContactIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
 
                 // Filter hanya room yang diarsipkan & tidak sedang cloaked (terisolasi per-slot)

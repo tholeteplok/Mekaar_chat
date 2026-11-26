@@ -41,7 +41,7 @@ final cloakedContactUserIdsProvider = Provider<Set<String>>((ref) {
       unlockedSlots.isNotEmpty || ref.watch(privateVaultUnlockedProvider);
   final hiddenIds = ref.watch(hiddenContactUserIdsProvider);
   final contactsAsync = ref.watch(userContactsProvider);
-  final contacts = contactsAsync.value ?? const <ContactItem>[];
+  final contacts = contactsAsync.valueOrNull ?? const <ContactItem>[];
   final contactMap = {for (final c in contacts) c.contactUserId: c};
   final cloaked = <String>{};
 
@@ -85,7 +85,7 @@ final cloakedRoomIdsProvider = Provider<Set<String>>((ref) {
   final isAnyUnlocked = ref.watch(unlockedVaultSlotsProvider).isNotEmpty ||
       ref.watch(privateVaultUnlockedProvider);
   final rooms =
-      ref.watch(chatRoomsProvider).value ?? const <Map<String, dynamic>>[];
+      ref.watch(chatRoomsProvider).valueOrNull ?? const <Map<String, dynamic>>[];
 
   final cloaked = <String>{};
 
@@ -132,19 +132,19 @@ class VaultIsolationHelper {
 
     if (ref is WidgetRef) {
       unlockedSlots = ref.read(unlockedVaultSlotsProvider);
-      contacts = ref.read(userContactsProvider).value;
+      contacts = ref.read(userContactsProvider).valueOrNull;
       hiddenUsers = ref.read(hiddenContactUserIdsProvider);
       isAnyUnlocked =
           unlockedSlots.isNotEmpty || ref.read(privateVaultUnlockedProvider);
     } else if (ref is Ref) {
       unlockedSlots = ref.read(unlockedVaultSlotsProvider);
-      contacts = ref.read(userContactsProvider).value;
+      contacts = ref.read(userContactsProvider).valueOrNull;
       hiddenUsers = ref.read(hiddenContactUserIdsProvider);
       isAnyUnlocked =
           unlockedSlots.isNotEmpty || ref.read(privateVaultUnlockedProvider);
     } else if (ref is ProviderContainer) {
       unlockedSlots = ref.read(unlockedVaultSlotsProvider);
-      contacts = ref.read(userContactsProvider).value;
+      contacts = ref.read(userContactsProvider).valueOrNull;
       hiddenUsers = ref.read(hiddenContactUserIdsProvider);
       isAnyUnlocked =
           unlockedSlots.isNotEmpty || ref.read(privateVaultUnlockedProvider);
@@ -185,11 +185,11 @@ class VaultIsolationHelper {
   static int getContactVaultSlot(dynamic ref, String contactUserId) {
     final List<ContactItem>? contacts;
     if (ref is WidgetRef) {
-      contacts = ref.read(userContactsProvider).value;
+      contacts = ref.read(userContactsProvider).valueOrNull;
     } else if (ref is Ref) {
-      contacts = ref.read(userContactsProvider).value;
+      contacts = ref.read(userContactsProvider).valueOrNull;
     } else if (ref is ProviderContainer) {
-      contacts = ref.read(userContactsProvider).value;
+      contacts = ref.read(userContactsProvider).valueOrNull;
     } else {
       contacts = null;
     }

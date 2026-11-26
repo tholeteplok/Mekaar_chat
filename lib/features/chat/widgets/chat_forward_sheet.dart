@@ -35,7 +35,7 @@ class ChatForwardSheet {
       return;
     }
 
-    final rooms = ref.read(chatRoomsProvider).value ?? [];
+    final rooms = ref.read(chatRoomsProvider).valueOrNull ?? [];
     final targets = rooms.where((r) => r['id'] != currentRoomId).toList();
     final hasTargets = targets.isNotEmpty;
 

@@ -249,7 +249,7 @@ class SettingsScreen extends ConsumerWidget {
   // ─────────────────────────────────────────────────
   Widget _buildNotificationSection(BuildContext context, WidgetRef ref) {
     final prefsAsync = ref.watch(notificationPreferencesProvider);
-    final hapticsEnabled = prefsAsync.value?.hapticsEnabled ?? true;
+    final hapticsEnabled = prefsAsync.valueOrNull?.hapticsEnabled ?? true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

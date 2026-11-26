@@ -1355,7 +1355,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final contactsList =
-        ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+        ref.watch(userContactsProvider).valueOrNull ?? const <ContactItem>[];
     final vaultedContactIds = contactsList
         .where((c) => c.isVaulted)
         .map((c) => c.contactUserId)

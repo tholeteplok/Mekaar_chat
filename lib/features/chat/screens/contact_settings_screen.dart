@@ -169,7 +169,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
     }
 
     // 2. Jika belum ada direct room, patuhi aturan chat_invitation_mode
-    final contacts = ref.read(userContactsProvider).value ?? const [];
+    final contacts = ref.read(userContactsProvider).valueOrNull ?? const [];
     final isContact = contacts.any((c) => c.contactUserId == widget.otherUserId);
 
     if (!isContact) {
@@ -450,7 +450,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isOnline = _isCurrentlyOnline(_lastSeenAt);
-    final contacts = ref.watch(userContactsProvider).value ?? const [];
+    final contacts = ref.watch(userContactsProvider).valueOrNull ?? const [];
     final isContact =
         contacts.any((c) => c.contactUserId == widget.otherUserId);
 
@@ -581,7 +581,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
                   builder: (context, ref, _) {
                     final isDecoy = ref.watch(authProvider).isDecoyActive;
                     final contacts =
-                        ref.watch(userContactsProvider).value ?? const [];
+                        ref.watch(userContactsProvider).valueOrNull ?? const [];
                     final isContact =
                         contacts.any((c) => c.contactUserId == widget.otherUserId);
 

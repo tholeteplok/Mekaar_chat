@@ -37,7 +37,7 @@ class PrivateVaultDialogs {
         await ref.read(hiddenContactUserIdsProvider.notifier).toggleHide(contactUserId);
 
     // Dapatkan nomor vaultSlot yang saat ini dimiliki kontak (jika ada) agar tidak ter-reset ke Slot 1
-    final existingContact = ref.read(userContactsProvider).value?.firstWhere(
+    final existingContact = ref.read(userContactsProvider).valueOrNull?.firstWhere(
           (c) => c.contactUserId == contactUserId,
           orElse: () => null as dynamic,
         );
@@ -67,7 +67,7 @@ class PrivateVaultDialogs {
     // Jika tidak ada lagi (0 kontak tersisa), relock sesi vault seketika agar banner otomatis hilang.
     if (!isHiddenNow) {
       final contacts =
-          ref.read(userContactsProvider).value ?? const <ContactItem>[];
+          ref.read(userContactsProvider).valueOrNull ?? const <ContactItem>[];
       final unlockedSlots = ref.read(unlockedVaultSlotsProvider);
       final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
       final hiddenRooms = ref.read(hiddenRoomIdsProvider);
@@ -147,7 +147,7 @@ class PrivateVaultDialogs {
     // Jika tidak ada lagi (0 obrolan/kontak tersisa), relock sesi vault seketika agar banner otomatis hilang.
     if (!isHiddenNow) {
       final contacts =
-          ref.read(userContactsProvider).value ?? const <ContactItem>[];
+          ref.read(userContactsProvider).valueOrNull ?? const <ContactItem>[];
       final unlockedSlots = ref.read(unlockedVaultSlotsProvider);
       final hiddenUsers = ref.read(hiddenContactUserIdsProvider);
       final hiddenRooms = ref.read(hiddenRoomIdsProvider);

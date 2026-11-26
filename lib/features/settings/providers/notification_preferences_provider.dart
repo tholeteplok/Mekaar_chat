@@ -40,7 +40,7 @@ class NotificationPreferencesNotifier
   Future<void> update(
     NotificationPreferences Function(NotificationPreferences) cb,
   ) async {
-    final current = state.value;
+    final current = state.valueOrNull;
     if (current != null) {
       final next = cb(current);
       await save(next);

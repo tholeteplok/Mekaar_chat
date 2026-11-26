@@ -287,7 +287,7 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
     );
     final messagesStream = ref.watch(chatMessagesProvider(chatId));
     final reconnecting =
-        ref.watch(chatReconnectingProvider(chatId)).value ?? false;
+        ref.watch(chatReconnectingProvider(chatId)).valueOrNull ?? false;
     final forwardingProtectionAsync = ref.watch(
       roomForwardingProtectionProvider(chatId),
     );

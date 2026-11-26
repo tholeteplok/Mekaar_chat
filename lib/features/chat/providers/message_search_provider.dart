@@ -50,7 +50,7 @@ final messageSearchResultsProvider = FutureProvider.autoDispose<List<Message>>((
   }
 
   final rooms =
-      ref.watch(chatRoomsProvider).value ?? const <Map<String, dynamic>>[];
+      ref.watch(chatRoomsProvider).valueOrNull ?? const <Map<String, dynamic>>[];
   for (final r in rooms) {
     final id = (r['id'] ?? r['room_id']) as String?;
     final otherUserId = (r['otherUserId'] ?? r['other_user_id']) as String?;
@@ -98,7 +98,7 @@ final groupedSearchResultsProvider =
     Provider.autoDispose<AsyncValue<List<RoomSearchResultGroup>>>((ref) {
       final searchResultsAsync = ref.watch(messageSearchResultsProvider);
       final rooms =
-          ref.watch(chatRoomsProvider).value ?? const <Map<String, dynamic>>[];
+          ref.watch(chatRoomsProvider).valueOrNull ?? const <Map<String, dynamic>>[];
 
       return searchResultsAsync.whenData((messages) {
         if (messages.isEmpty) return const [];

@@ -176,7 +176,7 @@ class ChatRoomsNotifier
     required bool isCurrentlyInRoom,
     bool isSending = false,
   }) {
-    final currentList = state.value;
+    final currentList = state.valueOrNull;
     if (currentList == null) {
       unawaited(refreshRooms(forceLoading: false));
       return;
@@ -233,7 +233,7 @@ class ChatRoomsNotifier
   /// Memperbarui timestamp baca lawan bicara (otherLastReadAt) secara lokal & monotonik
   /// agar status centang di preview daftar obrolan selalu sinkron dengan bubble room.
   void updateOtherLastReadLocally(String roomId, DateTime readAt) {
-    final currentList = state.value;
+    final currentList = state.valueOrNull;
     if (currentList == null) return;
 
     final index = currentList.indexWhere((r) => r['id'] == roomId);

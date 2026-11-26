@@ -214,7 +214,7 @@ class _QuickTripSheetState extends ConsumerState<QuickTripSheet> {
                     _selectedPlaceId == null ||
                     _selectedGuardianIds.isEmpty)
                 ? null
-                : () => _startTrip(placesAsync.value ?? {}),
+                : () => _startTrip(placesAsync.valueOrNull ?? {}),
             child: _isSubmitting
                 ? const SizedBox(
                     width: 20,

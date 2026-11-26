@@ -79,7 +79,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
 
     // Buka atau buat room obrolan
     try {
-      final contacts = ref.read(userContactsProvider).value ?? const [];
+      final contacts = ref.read(userContactsProvider).valueOrNull ?? const [];
       final isGuardian = contacts.any(
         (c) => c.contactUserId == friend.userId && c.isGuardian,
       );
@@ -132,7 +132,7 @@ class NearbyFriendsCanvas extends ConsumerWidget {
     final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
     final hiddenContactUserIds = ref.watch(hiddenContactUserIdsProvider);
     final hiddenRoomIds = ref.watch(hiddenRoomIdsProvider);
-    final contactsList = ref.watch(userContactsProvider).value ?? const <ContactItem>[];
+    final contactsList = ref.watch(userContactsProvider).valueOrNull ?? const <ContactItem>[];
     final vaultedContactUserIds = contactsList.where((c) => c.isVaulted).map((c) => c.contactUserId).toSet();
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull ?? [];
 

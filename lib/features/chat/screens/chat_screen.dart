@@ -1524,7 +1524,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final senderName = _participantNames[senderId] ?? 'Anggota';
     final initial = senderName.isNotEmpty ? senderName[0].toUpperCase() : 'U';
 
-    final contacts = ref.read(userContactsProvider).value ?? const [];
+    final contacts = ref.read(userContactsProvider).valueOrNull ?? const [];
     final contact = contacts.cast<ContactItem?>().firstWhere(
       (c) => c?.contactUserId == senderId,
       orElse: () => null,

@@ -1,12 +1,23 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mekaar_chat/core/utils/error_resolver.dart';
+import 'package:mekaar_chat/data/models/blocked_user_model.dart';
+import 'package:mekaar_chat/data/models/contact_model.dart';
 import 'package:mekaar_chat/data/repositories/chat_repository.dart';
+import 'package:mekaar_chat/data/repositories/contact_repository.dart';
 import 'package:mekaar_chat/data/services/supabase_service.dart';
+import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
 import 'package:mekaar_chat/features/chat/providers/chat_provider.dart';
+import 'package:mekaar_chat/features/chat/providers/private_vault_provider.dart';
+import 'package:mekaar_chat/features/chat/screens/chat_list_screen.dart';
+import 'package:mekaar_chat/features/guardian/providers/guardian_provider.dart';
+import 'package:mekaar_chat/features/settings/providers/block_provider.dart';
+import 'package:mekaar_chat/features/sos/providers/sos_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _ResilienceStubChatRepository extends ChatRepository {
   List<Map<String, dynamic>> cachedRooms = [];
@@ -34,6 +45,75 @@ class _ResilienceStubChatRepository extends ChatRepository {
     }
     return remoteRooms;
   }
+}
+
+class _ErrorChatRoomsNotifier
+    extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>>
+    implements ChatRoomsNotifier {
+  _ErrorChatRoomsNotifier(Object error)
+      : super(AsyncValue.error(error, StackTrace.empty));
+
+  @override
+  Future<void> refreshRooms({bool forceLoading = false}) async {}
+
+  @override
+  Future<void> reloadFromLocalCache({bool syncRemoteInBackground = true}) async {}
+
+  @override
+  Future<String> getOrCreateRoom(
+    String otherUserId,
+    String type, {
+    bool screenshotEnabled = true,
+  }) async =>
+      'dummy-room';
+
+  @override
+  void updateLastMessageLocally({
+    required String roomId,
+    required String previewText,
+    required DateTime timestamp,
+    required bool isFromOtherUser,
+    bool isCurrentlyInRoom = false,
+    bool isSending = false,
+  }) {}
+
+  @override
+  void updateOtherLastReadLocally(String roomId, DateTime readAt) {}
+}
+
+class _ErrorContactsNotifier
+    extends StateNotifier<AsyncValue<List<ContactItem>>>
+    implements ContactsNotifier {
+  _ErrorContactsNotifier(Object error)
+      : super(AsyncValue.error(error, StackTrace.empty));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ErrorBlockNotifier
+    extends StateNotifier<AsyncValue<List<BlockedUser>>>
+    implements BlockNotifier {
+  _ErrorBlockNotifier() : super(const AsyncValue.data([]));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _StubHiddenRoomIdsNotifier extends StateNotifier<Set<String>>
+    implements HiddenRoomIdsNotifier {
+  _StubHiddenRoomIdsNotifier(super.ids);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _StubHiddenContactUserIdsNotifier extends StateNotifier<Set<String>>
+    implements HiddenContactUserIdsNotifier {
+  _StubHiddenContactUserIdsNotifier(super.ids);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -187,7 +267,90 @@ void main() {
         ErrorResolver.isRealtimeError(TimeoutException('HTTP timeout')),
         isFalse,
       );
-      expect(ErrorResolver.isRealtimeError(null), isFalse);
+      expect(
+        ErrorResolver.isRealtimeError(null),
+        isFalse,
+      );
     });
+  });
+
+  group('Resilience: Anti-Grey-Screen AsyncError Regression Tests', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test(
+      'cloakedContactUserIdsProvider dan cloakedRoomIdsProvider tidak melempar exception saat chatRoomsProvider & userContactsProvider berstatus AsyncError',
+      () {
+        const err = SocketException('Network unreachable');
+        final container = ProviderContainer(
+          overrides: [
+            chatRoomsProvider.overrideWith((ref) => _ErrorChatRoomsNotifier(err)),
+            userContactsProvider.overrideWith((ref) => _ErrorContactsNotifier(err)),
+            hiddenRoomIdsProvider.overrideWith(
+              (ref) => _StubHiddenRoomIdsNotifier(<String>{}),
+            ),
+            hiddenContactUserIdsProvider.overrideWith(
+              (ref) => _StubHiddenContactUserIdsNotifier(<String>{}),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        expect(container.read(cloakedContactUserIdsProvider), isEmpty);
+        expect(container.read(cloakedRoomIdsProvider), isEmpty);
+      },
+    );
+
+    testWidgets(
+      'ChatListScreen merender UI error ramah (bukan grey screen) saat chatRoomsProvider & userContactsProvider berstatus AsyncError',
+      (WidgetTester tester) async {
+        const err = SocketException('Network unreachable');
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              chatRepositoryProvider.overrideWithValue(
+                _ResilienceStubChatRepository(),
+              ),
+              chatRoomsProvider.overrideWith(
+                (ref) => _ErrorChatRoomsNotifier(err),
+              ),
+              userContactsProvider.overrideWith(
+                (ref) => _ErrorContactsNotifier(err),
+              ),
+              sosFeatureEnabledProvider.overrideWith(
+                (ref) => SOSFeatureEnabledNotifier(null, false),
+              ),
+              authProvider.overrideWith((ref) {
+                final authRepo = ref.watch(authRepositoryProvider);
+                final notifier = AuthNotifier(authRepo);
+                notifier.state = AuthState(
+                  isPinSet: true,
+                  unlockMode: AuthUnlockMode.master,
+                );
+                return notifier;
+              }),
+              hiddenRoomIdsProvider.overrideWith(
+                (ref) => _StubHiddenRoomIdsNotifier(<String>{}),
+              ),
+              hiddenContactUserIdsProvider.overrideWith(
+                (ref) => _StubHiddenContactUserIdsNotifier(<String>{}),
+              ),
+              blockProvider.overrideWith((ref) => _ErrorBlockNotifier()),
+              hasPendingIncomingGuardiansProvider.overrideWithValue(false),
+            ],
+            child: const MaterialApp(home: ChatListScreen()),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Gagal Memuat Chat'), findsOneWidget);
+        expect(find.text('Coba Lagi'), findsOneWidget);
+
+        // Habiskan timer 1.5s _checkForAppUpdate() pada initState ChatListScreen
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
   });
 }
