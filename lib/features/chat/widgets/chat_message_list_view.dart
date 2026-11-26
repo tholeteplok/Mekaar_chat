@@ -19,6 +19,7 @@ import '../../../data/models/chat_theme_model.dart';
 import '../../../data/repositories/forwarding_protection_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../settings/providers/chat_theme_provider.dart';
+import '../../settings/providers/privacy_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/forwarding_protection_provider.dart';
 import '../utils/chat_key_registry.dart';
@@ -292,12 +293,11 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
     );
     final forwardingProtection = forwardingProtectionAsync.valueOrNull;
 
-    final readReceiptsEnabled =
-        ref.watch(authProvider.select((a) => a.profile?.readReceiptsEnabled)) ??
-        true;
-    final reactiveOtherLastRead =
-        ref.watch(otherParticipantLastReadProvider(chatId)) ??
-        widget.otherLastRead;
+    final readReceiptsEnabled = ref.watch(readReceiptsProvider);
+    final reactiveOtherLastRead = widget.isGroup
+        ? null
+        : (ref.watch(otherParticipantLastReadProvider(chatId)) ??
+            widget.otherLastRead);
     final currentUserId = ref.read(authProvider).user?.id;
     final actions = ref.read(chatActionsProvider);
 
@@ -477,27 +477,36 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
                             );
 
                           case ChatMessagesUiMode.error:
-                            final isNetworkErr = ErrorResolver.isNetworkError(
+                            final isRealtimeErr = ErrorResolver.isRealtimeError(
                               messagesStream.error,
                             );
+                            final isOfflineErr =
+                                ErrorResolver.isNetworkError(
+                                  messagesStream.error,
+                                ) &&
+                                !isRealtimeErr;
                             return MekaarStateView(
-                              pose: isNetworkErr
+                              pose: isOfflineErr || isRealtimeErr
                                   ? MikaPose.confused
                                   : ErrorResolver.resolvePose(
                                       messagesStream.error,
                                     ),
-                              title: isNetworkErr
-                                  ? 'Mode Offline'
-                                  : 'Gagal Memuat',
-                              message: isNetworkErr
+                              title: isRealtimeErr
+                                  ? 'Koneksi Server Terganggu'
+                                  : (isOfflineErr
+                                      ? 'Mode Offline'
+                                      : 'Gagal Memuat'),
+                              message: isOfflineErr
                                   ? 'Tidak ada koneksi internet dan belum ada riwayat obrolan tersimpan untuk obrolan ini.'
                                   : ErrorResolver.resolve(messagesStream.error),
                               actionLabel: 'Coba Lagi',
                               onAction: () =>
                                   ref.invalidate(chatMessagesProvider(chatId)),
-                              icon: isNetworkErr
-                                  ? SolarIconsOutline.cloudCross
-                                  : SolarIconsOutline.refresh,
+                              icon: isRealtimeErr
+                                  ? SolarIconsOutline.restart
+                                  : (isOfflineErr
+                                      ? SolarIconsOutline.cloudCross
+                                      : SolarIconsOutline.refresh),
                             );
 
                           case ChatMessagesUiMode.loading:
@@ -640,7 +649,9 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
         msg,
         forwardingProtectionActive: forwardingProtection?.effective ?? false,
       ),
-      otherLastReadAt: otherLastRead ?? widget.otherLastRead,
+      otherLastReadAt: widget.isGroup
+          ? null
+          : (otherLastRead ?? widget.otherLastRead),
       showReadReceipts: showReadReceipts,
       senderName: widget.isGroup ? widget.participantNames[msg.senderId] : null,
       senderAvatarUrl: widget.isGroup ? widget.participantAvatars[msg.senderId] : null,

@@ -340,7 +340,22 @@ class ChatRepository {
     }
 
     final userId = _supabaseService.currentUserId;
-    if (userId == null) return [];
+    if (userId == null) {
+      throw const AuthException(
+        'Sesi autentikasi belum siap. Memuat ulang sesi...',
+      );
+    }
+
+    // Jika JWT baru saja kedaluwarsa (misal pasca-background), coba segarkan sesi
+    // sebelum memanggil RPC agar get_user_inbox() tidak menerima auth.uid() == NULL.
+    final session = _supabaseService.client.auth.currentSession;
+    if (session != null && session.isExpired) {
+      try {
+        await _supabaseService.client.auth
+            .refreshSession()
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {}
+    }
 
     // Panen pesan kontrol E2EE 1:1 (SKDM / SK Request) yang tiba saat offline
     unawaited(GroupKeyDistributionService.instance.syncPendingControlMessages());
@@ -349,7 +364,9 @@ class ChatRepository {
 
     // 1. Coba panggil RPC Postgres get_user_inbox() (1 round-trip HTTP ~150-250ms)
     try {
-      final rpcResult = await _supabaseService.client.rpc('get_user_inbox');
+      final rpcResult = await _supabaseService.client
+          .rpc('get_user_inbox')
+          .timeout(const Duration(seconds: 8));
       if (rpcResult is List) {
         final parsedRooms = await _parseInboxRpcResult(
           rpcResult,
@@ -359,8 +376,18 @@ class ChatRepository {
         unawaited(LocalMessageDatabase.instance.saveRoomsCache(parsedRooms));
         return parsedRooms;
       }
-    } catch (_) {
-      // Graceful fallback ke legacy N+1 query jika migrasi RPC belum diaplikasikan di database
+    } catch (e) {
+      // Hanya fallback ke legacy N+1 query jika fungsi RPC get_user_inbox belum ada di server.
+      // Untuk error jaringan, timeout, atau sesi/auth, lempar ulang agar tidak memicu N+1
+      // query berantai di jaringan yang sedang goyang.
+      final isMissingRpc = e is PostgrestException &&
+          (e.code == '42883' ||
+              e.code == 'PGRST202' ||
+              e.message.toLowerCase().contains('does not exist') ||
+              e.message.toLowerCase().contains('could not find the function'));
+      if (!isMissingRpc) {
+        rethrow;
+      }
     }
 
     return _getRoomsLegacy(userId, hiddenMsgIds);
@@ -372,6 +399,7 @@ class ChatRepository {
     Set<String> hiddenMsgIds,
   ) async {
     final List<Map<String, dynamic>> roomsList = [];
+    final List<String> directRoomIdsNeedingLastRead = [];
 
     for (final item in rpcList) {
       if (item is! Map<String, dynamic>) continue;
@@ -447,9 +475,16 @@ class ChatRepository {
         }
       }
 
-      final otherLastReadRaw = item['otherLastReadAt'] ?? item['other_last_read_at'];
+      final hasOtherLastReadKey =
+          item.containsKey('otherLastReadAt') ||
+          item.containsKey('other_last_read_at');
+      if (!isGroup && !hasOtherLastReadKey) {
+        directRoomIdsNeedingLastRead.add(roomId);
+      }
+      final otherLastReadRaw =
+          item['otherLastReadAt'] ?? item['other_last_read_at'];
       final DateTime? otherLastReadAt = otherLastReadRaw != null
-          ? DateTime.tryParse(otherLastReadRaw.toString())?.toLocal()
+          ? DateTime.tryParse(otherLastReadRaw.toString())?.toUtc()
           : null;
 
       final encVer = item['encryptionVersion'] as int? ??
@@ -481,6 +516,41 @@ class ChatRepository {
       });
     }
 
+    // Fallback 1 query batch jika RPC get_user_inbox di server belum mengembalikan otherLastReadAt (pra-migrasi 121)
+    if (directRoomIdsNeedingLastRead.isNotEmpty) {
+      try {
+        final rows = await _supabaseService.client
+            .from('room_participants')
+            .select('room_id, last_read_at')
+            .inFilter('room_id', directRoomIdsNeedingLastRead)
+            .neq('profile_id', userId)
+            .timeout(const Duration(seconds: 4));
+
+        final Map<String, DateTime> lastReadByRoom = {};
+        for (final row in (rows as List)) {
+          final rId = row['room_id'] as String?;
+          final rawReadAt = row['last_read_at'] as String?;
+          if (rId == null || rawReadAt == null) continue;
+          final parsed = DateTime.tryParse(rawReadAt)?.toUtc();
+          if (parsed == null) continue;
+          final existing = lastReadByRoom[rId];
+          if (existing == null || parsed.isAfter(existing)) {
+            lastReadByRoom[rId] = parsed;
+          }
+        }
+
+        if (lastReadByRoom.isNotEmpty) {
+          for (final room in roomsList) {
+            if (room['isGroup'] == true) continue;
+            final rId = room['id'] as String?;
+            if (rId != null && lastReadByRoom.containsKey(rId)) {
+              room['otherLastReadAt'] = lastReadByRoom[rId];
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     roomsList.sort((a, b) {
       final aTime = a['timestamp'] as DateTime?;
       final bTime = b['timestamp'] as DateTime?;
@@ -504,7 +574,8 @@ class ChatRepository {
           'room_id, is_muted, is_archived, chat_rooms(id, room_type, name, avatar_url, description, encryption_version)',
         )
         .eq('profile_id', userId)
-        .isFilter('deleted_at', null);
+        .isFilter('deleted_at', null)
+        .timeout(const Duration(seconds: 8));
 
     final roomFutures = (roomsResponse as List).map((row) async {
       final roomId = row['room_id'] as String;
@@ -554,7 +625,7 @@ class ChatRepository {
           if (otherParticipant['last_read_at'] != null) {
             otherLastReadAt = DateTime.tryParse(
               otherParticipant['last_read_at'].toString(),
-            )?.toLocal();
+            )?.toUtc();
           }
         }
 
@@ -730,9 +801,11 @@ class ChatRepository {
         'isArchived': row['is_archived'] as bool? ?? false,
         'lastReadAt': myLastReadTime,
         'otherLastReadAt': otherLastReadAt,
-        'lastMessageSenderId': localLastMsg?.senderId ??
+        'lastMessageSenderId':
+            chosenMsg?.senderId ??
+            localLastMsg?.senderId ??
             (activeRemoteMsgJson?['sender_id'] as String?),
-        'lastMessageIsSending': localLastMsg?.isSending ?? false,
+        'lastMessageIsSending': chosenMsg?.isSending ?? false,
       };
     });
 
@@ -1259,6 +1332,7 @@ class ChatRepository {
       }
 
       late Future<void> Function() subscribe;
+      late Future<bool> Function() fetchLatestViaRest;
 
       void handleStreamError(dynamic err) {
         if (controller.isClosed) return;
@@ -1277,9 +1351,10 @@ class ChatRepository {
           );
         }
 
-        // Coba subscribe ulang dengan backoff
+        // Coba subscribe ulang dengan backoff + jaring pengaman HTTP REST
         if (retryAttempt < reconnectPolicy.maxAttempts) {
           retryAttempt++;
+          unawaited(fetchLatestViaRest());
           final delay = reconnectPolicy.delayForAttempt(retryAttempt);
           retryTimer?.cancel();
           retryTimer = Timer(delay, () {
@@ -1293,6 +1368,7 @@ class ChatRepository {
           // tampilan obrolan lokal pengguna dan menggantinya dengan error screen.
           // Cukup pertahankan mode reconnecting/offline dan coba lagi berkala.
           if (hasEmittedData) {
+            unawaited(fetchLatestViaRest());
             retryTimer?.cancel();
             retryTimer = Timer(const Duration(seconds: 15), () {
               if (!controller.isClosed) {
@@ -1300,9 +1376,24 @@ class ChatRepository {
               }
             });
           } else {
-            reconnectDebounceTimer?.cancel();
-            onReconnectChange?.call(false);
-            controller.addError(err);
+            // Penyelamatan REST terakhir sebelum menyerah melempar error ke UI:
+            // sering kali WebSocket Realtime timeout sementara HTTP REST tetap bisa jalan.
+            unawaited(() async {
+              final ok = await fetchLatestViaRest();
+              if (controller.isClosed) return;
+              if (ok || hasEmittedData) {
+                retryTimer?.cancel();
+                retryTimer = Timer(const Duration(seconds: 15), () {
+                  if (!controller.isClosed) {
+                    subscribe();
+                  }
+                });
+              } else {
+                reconnectDebounceTimer?.cancel();
+                onReconnectChange?.call(false);
+                controller.addError(err);
+              }
+            }());
           }
         }
       }
@@ -1344,9 +1435,9 @@ class ChatRepository {
         }
       };
 
-      Future<void> fetchLatestViaRest() async {
+      fetchLatestViaRest = () async {
         if (controller.isClosed || LocalMessageDatabase.instance.isDecoy) {
-          return;
+          return false;
         }
         try {
           final rows = await _supabaseService.client
@@ -1355,17 +1446,20 @@ class ChatRepository {
               .eq('room_id', roomId)
               .order('created_at', ascending: false)
               .limit(50)
-              .timeout(const Duration(seconds: 4));
-          if (controller.isClosed) return;
+              .timeout(const Duration(seconds: 8));
+          if (controller.isClosed) return false;
           final maps = List<Map<String, dynamic>>.from(rows);
           if (isProcessing) {
             pendingBatch = maps;
-            return;
+            return true;
           }
           isProcessing = true;
           await processBatch(maps);
-        } catch (_) {}
-      }
+          return true;
+        } catch (_) {
+          return false;
+        }
+      };
 
       Future<void> loadMetadataAndApplyFilters() async {
         try {

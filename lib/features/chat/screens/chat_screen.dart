@@ -650,10 +650,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     try {
       await repo.purgeExpiredMessages(targetRoomId: widget.chatId);
     } catch (_) {}
-    _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
-    if (mounted && _otherLastRead != null) {
-      ref.read(otherParticipantLastReadProvider(widget.chatId).notifier).updateReadAt(_otherLastRead!);
-      setState(() {});
+    if (!_effectiveIsGroup) {
+      _otherLastRead = await repo.getOtherParticipantLastRead(widget.chatId);
+      if (mounted && _otherLastRead != null) {
+        ref
+            .read(otherParticipantLastReadProvider(widget.chatId).notifier)
+            .updateReadAt(_otherLastRead!);
+        setState(() {});
+      }
     }
     if (_effectiveIsGroup) {
       _loadGroupParticipants();
@@ -989,10 +993,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           timestamp: now,
           isFromOtherUser: false,
           isCurrentlyInRoom: true,
+          isSending: true,
         );
 
     try {
-      await actions.sendMessage(
+      final sentMessage = await actions.sendMessage(
         widget.chatId,
         textToSend,
         type: MessageType.text,
@@ -1004,6 +1009,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         isGroup: _effectiveIsGroup,
       );
 
+      // Sinkronkan timestamp server & status terkirim (bukan pending) ke daftar obrolan
+      ref
+          .read(chatRoomsProvider.notifier)
+          .updateLastMessageLocally(
+            roomId: widget.chatId,
+            previewText: textToSend,
+            timestamp: sentMessage.createdAt,
+            isFromOtherUser: false,
+            isCurrentlyInRoom: true,
+            isSending: false,
+          );
+
       // Setelah terkirim ke server, hapus item pending sementara
       if (mounted) {
         ref
@@ -1011,6 +1028,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             .removePending(tempId);
       }
     } catch (e) {
+      unawaited(
+        ref.read(chatRoomsProvider.notifier).refreshRooms(forceLoading: false),
+      );
       // Fail-Safe Restoration: Hapus pending, kembalikan teks dan state bila pengiriman gagal
       if (mounted) {
         ref
@@ -1711,7 +1731,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 scrollController: _scrollController,
                 isEmojiPickerOpen: _isEmojiPickerOpen,
                 hiddenCallIds: _hiddenCallIds,
-                otherLastRead: ref.watch(otherParticipantLastReadProvider(widget.chatId)) ?? _otherLastRead,
+                otherLastRead: _effectiveIsGroup
+                    ? null
+                    : (ref.watch(otherParticipantLastReadProvider(widget.chatId)) ??
+                        _otherLastRead),
                 selectedMessageIds: _selectedMessageIds,
                 selectedCallIds: _selectedCallIds,
                 reactionAnchorMessageId: _reactionAnchorMessageId,

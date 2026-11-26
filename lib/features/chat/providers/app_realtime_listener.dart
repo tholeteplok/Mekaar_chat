@@ -220,12 +220,40 @@ class AppRealtimeListener {
             }
           },
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'room_participants',
+          callback: (payload) {
+            final record = payload.newRecord;
+            final roomId = record['room_id'] as String?;
+            final profileId = record['profile_id'] as String?;
+            final lastReadRaw = record['last_read_at'] as String?;
+            if (roomId == null ||
+                profileId == null ||
+                profileId == userId ||
+                lastReadRaw == null) {
+              return;
+            }
+            final readAt = DateTime.tryParse(lastReadRaw)?.toUtc();
+            if (readAt == null) return;
+
+            _ref
+                .read(chatRoomsProvider.notifier)
+                .updateOtherLastReadLocally(roomId, readAt);
+            if (_ref.read(activeRoomIdProvider) == roomId) {
+              _ref
+                  .read(otherParticipantLastReadProvider(roomId).notifier)
+                  .updateReadAt(readAt);
+            }
+          },
+        )
         .subscribe((status, [error]) {
           if (status == RealtimeSubscribeStatus.subscribed) {
             _reconnectAttempts = 0;
             _log.i(
               '[REALTIME][app_events_$userId] Status: SUBSCRIBED '
-              '(messages, calls, sos_sessions, profiles, guardians aktif).',
+              '(messages, calls, sos_sessions, profiles, guardians, room_participants aktif).',
             );
           } else if (status == RealtimeSubscribeStatus.channelError) {
             _log.e(

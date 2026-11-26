@@ -29,6 +29,16 @@ class ErrorResolver {
         errStr.contains('network');
   }
 
+  /// Memeriksa apakah error berasal khusus dari channel Realtime / WebSocket
+  /// (di mana koneksi internet & HTTP REST mungkin tetap normal).
+  static bool isRealtimeError(dynamic error) {
+    if (error == null) return false;
+    final errStr = error.toString().toLowerCase();
+    return errStr.contains('realtimesubscribeexception') ||
+        errStr.contains('channel error') ||
+        errStr.contains('realtime');
+  }
+
   /// Mengubah objek error teknis menjadi pesan yang mudah dipahami pengguna awam.
   ///
   /// Contoh:

@@ -72,7 +72,11 @@ class _FakeChatRoomsNotifier
     required DateTime timestamp,
     required bool isFromOtherUser,
     bool isCurrentlyInRoom = false,
+    bool isSending = false,
   }) {}
+
+  @override
+  void updateOtherLastReadLocally(String roomId, DateTime readAt) {}
 }
 
 void main() {

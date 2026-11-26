@@ -66,7 +66,11 @@ class _FakeChatRoomsNotifier
     required DateTime timestamp,
     required bool isFromOtherUser,
     required bool isCurrentlyInRoom,
+    bool isSending = false,
   }) {}
+
+  @override
+  void updateOtherLastReadLocally(String roomId, DateTime readAt) {}
 }
 
 class _SpyChatActions extends Fake implements ChatActionsNotifier {

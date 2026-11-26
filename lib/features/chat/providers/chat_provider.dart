@@ -51,6 +51,7 @@ class ChatRoomsNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final ChatRepository _chatRepository;
   final Ref? _ref;
+  Future<void>? _inFlightRefresh;
 
   ChatRoomsNotifier(this._chatRepository, [this._ref]) : super(const AsyncValue.loading()) {
     _initLocalFirst();
@@ -77,43 +78,66 @@ class ChatRoomsNotifier
   }) async {
     try {
       final cached = await _chatRepository.getCachedRooms();
-      state = AsyncValue.data(cached);
+      if (!mounted) return;
+      // Di mode Decoy (syncRemoteInBackground == false) atau saat cache lokal tidak kosong,
+      // tampilkan snapshot lokal seketika. Jika cache lokal kosong pada mode Master,
+      // JANGAN menimpa state dengan AsyncData([]) agar tidak memunculkan false Empty State
+      // maupun menelan error saat refreshRooms gagal.
+      if (cached.isNotEmpty || !syncRemoteInBackground) {
+        state = AsyncValue.data(cached);
+      }
     } catch (_) {}
 
-    if (syncRemoteInBackground) {
-      unawaited(refreshRooms(forceLoading: false));
+    if (syncRemoteInBackground && mounted) {
+      unawaited(refreshRooms(forceLoading: !state.hasValue));
     }
   }
 
   Future<void> refreshRooms({bool forceLoading = false}) async {
-    try {
-      if (forceLoading || !state.hasValue) {
-        state = const AsyncValue.loading();
-      }
-      final rooms = await _chatRepository.getRooms();
-      state = AsyncValue.data(rooms);
+    if (_inFlightRefresh != null && !forceLoading) {
+      return _inFlightRefresh!;
+    }
 
-      // Migrasi transparan legacy: petakan hiddenRoomIds ke hiddenContactUserIds jika ada
-      final roomToUserIdMap = <String, String>{};
-      for (final r in rooms) {
-        final rId = r['id'] as String?;
-        final uId = r['otherUserId'] as String?;
-        if (rId != null && uId != null && uId.isNotEmpty) {
-          roomToUserIdMap[rId] = uId;
+    Future<void> run() async {
+      try {
+        if (!mounted) return;
+        if (forceLoading || !state.hasValue) {
+          state = const AsyncValue.loading();
+        }
+        final rooms = await _chatRepository.getRooms();
+        if (!mounted) return;
+        state = AsyncValue.data(rooms);
+
+        // Migrasi transparan legacy: petakan hiddenRoomIds ke hiddenContactUserIds jika ada
+        final roomToUserIdMap = <String, String>{};
+        for (final r in rooms) {
+          final rId = r['id'] as String?;
+          final uId = r['otherUserId'] as String?;
+          if (rId != null && uId != null && uId.isNotEmpty) {
+            roomToUserIdMap[rId] = uId;
+          }
+        }
+        if (roomToUserIdMap.isNotEmpty) {
+          unawaited(
+            PrivateContactRepository().migrateLegacyHiddenRoomsToContacts(
+              roomToUserIdMap,
+            ),
+          );
+        }
+      } catch (e, stack) {
+        if (mounted && !state.hasValue) {
+          state = AsyncValue.error(e, stack);
         }
       }
-      if (roomToUserIdMap.isNotEmpty) {
-        unawaited(
-          PrivateContactRepository().migrateLegacyHiddenRoomsToContacts(
-            roomToUserIdMap,
-          ),
-        );
-      }
-    } catch (e, stack) {
-      if (!state.hasValue) {
-        state = AsyncValue.error(e, stack);
-      }
     }
+
+    final future = run();
+    _inFlightRefresh = future;
+    return future.whenComplete(() {
+      if (identical(_inFlightRefresh, future)) {
+        _inFlightRefresh = null;
+      }
+    });
   }
 
   Future<String> getOrCreateRoom(
@@ -150,6 +174,7 @@ class ChatRoomsNotifier
     required DateTime timestamp,
     required bool isFromOtherUser,
     required bool isCurrentlyInRoom,
+    bool isSending = false,
   }) {
     final currentList = state.value;
     if (currentList == null) {
@@ -182,9 +207,9 @@ class ChatRoomsNotifier
         myId = 'me';
       }
     }
-    updatedRoom['lastMessageSenderId'] =
-        isFromOtherUser ? 'other' : (myId ?? 'me');
-    updatedRoom['lastMessageIsSending'] = false;
+    final senderId = isFromOtherUser ? 'other' : (myId ?? 'me');
+    updatedRoom['lastMessageSenderId'] = senderId;
+    updatedRoom['lastMessageIsSending'] = isSending;
 
     final newList = List<Map<String, dynamic>>.from(currentList);
     newList.removeAt(index);
@@ -199,6 +224,47 @@ class ChatRoomsNotifier
         previewText: previewText,
         timestamp: timestamp,
         unreadCount: newUnread,
+        lastMessageSenderId: senderId,
+        lastMessageIsSending: isSending,
+      ),
+    );
+  }
+
+  /// Memperbarui timestamp baca lawan bicara (otherLastReadAt) secara lokal & monotonik
+  /// agar status centang di preview daftar obrolan selalu sinkron dengan bubble room.
+  void updateOtherLastReadLocally(String roomId, DateTime readAt) {
+    final currentList = state.value;
+    if (currentList == null) return;
+
+    final index = currentList.indexWhere((r) => r['id'] == roomId);
+    if (index == -1) return;
+
+    final existingRoom = currentList[index];
+    if (existingRoom['isGroup'] == true) return;
+
+    final readAtUtc = readAt.toUtc();
+    final rawExisting = existingRoom['otherLastReadAt'];
+    final DateTime? existingUtc = rawExisting is DateTime
+        ? rawExisting.toUtc()
+        : (rawExisting is String
+            ? DateTime.tryParse(rawExisting)?.toUtc()
+            : null);
+
+    if (existingUtc != null && !readAtUtc.isAfter(existingUtc)) {
+      return;
+    }
+
+    final updatedRoom = Map<String, dynamic>.from(existingRoom);
+    updatedRoom['otherLastReadAt'] = readAtUtc;
+
+    final newList = List<Map<String, dynamic>>.from(currentList);
+    newList[index] = updatedRoom;
+    state = AsyncValue.data(newList);
+
+    unawaited(
+      LocalMessageDatabase.instance.updateRoomCacheOtherLastRead(
+        roomId: roomId,
+        otherLastReadAt: readAtUtc,
       ),
     );
   }
@@ -210,7 +276,16 @@ final chatRoomsProvider =
       AsyncValue<List<Map<String, dynamic>>>
     >((ref) {
       final repo = ref.watch(chatRepositoryProvider);
-      return ChatRoomsNotifier(repo, ref);
+      final notifier = ChatRoomsNotifier(repo, ref);
+      ref.listen<String?>(
+        authProvider.select((s) => s.user?.id),
+        (prevUserId, nextUserId) {
+          if (prevUserId == null && nextUserId != null) {
+            unawaited(notifier.refreshRooms(forceLoading: false));
+          }
+        },
+      );
+      return notifier;
     });
 
 // ─────────────────────────────────────────
@@ -298,6 +373,8 @@ class OtherParticipantLastReadNotifier extends StateNotifier<DateTime?> {
   final String _roomId;
   RealtimeChannel? _channel;
   Timer? _subscribeDebounceTimer;
+  bool _isSubscribed = false;
+  DateTime? _pendingBroadcastReadAt;
 
   OtherParticipantLastReadNotifier(this._ref, this._roomId) : super(null) {
     _initInitialState();
@@ -308,20 +385,31 @@ class OtherParticipantLastReadNotifier extends StateNotifier<DateTime?> {
     });
   }
 
+  void _applyReadAt(DateTime readAt) {
+    final utc = readAt.toUtc();
+    if (mounted && (state == null || utc.isAfter(state!))) {
+      state = utc;
+    }
+    try {
+      _ref.read(chatRoomsProvider.notifier).updateOtherLastReadLocally(
+            _roomId,
+            utc,
+          );
+    } catch (_) {}
+  }
+
   Future<void> _initInitialState() async {
     try {
       final repo = _ref.read(chatRepositoryProvider);
       final initial = await repo.getOtherParticipantLastRead(_roomId);
       if (mounted && initial != null) {
-        final utc = initial.toUtc();
-        if (state == null || utc.isAfter(state!)) {
-          state = utc;
-        }
+        _applyReadAt(initial);
       }
     } catch (_) {}
   }
 
   void _subscribe() {
+    if (_channel != null) return;
     try {
       final client = _ref.read(supabaseServiceProvider).client;
       final currentUserId = client.auth.currentUser?.id;
@@ -340,19 +428,30 @@ class OtherParticipantLastReadNotifier extends StateNotifier<DateTime?> {
           if (readAtStr != null && mounted) {
             final readAt = DateTime.tryParse(readAtStr)?.toUtc();
             if (readAt != null) {
-              if (state == null || readAt.isAfter(state!)) {
-                state = readAt;
-              }
+              _applyReadAt(readAt);
             }
           }
         },
       );
-      _channel?.subscribe();
+      _channel?.subscribe((status, [error]) {
+        if (!mounted) return;
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          _isSubscribed = true;
+          final pending = _pendingBroadcastReadAt;
+          if (pending != null) {
+            _pendingBroadcastReadAt = null;
+            _sendBroadcast(pending);
+          }
+        } else if (status == RealtimeSubscribeStatus.closed ||
+            status == RealtimeSubscribeStatus.channelError ||
+            status == RealtimeSubscribeStatus.timedOut) {
+          _isSubscribed = false;
+        }
+      });
     } catch (_) {}
   }
 
-  /// Menyiarkan sinyal bahwa pengguna saat ini telah membaca obrolan ke peserta lain
-  void broadcastRead(DateTime readAt) {
+  void _sendBroadcast(DateTime readAtUtc) {
     try {
       final client = _ref.read(supabaseServiceProvider).client;
       final currentUserId = client.auth.currentUser?.id;
@@ -361,24 +460,39 @@ class OtherParticipantLastReadNotifier extends StateNotifier<DateTime?> {
           event: 'read_receipt',
           payload: {
             'reader_id': currentUserId,
-            'read_at': readAt.toUtc().toIso8601String(),
+            'read_at': readAtUtc.toUtc().toIso8601String(),
           },
         );
       }
     } catch (_) {}
   }
 
+  /// Menyiarkan sinyal bahwa pengguna saat ini telah membaca obrolan ke peserta lain
+  void broadcastRead(DateTime readAt) {
+    final utc = readAt.toUtc();
+    if (_channel != null && _isSubscribed) {
+      _sendBroadcast(utc);
+    } else {
+      _pendingBroadcastReadAt = utc;
+      if (_subscribeDebounceTimer?.isActive ?? false) {
+        _subscribeDebounceTimer?.cancel();
+        if (mounted) {
+          _subscribe();
+        }
+      }
+    }
+  }
+
   /// Memperbarui timestamp secara manual
   void updateReadAt(DateTime newReadAt) {
-    final utc = newReadAt.toUtc();
-    if (state == null || utc.isAfter(state!)) {
-      state = utc;
-    }
+    _applyReadAt(newReadAt);
   }
 
   @override
   void dispose() {
     _subscribeDebounceTimer?.cancel();
+    _isSubscribed = false;
+    _pendingBroadcastReadAt = null;
     if (_channel != null) {
       try {
         _ref.read(supabaseServiceProvider).client.removeChannel(_channel!);

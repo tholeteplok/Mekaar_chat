@@ -51,6 +51,12 @@ class ReadReceiptsNotifier extends StateNotifier<bool> {
   ReadReceiptsNotifier(this._repo, this._ref)
       : super(_ref.read(authProvider).profile?.readReceiptsEnabled ?? true);
 
+  void syncFromProfile(bool enabled) {
+    if (state != enabled) {
+      state = enabled;
+    }
+  }
+
   Future<void> setEnabled(bool enabled) async {
     final previous = state;
     state = enabled;
@@ -72,7 +78,16 @@ class ReadReceiptsNotifier extends StateNotifier<bool> {
 final readReceiptsProvider =
     StateNotifierProvider<ReadReceiptsNotifier, bool>((ref) {
   final repo = ref.watch(authRepositoryPrivacyProvider);
-  return ReadReceiptsNotifier(repo, ref);
+  final notifier = ReadReceiptsNotifier(repo, ref);
+  ref.listen<bool?>(
+    authProvider.select((a) => a.profile?.readReceiptsEnabled),
+    (_, next) {
+      if (next != null) {
+        notifier.syncFromProfile(next);
+      }
+    },
+  );
+  return notifier;
 });
 
 /// Provider untuk mengontrol mode proteksi undangan chat.

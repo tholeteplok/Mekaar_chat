@@ -230,7 +230,7 @@ class ChatMediaHandler {
               content: contentPayload,
               isUnreadFromOther: false,
             ),
-            timestamp: DateTime.now(),
+            timestamp: sentMsg.createdAt,
             isFromOtherUser: false,
             isCurrentlyInRoom: true,
           );
@@ -282,7 +282,7 @@ class ChatMediaHandler {
       final lng = locationData.longitude;
       if (lat == null || lng == null) return;
 
-      await ref
+      final sentMsg = await ref
           .read(chatActionsProvider)
           .sendMessage(
             chatId,
@@ -302,7 +302,7 @@ class ChatMediaHandler {
               content: '$lat, $lng',
               isUnreadFromOther: false,
             ),
-            timestamp: DateTime.now(),
+            timestamp: sentMsg.createdAt,
             isFromOtherUser: false,
             isCurrentlyInRoom: true,
           );

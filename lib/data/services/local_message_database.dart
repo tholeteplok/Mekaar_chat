@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
@@ -475,6 +476,49 @@ class LocalMessageDatabase {
     ''');
   }
 
+  /// Menyiapkan map room agar aman diserialisasi ke JSON (mengonversi DateTime & Message).
+  @visibleForTesting
+  static Map<String, dynamic> serializeRoomForCache(Map<String, dynamic> room) {
+    final serializableMap = Map<String, dynamic>.from(room);
+    final lastMsg = serializableMap['lastMessage'];
+    if (lastMsg is Message) {
+      serializableMap['lastMessage'] = lastMsg.toJson();
+    }
+    for (final key in serializableMap.keys.toList()) {
+      final value = serializableMap[key];
+      if (value is DateTime) {
+        serializableMap[key] = value.toUtc().toIso8601String();
+      }
+    }
+    return serializableMap;
+  }
+
+  /// Merekonstruksi field DateTime & Message dari JSON cache lokal.
+  @visibleForTesting
+  static Map<String, dynamic> deserializeRoomFromCache(
+    Map<String, dynamic> decoded,
+  ) {
+    final result = Map<String, dynamic>.from(decoded);
+    if (result['lastMessage'] != null && result['lastMessage'] is Map) {
+      try {
+        result['lastMessage'] = Message.fromJson(
+          (result['lastMessage'] as Map).cast<String, dynamic>(),
+        );
+      } catch (_) {}
+    }
+    final rawTs = result['timestamp'];
+    if (rawTs is String) {
+      result['timestamp'] = DateTime.tryParse(rawTs)?.toLocal();
+    }
+    for (final utcKey in const ['otherLastReadAt', 'lastReadAt']) {
+      final rawVal = result[utcKey];
+      if (rawVal is String) {
+        result[utcKey] = DateTime.tryParse(rawVal)?.toUtc();
+      }
+    }
+    return result;
+  }
+
   /// Menyimpan snapshot daftar chat rooms ke cache SQLCipher lokal secara terisolasi (Master / Decoy)
   Future<void> saveRoomsCache(List<Map<String, dynamic>> rooms) async {
     if (rooms.isEmpty) return;
@@ -505,15 +549,12 @@ class LocalMessageDatabase {
         final roomId = r['id'] as String? ?? r['room_id'] as String?;
         if (roomId == null || roomId.isEmpty) continue;
 
-        // Siapkan map JSON yang serializable
-        final serializableMap = Map<String, dynamic>.from(r);
-        final lastMsg = r['lastMessage'];
-        if (lastMsg is Message) {
-          serializableMap['lastMessage'] = lastMsg.toJson();
-        }
-
+        final serializableMap = serializeRoomForCache(r);
         final rawJson = jsonEncode(serializableMap);
-        final timestampStr = r['timestamp']?.toString() ?? now;
+        final rawTs = r['timestamp'];
+        final timestampStr = rawTs is DateTime
+            ? rawTs.toUtc().toIso8601String()
+            : (rawTs?.toString() ?? now);
         final existingWipe = existingWipes[roomId];
         final wipeMode = r.containsKey('scheduled_wipe_mode')
             ? (r['scheduled_wipe_mode'] as String? ?? 'off')
@@ -578,15 +619,7 @@ class LocalMessageDatabase {
         if (rawJsonStr == null || rawJsonStr.isEmpty) continue;
 
         final decoded = jsonDecode(rawJsonStr) as Map<String, dynamic>;
-        // Rekonstruksi Message object jika ada
-        if (decoded['lastMessage'] != null && decoded['lastMessage'] is Map) {
-          try {
-            decoded['lastMessage'] = Message.fromJson(
-              (decoded['lastMessage'] as Map).cast<String, dynamic>(),
-            );
-          } catch (_) {}
-        }
-        result.add(decoded);
+        result.add(deserializeRoomFromCache(decoded));
       }
       return result;
     } catch (e) {
@@ -601,6 +634,8 @@ class LocalMessageDatabase {
     required String previewText,
     required DateTime timestamp,
     int? unreadCount,
+    String? lastMessageSenderId,
+    bool? lastMessageIsSending,
   }) async {
     try {
       final db = await database;
@@ -621,15 +656,22 @@ class LocalMessageDatabase {
         } catch (_) {}
       }
 
+      final utcIso = timestamp.toUtc().toIso8601String();
       decoded['lastMessage'] = previewText;
-      decoded['timestamp'] = timestamp.toIso8601String();
+      decoded['timestamp'] = utcIso;
       if (unreadCount != null) {
         decoded['unreadCount'] = unreadCount;
+      }
+      if (lastMessageSenderId != null) {
+        decoded['lastMessageSenderId'] = lastMessageSenderId;
+      }
+      if (lastMessageIsSending != null) {
+        decoded['lastMessageIsSending'] = lastMessageIsSending;
       }
 
       final updates = <String, dynamic>{
         'raw_json': jsonEncode(decoded),
-        'updated_at': timestamp.toIso8601String(),
+        'updated_at': utcIso,
       };
       if (unreadCount != null) {
         updates['unread_count'] = unreadCount;
@@ -645,6 +687,50 @@ class LocalMessageDatabase {
       if (e is! MissingPluginException &&
           !e.toString().contains('MissingPluginException')) {
         _logger.w('Gagal memperbarui room cache last message: $e');
+      }
+    }
+  }
+
+  /// Update timestamp otherLastReadAt pada local rooms cache secara monotonik
+  Future<void> updateRoomCacheOtherLastRead({
+    required String roomId,
+    required DateTime otherLastReadAt,
+  }) async {
+    try {
+      final db = await database;
+      final existing = await db.query(
+        _roomsCacheTableName,
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+        limit: 1,
+      );
+      if (existing.isEmpty) return;
+
+      final row = existing.first;
+      final rawJsonStr = row['raw_json'] as String?;
+      if (rawJsonStr == null || rawJsonStr.isEmpty) return;
+
+      final decoded = jsonDecode(rawJsonStr) as Map<String, dynamic>;
+      final readAtUtc = otherLastReadAt.toUtc();
+      final currentRaw = decoded['otherLastReadAt'];
+      final currentUtc = currentRaw is String
+          ? DateTime.tryParse(currentRaw)?.toUtc()
+          : null;
+      if (currentUtc != null && !readAtUtc.isAfter(currentUtc)) {
+        return;
+      }
+
+      decoded['otherLastReadAt'] = readAtUtc.toIso8601String();
+      await db.update(
+        _roomsCacheTableName,
+        {'raw_json': jsonEncode(decoded)},
+        where: 'room_id = ?',
+        whereArgs: [roomId],
+      );
+    } catch (e) {
+      if (e is! MissingPluginException &&
+          !e.toString().contains('MissingPluginException')) {
+        _logger.w('Gagal memperbarui room cache otherLastReadAt: $e');
       }
     }
   }

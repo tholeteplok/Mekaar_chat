@@ -36,7 +36,11 @@ class MockChatRoomsNotifier
     required DateTime timestamp,
     required bool isFromOtherUser,
     required bool isCurrentlyInRoom,
+    bool isSending = false,
   }) {}
+
+  @override
+  void updateOtherLastReadLocally(String roomId, DateTime readAt) {}
 }
 
 class MockVaultNotifier
