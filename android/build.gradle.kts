@@ -1,3 +1,7 @@
+plugins {
+    id("com.android.application") apply false
+}
+
 allprojects {
     repositories {
         google()
@@ -16,6 +20,19 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+subprojects {
+    if (project.name != "app") {
+        afterEvaluate {
+            val androidExt = extensions.findByName("android")
+            if (androidExt is com.android.build.api.dsl.LibraryExtension) {
+                val currentSdk = androidExt.compileSdk ?: 0
+                if (currentSdk < 36) {
+                    androidExt.compileSdk = 36
+                }
+            }
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

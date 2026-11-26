@@ -20,10 +20,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
         val isCI = System.getenv("CI") == "true" || System.getenv("GITHUB_ACTIONS") == "true"
         val isExplicitProd = project.hasProperty("prod") || System.getenv("MEKAAR_PROD") == "true"
@@ -92,6 +88,12 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
