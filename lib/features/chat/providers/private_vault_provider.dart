@@ -33,6 +33,45 @@ final hiddenContactUserIdsProvider =
   return HiddenContactUserIdsNotifier(repo);
 });
 
+String? _lastSyncedVaultSignature;
+
+void _syncToNativeVaultIfChanged({
+  required PrivateContactRepository repo,
+  required bool isVaultUnlocked,
+  List<String>? hiddenRoomIds,
+  List<String>? hiddenContactUserIds,
+}) {
+  final sortedRooms = hiddenRoomIds == null
+      ? ''
+      : (List<String>.from(hiddenRoomIds)..sort()).join(',');
+  final sortedContacts = hiddenContactUserIds == null
+      ? ''
+      : (List<String>.from(hiddenContactUserIds)..sort()).join(',');
+  final sig =
+      '$isVaultUnlocked|${hiddenRoomIds != null}:$sortedRooms|${hiddenContactUserIds != null}:$sortedContacts';
+  if (_lastSyncedVaultSignature == sig) return;
+  _lastSyncedVaultSignature = sig;
+  unawaited(repo.syncToNativeVault(
+    isVaultUnlocked: isVaultUnlocked,
+    hiddenRoomIds: hiddenRoomIds,
+    hiddenContactUserIds: hiddenContactUserIds,
+  ));
+}
+
+/// Topologi ringan (roomId -> otherUserId) agar `cloakedRoomIdsProvider`
+/// tidak recompute saat pesan masuk atau read receipt berubah.
+final _roomVaultTopologyProvider = Provider<String>((ref) {
+  final rooms =
+      ref.watch(chatRoomsProvider.select((a) => a.valueOrNull)) ??
+          const <Map<String, dynamic>>[];
+  if (rooms.isEmpty) return '';
+  final entries = rooms
+      .map((r) => '${r['id'] ?? ''}:${r['otherUserId'] ?? ''}')
+      .toList()
+    ..sort();
+  return entries.join('|');
+});
+
 /// Set contactUserId yang saat ini sedang terkunci/terselubung (cloaked)
 /// berdasarkan nomor slot masing-masing dan status unlockedVaultSlotsProvider.
 final cloakedContactUserIdsProvider = Provider<Set<String>>((ref) {
@@ -70,10 +109,11 @@ final cloakedContactUserIdsProvider = Provider<Set<String>>((ref) {
 
   // Sinkronisasi status keterbukaan vault & daftar cloaked aktual ke layer native Android (AegisNativeBridge)
   final repo = ref.read(privateContactRepositoryProvider);
-  unawaited(repo.syncToNativeVault(
+  _syncToNativeVaultIfChanged(
+    repo: repo,
     isVaultUnlocked: isAnyUnlocked,
     hiddenContactUserIds: cloaked.toList(),
-  ));
+  );
 
   return cloaked;
 });
@@ -84,17 +124,18 @@ final cloakedRoomIdsProvider = Provider<Set<String>>((ref) {
   final hiddenRooms = ref.watch(hiddenRoomIdsProvider);
   final isAnyUnlocked = ref.watch(unlockedVaultSlotsProvider).isNotEmpty ||
       ref.watch(privateVaultUnlockedProvider);
-  final rooms =
-      ref.watch(chatRoomsProvider).valueOrNull ?? const <Map<String, dynamic>>[];
+  final topology = ref.watch(_roomVaultTopologyProvider);
 
   final cloaked = <String>{};
 
   // 1. Room yang otherUserId-nya termasuk cloaked contact
-  for (final room in rooms) {
-    final roomId = room['id'] as String?;
-    final otherUserId = room['otherUserId'] as String?;
-    if (roomId != null) {
-      if (otherUserId != null && cloakedUserIds.contains(otherUserId)) {
+  if (topology.isNotEmpty) {
+    for (final entry in topology.split('|')) {
+      final sep = entry.indexOf(':');
+      if (sep <= 0) continue;
+      final roomId = entry.substring(0, sep);
+      final otherUserId = entry.substring(sep + 1);
+      if (otherUserId.isNotEmpty && cloakedUserIds.contains(otherUserId)) {
         cloaked.add(roomId);
       } else if (hiddenRooms.contains(roomId) && !isAnyUnlocked) {
         cloaked.add(roomId);
@@ -108,11 +149,12 @@ final cloakedRoomIdsProvider = Provider<Set<String>>((ref) {
   }
 
   final repo = ref.read(privateContactRepositoryProvider);
-  unawaited(repo.syncToNativeVault(
+  _syncToNativeVaultIfChanged(
+    repo: repo,
     isVaultUnlocked: isAnyUnlocked,
     hiddenRoomIds: cloaked.toList(),
     hiddenContactUserIds: cloakedUserIds.toList(),
-  ));
+  );
 
   return cloaked;
 });

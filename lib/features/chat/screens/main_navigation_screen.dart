@@ -19,6 +19,23 @@ import 'contact_list_screen.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
 
+/// Derived provider untuk menghitung total unread count non-cloaked
+/// tanpa memicu rebuild [MainNavigationScreen] pada mutasi room yang tidak mengubah badge.
+final visibleTotalUnreadCountProvider = Provider<int>((ref) {
+  final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
+  final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
+  final rooms = ref.watch(chatRoomsProvider).valueOrNull;
+  if (rooms == null) return 0;
+  return rooms.fold<int>(0, (sum, r) {
+    final otherUserId = r['otherUserId'] as String?;
+    if (cloakedRooms.contains(r['id']) ||
+        (otherUserId != null && cloakedContacts.contains(otherUserId))) {
+      return sum;
+    }
+    return sum + ((r['unreadCount'] as int?) ?? 0);
+  });
+});
+
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -90,30 +107,17 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
 
-    // Hitung total unread di semua room untuk badge ikon Pesan
+    // Hitung total unread di semua room untuk badge ikon Pesan via derived provider
     // (Abaikan room tersembunyi saat vault terkunci agar indikator tidak bocor - terisolasi per-slot)
-    final cloakedRooms = ref.watch(cloakedRoomIdsProvider);
-    final cloakedContacts = ref.watch(cloakedContactUserIdsProvider);
-    final chatRoomsState = ref.watch(chatRoomsProvider);
-    final totalUnread = chatRoomsState.maybeWhen(
-      data: (rooms) => rooms.fold<int>(
-        0,
-        (sum, r) {
-          final otherUserId = r['otherUserId'] as String?;
-          if (cloakedRooms.contains(r['id']) ||
-              (otherUserId != null && cloakedContacts.contains(otherUserId))) {
-            return sum;
-          }
-          return sum + ((r['unreadCount'] as int?) ?? 0);
-        },
-      ),
-      orElse: () => 0,
-    );
+    final totalUnread = ref.watch(visibleTotalUnreadCountProvider);
 
-    // Jika badge unread pesan mencapai 0, pastikan notifikasi di status bar sistem juga bersih
-    if (totalUnread == 0 && chatRoomsState.hasValue) {
-      unawaited(NotificationService.cancelAllMessageNotifications());
-    }
+    // Jika badge unread pesan mencapai 0, bersihkan notifikasi di status bar via ref.listen
+    // (bukan side-effect langsung di build).
+    ref.listen<int>(visibleTotalUnreadCountProvider, (prev, next) {
+      if (next == 0 && ref.read(chatRoomsProvider).hasValue) {
+        unawaited(NotificationService.cancelAllMessageNotifications());
+      }
+    });
 
     final pendingIncomingCount = ref.watch(pendingIncomingGuardianCountProvider);
     final hasPendingGuardian = ref.watch(hasPendingIncomingGuardiansProvider);

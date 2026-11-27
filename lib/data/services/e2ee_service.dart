@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:logger/logger.dart';
@@ -572,10 +573,18 @@ class E2eeService {
   // ── Media (kunci file acak per lampiran) ───────────────────
   static const List<int> _paddedMediaMagic = [0x4D, 0x4B, 0x50, 0x31]; // 'MKP1'
 
-  Future<({List<int> bytes, String keyB64})> encryptMedia(
+  Future<({Uint8List bytes, String keyB64})> encryptMedia(
     List<int> bytes,
   ) async {
-    final fileKey = await _cipher.newSecretKey();
+    final plainBytes = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    return Isolate.run(() => _encryptMediaInIsolate(plainBytes));
+  }
+
+  static Future<({Uint8List bytes, String keyB64})> _encryptMediaInIsolate(
+    Uint8List bytes,
+  ) async {
+    final cipher = Xchacha20.poly1305Aead();
+    final fileKey = await cipher.newSecretKey();
 
     // Padding pertahanan analisis trafik (Traffic Analysis Resistance):
     // Format: Magic 'MKP1' (4 bytes) + Original Length uint32 big-endian (4 bytes) + Plaintext + Random Padding.
@@ -601,36 +610,49 @@ class E2eeService {
       }
     }
 
-    final box = await _cipher.encrypt(paddedBuffer, secretKey: fileKey);
+    final box = await cipher.encrypt(paddedBuffer, secretKey: fileKey);
     final keyBytes = await fileKey.extractBytes();
-    return (bytes: box.concatenation(), keyB64: base64Encode(keyBytes));
+    final resultBytes = box.concatenation();
+    return (bytes: resultBytes, keyB64: base64Encode(keyBytes));
   }
 
   Future<List<int>> decryptMedia(List<int> bytes, String keyB64) async {
+    final cipherBytes = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    return Isolate.run(() => _decryptMediaInIsolate(cipherBytes, keyB64));
+  }
+
+  static Future<Uint8List> _decryptMediaInIsolate(
+    Uint8List bytes,
+    String keyB64,
+  ) async {
+    final cipher = Xchacha20.poly1305Aead();
     final box = SecretBox.fromConcatenation(
       bytes,
       nonceLength: 24,
       macLength: 16,
     );
-    final decrypted = await _cipher.decrypt(box, secretKey: SecretKey(base64Decode(keyB64)));
+    final decrypted =
+        await cipher.decrypt(box, secretKey: SecretKey(base64Decode(keyB64)));
+    final decryptedBytes =
+        decrypted is Uint8List ? decrypted : Uint8List.fromList(decrypted);
 
     // Cek apakah berkas memiliki header padding 'MKP1'
-    if (decrypted.length >= 8 &&
-        decrypted[0] == _paddedMediaMagic[0] &&
-        decrypted[1] == _paddedMediaMagic[1] &&
-        decrypted[2] == _paddedMediaMagic[2] &&
-        decrypted[3] == _paddedMediaMagic[3]) {
-      final origLen = (decrypted[4] << 24) |
-          (decrypted[5] << 16) |
-          (decrypted[6] << 8) |
-          decrypted[7];
-      if (origLen >= 0 && 8 + origLen <= decrypted.length) {
-        return decrypted.sublist(8, 8 + origLen);
+    if (decryptedBytes.length >= 8 &&
+        decryptedBytes[0] == _paddedMediaMagic[0] &&
+        decryptedBytes[1] == _paddedMediaMagic[1] &&
+        decryptedBytes[2] == _paddedMediaMagic[2] &&
+        decryptedBytes[3] == _paddedMediaMagic[3]) {
+      final origLen = (decryptedBytes[4] << 24) |
+          (decryptedBytes[5] << 16) |
+          (decryptedBytes[6] << 8) |
+          decryptedBytes[7];
+      if (origLen >= 0 && 8 + origLen <= decryptedBytes.length) {
+        return Uint8List.sublistView(decryptedBytes, 8, 8 + origLen);
       }
     }
 
     // Kompatibilitas mundur: berkas lama tanpa padding
-    return decrypted;
+    return decryptedBytes;
   }
 
   // ── Backup & restore via PIN ───────────────────────────────
@@ -809,36 +831,59 @@ class E2eeService {
     }
   }
 
-  Future<SecretKey> _pinKeyPBKDF2(String pin, List<int> salt) {
-    final pbkdf2 = Pbkdf2(
-      macAlgorithm: Hmac(Sha256()),
-      iterations: _pbkdf2Iterations,
-      bits: 256,
+  Future<SecretKey> _pinKeyPBKDF2(String pin, List<int> salt) async {
+    const iterations = _pbkdf2Iterations;
+    final keyBytes = await Isolate.run(
+      () => _derivePinPbkdf2BytesInIsolate(pin, salt, iterations),
     );
-    return pbkdf2.deriveKey(
-      secretKey: SecretKey(utf8.encode(pin)),
-      nonce: salt,
-    );
+    return SecretKey(keyBytes);
   }
 
-  Future<SecretKey> _pinKeyArgon2id(String pin, List<int> salt, {bool legacy = false}) async {
-    final argon2 = legacy
-        ? Argon2id(
-            memory: 12000,
-            iterations: 2,
-            parallelism: 1,
-            hashLength: 32,
-          )
-        : Argon2id(
-            memory: 19456,
-            iterations: 2,
-            parallelism: 1,
-            hashLength: 32,
-          );
-    return argon2.deriveKey(
+  static Future<List<int>> _derivePinPbkdf2BytesInIsolate(
+    String pin,
+    List<int> salt,
+    int iterations,
+  ) async {
+    final pbkdf2 = Pbkdf2(
+      macAlgorithm: Hmac(Sha256()),
+      iterations: iterations,
+      bits: 256,
+    );
+    final key = await pbkdf2.deriveKey(
       secretKey: SecretKey(utf8.encode(pin)),
       nonce: salt,
     );
+    return key.extractBytes();
+  }
+
+  Future<SecretKey> _pinKeyArgon2id(
+    String pin,
+    List<int> salt, {
+    bool legacy = false,
+  }) async {
+    final memory = legacy ? 12000 : 19456;
+    final keyBytes = await Isolate.run(
+      () => _derivePinArgon2idBytesInIsolate(pin, salt, memory),
+    );
+    return SecretKey(keyBytes);
+  }
+
+  static Future<List<int>> _derivePinArgon2idBytesInIsolate(
+    String pin,
+    List<int> salt,
+    int memory,
+  ) async {
+    final argon2 = Argon2id(
+      memory: memory,
+      iterations: 2,
+      parallelism: 1,
+      hashLength: 32,
+    );
+    final key = await argon2.deriveKey(
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: salt,
+    );
+    return key.extractBytes();
   }
 
   /// Generate sidik jari (Safety Number) dari kunci publik E2EE.

@@ -256,12 +256,16 @@ class ImageBubble extends ConsumerWidget {
     );
   }
 
+  static final DateFormat _timeFormat = DateFormat('HH:mm');
+
   Widget _buildImageContent(
     BuildContext context,
     File file, {
     Object? heroTag,
   }) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     if (isSticker) {
+      final stickerCacheWidth = (160 * dpr).round().clamp(160, 480);
       Widget stickerWidget = ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 160,
@@ -272,6 +276,7 @@ class ImageBubble extends ConsumerWidget {
         child: Image.file(
           file,
           fit: BoxFit.contain,
+          cacheWidth: stickerCacheWidth,
           filterQuality: FilterQuality.medium,
         ),
       );
@@ -296,13 +301,15 @@ class ImageBubble extends ConsumerWidget {
       return stickerWidget;
     }
 
-    final bubbleWidth = MediaQuery.of(context).size.width * 0.76;
+    final bubbleWidth = MediaQuery.sizeOf(context).width * 0.76;
+    final imageCacheWidth = (bubbleWidth * dpr).round().clamp(300, 1080);
 
     Widget imageFileWidget = Image.file(
       file,
       width: bubbleWidth,
       height: 220,
       fit: BoxFit.cover,
+      cacheWidth: imageCacheWidth,
       filterQuality: FilterQuality.medium,
     );
     if (heroTag != null) {
@@ -344,7 +351,7 @@ class ImageBubble extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        DateFormat('HH:mm').format(message.createdAt.toLocal()),
+                        _timeFormat.format(message.createdAt.toLocal()),
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,

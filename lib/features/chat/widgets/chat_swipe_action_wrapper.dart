@@ -22,7 +22,9 @@ class ChatSwipeActionWrapper extends StatefulWidget {
 class _ChatSwipeActionWrapperState extends State<ChatSwipeActionWrapper>
     with SingleTickerProviderStateMixin {
   late final AnimationController _recoilController;
+  late final CurvedAnimation _recoilCurve;
   double _dragOffset = 0.0;
+  double _recoilStartOffset = 0.0;
   bool _rightThresholdReached = false;
 
   static const double _actionThreshold = 48.0;
@@ -35,16 +37,33 @@ class _ChatSwipeActionWrapperState extends State<ChatSwipeActionWrapper>
       vsync: this,
       duration: MekaarMotion.fast,
     );
+    _recoilCurve = CurvedAnimation(
+      parent: _recoilController,
+      curve: MekaarMotion.standard,
+    );
+    _recoilCurve.addListener(_onRecoilTick);
+  }
+
+  void _onRecoilTick() {
+    if (!mounted) return;
+    setState(() {
+      _dragOffset = _recoilStartOffset * (1.0 - _recoilCurve.value);
+    });
   }
 
   @override
   void dispose() {
+    _recoilCurve.removeListener(_onRecoilTick);
+    _recoilCurve.dispose();
     _recoilController.dispose();
     super.dispose();
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     if (widget.onReply == null) return;
+    if (_recoilController.isAnimating) {
+      _recoilController.stop();
+    }
     final delta = details.primaryDelta ?? 0.0;
 
     // Hanya merespons geseran ke kanan (Reply)
@@ -67,15 +86,7 @@ class _ChatSwipeActionWrapperState extends State<ChatSwipeActionWrapper>
 
     // Animasi recoil kembali ke posisi netral (0.0)
     if (_dragOffset != 0.0) {
-      final startOffset = _dragOffset;
-      final anim = Tween<double>(begin: startOffset, end: 0.0).animate(
-        CurvedAnimation(parent: _recoilController, curve: MekaarMotion.standard),
-      );
-      anim.addListener(() {
-        setState(() {
-          _dragOffset = anim.value;
-        });
-      });
+      _recoilStartOffset = _dragOffset;
       _recoilController.forward(from: 0.0);
     }
   }

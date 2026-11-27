@@ -256,6 +256,47 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
   final Set<String> _initialMessageIds = <String>{};
   bool _hasRecordedInitialBatch = false;
 
+  int? _cachedEntriesSignature;
+  List<ChatItemEntry> _cachedItemEntries = const [];
+  Map<String, Message> _cachedMessageMap = const {};
+
+  int _computeEntriesSignature({
+    required List<Message> messages,
+    required List<CallModel> calls,
+    required List<Message> rawMessages,
+    required String searchQuery,
+    required bool isFilterMode,
+    required DateTime? entryLastReadAt,
+    required String? currentUserId,
+  }) {
+    return Object.hash(
+      searchQuery,
+      isFilterMode,
+      entryLastReadAt?.toUtc().millisecondsSinceEpoch,
+      currentUserId,
+      messages.length,
+      messages.isEmpty ? null : messages.first.id,
+      messages.isEmpty ? null : messages.last.id,
+      messages.isEmpty ? null : messages.last.updatedAt.millisecondsSinceEpoch,
+      calls.length,
+      calls.isEmpty ? null : calls.last.id,
+      calls.isEmpty ? null : calls.last.status,
+      rawMessages.length,
+      Object.hashAll(
+        messages.map(
+          (m) => Object.hash(
+            m.id,
+            m.updatedAt.millisecondsSinceEpoch,
+            m.isDeleted,
+            m.isOpened,
+            m.isSending,
+            m.reactions.length,
+          ),
+        ),
+      ),
+    );
+  }
+
   bool get isSelectionMode =>
       widget.selectedMessageIds.isNotEmpty || widget.selectedCallIds.isNotEmpty;
 
@@ -428,50 +469,70 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
                               );
                             }
 
-                            final itemEntries =
-                                ChatMessageListView.buildItemEntries(
-                                  messages,
-                                  calls,
-                                  entryLastReadAt: entryLastReadAt,
-                                  currentUserId: currentUserId,
-                                );
-                            final messageMap = {
-                              for (var m in rawMessages) m.id: m,
-                            };
+                            final sig = _computeEntriesSignature(
+                              messages: messages,
+                              calls: calls,
+                              rawMessages: rawMessages,
+                              searchQuery: searchQuery,
+                              isFilterMode: isFilterMode,
+                              entryLastReadAt: entryLastReadAt,
+                              currentUserId: currentUserId,
+                            );
 
+                            if (_cachedEntriesSignature != sig) {
+                              _cachedItemEntries =
+                                  ChatMessageListView.buildItemEntries(
+                                    messages,
+                                    calls,
+                                    entryLastReadAt: entryLastReadAt,
+                                    currentUserId: currentUserId,
+                                  );
+                              _cachedMessageMap = {
+                                for (var m in rawMessages) m.id: m,
+                              };
+                              _cachedEntriesSignature = sig;
+                            }
+
+                            final itemEntries = _cachedItemEntries;
+                            final messageMap = _cachedMessageMap;
                             final emojiInset = isEmojiPickerOpen ? 270.0 : 0.0;
-                            final keyboardHeight = MediaQuery.viewInsetsOf(
-                              context,
-                            ).bottom;
 
-                            return ListView.builder(
-                              controller: scrollController,
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.manual,
-                              reverse: true,
-                              padding: EdgeInsets.only(
-                                top: 8,
-                                bottom:
-                                    130 +
-                                    math.max(
-                                      keyboardHeight,
-                                      MediaQuery.viewPaddingOf(context).bottom,
-                                    ) +
-                                    emojiInset,
-                              ),
-                              itemCount: itemEntries.length,
-                              itemBuilder: (context, index) {
-                                return _buildLazyMessageItem(
-                                  context: context,
-                                  ref: ref,
-                                  entry: itemEntries[index],
-                                  currentUserId: currentUserId,
-                                  actions: actions,
-                                  messageMap: messageMap,
-                                  forwardingProtection: forwardingProtection,
-                                  roomThemeSpec: roomThemeSpec,
-                                  showReadReceipts: readReceiptsEnabled,
-                                  otherLastRead: reactiveOtherLastRead,
+                            return Builder(
+                              builder: (listCtx) {
+                                final keyboardHeight = MediaQuery.viewInsetsOf(
+                                  listCtx,
+                                ).bottom;
+                                final bottomPad = MediaQuery.viewPaddingOf(
+                                  listCtx,
+                                ).bottom;
+                                return ListView.builder(
+                                  controller: scrollController,
+                                  keyboardDismissBehavior:
+                                      ScrollViewKeyboardDismissBehavior.manual,
+                                  reverse: true,
+                                  padding: EdgeInsets.only(
+                                    top: 8,
+                                    bottom:
+                                        130 +
+                                        math.max(keyboardHeight, bottomPad) +
+                                        emojiInset,
+                                  ),
+                                  itemCount: itemEntries.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildLazyMessageItem(
+                                      context: context,
+                                      ref: ref,
+                                      entry: itemEntries[index],
+                                      currentUserId: currentUserId,
+                                      actions: actions,
+                                      messageMap: messageMap,
+                                      forwardingProtection:
+                                          forwardingProtection,
+                                      roomThemeSpec: roomThemeSpec,
+                                      showReadReceipts: readReceiptsEnabled,
+                                      otherLastRead: reactiveOtherLastRead,
+                                    );
+                                  },
                                 );
                               },
                             );
@@ -525,38 +586,45 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
           ],
         ),
 
-        // Scroll to Bottom Button Overlay
+        // Scroll to Bottom Button Overlay (terisolasi dari rebuild list saat keyboard bergerak)
         Positioned(
           left: 0,
           right: 0,
-          bottom:
-              math.max(
-                MediaQuery.viewInsetsOf(context).bottom,
-                MediaQuery.viewPaddingOf(context).bottom,
-              ) +
-              120 +
-              (isEmojiPickerOpen ? 270.0 : 0.0),
-          child: Center(
-            child: ValueListenableBuilder<bool>(
-              valueListenable: showScrollButton,
-              builder: (context, showButton, _) {
-                return ValueListenableBuilder<int>(
-                  valueListenable: newMessageCount,
-                  builder: (context, newCount, _) {
-                    return ScrollToBottomButton(
-                      visible: showButton,
-                      newMessageCount: newCount,
-                      accentColor: roomThemeSpec.primaryAccentColor,
-                      iconColor: roomThemeSpec.iconColor,
-                      onTap: () {
-                        onScrollToBottom();
-                        newMessageCount.value = 0;
-                      },
-                    );
-                  },
-                );
-              },
-            ),
+          bottom: 0,
+          child: Builder(
+            builder: (buttonCtx) {
+              final bottomInset = math.max(
+                MediaQuery.viewInsetsOf(buttonCtx).bottom,
+                MediaQuery.viewPaddingOf(buttonCtx).bottom,
+              );
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: bottomInset + 120 + (isEmojiPickerOpen ? 270.0 : 0.0),
+                ),
+                child: Center(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: showScrollButton,
+                    builder: (context, showButton, _) {
+                      return ValueListenableBuilder<int>(
+                        valueListenable: newMessageCount,
+                        builder: (context, newCount, _) {
+                          return ScrollToBottomButton(
+                            visible: showButton,
+                            newMessageCount: newCount,
+                            accentColor: roomThemeSpec.primaryAccentColor,
+                            iconColor: roomThemeSpec.iconColor,
+                            onTap: () {
+                              onScrollToBottom();
+                              newMessageCount.value = 0;
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],

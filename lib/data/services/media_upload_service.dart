@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -58,7 +57,7 @@ class MediaUploadService {
 
     await _client.storage.from('chat-media').uploadBinary(
       storagePath,
-      Uint8List.fromList(encryptedResult.bytes),
+      encryptedResult.bytes,
       fileOptions: const FileOptions(contentType: 'application/octet-stream', upsert: false),
     );
 

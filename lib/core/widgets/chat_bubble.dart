@@ -44,6 +44,13 @@ export 'bubbles/voice_bubble_player.dart';
 export 'bubbles/themed_bubble_container.dart';
 export 'bubbles/themed_bubble_painter.dart';
 
+final DateFormat _bubbleTimeFormat = DateFormat('HH:mm');
+final RegExp _customEmojiTokenRegex = RegExp(r':([a-z0-9_]{2,32}):');
+final RegExp _emojiOnlyRegex = RegExp(
+  r'^(?:[0-9#*]\u{FE0F}?\u{20E3}|[\u{1F000}-\u{1FAFF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{203C}\u{2049}\u{2122}\u{2139}\u{2194}-\u{21AA}\u{25AA}-\u{25FE}\u{2934}-\u{2935}\u{3030}\u{303D}\u{3297}\u{3299}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u{200D}\u{FE0E}\u{FE0F}\s])+$',
+  unicode: true,
+);
+
 // ─────────────────────────────────────────
 // ChatBubble widget
 // ─────────────────────────────────────────
@@ -297,6 +304,9 @@ class ChatBubble extends ConsumerWidget {
 
     final shouldAnimateEntrance = animateEntrance || message.isSending;
 
+    final bubbleMaxWidth = MediaQuery.sizeOf(context).width *
+        ((showSenderAvatar && !isMe) ? 0.68 : 0.76);
+
     final bubbleWidget = isFrameless
         ? Container(
             padding: isPureFramelessImage
@@ -310,10 +320,7 @@ class ChatBubble extends ConsumerWidget {
                           horizontal: 4,
                           vertical: 2,
                         )),
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width *
-                  ((showSenderAvatar && !isMe) ? 0.68 : 0.76),
-            ),
+            constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
             child: Builder(
               builder: (context) {
                 final metaColor = isOnlyEmoji
@@ -340,9 +347,7 @@ class ChatBubble extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            DateFormat(
-                              'HH:mm',
-                            ).format(message.createdAt.toLocal()),
+                            _bubbleTimeFormat.format(message.createdAt.toLocal()),
                             style: const TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w500,
@@ -388,9 +393,7 @@ class ChatBubble extends ConsumerWidget {
                         ),
                       ],
                       Text(
-                        DateFormat(
-                          'HH:mm',
-                        ).format(message.createdAt.toLocal()),
+                        _bubbleTimeFormat.format(message.createdAt.toLocal()),
                         style: resolveBubbleTextStyle(
                           fontSize: 10.5,
                           color: metaColor,
@@ -436,11 +439,15 @@ class ChatBubble extends ConsumerWidget {
                         fontFamily,
                         spec.textStyle,
                         isSticker: isSticker,
+                        emojiCount: emojiCount,
+                        singleCustom: singleCustom,
                       ),
                       buildTimestampWidget(),
                     ],
                   );
                 }
+
+                final metaWidget = buildTimestampWidget();
 
                 return Column(
                   crossAxisAlignment: isMe
@@ -492,13 +499,15 @@ class ChatBubble extends ConsumerWidget {
                       isSelected: isSelected,
                       receiptStatus: receiptStatus,
                       caption: mediaPayload.caption,
-                      metaWidget: buildTimestampWidget(),
+                      metaWidget: metaWidget,
+                      emojiCount: emojiCount,
+                      singleCustom: singleCustom,
                     ),
                     if (!isPureFramelessImage &&
                         !hasMediaCaption &&
                         !isVideo) ...[
                       const SizedBox(height: 2),
-                      buildTimestampWidget(),
+                      metaWidget,
                     ],
                   ],
                 );
@@ -510,10 +519,7 @@ class ChatBubble extends ConsumerWidget {
             isMe: isMe,
             isSelected: isSelected,
             selectionColor: MekaarColors.blue,
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width *
-                  ((showSenderAvatar && !isMe) ? 0.68 : 0.76),
-            ),
+            constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
             customPadding: (isImage && hasImageCaption) || isVideo
                 ? EdgeInsets.zero
                 : null,
@@ -539,9 +545,7 @@ class ChatBubble extends ConsumerWidget {
                         const SizedBox(width: 3),
                       ],
                       Text(
-                        DateFormat(
-                          'HH:mm',
-                        ).format(message.createdAt.toLocal()),
+                        _bubbleTimeFormat.format(message.createdAt.toLocal()),
                         style: TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w500,
@@ -559,6 +563,8 @@ class ChatBubble extends ConsumerWidget {
                     ],
                   );
                 }
+
+                final metaWidget = buildTimestampWidget();
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -602,13 +608,15 @@ class ChatBubble extends ConsumerWidget {
                       isSelected: isSelected,
                       receiptStatus: receiptStatus,
                       caption: mediaPayload.caption,
-                      metaWidget: buildTimestampWidget(),
+                      metaWidget: metaWidget,
+                      emojiCount: emojiCount,
+                      singleCustom: singleCustom,
                     ),
                     if (!isPureFramelessImage &&
                         !hasMediaCaption &&
                         !isVideo) ...[
                       const SizedBox(height: 2),
-                      buildTimestampWidget(),
+                      metaWidget,
                     ],
                   ],
                 );
@@ -719,6 +727,8 @@ class ChatBubble extends ConsumerWidget {
     ReadReceiptStatus? receiptStatus,
     String caption = '',
     Widget? metaWidget,
+    int? emojiCount,
+    bool? singleCustom,
   }) {
     if (message.isDeleted) {
       return Row(
@@ -855,11 +865,12 @@ class ChatBubble extends ConsumerWidget {
         }
 
         final count = !message.isDeleted
-            ? _getEmojiOnlyCount(message.content)
+            ? (emojiCount ?? _getEmojiOnlyCount(message.content))
             : 0;
-        final singleCustom =
-            !message.isDeleted && isSingleCustomEmoji(message.content);
-        if (singleCustom) {
+        final isSingleCustom =
+            !message.isDeleted &&
+            (singleCustom ?? isSingleCustomEmoji(message.content));
+        if (isSingleCustom) {
           // Satu token custom emoji murni → glyph besar ala sticker emoji-only (128px).
           return CustomEmojiGlyph(
             slug: parseEmojiContent(
@@ -874,7 +885,7 @@ class ChatBubble extends ConsumerWidget {
             style: TextStyle(fontSize: _getEmojiFontSize(count), height: 1.15),
           );
         }
-        if (RegExp(r':([a-z0-9_]{2,32}):').hasMatch(message.content)) {
+        if (_customEmojiTokenRegex.hasMatch(message.content)) {
           return RichEmojiContent(
             content: message.content,
             baseStyle:
@@ -1214,12 +1225,7 @@ int _getEmojiOnlyCount(String text) {
   final chars = trimmed.characters;
   if (chars.length > 4) return 0;
 
-  final emojiRegex = RegExp(
-    r'^(?:[0-9#*]\u{FE0F}?\u{20E3}|[\u{1F000}-\u{1FAFF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{203C}\u{2049}\u{2122}\u{2139}\u{2194}-\u{21AA}\u{25AA}-\u{25FE}\u{2934}-\u{2935}\u{3030}\u{303D}\u{3297}\u{3299}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u{200D}\u{FE0E}\u{FE0F}\s])+$',
-    unicode: true,
-  );
-
-  if (emojiRegex.hasMatch(trimmed)) {
+  if (_emojiOnlyRegex.hasMatch(trimmed)) {
     return chars.length;
   }
   return 0;

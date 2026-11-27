@@ -808,6 +808,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
         children: [
           MekaarGlassBlurContainer(
             isFloating: true,
+            blurSigma: 0,
             height: 52,
             borderRadius: BorderRadius.circular(MekaarRadius.lg),
             padding: EdgeInsets.zero,
@@ -883,10 +884,14 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
             )
           : RefreshIndicator(
               onRefresh: _loadDetails,
-              child: ListView(
+              child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                children: [
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.only(top: 16),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        children: [
                 // ──── 1. Header Profil Grup Interaktif ────
                 Center(
                   child: Column(
@@ -1067,231 +1072,244 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                // ──── 4. Konten Tab Aktif (Borderless & Responsive) ────
-                if (_selectedTabIndex == 0)
-                  _buildMembersTab(filteredParticipants)
-                else if (_selectedTabIndex == 1)
-                  _buildMediaTab()
-                else
-                  _buildSettingsTab(),
-                const SizedBox(height: 40),
-              ],
+                  // ──── 4. Konten Tab Aktif (Virtualisasi Sliver Penuh) ────
+                  if (_selectedTabIndex == 0)
+                    ..._buildMembersTabSlivers(filteredParticipants)
+                  else if (_selectedTabIndex == 1)
+                    ..._buildMediaTabSlivers()
+                  else
+                    SliverToBoxAdapter(child: _buildSettingsTab()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
+              ),
             ),
-          ),
     );
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Tab 1: Anggota Grup (Borderless)
+  // Tab 1: Anggota Grup (Sliver Virtualized)
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildMembersTab(List<dynamic> filteredParticipants) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  List<Widget> _buildMembersTabSlivers(List<dynamic> filteredParticipants) {
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'DAFTAR ANGGOTA (${_participants.length})',
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'DAFTAR ANGGOTA (${_participants.length})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: MekaarColors.textMutedOf(context),
+                    ),
+                  ),
+                  if (_isAdmin || _membersCanInvite)
+                    TextButton.icon(
+                      onPressed: _openAddMembers,
+                      icon: const Icon(SolarIconsOutline.userPlus, size: 16),
+                      label: const Text(
+                        'Tambah',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: MekaarColors.textSecondaryOf(context),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                ],
+              ),
+              if (_participants.length >= 5) ...[
+                const SizedBox(height: 8),
+                MekaarSearchField(
+                  hintText: 'Cari anggota...',
+                  controller: _searchController,
+                  onChanged: (val) {
+                    setState(() {
+                      _memberSearchQuery = val.trim();
+                    });
+                  },
+                ),
+              ],
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+      if (filteredParticipants.isEmpty)
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 36),
+          sliver: SliverToBoxAdapter(
+            child: Center(
+              child: Text(
+                _memberSearchQuery.isNotEmpty
+                    ? 'Tidak ada anggota yang cocok dengan pencarian.'
+                    : 'Belum ada data anggota yang dimuat.',
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
+                  fontSize: 13,
                   color: MekaarColors.textMutedOf(context),
                 ),
               ),
-              if (_isAdmin || _membersCanInvite)
-                TextButton.icon(
-                  onPressed: _openAddMembers,
-                  icon: const Icon(SolarIconsOutline.userPlus, size: 16),
-                  label: const Text(
-                    'Tambah',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: MekaarColors.textSecondaryOf(context),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-            ],
+            ),
           ),
-          if (_participants.length >= 5) ...[
-            const SizedBox(height: 8),
-            MekaarSearchField(
-              hintText: 'Cari anggota...',
-              controller: _searchController,
-              onChanged: (val) {
-                setState(() {
-                  _memberSearchQuery = val.trim();
-                });
-              },
+        )
+      else
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList.separated(
+            itemCount: filteredParticipants.length,
+            separatorBuilder: (ctx, idx) => const MekaarCardDivider(),
+            itemBuilder: (context, index) =>
+                _buildMemberTile(filteredParticipants[index]),
+          ),
+        ),
+    ];
+  }
+
+  Widget _buildMemberTile(dynamic p) {
+    final role = p['role'] as String? ?? 'member';
+    final profile = p['public_profiles'] as Map<String, dynamic>? ?? {};
+    final memberId = p['profile_id'] as String;
+    final isSelf = memberId == _currentUserId;
+
+    final memberName =
+        (profile['display_name'] as String?)?.isNotEmpty == true
+            ? profile['display_name'] as String
+            : profile['full_name'] as String? ??
+                profile['username'] as String? ??
+                'Anggota';
+    final username = profile['username'] as String? ?? '';
+    final memberAvatar = profile['avatar_url'] as String?;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 2),
+      leading: Avatar(
+        size: 40,
+        imageUrl: memberAvatar,
+        initial: memberName.isNotEmpty ? memberName[0] : 'A',
+      ),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              memberName,
+              style: MekaarTypography.bodyMD.copyWith(
+                color: MekaarColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (isSelf) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: MekaarColors.guardianTeal.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'Anda',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: MekaarColors.guardianTeal,
+                ),
+              ),
             ),
           ],
-          const SizedBox(height: 12),
-          if (filteredParticipants.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 24,
-                horizontal: 16,
+        ],
+      ),
+      subtitle: username.isNotEmpty
+          ? Text(
+              '@$username',
+              style: MekaarTypography.bodySM.copyWith(
+                color: MekaarColors.textMutedOf(context),
               ),
-              child: Center(
-                child: Text(
-                  _memberSearchQuery.isNotEmpty
-                      ? 'Tidak ada anggota yang cocok dengan pencarian.'
-                      : 'Belum ada data anggota yang dimuat.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: MekaarColors.textMutedOf(context),
-                  ),
+            )
+          : null,
+      trailing: role == 'owner' || role == 'admin'
+          ? Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: role == 'owner'
+                    ? MekaarColors.warnAmber.withValues(alpha: 0.15)
+                    : MekaarColors.guardianTeal.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(MekaarRadius.sm),
+              ),
+              child: Text(
+                role == 'owner' ? 'Pemilik' : 'Admin',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: role == 'owner'
+                      ? MekaarColors.warnAmber
+                      : MekaarColors.guardianTeal,
                 ),
               ),
             )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredParticipants.length,
-              separatorBuilder: (ctx, idx) => const MekaarCardDivider(),
-              itemBuilder: (context, index) {
-                final p = filteredParticipants[index];
-                final role = p['role'] as String? ?? 'member';
-                final profile =
-                    p['public_profiles'] as Map<String, dynamic>? ?? {};
-                final memberId = p['profile_id'] as String;
-                final isSelf = memberId == _currentUserId;
-
-                final memberName =
-                    (profile['display_name'] as String?)?.isNotEmpty == true
-                        ? profile['display_name'] as String
-                        : profile['full_name'] as String? ??
-                            profile['username'] as String? ??
-                            'Anggota';
-                final username = profile['username'] as String? ?? '';
-                final memberAvatar = profile['avatar_url'] as String?;
-
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(vertical: 2),
-                  leading: Avatar(
-                    size: 40,
-                    imageUrl: memberAvatar,
-                    initial: memberName.isNotEmpty ? memberName[0] : 'A',
-                  ),
-                  title: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          memberName,
-                          style: MekaarTypography.bodyMD.copyWith(
-                            color: MekaarColors.textPrimaryOf(context),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isSelf) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: MekaarColors.guardianTeal.withValues(
-                              alpha: 0.15,
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'Anda',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: MekaarColors.guardianTeal,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  subtitle: username.isNotEmpty
-                      ? Text(
-                          '@$username',
-                          style: MekaarTypography.bodySM.copyWith(
-                            color: MekaarColors.textMutedOf(context),
-                          ),
-                        )
-                      : null,
-                  trailing: role == 'owner' || role == 'admin'
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: role == 'owner'
-                                ? MekaarColors.warnAmber.withValues(alpha: 0.15)
-                                : MekaarColors.guardianTeal.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(
-                              MekaarRadius.sm,
-                            ),
-                          ),
-                          child: Text(
-                            role == 'owner' ? 'Pemilik' : 'Admin',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: role == 'owner'
-                                  ? MekaarColors.warnAmber
-                                  : MekaarColors.guardianTeal,
-                            ),
-                          ),
-                        )
-                      : null,
-                  onTap: isSelf ? null : () => _showMemberOptionsSheet(p),
-                );
-              },
-            ),
-        ],
-      ),
+          : null,
+      onTap: isSelf ? null : () => _showMemberOptionsSheet(p),
     );
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Tab 2: Media & Berkas (Borderless)
+  // Tab 2: Media & Berkas (SliverGrid & SliverList Virtualized)
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildMediaTab() {
+  List<Widget> _buildMediaTabSlivers() {
     final messagesAsync = ref.watch(chatMessagesProvider(widget.roomId));
 
     return messagesAsync.when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 40),
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (err, stack) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-        child: Center(
-          child: Text(
-            'Gagal memuat media atau berkas.',
-            style: TextStyle(
-              fontSize: 13,
-              color: MekaarColors.textMutedOf(context),
+      loading: () => const [
+        SliverToBoxAdapter(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: CircularProgressIndicator(),
             ),
           ),
         ),
-      ),
+      ],
+      error: (err, stack) => [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            child: Center(
+              child: Text(
+                'Gagal memuat media atau berkas.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: MekaarColors.textMutedOf(context),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
       data: (messages) {
         final mediaList = messages
             .where((m) =>
@@ -1315,54 +1333,83 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                 ? files
                 : mediaList;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('Semua', 0, mediaList.length),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Foto & Video', 1, photosAndVideos.length),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Berkas', 2, files.length),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (filteredItems.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: Column(
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final tileLogicalWidth =
+            ((MediaQuery.sizeOf(context).width - 52) / 3).clamp(80.0, 240.0);
+        final gridCacheWidth = (tileLogicalWidth * dpr).round().clamp(120, 480);
+
+        final slivers = <Widget>[
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
                       children: [
-                        Icon(
-                          SolarIconsOutline.galleryWide,
-                          size: 48,
-                          color: MekaarColors.textMutedOf(context).withValues(
-                            alpha: 0.4,
-                          ),
+                        _buildFilterChip('Semua', 0, mediaList.length),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                          'Foto & Video',
+                          1,
+                          photosAndVideos.length,
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Belum ada media atau berkas dibagikan',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: MekaarColors.textMutedOf(context),
-                          ),
-                        ),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Berkas', 2, files.length),
                       ],
                     ),
                   ),
-                )
-              else ...[
-                if (_mediaFilterIndex == 0) ...[
-                  if (photosAndVideos.isNotEmpty) ...[
-                    Text(
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ];
+
+        if (filteredItems.isEmpty) {
+          slivers.add(
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        SolarIconsOutline.galleryWide,
+                        size: 48,
+                        color: MekaarColors.textMutedOf(context).withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Belum ada media atau berkas dibagikan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: MekaarColors.textMutedOf(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+          return slivers;
+        }
+
+        if (_mediaFilterIndex == 0) {
+          if (photosAndVideos.isNotEmpty) {
+            slivers.add(
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
                       'FOTO & VIDEO (${photosAndVideos.length})',
                       style: TextStyle(
                         fontSize: 11,
@@ -1371,12 +1418,26 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                         color: MekaarColors.textMutedOf(context),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildMediaGrid(photosAndVideos),
-                    const SizedBox(height: 20),
-                  ],
-                  if (files.isNotEmpty) ...[
-                    Text(
+                  ),
+                ),
+              ),
+            );
+            slivers.add(
+              _buildMediaSliverGrid(
+                photosAndVideos,
+                cacheWidth: gridCacheWidth,
+              ),
+            );
+            slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 20)));
+          }
+          if (files.isNotEmpty) {
+            slivers.add(
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
                       'BERKAS (${files.length})',
                       style: TextStyle(
                         fontSize: 11,
@@ -1385,18 +1446,21 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                         color: MekaarColors.textMutedOf(context),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildFileList(files),
-                  ],
-                ] else if (_mediaFilterIndex == 1) ...[
-                  _buildMediaGrid(photosAndVideos),
-                ] else ...[
-                  _buildFileList(files),
-                ],
-              ],
-            ],
-          ),
-        );
+                  ),
+                ),
+              ),
+            );
+            slivers.add(_buildFileSliverList(files));
+          }
+        } else if (_mediaFilterIndex == 1) {
+          slivers.add(
+            _buildMediaSliverGrid(photosAndVideos, cacheWidth: gridCacheWidth),
+          );
+        } else {
+          slivers.add(_buildFileSliverList(files));
+        }
+
+        return slivers;
       },
     );
   }
@@ -1436,21 +1500,29 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
     );
   }
 
-  Widget _buildMediaGrid(List<Message> items) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
+  Widget _buildMediaSliverGrid(
+    List<Message> items, {
+    required int cacheWidth,
+  }) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => RepaintBoundary(
+            child: _buildMediaGridItem(items[index], cacheWidth: cacheWidth),
+          ),
+          childCount: items.length,
+        ),
       ),
-      itemBuilder: (context, index) => _buildMediaGridItem(items[index]),
     );
   }
 
-  Widget _buildMediaGridItem(Message msg) {
+  Widget _buildMediaGridItem(Message msg, {required int cacheWidth}) {
     final payload = parseMediaPayload(msg);
     final isVideo = msg.type == MessageType.video;
 
@@ -1492,6 +1564,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                   Image.file(
                     file,
                     fit: BoxFit.cover,
+                    cacheWidth: cacheWidth,
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: MekaarColors.surfaceOf(context),
                       child: Icon(
@@ -1536,13 +1609,14 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
     );
   }
 
-  Widget _buildFileList(List<Message> items) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      separatorBuilder: (context, index) => const MekaarCardDivider(),
-      itemBuilder: (context, index) => _buildFileListItem(items[index]),
+  Widget _buildFileSliverList(List<Message> items) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverList.separated(
+        itemCount: items.length,
+        separatorBuilder: (context, index) => const MekaarCardDivider(),
+        itemBuilder: (context, index) => _buildFileListItem(items[index]),
+      ),
     );
   }
 

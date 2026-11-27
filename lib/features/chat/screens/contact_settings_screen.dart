@@ -405,6 +405,7 @@ class _ContactSettingsScreenState extends ConsumerState<ContactSettingsScreen> {
         children: [
           MekaarGlassBlurContainer(
             isFloating: true,
+            blurSigma: 0,
             height: 52,
             borderRadius: BorderRadius.circular(MekaarRadius.lg),
             padding: EdgeInsets.zero,

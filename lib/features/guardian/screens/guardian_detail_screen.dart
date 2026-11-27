@@ -623,6 +623,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
         children: [
           MekaarGlassBlurContainer(
             isFloating: true,
+            blurSigma: 0,
             height: 52,
             borderRadius: BorderRadius.circular(MekaarRadius.lg),
             padding: EdgeInsets.zero,

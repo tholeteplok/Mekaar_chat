@@ -26,7 +26,7 @@ class MekaarGlassBlurContainer extends StatelessWidget {
     super.key,
     required this.child,
     this.position = BlurPosition.none,
-    this.blurSigma = 16.0,
+    this.blurSigma = 10.0,
     this.width,
     this.height,
     this.constraints,
@@ -118,31 +118,27 @@ class MekaarGlassBlurContainer extends StatelessWidget {
       content = Padding(padding: margin!, child: content);
     }
 
-    final clippedContent = ClipPath(
-      clipper: shape == BoxShape.circle ? const _CircleClipper() : null,
-      child: ClipRRect(
-        // Gradient mode: tidak ada clipping radius (full-width).
-        // Floating mode: clip mengikuti effectiveRadius.
-        borderRadius: shape == BoxShape.rectangle ? effectiveRadius : BorderRadius.zero,
-        child: content,
-      ),
-    );
+    final Widget blurredOrPlain = blurSigma > 0
+        ? BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+            child: content,
+          )
+        : content;
 
-    if (blurSigma <= 0) {
-      return clippedContent;
+    if (shape == BoxShape.circle) {
+      return ClipPath(
+        clipper: const _CircleClipper(),
+        child: blurredOrPlain,
+      );
     }
 
-    return ClipPath(
-      clipper: shape == BoxShape.circle ? const _CircleClipper() : null,
-      child: ClipRRect(
-        // Gradient mode: tidak ada clipping radius (full-width).
-        // Floating mode: clip mengikuti effectiveRadius.
-        borderRadius: shape == BoxShape.rectangle ? effectiveRadius : BorderRadius.zero,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-          child: content,
-        ),
-      ),
+    if (effectiveRadius == BorderRadius.zero && blurSigma <= 0) {
+      return blurredOrPlain;
+    }
+
+    return ClipRRect(
+      borderRadius: effectiveRadius,
+      child: blurredOrPlain,
     );
   }
 }

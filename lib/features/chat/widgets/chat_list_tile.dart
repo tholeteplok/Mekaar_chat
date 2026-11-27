@@ -174,8 +174,8 @@ class ChatListTile extends StatelessWidget {
                                 stealthChatPreviewProvider,
                               );
                               final draft = ref.watch(
-                                chatDraftsProvider,
-                              )[roomId];
+                                chatDraftsProvider.select((m) => m[roomId]),
+                              );
                               final hasDraft =
                                   draft != null &&
                                   draft.content.trim().isNotEmpty;
@@ -234,7 +234,9 @@ class ChatListTile extends StatelessWidget {
                               final isDots = displayLastMsg == '••••••••';
 
                               final currentUserId =
-                                  ref.watch(authProvider).user?.id ??
+                                  ref.watch(
+                                    authProvider.select((s) => s.user?.id),
+                                  ) ??
                                   (SupabaseService.isInitialized
                                       ? Supabase.instance.client.auth.currentUser?.id
                                       : null);
@@ -363,6 +365,10 @@ class _UnreadBadge extends StatelessWidget {
   }
 }
 
+final DateFormat _chatListTimeFormat = DateFormat('HH:mm');
+DateFormat? _chatListDayMonthFormat;
+DateFormat? _chatListDayMonthYearFormat;
+
 String _formatTimestamp(DateTime dt) {
   try {
     final localDt = dt.toLocal();
@@ -370,7 +376,7 @@ String _formatTimestamp(DateTime dt) {
     final today = DateTime(now.year, now.month, now.day);
     final msgDate = DateTime(localDt.year, localDt.month, localDt.day);
 
-    if (msgDate == today) return DateFormat('HH:mm').format(localDt);
+    if (msgDate == today) return _chatListTimeFormat.format(localDt);
     if (msgDate == today.subtract(const Duration(days: 1))) return 'Kemarin';
 
     final diff = today.difference(msgDate).inDays;
@@ -380,9 +386,11 @@ String _formatTimestamp(DateTime dt) {
     }
 
     if (localDt.year == now.year) {
-      return DateFormat('d MMM', 'id_ID').format(localDt);
+      _chatListDayMonthFormat ??= DateFormat('d MMM', 'id_ID');
+      return _chatListDayMonthFormat!.format(localDt);
     }
-    return DateFormat('d MMM yy', 'id_ID').format(localDt);
+    _chatListDayMonthYearFormat ??= DateFormat('d MMM yy', 'id_ID');
+    return _chatListDayMonthYearFormat!.format(localDt);
   } catch (_) {
     // Fallback defensif jika terjadi kendala format lokal
     return '${dt.day}/${dt.month}/${dt.year}';

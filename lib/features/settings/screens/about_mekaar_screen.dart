@@ -592,6 +592,7 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
       children: [
         MekaarGlassBlurContainer(
           isFloating: true,
+          blurSigma: 0,
           width: 56,
           height: 56,
           borderRadius: BorderRadius.circular(18),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -204,26 +205,35 @@ class DatabaseKeyService {
       } catch (e) {
         _logger.w('Gagal mengisolasi kunci di AegisMemoryGuard: $e');
       }
-      final argon2 = Argon2id(
-        memory: 19456, // 19 MB (OWASP recommended minimum parameter untuk mobile Dart VM tanpa SIMD native)
-        iterations: 2,
-        parallelism: 1,
-        hashLength: 32,
+      final hexKey = await Isolate.run(
+        () => _deriveArgon2idHexSync(pin, salt),
       );
-
-      final secretKey = await argon2.deriveKey(
-        secretKey: SecretKey(utf8.encode(pin)),
-        nonce: salt,
-      );
-
-      final keyBytes = await secretKey.extractBytes();
-      final hexKey = keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
       return (key: hexKey, slotId: slotId);
     } catch (e) {
       _logger.w('Argon2id derivation gagal, fallback ke legacy: $e');
       final legacyKey = await deriveLegacyVaultKey(pin, space: space);
       return (key: legacyKey, slotId: null);
     }
+  }
+
+  static Future<String> _deriveArgon2idHexSync(
+    String pin,
+    List<int> salt,
+  ) async {
+    final argon2 = Argon2id(
+      memory: 19456, // 19 MB (OWASP recommended minimum parameter untuk mobile Dart VM tanpa SIMD native)
+      iterations: 2,
+      parallelism: 1,
+      hashLength: 32,
+    );
+
+    final secretKey = await argon2.deriveKey(
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: salt,
+    );
+
+    final keyBytes = await secretKey.extractBytes();
+    return keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   /// Menurunkan kunci legacy PBKDF2 (100.000 iterasi) secara on-demand khusus untuk migrasi database lama.
@@ -248,10 +258,19 @@ class DatabaseKeyService {
       VaultSpace.duress => 'mekaar_vault_decoy_salt_',
     };
     final salt = utf8.encode('${saltPrefix}v1_secure');
+    const iterations = _pbkdf2Iterations;
 
+    return Isolate.run(() => _derivePbkdf2HexSync(pin, salt, iterations));
+  }
+
+  static Future<String> _derivePbkdf2HexSync(
+    String pin,
+    List<int> salt,
+    int iterations,
+  ) async {
     final pbkdf2 = Pbkdf2(
       macAlgorithm: Hmac(Sha256()),
-      iterations: _pbkdf2Iterations,
+      iterations: iterations,
       bits: 256,
     );
 
@@ -261,8 +280,7 @@ class DatabaseKeyService {
     );
 
     final keyBytes = await secretKey.extractBytes();
-    final hexKey = keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-    return hexKey;
+    return keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   /// Mengatur kunci aktif brankas di memori aplikasi setelah verifikasi PIN berhasil.

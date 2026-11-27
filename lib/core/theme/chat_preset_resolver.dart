@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/chat_theme_model.dart';
@@ -69,6 +70,18 @@ class VoxelBevelBorder {
     required this.shadowColor,
     this.width = 3.0,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VoxelBevelBorder &&
+          runtimeType == other.runtimeType &&
+          highlightColor == other.highlightColor &&
+          shadowColor == other.shadowColor &&
+          width == other.width;
+
+  @override
+  int get hashCode => Object.hash(highlightColor, shadowColor, width);
 }
 
 /// Spec styling lengkap untuk gelembung chat (termasuk Tipografi).
@@ -160,6 +173,56 @@ class ChatBubbleSpec {
       contentPadding: contentPadding ?? this.contentPadding,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatBubbleSpec &&
+          runtimeType == other.runtimeType &&
+          backgroundColor == other.backgroundColor &&
+          gradient == other.gradient &&
+          border == other.border &&
+          borderRadius == other.borderRadius &&
+          listEquals(boxShadow, other.boxShadow) &&
+          textColor == other.textColor &&
+          fontFamily == other.fontFamily &&
+          textStyle == other.textStyle &&
+          headerWidget?.runtimeType == other.headerWidget?.runtimeType &&
+          headerWidget?.key == other.headerWidget?.key &&
+          tailType == other.tailType &&
+          shapeType == other.shapeType &&
+          voxelBevel == other.voxelBevel &&
+          accentVerticalBorderColor == other.accentVerticalBorderColor &&
+          accentVerticalBorderWidth == other.accentVerticalBorderWidth &&
+          hasInsetDeboss == other.hasInsetDeboss &&
+          debossDarkColor == other.debossDarkColor &&
+          debossLightColor == other.debossLightColor &&
+          bubbleMargin == other.bubbleMargin &&
+          contentPadding == other.contentPadding;
+
+  @override
+  int get hashCode => Object.hash(
+        backgroundColor,
+        gradient,
+        border,
+        borderRadius,
+        boxShadow == null ? null : Object.hashAll(boxShadow!),
+        textColor,
+        fontFamily,
+        textStyle,
+        headerWidget?.runtimeType,
+        headerWidget?.key,
+        tailType,
+        shapeType,
+        voxelBevel,
+        accentVerticalBorderColor,
+        accentVerticalBorderWidth,
+        hasInsetDeboss,
+        debossDarkColor,
+        debossLightColor,
+        bubbleMargin,
+        contentPadding,
+      );
 }
 
 /// Spec styling lengkap untuk seluruh komponen UI Chat Room (AppBar, Composer, Buttons, Dividers, Badges).

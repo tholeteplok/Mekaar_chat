@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
@@ -604,28 +605,30 @@ class AuthRepository {
     }
   }
 
-  // Hash PIN helper using Argon2id
+  // Hash PIN helper using Argon2id (offloaded to background isolate)
   Future<String> _hashPIN(String pin, {List<int>? salt}) async {
+    // Generate salt if not provided
+    final actualSalt =
+        salt ??
+        List<int>.generate(16, (i) => math.Random.secure().nextInt(256));
+
+    return Isolate.run(() => _hashPinInIsolate(pin, actualSalt));
+  }
+
+  static Future<String> _hashPinInIsolate(String pin, List<int> salt) async {
     final argon2 = Argon2id(
       memory: 12000,
       iterations: 2,
       parallelism: 1,
       hashLength: 32,
     );
-    final secretKey = SecretKey(utf8.encode(pin));
-
-    // Generate salt if not provided
-    final actualSalt =
-        salt ??
-        List<int>.generate(16, (i) => math.Random.secure().nextInt(256));
-
     final derivedKey = await argon2.deriveKey(
-      secretKey: secretKey,
-      nonce: actualSalt,
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: salt,
     );
 
     final derivedBytes = await derivedKey.extractBytes();
-    final saltBase64 = base64Encode(actualSalt);
+    final saltBase64 = base64Encode(salt);
     final hashBase64 = base64Encode(derivedBytes);
     return '$saltBase64:$hashBase64';
   }
