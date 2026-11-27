@@ -527,6 +527,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     unawaited(AegisMemoryGuardService.instance.zeroizeAllKeys());
+    unawaited(DatabaseKeyService.instance.clearPinlessMasterVaultUnlock());
+    unawaited(DatabaseKeyService.instance.lockVault());
     await _authRepository.signOut();
     state = AuthState(isLoading: false);
   }
@@ -655,6 +657,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
             newPin: newPin,
           );
         } catch (_) {}
+        try {
+          if (await DatabaseKeyService.instance.hasPinlessMasterVaultUnlock()) {
+            await DatabaseKeyService.instance
+                .storePinlessMasterVaultUnlock(newPin);
+          }
+        } catch (_) {}
         return true;
       }
 
@@ -732,6 +740,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
             space: VaultSpace.master,
             newPin: newPin,
           );
+        } catch (_) {}
+        try {
+          if (await DatabaseKeyService.instance.hasPinlessMasterVaultUnlock()) {
+            await DatabaseKeyService.instance
+                .storePinlessMasterVaultUnlock(newPin);
+          }
         } catch (_) {}
       }
       state = state.copyWith(isLoading: false);

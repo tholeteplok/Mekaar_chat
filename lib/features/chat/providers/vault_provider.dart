@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/services/guest_session_guard.dart';
 import '../../../data/models/vault_item.dart';
 import '../../../data/services/aegis_shredder_service.dart';
 import '../../../data/services/aegis_stream_cipher_service.dart';
@@ -15,6 +17,47 @@ final vaultRepositoryProvider = Provider<VaultRepository>((ref) {
 });
 
 final vaultFilterProvider = StateProvider<VaultFileType?>((ref) => null);
+
+/// Mengelola status kunci PIN pada layar Brankas Berkas (default: aktif).
+class VaultPinLockNotifier extends StateNotifier<bool>
+    with EphemeralSettingGuard {
+  static const String prefKey = 'mekaar_vault_pin_lock_enabled';
+
+  final SharedPreferences? _prefs;
+  late final Future<void> initialized;
+
+  VaultPinLockNotifier([this._prefs]) : super(true) {
+    if (_prefs != null) {
+      state = _prefs.getBool(prefKey) ?? true;
+      initialized = Future.value();
+    } else {
+      initialized = _load();
+    }
+  }
+
+  Future<void> reload() => _load();
+
+  Future<void> _load() async {
+    try {
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      final saved = prefs.getBool(prefKey) ?? true;
+      if (mounted) state = saved;
+    } catch (_) {}
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    if (isEphemeralSession) return;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setBool(prefKey, enabled);
+  }
+}
+
+final vaultPinLockEnabledProvider =
+    StateNotifierProvider<VaultPinLockNotifier, bool>((ref) {
+  return VaultPinLockNotifier()
+    ..attachEphemeralGuard(() => ref.read(authProvider).isDecoyActive);
+});
 
 final vaultItemsProvider =
     StateNotifierProvider<VaultNotifier, AsyncValue<List<VaultItem>>>((ref) {

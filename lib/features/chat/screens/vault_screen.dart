@@ -7,10 +7,13 @@ import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
+import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../../core/widgets/mekaar_scaffold.dart';
 import '../../../core/widgets/mekaar_snackbar.dart';
 import '../../../core/widgets/mekaar_state_view.dart';
@@ -20,6 +23,7 @@ import '../../../data/models/vault_item.dart';
 import '../../../data/services/aegis_shredder_service.dart';
 import '../../../data/services/database_key_service.dart';
 import '../../../data/services/local_vault_database.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/vault_provider.dart';
 
 /// Layar antarmuka Brankas Berkas Mekaar.
@@ -231,10 +235,90 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     );
   }
 
+  Future<void> _handleVaultPinLockToggle(bool targetEnabled) async {
+    HapticService.trigger(MekaarHapticIntent.selection);
+
+    if (!targetEnabled) {
+      final confirmed = await MekaarDialog.showConfirmation<bool>(
+        context: context,
+        isDestructive: true,
+        icon: const Icon(
+          SolarIconsBold.shieldWarning,
+          color: MekaarColors.warnAmber,
+          size: 28,
+        ),
+        title: 'Nonaktifkan PIN Brankas Berkas?',
+        message:
+            'Brankas Berkas dapat langsung dibuka tanpa memasukkan PIN, dan kunci akses akan disimpan di Keystore perangkat agar berkas tetap bisa dibuka. Siapa pun yang memegang ponsel dapat melihat seluruh foto, video, suara, dan dokumen di dalam Brankas.',
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Tetap Terkunci'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MekaarColors.sosRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      final verifiedPin = await MekaarPinVerificationSheet.verifyAndReturnPin(
+        context,
+        title: 'Verifikasi PIN Utama',
+        subtitle:
+            'Masukkan 6 digit PIN Utama untuk mematikan kunci Brankas Berkas',
+        allowDuress: false,
+        allowDecoy: false,
+      );
+      if (verifiedPin == null || !mounted) return;
+
+      await DatabaseKeyService.instance.storePinlessMasterVaultUnlock(
+        verifiedPin,
+      );
+      await ref.read(vaultPinLockEnabledProvider.notifier).setEnabled(false);
+      if (mounted) {
+        MekaarSnackbar.warning(
+          context,
+          'Kunci PIN Brankas Berkas dinonaktifkan.',
+        );
+      }
+      return;
+    }
+
+    final verified = await MekaarPinVerificationSheet.verify(
+      context,
+      title: 'Verifikasi PIN Utama',
+      subtitle:
+          'Masukkan 6 digit PIN Utama untuk mengaktifkan kembali kunci Brankas Berkas',
+      allowDuress: false,
+      allowDecoy: false,
+    );
+    if (!verified || !mounted) return;
+
+    await DatabaseKeyService.instance.clearPinlessMasterVaultUnlock();
+    await ref.read(vaultPinLockEnabledProvider.notifier).setEnabled(true);
+    if (mounted) {
+      MekaarSnackbar.success(
+        context,
+        'Kunci PIN Brankas Berkas diaktifkan kembali.',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedFilter = ref.watch(vaultFilterProvider);
     final vaultItemsState = ref.watch(vaultItemsProvider);
+    final vaultPinLockEnabled = ref.watch(vaultPinLockEnabledProvider);
+    final authState = ref.watch(authProvider);
+    final showPinLockSwitch =
+        !authState.isDecoyActive && !authState.isDuressActive;
 
     return MekaarScaffold(
       appBar: MekaarTopBar(
@@ -291,6 +375,65 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
+                ),
+              ),
+            ),
+
+          // Switch On/Off Kunci PIN Brankas Berkas (khusus sesi Master)
+          if (showPinLockSwitch && !_isSearchActive)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                MekaarSpacing.lg,
+                MekaarSpacing.sm,
+                MekaarSpacing.lg,
+                MekaarSpacing.xs,
+              ),
+              child: CustomCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MekaarSpacing.md,
+                  vertical: MekaarSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      vaultPinLockEnabled
+                          ? SolarIconsBold.lockKeyhole
+                          : SolarIconsOutline.lockUnlocked,
+                      color: vaultPinLockEnabled
+                          ? MekaarColors.primaryOf(context)
+                          : MekaarColors.warnAmber,
+                      size: 22,
+                    ),
+                    const SizedBox(width: MekaarSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Kunci PIN Brankas',
+                            style: MekaarTypography.labelLG.copyWith(
+                              color: MekaarColors.textPrimaryOf(context),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            vaultPinLockEnabled
+                                ? 'Wajib PIN Master setiap membuka brankas'
+                                : 'Brankas terbuka langsung tanpa PIN',
+                            style: MekaarTypography.subtitle.copyWith(
+                              color: MekaarColors.textSecondaryOf(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      key: const ValueKey('vault_pin_lock_switch'),
+                      value: vaultPinLockEnabled,
+                      onChanged: _handleVaultPinLockToggle,
+                    ),
+                  ],
                 ),
               ),
             ),

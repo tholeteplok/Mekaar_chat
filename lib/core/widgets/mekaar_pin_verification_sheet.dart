@@ -21,6 +21,7 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
   final bool allowDuress;
   final bool allowDecoy;
   final bool bindToActiveSession;
+  final bool returnVerifiedPin;
 
   const MekaarPinVerificationSheet({
     super.key,
@@ -29,10 +30,11 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
     this.allowDuress = true,
     this.allowDecoy = false,
     this.bindToActiveSession = false,
+    this.returnVerifiedPin = false,
   });
 
   /// Menampilkan sheet verifikasi PIN modal.
-  /// Mengembalikan `true` jika PIN terverifikasi dengan benar, atau `false`/`null` jika dibatalkan.
+  /// Mengembalikan `true` jika PIN terverifikasi dengan benar, atau `false` jika dibatalkan.
   static Future<bool> verify(
     BuildContext context, {
     String title = 'Verifikasi PIN Keamanan',
@@ -53,6 +55,30 @@ class MekaarPinVerificationSheet extends ConsumerStatefulWidget {
       ),
     );
     return result ?? false;
+  }
+
+  /// Menampilkan sheet verifikasi PIN modal dan mengembalikan PIN 6-digit yang
+  /// terverifikasi (atau `null` jika dibatalkan) untuk kebutuhan derivasi Keystore sesaat.
+  static Future<String?> verifyAndReturnPin(
+    BuildContext context, {
+    String title = 'Verifikasi PIN Utama',
+    String subtitle = 'Masukkan 6 digit PIN Utama untuk melanjutkan',
+    bool allowDuress = false,
+    bool allowDecoy = false,
+    bool bindToActiveSession = false,
+  }) {
+    return MekaarBottomSheet.show<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => MekaarPinVerificationSheet(
+        title: title,
+        subtitle: subtitle,
+        allowDuress: allowDuress,
+        allowDecoy: allowDecoy,
+        bindToActiveSession: bindToActiveSession,
+        returnVerifiedPin: true,
+      ),
+    );
   }
 
   @override
@@ -137,7 +163,7 @@ class _MekaarPinVerificationSheetState
 
         if (!mounted) return;
         HapticService.trigger(MekaarHapticIntent.success);
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(widget.returnVerifiedPin ? _pin : true);
       } else {
         final elapsed = stopwatch.elapsedMilliseconds;
         if (elapsed < 450 && !context.reduceMotion) {

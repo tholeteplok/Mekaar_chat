@@ -18,6 +18,7 @@ import '../../../core/constants/theme_preference.dart';
 import '../../../core/constants/webrtc_config.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
+import '../../../core/widgets/mekaar_pin_verification_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/auto_lock_provider.dart';
 import '../../guardian/providers/guardian_provider.dart';
@@ -146,7 +147,7 @@ class SettingsScreen extends ConsumerWidget {
               valueText: currentAutoLock == AutoLockTimeout.custom
                   ? 'Kustom (${MekaarCustomDurationPickerSheet.formatDuration(customDuration)})'
                   : currentAutoLock.label,
-              onTap: () => _showAutoLockBottomSheet(context, ref),
+              onTap: () => showAutoLockBottomSheet(context, ref),
             );
           },
         ),
@@ -403,6 +404,12 @@ class SettingsScreen extends ConsumerWidget {
   // ─────────────────────────────────────────────────
   // BOTTOM SHEET: Kunci Otomatis (Auto-Lock Timeout)
   // ─────────────────────────────────────────────────
+  static Future<void> showAutoLockBottomSheet(
+    BuildContext context,
+    WidgetRef ref,
+  ) =>
+      const SettingsScreen()._showAutoLockBottomSheet(context, ref);
+
   Future<void> _showAutoLockBottomSheet(
     BuildContext context,
     WidgetRef ref,
@@ -514,6 +521,64 @@ class SettingsScreen extends ConsumerWidget {
             'Kunci otomatis diatur: ${MekaarCustomDurationPickerSheet.formatDuration(pickedDuration)}',
           );
         }
+      }
+      return;
+    }
+
+    if (selectedOption == AutoLockTimeout.off) {
+      final currentTimeout = ref.read(autoLockTimeoutProvider);
+      if (currentTimeout != AutoLockTimeout.off) {
+        final confirmed = await MekaarDialog.showConfirmation<bool>(
+          context: context,
+          isDestructive: true,
+          icon: const Icon(
+            SolarIconsBold.shieldWarning,
+            color: MekaarColors.warnAmber,
+            size: 28,
+          ),
+          title: 'Nonaktifkan PIN Layar Masuk?',
+          message:
+              'Jika Kunci Otomatis dimatikan, aplikasi tidak akan meminta PIN saat dibuka maupun saat kembali dari latar belakang. Siapa pun yang memegang perangkat dapat langsung membaca percakapan Anda, serta akses PIN Tamu dan PIN Darurat di layar masuk akan dilewati.',
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Tetap Aktif'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MekaarColors.sosRed,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Lanjutkan'),
+            ),
+          ],
+        );
+
+        if (confirmed != true || !context.mounted) return;
+
+        final isDecoy = ref.read(authProvider).isDecoyActive;
+        final verified = await MekaarPinVerificationSheet.verify(
+          context,
+          title: isDecoy ? 'Verifikasi PIN Keamanan' : 'Verifikasi PIN Utama',
+          subtitle: isDecoy
+              ? 'Masukkan 6 digit PIN Anda untuk mematikan Kunci Otomatis'
+              : 'Masukkan 6 digit PIN Utama untuk mematikan Kunci Otomatis',
+          allowDuress: false,
+          allowDecoy: false,
+          bindToActiveSession: isDecoy,
+        );
+        if (!verified || !context.mounted) return;
+      }
+
+      await ref
+          .read(autoLockTimeoutProvider.notifier)
+          .setTimeout(AutoLockTimeout.off);
+      if (context.mounted) {
+        MekaarSnackbar.warning(
+          context,
+          'Kunci otomatis & PIN layar masuk dinonaktifkan.',
+        );
       }
       return;
     }

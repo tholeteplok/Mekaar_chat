@@ -31,6 +31,9 @@ import '../../sos/providers/sos_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/chat_provider.dart';
 import '../providers/private_vault_provider.dart';
+import '../providers/vault_provider.dart';
+import '../../../data/services/database_key_service.dart';
+import '../../../data/services/local_vault_database.dart';
 import '../../guardian/widgets/guardian_sos_alert_banner.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/repositories/contact_repository.dart';
@@ -1041,6 +1044,39 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   HapticService.trigger(
                                     MekaarHapticIntent.selection,
                                   );
+                                  final authState = ref.read(authProvider);
+                                  final isVaultPinEnabled =
+                                      ref.read(vaultPinLockEnabledProvider);
+                                  final canBypassPin = !isVaultPinEnabled &&
+                                      authState.vaultSpace ==
+                                          VaultSpace.master &&
+                                      !authState.isDecoyActive &&
+                                      !authState.isDuressActive;
+
+                                  if (canBypassPin) {
+                                    final unlocked = await DatabaseKeyService
+                                        .instance
+                                        .unlockMasterVaultFromKeystore();
+                                    if (unlocked != null) {
+                                      try {
+                                        await LocalVaultDatabase.instance
+                                            .openVault(
+                                          key: unlocked.key,
+                                          space: VaultSpace.master,
+                                          pin: unlocked.pin,
+                                        );
+                                        if (context.mounted) {
+                                          Navigator.pushNamed(
+                                            context,
+                                            AppRoutes.vault,
+                                          );
+                                        }
+                                        return;
+                                      } catch (_) {}
+                                    }
+                                  }
+
+                                  if (!context.mounted) return;
                                   final verified =
                                       await MekaarPinVerificationSheet.verify(
                                     context,

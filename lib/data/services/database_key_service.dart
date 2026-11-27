@@ -46,6 +46,7 @@ class DatabaseKeyService {
   static const String _masterVaultSaltStorageKey = 'sqlcipher_vault_master_salt_v2';
   static const String _guestVaultSaltStorageKey = 'sqlcipher_vault_guest_salt_v2';
   static const String _decoyVaultSaltStorageKey = 'sqlcipher_vault_decoy_salt_v2';
+  static const String _pinlessMasterVaultPinKey = 'vault_pinless_master_unlock_v1';
   static const int _pbkdf2Iterations = 100000;
 
   /// Kunci runtime in-memory untuk brankas berkas yang dibuka saat ini
@@ -311,6 +312,52 @@ class DatabaseKeyService {
 
   /// Mengetahui apakah brankas yang sedang aktif adalah Ruang Tamu (Guest).
   bool get isVaultGuest => _activeVaultSpace == VaultSpace.guest;
+
+  /// Menyimpan PIN Master di Hardware Keystore agar Brankas Berkas dapat dibuka
+  /// tanpa prompt PIN ketika kunci PIN Brankas dinonaktifkan oleh pemilik.
+  Future<void> storePinlessMasterVaultUnlock(String masterPin) async {
+    await _secureStorage.write(
+      key: _pinlessMasterVaultPinKey,
+      value: masterPin,
+    );
+  }
+
+  /// Memeriksa apakah material buka-otomatis Brankas Master tersedia di Keystore.
+  Future<bool> hasPinlessMasterVaultUnlock() async {
+    try {
+      final val = await _secureStorage.read(key: _pinlessMasterVaultPinKey);
+      return val != null && val.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Menghapus material buka-otomatis Brankas Master dari Hardware Keystore.
+  Future<void> clearPinlessMasterVaultUnlock() async {
+    try {
+      await _secureStorage.delete(key: _pinlessMasterVaultPinKey);
+    } catch (_) {}
+  }
+
+  /// Menurunkan kembali kunci SQLCipher & slot Aegis Brankas Master dari Keystore
+  /// saat fitur kunci PIN Brankas dinonaktifkan.
+  Future<({String key, String pin})?> unlockMasterVaultFromKeystore() async {
+    try {
+      final storedPin =
+          await _secureStorage.read(key: _pinlessMasterVaultPinKey);
+      if (storedPin == null || storedPin.isEmpty) return null;
+
+      final vaultKey = await deriveVaultKey(
+        storedPin,
+        space: VaultSpace.master,
+      );
+      setActiveVaultKey(vaultKey, space: VaultSpace.master);
+      return (key: vaultKey, pin: storedPin);
+    } catch (e) {
+      _logger.w('Gagal membuka Brankas Master dari Keystore: $e');
+      return null;
+    }
+  }
 
   /// Mengunci kembali brankas dan membersihkan kunci dari memori.
   Future<void> lockVault() async {
