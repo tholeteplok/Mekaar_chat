@@ -115,10 +115,13 @@ class NotificationPreferencesRepository {
           ? NotificationPreferences.defaultCallSound
           : NotificationPreferences.defaultMessageSound;
     }
-    if (path == 'sounds/sos_siren.mp3') {
+    if (path == 'sounds/call_ringtone.wav') {
+      return NotificationPreferences.defaultCallSound;
+    }
+    if (path == 'sounds/sos_siren.mp3' || path == 'sounds/sos_alarm.wav') {
       return NotificationPreferences.defaultSosSound;
     }
-    if (path == 'sounds/sos_klaxon.mp3') {
+    if (path == 'sounds/sos_klaxon.mp3' || path == 'sounds/sos_scifi.wav') {
       return NotificationPreferences.alternateSosSound;
     }
 

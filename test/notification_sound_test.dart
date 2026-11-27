@@ -48,7 +48,7 @@ void main() {
       expect(sosSound, NotificationPreferences.defaultSosSound);
     });
 
-    test('Migrasi otomatis preferensi file audio lama (.mp3) ke format baru (.wav)', () async {
+    test('Migrasi otomatis preferensi file audio lama (.mp3) ke format baru (.ogg)', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(NotificationPreferences.messageSoundKey, 'sounds/normal_chime.mp3');
       await prefs.setString(NotificationPreferences.callSoundKey, 'sounds/normal_playful.mp3');
@@ -60,6 +60,22 @@ void main() {
       expect(loaded.messageSound, NotificationPreferences.defaultMessageSound);
       expect(loaded.callSound, NotificationPreferences.defaultCallSound);
       expect(loaded.sosSound, NotificationPreferences.defaultSosSound);
+    });
+
+    test('Migrasi otomatis preferensi file audio lama (.wav) ke format terkompresi (.ogg)', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(NotificationPreferences.callSoundKey, 'sounds/call_ringtone.wav');
+      await prefs.setString(NotificationPreferences.sosSoundKey, 'sounds/sos_alarm.wav');
+
+      final repo = NotificationPreferencesRepository();
+      var loaded = await repo.load();
+
+      expect(loaded.callSound, 'sounds/call_ringtone.ogg');
+      expect(loaded.sosSound, 'sounds/sos_alarm.ogg');
+
+      await prefs.setString(NotificationPreferences.sosSoundKey, 'sounds/sos_scifi.wav');
+      loaded = await repo.load();
+      expect(loaded.sosSound, 'sounds/sos_scifi.ogg');
     });
 
     test('Membaca dan menyimpan SharedPreferences untuk perizinan alarm Guardian', () async {
