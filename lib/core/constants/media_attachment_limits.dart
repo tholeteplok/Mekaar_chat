@@ -26,9 +26,28 @@ abstract final class MediaAttachmentLimits {
   static const int serverUploadRateLimitCount = 20;
   static const int serverUploadRateLimitMinutes = 10;
 
-  /// Pemberitahuan retensi server yang ditampilkan pada layar pratinjau.
+  /// Memeriksa secara timezone-agnostic apakah objek media server telah melewati
+  /// periode retensi otomatis ([serverRetentionDays] hari).
+  static bool isServerMediaExpired(DateTime createdAt, {DateTime? now}) {
+    final refNow = (now ?? DateTime.now()).toUtc();
+    return refNow.difference(createdAt.toUtc()).inDays >= serverRetentionDays;
+  }
+
+  /// Pemberitahuan retensi server pada layar pratinjau kirim media.
   static String get retentionNotice =>
-      'Media otomatis dihapus dari server setelah $serverRetentionDays hari (salinan lokal tetap aman).';
+      'Demi privasi, media dihapus otomatis dari server setelah $serverRetentionDays hari (salinan lokal tetap aman).';
+
+  /// Footnote ringkas pada bottom sheet lampiran chat.
+  static String get attachmentSheetFootnote =>
+      'Maks. $maxImagesPerBatch foto atau $maxDocumentsPerBatch berkas (10 MB/file) · Demi privasi, media dihapus dari server setelah $serverRetentionDays hari.';
+
+  /// Pesan pemulihan yang jelas ketika media belum diunduh & telah dihapus dari server.
+  static String get expiredMediaMessage =>
+      'Media ini sudah dihapus otomatis dari server setelah $serverRetentionDays hari demi privasi. Berkas yang sudah diunduh atau disimpan di Brankas Berkas tetap aman di perangkat.';
+
+  /// Penjelasan nilai penyimpanan permanen pada empty state Brankas Berkas.
+  static String get vaultRetentionHint =>
+      'Media di obrolan otomatis dihapus dari server setelah $serverRetentionDays hari. Simpan foto, rekaman suara, video, atau dokumen penting ke Brankas Berkas agar tetap tersimpan permanen dan terenkripsi di perangkat Anda.';
 
   /// Memformat ukuran byte menjadi representasi mudah baca (`B`, `KB`, `MB`).
   static String formatBytes(int bytes) {

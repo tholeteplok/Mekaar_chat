@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mekaar_chat/core/constants/media_attachment_limits.dart';
 import 'package:mekaar_chat/core/constants/themes.dart';
 import 'package:mekaar_chat/core/widgets/bubbles/bubble_media_helper.dart';
+import 'package:mekaar_chat/core/widgets/bubbles/file_bubble_card.dart';
 import 'package:mekaar_chat/core/widgets/bubbles/media_album_bubble.dart';
 import 'package:mekaar_chat/data/models/message_model.dart';
 import 'package:mekaar_chat/features/chat/handlers/chat_media_handler.dart';
@@ -326,6 +327,75 @@ void main() {
 
       expect(find.byType(Image), findsNWidgets(4));
       expect(find.text('Empat foto kolase'), findsOneWidget);
+    });
+  });
+
+  group('Kebijakan Retensi Media Server 7 Hari & Copy Privasi', () {
+    test('isServerMediaExpired mengevaluasi batas 7 hari secara akurat (UTC)', () {
+      final now = DateTime.utc(2026, 11, 27, 12, 0);
+      final underLimit = DateTime.utc(2026, 11, 20, 13, 0); // 6 hari 23 jam
+      final atLimit = DateTime.utc(2026, 11, 20, 12, 0); // tepat 7 hari
+      final overLimit = DateTime.utc(2026, 11, 17, 12, 0); // 10 hari
+
+      expect(
+        MediaAttachmentLimits.isServerMediaExpired(underLimit, now: now),
+        isFalse,
+      );
+      expect(
+        MediaAttachmentLimits.isServerMediaExpired(atLimit, now: now),
+        isTrue,
+      );
+      expect(
+        MediaAttachmentLimits.isServerMediaExpired(overLimit, now: now),
+        isTrue,
+      );
+    });
+
+    test('Seluruh copy retensi menyebut 7 hari tanpa jargon vendor Supabase', () {
+      final copies = [
+        MediaAttachmentLimits.retentionNotice,
+        MediaAttachmentLimits.attachmentSheetFootnote,
+        MediaAttachmentLimits.expiredMediaMessage,
+        MediaAttachmentLimits.vaultRetentionHint,
+      ];
+
+      for (final text in copies) {
+        expect(text.contains('7 hari'), isTrue);
+        expect(text.toLowerCase().contains('supabase'), isFalse);
+      }
+    });
+
+    testWidgets('FileBubbleCard menampilkan status Kedaluwarsa di server setelah > 7 hari', (
+      tester,
+    ) async {
+      final expiredDoc = Message(
+        id: 'doc_expired_8d',
+        roomId: 'r1',
+        senderId: 'u1',
+        content: '{"file_name":"laporan.pdf","file_size":2048}',
+        mediaUrl: 'https://example.supabase.co/storage/v1/object/public/chat-media/blobs/x.bin',
+        type: MessageType.file,
+        createdAt: DateTime.now().toUtc().subtract(const Duration(days: 10)),
+        updatedAt: DateTime.now().toUtc().subtract(const Duration(days: 10)),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: MekaarTheme.lightTheme(),
+          home: Scaffold(
+            body: Center(
+              child: FileBubbleCard(
+                message: expiredDoc,
+                isMe: true,
+                textColor: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kedaluwarsa di server'), findsOneWidget);
     });
   });
 }

@@ -8,6 +8,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/media_attachment_limits.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/custom_card.dart';
@@ -473,7 +474,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                           : 'Brankas Terkunci & Aman',
                       message: _searchQuery.isNotEmpty
                           ? 'Tidak ada berkas yang cocok dengan "$_searchQuery".'
-                          : 'Simpan foto, rekaman suara, video, atau dokumen dari obrolan untuk menyimpannya dengan aman di sini.',
+                          : MediaAttachmentLimits.vaultRetentionHint,
                     ),
                   );
                 }

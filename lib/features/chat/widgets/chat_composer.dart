@@ -750,6 +750,17 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
                 _showLiveDurationSheet(ctx);
               },
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+            child: Text(
+              MediaAttachmentLimits.attachmentSheetFootnote,
+              textAlign: TextAlign.center,
+              style: MekaarTypography.caption.copyWith(
+                color: MekaarColors.textMutedOf(ctx),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
         ],
       ),

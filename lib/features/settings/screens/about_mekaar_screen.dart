@@ -5,6 +5,7 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/media_attachment_limits.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
@@ -448,6 +449,13 @@ class _AboutMekaarScreenState extends ConsumerState<AboutMekaarScreen> {
         title: 'Kedaulatan Kunci Kriptografi',
         desc:
             'Setiap pasangan kunci enkripsi disimpan secara eksklusif di penyimpanan aman perangkat lokal Anda.',
+      ),
+      (
+        icon: SolarIconsOutline.clockCircle,
+        title:
+            'Retensi Media Minimal (${MediaAttachmentLimits.serverRetentionDays} Hari)',
+        desc:
+            'Demi privasi, berkas media terenkripsi pada obrolan dihapus otomatis dari server setelah ${MediaAttachmentLimits.serverRetentionDays} hari. Simpan media penting ke Brankas Berkas agar tetap aman secara lokal di perangkat Anda.',
       ),
       (
         icon: SolarIconsOutline.usersGroupTwoRounded,

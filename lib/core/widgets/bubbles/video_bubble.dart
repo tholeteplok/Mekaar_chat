@@ -7,6 +7,7 @@ import '../../../data/models/message_model.dart';
 import '../../../data/services/file_export_service.dart';
 import '../../constants/colors.dart';
 import '../../constants/dimensions.dart';
+import '../../constants/media_attachment_limits.dart';
 import '../../services/haptic_service.dart';
 import '../mekaar_snackbar.dart';
 import 'bubble_media_helper.dart';
@@ -18,7 +19,7 @@ import 'read_receipt_icon.dart';
 /// 1. Tampilan thumbnail cerdas atau backdrop bergradien elegan.
 /// 2. Tombol Play semi-transparan dengan loading spinner saat unduh/dekripsi.
 /// 3. Peluncuran pemutar video bawaan/eksternal via [FileExportService.openFileWithChooser].
-/// 4. Penanganan batas retensi Supabase (> 30 hari).
+/// 4. Penanganan batas retensi server (7 hari).
 /// 5. Caption teks, timestamp, dan tanda terima baca (read receipt).
 class VideoBubble extends StatefulWidget {
   final Message message;
@@ -133,14 +134,14 @@ class _VideoBubbleState extends State<VideoBubble> {
       return;
     }
 
-    // 2. Cek apakah berkas di server telah melewati batas retensi (> 30 hari)
+    // 2. Cek apakah berkas di server telah melewati batas retensi (7 hari)
     final isExpired = _cachedFile == null &&
-        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
+        MediaAttachmentLimits.isServerMediaExpired(widget.message.createdAt);
     if (isExpired) {
       if (mounted) {
         MekaarSnackbar.warning(
           context,
-          'Berkas video di server telah kedaluwarsa (> 30 hari) sesuai batas retensi Supabase.',
+          MediaAttachmentLimits.expiredMediaMessage,
         );
       }
       return;

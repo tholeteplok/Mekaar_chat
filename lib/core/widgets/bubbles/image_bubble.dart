@@ -11,7 +11,9 @@ import '../../../features/chat/providers/screen_protection_provider.dart';
 import '../../constants/colors.dart';
 import '../../constants/dimensions.dart';
 import '../../constants/icons.dart';
+import '../../constants/media_attachment_limits.dart';
 import '../../constants/motion.dart';
+import '../mekaar_snackbar.dart';
 import 'bubble_media_helper.dart';
 import 'full_screen_image_viewer.dart';
 import 'read_receipt_icon.dart';
@@ -237,16 +239,44 @@ class ImageBubble extends ConsumerWidget {
         }
 
         if (file == null) {
-          return Container(
-            height: isSticker ? 120 : 180,
-            width: isSticker ? 120 : 220,
-            decoration: BoxDecoration(
-              color: MekaarColors.surface2Of(context),
-              borderRadius: borderRadius,
-            ),
-            child: Icon(
-              MekaarIcons.brokenImage,
-              color: MekaarColors.textMutedOf(context),
+          final isExpired = !isSticker &&
+              MediaAttachmentLimits.isServerMediaExpired(message.createdAt);
+          return GestureDetector(
+            onTap: isExpired
+                ? () => MekaarSnackbar.warning(
+                      context,
+                      MediaAttachmentLimits.expiredMediaMessage,
+                    )
+                : null,
+            child: Container(
+              height: isSticker ? 120 : 180,
+              width: isSticker ? 120 : 220,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: MekaarColors.surface2Of(context),
+                borderRadius: borderRadius,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    MekaarIcons.brokenImage,
+                    color: MekaarColors.textMutedOf(context),
+                  ),
+                  if (isExpired) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Dihapus dari server (> ${MediaAttachmentLimits.serverRetentionDays} hari)',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: MekaarColors.textMutedOf(context),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         }

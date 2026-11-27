@@ -22,7 +22,7 @@ class MediaUploadService {
   Future<String> uploadChatMedia(File file, String roomId) async {
     final length = await file.length();
     if (length > maxFileSizeBytes) {
-      throw Exception('Ukuran file melebihi batas maksimal 15 MB (keterbatasan kuota Supabase gratis).');
+      throw Exception('Ukuran berkas melebihi batas maksimal 15 MB.');
     }
 
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
@@ -46,7 +46,7 @@ class MediaUploadService {
   Future<({String url, String keyB64})> uploadEncryptedChatMedia(File file, String roomId) async {
     final length = await file.length();
     if (length > maxFileSizeBytes) {
-      throw Exception('Ukuran file melebihi batas maksimal 15 MB (keterbatasan kuota Supabase gratis).');
+      throw Exception('Ukuran berkas melebihi batas maksimal 15 MB.');
     }
     
     // Anonimisasi storage path: tidak memuat roomId, userId, timestamp, atau ekstensi asli

@@ -6,6 +6,7 @@ import '../../../data/models/message_model.dart';
 import '../../../data/services/file_export_service.dart';
 import '../../constants/colors.dart';
 import '../../constants/dimensions.dart';
+import '../../constants/media_attachment_limits.dart';
 import '../../services/haptic_service.dart';
 import '../mekaar_snackbar.dart';
 import 'bubble_media_helper.dart';
@@ -70,11 +71,11 @@ class _FileBubbleCardState extends State<FileBubbleCard> {
     }
 
     final isExpired = _cachedFile == null &&
-        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
+        MediaAttachmentLimits.isServerMediaExpired(widget.message.createdAt);
     if (isExpired) {
       MekaarSnackbar.warning(
         context,
-        'Berkas di server telah kedaluwarsa (> 30 hari) sesuai batas retensi Supabase.',
+        MediaAttachmentLimits.expiredMediaMessage,
       );
       return;
     }
@@ -96,10 +97,12 @@ class _FileBubbleCardState extends State<FileBubbleCard> {
         mimeType: meta?.mimeType,
       );
     } else {
-      if (DateTime.now().difference(widget.message.createdAt).inDays >= 30) {
+      if (MediaAttachmentLimits.isServerMediaExpired(
+        widget.message.createdAt,
+      )) {
         MekaarSnackbar.warning(
           context,
-          'Berkas tidak ditemukan atau telah kedaluwarsa di server (> 30 hari).',
+          MediaAttachmentLimits.expiredMediaMessage,
         );
       } else {
         MekaarSnackbar.error(context, 'Gagal mengunduh berkas.');
@@ -142,7 +145,7 @@ class _FileBubbleCardState extends State<FileBubbleCard> {
         );
 
     final isExpired = _cachedFile == null &&
-        DateTime.now().difference(widget.message.createdAt).inDays >= 30;
+        MediaAttachmentLimits.isServerMediaExpired(widget.message.createdAt);
 
     final style = _resolveFileTypeStyle(meta.fileExtension);
     final isDark = Theme.of(context).brightness == Brightness.dark;
