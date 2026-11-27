@@ -221,7 +221,7 @@ void main() {
                 onSend: () {},
                 onCancelReply: () {},
                 onCancelEdit: () {},
-                onSendMedia: (file, type, {caption, isViewOnce}) async {},
+                onSendMedia: (file, type, {caption, isViewOnce, albumId}) async {},
                 onRestoreE2ee: () {},
               ),
             ),

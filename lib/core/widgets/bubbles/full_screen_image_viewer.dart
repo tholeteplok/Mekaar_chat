@@ -29,6 +29,17 @@ class FullScreenImageViewer extends StatefulWidget {
   final List<AlbumViewerItem> items;
   final int initialIndex;
 
+  int get _safeInitialIndex =>
+      items.isEmpty ? 0 : initialIndex.clamp(0, items.length - 1);
+
+  ImageProvider get imageProvider => items[_safeInitialIndex].imageProvider;
+  File? get tempFileToPurge =>
+      items.isNotEmpty ? items[_safeInitialIndex].tempFileToPurge : null;
+  VoidCallback? get onSaveToVault =>
+      items.isNotEmpty ? items[_safeInitialIndex].onSaveToVault : null;
+  Object? get heroTag =>
+      items.isNotEmpty ? items[_safeInitialIndex].heroTag : null;
+
   FullScreenImageViewer({
     super.key,
     required ImageProvider imageProvider,

@@ -156,7 +156,7 @@ void main() {
         capturedContext,
         ref: capturedRef,
         filePaths: [],
-        onSendMedia: (file, type, {caption, isViewOnce}) async {
+        onSendMedia: (file, type, {caption, isViewOnce, albumId}) async {
           sendMediaCalled = true;
         },
       );
