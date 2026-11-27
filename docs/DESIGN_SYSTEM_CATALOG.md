@@ -69,6 +69,8 @@ Dilarang keras menggunakan widget bawaan Flutter jika padanan sentralnya sudah t
 | **Tombol Scroll ke Bawah** | Floating button ad-hoc | `ScrollToBottomButton(...)` | `import 'package:mekaar_chat/core/widgets/scroll_to_bottom_button.dart';` |
 | **Avatar Pengguna / Kontak** | `CircleAvatar(...)` | `AvatarWidget(...)` | `import 'package:mekaar_chat/core/widgets/avatar.dart';` |
 | **Field Pencarian** | `TextField` mentah dengan ikon search | `MekaarSearchField(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_search_field.dart';` |
+| **Input Inline Tanpa Border** | `InputDecoration(border: InputBorder.none)` mentah | `MekaarTheme.borderlessInputDecoration(...)` | `import 'package:mekaar_chat/core/constants/themes.dart';` |
+| **Album Kolase Foto Jamak** | Deretan bubble gambar terpisah ad-hoc | `MediaAlbumBubble(...)` | `import 'package:mekaar_chat/core/widgets/bubbles/media_album_bubble.dart';` |
 | **Tombol Pencarian Header** | `IconButton` pencarian acak | `MekaarHeaderSearchButton(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_header_search_button.dart';` |
 | **Segmented Switcher / Tab Pill** | TabBar biasa | `MekaarSlidingSegmentBar(...)` | `import 'package:mekaar_chat/core/widgets/mekaar_sliding_segment_bar.dart';` |
 | **Loading Skeleton** | `CircularProgressIndicator` acak | `MekaarSkeleton(...)` | `import 'package:mekaar_chat/core/widgets/skeletons.dart';` |

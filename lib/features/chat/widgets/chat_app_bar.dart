@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
+import '../../../core/constants/themes.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -338,13 +339,12 @@ class ChatAppBar extends ConsumerWidget {
                   focusNode: inChatSearchFocusNode,
                   textInputAction: TextInputAction.search,
                   style: TextStyle(color: textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
+                  decoration: MekaarTheme.borderlessInputDecoration(
                     hintText: 'Cari dalam obrolan...',
                     hintStyle: TextStyle(
                       color: MekaarColors.textMutedOf(context),
                       fontSize: 14,
                     ),
-                    border: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   ),

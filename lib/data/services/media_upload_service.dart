@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/constants/media_attachment_limits.dart';
 import 'e2ee_service.dart';
 
 /// Service for uploading chat media to Supabase Storage.
@@ -9,9 +10,10 @@ import 'e2ee_service.dart';
 class MediaUploadService {
   final SupabaseClient _client;
 
-  /// Batas ukuran maksimal berkas: 15 MB
-  /// Disesuaikan dengan batas kuota penyimpanan (1 GB) dan bandwidth egress (2 GB/bulan) Supabase Free Tier.
-  static const int maxFileSizeBytes = 15 * 1024 * 1024;
+  /// Batas ukuran maksimal berkas keras di bucket Supabase Storage: 15 MB
+  /// (untuk foto/dokumen batch, validator UI memakai batas ketat 10 MB/file & 20 MB/batch).
+  static const int maxFileSizeBytes =
+      MediaAttachmentLimits.serverBucketHardLimitBytes;
 
   MediaUploadService(this._client);
 

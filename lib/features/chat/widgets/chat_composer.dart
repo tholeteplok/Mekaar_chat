@@ -9,11 +9,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/services/aegis_shredder_service.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/media_attachment_limits.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/constants/motion.dart';
 import '../../../data/services/media_compressor.dart';
@@ -56,6 +58,7 @@ class ChatComposer extends ConsumerStatefulWidget {
     MessageType type, {
     String? caption,
     bool? isViewOnce,
+    String? albumId,
   })?
   onSendMedia;
   final Future<void> Function()? onSendLocation;
@@ -106,6 +109,7 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
   FocusNode get _effectiveFocusNode =>
       widget.focusNode ?? (_internalFocusNode ??= FocusNode());
   bool _isUploading = false;
+  String? _uploadStatusText;
   bool _showEmojiPicker = false;
   List<String> _recentEmojis = [];
   final Map<String, GlobalKey> _standardEmojiCategoryKeys = {};
@@ -344,80 +348,163 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     }
   }
 
+  bool _isVideoXFile(XFile picked) {
+    final path = picked.path.toLowerCase();
+    final mime = picked.mimeType?.toLowerCase() ?? '';
+    return mime.startsWith('video/') ||
+        path.endsWith('.mp4') ||
+        path.endsWith('.mov') ||
+        path.endsWith('.m4v') ||
+        path.endsWith('.avi') ||
+        path.endsWith('.mkv') ||
+        path.endsWith('.webm') ||
+        path.endsWith('.3gp');
+  }
+
   Future<void> _pickMediaFromGallery() async {
     if (widget.onSendMedia == null) return;
     try {
-      final picked = await _picker.pickMedia(
+      final pickedList = await _picker.pickMultipleMedia(
+        limit: MediaAttachmentLimits.maxImagesPerBatch,
         imageQuality: 85,
         maxWidth: 1920,
         maxHeight: 1920,
       );
-      if (picked == null || !mounted) return;
+      if (pickedList.isEmpty || !mounted) return;
 
-      final path = picked.path.toLowerCase();
-      final mime = picked.mimeType?.toLowerCase() ?? '';
-      final isVideo =
-          mime.startsWith('video/') ||
-          path.endsWith('.mp4') ||
-          path.endsWith('.mov') ||
-          path.endsWith('.m4v') ||
-          path.endsWith('.avi') ||
-          path.endsWith('.mkv') ||
-          path.endsWith('.webm') ||
-          path.endsWith('.3gp');
-
-      if (isVideo) {
-        setState(() => _isUploading = true);
+      // Video hanya diizinkan pada pengiriman tunggal (ultra ketat)
+      if (pickedList.length == 1 && _isVideoXFile(pickedList.single)) {
+        final picked = pickedList.single;
+        setState(() {
+          _isUploading = true;
+          _uploadStatusText = 'Mengompresi video...';
+        });
         final compressed = await MediaCompressor.compressVideo(
           File(picked.path),
         );
 
-        // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
-        const maxVideoBytes = 15 * 1024 * 1024;
         final videoSize = await compressed.length();
-        if (videoSize > maxVideoBytes) {
+        if (videoSize > MediaAttachmentLimits.maxSingleFileBytes) {
           if (mounted) {
             MekaarSnackbar.error(
               context,
-              'Ukuran video (${(videoSize / (1024 * 1024)).toStringAsFixed(1)} MB) melebihi batas maksimal 15 MB (paket gratis Supabase).',
+              'Ukuran video (${MediaAttachmentLimits.formatBytes(videoSize)}) melebihi batas maksimal 10.0 MB.',
             );
           }
           return;
         }
 
+        if (mounted) {
+          setState(() => _uploadStatusText = 'Mengirim video...');
+        }
         await widget.onSendMedia!(compressed, MessageType.video);
-      } else {
-        setState(() => _isUploading = true);
-        final compressed = await MediaCompressor.compressImage(
-          File(picked.path),
+        return;
+      }
+
+      final imagePicks = pickedList.where((p) => !_isVideoXFile(p)).toList();
+      if (imagePicks.length < pickedList.length && mounted) {
+        MekaarSnackbar.warning(
+          context,
+          'Video tidak didukung pada lampiran jamak. Hanya foto yang dipilih (maks ${MediaAttachmentLimits.maxImagesPerBatch} foto).',
         );
+      }
+      if (imagePicks.isEmpty || !mounted) return;
+
+      final cappedPicks = imagePicks.length >
+              MediaAttachmentLimits.maxImagesPerBatch
+          ? imagePicks.take(MediaAttachmentLimits.maxImagesPerBatch).toList()
+          : imagePicks;
+      if (imagePicks.length > MediaAttachmentLimits.maxImagesPerBatch &&
+          mounted) {
+        MekaarSnackbar.warning(
+          context,
+          'Maksimal ${MediaAttachmentLimits.maxImagesPerBatch} foto per pengiriman. ${imagePicks.length - MediaAttachmentLimits.maxImagesPerBatch} foto selebihnya dilewati.',
+        );
+      }
+
+      setState(() {
+        _isUploading = true;
+        _uploadStatusText = cappedPicks.length > 1
+            ? 'Mengompresi 1/${cappedPicks.length}...'
+            : 'Mengompresi foto...';
+      });
+
+      final compressedFiles = <File>[];
+      for (var i = 0; i < cappedPicks.length; i++) {
         if (!mounted) return;
-        setState(() => _isUploading = false);
-
-        final result = await Navigator.of(context).push<ImageSendResult>(
-          MaterialPageRoute(
-            builder: (_) => ImageSendPreviewSheet(
-              imageFile: compressed,
-              replyMessage: widget.replyMessage,
-              onCancelReply: widget.onCancelReply,
-              roomThemeSpec: widget.roomThemeSpec,
-            ),
-          ),
+        if (cappedPicks.length > 1) {
+          setState(
+            () => _uploadStatusText =
+                'Mengompresi ${i + 1}/${cappedPicks.length}...',
+          );
+        }
+        final compressed = await MediaCompressor.compressImage(
+          File(cappedPicks[i].path),
         );
+        compressedFiles.add(compressed);
+      }
 
-        if (result == null || !mounted) return;
+      if (!mounted) return;
+      setState(() {
+        _isUploading = false;
+        _uploadStatusText = null;
+      });
 
-        setState(() => _isUploading = true);
+      final validated = MediaAttachmentLimits.validateBatch<File>(
+        items: compressedFiles,
+        sizeOf: (f) => f.existsSync() ? f.lengthSync() : 0,
+        nameOf: (f) => f.path.split(Platform.pathSeparator).last,
+        maxItems: MediaAttachmentLimits.maxImagesPerBatch,
+      );
+      if (validated.warnings.isNotEmpty && mounted) {
+        MekaarSnackbar.warning(context, validated.warnings.first);
+      }
+      if (validated.accepted.isEmpty || !mounted) return;
+
+      final result = await Navigator.of(context).push<ImageSendResult>(
+        MaterialPageRoute(
+          builder: (_) => ImageSendPreviewSheet.multi(
+            imageFiles: validated.accepted,
+            replyMessage: widget.replyMessage,
+            onCancelReply: widget.onCancelReply,
+            roomThemeSpec: widget.roomThemeSpec,
+          ),
+        ),
+      );
+
+      if (result == null || !mounted) return;
+
+      final albumId = result.files.length > 1 ? const Uuid().v4() : null;
+      setState(() {
+        _isUploading = true;
+        _uploadStatusText = result.files.length > 1
+            ? 'Mengirim 1/${result.files.length}...'
+            : 'Mengirim foto...';
+      });
+      for (var i = 0; i < result.files.length; i++) {
+        if (!mounted) return;
+        if (result.files.length > 1) {
+          setState(
+            () => _uploadStatusText =
+                'Mengirim ${i + 1}/${result.files.length}...',
+          );
+        }
         await widget.onSendMedia!(
-          result.file,
+          result.files[i],
           MessageType.image,
-          caption: result.caption,
-          isViewOnce: result.isViewOnce,
+          caption: i == 0 ? result.caption : null,
+          isViewOnce: result.files.length == 1 ? result.isViewOnce : false,
+          albumId: albumId,
         );
       }
     } catch (_) {
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _uploadStatusText = null;
+        });
+      }
     }
   }
 
@@ -426,40 +513,45 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
-        allowMultiple: false,
+        allowMultiple: true,
       );
 
       if (result == null || result.files.isEmpty) return;
-      final pickedPath = result.files.single.path;
-      if (pickedPath == null) return;
 
-      final file = File(pickedPath);
-      if (!await file.exists()) return;
-
-      final fileSize = await file.length();
-      // Batas 15 MB (Keterbatasan Paket Supabase Free Tier)
-      const maxDocBytes = 15 * 1024 * 1024;
-      if (fileSize > maxDocBytes) {
-        if (mounted) {
-          MekaarSnackbar.error(
-            context,
-            'Ukuran berkas melebihi batas maksimal 15 MB (paket gratis Supabase).',
-          );
-        }
-        return;
+      final draftItems = <DocumentDraftItem>[];
+      for (final picked in result.files) {
+        final pickedPath = picked.path;
+        if (pickedPath == null) continue;
+        final file = File(pickedPath);
+        if (!await file.exists()) continue;
+        final fileSize = await file.length();
+        draftItems.add(
+          DocumentDraftItem(
+            file: file,
+            fileName: picked.name,
+            fileSize: fileSize,
+          ),
+        );
       }
 
-      final fileName = result.files.single.name;
+      if (draftItems.isEmpty || !mounted) return;
 
-      if (!mounted) return;
+      final validated = MediaAttachmentLimits.validateBatch<DocumentDraftItem>(
+        items: draftItems,
+        sizeOf: (d) => d.fileSize,
+        nameOf: (d) => d.fileName,
+        maxItems: MediaAttachmentLimits.maxDocumentsPerBatch,
+      );
+      if (validated.warnings.isNotEmpty && mounted) {
+        MekaarSnackbar.warning(context, validated.warnings.first);
+      }
+      if (validated.accepted.isEmpty || !mounted) return;
 
-      // Buka lembar pratinjau dokumen sebelum dikirim
+      // Buka lembar pratinjau dokumen (tunggal atau jamak) sebelum dikirim
       final sendResult = await Navigator.of(context).push<DocumentSendResult>(
         MaterialPageRoute(
-          builder: (ctx) => DocumentSendPreviewSheet(
-            file: file,
-            fileName: fileName,
-            fileSize: fileSize,
+          builder: (ctx) => DocumentSendPreviewSheet.multi(
+            documents: validated.accepted,
             replyMessage: widget.replyMessage,
             onCancelReply: widget.onCancelReply,
             roomThemeSpec: widget.roomThemeSpec,
@@ -469,18 +561,37 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
 
       if (sendResult == null || !mounted) return;
 
-      setState(() => _isUploading = true);
-      await widget.onSendMedia!(
-        sendResult.file,
-        MessageType.file,
-        caption: sendResult.caption,
-      );
+      setState(() {
+        _isUploading = true;
+        _uploadStatusText = sendResult.items.length > 1
+            ? 'Mengirim berkas 1/${sendResult.items.length}...'
+            : 'Mengirim berkas...';
+      });
+      for (var i = 0; i < sendResult.items.length; i++) {
+        if (!mounted) return;
+        if (sendResult.items.length > 1) {
+          setState(
+            () => _uploadStatusText =
+                'Mengirim berkas ${i + 1}/${sendResult.items.length}...',
+          );
+        }
+        await widget.onSendMedia!(
+          sendResult.items[i].file,
+          MessageType.file,
+          caption: i == 0 ? sendResult.caption : null,
+        );
+      }
     } catch (e) {
       if (mounted) {
         MekaarSnackbar.error(context, 'Gagal memilih berkas: $e');
       }
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _uploadStatusText = null;
+        });
+      }
     }
   }
 
@@ -495,23 +606,28 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
     if (result == null || !mounted) return;
 
     if (result.isVideo) {
-      setState(() => _isUploading = true);
+      setState(() {
+        _isUploading = true;
+        _uploadStatusText = 'Mengompresi video...';
+      });
       try {
         final compressed = await MediaCompressor.compressVideo(result.file);
 
-        // Validasi batas 15 MB (Keterbatasan Kuota Supabase Free Tier)
-        const maxVideoBytes = 15 * 1024 * 1024;
+        // Validasi batas ketat 10 MB per berkas
         final videoSize = await compressed.length();
-        if (videoSize > maxVideoBytes) {
+        if (videoSize > MediaAttachmentLimits.maxSingleFileBytes) {
           if (mounted) {
             MekaarSnackbar.error(
               context,
-              'Ukuran video (${(videoSize / (1024 * 1024)).toStringAsFixed(1)} MB) melebihi batas maksimal 15 MB (paket gratis Supabase).',
+              'Ukuran video (${MediaAttachmentLimits.formatBytes(videoSize)}) melebihi batas maksimal 10.0 MB.',
             );
           }
           return;
         }
 
+        if (mounted) {
+          setState(() => _uploadStatusText = 'Mengirim video...');
+        }
         await widget.onSendMedia!(compressed, MessageType.video);
       } catch (e) {
         if (mounted) {
@@ -1313,10 +1429,25 @@ class ChatComposerState extends ConsumerState<ChatComposer> {
           if (_isUploading)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: LinearProgressIndicator(
-                backgroundColor: MekaarColors.borderOf(context),
-                color: primaryAccent,
-                minHeight: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_uploadStatusText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Text(
+                        _uploadStatusText!,
+                        style: MekaarTypography.caption.copyWith(
+                          color: MekaarColors.textSecondaryOf(context),
+                        ),
+                      ),
+                    ),
+                  LinearProgressIndicator(
+                    backgroundColor: MekaarColors.borderOf(context),
+                    color: primaryAccent,
+                    minHeight: 2,
+                  ),
+                ],
               ),
             ),
 

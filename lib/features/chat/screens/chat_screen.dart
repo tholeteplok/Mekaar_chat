@@ -1068,6 +1068,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     MessageType type, {
     String? caption,
     bool? isViewOnce,
+    String? albumId,
   }) => ChatMediaHandler.sendMedia(
     context,
     ref: ref,
@@ -1078,6 +1079,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     type: type,
     caption: caption,
     isViewOnce: isViewOnce ?? _isViewOnce,
+    albumId: albumId,
     replyMessage: _replyMessage,
     autoDeleteHours: _autoDeleteHours,
     scheduledWipeTargetAt: _scheduledWipeTargetAt,

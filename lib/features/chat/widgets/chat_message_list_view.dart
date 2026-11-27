@@ -30,42 +30,55 @@ import 'chat_swipe_action_wrapper.dart';
 import 'chat_unread_divider.dart';
 
 /// Jenis entri tampilan dalam daftar obrolan.
-enum ChatItemKind { message, call, dateSeparator, unreadDivider }
+enum ChatItemKind { message, mediaAlbum, call, dateSeparator, unreadDivider }
 
 /// Model pembungkus entri daftar obrolan untuk rendering performan O(N).
 class ChatItemEntry {
   final ChatItemKind kind;
   final Message? message;
+  final List<Message>? albumMessages;
   final CallModel? call;
   final DateTime? date;
   final int? unreadCount;
 
   const ChatItemEntry.message(this.message)
     : kind = ChatItemKind.message,
+      albumMessages = null,
+      unreadCount = null,
+      call = null,
+      date = null;
+
+  const ChatItemEntry.mediaAlbum(this.albumMessages)
+    : kind = ChatItemKind.mediaAlbum,
+      message = null,
       unreadCount = null,
       call = null,
       date = null;
 
   const ChatItemEntry.call(this.call)
     : kind = ChatItemKind.call,
+      albumMessages = null,
       unreadCount = null,
       message = null,
       date = null;
 
   const ChatItemEntry.dateSeparator(this.date)
     : kind = ChatItemKind.dateSeparator,
+      albumMessages = null,
       unreadCount = null,
       message = null,
       call = null;
 
   const ChatItemEntry.unreadDivider(this.unreadCount, DateTime anchor)
     : kind = ChatItemKind.unreadDivider,
+      albumMessages = null,
       message = null,
       call = null,
       date = anchor;
 
   DateTime get timestamp {
     if (kind == ChatItemKind.message) return message!.createdAt;
+    if (kind == ChatItemKind.mediaAlbum) return albumMessages!.last.createdAt;
     if (kind == ChatItemKind.call) return call!.createdAt;
     return date ?? DateTime.now();
   }
@@ -186,10 +199,74 @@ class ChatMessageListView extends ConsumerStatefulWidget {
     // Urutkan berdasarkan timestamp descending (terbaru di index 0 karena reverse: true pada ListView)
     combinedRaw.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
+    // Kelompokkan foto berurutan dengan album_id + senderId + tanggal lokal yang sama
+    final groupedRaw = <ChatItemEntry>[];
+    var idx = 0;
+    while (idx < combinedRaw.length) {
+      final current = combinedRaw[idx];
+      final currentMsg = current.message;
+      final albumId = (current.kind == ChatItemKind.message &&
+              currentMsg != null &&
+              currentMsg.type == MessageType.image &&
+              !currentMsg.isDeleted &&
+              !currentMsg.isViewOnce &&
+              !isStickerOrGifMessage(currentMsg))
+          ? parseMediaAlbumId(currentMsg)
+          : null;
+
+      if (albumId == null) {
+        groupedRaw.add(current);
+        idx++;
+        continue;
+      }
+
+      final currentLocal = currentMsg!.createdAt.toLocal();
+      final currentDay = DateTime(
+        currentLocal.year,
+        currentLocal.month,
+        currentLocal.day,
+      );
+      final run = <Message>[currentMsg];
+      var nextIdx = idx + 1;
+      while (nextIdx < combinedRaw.length) {
+        final nextEntry = combinedRaw[nextIdx];
+        final nextMsg = nextEntry.message;
+        if (nextEntry.kind != ChatItemKind.message ||
+            nextMsg == null ||
+            nextMsg.type != MessageType.image ||
+            nextMsg.isDeleted ||
+            nextMsg.isViewOnce ||
+            isStickerOrGifMessage(nextMsg) ||
+            nextMsg.senderId != currentMsg.senderId) {
+          break;
+        }
+        final nextAlbumId = parseMediaAlbumId(nextMsg);
+        if (nextAlbumId != albumId) break;
+        final nextLocal = nextMsg.createdAt.toLocal();
+        final nextDay = DateTime(
+          nextLocal.year,
+          nextLocal.month,
+          nextLocal.day,
+        );
+        if (nextDay != currentDay) break;
+
+        run.add(nextMsg);
+        nextIdx++;
+      }
+
+      if (run.length >= 2) {
+        // Balik urutan agar tile 0 adalah foto pertama yang dikirim (oldest -> newest)
+        groupedRaw.add(ChatItemEntry.mediaAlbum(run.reversed.toList()));
+      } else {
+        groupedRaw.add(current);
+      }
+      idx = nextIdx;
+    }
+
     // Sisipkan pemisah tanggal
     final entries = <ChatItemEntry>[];
-    for (var i = 0; i < combinedRaw.length; i++) {
-      final item = combinedRaw[i];
+    for (var i = 0; i < groupedRaw.length; i++) {
+      final item = groupedRaw[i];
       entries.add(item);
 
       final localCreatedAt = item.timestamp.toLocal();
@@ -199,11 +276,11 @@ class ChatMessageListView extends ConsumerStatefulWidget {
         localCreatedAt.day,
       );
 
-      final isLastItem = i == combinedRaw.length - 1;
+      final isLastItem = i == groupedRaw.length - 1;
       if (isLastItem) {
         entries.add(ChatItemEntry.dateSeparator(localCreatedAt));
       } else {
-        final nextLocalCreatedAt = combinedRaw[i + 1].timestamp.toLocal();
+        final nextLocalCreatedAt = groupedRaw[i + 1].timestamp.toLocal();
         final nextItemDate = DateTime(
           nextLocalCreatedAt.year,
           nextLocalCreatedAt.month,
@@ -229,15 +306,18 @@ class ChatMessageListView extends ConsumerStatefulWidget {
         unreadIncoming.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         final oldestUnread = unreadIncoming.first;
 
-        final idx = entries.indexWhere(
+        final unreadIdx = entries.indexWhere(
           (e) =>
-              e.kind == ChatItemKind.message &&
-              e.message?.id == oldestUnread.id,
+              (e.kind == ChatItemKind.message &&
+                  e.message?.id == oldestUnread.id) ||
+              (e.kind == ChatItemKind.mediaAlbum &&
+                  (e.albumMessages?.any((m) => m.id == oldestUnread.id) ??
+                      false)),
         );
 
-        if (idx != -1) {
+        if (unreadIdx != -1) {
           entries.insert(
-            idx + 1,
+            unreadIdx + 1,
             ChatItemEntry.unreadDivider(count, oldestUnread.createdAt),
           );
         }
@@ -676,6 +756,55 @@ class _ChatMessageListViewState extends ConsumerState<ChatMessageListView> {
       return RepaintBoundary(
         key: ValueKey('call_bubble_${call.id}'),
         child: callWidget,
+      );
+    }
+
+    if (entry.kind == ChatItemKind.mediaAlbum) {
+      final album = entry.albumMessages!;
+      final primary = album.first;
+      final isMe = primary.senderId == currentUserId;
+      final allSelected = album.every(
+        (m) => widget.selectedMessageIds.contains(m.id),
+      );
+      final albumWidget = MediaAlbumBubble(
+        messages: album,
+        isMe: isMe,
+        isSelected: allSelected,
+        isSelectionMode: isSelectionMode,
+        senderName:
+            widget.isGroup ? widget.participantNames[primary.senderId] : null,
+        senderAvatarUrl:
+            widget.isGroup ? widget.participantAvatars[primary.senderId] : null,
+        showSenderAvatar: widget.isGroup && !isMe,
+        onSenderTap: widget.onSenderTap != null
+            ? () => widget.onSenderTap!(primary.senderId)
+            : null,
+        onSelectionTap: () {
+          for (final m in album) {
+            widget.onToggleMessageSelection(m.id);
+          }
+        },
+        onSelectionLongPress: () => widget.onMessageLongPress(primary.id),
+        showReadReceipts: showReadReceipts,
+        otherLastReadAt: widget.isGroup
+            ? null
+            : (otherLastRead ?? widget.otherLastRead),
+        onSaveToVault: (saveMsg) => widget.onSaveToVault(saveMsg),
+      );
+
+      final wrappedAlbum = isSelectionMode
+          ? albumWidget
+          : ChatSwipeActionWrapper(
+              onReply: () => widget.onReplyMessage(primary),
+              child: albumWidget,
+            );
+
+      return KeyedSubtree(
+        key: ChatKeyRegistry.getKey(primary.id),
+        child: RepaintBoundary(
+          key: ValueKey('album_bubble_${primary.id}'),
+          child: wrappedAlbum,
+        ),
       );
     }
 

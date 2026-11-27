@@ -99,9 +99,10 @@ void registerLocalMedia(String messageId, File file, {String? url}) {
   }
 }
 
-/// Parser payload media cerdas: mengekstrak fileKeyB64, caption, dan jenis media (sticker/gif).
+/// Parser payload media cerdas: mengekstrak fileKeyB64, caption, jenis media (sticker/gif),
+/// dan albumId (untuk pengelompokan kolase foto jamak terenkripsi E2EE).
 /// Kompatibel 100% dengan pesan E2EE JSON baru maupun pesan lawas plain text / raw key.
-({String fileKeyB64, String caption, String? kind}) parseMediaPayload(
+({String fileKeyB64, String caption, String? kind, String? albumId}) parseMediaPayload(
   Message message,
 ) {
   final content = message.content.trim();
@@ -113,21 +114,28 @@ void registerLocalMedia(String messageId, File file, {String? url}) {
         final normalizedKind = (rawKind == 'sticker' || rawKind == 'gif')
             ? rawKind
             : null;
+        final rawAlbumId = (decoded['album_id'] as String?)?.trim();
         return (
           fileKeyB64: decoded['key'] as String? ?? '',
           caption: decoded['caption'] as String? ?? '',
           kind: normalizedKind,
+          albumId: (rawAlbumId != null && rawAlbumId.isNotEmpty)
+              ? rawAlbumId
+              : null,
         );
       }
     } catch (_) {}
   }
   // Fallback: pesan legacy
   if (message.isEncrypted) {
-    return (fileKeyB64: message.content, caption: '', kind: null);
+    return (fileKeyB64: message.content, caption: '', kind: null, albumId: null);
   } else {
-    return (fileKeyB64: '', caption: message.content, kind: null);
+    return (fileKeyB64: '', caption: message.content, kind: null, albumId: null);
   }
 }
+
+/// Mengekstrak `album_id` dari payload media terenkripsi (jika pesan bagian dari album).
+String? parseMediaAlbumId(Message message) => parseMediaPayload(message).albumId;
 
 /// Mengenali jenis stiker/GIF dari berkas sementara hasil keyboard rich content (Gboard Emoji Kitchen / GIF).
 String? inferKeyboardMediaKind(String filePath) {

@@ -11,6 +11,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/dimensions.dart';
 import '../../../core/constants/icons.dart';
+import '../../../core/constants/themes.dart';
 import '../../../core/constants/typography.dart';
 import '../../../core/utils/error_resolver.dart';
 import '../../../core/widgets/mekaar_top_bar.dart';
@@ -477,13 +478,13 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                                 focusNode: _searchFocusNode,
                                 onChanged: _onSearchChanged,
                                 textInputAction: TextInputAction.search,
-                                decoration: InputDecoration(
+                                decoration: MekaarTheme.borderlessInputDecoration(
                                   hintText: 'Cari alamat / tempat tujuan...',
                                   hintStyle: MekaarTypography.bodySM.copyWith(
                                     color: MekaarColors.textMutedOf(context),
                                   ),
-                                  border: InputBorder.none,
                                   isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
                                 ),
                                 style: MekaarTypography.bodyMD.copyWith(
                                   color: MekaarColors.textPrimaryOf(context),

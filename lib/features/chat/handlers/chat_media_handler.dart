@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:location/location.dart' as loc;
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/media_attachment_limits.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/chat_preset_resolver.dart';
 import '../../../core/utils/error_resolver.dart';
@@ -28,7 +30,7 @@ class ChatMediaHandler {
   const ChatMediaHandler._();
 
   /// Menangani daftar berkas yang diterima dari share intent atau drag-drop
-  /// dengan menampilkan pratinjau sebelum dikirim.
+  /// dengan validasi kuota ketat dan pratinjau multi-item sebelum dikirim.
   static Future<void> handleInitialSharedFiles(
     BuildContext context, {
     required WidgetRef ref,
@@ -38,55 +40,129 @@ class ChatMediaHandler {
       MessageType type, {
       String? caption,
       bool? isViewOnce,
+      String? albumId,
     })
     onSendMedia,
   }) async {
+    final imageFiles = <File>[];
+    final videoFiles = <File>[];
+    final documentItems = <DocumentDraftItem>[];
+
     for (final path in filePaths) {
       final file = File(path);
       if (!await file.exists()) continue;
 
       final mimeType = lookupMimeType(path) ?? '';
-      final chatPref =
-          ref.read(chatThemeProvider).valueOrNull ??
-          const ChatThemePreference();
-      if (!context.mounted) return;
-      final spec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
-
       if (mimeType.startsWith('image/')) {
-        if (!context.mounted) return;
-        final result = await Navigator.of(context).push<ImageSendResult>(
-          MaterialPageRoute(
-            builder: (_) =>
-                ImageSendPreviewSheet(imageFile: file, roomThemeSpec: spec),
-          ),
-        );
-        if (result != null && context.mounted) {
-          await onSendMedia(
-            result.file,
-            MessageType.image,
-            caption: result.caption,
-            isViewOnce: result.isViewOnce,
-          );
-        }
+        imageFiles.add(file);
+      } else if (mimeType.startsWith('video/')) {
+        videoFiles.add(file);
       } else {
         final fileName = path.split(Platform.pathSeparator).last;
         final fileSize = await file.length();
-        if (!context.mounted) return;
-        final result = await Navigator.of(context).push<DocumentSendResult>(
-          MaterialPageRoute(
-            builder: (_) => DocumentSendPreviewSheet(
-              file: file,
-              fileName: fileName,
-              fileSize: fileSize,
-              roomThemeSpec: spec,
-            ),
+        documentItems.add(
+          DocumentDraftItem(
+            file: file,
+            fileName: fileName,
+            fileSize: fileSize,
           ),
         );
-        if (result != null && context.mounted) {
+      }
+    }
+
+    if (!context.mounted) return;
+    final chatPref =
+        ref.read(chatThemeProvider).valueOrNull ??
+        const ChatThemePreference();
+    final spec = ChatPresetResolver.getRoomThemeSpec(chatPref, context);
+
+    // Aturan ultra ketat: video hanya boleh tunggal (tidak dicampur dalam multi-pilih)
+    if (videoFiles.isNotEmpty) {
+      if (videoFiles.length > 1 ||
+          imageFiles.isNotEmpty ||
+          documentItems.isNotEmpty) {
+        MekaarSnackbar.warning(
+          context,
+          'Video tidak didukung dalam lampiran jamak; hanya berkas non-video yang diproses.',
+        );
+      } else {
+        final videoFile = videoFiles.single;
+        final videoSize = await videoFile.length();
+        if (!context.mounted) return;
+        if (videoSize > MediaAttachmentLimits.maxSingleFileBytes) {
+          MekaarSnackbar.error(
+            context,
+            'Ukuran video (${MediaAttachmentLimits.formatBytes(videoSize)}) melebihi batas maksimal 10.0 MB.',
+          );
+          return;
+        }
+        await onSendMedia(videoFile, MessageType.video);
+        return;
+      }
+    }
+
+    if (imageFiles.isNotEmpty) {
+      final validated = MediaAttachmentLimits.validateBatch<File>(
+        items: imageFiles,
+        sizeOf: (f) => f.lengthSync(),
+        nameOf: (f) => f.path.split(Platform.pathSeparator).last,
+        maxItems: MediaAttachmentLimits.maxImagesPerBatch,
+      );
+      if (validated.warnings.isNotEmpty && context.mounted) {
+        MekaarSnackbar.warning(context, validated.warnings.first);
+      }
+      if (validated.accepted.isEmpty || !context.mounted) return;
+
+      final result = await Navigator.of(context).push<ImageSendResult>(
+        MaterialPageRoute(
+          builder: (_) => ImageSendPreviewSheet.multi(
+            imageFiles: validated.accepted,
+            roomThemeSpec: spec,
+          ),
+        ),
+      );
+      if (result != null && context.mounted) {
+        final albumId = result.files.length > 1 ? const Uuid().v4() : null;
+        for (var i = 0; i < result.files.length; i++) {
+          if (!context.mounted) return;
           await onSendMedia(
-            result.file,
+            result.files[i],
+            MessageType.image,
+            caption: i == 0 ? result.caption : null,
+            isViewOnce: result.files.length == 1 ? result.isViewOnce : false,
+            albumId: albumId,
+          );
+        }
+      }
+    }
+
+    if (documentItems.isNotEmpty && context.mounted) {
+      final validated = MediaAttachmentLimits.validateBatch<DocumentDraftItem>(
+        items: documentItems,
+        sizeOf: (d) => d.fileSize,
+        nameOf: (d) => d.fileName,
+        maxItems: MediaAttachmentLimits.maxDocumentsPerBatch,
+      );
+      if (validated.warnings.isNotEmpty && context.mounted) {
+        MekaarSnackbar.warning(context, validated.warnings.first);
+      }
+      if (validated.accepted.isEmpty || !context.mounted) return;
+
+      final result = await Navigator.of(context).push<DocumentSendResult>(
+        MaterialPageRoute(
+          builder: (_) => DocumentSendPreviewSheet.multi(
+            documents: validated.accepted,
+            roomThemeSpec: spec,
+          ),
+        ),
+      );
+      if (result != null && context.mounted) {
+        for (var i = 0; i < result.items.length; i++) {
+          if (!context.mounted) return;
+          await onSendMedia(
+            result.items[i].file,
             MessageType.file,
-            caption: result.caption,
+            caption: i == 0 ? result.caption : null,
           );
         }
       }
@@ -99,10 +175,13 @@ class ChatMediaHandler {
     String? fileKeyB64,
     String? caption,
     String? mediaKind,
+    String? albumId,
   }) {
     final trimmedCaption = caption?.trim();
     final hasCaption = trimmedCaption != null && trimmedCaption.isNotEmpty;
     final hasKey = fileKeyB64 != null && fileKeyB64.isNotEmpty;
+    final trimmedAlbumId = albumId?.trim();
+    final hasAlbumId = trimmedAlbumId != null && trimmedAlbumId.isNotEmpty;
     final normalizedKind = (mediaKind == 'sticker' || mediaKind == 'gif')
         ? mediaKind
         : null;
@@ -112,11 +191,22 @@ class ChatMediaHandler {
         if (hasKey) 'key': fileKeyB64,
         'kind': normalizedKind,
         if (hasCaption) 'caption': trimmedCaption,
+        if (hasAlbumId) 'album_id': trimmedAlbumId,
       });
     }
 
-    if (hasKey && hasCaption) {
-      return jsonEncode({'key': fileKeyB64, 'caption': trimmedCaption});
+    if (hasKey && (hasCaption || hasAlbumId)) {
+      return jsonEncode({
+        'key': fileKeyB64,
+        if (hasCaption) 'caption': trimmedCaption,
+        if (hasAlbumId) 'album_id': trimmedAlbumId,
+      });
+    }
+    if (hasAlbumId) {
+      return jsonEncode({
+        if (hasCaption) 'caption': trimmedCaption,
+        'album_id': trimmedAlbumId,
+      });
     }
     if (hasKey) {
       return fileKeyB64;
@@ -137,6 +227,7 @@ class ChatMediaHandler {
     String? caption,
     bool? isViewOnce,
     String? mediaKind,
+    String? albumId,
     Message? replyMessage,
     required int autoDeleteHours,
     required DateTime? scheduledWipeTargetAt,
@@ -199,6 +290,7 @@ class ChatMediaHandler {
           fileKeyB64: fileKeyB64,
           caption: trimmedCaption,
           mediaKind: effectiveMediaKind,
+          albumId: albumId,
         );
       }
 

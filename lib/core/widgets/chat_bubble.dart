@@ -35,6 +35,7 @@ export 'bubbles/custom_emoji_glyph.dart';
 export 'bubbles/file_bubble_card.dart';
 export 'bubbles/full_screen_image_viewer.dart';
 export 'bubbles/image_bubble.dart';
+export 'bubbles/media_album_bubble.dart';
 export 'bubbles/video_bubble.dart';
 export 'bubbles/message_context_menu.dart';
 export 'bubbles/reactions_strip.dart';
@@ -259,7 +260,7 @@ class ChatBubble extends ConsumerWidget {
     final isMedia = isImage || isVideo;
     final mediaPayload = isMedia
         ? parseMediaPayload(message)
-        : (fileKeyB64: '', caption: '', kind: null);
+        : (fileKeyB64: '', caption: '', kind: null, albumId: null);
     final hasImageCaption = isImage && mediaPayload.caption.trim().isNotEmpty;
     final hasMediaCaption = isMedia && mediaPayload.caption.trim().isNotEmpty;
     final hasReply = message.replyToId != null && !isDeleted;

@@ -347,5 +347,37 @@ class MekaarTheme {
       ),
     );
   }
+
+  /// Dekorasi input tanpa latar & tanpa garis batas yang aman dari kebocoran
+  /// [InputDecorationTheme] global (`filled: true`, `fillColor`, `enabledBorder`,
+  /// `focusedBorder`). WAJIB dipakai untuk `TextField` inline di dalam
+  /// kontainer kustom (mis. caption pratinjau media, search bar inline, pill input).
+  static InputDecoration borderlessInputDecoration({
+    String? hintText,
+    TextStyle? hintStyle,
+    String? errorText,
+    bool isDense = true,
+    EdgeInsetsGeometry? contentPadding,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: hintStyle,
+      errorText: errorText,
+      isDense: isDense,
+      contentPadding: contentPadding,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: false,
+      fillColor: Colors.transparent,
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+    );
+  }
 }
 

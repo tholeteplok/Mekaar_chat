@@ -32,6 +32,7 @@ class ChatBottomArea extends ConsumerWidget {
     MessageType type, {
     String? caption,
     bool? isViewOnce,
+    String? albumId,
   }) onSendMedia;
   final Future<void> Function()? onSendLocation;
   final Future<void> Function(int durationMinutes)? onShareLiveLocation;

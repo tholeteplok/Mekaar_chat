@@ -3,6 +3,7 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../constants/colors.dart';
 import '../constants/dimensions.dart';
+import '../constants/themes.dart';
 import '../constants/typography.dart';
 import '../services/haptic_service.dart';
 import 'mekaar_bottom_sheet.dart';
@@ -302,8 +303,7 @@ class _MekaarCustomDurationPickerSheetState
                             fontWeight: FontWeight.w800,
                             color: primaryColor,
                           ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
+                          decoration: MekaarTheme.borderlessInputDecoration(
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
