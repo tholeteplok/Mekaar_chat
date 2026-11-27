@@ -11,6 +11,7 @@ import '../../../data/repositories/sos_repository.dart';
 import '../../../data/services/aegis_memory_guard_service.dart';
 import '../../../data/services/aegis_safety_signature_service.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/trip_monitor_service.dart';
 import '../../../data/services/audio_service.dart';
 import '../../../data/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -499,6 +500,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
 
     _timer?.cancel();
     _locationSubscription?.cancel();
+    _lastLocationPingAtUtc = null;
+    _lastPingLat = null;
+    _lastPingLng = null;
+    _isLocationPingInFlight = false;
     _inactivityTimer?.cancel();
     _accelerometerSubscription?.cancel();
     await _audioService.stopMicStreaming();
@@ -566,9 +571,46 @@ class SOSNotifier extends StateNotifier<SOSState> {
     );
   }
 
+  static const Duration sosLocationMinInterval = Duration(seconds: 5);
+  static const double sosLocationMinDistanceMeters = 10.0;
+
+  DateTime? _lastLocationPingAtUtc;
+  double? _lastPingLat;
+  double? _lastPingLng;
+  bool _isLocationPingInFlight = false;
+
+  @visibleForTesting
+  static bool shouldSendSosLocationPing({
+    required DateTime? lastSentAtUtc,
+    required double? lastLat,
+    required double? lastLng,
+    required DateTime nowUtc,
+    required double lat,
+    required double lng,
+  }) {
+    if (lastSentAtUtc == null || lastLat == null || lastLng == null) {
+      return true;
+    }
+    if (nowUtc.difference(lastSentAtUtc) >= sosLocationMinInterval) {
+      return true;
+    }
+    final movedMeters = TripMonitorService.calculateDistanceMeters(
+      lastLat,
+      lastLng,
+      lat,
+      lng,
+    );
+    return movedMeters >= sosLocationMinDistanceMeters;
+  }
+
   /// Mulai streaming GPS ke Supabase location_pings dengan Ed25519 Safety Signature
   void _startLocationStreaming(String sessionId) {
     _locationSubscription?.cancel();
+    _lastLocationPingAtUtc = null;
+    _lastPingLat = null;
+    _lastPingLng = null;
+    _isLocationPingInFlight = false;
+    unawaited(LocationService.configureSosTracking());
     // Kirim lokasi pertama segera tanpa membuka Settings OS
     LocationService.getCurrentLocation(allowOpenSettings: false).then((locData) {
       final currentSession = state.activeSession;
@@ -577,6 +619,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
           locData != null &&
           locData.latitude != null &&
           locData.longitude != null) {
+        final nowUtc = DateTime.now().toUtc();
+        _lastLocationPingAtUtc = nowUtc;
+        _lastPingLat = locData.latitude!;
+        _lastPingLng = locData.longitude!;
         _sendLocationPing(
           sessionId: sessionId,
           userId: currentSession!.userId,
@@ -597,22 +643,42 @@ class SOSNotifier extends StateNotifier<SOSState> {
       debugPrint('Location first ping non-fatal error: $e');
     });
 
-    // Listen to location stream
+    // Listen to location stream (throttled: minimal 5 detik atau perpindahan >= 10m)
     _locationSubscription = LocationService.getLocationStream().listen(
       (locData) {
         final currentSession = state.activeSession;
         if (state.status == SOSStatus.active &&
             currentSession?.id == sessionId &&
             locData.latitude != null &&
-            locData.longitude != null) {
+            locData.longitude != null &&
+            !_isLocationPingInFlight) {
+          final lat = locData.latitude!;
+          final lng = locData.longitude!;
+          final nowUtc = DateTime.now().toUtc();
+          if (!shouldSendSosLocationPing(
+            lastSentAtUtc: _lastLocationPingAtUtc,
+            lastLat: _lastPingLat,
+            lastLng: _lastPingLng,
+            nowUtc: nowUtc,
+            lat: lat,
+            lng: lng,
+          )) {
+            return;
+          }
+          _isLocationPingInFlight = true;
+          _lastLocationPingAtUtc = nowUtc;
+          _lastPingLat = lat;
+          _lastPingLng = lng;
           _sendLocationPing(
             sessionId: sessionId,
             userId: currentSession!.userId,
-            latitude: locData.latitude!,
-            longitude: locData.longitude!,
+            latitude: lat,
+            longitude: lng,
             accuracy: locData.accuracy,
           ).catchError((e) {
             debugPrint('Location stream error: $e');
+          }).whenComplete(() {
+            _isLocationPingInFlight = false;
           });
         }
       },
@@ -705,6 +771,10 @@ class SOSNotifier extends StateNotifier<SOSState> {
   void dispose() {
     _timer?.cancel();
     _locationSubscription?.cancel();
+    _lastLocationPingAtUtc = null;
+    _lastPingLat = null;
+    _lastPingLng = null;
+    _isLocationPingInFlight = false;
     _inactivityTimer?.cancel();
     _inactivityPromptTimer?.cancel();
     _inactivityAutoEndTimer?.cancel();

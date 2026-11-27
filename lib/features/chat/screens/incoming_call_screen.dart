@@ -209,8 +209,19 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
   @override
   void dispose() {
     _ringingBroadcastTimer?.cancel();
-    _statusChannel?.unsubscribe();
-    _signalingChannel?.unsubscribe();
+    for (final ch in [_statusChannel, _signalingChannel]) {
+      if (ch != null) {
+        try {
+          Supabase.instance.client.removeChannel(ch);
+        } catch (_) {
+          try {
+            ch.unsubscribe();
+          } catch (_) {}
+        }
+      }
+    }
+    _statusChannel = null;
+    _signalingChannel = null;
     NotificationService.cancelIncomingCallNotification();
     unawaited(WakelockService.disable());
     super.dispose();

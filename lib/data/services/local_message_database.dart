@@ -28,11 +28,13 @@ class LocalMessageDatabase {
   static const String _masterDbFileName = 'mekaar_local_messages.db';
   static const String _decoyDbFileName = 'mekaar_decoy.db';
   static const String _ftsTableName = 'local_messages_fts';
+  static const String _ftsMapTableName = 'local_messages_fts_map';
   static const String _searchMetaTableName = 'search_index_meta';
   static const String _groupSenderKeysTableName = 'group_sender_keys';
   static const String _groupSenderStatesTableName = 'group_sender_states';
   static const String _groupSkippedKeysTableName = 'group_skipped_keys';
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 7;
+  static const int _sqlInChunkSize = 500;
   bool _ftsAvailable = true;
 
   /// Status apakah SQLite FTS5 aktif & tersedia di engine lokal
@@ -99,6 +101,7 @@ class LocalMessageDatabase {
           await _createRoomsCacheTable(db);
           await _createDraftsTable(db);
           await _setupFtsAndSearchMetaTable(db);
+          await _createFtsMapTable(db);
           await _createCallsTable(db);
           await _createGroupSenderKeyTables(db);
           if (_isDecoy) {
@@ -136,6 +139,17 @@ class LocalMessageDatabase {
           }
           if (oldVersion < 6) {
             await _createGroupSenderKeyTables(db);
+          }
+          if (oldVersion < 7) {
+            await _createFtsMapTable(db);
+            if (_ftsAvailable) {
+              try {
+                await db.execute('''
+                  INSERT OR REPLACE INTO $_ftsMapTableName (msg_id, room_id, fts_rowid)
+                  SELECT msg_id, room_id, rowid FROM $_ftsTableName
+                ''');
+              } catch (_) {}
+            }
           }
         },
       );
@@ -185,12 +199,21 @@ class LocalMessageDatabase {
     });
     if (_ftsAvailable) {
       try {
-        await db.insert(_ftsTableName, {
+        final ftsRowId = await db.insert(_ftsTableName, {
           'body':
               'Selamat datang di Mekaar Chat! Pesan dan privasi Anda terlindungi dengan enkripsi end-to-end terstandar. Mulai percakapan aman Anda sekarang.',
           'msg_id': 'msg_welcome_decoy',
           'room_id': 'room_welcome_mekaar',
         });
+        await db.insert(
+          _ftsMapTableName,
+          {
+            'msg_id': 'msg_welcome_decoy',
+            'room_id': 'room_welcome_mekaar',
+            'fts_rowid': ftsRowId,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       } catch (_) {}
     }
   }
@@ -232,6 +255,86 @@ class LocalMessageDatabase {
       );
       _ftsAvailable = false;
     }
+  }
+
+  Future<void> _createFtsMapTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_ftsMapTableName (
+        msg_id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        fts_rowid INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_fts_map_room
+      ON $_ftsMapTableName (room_id)
+    ''');
+  }
+
+  Future<void> _deleteFtsByMessageIds(
+    Transaction txn,
+    List<String> msgIds,
+  ) async {
+    if (!_ftsAvailable || msgIds.isEmpty) return;
+    for (int i = 0; i < msgIds.length; i += _sqlInChunkSize) {
+      final chunk = msgIds.sublist(
+        i,
+        (i + _sqlInChunkSize > msgIds.length)
+            ? msgIds.length
+            : i + _sqlInChunkSize,
+      );
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final mapRows = await txn.rawQuery(
+        'SELECT fts_rowid FROM $_ftsMapTableName WHERE msg_id IN ($placeholders)',
+        chunk,
+      );
+      if (mapRows.isNotEmpty) {
+        final rowIds =
+            mapRows.map((r) => r['fts_rowid']).whereType<int>().toList();
+        if (rowIds.isNotEmpty) {
+          final rowIdPlaceholders = List.filled(rowIds.length, '?').join(',');
+          await txn.rawDelete(
+            'DELETE FROM $_ftsTableName WHERE rowid IN ($rowIdPlaceholders)',
+            rowIds,
+          );
+        }
+        await txn.rawDelete(
+          'DELETE FROM $_ftsMapTableName WHERE msg_id IN ($placeholders)',
+          chunk,
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteFtsByRoomId(Transaction txn, String roomId) async {
+    if (!_ftsAvailable) return;
+    final mapRows = await txn.query(
+      _ftsMapTableName,
+      columns: ['fts_rowid'],
+      where: 'room_id = ?',
+      whereArgs: [roomId],
+    );
+    if (mapRows.isEmpty) return;
+    final rowIds =
+        mapRows.map((r) => r['fts_rowid']).whereType<int>().toList();
+    for (int i = 0; i < rowIds.length; i += _sqlInChunkSize) {
+      final chunk = rowIds.sublist(
+        i,
+        (i + _sqlInChunkSize > rowIds.length)
+            ? rowIds.length
+            : i + _sqlInChunkSize,
+      );
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      await txn.rawDelete(
+        'DELETE FROM $_ftsTableName WHERE rowid IN ($placeholders)',
+        chunk,
+      );
+    }
+    await txn.delete(
+      _ftsMapTableName,
+      where: 'room_id = ?',
+      whereArgs: [roomId],
+    );
   }
 
   /// Menjalankan backfill FTS di latar belakang tanpa memblokir thread UI atau proses migrasi DB
@@ -972,18 +1075,23 @@ class LocalMessageDatabase {
         );
         if (_ftsAvailable) {
           try {
-            await txn.delete(
-              _ftsTableName,
-              where: 'msg_id = ?',
-              whereArgs: [message.id],
-            );
+            await _deleteFtsByMessageIds(txn, [message.id]);
             final text = message.searchableText;
             if (text != null && text.trim().isNotEmpty) {
-              await txn.insert(_ftsTableName, {
+              final ftsRowId = await txn.insert(_ftsTableName, {
                 'body': text,
                 'msg_id': message.id,
                 'room_id': message.roomId,
               });
+              await txn.insert(
+                _ftsMapTableName,
+                {
+                  'msg_id': message.id,
+                  'room_id': message.roomId,
+                  'fts_rowid': ftsRowId,
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
             }
           } catch (ftsErr) {
             _logger.w('Gagal memperbarui FTS (${message.id}): $ftsErr');
@@ -1000,26 +1108,52 @@ class LocalMessageDatabase {
     if (messages.isEmpty) return;
     try {
       final db = await database;
-      final batch = db.batch();
-      for (final msg in messages) {
-        batch.insert(
-          _tableName,
-          _messageToMap(msg),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+      await db.transaction((txn) async {
+        final mainBatch = txn.batch();
+        for (final msg in messages) {
+          mainBatch.insert(
+            _tableName,
+            _messageToMap(msg),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await mainBatch.commit(noResult: true);
+
         if (_ftsAvailable) {
-          batch.delete(_ftsTableName, where: 'msg_id = ?', whereArgs: [msg.id]);
-          final text = msg.searchableText;
-          if (text != null && text.trim().isNotEmpty) {
-            batch.insert(_ftsTableName, {
-              'body': text,
-              'msg_id': msg.id,
-              'room_id': msg.roomId,
-            });
+          try {
+            final ids = messages.map((m) => m.id).toList();
+            await _deleteFtsByMessageIds(txn, ids);
+
+            final mapBatch = txn.batch();
+            bool hasMapInserts = false;
+            for (final msg in messages) {
+              final text = msg.searchableText;
+              if (text != null && text.trim().isNotEmpty) {
+                final ftsRowId = await txn.insert(_ftsTableName, {
+                  'body': text,
+                  'msg_id': msg.id,
+                  'room_id': msg.roomId,
+                });
+                mapBatch.insert(
+                  _ftsMapTableName,
+                  {
+                    'msg_id': msg.id,
+                    'room_id': msg.roomId,
+                    'fts_rowid': ftsRowId,
+                  },
+                  conflictAlgorithm: ConflictAlgorithm.replace,
+                );
+                hasMapInserts = true;
+              }
+            }
+            if (hasMapInserts) {
+              await mapBatch.commit(noResult: true);
+            }
+          } catch (ftsErr) {
+            _logger.w('Gagal memperbarui batch FTS: $ftsErr');
           }
         }
-      }
-      await batch.commit(noResult: true);
+      });
     } catch (e) {
       _logger.w('Gagal menyimpan batch pesan ke SQLite: $e');
     }
@@ -1089,6 +1223,38 @@ class LocalMessageDatabase {
     }
   }
 
+  /// Ambil banyak pesan sekaligus berdasarkan daftar ID dalam query batch
+  Future<Map<String, Message>> getMessagesByIds(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    final Map<String, Message> result = {};
+    try {
+      final db = await database;
+      for (int i = 0; i < ids.length; i += _sqlInChunkSize) {
+        final chunk = ids.sublist(
+          i,
+          (i + _sqlInChunkSize > ids.length)
+              ? ids.length
+              : i + _sqlInChunkSize,
+        );
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await db.query(
+          _tableName,
+          where: 'id IN ($placeholders)',
+          whereArgs: chunk,
+        );
+        for (final row in rows) {
+          final msg = _mapToMessage(row);
+          if (msg.id.isNotEmpty) {
+            result[msg.id] = msg;
+          }
+        }
+      }
+    } catch (e) {
+      _logger.w('Gagal memuat batch pesan dari SQLite: $e');
+    }
+    return result;
+  }
+
   /// Hapus satu pesan dari database lokal dan indeks FTS
   Future<void> deleteMessage(String messageId) async {
     try {
@@ -1097,11 +1263,7 @@ class LocalMessageDatabase {
         await txn.delete(_tableName, where: 'id = ?', whereArgs: [messageId]);
         if (_ftsAvailable) {
           try {
-            await txn.delete(
-              _ftsTableName,
-              where: 'msg_id = ?',
-              whereArgs: [messageId],
-            );
+            await _deleteFtsByMessageIds(txn, [messageId]);
           } catch (_) {}
         }
       });
@@ -1123,11 +1285,7 @@ class LocalMessageDatabase {
         );
         if (_ftsAvailable) {
           try {
-            await txn.delete(
-              _ftsTableName,
-              where: 'msg_id = ?',
-              whereArgs: [messageId],
-            );
+            await _deleteFtsByMessageIds(txn, [messageId]);
           } catch (_) {}
         }
       });
@@ -1144,11 +1302,7 @@ class LocalMessageDatabase {
         await txn.delete(_tableName, where: 'room_id = ?', whereArgs: [roomId]);
         if (_ftsAvailable) {
           try {
-            await txn.delete(
-              _ftsTableName,
-              where: 'room_id = ?',
-              whereArgs: [roomId],
-            );
+            await _deleteFtsByRoomId(txn, roomId);
           } catch (_) {}
         }
       });
@@ -1171,16 +1325,19 @@ class LocalMessageDatabase {
       return await db.transaction((txn) async {
         if (_ftsAvailable) {
           try {
-            await txn.rawDelete(
-              '''
-              DELETE FROM $_ftsTableName
-              WHERE msg_id IN (
-                SELECT id FROM $_tableName
-                WHERE room_id = ? AND (created_at <= ? OR created_at <= ?)
-              )
-            ''',
-              [roomId, targetIsoUtc, targetIsoLocal],
+            final wipeRows = await txn.query(
+              _tableName,
+              columns: ['id'],
+              where: 'room_id = ? AND (created_at <= ? OR created_at <= ?)',
+              whereArgs: [roomId, targetIsoUtc, targetIsoLocal],
             );
+            final wipeIds = wipeRows
+                .map((r) => r['id'] as String?)
+                .whereType<String>()
+                .toList();
+            if (wipeIds.isNotEmpty) {
+              await _deleteFtsByMessageIds(txn, wipeIds);
+            }
           } catch (_) {}
         }
         final deleted = await txn.delete(
@@ -1259,25 +1416,29 @@ class LocalMessageDatabase {
         ''';
         final purgeArgs = [nowIsoUtc, nowIsoLocal];
 
-        if (_ftsAvailable) {
-          try {
-            await txn.rawDelete(
-              '''
-              DELETE FROM $_ftsTableName
-              WHERE msg_id IN (
-                SELECT id FROM $_tableName
-                WHERE $purgeWhere
-              )
-            ''',
-              purgeArgs,
-            );
-          } catch (_) {}
-        }
-        await txn.delete(
+        final expiredRows = await txn.query(
           _tableName,
+          columns: ['id'],
           where: purgeWhere,
           whereArgs: purgeArgs,
         );
+        final expiredIds = expiredRows
+            .map((r) => r['id'] as String?)
+            .whereType<String>()
+            .toList();
+
+        if (expiredIds.isNotEmpty) {
+          if (_ftsAvailable) {
+            try {
+              await _deleteFtsByMessageIds(txn, expiredIds);
+            } catch (_) {}
+          }
+          await txn.delete(
+            _tableName,
+            where: purgeWhere,
+            whereArgs: purgeArgs,
+          );
+        }
       });
 
       // Evaluasi dan bersihkan pesan pada kamar yang scheduled wipe-nya sudah jatuh tempo (timezone-agnostic)
@@ -1342,6 +1503,7 @@ class LocalMessageDatabase {
         if (_ftsAvailable) {
           try {
             await txn.delete(_ftsTableName);
+            await txn.delete(_ftsMapTableName);
           } catch (_) {}
         }
         try {
@@ -1509,6 +1671,10 @@ class LocalMessageDatabase {
       await db.transaction((txn) async {
         await txn.rawDelete('''
           DELETE FROM $_ftsTableName
+          WHERE msg_id NOT IN (SELECT id FROM $_tableName)
+        ''');
+        await txn.rawDelete('''
+          DELETE FROM $_ftsMapTableName
           WHERE msg_id NOT IN (SELECT id FROM $_tableName)
         ''');
         await txn.rawInsert(

@@ -296,13 +296,14 @@ final chatRoomsProvider =
 /// Dipakai bersama oleh [chatMessagesProvider] (pengirim) dan
 /// [chatReconnectingProvider] (penerima) agar tidak ada subscribe kedua.
 final _chatReconnectControllerProvider =
-    Provider.family<StreamController<bool>, String>((ref, roomId) {
+    Provider.autoDispose.family<StreamController<bool>, String>((ref, roomId) {
       final controller = StreamController<bool>.broadcast();
       ref.onDispose(controller.close);
       return controller;
     });
 
-final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
+final chatMessagesProvider =
+    StreamProvider.autoDispose.family<List<Message>, String>((
   ref,
   roomId,
 ) {
@@ -322,7 +323,8 @@ final chatMessagesProvider = StreamProvider.family<List<Message>, String>((
 
 /// Sinyal non-blocking bahwa stream pesan sedang mencoba menyambung ulang
 /// setelah gangguan Realtime sesaat (retry+backoff berjalan di repository).
-final chatReconnectingProvider = StreamProvider.family<bool, String>((
+final chatReconnectingProvider =
+    StreamProvider.autoDispose.family<bool, String>((
   ref,
   roomId,
 ) {
@@ -331,7 +333,8 @@ final chatReconnectingProvider = StreamProvider.family<bool, String>((
 });
 
 /// Stream riwayat panggilan pada room tertentu secara realtime
-final chatCallsProvider = StreamProvider.family<List<CallModel>, String>((
+final chatCallsProvider =
+    StreamProvider.autoDispose.family<List<CallModel>, String>((
   ref,
   roomId,
 ) {
@@ -505,8 +508,8 @@ class OtherParticipantLastReadNotifier extends StateNotifier<DateTime?> {
   }
 }
 
-final otherParticipantLastReadProvider =
-    StateNotifierProvider.family<OtherParticipantLastReadNotifier, DateTime?, String>(
+final otherParticipantLastReadProvider = StateNotifierProvider.autoDispose
+    .family<OtherParticipantLastReadNotifier, DateTime?, String>(
   (ref, roomId) => OtherParticipantLastReadNotifier(ref, roomId),
 );
 
@@ -594,16 +597,22 @@ class TypingNotifier extends StateNotifier<bool> {
     _subscribeDebounceTimer?.cancel();
     _debounceTimer?.cancel();
     _hideTimer?.cancel();
-    try {
-      _channel?.unsubscribe();
-    } catch (_) {}
-    _channel = null;
+    if (_channel != null) {
+      try {
+        _ref.read(supabaseServiceProvider).client.removeChannel(_channel!);
+      } catch (_) {
+        try {
+          _channel?.unsubscribe();
+        } catch (_) {}
+      }
+      _channel = null;
+    }
     super.dispose();
   }
 }
 
 final typingStateProvider =
-    StateNotifierProvider.family<TypingNotifier, bool, String>(
+    StateNotifierProvider.autoDispose.family<TypingNotifier, bool, String>(
       (ref, roomId) => TypingNotifier(ref, roomId),
     );
 
@@ -803,7 +812,9 @@ class ChatActionsNotifier {
     unawaited(NotificationService.cancelMessageNotification(roomId));
     await _chatRepository.markRoomRead(roomId);
     try {
-      _ref.read(otherParticipantLastReadProvider(roomId).notifier).broadcastRead(now);
+      if (_ref.exists(otherParticipantLastReadProvider(roomId))) {
+        _ref.read(otherParticipantLastReadProvider(roomId).notifier).broadcastRead(now);
+      }
     } catch (_) {}
     _ref.read(chatRoomsProvider.notifier).refreshRooms();
   }

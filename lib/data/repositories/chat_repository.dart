@@ -21,6 +21,37 @@ import 'reconnect_policy.dart';
 class ChatRepository {
   final SupabaseService _supabaseService;
 
+  @visibleForTesting
+  static bool isMessagePersistenceEqual(Message a, Message b) {
+    if (a.id != b.id ||
+        a.roomId != b.roomId ||
+        a.senderId != b.senderId ||
+        a.content != b.content ||
+        a.mediaUrl != b.mediaUrl ||
+        a.type != b.type ||
+        a.isViewOnce != b.isViewOnce ||
+        a.isOpened != b.isOpened ||
+        a.openedAt?.toUtc() != b.openedAt?.toUtc() ||
+        a.replyToId != b.replyToId ||
+        a.isDeleted != b.isDeleted ||
+        a.isSilentDeleted != b.isSilentDeleted ||
+        a.autoDeleteAt?.toUtc() != b.autoDeleteAt?.toUtc() ||
+        a.editedAt?.toUtc() != b.editedAt?.toUtc() ||
+        a.createdAt.toUtc() != b.createdAt.toUtc() ||
+        a.updatedAt.toUtc() != b.updatedAt.toUtc() ||
+        a.isEncrypted != b.isEncrypted) {
+      return false;
+    }
+    if (a.reactions.length != b.reactions.length) return false;
+    for (final entry in a.reactions.entries) {
+      final otherList = b.reactions[entry.key];
+      if (otherList == null || !listEquals(entry.value, otherList)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Cache in-memory untuk pesan terdekripsi per pesan (id -> decryptedContent).
   /// Menghindari dekripsi kriptografis berulang terhadap ratusan pesan setiap kali
   /// Realtime stream memancarkan batch pembaruan.
@@ -1186,6 +1217,28 @@ class ChatRepository {
           // Urutkan kronologis agar dekripsi berantai (Sender Keys) memproses counter secara berurutan
           msgs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
+          // Batch-lookup SQLite lokal untuk semua pesan terenkripsi yang miss/stale di RAM cache
+          final List<String> idsNeedingLocalLookup = [];
+          for (final m in msgs) {
+            if (m.isEncrypted && m.content.isNotEmpty && !m.isDeleted) {
+              final cached = _decryptedContentCache[m.id];
+              final cachedUpdatedAt = _decryptedUpdatedAtCache[m.id];
+              final isCacheFresh = cached != null &&
+                  !GroupE2eeService.isPendingKey(cached) &&
+                  (cachedUpdatedAt == null ||
+                      !m.updatedAt.toUtc().isAfter(cachedUpdatedAt));
+              if (!isCacheFresh) {
+                idsNeedingLocalLookup.add(m.id);
+              }
+            }
+          }
+          final Map<String, Message> localMsgsById =
+              idsNeedingLocalLookup.isEmpty
+                  ? const {}
+                  : await LocalMessageDatabase.instance.getMessagesByIds(
+                      idsNeedingLocalLookup,
+                    );
+
           final decryptedMsgs = await Future.wait(
             msgs.map((m) async {
               Message resolvedMsg = m;
@@ -1205,10 +1258,8 @@ class ChatRepository {
                   }
                   resolvedMsg = m.copyWith(content: cached);
                 } else {
-                  // 2. Cek database lokal SQLite (validasi kesegaran updatedAt)
-                  final localMsg = await LocalMessageDatabase.instance.getMessage(
-                    m.id,
-                  );
+                  // 2. Cek hasil batch SQLite lokal (validasi kesegaran updatedAt)
+                  final localMsg = localMsgsById[m.id];
                   final isLocalFresh = localMsg != null &&
                       localMsg.content.isNotEmpty &&
                       !GroupE2eeService.isPendingKey(localMsg.content) &&
@@ -1321,20 +1372,28 @@ class ChatRepository {
                 } catch (_) {}
               }
 
-              // Simpan ke SQLite lokal hanya pesan non-kontrol yang sudah terdekripsi/valid
-              unawaited(LocalMessageDatabase.instance.saveMessage(resolvedMsg));
               return resolvedMsg;
             }),
           );
 
+          final List<Message> toPersist = [];
           for (final dm in decryptedMsgs) {
             if (dm == null) continue;
             if (E2eeService.isUndecryptable(dm.content) &&
                 !GroupE2eeService.isPendingKey(dm.content)) {
               messagePool.remove(dm.id);
             } else {
+              final existing = messagePool[dm.id];
+              if (!GroupE2eeService.isPendingKey(dm.content) &&
+                  (existing == null || !isMessagePersistenceEqual(existing, dm))) {
+                toPersist.add(dm);
+              }
               messagePool[dm.id] = dm;
             }
+          }
+
+          if (toPersist.isNotEmpty) {
+            unawaited(LocalMessageDatabase.instance.saveMessagesBatch(toPersist));
           }
 
           if (!controller.isClosed) {

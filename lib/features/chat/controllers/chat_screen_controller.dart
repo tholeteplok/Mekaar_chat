@@ -23,6 +23,7 @@ class ChatScreenController extends ChangeNotifier {
   final FocusNode composerFocusNode;
   final bool Function() isKeyboardVisible;
   final bool Function() isMounted;
+  final bool Function()? hasExpiringMessages;
   final ValueNotifier<DateTime?> otherLastSeenNotifier;
 
   ChatScreenController({
@@ -32,6 +33,7 @@ class ChatScreenController extends ChangeNotifier {
     required this.isKeyboardVisible,
     required this.isMounted,
     required this.otherLastSeenNotifier,
+    this.hasExpiringMessages,
     this.effectiveOtherUserId,
     this.getOtherUserId,
   });
@@ -53,6 +55,7 @@ class ChatScreenController extends ChangeNotifier {
   bool _isViewOnce = false;
   bool _isMuted = false;
   bool _isDisposed = false;
+  bool _isPaused = false;
 
   int get autoDeleteHours => _autoDeleteHours;
   int get autoDeleteMinutes => _autoDeleteMinutes;
@@ -63,22 +66,51 @@ class ChatScreenController extends ChangeNotifier {
   bool get isViewOnce => _isViewOnce;
   bool get isMuted => _isMuted;
   bool get isDisposed => _isDisposed;
+  bool get isPaused => _isPaused;
+  bool get shouldRunPurgeTimer =>
+      _autoDeleteMinutes > 0 ||
+      _scheduledWipeMode != 'off' ||
+      (hasExpiringMessages?.call() ?? false);
 
   /// Memulai semua timer background dan listener stream pengaturan ruangan.
   void start() {
     if (_isDisposed) return;
+    _isPaused = false;
     unawaited(loadRoomSettings());
     _startPresenceHeartbeat();
     _startPurgeTimer();
     _startRoomSettingsStream();
   }
 
+  /// Hentikan timer background sementara saat aplikasi di-background/inactive.
+  void pauseBackgroundTimers() {
+    if (_isDisposed || _isPaused) return;
+    _isPaused = true;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
+    _purgeTimer?.cancel();
+    _purgeTimer = null;
+  }
+
+  /// Jalankan kembali timer background saat aplikasi kembali ke foreground.
+  void resumeBackgroundTimers() {
+    if (_isDisposed || !_isPaused) return;
+    _isPaused = false;
+    _startPresenceHeartbeat();
+    _startPurgeTimer();
+  }
+
+  /// Sinkronkan status timer purge (mis. setelah loadRoomSettings atau ada pesan baru dengan autoDeleteAt).
+  void syncPurgeTimerState() => _startPurgeTimer();
+
   /// Memulai ulang atau menjalankan siklus heartbeat secara eksplisit.
   void startPresenceHeartbeat() => _startPresenceHeartbeat();
 
   /// Timer detak kehadiran (presence heartbeat) setiap 30 detik.
   void _startPresenceHeartbeat() {
-    if (LocalMessageDatabase.instance.isDecoy ||
+    if (_isDisposed ||
+        _isPaused ||
+        LocalMessageDatabase.instance.isDecoy ||
         chatId == 'room_welcome_mekaar') {
       return;
     }
@@ -86,17 +118,22 @@ class ChatScreenController extends ChangeNotifier {
     _presenceHeartbeatTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) async {
-        if (_isDisposed || !isMounted()) return;
+        if (_isDisposed || _isPaused || !isMounted()) return;
 
         try {
           final repo = ref.read(chatRepositoryProvider);
-          await repo.updateLastSeen();
           final otherId = currentOtherUserId;
           if (otherId != null) {
-            final lastSeen = await repo.getLastSeen(otherId);
-            if (!_isDisposed && isMounted()) {
+            final results = await Future.wait<dynamic>([
+              repo.updateLastSeen(),
+              repo.getLastSeen(otherId),
+            ]);
+            final lastSeen = results[1] as DateTime?;
+            if (!_isDisposed && !_isPaused && isMounted()) {
               otherLastSeenNotifier.value = lastSeen;
             }
+          } else {
+            await repo.updateLastSeen();
           }
         } catch (_) {}
       },
@@ -104,10 +141,16 @@ class ChatScreenController extends ChangeNotifier {
   }
 
   /// Timer periodik pembersihan pesan kedaluwarsa (purge) setiap 10 detik.
+  /// Hanya aktif bila room memiliki disappearing messages, scheduled wipe, atau pesan expiring aktif.
   void _startPurgeTimer() {
-    _purgeTimer?.cancel();
+    if (_isDisposed || _isPaused || !shouldRunPurgeTimer) {
+      _purgeTimer?.cancel();
+      _purgeTimer = null;
+      return;
+    }
+    if (_purgeTimer?.isActive ?? false) return;
     _purgeTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (_isDisposed || !isMounted()) return;
+      if (_isDisposed || _isPaused || !isMounted()) return;
       // Jangan ganggu fokus input dan cegah penutupan keyboard virtual oleh IME Android:
       // Jika composer sedang memiliki fokus atau keyboard sedang terbuka, tunda pembersihan berkala.
       if (composerFocusNode.hasFocus || isKeyboardVisible()) return;
@@ -186,6 +229,7 @@ class ChatScreenController extends ChangeNotifier {
       if (roomBurnOnExit) {
         unawaited(LocalMessageDatabase.instance.deleteDraft(chatId));
       }
+      syncPurgeTimerState();
       scheduleWipeTimer();
     } catch (_) {}
   }

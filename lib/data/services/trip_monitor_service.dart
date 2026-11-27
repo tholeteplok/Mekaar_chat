@@ -23,6 +23,7 @@ class TripMonitorService {
     required ChatRepository chatRepository,
     double? currentLat,
     double? currentLng,
+    Future<({double lat, double lng})?> Function()? fetchCurrentLocation,
   }) async {
     List<UserTrip> trips;
     try {
@@ -34,6 +35,7 @@ class TripMonitorService {
 
     final now = DateTime.now();
 
+    final eligibleTrips = <UserTrip>[];
     for (final trip in trips) {
       if (!trip.isScheduledForToday) continue;
 
@@ -53,13 +55,38 @@ class TripMonitorService {
         continue; // masih dalam masa tunda, skip dulu
       }
 
+      eligibleTrips.add(trip);
+    }
+
+    if (eligibleTrips.isEmpty) {
+      return;
+    }
+
+    double? resolvedLat = currentLat;
+    double? resolvedLng = currentLng;
+    if ((resolvedLat == null || resolvedLng == null) &&
+        fetchCurrentLocation != null) {
+      try {
+        final loc = await fetchCurrentLocation();
+        if (loc != null) {
+          resolvedLat = loc.lat;
+          resolvedLng = loc.lng;
+        }
+      } catch (e) {
+        _logger.w('TripMonitorService: gagal ambil lokasi lazy: $e');
+      }
+    }
+
+    for (final trip in eligibleTrips) {
+      final status = trip.effectiveStatus;
+
       try {
         // --- 1. GPS selalu dicek lebih dulu bila lokasi tersedia. ---
-        if (currentLat != null && currentLng != null) {
+        if (resolvedLat != null && resolvedLng != null) {
           final dest = trip.destinationZone;
           final distance = calculateDistanceMeters(
-            currentLat,
-            currentLng,
+            resolvedLat,
+            resolvedLng,
             dest.latitude,
             dest.longitude,
           );
@@ -127,19 +154,24 @@ class TripMonitorService {
   }) async {
     final supabase = SupabaseService().client;
     final currentUserId = SupabaseService().currentUserId;
-    if (currentUserId == null) return;
+    if (currentUserId == null || trip.guardians.isEmpty) return;
+
+    List<String> myRoomIds = const [];
+    try {
+      final roomRes = await supabase
+          .from('room_participants')
+          .select('room_id')
+          .eq('profile_id', currentUserId);
+      myRoomIds =
+          (roomRes as List<dynamic>).map((r) => r['room_id'] as String).toList();
+    } catch (e) {
+      _logger.w('Gagal memuat room_participants user saat kirim pesan trip: $e');
+      return;
+    }
+    if (myRoomIds.isEmpty) return;
 
     for (final guardian in trip.guardians) {
       try {
-        final roomRes = await supabase
-            .from('room_participants')
-            .select('room_id')
-            .eq('profile_id', currentUserId);
-
-        final myRoomIds =
-            (roomRes as List<dynamic>).map((r) => r['room_id'] as String).toList();
-        if (myRoomIds.isEmpty) continue;
-
         final matchRes = await supabase
             .from('room_participants')
             .select('room_id')

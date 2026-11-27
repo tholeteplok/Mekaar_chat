@@ -544,6 +544,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       isKeyboardVisible: () =>
           (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0,
       isMounted: () => mounted,
+      hasExpiringMessages: () {
+        if (!mounted) return false;
+        final msgs = ref.read(chatMessagesProvider(widget.chatId)).valueOrNull;
+        if (msgs == null) return false;
+        return msgs.any((m) => m.autoDeleteAt != null);
+      },
       otherLastSeenNotifier: _otherLastSeenNotifier,
     );
     _controller.addListener(_onControllerChanged);
@@ -836,6 +842,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
+      _controller.pauseBackgroundTimers();
       _wasKeyboardOpenOnPause =
           _composerFocusNode.hasFocus ||
           ((MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0);
@@ -854,6 +861,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             );
       }
     } else if (state == AppLifecycleState.resumed) {
+      _controller.resumeBackgroundTimers();
       // Evaluasi ulang jadwal pembersihan & pesan kedaluwarsa saat kembali ke room dari background
       unawaited(_controller.loadRoomSettings());
       unawaited(
@@ -1637,6 +1645,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     ) {
       final prevList = previous?.valueOrNull;
       final nextList = next.valueOrNull;
+      if (nextList != null && nextList.any((m) => m.autoDeleteAt != null)) {
+        _controller.syncPurgeTimerState();
+      }
       if (nextList != null && nextList.isNotEmpty && currentUserId != null) {
         final hasNewMessages =
             prevList == null || nextList.length > prevList.length;

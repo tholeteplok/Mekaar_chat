@@ -94,6 +94,9 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
       _resumeSyncTimer?.cancel();
+      try {
+        ref.read(appRealtimeListenerProvider).pauseBackgroundTimers();
+      } catch (_) {}
       // Catat timestamp background untuk evaluasi Auto-Lock Timeout
       ref.read(autoLockControllerProvider).onAppPaused();
 
@@ -121,7 +124,9 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
       _resumeSyncTimer = Timer(const Duration(milliseconds: 350), () {
         if (!mounted || LocalMessageDatabase.instance.isDecoy) return;
         try {
-          ref.read(appRealtimeListenerProvider).reconnectIfNeeded();
+          ref.read(appRealtimeListenerProvider)
+            ..resumeBackgroundTimers()
+            ..reconnectIfNeeded();
         } catch (_) {}
         try {
           unawaited(

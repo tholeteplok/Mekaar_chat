@@ -101,6 +101,20 @@ class LocationService {
     }
   }
 
+  // Configure throttled location tracking for active SOS sessions
+  static Future<void> configureSosTracking({
+    int intervalMs = 5000,
+    double distanceFilterMeters = 10.0,
+  }) async {
+    try {
+      await _location.changeSettings(
+        accuracy: loc.LocationAccuracy.high,
+        interval: intervalMs,
+        distanceFilter: distanceFilterMeters,
+      );
+    } catch (_) {}
+  }
+
   // Stream location updates
   static Stream<loc.LocationData> getLocationStream() {
     try {

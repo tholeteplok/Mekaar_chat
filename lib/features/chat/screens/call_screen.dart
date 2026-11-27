@@ -775,7 +775,17 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _callTimeoutTimer?.cancel();
     _statusPollingTimer?.cancel();
     _durationTimer?.cancel();
-    _statusChannel?.unsubscribe();
+    final statusCh = _statusChannel;
+    _statusChannel = null;
+    if (statusCh != null) {
+      try {
+        Supabase.instance.client.removeChannel(statusCh);
+      } catch (_) {
+        try {
+          statusCh.unsubscribe();
+        } catch (_) {}
+      }
+    }
 
     // Reset activeCallIdProvider in Riverpod
     try {

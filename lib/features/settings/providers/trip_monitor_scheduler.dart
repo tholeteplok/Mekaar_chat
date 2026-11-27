@@ -14,40 +14,57 @@ class TripMonitorScheduler with WidgetsBindingObserver {
   final Logger _logger = Logger();
   Timer? _timer;
   bool _isEvaluating = false;
+  bool _isDisposed = false;
 
   static const Duration _interval = Duration(minutes: 3);
 
   TripMonitorScheduler(this._ref);
 
   void start() {
+    _isDisposed = false;
     WidgetsBinding.instance.addObserver(this);
     _runCycle();
-    _timer = Timer.periodic(_interval, (_) => _runCycle());
+    _ensureTimerActive();
     _logger.i('TripMonitorScheduler dimulai (interval ${_interval.inMinutes} menit)');
+  }
+
+  void _ensureTimerActive() {
+    if (_isDisposed || (_timer?.isActive ?? false)) return;
+    _timer = Timer.periodic(_interval, (_) => _runCycle());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _timer?.cancel();
+      _timer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _ensureTimerActive();
       _runCycle();
     }
   }
 
   Future<void> _runCycle() async {
-    if (_isEvaluating) return;
+    if (_isEvaluating || _isDisposed) return;
     final userId = _ref.read(supabaseServiceProvider).currentUserId;
     if (userId == null) return;
 
     _isEvaluating = true;
     try {
-      final locationData = await LocationService.getCurrentLocation()
-          .timeout(const Duration(seconds: 10), onTimeout: () => null);
-
       await TripMonitorService.evaluate(
         tripRepository: _ref.read(tripRepositoryProvider),
         chatRepository: _ref.read(chatRepositoryProvider),
-        currentLat: locationData?.latitude,
-        currentLng: locationData?.longitude,
+        fetchCurrentLocation: () async {
+          final locationData = await LocationService.getCurrentLocation()
+              .timeout(const Duration(seconds: 10), onTimeout: () => null);
+          final lat = locationData?.latitude;
+          final lng = locationData?.longitude;
+          if (lat == null || lng == null) return null;
+          return (lat: lat, lng: lng);
+        },
       );
     } catch (e) {
       _logger.w('TripMonitorScheduler: siklus evaluasi gagal (non-fatal): $e');
@@ -57,6 +74,7 @@ class TripMonitorScheduler with WidgetsBindingObserver {
   }
 
   void dispose() {
+    _isDisposed = true;
     _timer?.cancel();
     _timer = null;
     WidgetsBinding.instance.removeObserver(this);

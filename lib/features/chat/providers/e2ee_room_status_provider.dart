@@ -22,6 +22,7 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
   }
 
   void configureForRoom({required bool isGroup, int encryptionVersion = 0}) {
+    if (!mounted) return;
     if (isGroup) {
       if (encryptionVersion == 1) {
         state = E2eeRoomStatus.groupE2eeReady;
@@ -36,6 +37,7 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
   }
 
   Future<void> initializeRoomSecurity({bool isGroup = false, int encryptionVersion = 0}) async {
+    if (!mounted) return;
     if (isGroup) {
       if (encryptionVersion == 1) {
         state = E2eeRoomStatus.groupE2eeReady;
@@ -50,9 +52,11 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
 
     // Jeda singkat tahap 1 agar banner animasi terlihat tenang oleh pengguna
     await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
 
     // 1. Pastikan identitas lokal E2EE sudah siap
     await E2eeService.instance.ensureIdentity();
+    if (!mounted) return;
 
     if (E2eeService.instance.needsRestore) {
       state = E2eeRoomStatus.needsRestore;
@@ -61,10 +65,12 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
 
     state = E2eeRoomStatus.negotiating;
     await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
 
     // 2. Tes derivasi enkripsi kamar
     try {
       final testResult = await E2eeService.instance.encryptForRoom(_roomId, 'test-handshake');
+      if (!mounted) return;
       if (testResult == null) {
         state = E2eeRoomStatus.peerMissingKey;
         return;
@@ -72,6 +78,7 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
     } catch (_) {
       // Network error atau peer key belum tersedia — jangan crash,
       // biarkan user retry via tombol di UI.
+      if (!mounted) return;
       state = E2eeRoomStatus.peerMissingKey;
       return;
     }
@@ -85,7 +92,7 @@ class E2eeRoomStatusNotifier extends StateNotifier<E2eeRoomStatus> {
   }
 }
 
-final e2eeRoomStatusProvider = StateNotifierProvider.family<
+final e2eeRoomStatusProvider = StateNotifierProvider.autoDispose.family<
     E2eeRoomStatusNotifier, E2eeRoomStatus, String>((ref, roomId) {
   return E2eeRoomStatusNotifier(roomId);
 });

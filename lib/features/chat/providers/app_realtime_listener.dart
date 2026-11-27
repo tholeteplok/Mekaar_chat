@@ -30,6 +30,7 @@ class AppRealtimeListener {
   Timer? _periodicPurgeTimer;
   Timer? _heartbeatTimer;
   int _reconnectAttempts = 0;
+  bool _isPaused = false;
 
   AppRealtimeListener(this._ref) {
     _initAuthListener();
@@ -149,13 +150,11 @@ class AppRealtimeListener {
 
     // Satu channel dengan beberapa binding onPostgresChanges, bukan 4 channel
     // yang subscribe bersamaan di window waktu yang sama.
-    _periodicPurgeTimer?.cancel();
-    _periodicPurgeTimer = Timer.periodic(const Duration(minutes: 10), (_) {
-      unawaited(_runPurgeAndSyncRooms());
-    });
+    if (!_isPaused) {
+      _startPeriodicPurgeTimer();
+      _startHeartbeatTimer();
+    }
     unawaited(_runPurgeAndSyncRooms());
-
-    _startHeartbeatTimer();
 
     _channel = supabaseService.client
         .channel('public:app_events_$userId')
@@ -241,7 +240,8 @@ class AppRealtimeListener {
             _ref
                 .read(chatRoomsProvider.notifier)
                 .updateOtherLastReadLocally(roomId, readAt);
-            if (_ref.read(activeRoomIdProvider) == roomId) {
+            if (_ref.read(activeRoomIdProvider) == roomId &&
+                _ref.exists(otherParticipantLastReadProvider(roomId))) {
               _ref
                   .read(otherParticipantLastReadProvider(roomId).notifier)
                   .updateReadAt(readAt);
@@ -281,6 +281,13 @@ class AppRealtimeListener {
     );
   }
 
+  void _startPeriodicPurgeTimer() {
+    _periodicPurgeTimer?.cancel();
+    _periodicPurgeTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      unawaited(_runPurgeAndSyncRooms());
+    });
+  }
+
   void _startHeartbeatTimer() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
@@ -293,6 +300,24 @@ class AppRealtimeListener {
         start(force: true);
       }
     });
+  }
+
+  /// Hentikan timer periodik saat aplikasi di background untuk menghemat baterai.
+  void pauseBackgroundTimers() {
+    _isPaused = true;
+    _periodicPurgeTimer?.cancel();
+    _periodicPurgeTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  /// Aktifkan kembali timer periodik saat aplikasi kembali ke foreground.
+  void resumeBackgroundTimers() {
+    _isPaused = false;
+    if (_subscribedUserId != null) {
+      _startPeriodicPurgeTimer();
+      _startHeartbeatTimer();
+    }
   }
 
   void dispose() {
