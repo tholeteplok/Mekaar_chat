@@ -208,40 +208,11 @@ class MessageContextMenu extends StatelessWidget {
   }
 
   void _showEditDialog(BuildContext context) {
-    final controller = TextEditingController(text: message.content);
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Edit Pesan', style: MekaarTypography.headingMD),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: null,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Batal',
-                style: MekaarTypography.labelLG
-                    .copyWith(color: MekaarColors.textSecondaryOf(context))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newContent = controller.text.trim();
-              if (newContent.isNotEmpty && newContent != message.content) {
-                onEdit!(message, newContent);
-              }
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MekaarColors.accentOf(context),
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Simpan',
-                style: MekaarTypography.labelLG.copyWith(color: Colors.white)),
-          ),
-        ],
+      builder: (_) => _EditMessageDialog(
+        initialContent: message.content,
+        onSave: (newContent) => onEdit!(message, newContent),
       ),
     );
   }
@@ -266,6 +237,76 @@ class MessageContextMenu extends StatelessWidget {
       ),
       onTap: onTap,
       dense: true,
+    );
+  }
+}
+
+class _EditMessageDialog extends StatefulWidget {
+  final String initialContent;
+  final ValueChanged<String> onSave;
+
+  const _EditMessageDialog({
+    required this.initialContent,
+    required this.onSave,
+  });
+
+  @override
+  State<_EditMessageDialog> createState() => _EditMessageDialogState();
+}
+
+class _EditMessageDialogState extends State<_EditMessageDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialContent);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Edit Pesan', style: MekaarTypography.headingMD),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: null,
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Batal',
+            style: MekaarTypography.labelLG.copyWith(
+              color: MekaarColors.textSecondaryOf(context),
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final newContent = _controller.text.trim();
+            if (newContent.isNotEmpty && newContent != widget.initialContent) {
+              widget.onSave(newContent);
+            }
+            Navigator.pop(context);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.accentOf(context),
+            foregroundColor: Colors.white,
+          ),
+          child: Text(
+            'Simpan',
+            style: MekaarTypography.labelLG.copyWith(color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }

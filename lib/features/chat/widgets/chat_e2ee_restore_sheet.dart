@@ -22,17 +22,60 @@ class ChatE2eeRestoreSheet {
     required String roomId,
     required bool isGroup,
   }) async {
-    final pinController = TextEditingController();
-    bool isLoading = false;
-
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (bottomSheetContext) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+      builder: (_) => _ChatE2eeRestoreSheetBody(
+        parentRef: ref,
+        roomId: roomId,
+        isGroup: isGroup,
+      ),
+    );
+  }
+}
+
+class _ChatE2eeRestoreSheetBody extends StatefulWidget {
+  final WidgetRef parentRef;
+  final String roomId;
+  final bool isGroup;
+
+  const _ChatE2eeRestoreSheetBody({
+    required this.parentRef,
+    required this.roomId,
+    required this.isGroup,
+  });
+
+  @override
+  State<_ChatE2eeRestoreSheetBody> createState() =>
+      _ChatE2eeRestoreSheetBodyState();
+}
+
+class _ChatE2eeRestoreSheetBodyState extends State<_ChatE2eeRestoreSheetBody> {
+  final TextEditingController _pinController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pinController = _pinController;
+    final ref = widget.parentRef;
+    final roomId = widget.roomId;
+    final isGroup = widget.isGroup;
+    final isLoading = _isLoading;
+    final ctx = context;
+    void setSheetState(VoidCallback fn) {
+      if (mounted) setState(fn);
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
           ),
           child: Container(
             decoration: BoxDecoration(
@@ -162,7 +205,7 @@ class ChatE2eeRestoreSheet {
                                   ],
                                 );
                                 if (confirmed == true && context.mounted) {
-                                  setSheetState(() => isLoading = true);
+                                  setSheetState(() => _isLoading = true);
                                   await E2eeService.instance.forceResetIdentity();
                                   ref
                                       .read(authProvider.notifier)
@@ -199,10 +242,10 @@ class ChatE2eeRestoreSheet {
                             : () async {
                                 final pin = pinController.text.trim();
                                 if (pin.length != 6) return;
-                                setSheetState(() => isLoading = true);
+                                setSheetState(() => _isLoading = true);
                                 final success = await E2eeService.instance
                                     .tryRestoreWithPin(pin);
-                                setSheetState(() => isLoading = false);
+                                setSheetState(() => _isLoading = false);
                                 if (success) {
                                   ref
                                       .read(authProvider.notifier)
@@ -251,8 +294,6 @@ class ChatE2eeRestoreSheet {
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 }

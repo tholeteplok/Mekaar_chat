@@ -862,20 +862,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
     } else if (state == AppLifecycleState.resumed) {
       _controller.resumeBackgroundTimers();
-      // Evaluasi ulang jadwal pembersihan & pesan kedaluwarsa saat kembali ke room dari background
+      // Evaluasi ulang jadwal pembersihan & sinkronisasi pengaturan saat kembali ke room
+      // (purgeExpiredMessages & reconnectActiveRoomStreams sudah dijalankan terpusat di MekaarApp).
       unawaited(_controller.loadRoomSettings());
-      unawaited(
-        ref
-            .read(chatRepositoryProvider)
-            .purgeExpiredMessages(targetRoomId: widget.chatId),
-      );
-      try {
-        unawaited(
-          ref
-              .read(chatRepositoryProvider)
-              .syncRoomMessagesNow(widget.chatId, forceResubscribe: true),
-        );
-      } catch (_) {}
       if (_wasKeyboardOpenOnPause && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {

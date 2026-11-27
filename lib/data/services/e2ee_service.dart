@@ -329,6 +329,7 @@ class E2eeService {
     _identity = null;
     _identityPublicB64 = null;
     _roomKeys.clear();
+    _lastForceRefreshAt.clear();
   }
 
   // ── Kunci room (ECDH + HKDF) ───────────────────────────────

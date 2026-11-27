@@ -10,6 +10,7 @@ import 'core/constants/typography.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/font_provider.dart';
 import 'core/widgets/screen_protection_widgets.dart';
+import 'data/repositories/screen_protection_repository.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/providers/auto_lock_provider.dart';
 import 'features/chat/providers/screen_protection_provider.dart';
@@ -39,6 +40,26 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startConnectivityListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncGlobalScreenshotBlock(ref.read(screenshotBlockProvider));
+      ref.read(notificationMaskingProvider);
+      NotificationService.maskingEnabled =
+          ref.read(notificationMaskingProvider.notifier).enforcedValue;
+    });
+  }
+
+  void _syncGlobalScreenshotBlock(bool isBlocked) {
+    final protectionController = ref.read(screenProtectionControllerProvider);
+    if (isBlocked) {
+      unawaited(
+        protectionController.enterMandatorySurface('global_screenshot_block'),
+      );
+    } else {
+      unawaited(
+        protectionController.leaveMandatorySurface('global_screenshot_block'),
+      );
+    }
   }
 
   void _startConnectivityListener() {
@@ -144,17 +165,15 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
-    final isScreenshotBlocked = ref.watch(screenshotBlockProvider);
     final protectionController = ref.watch(screenProtectionControllerProvider);
-    if (isScreenshotBlocked) {
-      protectionController.enterMandatorySurface('global_screenshot_block');
-    } else {
-      protectionController.leaveMandatorySurface('global_screenshot_block');
-    }
+    ref.listen<bool>(screenshotBlockProvider, (_, isBlocked) {
+      _syncGlobalScreenshotBlock(isBlocked);
+    });
     // Sync Notification Masking preference ke service statis (patuhi nilai persisten Master).
-    ref.watch(notificationMaskingProvider);
-    NotificationService.maskingEnabled =
-        ref.read(notificationMaskingProvider.notifier).enforcedValue;
+    ref.listen<bool>(notificationMaskingProvider, (_, _) {
+      NotificationService.maskingEnabled =
+          ref.read(notificationMaskingProvider.notifier).enforcedValue;
+    });
 
     // Tema otomatis berbasis waktu: MaterialApp menerima ThemeData final
     // yang sudah di-resolve (light/dark + palet sesuai preferensi).
@@ -181,10 +200,8 @@ class _MekaarAppState extends ConsumerState<MekaarApp> with WidgetsBindingObserv
             stream: protectionController.captureState,
             initialData: false,
             builder: (context, captureSnapshot) {
-              return StreamBuilder<Map<String, dynamic>>(
-                stream: protectionController.states.map(
-                  (states) => Map<String, dynamic>.from(states),
-                ),
+              return StreamBuilder<Map<String, RoomScreenProtection>>(
+                stream: protectionController.states,
                 builder: (context, _) {
                   final hideContent =
                       (captureSnapshot.data ?? false) &&

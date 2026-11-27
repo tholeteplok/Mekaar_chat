@@ -862,43 +862,9 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _handleTwoFactor(BuildContext context, WidgetRef ref) async {
     final enabled = ref.read(twoFaProvider);
     if (enabled) {
-      final passwordController = TextEditingController();
       final password = await showDialog<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: MekaarColors.surface2Of(ctx),
-          title: Text(MekaarCopy.twoStepDisableDialogTitle, style: MekaarTypography.headingSM),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Masukkan password Anda untuk mengonfirmasi penonaktifan 2FA.',
-                style: MekaarTypography.bodySM,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.pop(ctx, passwordController.text.trim()),
-              child: const Text('Konfirmasi'),
-            ),
-          ],
-        ),
+        builder: (_) => const _DisableTwoFactorDialog(),
       );
 
       if (password != null && password.isNotEmpty && context.mounted) {
@@ -1225,6 +1191,65 @@ class SettingsScreen extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _DisableTwoFactorDialog extends StatefulWidget {
+  const _DisableTwoFactorDialog();
+
+  @override
+  State<_DisableTwoFactorDialog> createState() =>
+      _DisableTwoFactorDialogState();
+}
+
+class _DisableTwoFactorDialogState extends State<_DisableTwoFactorDialog> {
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: MekaarColors.surface2Of(context),
+      title: Text(
+        MekaarCopy.twoStepDisableDialogTitle,
+        style: MekaarTypography.headingSM,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Masukkan password Anda untuk mengonfirmasi penonaktifan 2FA.',
+            style: MekaarTypography.bodySM,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          onPressed: () =>
+              Navigator.pop(context, _passwordController.text.trim()),
+          child: const Text('Konfirmasi'),
+        ),
+      ],
     );
   }
 }

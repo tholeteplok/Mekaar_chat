@@ -560,14 +560,11 @@ class _NotificationListenerHostState
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // 1. Pulihkan koneksi realtime channel jika sempat terputus/closed saat background
-      ref.read(appRealtimeListenerProvider).reconnectIfNeeded();
-      // 2. Periksa antrian panggilan offline (mitigasi app tertutup / background dibunuh OS)
+      // Reconnect realtime & refreshRooms sudah ditangani terpusat oleh MekaarApp
+      // setelah jeda stabilisasi TCP/DNS 350ms agar tidak memicu fetch ganda.
+      // Di sini cukup periksa antrian panggilan & SOS darurat aktif.
       ref.read(callInvitationListenerProvider).checkPendingCallsOnResume();
-      // 2b. Periksa apakah ada SOS darurat aktif dari orang yang dijaga
       ref.read(sosAlertListenerProvider).checkActiveSOSOnResume();
-      // 3. Refresh chat rooms agar badge unread & pesan terkini ter-update
-      ref.read(chatRoomsProvider.notifier).refreshRooms();
     }
   }
 

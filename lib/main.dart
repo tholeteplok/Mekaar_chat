@@ -102,87 +102,99 @@ void main() async {
 }
 
 Future<void> _initializeSecondaryServices() async {
-  // 1. Inisialisasi Deep Link Service secara independen
-  try {
-    await DeepLinkService.initialize();
+  await Future.wait([
+    // 1. Inisialisasi Deep Link Service secara independen
+    () async {
+      try {
+        await DeepLinkService.initialize();
 
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (data.event == AuthChangeEvent.passwordRecovery) {
-        final context = AppNavigator.currentContext;
-        if (context != null && context.mounted) {
-          Navigator.pushNamed(context, AppRoutes.newPassword);
-        }
-      }
-    });
-  } catch (e) {
-    logger.w('DeepLinkService initialization non-fatal error: $e');
-  }
-
-  // 2. Inisialisasi Notification Service lokal & channel Android
-  try {
-    await NotificationService.initialize(
-      onNotificationTap: handleNotificationRoute,
-      onTripNotificationTap: (tripId) {
-        final context = AppNavigator.currentContext;
-        if (context != null && context.mounted) {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.tripArrivalConfirm,
-            arguments: {'tripId': tripId},
-          );
-        }
-      },
-      onTripAction: (tripId, {required arrived, snoozeMinutes}) async {
-        try {
-          final repo = TripRepository(SupabaseService());
-          if (arrived) {
-            await repo.confirmArrivalManually(tripId);
-          } else if (snoozeMinutes != null) {
-            await repo.snoozeTrip(tripId, snoozeMinutes);
-          }
-          await NotificationService.cancelTripConfirmationNotification(tripId);
-        } catch (e) {
-          logger.w('Gagal memproses trip notification action: $e');
-        }
-      },
-      onCallAction: (route, {required accept}) async {
-        if (accept) {
-          handleNotificationRoute(route);
-        } else {
-          final callId = route.callId;
-          if (callId != null && callId.isNotEmpty) {
-            try {
-              final client = SupabaseService().client;
-              await client
-                  .from('calls')
-                  .update({
-                    'status': 'declined',
-                    'ended_at': DateTime.now().toIso8601String(),
-                    'updated_at': DateTime.now().toIso8601String(),
-                  })
-                  .eq('id', callId);
-            } catch (e) {
-              logger.w('Gagal tolak panggilan dari notification action: $e');
+        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+          if (data.event == AuthChangeEvent.passwordRecovery) {
+            final context = AppNavigator.currentContext;
+            if (context != null && context.mounted) {
+              Navigator.pushNamed(context, AppRoutes.newPassword);
             }
           }
-        }
-      },
-    );
+        });
+      } catch (e) {
+        logger.w('DeepLinkService initialization non-fatal error: $e');
+      }
+    }(),
 
-    // Cek apakah app cold-started dari tap local notification
-    await NotificationService.handleAppLaunchNotification();
-  } catch (e) {
-    logger.w('NotificationService initialization non-fatal error: $e');
-  }
+    // 2. Inisialisasi Notification Service lokal & channel Android
+    () async {
+      try {
+        await NotificationService.initialize(
+          onNotificationTap: handleNotificationRoute,
+          onTripNotificationTap: (tripId) {
+            final context = AppNavigator.currentContext;
+            if (context != null && context.mounted) {
+              Navigator.pushNamed(
+                context,
+                AppRoutes.tripArrivalConfirm,
+                arguments: {'tripId': tripId},
+              );
+            }
+          },
+          onTripAction: (tripId, {required arrived, snoozeMinutes}) async {
+            try {
+              final repo = TripRepository(SupabaseService());
+              if (arrived) {
+                await repo.confirmArrivalManually(tripId);
+              } else if (snoozeMinutes != null) {
+                await repo.snoozeTrip(tripId, snoozeMinutes);
+              }
+              await NotificationService.cancelTripConfirmationNotification(
+                tripId,
+              );
+            } catch (e) {
+              logger.w('Gagal memproses trip notification action: $e');
+            }
+          },
+          onCallAction: (route, {required accept}) async {
+            if (accept) {
+              handleNotificationRoute(route);
+            } else {
+              final callId = route.callId;
+              if (callId != null && callId.isNotEmpty) {
+                try {
+                  final client = SupabaseService().client;
+                  await client
+                      .from('calls')
+                      .update({
+                        'status': 'declined',
+                        'ended_at': DateTime.now().toIso8601String(),
+                        'updated_at': DateTime.now().toIso8601String(),
+                      })
+                      .eq('id', callId);
+                } catch (e) {
+                  logger.w(
+                    'Gagal tolak panggilan dari notification action: $e',
+                  );
+                }
+              }
+            }
+          },
+        );
 
-  // 3. Inisialisasi Push Notification FCM
-  try {
-    await PushNotificationService.initialize(
-      onNotificationClick: handleNotificationRoute,
-    );
-  } catch (e) {
-    logger.w('PushNotificationService initialization non-fatal error: $e');
-  }
+        // Cek apakah app cold-started dari tap local notification
+        await NotificationService.handleAppLaunchNotification();
+      } catch (e) {
+        logger.w('NotificationService initialization non-fatal error: $e');
+      }
+    }(),
+
+    // 3. Inisialisasi Push Notification FCM
+    () async {
+      try {
+        await PushNotificationService.initialize(
+          onNotificationClick: handleNotificationRoute,
+        );
+      } catch (e) {
+        logger.w('PushNotificationService initialization non-fatal error: $e');
+      }
+    }(),
+  ]);
 }
 
 /// Pusat navigasi untuk semua jenis tap notifikasi (local maupun FCM).

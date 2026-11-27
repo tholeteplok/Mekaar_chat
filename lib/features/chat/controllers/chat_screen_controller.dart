@@ -171,6 +171,7 @@ class ChatScreenController extends ChangeNotifier {
           .from('chat_rooms')
           .stream(primaryKey: ['id'])
           .eq('id', chatId)
+          .skip(1)
           .listen((_) {
             if (!_isDisposed && isMounted()) {
               loadRoomSettings();
@@ -181,39 +182,71 @@ class ChatScreenController extends ChangeNotifier {
     }
   }
 
-  /// Memuat konfigurasi pengaturan ruangan terkini dari remote/local database.
+  /// Memuat konfigurasi pengaturan ruangan terkini secara paralel.
   Future<void> loadRoomSettings() async {
     if (_isDisposed) return;
     try {
       final repo = ref.read(chatRepositoryProvider);
-      final roomAutoDeleteMinutes = await repo.getRoomDisappearingMinutes(chatId);
-      final roomBurnOnExit = await repo.getRoomBurnOnExit(chatId);
+
+      Future<
+        ({
+          int disappearingMinutes,
+          bool burnOnExit,
+          Map<String, dynamic>? scheduledWipe,
+        })
+      > fetchPrivacySettings() async {
+        try {
+          return await repo.getRoomPrivacySettings(chatId);
+        } on UnimplementedError {
+          // Kompatibilitas dengan Fake ChatRepository pada widget test
+          final legacyResults = await Future.wait<dynamic>([
+            repo.getRoomDisappearingMinutes(chatId),
+            repo.getRoomBurnOnExit(chatId),
+            repo.getRoomScheduledWipe(chatId).catchError((_) => null),
+          ]);
+          return (
+            disappearingMinutes: legacyResults[0] as int,
+            burnOnExit: legacyResults[1] as bool,
+            scheduledWipe: legacyResults[2] as Map<String, dynamic>?,
+          );
+        }
+      }
+
+      final results = await Future.wait<dynamic>([
+        fetchPrivacySettings(),
+        SharedPreferences.getInstance()
+            .then<SharedPreferences?>((p) => p)
+            .catchError((_) => null),
+        repo
+            .getRoomPreferences(chatId)
+            .then<dynamic>((p) => p)
+            .catchError((_) => null),
+      ]);
+
+      final privacy = results[0]
+          as ({
+            int disappearingMinutes,
+            bool burnOnExit,
+            Map<String, dynamic>? scheduledWipe,
+          });
+      final prefs = results[1] as SharedPreferences?;
+      final participantPrefs = results[2];
+
+      final roomAutoDeleteMinutes = privacy.disappearingMinutes;
+      final roomBurnOnExit = privacy.burnOnExit;
       String loadedWipeMode = 'off';
       DateTime? loadedWipeTarget;
-      try {
-        final wipeData = await repo.getRoomScheduledWipe(chatId);
-        if (wipeData != null) {
-          loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
-          final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
-          loadedWipeTarget = targetStr != null
-              ? DateTime.tryParse(targetStr)?.toUtc()
-              : null;
-        }
-      } catch (_) {}
+      final wipeData = privacy.scheduledWipe;
+      if (wipeData != null) {
+        loadedWipeMode = wipeData['scheduled_wipe_mode'] as String? ?? 'off';
+        final targetStr = wipeData['scheduled_wipe_target_at'] as String?;
+        loadedWipeTarget =
+            targetStr != null ? DateTime.tryParse(targetStr)?.toUtc() : null;
+      }
 
-      // Muat ulang preferensi Sekali Lihat (View Once) per-room dari SharedPreferences
-      bool savedViewOnce = false;
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        savedViewOnce = prefs.getBool('room_view_once_$chatId') ?? false;
-      } catch (_) {}
-
-      // Muat preferensi bisukan notifikasi per-room
-      bool loadedMuted = false;
-      try {
-        final participantPrefs = await repo.getRoomPreferences(chatId);
-        loadedMuted = participantPrefs?.isMuted ?? false;
-      } catch (_) {}
+      final savedViewOnce =
+          prefs?.getBool('room_view_once_$chatId') ?? false;
+      final loadedMuted = (participantPrefs?.isMuted as bool?) ?? false;
 
       if (_isDisposed || !isMounted()) return;
 

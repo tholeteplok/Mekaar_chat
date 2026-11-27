@@ -194,155 +194,17 @@ class PrivateVaultDialogs {
     bool isResetFlow = false,
     bool autoUnlock = false,
   }) async {
-    final codeController = TextEditingController();
-    final confirmController = TextEditingController();
-    String? errorMessage;
-    bool obscureCode = true;
-    bool obscureConfirm = true;
     final displayName = slotName ?? 'Private Vault';
 
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (dialogCtx, setDialogState) {
-            InputDecoration vaultInputDecoration(String hint) {
-              return InputDecoration(
-                hintText: hint,
-                filled: true,
-                fillColor: MekaarColors.surface2Of(dialogCtx),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                  borderSide: BorderSide(
-                    color: MekaarColors.borderOf(dialogCtx),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                  borderSide: BorderSide(
-                    color: MekaarColors.borderOf(dialogCtx),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(MekaarRadius.md),
-                  borderSide: const BorderSide(
-                    color: AppColors.blue,
-                    width: 2,
-                  ),
-                ),
-              );
-            }
-
-            return MekaarDialog(
-              icon: const Icon(
-                SolarIconsBold.shieldKeyhole,
-                color: MekaarColors.guardianTeal,
-                size: 28,
-              ),
-              title: isResetFlow ? 'Reset Kode Akses $displayName' : 'Atur Kode Akses $displayName',
-              message:
-                  'Tentukan kode akses rahasia (bebas: angka, huruf, atau simbol, min. 6 karakter) untuk membuka $displayName.\nKode ini dapat Anda masukkan pada kolom pencarian (Search Bar) untuk membuka kontak di profil ini secara terisolasi.',
-              customContent: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: codeController,
-                    obscureText: obscureCode,
-                    keyboardType: TextInputType.visiblePassword,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration:
-                        vaultInputDecoration('Masukkan kode akses rahasia (min. 6 karakter)')
-                            .copyWith(
-                      errorText: errorMessage,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscureCode
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setDialogState(() => obscureCode = !obscureCode),
-                        tooltip: obscureCode
-                            ? 'Tampilkan kode akses'
-                            : 'Sembunyikan kode akses',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: confirmController,
-                    obscureText: obscureConfirm,
-                    keyboardType: TextInputType.visiblePassword,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration:
-                        vaultInputDecoration('Konfirmasi kode akses rahasia')
-                            .copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscureConfirm
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
-                          size: 20,
-                        ),
-                        onPressed: () => setDialogState(
-                            () => obscureConfirm = !obscureConfirm),
-                        tooltip: obscureConfirm
-                            ? 'Tampilkan kode akses'
-                            : 'Sembunyikan kode akses',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogCtx, false),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.guardianTeal,
-                    foregroundColor: MekaarColors.textOnTeal,
-                  ),
-                  onPressed: () async {
-                    final code = codeController.text.trim();
-                    final confirm = confirmController.text.trim();
-
-                    if (code.length < 6) {
-                      setDialogState(() {
-                        errorMessage = 'Kode akses minimal 6 karakter';
-                      });
-                      return;
-                    }
-
-                    if (code != confirm) {
-                      setDialogState(() {
-                        errorMessage = 'Konfirmasi kode akses tidak cocok';
-                      });
-                      return;
-                    }
-
-                    final repo = ref.read(privateContactRepositoryProvider);
-                    await repo.setSlotPasscode(slot, code);
-                    ref.invalidate(privateVaultPasscodeSetProvider);
-
-                    if (dialogCtx.mounted) {
-                      Navigator.pop(dialogCtx, true);
-                    }
-                  },
-                  child: const Text('Simpan Kode Akses'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => _SetPasscodeDialog(
+        parentRef: ref,
+        slot: slot,
+        displayName: displayName,
+        isResetFlow: isResetFlow,
+      ),
     );
 
     final isSuccess = result ?? false;
@@ -383,184 +245,16 @@ class PrivateVaultDialogs {
     int slot = 1,
     String? slotName,
   ]) async {
-    final codeController = TextEditingController();
-    String? errorMessage;
-    bool obscureCode = true;
     final displayName = slotName ?? 'Private Vault';
 
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (dialogCtx, setDialogState) {
-            return MekaarDialog(
-              icon: const Icon(
-                SolarIconsBold.shieldKeyhole,
-                color: MekaarColors.guardianTeal,
-                size: 28,
-              ),
-              title: 'Verifikasi PIN Master',
-              message:
-                  'Masukkan 6 digit PIN Master Anda untuk membuka $displayName.',
-              customContent: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: codeController,
-                    obscureText: obscureCode,
-                    keyboardType: TextInputType.visiblePassword,
-                    autofocus: true,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: InputDecoration(
-                      hintText: 'PIN Master',
-                      errorText: errorMessage,
-                      filled: true,
-                      fillColor: MekaarColors.surface2Of(dialogCtx),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                        borderSide: BorderSide(
-                          color: MekaarColors.borderOf(dialogCtx),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                        borderSide: BorderSide(
-                          color: MekaarColors.borderOf(dialogCtx),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(MekaarRadius.md),
-                        borderSide: const BorderSide(
-                          color: AppColors.blue,
-                          width: 2,
-                        ),
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscureCode
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setDialogState(() => obscureCode = !obscureCode),
-                        tooltip: obscureCode
-                            ? 'Tampilkan kode akses'
-                            : 'Sembunyikan kode akses',
-                      ),
-                    ),
-                    onSubmitted: (val) async {
-                      final repo = ref != null
-                          ? ref.read(privateContactRepositoryProvider)
-                          : PrivateContactRepository();
-                      if (await repo.isVaultLockedOut()) {
-                        final remaining =
-                            await repo.getVaultLockoutRemainingSeconds();
-                        HapticService.trigger(MekaarHapticIntent.warning);
-                        setDialogState(() {
-                          errorMessage =
-                              'Terlalu banyak percobaan. Tunggu $remaining detik.';
-                        });
-                        return;
-                      }
-                      bool isMatch = await repo.verifySlotPasscode(slot, val.trim());
-                      if (!isMatch) {
-                        final authRepo = ref != null
-                            ? ref.read(authRepositoryProvider)
-                            : AuthRepository(SupabaseService());
-                        isMatch = await authRepo.validatePIN(val.trim());
-                      }
-                      if (isMatch) {
-                        HapticService.trigger(MekaarHapticIntent.success);
-                        if (dialogCtx.mounted) Navigator.pop(dialogCtx, true);
-                      } else {
-                        HapticService.trigger(MekaarHapticIntent.warning);
-                        final isNowLocked = await repo.isVaultLockedOut();
-                        final remaining =
-                            await repo.getVaultLockoutRemainingSeconds();
-                        setDialogState(() {
-                          if (isNowLocked) {
-                            errorMessage =
-                                'Terlalu banyak percobaan. Tunggu $remaining detik.';
-                          } else {
-                            errorMessage = 'Kode akses rahasia tidak cocok';
-                          }
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogCtx, false),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MekaarColors.guardianTeal,
-                    foregroundColor: MekaarColors.textOnTeal,
-                  ),
-                  onPressed: () async {
-                    final code = codeController.text.trim();
-                    if (code.isEmpty) {
-                      setDialogState(() {
-                        errorMessage = 'Masukkan kode akses rahasia Anda';
-                      });
-                      return;
-                    }
-
-                    final repo = ref != null
-                        ? ref.read(privateContactRepositoryProvider)
-                        : PrivateContactRepository();
-                    if (await repo.isVaultLockedOut()) {
-                      final remaining =
-                          await repo.getVaultLockoutRemainingSeconds();
-                      HapticService.trigger(MekaarHapticIntent.warning);
-                      setDialogState(() {
-                        errorMessage =
-                            'Terlalu banyak percobaan. Tunggu $remaining detik.';
-                      });
-                      return;
-                    }
-                    bool isMatch = await repo.verifySlotPasscode(slot, code);
-                    if (!isMatch) {
-                      final authRepo = ref != null
-                          ? ref.read(authRepositoryProvider)
-                          : AuthRepository(SupabaseService());
-                      isMatch = await authRepo.validatePIN(code);
-                    }
-                    if (isMatch) {
-                      HapticService.trigger(MekaarHapticIntent.success);
-                      if (dialogCtx.mounted) {
-                        Navigator.pop(dialogCtx, true);
-                      }
-                    } else {
-                      HapticService.trigger(MekaarHapticIntent.warning);
-                      final isNowLocked = await repo.isVaultLockedOut();
-                      final remaining =
-                          await repo.getVaultLockoutRemainingSeconds();
-                      setDialogState(() {
-                        if (isNowLocked) {
-                          errorMessage =
-                              'Terlalu banyak percobaan. Tunggu $remaining detik.';
-                        } else {
-                          errorMessage = 'Kode akses rahasia tidak cocok';
-                        }
-                      });
-                    }
-                  },
-                  child: const Text('Buka'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => _UnlockPasscodeDialog(
+        parentRef: ref,
+        slot: slot,
+        displayName: displayName,
+      ),
     );
 
     final isSuccess = result ?? false;
@@ -569,5 +263,319 @@ class PrivateVaultDialogs {
       ref.read(privateVaultUnlockedProvider.notifier).state = true;
     }
     return isSuccess;
+  }
+}
+
+class _SetPasscodeDialog extends StatefulWidget {
+  final WidgetRef parentRef;
+  final int slot;
+  final String displayName;
+  final bool isResetFlow;
+
+  const _SetPasscodeDialog({
+    required this.parentRef,
+    required this.slot,
+    required this.displayName,
+    required this.isResetFlow,
+  });
+
+  @override
+  State<_SetPasscodeDialog> createState() => _SetPasscodeDialogState();
+}
+
+class _SetPasscodeDialogState extends State<_SetPasscodeDialog> {
+  final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _confirmController = TextEditingController();
+  String? _errorMessage;
+  bool _obscureCode = true;
+  bool _obscureConfirm = true;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _vaultInputDecoration(BuildContext dialogCtx, String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: MekaarColors.surface2Of(dialogCtx),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MekaarRadius.md),
+        borderSide: BorderSide(color: MekaarColors.borderOf(dialogCtx)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MekaarRadius.md),
+        borderSide: BorderSide(color: MekaarColors.borderOf(dialogCtx)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MekaarRadius.md),
+        borderSide: const BorderSide(color: AppColors.blue, width: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MekaarDialog(
+      icon: const Icon(
+        SolarIconsBold.shieldKeyhole,
+        color: MekaarColors.guardianTeal,
+        size: 28,
+      ),
+      title: widget.isResetFlow
+          ? 'Reset Kode Akses ${widget.displayName}'
+          : 'Atur Kode Akses ${widget.displayName}',
+      message:
+          'Tentukan kode akses rahasia (bebas: angka, huruf, atau simbol, min. 6 karakter) untuk membuka ${widget.displayName}.\nKode ini dapat Anda masukkan pada kolom pencarian (Search Bar) untuk membuka kontak di profil ini secara terisolasi.',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          TextField(
+            controller: _codeController,
+            obscureText: _obscureCode,
+            keyboardType: TextInputType.visiblePassword,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: _vaultInputDecoration(
+              context,
+              'Masukkan kode akses rahasia (min. 6 karakter)',
+            ).copyWith(
+              errorText: _errorMessage,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureCode
+                      ? SolarIconsOutline.eyeClosed
+                      : SolarIconsOutline.eye,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscureCode = !_obscureCode),
+                tooltip: _obscureCode
+                    ? 'Tampilkan kode akses'
+                    : 'Sembunyikan kode akses',
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _confirmController,
+            obscureText: _obscureConfirm,
+            keyboardType: TextInputType.visiblePassword,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: _vaultInputDecoration(
+              context,
+              'Konfirmasi kode akses rahasia',
+            ).copyWith(
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirm
+                      ? SolarIconsOutline.eyeClosed
+                      : SolarIconsOutline.eye,
+                  size: 20,
+                ),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
+                tooltip: _obscureConfirm
+                    ? 'Tampilkan kode akses'
+                    : 'Sembunyikan kode akses',
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.guardianTeal,
+            foregroundColor: MekaarColors.textOnTeal,
+          ),
+          onPressed: () async {
+            final code = _codeController.text.trim();
+            final confirm = _confirmController.text.trim();
+
+            if (code.length < 6) {
+              setState(() {
+                _errorMessage = 'Kode akses minimal 6 karakter';
+              });
+              return;
+            }
+
+            if (code != confirm) {
+              setState(() {
+                _errorMessage = 'Konfirmasi kode akses tidak cocok';
+              });
+              return;
+            }
+
+            final repo = widget.parentRef.read(privateContactRepositoryProvider);
+            await repo.setSlotPasscode(widget.slot, code);
+            widget.parentRef.invalidate(privateVaultPasscodeSetProvider);
+
+            if (mounted) {
+              Navigator.pop(context, true);
+            }
+          },
+          child: const Text('Simpan Kode Akses'),
+        ),
+      ],
+    );
+  }
+}
+
+class _UnlockPasscodeDialog extends StatefulWidget {
+  final WidgetRef? parentRef;
+  final int slot;
+  final String displayName;
+
+  const _UnlockPasscodeDialog({
+    required this.parentRef,
+    required this.slot,
+    required this.displayName,
+  });
+
+  @override
+  State<_UnlockPasscodeDialog> createState() => _UnlockPasscodeDialogState();
+}
+
+class _UnlockPasscodeDialogState extends State<_UnlockPasscodeDialog> {
+  final TextEditingController _codeController = TextEditingController();
+  String? _errorMessage;
+  bool _obscureCode = true;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(String rawCode) async {
+    final code = rawCode.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _errorMessage = 'Masukkan kode akses rahasia Anda';
+      });
+      return;
+    }
+
+    final ref = widget.parentRef;
+    final repo = ref != null
+        ? ref.read(privateContactRepositoryProvider)
+        : PrivateContactRepository();
+    if (await repo.isVaultLockedOut()) {
+      final remaining = await repo.getVaultLockoutRemainingSeconds();
+      HapticService.trigger(MekaarHapticIntent.warning);
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Terlalu banyak percobaan. Tunggu $remaining detik.';
+      });
+      return;
+    }
+    bool isMatch = await repo.verifySlotPasscode(widget.slot, code);
+    if (!isMatch) {
+      final authRepo = ref != null
+          ? ref.read(authRepositoryProvider)
+          : AuthRepository(SupabaseService());
+      isMatch = await authRepo.validatePIN(code);
+    }
+    if (!mounted) return;
+    if (isMatch) {
+      HapticService.trigger(MekaarHapticIntent.success);
+      Navigator.pop(context, true);
+    } else {
+      HapticService.trigger(MekaarHapticIntent.warning);
+      final isNowLocked = await repo.isVaultLockedOut();
+      final remaining = await repo.getVaultLockoutRemainingSeconds();
+      if (!mounted) return;
+      setState(() {
+        if (isNowLocked) {
+          _errorMessage = 'Terlalu banyak percobaan. Tunggu $remaining detik.';
+        } else {
+          _errorMessage = 'Kode akses rahasia tidak cocok';
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MekaarDialog(
+      icon: const Icon(
+        SolarIconsBold.shieldKeyhole,
+        color: MekaarColors.guardianTeal,
+        size: 28,
+      ),
+      title: 'Verifikasi PIN Master',
+      message:
+          'Masukkan 6 digit PIN Master Anda untuk membuka ${widget.displayName}.',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          TextField(
+            controller: _codeController,
+            obscureText: _obscureCode,
+            keyboardType: TextInputType.visiblePassword,
+            autofocus: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
+              hintText: 'PIN Master',
+              errorText: _errorMessage,
+              filled: true,
+              fillColor: MekaarColors.surface2Of(context),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+                borderSide: BorderSide(color: MekaarColors.borderOf(context)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+                borderSide: BorderSide(color: MekaarColors.borderOf(context)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(MekaarRadius.md),
+                borderSide: const BorderSide(color: AppColors.blue, width: 2),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureCode
+                      ? SolarIconsOutline.eyeClosed
+                      : SolarIconsOutline.eye,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscureCode = !_obscureCode),
+                tooltip: _obscureCode
+                    ? 'Tampilkan kode akses'
+                    : 'Sembunyikan kode akses',
+              ),
+            ),
+            onSubmitted: _submit,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: MekaarColors.guardianTeal,
+            foregroundColor: MekaarColors.textOnTeal,
+          ),
+          onPressed: () => _submit(_codeController.text),
+          child: const Text('Buka'),
+        ),
+      ],
+    );
   }
 }

@@ -205,30 +205,47 @@ class ChatRepository {
         .toList()
       ..sort((a, b) => a.value.createdAt.compareTo(b.value.createdAt));
 
+    if (pendingEntries.isEmpty) return;
+
+    final pendingIds = pendingEntries.map((e) => e.key).toList();
+    final Map<String, String> rawById = {};
+    try {
+      final rawRows = await _supabaseService.client
+          .from('messages')
+          .select('id, content')
+          .inFilter('id', pendingIds);
+      for (final row in rawRows) {
+        final id = row['id'] as String?;
+        final content = row['content'] as String?;
+        if (id != null && content != null) {
+          rawById[id] = content;
+        }
+      }
+    } catch (_) {}
+
     bool hasUpdated = false;
+    final List<Message> updatedMsgs = [];
     for (final entry in pendingEntries) {
       final msg = entry.value;
+      final rawEnvelope = rawById[msg.id];
+      if (rawEnvelope == null) continue;
       try {
-        final rawRow = await _supabaseService.client
-            .from('messages')
-            .select('content')
-            .eq('id', msg.id)
-            .maybeSingle();
-        if (rawRow != null) {
-          final rawEnvelope = rawRow['content'] as String;
-          final plain = await GroupE2eeService.instance.decryptGroupMessage(
-            groupId: roomId,
-            senderId: msg.senderId,
-            envelopeJson: rawEnvelope,
-          );
-          _decryptedContentCache[msg.id] = plain;
-          _decryptedUpdatedAtCache[msg.id] = msg.updatedAt.toUtc();
-          final updatedMsg = msg.copyWith(content: plain);
-          pool[msg.id] = updatedMsg;
-          unawaited(LocalMessageDatabase.instance.saveMessage(updatedMsg));
-          hasUpdated = true;
-        }
+        final plain = await GroupE2eeService.instance.decryptGroupMessage(
+          groupId: roomId,
+          senderId: msg.senderId,
+          envelopeJson: rawEnvelope,
+        );
+        _decryptedContentCache[msg.id] = plain;
+        _decryptedUpdatedAtCache[msg.id] = msg.updatedAt.toUtc();
+        final updatedMsg = msg.copyWith(content: plain);
+        pool[msg.id] = updatedMsg;
+        updatedMsgs.add(updatedMsg);
+        hasUpdated = true;
       } catch (_) {}
+    }
+
+    if (updatedMsgs.isNotEmpty) {
+      unawaited(LocalMessageDatabase.instance.saveMessagesBatch(updatedMsgs));
     }
 
     if (hasUpdated && ctrl != null && !ctrl.isClosed) {
@@ -403,7 +420,8 @@ class ChatRepository {
     // Panen pesan kontrol E2EE 1:1 (SKDM / SK Request) yang tiba saat offline
     unawaited(GroupKeyDistributionService.instance.syncPendingControlMessages());
 
-    final hiddenMsgIds = await _getHiddenMessageIds(userId);
+    // Jalankan fetch hidden_messages secara paralel bersama RPC get_user_inbox
+    final hiddenFuture = _getHiddenMessageIds(userId);
 
     // 1. Coba panggil RPC Postgres get_user_inbox() (1 round-trip HTTP ~150-250ms)
     try {
@@ -411,6 +429,7 @@ class ChatRepository {
           .rpc('get_user_inbox')
           .timeout(const Duration(seconds: 8));
       if (rpcResult is List) {
+        final hiddenMsgIds = await hiddenFuture;
         final parsedRooms = await _parseInboxRpcResult(
           rpcResult,
           userId,
@@ -421,6 +440,7 @@ class ChatRepository {
       }
     } catch (e) {
       if (!shouldFallbackToLegacyGetRooms(e)) {
+        unawaited(hiddenFuture.catchError((_) => <String>{}));
         rethrow;
       }
       if (e is PostgrestException && (e.code == '42501' || e.code == 'PGRST301')) {
@@ -432,6 +452,7 @@ class ChatRepository {
       }
     }
 
+    final hiddenMsgIds = await hiddenFuture;
     return _getRoomsLegacy(userId, hiddenMsgIds);
   }
 
@@ -707,28 +728,8 @@ class ChatRepository {
         } catch (_) {}
       }
 
-      // Check if history was cleared for this user
+      // Ambil history_cleared_at dan last_read_at dalam 1 query room_participants
       DateTime? historyClearedAt;
-      try {
-        final myParticipant = await _supabaseService.client
-            .from('room_participants')
-            .select('history_cleared_at')
-            .eq('room_id', roomId)
-            .eq('profile_id', userId)
-            .maybeSingle();
-        if (myParticipant != null &&
-            myParticipant['history_cleared_at'] != null) {
-          historyClearedAt = DateTime.parse(
-            myParticipant['history_cleared_at'] as String,
-          );
-          final now = DateTime.now().toUtc();
-          if (historyClearedAt.isAfter(now)) {
-            historyClearedAt = now;
-          }
-        }
-      } catch (_) {}
-
-      // Count unread messages (messages after our last_read_at, NOT sent by us, and after history_cleared_at)
       int unreadCount = 0;
       DateTime? myLastReadTime;
       try {
@@ -738,9 +739,18 @@ class ChatRepository {
             .eq('room_id', roomId)
             .eq('profile_id', userId)
             .maybeSingle();
-        final myLastRead = myParticipant?['last_read_at'] as String?;
+
         final myHistoryCleared =
             myParticipant?['history_cleared_at'] as String?;
+        if (myHistoryCleared != null) {
+          historyClearedAt = DateTime.parse(myHistoryCleared);
+          final now = DateTime.now().toUtc();
+          if (historyClearedAt.isAfter(now)) {
+            historyClearedAt = now;
+          }
+        }
+
+        final myLastRead = myParticipant?['last_read_at'] as String?;
         if (myLastRead != null) {
           myLastReadTime = DateTime.tryParse(myLastRead);
           var unreadQuery = _supabaseService.client
@@ -2470,6 +2480,67 @@ class ChatRepository {
       final hours = (minutes / 60).ceil();
       await updateRoomDisappearingHours(roomId, hours);
     }
+  }
+
+  /// Ambil seluruh setelan privasi level ruangan dalam 1 query `chat_rooms`
+  /// (menggantikan 3 query terpisah saat membuka layar obrolan).
+  Future<
+    ({
+      int disappearingMinutes,
+      bool burnOnExit,
+      Map<String, dynamic>? scheduledWipe,
+    })
+  >
+  getRoomPrivacySettings(String roomId) async {
+    try {
+      final room = await _supabaseService.client
+          .from('chat_rooms')
+          .select(
+            'disappearing_minutes, disappearing_hours, burn_on_exit, scheduled_wipe_mode, scheduled_wipe_time, scheduled_wipe_target_at',
+          )
+          .eq('id', roomId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
+
+      if (room != null) {
+        final mins = (room['disappearing_minutes'] as int?) ?? 0;
+        final hours = (room['disappearing_hours'] as int?) ?? 0;
+        final disappearingMinutes = mins > 0 ? mins : hours * 60;
+        final burnOnExit = (room['burn_on_exit'] as bool?) ?? false;
+
+        final mode = room['scheduled_wipe_mode'] as String? ?? 'off';
+        final timeStr = room['scheduled_wipe_time'] as String?;
+        final targetStr = room['scheduled_wipe_target_at'] as String?;
+        final targetUtc =
+            targetStr != null ? DateTime.tryParse(targetStr)?.toUtc() : null;
+        unawaited(
+          LocalMessageDatabase.instance.saveRoomScheduledWipe(
+            roomId: roomId,
+            mode: mode,
+            timeString: timeStr,
+            targetAtUtc: targetUtc,
+          ),
+        );
+
+        return (
+          disappearingMinutes: disappearingMinutes,
+          burnOnExit: burnOnExit,
+          scheduledWipe: room,
+        );
+      }
+    } catch (_) {}
+
+    Map<String, dynamic>? cachedWipe;
+    try {
+      cachedWipe = await LocalMessageDatabase.instance.getRoomScheduledWipe(
+        roomId,
+      );
+    } catch (_) {}
+    return (
+      disappearingMinutes: 0,
+      burnOnExit: false,
+      scheduledWipe: cachedWipe,
+    );
   }
 
   /// Ambil setelan pesan menghilang level ruangan (dalam menit).

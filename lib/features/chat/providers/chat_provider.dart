@@ -119,9 +119,9 @@ class ChatRoomsNotifier
         }
         if (roomToUserIdMap.isNotEmpty) {
           unawaited(
-            PrivateContactRepository().migrateLegacyHiddenRoomsToContacts(
-              roomToUserIdMap,
-            ),
+            (_ref?.read(privateContactRepositoryProvider) ??
+                    PrivateContactRepository())
+                .migrateLegacyHiddenRoomsToContacts(roomToUserIdMap),
           );
         }
       } catch (e, stack) {

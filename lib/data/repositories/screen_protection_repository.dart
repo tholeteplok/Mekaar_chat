@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -72,11 +73,27 @@ class ScreenProtectionRepository {
     );
   }
 
+  @visibleForTesting
+  static String extractProtectionSignature(List<Map<String, dynamic>> rows) {
+    if (rows.isEmpty) return '';
+    final parts = rows
+        .map(
+          (r) =>
+              '${r['profile_id'] ?? ''}:${r['screenshot_protection_enabled']}:${r['screenshot_protection_updated_at'] ?? ''}',
+        )
+        .toList()
+      ..sort();
+    return parts.join('|');
+  }
+
   Stream<void> watchRoomChanges(String roomId) {
     return _supabase.client
         .from('room_participants')
         .stream(primaryKey: ['room_id', 'profile_id'])
         .eq('room_id', roomId)
+        .map(extractProtectionSignature)
+        .distinct()
+        .skip(1)
         .map((_) {});
   }
 }
