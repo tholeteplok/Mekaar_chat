@@ -11,6 +11,7 @@ import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/avatar.dart';
 import '../../../core/widgets/bubbles/bubble_media_helper.dart';
 import '../../../core/widgets/bubbles/full_screen_image_viewer.dart';
+import '../../../core/widgets/mekaar_bottom_sheet.dart';
 import '../../../core/widgets/mekaar_card_divider.dart';
 import '../../../core/widgets/mekaar_dialog.dart';
 import '../../../core/widgets/mekaar_glass_blur_container.dart';
@@ -322,22 +323,17 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
             profile['username'] as String? ??
             'Anggota';
 
-    await showModalBottomSheet<void>(
+    await MekaarBottomSheet.show<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: MekaarColors.surfaceOf(ctx),
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(MekaarRadius.xl),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      padding: const EdgeInsets.fromLTRB(
+        0,
+        MekaarSpacing.md,
+        0,
+        MekaarSpacing.lg,
+      ),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
               // Member Header
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -612,9 +608,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
                     }
                   },
                 ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
