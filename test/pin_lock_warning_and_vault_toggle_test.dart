@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mekaar_chat/core/constants/themes.dart';
+import 'package:mekaar_chat/core/storage/mekaar_secure_storage.dart';
 import 'package:mekaar_chat/data/models/vault_item.dart';
 import 'package:mekaar_chat/data/services/database_key_service.dart';
 import 'package:mekaar_chat/features/auth/providers/auth_provider.dart';
@@ -82,7 +85,7 @@ void main() {
       expect(prefs.getBool(VaultPinLockNotifier.prefKey), isTrue);
     });
 
-    test('DatabaseKeyService menyimpan dan menghapus material unlock Keystore', () async {
+    test('DatabaseKeyService menyimpan kunci turunan (bukan PIN) dan memulihkan slot tanpa PIN', () async {
       expect(
         await DatabaseKeyService.instance.hasPinlessMasterVaultUnlock(),
         isFalse,
@@ -94,7 +97,39 @@ void main() {
         isTrue,
       );
 
+      final rawStored = await MekaarSecureStorage.instance.read(
+        key: 'vault_pinless_master_unlock_v1',
+      );
+      expect(rawStored, isNotNull);
+      expect(rawStored!.contains('123456'), isFalse);
+      final decoded = jsonDecode(rawStored) as Map<String, dynamic>;
+      expect((decoded['db_key'] as String).length, 64);
+      expect((decoded['aegis_key_b64'] as String).isNotEmpty, isTrue);
+
+      await DatabaseKeyService.instance.lockVault();
+      final unlockedKey =
+          await DatabaseKeyService.instance.unlockMasterVaultFromKeystore();
+      expect(unlockedKey, decoded['db_key']);
+      expect(DatabaseKeyService.instance.activeVaultKey, decoded['db_key']);
+      expect(DatabaseKeyService.instance.activeVaultKeySlotId, isNotNull);
+
+      // Uji self-healing dari format PIN mentah legacy
+      await DatabaseKeyService.instance.lockVault();
+      await MekaarSecureStorage.instance.write(
+        key: 'vault_pinless_master_unlock_v1',
+        value: '654321',
+      );
+      final healedKey =
+          await DatabaseKeyService.instance.unlockMasterVaultFromKeystore();
+      expect(healedKey, isNotNull);
+      final healedRaw = await MekaarSecureStorage.instance.read(
+        key: 'vault_pinless_master_unlock_v1',
+      );
+      expect(healedRaw!.contains('654321'), isFalse);
+      expect(healedRaw.trim().startsWith('{'), isTrue);
+
       await DatabaseKeyService.instance.clearPinlessMasterVaultUnlock();
+      await DatabaseKeyService.instance.lockVault();
       expect(
         await DatabaseKeyService.instance.hasPinlessMasterVaultUnlock(),
         isFalse,

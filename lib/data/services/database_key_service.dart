@@ -313,12 +313,50 @@ class DatabaseKeyService {
   /// Mengetahui apakah brankas yang sedang aktif adalah Ruang Tamu (Guest).
   bool get isVaultGuest => _activeVaultSpace == VaultSpace.guest;
 
-  /// Menyimpan PIN Master di Hardware Keystore agar Brankas Berkas dapat dibuka
-  /// tanpa prompt PIN ketika kunci PIN Brankas dinonaktifkan oleh pemilik.
+  static Future<String> _deriveAegisKeyB64Sync(
+    String pin,
+    List<int> salt,
+  ) async {
+    final argon2 = Argon2id(
+      memory: 65536,
+      iterations: 3,
+      parallelism: 4,
+      hashLength: 32,
+    );
+
+    final secretKey = await argon2.deriveKey(
+      secretKey: SecretKey(utf8.encode(pin)),
+      nonce: salt,
+    );
+
+    try {
+      final bytes = await secretKey.extractBytes();
+      return base64Encode(bytes);
+    } finally {
+      secretKey.destroy();
+    }
+  }
+
+  /// Menyimpan KUNCI TURUNAN Brankas Master (bukan PIN Master) di Hardware Keystore
+  /// agar Brankas Berkas dapat dibuka tanpa prompt PIN saat kunci PIN Brankas
+  /// dinonaktifkan. Jika Keystore bocor, hanya Brankas Master yang terdampak
+  /// (PIN akar, ruang Tamu/Duress, dan backup E2EE tetap aman).
   Future<void> storePinlessMasterVaultUnlock(String masterPin) async {
+    final salt = await getOrCreateVaultSalt(space: VaultSpace.master);
+    final dbKey = await Isolate.run(
+      () => _deriveArgon2idHexSync(masterPin, salt),
+    );
+    final aegisKeyB64 = await Isolate.run(
+      () => _deriveAegisKeyB64Sync(masterPin, salt),
+    );
+
+    final payload = jsonEncode({
+      'db_key': dbKey,
+      'aegis_key_b64': aegisKeyB64,
+    });
     await _secureStorage.write(
       key: _pinlessMasterVaultPinKey,
-      value: masterPin,
+      value: payload,
     );
   }
 
@@ -339,20 +377,46 @@ class DatabaseKeyService {
     } catch (_) {}
   }
 
-  /// Menurunkan kembali kunci SQLCipher & slot Aegis Brankas Master dari Keystore
-  /// saat fitur kunci PIN Brankas dinonaktifkan.
-  Future<({String key, String pin})?> unlockMasterVaultFromKeystore() async {
+  /// Memulihkan kunci SQLCipher & slot memori Aegis Brankas Master langsung dari
+  /// kunci turunan di Keystore tanpa perjalanan-balik lewat PIN.
+  Future<String?> unlockMasterVaultFromKeystore() async {
     try {
-      final storedPin =
-          await _secureStorage.read(key: _pinlessMasterVaultPinKey);
-      if (storedPin == null || storedPin.isEmpty) return null;
+      var raw = await _secureStorage.read(key: _pinlessMasterVaultPinKey);
+      if (raw == null || raw.isEmpty) return null;
 
-      final vaultKey = await deriveVaultKey(
-        storedPin,
+      // Self-healing: jika masih ada format PIN mentah legacy dari versi awal,
+      // turunkan menjadi kunci turunan dan timpa Keystore seketika.
+      if (!raw.trim().startsWith('{')) {
+        await storePinlessMasterVaultUnlock(raw);
+        raw = await _secureStorage.read(key: _pinlessMasterVaultPinKey);
+        if (raw == null || !raw.trim().startsWith('{')) return null;
+      }
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final dbKey = decoded['db_key'] as String?;
+      final aegisKeyB64 = decoded['aegis_key_b64'] as String?;
+      if (dbKey == null ||
+          dbKey.isEmpty ||
+          aegisKeyB64 == null ||
+          aegisKeyB64.isEmpty) {
+        return null;
+      }
+
+      final aegisBytes = base64Decode(aegisKeyB64);
+      BigInt? slotId;
+      try {
+        slotId = await AegisMemoryGuardService.instance.storeKey(aegisBytes);
+      } finally {
+        aegisBytes.fillRange(0, aegisBytes.length, 0);
+      }
+
+      setActiveVaultKey(
+        dbKey,
         space: VaultSpace.master,
+        slotId: slotId,
       );
-      setActiveVaultKey(vaultKey, space: VaultSpace.master);
-      return (key: vaultKey, pin: storedPin);
+      return dbKey;
     } catch (e) {
       _logger.w('Gagal membuka Brankas Master dari Keystore: $e');
       return null;

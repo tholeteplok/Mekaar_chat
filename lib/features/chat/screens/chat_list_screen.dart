@@ -1054,16 +1054,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                       !authState.isDuressActive;
 
                                   if (canBypassPin) {
-                                    final unlocked = await DatabaseKeyService
+                                    final unlockedKey = await DatabaseKeyService
                                         .instance
                                         .unlockMasterVaultFromKeystore();
-                                    if (unlocked != null) {
+                                    if (unlockedKey != null) {
                                       try {
                                         await LocalVaultDatabase.instance
                                             .openVault(
-                                          key: unlocked.key,
+                                          key: unlockedKey,
                                           space: VaultSpace.master,
-                                          pin: unlocked.pin,
                                         );
                                         if (context.mounted) {
                                           Navigator.pushNamed(
