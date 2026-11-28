@@ -55,12 +55,19 @@ void main() {
       final androidMap = MekaarSecureStorage.androidOptions.toMap();
       final iosMap = MekaarSecureStorage.iosOptions.toMap();
 
-      // 1. Android Keystore
+      // 1. Android Keystore v10+: gunakan cipher modern dengan migrasi otomatis
+      //    serta pastikan resetOnError: false (Fail-Closed) agar kunci tidak terhapus diam-diam.
       expect(
-        androidMap['encryptedSharedPreferences'],
+        androidMap['resetOnError'],
+        equals('false'),
+        reason:
+            'Android harus memakai resetOnError: false untuk mencegah penghapusan kunci diam-diam',
+      );
+      expect(
+        androidMap['migrateOnAlgorithmChange'],
         equals('true'),
         reason:
-            'Android harus menggunakan hardware-backed encryptedSharedPreferences',
+            'Android harus mengaktifkan migrateOnAlgorithmChange untuk migrasi aman ke cipher modern',
       );
 
       // 2. iOS Keychain - first_unlock_this_device mencegah migrasi/backup ke iCloud Keychain & iTunes

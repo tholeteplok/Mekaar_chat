@@ -9,9 +9,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class MekaarSecureStorage {
   MekaarSecureStorage._();
 
-  /// Opsi penyimpanan aman Android dengan Enkripsi Hardware Keystore
+  /// Opsi penyimpanan aman Android (flutter_secure_storage v10+):
+  /// - Menggunakan cipher modern Android Keystore (RSA-OAEP + AES-GCM).
+  /// - `migrateOnAlgorithmChange: true`: migrasi otomatis secret lama ke cipher modern.
+  /// - `resetOnError: false` (Fail-Closed): mencegah penghapusan diam-diam kunci
+  ///   SQLCipher, E2EE, dan Brankas saat terjadi error sementara pada Keystore.
   static const AndroidOptions androidOptions = AndroidOptions(
-    encryptedSharedPreferences: true,
+    migrateOnAlgorithmChange: true,
+    resetOnError: false,
   );
 
   /// Opsi penyimpanan aman iOS dengan isolasi perangkat lokal

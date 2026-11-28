@@ -86,7 +86,7 @@ dependencies:
 
   # Security
   cryptography: ^2.5.0
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^10.0.0
 
   # Utilities
   receive_sharing_intent: 1.8.1
